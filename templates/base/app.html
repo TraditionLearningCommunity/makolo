@@ -1,0 +1,167 @@
+{% load static %}
+
+<!DOCTYPE html>
+
+<html lang="fr" class="h-full dark">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% block title %}
+            Makolo
+        {% endblock %}
+    </title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+
+            darkMode: 'class',
+
+            theme: {
+
+                extend: {
+
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#8b5cf6',
+                        accent: '#06b6d4',
+                    },
+
+                    boxShadow: {
+                        soft: '0 10px 40px rgba(0,0,0,0.25)',
+                    }
+
+                }
+
+            }
+
+        }
+    </script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+    <!-- Alpine -->
+    <script
+        defer
+        src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+
+    <!-- Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    {% block extra_css %}
+    {% endblock %}
+
+</head>
+
+<body
+    class="
+        h-full
+        bg-white
+        text-zinc-900
+        dark:bg-zinc-950
+        dark:text-zinc-100
+        transition-colors duration-300
+    "
+>
+
+    <div class="min-h-screen flex overflow-hidden">
+
+        <!-- SIDEBAR -->
+        {% include 'partials/sidebar.html' %}
+
+        <!-- CONTENT -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+
+            <!-- NAVBAR -->
+            {% include 'partials/navbar.html' %}
+
+            <!-- MAIN -->
+            <main
+                class="
+                    flex-1
+                    overflow-y-auto
+                    p-6 md:p-8
+                    bg-zinc-100 dark:bg-zinc-900
+                    transition-colors duration-300
+                "
+            >
+
+                {% include 'partials/messages.html' %}
+
+                {% block content %}
+                {% endblock %}
+
+            </main>
+
+            <!-- FOOTER -->
+            {% include 'partials/footer.html' %}
+
+        </div>
+
+    </div>
+
+    <!-- LUCIDE -->
+    <script>
+        lucide.createIcons();
+    </script>
+
+    <!-- THEME -->
+    <script>
+
+        function themeManager() {
+
+            return {
+
+                dark: localStorage.getItem('theme') !== 'light',
+
+                init() {
+                    this.applyTheme()
+                },
+
+                toggleTheme() {
+
+                    this.dark = !this.dark
+
+                    localStorage.setItem(
+                        'theme',
+                        this.dark ? 'dark' : 'light'
+                    )
+
+                    this.applyTheme()
+                },
+
+                applyTheme() {
+
+                    if (this.dark) {
+                        document.documentElement.classList.add('dark')
+                    } else {
+                        document.documentElement.classList.remove('dark')
+                    }
+
+                }
+
+            }
+
+        }
+
+    </script>
+
+    {% block extra_js %}
+    {% endblock %}
+
+</body>
+
+</html>

@@ -1,0 +1,144 @@
+{% extends 'base/app.html' %}
+
+{% block title %}
+Dashboard | Makolo
+{% endblock %}
+
+{% block content %}
+
+<div class="space-y-8">
+
+    <!-- HERO -->
+    <div>
+
+        <h1
+            class="
+                text-4xl md:text-5xl
+                font-black
+                tracking-tight
+                text-zinc-900 dark:text-white
+            "
+        >
+            Bienvenue dans Makolo
+        </h1>
+
+        <p
+            class="
+                mt-4
+                text-lg
+                text-zinc-500 dark:text-zinc-400
+            "
+        >
+            Infrastructure intelligente de gestion événementielle.
+        </p>
+
+    </div>
+
+    <!-- STATS -->
+    <div
+        class="
+            grid
+            grid-cols-1
+            md:grid-cols-2
+            xl:grid-cols-4
+            gap-6
+        "
+    >
+
+        <!-- EVENTS -->
+        <div
+            class="
+                bg-white dark:bg-zinc-800
+                border border-zinc-200 dark:border-zinc-700
+                rounded-3xl
+                p-6
+                shadow-soft
+                transition-colors duration-300
+            "
+        >
+
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                Événements
+            </p>
+
+            <h3
+                class="
+                    text-5xl
+                    font-black
+                    mt-4
+                    text-zinc-900 dark:text-white
+                "
+            >
+                12
+            </h3>
+
+        </div>
+
+        <!-- TICKETS -->
+        <div
+            class="
+                bg-white dark:bg-zinc-800
+                border border-zinc-200 dark:border-zinc-700
+                rounded-3xl
+                p-6
+                shadow-soft
+            "
+        >
+
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                Tickets
+            </p>
+
+            <h3 class="text-5xl font-black mt-4">
+                2,431
+            </h3>
+
+        </div>
+
+        <!-- REVENUS -->
+        <div
+            class="
+                bg-white dark:bg-zinc-800
+                border border-zinc-200 dark:border-zinc-700
+                rounded-3xl
+                p-6
+                shadow-soft
+            "
+        >
+
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                Revenus
+            </p>
+
+            <h3 class="text-5xl font-black mt-4">
+                $12,400
+            </h3>
+
+        </div>
+
+        <!-- SCANS -->
+        <div
+            class="
+                bg-white dark:bg-zinc-800
+                border border-zinc-200 dark:border-zinc-700
+                rounded-3xl
+                p-6
+                shadow-soft
+            "
+        >
+
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                Scans
+            </p>
+
+            <h3 class="text-5xl font-black mt-4">
+                98%
+            </h3>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

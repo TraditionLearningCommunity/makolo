@@ -1,0 +1,93 @@
+{% load static %}
+
+<!DOCTYPE html>
+
+<html lang="fr" class="h-full dark">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+
+        {% block title %}
+            Auth | Makolo
+        {% endblock %}
+
+    </title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine -->
+    <script
+        defer
+        src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+
+</head>
+
+<body
+    class="
+        min-h-screen
+        bg-zinc-100 dark:bg-zinc-950
+        text-zinc-900 dark:text-zinc-100
+        flex items-center justify-center
+        p-6
+        transition-colors duration-300
+    "
+>
+
+    <div class="w-full max-w-md">
+
+        <!-- LOGO -->
+        <div class="mb-10 text-center">
+
+            <h1
+                class="
+                    text-5xl
+                    font-black
+                    tracking-tight
+                "
+            >
+                MAKOLO
+            </h1>
+
+            <p
+                class="
+                    mt-3
+                    text-zinc-500 dark:text-zinc-400
+                "
+            >
+                Smart Event Platform
+            </p>
+
+        </div>
+
+        <!-- CARD -->
+        <div
+            class="
+                bg-white dark:bg-zinc-900
+                border border-zinc-200 dark:border-zinc-800
+                rounded-3xl
+                p-8
+                shadow-2xl
+                transition-colors duration-300
+            "
+        >
+
+            {% block content %}
+            {% endblock %}
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>
