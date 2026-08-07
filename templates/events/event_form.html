@@ -1,0 +1,39 @@
+{% extends 'base/app.html' %}
+
+{% block title %}{% if object %}Modifier{% else %}Nouvel événement{% endif %} | Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-8">
+    <div class="flex items-center justify-between gap-4">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Événements</p>
+            <h1 class="mt-2 text-4xl font-black text-zinc-900 dark:text-white">{% if object %}Modifier l’événement{% else %}Créer un événement{% endif %}</h1>
+        </div>
+        <a href="{% if object %}{% url 'events:detail' object.slug %}{% else %}{% url 'events:list' %}{% endif %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Retour</a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 md:p-8">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="grid gap-6 md:grid-cols-2">
+            {% for field in form %}
+            <div class="{% if field.name == 'description' or field.name == 'short_description' or field.name == 'cover_image' %}md:col-span-2{% endif %}">
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="mt-2 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}
+                {% for error in field.errors %}<p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-8 flex justify-end gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <a href="{% url 'events:list' %}" class="rounded-2xl px-5 py-3 font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">Annuler</a>
+            <button type="submit" class="rounded-2xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-500">{% if object %}Enregistrer{% else %}Créer le brouillon{% endif %}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
