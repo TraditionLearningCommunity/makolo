@@ -1,0 +1,9 @@
+# Example cPanel / CloudLinux Passenger configuration for Makolo.
+# Copy and adapt this file on the target server. Do not commit real server paths,
+# unrelated domain redirects, credentials, or generated hosting configuration.
+
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/CPANEL_USER/makolo"
+PassengerBaseURI "/"
+PassengerPython "/home/CPANEL_USER/virtualenv/makolo/3.10/bin/python"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
