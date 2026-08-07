@@ -10,30 +10,19 @@
             <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 dark:text-white md:text-5xl">Bienvenue{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}</h1>
             <p class="mt-4 text-lg text-zinc-500 dark:text-zinc-400">Les indicateurs proviennent directement de la base Makolo.</p>
         </div>
-        {% if can_create_event %}
-        <a href="{% url 'events:create' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500">
-            <i data-lucide="plus" class="h-5 w-5"></i>Créer un événement
-        </a>
-        {% endif %}
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'tickets:list' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-300 px-5 py-3 font-semibold dark:border-zinc-700"><i data-lucide="ticket" class="h-5 w-5"></i>Mes tickets</a>
+            {% if can_create_event %}
+            <a href="{% url 'events:create' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"><i data-lucide="plus" class="h-5 w-5"></i>Créer un événement</a>
+            {% endif %}
+        </div>
     </div>
 
     <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800">
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">Événements</p>
-            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">{{ events_count }}</h3>
-        </div>
-        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800">
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">Publiés</p>
-            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">{{ published_events_count }}</h3>
-        </div>
-        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800">
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">À venir</p>
-            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">{{ upcoming_events_count }}</h3>
-        </div>
-        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800">
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">Utilisateurs</p>
-            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">{{ users_count }}</h3>
-        </div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">Événements</p><h3 class="mt-4 text-5xl font-black">{{ events_count }}</h3><p class="mt-2 text-xs text-zinc-400">{{ published_events_count }} publié(s)</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">Tickets visibles</p><h3 class="mt-4 text-5xl font-black">{{ tickets_count }}</h3><p class="mt-2 text-xs text-zinc-400">{{ valid_tickets_count }} valide(s)</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">Commandes en attente</p><h3 class="mt-4 text-5xl font-black">{{ pending_orders_count }}</h3><p class="mt-2 text-xs text-zinc-400">{{ confirmed_orders_count }} confirmée(s)</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">À venir</p><h3 class="mt-4 text-5xl font-black">{{ upcoming_events_count }}</h3><p class="mt-2 text-xs text-zinc-400">sur {{ events_count }} événement(s)</p></div>
     </div>
 
     <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
@@ -47,13 +36,16 @@
 
         <div class="mt-6 divide-y divide-zinc-200 dark:divide-zinc-800">
             {% for event in upcoming_events %}
-            <a href="{% url 'events:detail' event.slug %}" class="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
-                <div class="min-w-0">
+            <div class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between">
+                <a href="{% url 'events:detail' event.slug %}" class="min-w-0">
                     <p class="truncate font-semibold text-zinc-900 dark:text-white">{{ event.title }}</p>
                     <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{{ event.start_at|date:"d/m/Y H:i" }}{% if event.venue %} · {{ event.venue }}{% endif %}</p>
+                </a>
+                <div class="flex items-center gap-2">
+                    {% if event.status == 'published' %}<a href="{% url 'tickets:order-create' event.slug %}" class="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Billets</a>{% endif %}
+                    <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ event.get_status_display }}</span>
                 </div>
-                <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ event.get_status_display }}</span>
-            </a>
+            </div>
             {% empty %}
             <div class="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">Aucun événement à venir.</div>
             {% endfor %}
