@@ -2,11 +2,12 @@ from django.core.exceptions import PermissionDenied, ValidationError as DjangoVa
 
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from events.permissions import user_can_manage_event
-from tickets.models import TicketOrder, TicketType
+from tickets.models import TicketOrder
 from tickets.permissions import IsTicketOrganizer, IsTicketTypeOwnerOrAdmin
 from tickets.selectors import (
     get_orders_visible_to,
@@ -48,13 +49,22 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
         ticket_type = serializer.save()
         if not user_can_manage_event(self.request.user, ticket_type.event):
             ticket_type.delete()
-            raise PermissionDenied("Vous ne pouvez pas gérer les billets de cet événement.")
-        ticket_type.full_clean()
+            raise DRFPermissionDenied(
+                "Vous ne pouvez pas gérer les billets de cet événement."
+            )
+        try:
+            ticket_type.full_clean()
+        except DjangoValidationError as exc:
+            ticket_type.delete()
+            raise ValidationError(exc.message_dict) from exc
         ticket_type.save()
 
     def perform_update(self, serializer):
         ticket_type = serializer.save()
-        ticket_type.full_clean()
+        try:
+            ticket_type.full_clean()
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message_dict) from exc
         ticket_type.save()
 
     def perform_destroy(self, instance):
@@ -98,7 +108,7 @@ class TicketOrderViewSet(viewsets.ModelViewSet):
         except DjangoValidationError as exc:
             raise ValidationError(exc.messages) from exc
         except PermissionDenied as exc:
-            raise permissions.PermissionDenied(str(exc)) from exc
+            raise DRFPermissionDenied(str(exc)) from exc
         order.refresh_from_db()
         return Response(
             TicketOrderSerializer(order, context={"request": request}).data
