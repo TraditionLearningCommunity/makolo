@@ -5,29 +5,24 @@ from django.db import transaction
 from rest_framework import serializers
 
 from accounts.models import (
-    User,
-    Role,
+    NotificationPreference,
     PermissionGroup,
-    UserProfile,
+    Role,
+    User,
+    UserActivity,
     UserDevice,
+    UserProfile,
     UserSession,
     VerificationDocument,
-    UserActivity,
-    NotificationPreference,
 )
+from accounts.validators import validate_avatar, validate_verification_document
 
-
-# =========================================================
-# ROLE
-# =========================================================
 
 class RoleSerializer(serializers.ModelSerializer):
-
     users_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Role
-
         fields = [
             "id",
             "name",
@@ -40,28 +35,17 @@ class RoleSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-
-        read_only_fields = [
-            "id",
-            "created_at",
-            "updated_at",
-        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_users_count(self, obj):
         return obj.users.count()
 
 
-# =========================================================
-# PERMISSION GROUP
-# =========================================================
-
 class PermissionGroupSerializer(serializers.ModelSerializer):
-
     roles = RoleSerializer(many=True, read_only=True)
 
     class Meta:
         model = PermissionGroup
-
         fields = [
             "id",
             "name",
@@ -71,23 +55,12 @@ class PermissionGroupSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-        read_only_fields = [
-            "id",
-            "created_at",
-            "updated_at",
-        ]
-
-
-# =========================================================
-# USER PROFILE
-# =========================================================
 
 class UserProfileSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = UserProfile
-
         fields = [
             "id",
             "company_name",
@@ -105,128 +78,112 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-        read_only_fields = [
-            "id",
-            "created_at",
-            "updated_at",
-        ]
-
-
-# =========================================================
-# NOTIFICATION PREFERENCES
-# =========================================================
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = NotificationPreference
-
-        fields = "__all__"
-
-        read_only_fields = [
+        fields = [
             "id",
-            "user",
+            "email_notifications",
+            "sms_notifications",
+            "push_notifications",
+            "marketing_notifications",
+            "security_notifications",
+            "event_notifications",
+            "quiet_hours_enabled",
+            "quiet_hours_start",
+            "quiet_hours_end",
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-
-# =========================================================
-# USER DEVICE
-# =========================================================
 
 class UserDeviceSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = UserDevice
-
-        fields = "__all__"
-
-        read_only_fields = [
+        fields = [
             "id",
-            "user",
+            "device_name",
+            "device_type",
+            "browser",
+            "os",
+            "ip_address",
+            "trusted",
+            "last_used",
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
-
-# =========================================================
-# USER SESSION
-# =========================================================
 
 class UserSessionSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = UserSession
-
-        fields = "__all__"
-
-        read_only_fields = [
+        fields = [
             "id",
-            "user",
+            "ip_address",
+            "started_at",
+            "ended_at",
+            "active",
             "created_at",
             "updated_at",
         ]
+        read_only_fields = fields
 
-
-# =========================================================
-# VERIFICATION DOCUMENT
-# =========================================================
 
 class VerificationDocumentSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = VerificationDocument
-
-        fields = "__all__"
-
+        fields = [
+            "id",
+            "document_type",
+            "file",
+            "status",
+            "reviewed_at",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = [
             "id",
             "status",
-            "reviewed_by",
             "reviewed_at",
+            "notes",
             "created_at",
             "updated_at",
         ]
 
+    def validate_file(self, value):
+        try:
+            validate_verification_document(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return value
 
-# =========================================================
-# USER ACTIVITY
-# =========================================================
 
 class UserActivitySerializer(serializers.ModelSerializer):
-
     class Meta:
         model = UserActivity
-
-        fields = "__all__"
-
-        read_only_fields = [
+        fields = [
             "id",
-            "user",
+            "action",
+            "category",
+            "ip_address",
             "created_at",
-            "updated_at",
         ]
+        read_only_fields = fields
 
-
-# =========================================================
-# USER LIST
-# =========================================================
 
 class UserListSerializer(serializers.ModelSerializer):
-
     avatar_url = serializers.SerializerMethodField()
     full_name = serializers.ReadOnlyField()
-
-    roles = RoleSerializer(
-        many=True,
-        read_only=True
-    )
+    roles = RoleSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-
         fields = [
             "id",
             "email",
@@ -246,84 +203,78 @@ class UserListSerializer(serializers.ModelSerializer):
         ]
 
     def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return None
 
         request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(obj.avatar.url)
+        return obj.avatar.url
 
-        if obj.avatar:
-            return request.build_absolute_uri(
-                obj.avatar.url
-            )
-
-        return None
-
-
-# =========================================================
-# USER DETAIL
-# =========================================================
 
 class UserDetailSerializer(serializers.ModelSerializer):
-
     avatar_url = serializers.SerializerMethodField()
-
     full_name = serializers.ReadOnlyField()
-
-    roles = RoleSerializer(
-        many=True,
-        read_only=True
-    )
-
-    permission_groups = PermissionGroupSerializer(
-        many=True,
-        read_only=True
-    )
-
-    profile = UserProfileSerializer(
-        read_only=True
-    )
-
-    notification_preferences = NotificationPreferenceSerializer(
-        read_only=True
-    )
+    roles = RoleSerializer(many=True, read_only=True)
+    permission_groups = PermissionGroupSerializer(many=True, read_only=True)
+    profile = UserProfileSerializer(read_only=True)
+    notification_preferences = NotificationPreferenceSerializer(read_only=True)
 
     class Meta:
         model = User
-
-        exclude = [
-            "password",
-            "groups",
-            "user_permissions",
+        fields = [
+            "id",
+            "email",
+            "username",
+            "first_name",
+            "last_name",
+            "full_name",
+            "phone",
+            "birth_date",
+            "gender",
+            "bio",
+            "avatar_url",
+            "language",
+            "timezone",
+            "is_active",
+            "is_verified",
+            "email_verified",
+            "phone_verified",
+            "is_organizer",
+            "is_scanner_agent",
+            "onboarding_completed",
+            "onboarding_step",
+            "last_seen",
+            "website",
+            "linkedin_url",
+            "facebook_url",
+            "instagram_url",
+            "x_url",
+            "roles",
+            "permission_groups",
+            "profile",
+            "notification_preferences",
+            "created_at",
+            "updated_at",
         ]
+        read_only_fields = fields
 
     def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return None
 
         request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(obj.avatar.url)
+        return obj.avatar.url
 
-        if obj.avatar:
-            return request.build_absolute_uri(
-                obj.avatar.url
-            )
-
-        return None
-
-
-# =========================================================
-# USER REGISTER
-# =========================================================
 
 class RegisterSerializer(serializers.ModelSerializer):
-
-    password = serializers.CharField(
-        write_only=True,
-        min_length=8
-    )
-
-    password_confirm = serializers.CharField(
-        write_only=True
-    )
+    password = serializers.CharField(write_only=True, min_length=8)
+    password_confirm = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-
         fields = [
             "email",
             "username",
@@ -335,13 +286,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError(
-                {
-                    "password":
-                    "Passwords do not match."
-                }
+                {"password": "Passwords do not match."}
             )
 
         try:
@@ -355,37 +302,21 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-
         validated_data.pop("password_confirm")
-
         password = validated_data.pop("password")
 
         user = User(**validated_data)
-
         user.set_password(password)
-
         user.save()
 
-        UserProfile.objects.create(
-            user=user
-        )
-
-        NotificationPreference.objects.create(
-            user=user
-        )
-
+        UserProfile.objects.create(user=user)
+        NotificationPreference.objects.create(user=user)
         return user
 
 
-# =========================================================
-# USER UPDATE
-# =========================================================
-
 class UserUpdateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = User
-
         fields = [
             "first_name",
             "last_name",
@@ -402,3 +333,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "language",
             "timezone",
         ]
+
+    def validate_avatar(self, value):
+        try:
+            validate_avatar(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return value
