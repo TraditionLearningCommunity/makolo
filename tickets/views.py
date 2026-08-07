@@ -5,13 +5,14 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from events.models import Event
 from events.permissions import user_can_manage_event, user_can_manage_events
+from events.selectors import get_events_visible_to
 
 from .forms import TicketTypeForm
 from .models import Ticket, TicketOrder, TicketType
@@ -133,16 +134,17 @@ class EventTicketOrderView(LoginRequiredMixin, View):
     login_url = "core:login"
     template_name = "tickets/order_form.html"
 
-    def _event(self, slug):
-        return get_object_or_404(Event.objects.select_related("organizer"), slug=slug)
+    def _event(self, request, slug):
+        return get_object_or_404(
+            get_events_visible_to(request.user, for_detail=True),
+            slug=slug,
+        )
 
     def _ticket_types(self, event):
         return event.ticket_types.filter(is_active=True).order_by("price", "name")
 
     def get(self, request, event_slug):
-        from django.shortcuts import render
-
-        event = self._event(event_slug)
+        event = self._event(request, event_slug)
         return render(
             request,
             self.template_name,
@@ -150,9 +152,7 @@ class EventTicketOrderView(LoginRequiredMixin, View):
         )
 
     def post(self, request, event_slug):
-        from django.shortcuts import render
-
-        event = self._event(event_slug)
+        event = self._event(request, event_slug)
         ticket_types = list(self._ticket_types(event))
         selections = []
         for ticket_type in ticket_types:
