@@ -6,7 +6,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from events.models import Event, EventCategory, EventStatus, EventVenue
+from events.models import EventCategory, EventStatus, EventVenue
 from events.permissions import IsEventOrganizer, IsEventOwnerOrAdmin
 from events.selectors import get_events_visible_to
 from events.services import cancel_event, complete_event, publish_event
@@ -75,14 +75,7 @@ class EventViewSet(viewsets.ModelViewSet):
         return [permission() for permission in classes]
 
     def perform_create(self, serializer):
-        event = serializer.save(organizer=self.request.user)
-        event.full_clean()
-        event.save()
-
-    def perform_update(self, serializer):
-        event = serializer.save()
-        event.full_clean()
-        event.save()
+        serializer.save(organizer=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
         event = self.get_object()
