@@ -6,7 +6,7 @@ from django.views.generic import TemplateView
 from accounts.models import PermissionGroup, Role
 from events.models import Event, EventStatus, EventVisibility
 from events.permissions import user_can_manage_events
-from tickets.models import Ticket, TicketOrder, TicketOrderStatus, TicketStatus
+from tickets.models import TicketOrderStatus, TicketStatus
 from tickets.selectors import get_orders_visible_to, get_tickets_visible_to
 
 
