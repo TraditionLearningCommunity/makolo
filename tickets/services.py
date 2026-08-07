@@ -4,7 +4,6 @@ from decimal import Decimal
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.signing import BadSignature, Signer
 from django.db import transaction
-from django.db.models import Sum
 from django.utils import timezone
 
 from events.models import Event, EventStatus
@@ -193,6 +192,13 @@ def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
     if order.status in {TicketOrderStatus.CANCELLED, TicketOrderStatus.EXPIRED}:
         return order
 
+    if order.status == TicketOrderStatus.CONFIRMED and order.tickets.filter(
+        status=TicketStatus.USED
+    ).exists():
+        raise ValidationError(
+            "Une commande contenant un billet déjà utilisé ne peut pas être annulée."
+        )
+
     locked_types = _lock_event_ticket_types(order.event)
     types_by_id = {ticket_type.pk: ticket_type for ticket_type in locked_types}
 
@@ -205,20 +211,12 @@ def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
             )
             ticket_type.save(update_fields=["reserved_quantity", "updated_at"])
     elif order.status == TicketOrderStatus.CONFIRMED:
-        quantities = {
-            row["ticket_type_id"]: row["quantity"]
-            for row in order.tickets.filter(status=TicketStatus.VALID)
-            .values("ticket_type_id")
-            .annotate(quantity=Sum("id"))
-        }
-        # SQLite cannot SUM UUIDs reliably; update counters from order items instead.
-        quantities = {
-            item.ticket_type_id: item.quantity
-            for item in order.items.all()
-        }
-        for type_id, quantity in quantities.items():
-            ticket_type = types_by_id[type_id]
-            ticket_type.issued_quantity = max(ticket_type.issued_quantity - quantity, 0)
+        for item in order.items.all():
+            ticket_type = types_by_id[item.ticket_type_id]
+            ticket_type.issued_quantity = max(
+                ticket_type.issued_quantity - item.quantity,
+                0,
+            )
             ticket_type.save(update_fields=["issued_quantity", "updated_at"])
         order.tickets.filter(status=TicketStatus.VALID).update(
             status=TicketStatus.CANCELLED,
