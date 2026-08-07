@@ -128,7 +128,6 @@ class EventWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         instance = self.instance
-
         start_at = attrs.get("start_at", getattr(instance, "start_at", None))
         end_at = attrs.get("end_at", getattr(instance, "end_at", None))
         registration_start_at = attrs.get(
@@ -158,7 +157,11 @@ class EventWriteSerializer(serializers.ModelSerializer):
                 "Les inscriptions ne peuvent pas se terminer après l’événement."
             )
 
+        if registration_start_at and end_at and registration_start_at >= end_at:
+            errors["registration_start_at"] = (
+                "Les inscriptions doivent commencer avant la fin de l’événement."
+            )
+
         if errors:
             raise serializers.ValidationError(errors)
-
         return attrs
