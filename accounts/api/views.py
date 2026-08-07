@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from accounts.models import PermissionGroup, Role
 
@@ -20,12 +21,14 @@ from .serializers import (
     UserListSerializer,
     UserUpdateSerializer,
 )
+from .throttles import LoginThrottle, RegistrationThrottle
 
 User = get_user_model()
 
 
 class RegisterAPIView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegistrationThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -45,6 +48,11 @@ class RegisterAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class LoginAPIView(TokenObtainPairView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginThrottle]
 
 
 class LogoutAPIView(APIView):
