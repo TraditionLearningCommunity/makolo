@@ -9,7 +9,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 from .forms import EventForm
 from .models import Event
 from .permissions import user_can_manage_event, user_can_manage_events
-from .selectors import get_manageable_events
+from .selectors import get_events_visible_to, get_manageable_events
 from .services import cancel_event, complete_event, publish_event
 
 
@@ -21,7 +21,7 @@ class EventListView(LoginRequiredMixin, ListView):
     login_url = "core:login"
 
     def get_queryset(self):
-        return get_manageable_events(self.request.user)
+        return get_events_visible_to(self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -61,7 +61,15 @@ class EventDetailView(LoginRequiredMixin, DetailView):
     login_url = "core:login"
 
     def get_queryset(self):
-        return get_manageable_events(self.request.user)
+        return get_events_visible_to(self.request.user, for_detail=True)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["can_manage_event"] = user_can_manage_event(
+            self.request.user,
+            self.object,
+        )
+        return context
 
 
 class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):

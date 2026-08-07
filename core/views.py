@@ -6,6 +6,8 @@ from django.views.generic import TemplateView
 from accounts.models import PermissionGroup, Role
 from events.models import Event, EventStatus, EventVisibility
 from events.permissions import user_can_manage_events
+from tickets.models import TicketOrderStatus, TicketStatus
+from tickets.selectors import get_orders_visible_to, get_tickets_visible_to
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -31,6 +33,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         User = get_user_model()
         events = self.get_event_queryset()
+        tickets = get_tickets_visible_to(self.request.user)
+        orders = get_orders_visible_to(self.request.user)
         now = timezone.now()
 
         context.update(
@@ -49,6 +53,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "upcoming_events": events.filter(start_at__gt=now).order_by(
                     "start_at"
                 )[:5],
+                "tickets_count": tickets.count(),
+                "valid_tickets_count": tickets.filter(
+                    status=TicketStatus.VALID
+                ).count(),
+                "pending_orders_count": orders.filter(
+                    status=TicketOrderStatus.PENDING
+                ).count(),
+                "confirmed_orders_count": orders.filter(
+                    status=TicketOrderStatus.CONFIRMED
+                ).count(),
                 "can_create_event": user_can_manage_events(self.request.user),
             }
         )

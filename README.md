@@ -42,9 +42,9 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 
 ## État fonctionnel
 
-Le socle comptes/authentification est actif et le premier module métier `events` est implémenté avec catégories, lieux, cycle de vie, permissions organisateur, API v1, administration Django, pages de gestion et tests.
+Les socles `accounts` et `events` sont actifs. Le module `tickets` gère maintenant les types de billets, le stock, la capacité, les commandes gratuites ou payantes, les réservations temporaires, l’émission de billets individuels et les QR signés.
 
-Les modules `tickets`, `scanner`, `payments`, `notifications` et `analytics_app` restent les prochains chantiers métier.
+Les prochains chantiers métier sont `scanner`, `payments`, `notifications` et `analytics_app`.
 
 ## Installation locale sous PowerShell
 
@@ -77,6 +77,12 @@ python manage.py test
 python -m pip check
 ```
 
+Pour libérer le stock des commandes payantes arrivées à expiration :
+
+```powershell
+python manage.py expire_ticket_orders
+```
+
 ## Environnement
 
 En développement, Makolo utilise `DJANGO_ENV=development` par défaut. Les vraies clés et informations d'hébergement ne doivent jamais être versionnées.
@@ -92,6 +98,9 @@ Les endpoints principaux de la v1 sont :
 /api/v1/events/
 /api/v1/events/categories/
 /api/v1/events/venues/
+/api/v1/tickets/types/
+/api/v1/tickets/orders/
+/api/v1/tickets/tickets/
 ```
 
 L'inscription crée un compte sans émettre immédiatement de JWT. Les jetons sont obtenus explicitement via l'endpoint de connexion.
@@ -110,6 +119,7 @@ GitHub Actions exécute automatiquement sur les Pull Requests vers `main` :
 ## Architecture
 
 - rôles et permissions : `docs/architecture/accounts-rbac.md` ;
-- domaine événementiel : `docs/architecture/events.md`.
+- domaine événementiel : `docs/architecture/events.md` ;
+- billetterie et QR : `docs/architecture/tickets.md`.
 
 Consultez également `AUDIT_LOCAL.md` pour l'état initial du projet avant la phase de durcissement du dépôt.

@@ -17,7 +17,7 @@
             <span>Événements</span>
         </a>
 
-        <a href="#" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium text-zinc-400 transition-all duration-300 dark:text-zinc-600" aria-disabled="true">
+        <a href="{% url 'tickets:list' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'tickets' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}">
             <i data-lucide="ticket" class="h-6 w-6"></i>
             <span>Tickets</span>
         </a>

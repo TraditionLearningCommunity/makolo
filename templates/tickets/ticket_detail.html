@@ -1,0 +1,33 @@
+{% extends 'base/app.html' %}
+
+{% block title %}{{ ticket.event.title }} | Ticket Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6">
+    <a href="{% url 'tickets:list' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Retour aux tickets</a>
+
+    <div class="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div class="rounded-3xl border border-zinc-200 bg-white p-8 dark:border-zinc-700 dark:bg-zinc-800">
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ ticket.get_status_display }}</span>
+                {% if ticket.is_valid %}<span class="text-sm font-semibold text-emerald-600">Valide</span>{% endif %}
+            </div>
+            <h1 class="mt-5 text-3xl font-black">{{ ticket.event.title }}</h1>
+            <div class="mt-8 grid gap-5 sm:grid-cols-2">
+                <div><p class="text-xs uppercase tracking-wide text-zinc-400">Type</p><p class="mt-1 font-semibold">{{ ticket.ticket_type.name }}</p></div>
+                <div><p class="text-xs uppercase tracking-wide text-zinc-400">Titulaire</p><p class="mt-1 font-semibold">{{ ticket.holder_name }}</p></div>
+                <div><p class="text-xs uppercase tracking-wide text-zinc-400">E-mail</p><p class="mt-1 font-semibold">{{ ticket.holder_email }}</p></div>
+                <div><p class="text-xs uppercase tracking-wide text-zinc-400">Commande</p><p class="mt-1 font-semibold">{{ ticket.order.reference }}</p></div>
+                <div><p class="text-xs uppercase tracking-wide text-zinc-400">Début</p><p class="mt-1 font-semibold">{{ ticket.event.start_at|date:"d/m/Y H:i" }}</p></div>
+                <div><p class="text-xs uppercase tracking-wide text-zinc-400">Code</p><p class="mt-1 font-mono text-sm">{{ ticket.code }}</p></div>
+            </div>
+        </div>
+
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 text-center dark:border-zinc-700 dark:bg-zinc-800">
+            <p class="text-sm font-bold">QR d’accès</p>
+            <img src="{% url 'tickets:qr' ticket.pk %}" alt="QR du ticket" class="mx-auto mt-4 w-full max-w-[260px] rounded-2xl bg-white p-3">
+            <p class="mt-4 text-xs leading-5 text-zinc-500 dark:text-zinc-400">Présentez ce QR au contrôle d’accès. Il est signé par Makolo et ne doit pas être partagé publiquement.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

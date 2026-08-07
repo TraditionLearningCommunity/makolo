@@ -1,0 +1,25 @@
+{% extends 'base/app.html' %}
+
+{% block title %}{% if object %}Modifier{% else %}Nouveau{% endif %} billet | Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+    <a href="{% url 'tickets:manage-types' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Retour à la billetterie</a>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-8 dark:border-zinc-700 dark:bg-zinc-800">
+        <h1 class="text-3xl font-black">{% if object %}Modifier le type de billet{% else %}Créer un type de billet{% endif %}</h1>
+        <form method="post" class="mt-8 space-y-5">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+            {% for field in form %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}
+                {% for error in field.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+            <div class="pt-3"><button class="rounded-2xl bg-indigo-600 px-6 py-3 font-semibold text-white hover:bg-indigo-500">Enregistrer</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
