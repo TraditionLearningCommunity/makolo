@@ -23,6 +23,11 @@ class EventListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return get_manageable_events(self.request.user)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["can_create_event"] = user_can_manage_events(self.request.user)
+        return context
+
 
 class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Event
