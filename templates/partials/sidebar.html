@@ -1,164 +1,35 @@
-<aside
-    class="
-        hidden lg:flex lg:flex-col
-        w-72
-        bg-white dark:bg-zinc-950
-        border-r border-zinc-200 dark:border-zinc-800
-        transition-colors duration-300
-    "
->
-
-    <!-- LOGO -->
-    <div
-        class="
-            h-24
-            flex items-center
-            px-6
-            border-b border-zinc-200 dark:border-zinc-800
-        "
-    >
-
+<aside class="hidden w-72 border-r border-zinc-200 bg-white transition-colors duration-300 dark:border-zinc-800 dark:bg-zinc-950 lg:flex lg:flex-col">
+    <div class="flex h-24 items-center border-b border-zinc-200 px-6 dark:border-zinc-800">
         <div>
-
-            <h1
-                class="
-                    text-3xl
-                    font-black
-                    tracking-tight
-                    text-zinc-900 dark:text-white
-                "
-            >
-                MAKOLO
-            </h1>
-
-            <p
-                class="
-                    mt-1
-                    text-sm
-                    text-zinc-500 dark:text-zinc-400
-                "
-            >
-                Smart Event Platform
-            </p>
-
+            <h1 class="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">MAKOLO</h1>
+            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Smart Event Platform</p>
         </div>
-
     </div>
 
-    <!-- NAVIGATION -->
-    <nav class="flex-1 p-4 space-y-2">
-
-        <!-- DASHBOARD -->
-        <a
-            href="#"
-            class="
-                flex items-center gap-4
-                px-5 py-4
-                rounded-2xl
-                bg-indigo-600
-                text-white
-                shadow-lg shadow-indigo-500/20
-                hover:bg-indigo-500
-                transition-all duration-300
-            "
-        >
-
-            <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
-
-            <span class="font-medium text-lg">
-                Dashboard
-            </span>
-
+    <nav class="flex-1 space-y-2 p-4">
+        <a href="{% url 'core:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}">
+            <i data-lucide="layout-dashboard" class="h-6 w-6"></i>
+            <span>Dashboard</span>
         </a>
 
-        <!-- EVENTS -->
-        <a
-            href="#"
-            class="
-                flex items-center gap-4
-                px-5 py-4
-                rounded-2xl
-                text-zinc-700 dark:text-zinc-300
-                hover:bg-zinc-100 dark:hover:bg-zinc-800
-                hover:text-zinc-900 dark:hover:text-white
-                transition-all duration-300
-            "
-        >
-
-            <i data-lucide="calendar-days" class="w-6 h-6"></i>
-
-            <span class="font-medium text-lg">
-                Événements
-            </span>
-
+        <a href="{% url 'events:list' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'events' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}">
+            <i data-lucide="calendar-days" class="h-6 w-6"></i>
+            <span>Événements</span>
         </a>
 
-        <!-- TICKETS -->
-        <a
-            href="#"
-            class="
-                flex items-center gap-4
-                px-5 py-4
-                rounded-2xl
-                text-zinc-700 dark:text-zinc-300
-                hover:bg-zinc-100 dark:hover:bg-zinc-800
-                hover:text-zinc-900 dark:hover:text-white
-                transition-all duration-300
-            "
-        >
-
-            <i data-lucide="ticket" class="w-6 h-6"></i>
-
-            <span class="font-medium text-lg">
-                Tickets
-            </span>
-
+        <a href="#" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium text-zinc-400 transition-all duration-300 dark:text-zinc-600" aria-disabled="true">
+            <i data-lucide="ticket" class="h-6 w-6"></i>
+            <span>Tickets</span>
         </a>
 
-        <!-- SCANNER -->
-        <a
-            href="#"
-            class="
-                flex items-center gap-4
-                px-5 py-4
-                rounded-2xl
-                text-zinc-700 dark:text-zinc-300
-                hover:bg-zinc-100 dark:hover:bg-zinc-800
-                hover:text-zinc-900 dark:hover:text-white
-                transition-all duration-300
-            "
-        >
-
-            <i data-lucide="scan-line" class="w-6 h-6"></i>
-
-            <span class="font-medium text-lg">
-                Scanner
-            </span>
-
+        <a href="#" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium text-zinc-400 transition-all duration-300 dark:text-zinc-600" aria-disabled="true">
+            <i data-lucide="scan-line" class="h-6 w-6"></i>
+            <span>Scanner</span>
         </a>
 
-        <!-- ANALYTICS -->
-        <a
-            href="#"
-            class="
-                flex items-center gap-4
-                px-5 py-4
-                rounded-2xl
-                text-zinc-700 dark:text-zinc-300
-                hover:bg-zinc-100 dark:hover:bg-zinc-800
-                hover:text-zinc-900 dark:hover:text-white
-                transition-all duration-300
-            "
-        >
-
-            <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
-
-            <span class="font-medium text-lg">
-                Analytics
-            </span>
-
+        <a href="#" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium text-zinc-400 transition-all duration-300 dark:text-zinc-600" aria-disabled="true">
+            <i data-lucide="bar-chart-3" class="h-6 w-6"></i>
+            <span>Analytics</span>
         </a>
-
     </nav>
-
 </aside>
