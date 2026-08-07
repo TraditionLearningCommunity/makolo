@@ -192,6 +192,11 @@ def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
     if order.status in {TicketOrderStatus.CANCELLED, TicketOrderStatus.EXPIRED}:
         return order
 
+    if order.status == TicketOrderStatus.CONFIRMED and not can_manage:
+        raise PermissionDenied(
+            "Une commande confirmée doit être annulée par l’organisateur ou le support."
+        )
+
     if order.status == TicketOrderStatus.CONFIRMED and order.tickets.filter(
         status=TicketStatus.USED
     ).exists():
