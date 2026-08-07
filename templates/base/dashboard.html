@@ -5,140 +5,56 @@ Dashboard | Makolo
 {% endblock %}
 
 {% block content %}
-
 <div class="space-y-8">
-
-    <!-- HERO -->
     <div>
-
-        <h1
-            class="
-                text-4xl md:text-5xl
-                font-black
-                tracking-tight
-                text-zinc-900 dark:text-white
-            "
-        >
-            Bienvenue dans Makolo
-        </h1>
-
-        <p
-            class="
-                mt-4
-                text-lg
-                text-zinc-500 dark:text-zinc-400
-            "
-        >
-            Infrastructure intelligente de gestion événementielle.
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+            Tableau de bord
         </p>
-
+        <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 dark:text-white md:text-5xl">
+            Bienvenue{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}
+        </h1>
+        <p class="mt-4 text-lg text-zinc-500 dark:text-zinc-400">
+            Les indicateurs affichés ci-dessous proviennent de la base de données Makolo.
+        </p>
     </div>
 
-    <!-- STATS -->
-    <div
-        class="
-            grid
-            grid-cols-1
-            md:grid-cols-2
-            xl:grid-cols-4
-            gap-6
-        "
-    >
-
-        <!-- EVENTS -->
-        <div
-            class="
-                bg-white dark:bg-zinc-800
-                border border-zinc-200 dark:border-zinc-700
-                rounded-3xl
-                p-6
-                shadow-soft
-                transition-colors duration-300
-            "
-        >
-
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
-                Événements
-            </p>
-
-            <h3
-                class="
-                    text-5xl
-                    font-black
-                    mt-4
-                    text-zinc-900 dark:text-white
-                "
-            >
-                12
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft transition-colors duration-300 dark:border-zinc-700 dark:bg-zinc-800">
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">Utilisateurs</p>
+            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">
+                {{ users_count }}
             </h3>
-
         </div>
 
-        <!-- TICKETS -->
-        <div
-            class="
-                bg-white dark:bg-zinc-800
-                border border-zinc-200 dark:border-zinc-700
-                rounded-3xl
-                p-6
-                shadow-soft
-            "
-        >
-
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
-                Tickets
-            </p>
-
-            <h3 class="text-5xl font-black mt-4">
-                2,431
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft transition-colors duration-300 dark:border-zinc-700 dark:bg-zinc-800">
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">Utilisateurs vérifiés</p>
+            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">
+                {{ verified_users_count }}
             </h3>
-
         </div>
 
-        <!-- REVENUS -->
-        <div
-            class="
-                bg-white dark:bg-zinc-800
-                border border-zinc-200 dark:border-zinc-700
-                rounded-3xl
-                p-6
-                shadow-soft
-            "
-        >
-
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
-                Revenus
-            </p>
-
-            <h3 class="text-5xl font-black mt-4">
-                $12,400
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft transition-colors duration-300 dark:border-zinc-700 dark:bg-zinc-800">
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">Rôles actifs</p>
+            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">
+                {{ roles_count }}
             </h3>
-
         </div>
 
-        <!-- SCANS -->
-        <div
-            class="
-                bg-white dark:bg-zinc-800
-                border border-zinc-200 dark:border-zinc-700
-                rounded-3xl
-                p-6
-                shadow-soft
-            "
-        >
-
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
-                Scans
-            </p>
-
-            <h3 class="text-5xl font-black mt-4">
-                98%
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft transition-colors duration-300 dark:border-zinc-700 dark:bg-zinc-800">
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">Groupes de permissions</p>
+            <h3 class="mt-4 text-5xl font-black text-zinc-900 dark:text-white">
+                {{ permission_groups_count }}
             </h3>
-
         </div>
-
     </div>
 
+    <div class="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-6 dark:border-zinc-700 dark:bg-zinc-900/60">
+        <h2 class="text-lg font-bold text-zinc-900 dark:text-white">
+            Modules métier
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+            Les statistiques Événements, Tickets, Revenus et Scans seront branchées ici au fur et à mesure de l’implémentation des modules métier. Aucune donnée fictive n’est affichée.
+        </p>
+    </div>
 </div>
-
 {% endblock %}

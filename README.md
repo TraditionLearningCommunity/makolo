@@ -40,30 +40,66 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 - `payments`
 - `notifications`
 
-## Installation locale
+## Installation locale sous PowerShell
 
-Créer un environnement virtuel :
-
-```bash
-python -m venv .venv
-
-## Lancement local sous PowerShell
+Créer et activer un environnement Python dédié, puis installer les dépendances :
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\run_local.ps1
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-L'application est ensuite disponible sur <http://127.0.0.1:8765/>.
-
-## Vérifications
+Préparer la base de données et démarrer le serveur :
 
 ```powershell
-$env:DJANGO_DEBUG = "True"
-$env:DJANGO_SECRET_KEY = "django-insecure-local-development-only-change-me"
-.\.venv\Scripts\python.exe manage.py check
-.\.venv\Scripts\python.exe manage.py test
+python manage.py migrate
+python manage.py runserver
 ```
 
-Consultez `AUDIT_LOCAL.md` pour l'état fonctionnel, les corrections et les risques restants.
+L'application est disponible sur <http://127.0.0.1:8000/>.
+
+Le script `run_local.ps1` reste disponible pour le flux local historique sur le port `8765`.
+
+## Vérifications avant commit
+
+```powershell
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
+python -m pip check
+```
+
+## Environnement
+
+En développement, Makolo utilise `DJANGO_ENV=development` par défaut. Les vraies clés et informations d'hébergement ne doivent jamais être versionnées.
+
+Le fichier `.env.example` documente les variables de base. Le fichier `.env` réel est ignoré par Git.
+
+## API
+
+La première version de l'API est exposée sous :
+
+```text
+/api/v1/accounts/
+```
+
+L'inscription crée un compte sans émettre immédiatement de JWT. Les jetons sont obtenus explicitement via l'endpoint de connexion.
+
+## CI
+
+GitHub Actions exécute automatiquement sur les Pull Requests vers `main` :
+
+- installation des dépendances ;
+- `pip check` ;
+- contrôles Django ;
+- vérification des migrations ;
+- migrations ;
+- tests Django.
+
+## Architecture
+
+Les décisions liées aux rôles et permissions sont documentées dans `docs/architecture/accounts-rbac.md`.
+
+Consultez également `AUDIT_LOCAL.md` pour l'état initial du projet avant la phase de durcissement du dépôt.
