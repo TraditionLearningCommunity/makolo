@@ -40,6 +40,12 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 - `payments`
 - `notifications`
 
+## État fonctionnel
+
+Le socle comptes/authentification est actif et le premier module métier `events` est implémenté avec catégories, lieux, cycle de vie, permissions organisateur, API v1, administration Django, pages de gestion et tests.
+
+Les modules `tickets`, `scanner`, `payments`, `notifications` et `analytics_app` restent les prochains chantiers métier.
+
 ## Installation locale sous PowerShell
 
 Créer et activer un environnement Python dédié, puis installer les dépendances :
@@ -79,10 +85,13 @@ Le fichier `.env.example` documente les variables de base. Le fichier `.env` ré
 
 ## API
 
-La première version de l'API est exposée sous :
+Les endpoints principaux de la v1 sont :
 
 ```text
 /api/v1/accounts/
+/api/v1/events/
+/api/v1/events/categories/
+/api/v1/events/venues/
 ```
 
 L'inscription crée un compte sans émettre immédiatement de JWT. Les jetons sont obtenus explicitement via l'endpoint de connexion.
@@ -100,6 +109,7 @@ GitHub Actions exécute automatiquement sur les Pull Requests vers `main` :
 
 ## Architecture
 
-Les décisions liées aux rôles et permissions sont documentées dans `docs/architecture/accounts-rbac.md`.
+- rôles et permissions : `docs/architecture/accounts-rbac.md` ;
+- domaine événementiel : `docs/architecture/events.md`.
 
 Consultez également `AUDIT_LOCAL.md` pour l'état initial du projet avant la phase de durcissement du dépôt.
