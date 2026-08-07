@@ -26,7 +26,6 @@ from .serializers import (
 
 class TicketTypeViewSet(viewsets.ModelViewSet):
     serializer_class = TicketTypeSerializer
-    lookup_field = "slug"
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
