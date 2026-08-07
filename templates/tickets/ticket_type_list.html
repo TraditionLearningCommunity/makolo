@@ -1,0 +1,40 @@
+{% extends 'base/app.html' %}
+
+{% block title %}Billetterie | Makolo{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Organisation</p>
+            <h1 class="mt-2 text-4xl font-black">Types de billets</h1>
+            <p class="mt-3 text-zinc-500 dark:text-zinc-400">Prix, stock, réservations et billets émis par événement.</p>
+        </div>
+        <a href="{% url 'tickets:type-create' %}" class="rounded-2xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-500">Nouveau type</a>
+    </div>
+
+    <div class="overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+                <thead class="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                    <tr><th class="px-5 py-4">Billet</th><th class="px-5 py-4">Prix</th><th class="px-5 py-4">Stock</th><th class="px-5 py-4">Réservés</th><th class="px-5 py-4">Émis</th><th class="px-5 py-4"></th></tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    {% for type in ticket_types %}
+                    <tr>
+                        <td class="px-5 py-4"><p class="font-bold">{{ type.name }}</p><p class="text-xs text-zinc-500">{{ type.event.title }}</p></td>
+                        <td class="px-5 py-4">{% if type.is_free %}Gratuit{% else %}{{ type.price }} {{ type.currency }}{% endif %}</td>
+                        <td class="px-5 py-4">{% if type.quantity_total %}{{ type.available_quantity }} / {{ type.quantity_total }}{% else %}Illimité{% endif %}</td>
+                        <td class="px-5 py-4">{{ type.reserved_quantity }}</td>
+                        <td class="px-5 py-4">{{ type.issued_quantity }}</td>
+                        <td class="px-5 py-4 text-right"><a href="{% url 'tickets:type-edit' type.pk %}" class="font-semibold text-indigo-600 dark:text-indigo-400">Modifier</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="px-5 py-10 text-center text-zinc-500">Aucun type de billet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
