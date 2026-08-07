@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from events.models import Event
+from events.selectors import get_events_visible_to
 
 from tickets.models import Ticket, TicketOrder, TicketOrderItem, TicketType
 from tickets.services import create_order
@@ -160,6 +161,15 @@ class TicketOrderCreateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         event = attrs["event"]
+        request = self.context["request"]
+        if not get_events_visible_to(
+            request.user,
+            for_detail=True,
+        ).filter(pk=event.pk).exists():
+            raise serializers.ValidationError(
+                {"event_id": "Cet événement n’est pas accessible pour une commande."}
+            )
+
         seen = set()
         for item in attrs["items"]:
             ticket_type = item["ticket_type"]
