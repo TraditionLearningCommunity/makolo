@@ -14,7 +14,7 @@ from tickets.selectors import (
     get_ticket_types_visible_to,
     get_tickets_visible_to,
 )
-from tickets.services import cancel_order, confirm_order
+from tickets.services import cancel_order
 
 from .serializers import (
     TicketOrderCreateSerializer,
@@ -112,10 +112,6 @@ class TicketOrderViewSet(viewsets.ModelViewSet):
         return Response(
             TicketOrderSerializer(order, context={"request": request}).data
         )
-
-    @action(detail=True, methods=["post"])
-    def confirm(self, request, pk=None):
-        return self._transition(request, confirm_order)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
