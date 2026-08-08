@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import urlparse
 
@@ -94,11 +95,10 @@ def get_session_referral(request, *, event=None):
     captured_at_raw = request.session.get(REFERRAL_SESSION_CAPTURED_AT_KEY)
     if captured_at_raw:
         try:
-            captured_at = timezone.datetime.fromisoformat(captured_at_raw)
+            captured_at = datetime.fromisoformat(captured_at_raw)
             if timezone.is_naive(captured_at):
                 captured_at = timezone.make_aware(captured_at)
-            window_days = referral.campaign.attribution_window_days
-            if timezone.now() > captured_at + timezone.timedelta(days=window_days):
+            if timezone.now() > captured_at + timedelta(days=referral.campaign.attribution_window_days):
                 return None
         except (TypeError, ValueError):
             return None
@@ -122,31 +122,42 @@ def _visitor_from_request(request):
         return None
 
 
+def _resolve_referral(*, order, referral_code=None, request=None):
+    if isinstance(referral_code, str):
+        return validate_referral_code(referral_code, event=order.event)
+    if referral_code is not None:
+        return validate_referral_code(referral_code.code, event=order.event)
+    if request is not None:
+        return get_session_referral(request, event=order.event)
+    return None
+
+
 @transaction.atomic
 def attribute_order(*, order: TicketOrder, referral_code=None, request=None):
-    if hasattr(order, "referral_attribution"):
-        return order.referral_attribution
+    existing = ReferralAttribution.objects.filter(order=order).first()
+    if existing:
+        return existing
 
-    referral = referral_code
-    if isinstance(referral_code, str):
-        referral = validate_referral_code(referral_code, event=order.event)
-    elif referral_code is not None:
-        referral = validate_referral_code(referral_code.code, event=order.event)
-    elif request is not None:
-        referral = get_session_referral(request, event=order.event)
-
+    referral = _resolve_referral(order=order, referral_code=referral_code, request=request)
     if not referral:
         return None
 
-    visitor_id = _visitor_from_request(request) if request is not None else None
-    attribution = ReferralAttribution.objects.create(
+    self_referral = bool(
+        order.buyer_id
+        and referral.partner.user_id
+        and order.buyer_id == referral.partner.user_id
+    )
+    attribution = ReferralAttribution(
         order=order,
         referral_code=referral,
         campaign=referral.campaign,
         partner=referral.partner,
-        visitor_id=visitor_id,
+        visitor_id=_visitor_from_request(request) if request is not None else None,
+        status=AttributionStatus.REVERSED if self_referral else AttributionStatus.PENDING,
+        reversed_at=timezone.now() if self_referral else None,
     )
-    if order.status == TicketOrderStatus.CONFIRMED:
+    attribution.save()
+    if order.status == TicketOrderStatus.CONFIRMED and not self_referral:
         confirm_order_attribution(order=order)
     return attribution
 
@@ -156,13 +167,11 @@ def _commission_snapshot(referral: ReferralCode, order: TicketOrder):
     commission_value = referral.effective_commission_value
     if commission_type == CommissionType.PERCENTAGE:
         amount = _quantize(order.total_amount * commission_value / Decimal("100"))
-        currency = order.currency
+        currency = order.currency.upper()
     else:
         currency = referral.campaign.commission_currency.upper()
         if currency != order.currency.upper():
-            raise ValidationError(
-                "Une commission fixe ne peut être appliquée qu’à une commande dans la même devise que la campagne."
-            )
+            return commission_type, commission_value, Decimal("0.00"), order.currency.upper()
         amount = _quantize(commission_value)
     return commission_type, commission_value, amount, currency
 
@@ -194,6 +203,12 @@ def confirm_order_attribution(*, order: TicketOrder):
     attribution.status = AttributionStatus.CONFIRMED
     attribution.confirmed_at = timezone.now()
     attribution.save(update_fields=["status", "confirmed_at"])
+
+    # Free orders and fixed-currency mismatches remain valid conversions but do not
+    # generate a zero/ambiguous financial liability.
+    if amount <= 0:
+        return attribution
+
     PartnerCommission.objects.get_or_create(
         attribution=attribution,
         defaults={
@@ -219,15 +234,16 @@ def reverse_order_attribution(*, order: TicketOrder):
     if attribution.status == AttributionStatus.REVERSED:
         return attribution
 
+    commission = PartnerCommission.objects.select_for_update().filter(attribution=attribution).first()
+    if commission and commission.status == CommissionStatus.PAID:
+        raise ValidationError(
+            "Cette commande possède une commission déjà payée. Un ajustement financier manuel est requis avant annulation."
+        )
+
     attribution.status = AttributionStatus.REVERSED
     attribution.reversed_at = timezone.now()
     attribution.save(update_fields=["status", "reversed_at"])
-    commission = PartnerCommission.objects.select_for_update().filter(attribution=attribution).first()
     if commission:
-        if commission.status == CommissionStatus.PAID:
-            raise ValidationError(
-                "Cette commande possède une commission déjà payée. Un ajustement financier manuel est requis avant annulation."
-            )
         commission.status = CommissionStatus.REVERSED
         commission.reversed_at = timezone.now()
         commission.save(update_fields=["status", "reversed_at", "updated_at"])
@@ -255,7 +271,20 @@ def create_partner(*, organization, actor, name, email="", phone="", kind="ambas
 
 
 @transaction.atomic
-def create_campaign(*, organization, event, actor, name, commission_type, commission_value, commission_currency="USD", attribution_window_days=30, starts_at=None, ends_at=None, status=CampaignStatus.DRAFT):
+def create_campaign(
+    *,
+    organization,
+    event,
+    actor,
+    name,
+    commission_type,
+    commission_value,
+    commission_currency="USD",
+    attribution_window_days=30,
+    starts_at=None,
+    ends_at=None,
+    status=CampaignStatus.DRAFT,
+):
     if not user_can_manage_partners(actor, organization):
         raise PermissionDenied("Vous n’avez pas le droit de gérer les campagnes de cette organisation.")
     campaign = AffiliateCampaign(
@@ -277,7 +306,15 @@ def create_campaign(*, organization, event, actor, name, commission_type, commis
 
 
 @transaction.atomic
-def create_referral_code(*, campaign, partner, actor, code="", commission_type_override="", commission_value_override=None):
+def create_referral_code(
+    *,
+    campaign,
+    partner,
+    actor,
+    code="",
+    commission_type_override="",
+    commission_value_override=None,
+):
     if not user_can_manage_partners(actor, campaign.organization):
         raise PermissionDenied("Vous n’avez pas le droit de créer des codes ambassadeurs.")
     referral = ReferralCode(
@@ -294,12 +331,21 @@ def create_referral_code(*, campaign, partner, actor, code="", commission_type_o
 
 def partner_balance(partner: Partner):
     rows = (
-        PartnerCommission.objects.filter(partner=partner, status=CommissionStatus.EARNED)
+        PartnerCommission.objects.filter(
+            partner=partner,
+            status=CommissionStatus.EARNED,
+            payout__isnull=True,
+            amount__gt=0,
+        )
         .values("currency")
         .annotate(total=Sum("amount"))
         .order_by("currency")
     )
-    return [{"currency": row["currency"], "amount": row["total"] or Decimal("0")} for row in rows]
+    return [
+        {"currency": row["currency"], "amount": row["total"] or Decimal("0")}
+        for row in rows
+        if (row["total"] or Decimal("0")) > 0
+    ]
 
 
 @transaction.atomic
@@ -313,6 +359,7 @@ def create_payout(*, partner: Partner, actor, currency: str, commission_ids=None
         currency=currency,
         status=CommissionStatus.EARNED,
         payout__isnull=True,
+        amount__gt=0,
     )
     if commission_ids:
         commissions = commissions.filter(pk__in=commission_ids)
@@ -320,6 +367,8 @@ def create_payout(*, partner: Partner, actor, currency: str, commission_ids=None
     if not commissions:
         raise ValidationError("Aucune commission acquise n’est disponible dans cette devise.")
     amount = sum((commission.amount for commission in commissions), Decimal("0"))
+    if amount <= 0:
+        raise ValidationError("Le solde partenaire doit être strictement positif.")
     payout = PartnerPayout.objects.create(
         organization=organization,
         partner=partner,
@@ -371,7 +420,10 @@ def cancel_payout(*, payout: PartnerPayout, actor):
         return payout
     payout.status = PayoutStatus.CANCELLED
     payout.save(update_fields=["status", "updated_at"])
-    payout.commissions.filter(status=CommissionStatus.EARNED).update(payout=None, updated_at=timezone.now())
+    payout.commissions.filter(status=CommissionStatus.EARNED).update(
+        payout=None,
+        updated_at=timezone.now(),
+    )
     return payout
 
 
@@ -395,10 +447,22 @@ def build_partner_metrics(partner: Partner, *, finance_visible=True):
         money = {}
         for row in rows:
             currency = row["currency"]
-            money.setdefault(currency, {"earned": Decimal("0"), "paid": Decimal("0"), "reversed": Decimal("0")})
+            money.setdefault(
+                currency,
+                {
+                    CommissionStatus.EARNED: Decimal("0"),
+                    CommissionStatus.PAID: Decimal("0"),
+                    CommissionStatus.REVERSED: Decimal("0"),
+                },
+            )
             money[currency][row["status"]] = row["total"] or Decimal("0")
         result["commissions"] = [
-            {"currency": currency, **values}
+            {
+                "currency": currency,
+                "earned": values[CommissionStatus.EARNED],
+                "paid": values[CommissionStatus.PAID],
+                "reversed": values[CommissionStatus.REVERSED],
+            }
             for currency, values in sorted(money.items())
         ]
     else:
