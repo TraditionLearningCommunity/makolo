@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 
 from events.models import Event
 
-from .models import AffiliateCampaign, Partner, PartnerKind, ReferralCode
+from .models import AffiliateCampaign, Partner, ReferralCode
 
 
 FIELD_CLASS = "mt-1 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
@@ -35,6 +35,7 @@ class PartnerForm(StyledModelForm):
     def clean_account_email(self):
         value = (self.cleaned_data.get("account_email") or "").strip().lower()
         if not value:
+            self.linked_user = None
             return ""
         User = get_user_model()
         user = User.objects.filter(email__iexact=value, is_active=True).first()
@@ -42,6 +43,18 @@ class PartnerForm(StyledModelForm):
             raise forms.ValidationError("Aucun compte Makolo actif ne correspond à cet e-mail.")
         self.linked_user = user
         return value
+
+    def clean(self):
+        cleaned = super().clean()
+        linked_user = getattr(self, "linked_user", None)
+        if not linked_user:
+            return cleaned
+        contact_email = (cleaned.get("email") or "").strip().lower()
+        if contact_email and contact_email != linked_user.email.lower():
+            self.add_error("email", "Pour un portail lié, l’e-mail de contact doit correspondre au compte Makolo.")
+        elif not contact_email:
+            cleaned["email"] = linked_user.email
+        return cleaned
 
 
 class AffiliateCampaignForm(StyledModelForm):
