@@ -42,6 +42,17 @@ jobs:
       - name: Run Django system checks
         run: python manage.py check
 
+      - name: Check production security settings
+        env:
+          DJANGO_ENV: production
+          DJANGO_DEBUG: "False"
+          DJANGO_SECRET_KEY: "ci-production-security-check-only-long-random-looking-secret-2026-not-a-real-secret"
+          DJANGO_ALLOWED_HOSTS: makolo.example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://makolo.example.test
+          MAKOLO_PUBLIC_BASE_URL: https://makolo.example.test
+          PAYMENTS_WEBHOOK_SECRET: ci-production-webhook-check-secret
+        run: python manage.py check --deploy --fail-level WARNING
+
       - name: Check for missing migrations
         run: python manage.py makemigrations --check --dry-run
 
