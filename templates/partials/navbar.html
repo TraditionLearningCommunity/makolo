@@ -1,183 +1,42 @@
-<header
-    x-data="themeManager()"
-    x-init="init()"
-    class="
-        h-24
-        border-b border-zinc-200 dark:border-zinc-800
-        bg-white/80 dark:bg-[#050816]/80
-        backdrop-blur-xl
-        sticky top-0 z-40
-        transition-colors duration-300
-    "
->
+{% load notification_tags %}
+{% unread_notifications_count request.user as unread_notifications %}
 
-    <div class="h-full px-8 flex items-center justify-between">
-
-        <!-- LEFT -->
-        <div>
-
-            <h2
-                class="
-                    text-4xl
-                    font-black
-                    tracking-tight
-                    text-zinc-900 dark:text-white
-                "
-            >
-
-                {% block page_title %}
-                    Dashboard
-                {% endblock %}
-
-            </h2>
-
+<header x-data="themeManager()" x-init="init()" class="h-24 border-b border-zinc-200 bg-white/80 backdrop-blur-xl sticky top-0 z-40 transition-colors duration-300 dark:border-zinc-800 dark:bg-[#050816]/80">
+    <div class="h-full px-5 md:px-8 flex items-center justify-between gap-4">
+        <div class="min-w-0">
+            <h2 class="truncate text-2xl md:text-4xl font-black tracking-tight text-zinc-900 dark:text-white">Dashboard</h2>
         </div>
 
-        <!-- RIGHT -->
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 md:gap-4">
+            {% if request.user.is_authenticated %}
+            <a href="{% url 'notifications:list' %}" aria-label="Notifications" class="relative w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 dark:bg-[#0b1220] border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all duration-300 flex items-center justify-center">
+                <i data-lucide="bell" class="w-6 h-6 text-zinc-700 dark:text-zinc-200"></i>
+                {% if unread_notifications %}
+                <span class="absolute -right-1 -top-1 flex min-w-5 h-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white dark:ring-[#050816]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>
+                {% endif %}
+            </a>
+            {% endif %}
 
-            <!-- NOTIFICATIONS -->
-            <button
-                class="
-                    w-14 h-14
-                    rounded-2xl
-                    bg-zinc-100 dark:bg-[#0b1220]
-                    border border-zinc-200 dark:border-zinc-800
-                    hover:bg-zinc-200 dark:hover:bg-zinc-800
-                    transition-all duration-300
-                    flex items-center justify-center
-                "
-            >
-
-                <i
-                    data-lucide="bell"
-                    class="w-6 h-6 text-zinc-700 dark:text-zinc-200"
-                ></i>
-
+            <button @click="toggleTheme()" aria-label="Changer de thème" class="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 dark:bg-[#0b1220] border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all duration-300 flex items-center justify-center">
+                <i x-show="dark" data-lucide="moon" class="w-6 h-6 text-zinc-700 dark:text-zinc-200"></i>
+                <i x-show="!dark" data-lucide="sun" class="w-6 h-6 text-zinc-700 dark:text-zinc-200"></i>
             </button>
 
-            <!-- THEME -->
-            <button
-                @click="toggleTheme()"
-                class="
-                    w-14 h-14
-                    rounded-2xl
-                    bg-zinc-100 dark:bg-[#0b1220]
-                    border border-zinc-200 dark:border-zinc-800
-                    hover:bg-zinc-200 dark:hover:bg-zinc-800
-                    transition-all duration-300
-                    flex items-center justify-center
-                "
-            >
-
-                <!-- DARK -->
-                <i
-                    x-show="dark"
-                    data-lucide="moon"
-                    class="w-6 h-6 text-zinc-700 dark:text-zinc-200"
-                ></i>
-
-                <!-- LIGHT -->
-                <i
-                    x-show="!dark"
-                    data-lucide="sun"
-                    class="w-6 h-6 text-zinc-700 dark:text-zinc-200"
-                ></i>
-
-            </button>
-
-            <!-- USER -->
-            <div
-                class="
-                    flex items-center gap-4
-                    bg-zinc-100 dark:bg-[#0b1220]
-                    border border-zinc-200 dark:border-zinc-800
-                    px-5 py-3
-                    rounded-3xl
-                    transition-colors duration-300
-                "
-            >
-
-                <!-- AVATAR -->
-                <div
-                    class="
-                        w-14 h-14
-                        rounded-full
-                        bg-indigo-600
-                        flex items-center justify-center
-                        text-xl font-bold
-                        text-white
-                    "
-                >
-
-                    {% if request.user.is_authenticated %}
-                        {{ request.user.username|first|upper }}
-                    {% else %}
-                        G
-                    {% endif %}
-
+            <div class="flex items-center gap-3 bg-zinc-100 dark:bg-[#0b1220] border border-zinc-200 dark:border-zinc-800 px-3 md:px-5 py-2 md:py-3 rounded-3xl transition-colors duration-300">
+                <div class="w-11 h-11 md:w-14 md:h-14 rounded-full bg-indigo-600 flex items-center justify-center text-lg md:text-xl font-bold text-white">
+                    {% if request.user.is_authenticated %}{{ request.user.username|first|upper }}{% else %}G{% endif %}
                 </div>
-
-                <!-- USER INFOS -->
                 <div class="hidden md:block">
-
-                    <p
-                        class="
-                            text-lg
-                            font-semibold
-                            text-zinc-900 dark:text-white
-                        "
-                    >
-
+                    <p class="text-lg font-semibold text-zinc-900 dark:text-white">
                         {% if request.user.is_authenticated %}
-
-                            {% if request.user.first_name %}
-
-                                {{ request.user.first_name|title }}
-
-                                {% if request.user.last_name %}
-                                    {{ request.user.last_name|title }}
-                                {% endif %}
-
-                            {% else %}
-
-                                {{ request.user.username|title }}
-
-                            {% endif %}
-
-                        {% else %}
-
-                            Guest
-
-                        {% endif %}
-
+                            {% if request.user.first_name %}{{ request.user.first_name|title }}{% if request.user.last_name %} {{ request.user.last_name|title }}{% endif %}{% else %}{{ request.user.username|title }}{% endif %}
+                        {% else %}Guest{% endif %}
                     </p>
-
-                    <p
-                        class="
-                            text-sm
-                            text-zinc-500 dark:text-zinc-400
-                        "
-                    >
-
-                        {% if request.user.is_superuser %}
-                            Administrateur
-                        {% elif request.user.is_staff %}
-                            Staff
-                        {% elif request.user.is_authenticated %}
-                            Utilisateur
-                        {% else %}
-                            Non connecté
-                        {% endif %}
-
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                        {% if request.user.is_superuser %}Administrateur{% elif request.user.is_staff %}Staff{% elif request.user.is_authenticated %}Utilisateur{% else %}Non connecté{% endif %}
                     </p>
-
                 </div>
-
             </div>
-
         </div>
-
     </div>
-
 </header>
