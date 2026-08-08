@@ -14,6 +14,8 @@ La chaîne fonctionnelle couvre maintenant :
 - commandes gratuites ou payantes ;
 - paiements sandbox/manuels et remboursements contrôlés ;
 - génération de tickets et QR uniques ;
+- listes d'attente FIFO avec offres temporaires et promotion automatique ;
+- transferts sécurisés de billets avec rotation du QR à l'acceptation ;
 - contrôle d’accès anti-double-scan ;
 - notifications transactionnelles ;
 - Makolo Autopilot pour les tâches temporelles et réactives.
@@ -28,7 +30,7 @@ La chaîne fonctionnelle couvre maintenant :
 - Alpine.js
 - Tailwind CSS
 - SQLite pour le développement initial
-- PostgreSQL recommandé en production, notamment pour les opérations concurrentes
+- PostgreSQL prévu pour la production, notamment pour les opérations concurrentes
 
 ## Applications Django
 
@@ -57,6 +59,8 @@ Une `Organization` possède sa propre équipe :
 - Marketing : communication et futures fonctions CRM ;
 - Scanner manager : contrôle d'accès et agents scanner.
 
+Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets et journaux de scan sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
+
 Les événements existants sont automatiquement rattachés à une organisation personnelle lors de la migration vers ce modèle.
 
 ## Makolo Autopilot
@@ -76,6 +80,8 @@ Il exécute automatiquement :
 - alertes de stock faible ;
 - fermeture automatique des ventes au démarrage ;
 - passage automatique de l'événement à `completed` après sa fin ;
+- promotion des listes d'attente lorsqu'une place se libère ;
+- expiration des offres waitlist et transferts non acceptés ;
 - suivi post-événement.
 
 L'organisateur configure ses règles dans l'interface :
@@ -125,6 +131,8 @@ python manage.py makemigrations --check --dry-run
 python manage.py test
 ```
 
+La CI exécute aussi `python manage.py check --deploy --fail-level WARNING` avec un environnement de production synthétique afin de détecter les régressions de configuration de sécurité avant fusion.
+
 ## Environnement
 
 En développement, Makolo utilise `DJANGO_ENV=development` par défaut. Les vraies clés et informations d'hébergement ne doivent jamais être versionnées.
@@ -149,6 +157,8 @@ Les endpoints principaux de la v1 sont :
 /api/v1/tickets/types/
 /api/v1/tickets/orders/
 /api/v1/tickets/tickets/
+/api/v1/tickets/waitlist/
+/api/v1/tickets/transfers/
 /api/v1/scanner/events/
 /api/v1/scanner/assignments/
 /api/v1/scanner/logs/
@@ -171,27 +181,28 @@ Le QR est validé côté serveur. Le premier scan valide marque le billet `used`
 
 ## Prochains axes produit
 
-La nouvelle frontière `Organization -> Events` et Autopilot préparent :
+Le socle actuel prépare désormais les fonctionnalités majeures suivantes :
 
-- listes d'attente automatiques ;
-- transfert sécurisé de billets ;
+- analytics et intelligence événementielle ;
 - CRM événementiel ;
 - abonnements/followers d'organisateurs ;
 - codes ambassadeurs et affiliation ;
 - intelligence des flux d'entrée ;
-- analytics et prévisions de remplissage ;
-- recommandations et découverte sociale d'événements.
+- recommandations et découverte sociale d'événements ;
+- opérations et modération de plateforme avancées.
 
 ## CI
 
-GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépendances, contrôles Django, cohérence des migrations, application des migrations et tests.
+GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépendances, contrôles Django, configuration de sécurité production, cohérence des migrations, application des migrations et tests.
 
 ## Architecture
 
 - rôles historiques : `docs/architecture/accounts-rbac.md` ;
 - domaine événementiel : `docs/architecture/events.md` ;
 - billetterie et QR : `docs/architecture/tickets.md` ;
+- waitlist et transferts : `docs/architecture/waitlist-transfers.md` ;
 - contrôle d’accès : `docs/architecture/scanner.md` ;
 - paiements : `docs/architecture/payments.md` ;
 - notifications : `docs/architecture/notifications.md` ;
-- organisations, équipes et Autopilot : `docs/architecture/platform-autopilot-organizations.md`.
+- organisations, équipes et Autopilot : `docs/architecture/platform-autopilot-organizations.md` ;
+- frontières d'autorisation : `docs/architecture/authorization-boundaries.md`.
