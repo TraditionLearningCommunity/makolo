@@ -20,27 +20,9 @@ class EventVenueAdmin(admin.ModelAdmin):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = (
-        "title",
-        "organizer",
-        "status",
-        "visibility",
-        "start_at",
-        "capacity",
-    )
-    list_filter = ("status", "visibility", "category")
-    search_fields = (
-        "title",
-        "slug",
-        "organizer__email",
-        "organizer__username",
-    )
-    autocomplete_fields = ("organizer",)
-    readonly_fields = (
-        "slug",
-        "published_at",
-        "cancelled_at",
-        "created_at",
-        "updated_at",
-    )
+    list_display = ("title", "organization", "organizer", "status", "visibility", "start_at", "capacity")
+    list_filter = ("status", "visibility", "category", "organization")
+    search_fields = ("title", "slug", "organization__name", "organizer__email", "organizer__username")
+    autocomplete_fields = ("organization", "organizer")
+    readonly_fields = ("slug", "published_at", "cancelled_at", "created_at", "updated_at")
     date_hierarchy = "start_at"
