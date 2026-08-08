@@ -12,6 +12,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from events.permissions import user_can_manage_event, user_can_manage_events
 from events.selectors import get_events_visible_to, get_manageable_events
+from partners.services import attribute_order, get_session_referral
 
 from .forms import TicketTypeForm
 from .models import (
@@ -196,11 +197,13 @@ class EventTicketOrderView(LoginRequiredMixin, View):
             for ticket_type in ticket_types
             if ticket_type.pk not in active_ids and can_join_waitlist(request.user, ticket_type)
         }
+        referral = get_session_referral(request, event=event)
         return {
             "event": event,
             "ticket_types": ticket_types,
             "waitlist_eligible_ids": eligible_ids,
             "active_waitlist_type_ids": active_ids,
+            "referral_partner": referral.partner.display_name if referral else "",
         }
 
     def get(self, request, event_slug):
@@ -235,6 +238,7 @@ class EventTicketOrderView(LoginRequiredMixin, View):
                 customer_email=customer_email,
                 selections=selections,
             )
+            attribute_order(order=order, request=request)
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
             return render(
