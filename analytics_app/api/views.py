@@ -3,8 +3,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from analytics_app.permissions import user_can_view_event_financials
 from analytics_app.selectors import get_analytics_events
 from analytics_app.services import build_event_analytics, build_portfolio_analytics
+from partners.analytics import build_event_partner_analytics
 
 
 def _serialize_portfolio(payload):
@@ -44,4 +46,9 @@ class EventAnalyticsAPIView(APIView):
             days = int(request.query_params.get("days", "30"))
         except ValueError:
             days = 30
-        return Response(build_event_analytics(event, request.user, days=days))
+        payload = build_event_analytics(event, request.user, days=days)
+        payload["partners"] = build_event_partner_analytics(
+            event,
+            finance_visible=user_can_view_event_financials(request.user, event),
+        )
+        return Response(payload)
