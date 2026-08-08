@@ -1,0 +1,51 @@
+{% extends 'base/app.html' %}
+
+{% block title %}Transferts de billets | Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-7">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-violet-600 dark:text-violet-400">Transfert sécurisé</p>
+            <h1 class="mt-2 text-4xl font-black">Transferts de billets</h1>
+            <p class="mt-3 max-w-3xl text-zinc-500 dark:text-zinc-400">Un transfert n’est finalisé qu’après acceptation par le compte destinataire. À ce moment, Makolo change le code du billet : l’ancien QR devient invalide et un nouveau QR est généré.</p>
+        </div>
+        <a href="{% url 'tickets:list' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Mes tickets</a>
+    </div>
+
+    <div class="space-y-4">
+        {% for transfer in transfers %}
+        <article class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black uppercase dark:bg-zinc-700">{{ transfer.get_status_display }}</span>
+                        {% if transfer.recipient_id == request.user.pk %}<span class="text-xs font-bold text-violet-600 dark:text-violet-300">Reçu</span>{% else %}<span class="text-xs font-bold text-amber-600 dark:text-amber-300">Envoyé</span>{% endif %}
+                    </div>
+                    <h2 class="mt-3 text-xl font-black">{{ transfer.ticket.event.title }}</h2>
+                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{{ transfer.ticket.ticket_type.name }}</p>
+                    <p class="mt-3 text-sm">De <strong>{{ transfer.sender.full_name|default:transfer.sender.username }}</strong> vers <strong>{{ transfer.recipient.full_name|default:transfer.recipient.username }}</strong></p>
+                    {% if transfer.status == 'pending' %}<p class="mt-2 text-xs text-zinc-400">Expire le {{ transfer.expires_at|date:"d/m/Y H:i" }}</p>{% endif %}
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    {% if transfer.status == 'pending' and transfer.recipient_id == request.user.pk %}
+                    <form method="post" action="{% url 'tickets:transfer-accept' transfer.pk %}">{% csrf_token %}<button class="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Accepter</button></form>
+                    <form method="post" action="{% url 'tickets:transfer-decline' transfer.pk %}">{% csrf_token %}<button class="rounded-2xl border border-red-300 px-4 py-2 text-sm font-bold text-red-600 dark:border-red-900 dark:text-red-400">Refuser</button></form>
+                    {% elif transfer.status == 'pending' and transfer.sender_id == request.user.pk %}
+                    <form method="post" action="{% url 'tickets:transfer-cancel' transfer.pk %}">{% csrf_token %}<button class="rounded-2xl border border-red-300 px-4 py-2 text-sm font-bold text-red-600 dark:border-red-900 dark:text-red-400">Annuler</button></form>
+                    {% elif transfer.status == 'accepted' and transfer.recipient_id == request.user.pk %}
+                    <a href="{% url 'tickets:detail' transfer.ticket.pk %}" class="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">Voir mon nouveau QR</a>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
+        {% empty %}
+        <div class="rounded-3xl border border-dashed border-zinc-300 p-12 text-center dark:border-zinc-700">
+            <h2 class="text-xl font-black">Aucun transfert</h2>
+            <p class="mt-2 text-zinc-500 dark:text-zinc-400">Depuis le détail d’un billet valide, vous pouvez proposer un transfert à un autre compte Makolo.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
