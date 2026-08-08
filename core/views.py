@@ -6,6 +6,8 @@ from django.views.generic import TemplateView
 from accounts.models import PermissionGroup, Role
 from events.models import Event, EventStatus, EventVisibility
 from events.permissions import user_can_manage_events
+from payments.models import PaymentStatus
+from payments.selectors import get_payments_visible_to
 from tickets.models import TicketOrderStatus, TicketStatus
 from tickets.selectors import get_orders_visible_to, get_tickets_visible_to
 
@@ -35,6 +37,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         events = self.get_event_queryset()
         tickets = get_tickets_visible_to(self.request.user)
         orders = get_orders_visible_to(self.request.user)
+        payments = get_payments_visible_to(self.request.user)
         now = timezone.now()
 
         context.update(
@@ -62,6 +65,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 ).count(),
                 "confirmed_orders_count": orders.filter(
                     status=TicketOrderStatus.CONFIRMED
+                ).count(),
+                "payments_count": payments.count(),
+                "pending_payments_count": payments.filter(
+                    status=PaymentStatus.PENDING
+                ).count(),
+                "succeeded_payments_count": payments.filter(
+                    status=PaymentStatus.SUCCEEDED
+                ).count(),
+                "refunded_payments_count": payments.filter(
+                    status=PaymentStatus.REFUNDED
                 ).count(),
                 "can_create_event": user_can_manage_events(self.request.user),
             }
