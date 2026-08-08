@@ -18,6 +18,7 @@
             <a href="{% url 'tickets:order-create' event.slug %}" class="rounded-2xl bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-500">Obtenir des billets</a>
             {% endif %}
             {% if can_manage_event %}
+            {% if event.status == 'published' %}<a href="{% url 'scanner:console' event.slug %}" class="rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-500">Scanner les entrées</a>{% endif %}
             <a href="{% url 'tickets:manage-types' %}" class="rounded-2xl border border-indigo-300 px-4 py-2 font-semibold text-indigo-600 dark:border-indigo-800 dark:text-indigo-300">Billetterie</a>
             <a href="{% url 'events:edit' event.slug %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Modifier</a>
             {% if event.status == 'draft' %}
