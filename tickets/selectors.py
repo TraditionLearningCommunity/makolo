@@ -1,9 +1,19 @@
 from django.db.models import Q
 
 from events.models import EventStatus, EventVisibility
-from events.permissions import user_can_manage_events
+from organizations.permissions import ACCESS_ROLES, EVENT_MANAGEMENT_ROLES, FINANCE_ROLES
 
 from .models import Ticket, TicketOrder, TicketTransfer, TicketType, TicketWaitlistEntry
+
+
+def _organization_role_filter(prefix: str, user, roles) -> Q:
+    return Q(
+        **{
+            f"{prefix}organization__memberships__user": user,
+            f"{prefix}organization__memberships__is_active": True,
+            f"{prefix}organization__memberships__role__in": roles,
+        }
+    )
 
 
 def get_ticket_types_visible_to(user):
@@ -16,12 +26,11 @@ def get_ticket_types_visible_to(user):
 
     if user.is_authenticated and user.is_staff:
         return queryset
-    if user.is_authenticated and user_can_manage_events(user):
-        return queryset.filter(
-            public_filter
-            | Q(event__organizer=user)
-            | Q(event__organization__memberships__user=user, event__organization__memberships__is_active=True)
-        ).distinct()
+    if user.is_authenticated:
+        managed_filter = Q(event__organizer=user) | _organization_role_filter(
+            "event__", user, EVENT_MANAGEMENT_ROLES
+        )
+        return queryset.filter(public_filter | managed_filter).distinct()
     return queryset.filter(public_filter)
 
 
@@ -39,13 +48,16 @@ def get_orders_visible_to(user):
         return queryset.none()
     if user.is_staff:
         return queryset
-    if user_can_manage_events(user):
-        return queryset.filter(
-            Q(buyer=user)
-            | Q(event__organizer=user)
-            | Q(event__organization__memberships__user=user, event__organization__memberships__is_active=True)
-        ).distinct()
-    return queryset.filter(buyer=user)
+
+    # Orders contain customer identity, totals and lifecycle information. They
+    # are visible only to the buyer and organization roles that actually need
+    # billetterie/finance access — not to every organization member.
+    organization_roles = set(EVENT_MANAGEMENT_ROLES) | set(FINANCE_ROLES)
+    return queryset.filter(
+        Q(buyer=user)
+        | Q(event__organizer=user)
+        | _organization_role_filter("event__", user, organization_roles)
+    ).distinct()
 
 
 def get_tickets_visible_to(user):
@@ -61,13 +73,15 @@ def get_tickets_visible_to(user):
         return queryset.none()
     if user.is_staff:
         return queryset
-    if user_can_manage_events(user):
-        return queryset.filter(
-            Q(owner=user)
-            | Q(event__organizer=user)
-            | Q(event__organization__memberships__user=user, event__organization__memberships__is_active=True)
-        ).distinct()
-    return queryset.filter(owner=user)
+
+    # Ticket holder data is operational. Event managers and access managers
+    # may inspect it; marketing-only members must not inherit that visibility.
+    organization_roles = set(EVENT_MANAGEMENT_ROLES) | set(ACCESS_ROLES)
+    return queryset.filter(
+        Q(owner=user)
+        | Q(event__organizer=user)
+        | _organization_role_filter("event__", user, organization_roles)
+    ).distinct()
 
 
 def get_waitlist_entries_visible_to(user):
