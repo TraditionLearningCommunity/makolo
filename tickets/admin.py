@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Ticket, TicketOrder, TicketOrderItem, TicketType
+from .models import (
+    Ticket,
+    TicketOrder,
+    TicketOrderItem,
+    TicketTransfer,
+    TicketType,
+    TicketWaitlistEntry,
+)
 
 
 class TicketOrderItemInline(admin.TabularInline):
@@ -76,3 +83,65 @@ class TicketAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
+
+
+@admin.register(TicketWaitlistEntry)
+class TicketWaitlistEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "ticket_type",
+        "requested_quantity",
+        "status",
+        "offered_at",
+        "offer_expires_at",
+        "created_at",
+    )
+    list_filter = ("status", "ticket_type__event")
+    search_fields = (
+        "user__email",
+        "user__username",
+        "ticket_type__name",
+        "ticket_type__event__title",
+        "offered_order__reference",
+    )
+    readonly_fields = (
+        "ticket_type",
+        "user",
+        "requested_quantity",
+        "status",
+        "offered_order",
+        "offered_at",
+        "offer_expires_at",
+        "converted_at",
+        "cancelled_at",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(TicketTransfer)
+class TicketTransferAdmin(admin.ModelAdmin):
+    list_display = (
+        "ticket",
+        "sender",
+        "recipient",
+        "status",
+        "expires_at",
+        "accepted_at",
+        "created_at",
+    )
+    list_filter = ("status", "ticket__event")
+    search_fields = (
+        "ticket__code",
+        "ticket__event__title",
+        "sender__email",
+        "recipient__email",
+        "recipient_email",
+    )
+    readonly_fields = [field.name for field in TicketTransfer._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
