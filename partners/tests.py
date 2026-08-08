@@ -22,7 +22,6 @@ from .models import (
     CommissionType,
     Partner,
     PartnerCommission,
-    PartnerPayout,
     PartnerStatus,
     PayoutStatus,
     ReferralAttribution,
@@ -32,10 +31,8 @@ from .models import (
 from .services import (
     attribute_order,
     build_partner_metrics,
-    create_campaign,
     create_partner,
     create_payout,
-    create_referral_code,
     mark_payout_paid,
 )
 
@@ -153,7 +150,7 @@ class PartnerAffiliationTests(TestCase):
             code="ALICE10",
         )
 
-    def _order(self, *, amount_paid=True):
+    def _order(self):
         return create_order(
             buyer=self.buyer,
             event=self.event,
@@ -222,7 +219,6 @@ class PartnerAffiliationTests(TestCase):
         order = self._order()
         attribute_order(order=order, referral_code=self.code)
         self.assertFalse(PartnerCommission.objects.exists())
-
         payment = initiate_payment(
             order=order,
             actor=self.buyer,
@@ -230,7 +226,6 @@ class PartnerAffiliationTests(TestCase):
             method=PaymentMethod.CARD,
         )
         complete_sandbox_payment(payment=payment, actor=self.buyer)
-
         attribution = ReferralAttribution.objects.get(order=order)
         commission = PartnerCommission.objects.get(attribution=attribution)
         self.assertEqual(attribution.status, AttributionStatus.CONFIRMED)
@@ -249,7 +244,6 @@ class PartnerAffiliationTests(TestCase):
         )
         payment = complete_sandbox_payment(payment=payment, actor=self.buyer)
         refund_payment(payment=payment, actor=self.finance, reason="Client request")
-
         attribution = ReferralAttribution.objects.get(order=order)
         commission = PartnerCommission.objects.get(attribution=attribution)
         self.assertEqual(attribution.status, AttributionStatus.REVERSED)
@@ -260,7 +254,6 @@ class PartnerAffiliationTests(TestCase):
         attribute_order(order=order, referral_code=self.code)
         payment = initiate_payment(order=order, actor=self.buyer, provider=PaymentProvider.SANDBOX, method=PaymentMethod.CARD)
         complete_sandbox_payment(payment=payment, actor=self.buyer)
-
         payout = create_payout(partner=self.partner, actor=self.finance, currency="USD")
         self.assertEqual(payout.amount, Decimal("10.00"))
         self.assertEqual(payout.status, PayoutStatus.DRAFT)
@@ -277,7 +270,6 @@ class PartnerAffiliationTests(TestCase):
         payment = complete_sandbox_payment(payment=payment, actor=self.buyer)
         payout = create_payout(partner=self.partner, actor=self.finance, currency="USD")
         mark_payout_paid(payout=payout, actor=self.finance, reference="BANK-PAID")
-
         with self.assertRaises(ValidationError):
             refund_payment(payment=payment, actor=self.finance, reason="Late refund")
         payment.refresh_from_db()
@@ -304,7 +296,6 @@ class PartnerAffiliationTests(TestCase):
         attribute_order(order=order, referral_code=self.code)
         payment = initiate_payment(order=order, actor=self.buyer, provider=PaymentProvider.SANDBOX, method=PaymentMethod.CARD)
         complete_sandbox_payment(payment=payment, actor=self.buyer)
-
         self.client.force_login(self.marketing)
         response = self.client.get(reverse("partners_api:partner-metrics", kwargs={"pk": self.partner.pk}))
         self.assertEqual(response.status_code, 200)
@@ -315,7 +306,6 @@ class PartnerAffiliationTests(TestCase):
         attribute_order(order=order, referral_code=self.code)
         payment = initiate_payment(order=order, actor=self.buyer, provider=PaymentProvider.SANDBOX, method=PaymentMethod.CARD)
         complete_sandbox_payment(payment=payment, actor=self.buyer)
-
         self.client.force_login(self.finance)
         response = self.client.get(reverse("partners_api:partner-metrics", kwargs={"pk": self.partner.pk}))
         self.assertEqual(response.status_code, 200)
@@ -324,7 +314,7 @@ class PartnerAffiliationTests(TestCase):
     def test_api_ticket_order_accepts_referral_code(self):
         self.client.force_login(self.buyer)
         response = self.client.post(
-            reverse("ticket-order-list"),
+            reverse("ticket-orders-list"),
             {
                 "event_id": str(self.event.pk),
                 "customer_name": "API Buyer",
