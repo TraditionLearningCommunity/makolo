@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission
 
-from events.permissions import user_can_manage_event
+from events.permissions import user_can_manage_event_finance
 from tickets.permissions import user_can_access_order
 
 
@@ -9,7 +9,7 @@ def user_can_access_payment(user, payment) -> bool:
 
 
 def user_can_manage_payment(user, payment) -> bool:
-    return user_can_manage_event(user, payment.order.event)
+    return user_can_manage_event_finance(user, payment.order.event)
 
 
 class CanAccessPayment(BasePermission):
