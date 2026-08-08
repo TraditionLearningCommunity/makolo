@@ -1,12 +1,11 @@
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from rest_framework import permissions, status, viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from scanner.models import ScannerAssignment
 from scanner.permissions import user_can_manage_scanner_assignments
 from scanner.selectors import (
     get_assignments_visible_to,
@@ -14,6 +13,7 @@ from scanner.selectors import (
     get_scannable_events,
 )
 from scanner.services import scan_ticket
+from scanner.throttles import ScannerScanThrottle
 
 from .serializers import (
     ScanLogSerializer,
@@ -45,7 +45,11 @@ class ScannerAssignmentViewSet(viewsets.ModelViewSet):
         if not user_can_manage_scanner_assignments(self.request.user, event):
             raise PermissionDenied("Vous ne pouvez pas affecter un agent à cet événement.")
         assignment = serializer.save(assigned_by=self.request.user)
-        assignment.full_clean()
+        try:
+            assignment.full_clean()
+        except DjangoValidationError as exc:
+            assignment.delete()
+            raise ValidationError(exc.message_dict) from exc
         assignment.save()
 
     def perform_update(self, serializer):
@@ -54,7 +58,10 @@ class ScannerAssignmentViewSet(viewsets.ModelViewSet):
         if not user_can_manage_scanner_assignments(self.request.user, event):
             raise PermissionDenied("Vous ne pouvez pas modifier cette affectation.")
         assignment = serializer.save()
-        assignment.full_clean()
+        try:
+            assignment.full_clean()
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message_dict) from exc
         assignment.save()
 
     def perform_destroy(self, instance):
@@ -84,8 +91,7 @@ class ScanLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ScanAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "scanner_scan"
+    throttle_classes = [ScannerScanThrottle]
 
     def post(self, request):
         serializer = ScanRequestSerializer(data=request.data)
