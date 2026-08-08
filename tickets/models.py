@@ -28,6 +28,22 @@ class TicketStatus(models.TextChoices):
     REFUNDED = "refunded", "Remboursé"
 
 
+class WaitlistStatus(models.TextChoices):
+    WAITING = "waiting", "En attente"
+    OFFERED = "offered", "Place proposée"
+    CONVERTED = "converted", "Billet obtenu"
+    CANCELLED = "cancelled", "Retiré"
+    EXPIRED = "expired", "Offre expirée"
+
+
+class TransferStatus(models.TextChoices):
+    PENDING = "pending", "En attente"
+    ACCEPTED = "accepted", "Accepté"
+    DECLINED = "declined", "Refusé"
+    CANCELLED = "cancelled", "Annulé"
+    EXPIRED = "expired", "Expiré"
+
+
 class TicketType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(
@@ -317,3 +333,146 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"{self.code} — {self.event.title}"
+
+
+class TicketWaitlistEntry(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ticket_type = models.ForeignKey(
+        TicketType,
+        on_delete=models.CASCADE,
+        related_name="waitlist_entries",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ticket_waitlist_entries",
+    )
+    requested_quantity = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=WaitlistStatus.choices,
+        default=WaitlistStatus.WAITING,
+    )
+    offered_order = models.OneToOneField(
+        TicketOrder,
+        on_delete=models.SET_NULL,
+        related_name="waitlist_entry",
+        null=True,
+        blank=True,
+    )
+    offered_at = models.DateTimeField(null=True, blank=True)
+    offer_expires_at = models.DateTimeField(null=True, blank=True)
+    converted_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ticket_type", "user"],
+                condition=models.Q(status__in=[WaitlistStatus.WAITING, WaitlistStatus.OFFERED]),
+                name="ticket_waitlist_one_active_user",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["ticket_type", "status", "created_at"],
+                name="ticket_waitlist_queue_idx",
+            ),
+            models.Index(
+                fields=["user", "status", "created_at"],
+                name="ticket_waitlist_user_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.ticket_type_id and self.requested_quantity > self.ticket_type.max_per_order:
+            raise ValidationError(
+                {"requested_quantity": "La quantité demandée dépasse le maximum par commande."}
+            )
+
+    @property
+    def is_offer_active(self):
+        return bool(
+            self.status == WaitlistStatus.OFFERED
+            and self.offered_order_id
+            and self.offer_expires_at
+            and timezone.now() < self.offer_expires_at
+        )
+
+    def __str__(self):
+        return f"{self.user} — {self.ticket_type} — {self.get_status_display()}"
+
+
+class TicketTransfer(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name="transfers",
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="outgoing_ticket_transfers",
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="incoming_ticket_transfers",
+    )
+    recipient_email = models.EmailField()
+    status = models.CharField(
+        max_length=16,
+        choices=TransferStatus.choices,
+        default=TransferStatus.PENDING,
+    )
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    declined_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    expired_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ticket"],
+                condition=models.Q(status=TransferStatus.PENDING),
+                name="ticket_transfer_one_pending",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["recipient", "status", "created_at"],
+                name="ticket_transfer_recipient_idx",
+            ),
+            models.Index(
+                fields=["sender", "status", "created_at"],
+                name="ticket_transfer_sender_idx",
+            ),
+            models.Index(
+                fields=["status", "expires_at"],
+                name="ticket_transfer_expiry_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.sender_id and self.recipient_id and self.sender_id == self.recipient_id:
+            raise ValidationError({"recipient": "Vous ne pouvez pas transférer un billet à vous-même."})
+
+    @property
+    def is_pending_active(self):
+        return self.status == TransferStatus.PENDING and timezone.now() < self.expires_at
+
+    def __str__(self):
+        return f"{self.ticket} — {self.sender} → {self.recipient}"
