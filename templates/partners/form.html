@@ -1,0 +1,12 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ title }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <div><a href="{% if organization %}{% url 'partners:organization' organization.slug %}{% else %}{% url 'partners:dashboard' %}{% endif %}" class="text-sm font-bold text-indigo-600">← Retour</a><h1 class="mt-2 text-3xl font-black">{{ title }}</h1>{% if organization %}<p class="mt-1 text-zinc-500">{{ organization.name }}</p>{% endif %}</div>
+  <form method="post" class="space-y-6 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-300">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grid gap-5 md:grid-cols-2">{% for field in form %}<div class="{% if field.name == 'notes' %}md:col-span-2{% endif %}"><label for="{{ field.id_for_label }}" class="text-sm font-bold">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}{% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-red-500">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
+    <div class="flex justify-end"><button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-500">Enregistrer</button></div>
+  </form>
+</div>
+{% endblock %}

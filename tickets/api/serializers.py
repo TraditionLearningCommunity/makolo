@@ -3,6 +3,7 @@ from rest_framework import serializers
 from events.models import Event
 from events.permissions import user_can_manage_event
 from events.selectors import get_events_visible_to
+from partners.services import attribute_order
 
 from tickets.models import (
     Ticket,
@@ -164,6 +165,7 @@ class TicketOrderCreateSerializer(serializers.Serializer):
     )
     customer_name = serializers.CharField(max_length=180)
     customer_email = serializers.EmailField()
+    referral_code = serializers.CharField(max_length=40, required=False, allow_blank=True, write_only=True)
     items = TicketSelectionSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
@@ -193,15 +195,18 @@ class TicketOrderCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         request = self.context["request"]
+        referral_code = validated_data.pop("referral_code", "")
         selections = [
             (item["ticket_type"], item["quantity"])
             for item in validated_data.pop("items")
         ]
-        return create_order(
+        order = create_order(
             buyer=request.user,
             selections=selections,
             **validated_data,
         )
+        attribute_order(order=order, referral_code=referral_code or None)
+        return order
 
 
 class TicketWaitlistSerializer(serializers.ModelSerializer):
