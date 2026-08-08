@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fr">
+<body style="margin:0;background:#f4f4f5;font-family:Arial,sans-serif;color:#18181b;">
+  <div style="max-width:640px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#09090b;color:#fff;border-radius:24px 24px 0 0;padding:24px 28px;">
+      <div style="font-size:24px;font-weight:900;letter-spacing:.04em;">MAKOLO</div>
+      <div style="margin-top:4px;color:#a1a1aa;font-size:13px;">Smart Event Platform</div>
+    </div>
+    <div style="background:#fff;border-radius:0 0 24px 24px;padding:32px 28px;">
+      <p style="margin:0 0 20px;color:#52525b;">Bonjour {% if recipient.first_name %}{{ recipient.first_name }}{% else %}{{ recipient.username }}{% endif %},</p>
+      <h1 style="margin:0;font-size:26px;line-height:1.2;">{{ notification.title }}</h1>
+      <p style="margin:18px 0 0;line-height:1.7;color:#52525b;">{{ notification.message }}</p>
+      {% if action_url %}<p style="margin:28px 0 0;"><a href="{{ action_url }}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:14px 20px;border-radius:14px;font-weight:700;">Ouvrir dans Makolo</a></p>{% endif %}
+      <p style="margin:32px 0 0;padding-top:20px;border-top:1px solid #e4e4e7;color:#a1a1aa;font-size:12px;line-height:1.6;">Vous recevez cet e-mail car vos notifications Makolo sont activées. Vous pouvez ajuster vos préférences depuis votre compte.</p>
+    </div>
+  </div>
+</body>
+</html>
