@@ -51,6 +51,8 @@ jobs:
           DJANGO_CSRF_TRUSTED_ORIGINS: https://makolo.example.test
           MAKOLO_PUBLIC_BASE_URL: https://makolo.example.test
           PAYMENTS_WEBHOOK_SECRET: ci-production-webhook-check-secret
+          DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+          DJANGO_SECURE_HSTS_PRELOAD: "True"
         run: python manage.py check --deploy --fail-level WARNING
 
       - name: Check for missing migrations
