@@ -17,12 +17,11 @@ from .selectors import get_events_visible_to, get_manageable_events
 from .services import cancel_event, complete_event, publish_event
 
 
-class EventListView(LoginRequiredMixin, ListView):
+class EventListView(ListView):
     model = Event
     template_name = "events/event_list.html"
     context_object_name = "events"
     paginate_by = 20
-    login_url = "core:login"
 
     def get_queryset(self):
         return get_events_visible_to(self.request.user)
@@ -30,9 +29,13 @@ class EventListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["can_create_event"] = user_can_manage_events(self.request.user)
-        context["has_organization"] = OrganizationMembership.objects.filter(
-            user=self.request.user, is_active=True
-        ).exists()
+        context["has_organization"] = bool(
+            self.request.user.is_authenticated
+            and OrganizationMembership.objects.filter(
+                user=self.request.user,
+                is_active=True,
+            ).exists()
+        )
         return context
 
 
@@ -54,7 +57,10 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated and user_can_manage_events(request.user):
-            if not OrganizationMembership.objects.filter(user=request.user, is_active=True).exists():
+            if not OrganizationMembership.objects.filter(
+                user=request.user,
+                is_active=True,
+            ).exists():
                 ensure_personal_organization(request.user)
         return super().dispatch(request, *args, **kwargs)
 
@@ -67,27 +73,32 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         form.instance.organizer = self.request.user
         response = super().form_valid(form)
         ensure_policy(self.object)
-        messages.success(self.request, "Événement créé en brouillon avec Makolo Autopilot prêt à être configuré.")
+        messages.success(
+            self.request,
+            "Événement créé en brouillon avec Makolo Autopilot prêt à être configuré.",
+        )
         return response
 
     def get_success_url(self):
         return reverse("events:detail", kwargs={"slug": self.object.slug})
 
 
-class EventDetailView(LoginRequiredMixin, DetailView):
+class EventDetailView(DetailView):
     model = Event
     template_name = "events/event_detail.html"
     context_object_name = "event"
     slug_field = "slug"
     slug_url_kwarg = "slug"
-    login_url = "core:login"
 
     def get_queryset(self):
         return get_events_visible_to(self.request.user, for_detail=True)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["can_manage_event"] = user_can_manage_event(self.request.user, self.object)
+        context["can_manage_event"] = user_can_manage_event(
+            self.request.user,
+            self.object,
+        )
         return context
 
 
