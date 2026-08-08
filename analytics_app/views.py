@@ -2,6 +2,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 
+from partners.analytics import build_event_partner_analytics
+
+from .permissions import user_can_view_event_financials
 from .selectors import get_analytics_events
 from .services import build_event_analytics, build_portfolio_analytics
 
@@ -32,5 +35,9 @@ class EventAnalyticsView(LoginRequiredMixin, TemplateView):
             days = 30
         context["event"] = event
         context["analytics"] = build_event_analytics(event, self.request.user, days=days)
+        context["partner_analytics"] = build_event_partner_analytics(
+            event,
+            finance_visible=user_can_view_event_financials(self.request.user, event),
+        )
         context["days"] = min(max(days, 7), 90)
         return context
