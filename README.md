@@ -27,6 +27,7 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 - Alpine.js
 - Tailwind CSS
 - SQLite pour le développement initial
+- PostgreSQL recommandé pour la production et les opérations concurrentes
 
 ## Applications Django
 
@@ -42,9 +43,9 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 
 ## État fonctionnel
 
-Les socles `accounts` et `events` sont actifs. Le module `tickets` gère maintenant les types de billets, le stock, la capacité, les commandes gratuites ou payantes, les réservations temporaires, l’émission de billets individuels et les QR signés.
+Les socles `accounts`, `events` et `tickets` sont actifs. `scanner` gère désormais les affectations d’agents par événement, la validation serveur des QR, la consommation atomique des billets, la prévention du double scan, l’idempotence des terminaux et le journal d’audit des contrôles d’accès.
 
-Les prochains chantiers métier sont `scanner`, `payments`, `notifications` et `analytics_app`.
+Les prochains chantiers métier sont `payments`, `notifications`, `analytics_app` et `partners`.
 
 ## Installation locale sous PowerShell
 
@@ -101,9 +102,19 @@ Les endpoints principaux de la v1 sont :
 /api/v1/tickets/types/
 /api/v1/tickets/orders/
 /api/v1/tickets/tickets/
+/api/v1/scanner/events/
+/api/v1/scanner/assignments/
+/api/v1/scanner/logs/
+/api/v1/scanner/scan/
 ```
 
 L'inscription crée un compte sans émettre immédiatement de JWT. Les jetons sont obtenus explicitement via l'endpoint de connexion.
+
+## Contrôle d’accès
+
+La console web est disponible sous `/scanner/`. Un agent doit avoir le rôle `scanner-agent` et une affectation active pour l’événement. Les organisateurs peuvent contrôler leurs propres événements et le staff dispose du périmètre global.
+
+Le QR est toujours validé côté serveur. Le premier scan valide marque le billet `used`; les scans suivants sont rejetés et journalisés comme doublons.
 
 ## CI
 
@@ -120,6 +131,7 @@ GitHub Actions exécute automatiquement sur les Pull Requests vers `main` :
 
 - rôles et permissions : `docs/architecture/accounts-rbac.md` ;
 - domaine événementiel : `docs/architecture/events.md` ;
-- billetterie et QR : `docs/architecture/tickets.md`.
+- billetterie et QR : `docs/architecture/tickets.md` ;
+- contrôle d’accès et anti-double-scan : `docs/architecture/scanner.md`.
 
 Consultez également `AUDIT_LOCAL.md` pour l'état initial du projet avant la phase de durcissement du dépôt.
