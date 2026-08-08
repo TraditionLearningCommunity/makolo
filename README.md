@@ -1,6 +1,6 @@
 # Makolo
 
-Makolo est une plateforme intelligente de gestion événementielle, de billetterie numérique, de paiements et de contrôle d’accès par QR code.
+Makolo est une plateforme intelligente de gestion événementielle, de billetterie numérique, de paiements, de notifications et de contrôle d’accès par QR code.
 
 ## Vision
 
@@ -12,9 +12,9 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 - génération de tickets numériques ;
 - QR codes uniques ;
 - paiements ;
+- notifications transactionnelles et rappels ;
 - contrôle d’accès ;
 - prévention du double scan ;
-- notifications ;
 - tableaux de bord et analytics.
 
 ## Stack actuelle
@@ -37,15 +37,15 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 - `tickets`
 - `scanner`
 - `payments`
+- `notifications`
 - `partners`
 - `analytics_app`
-- `notifications`
 
 ## État fonctionnel
 
-Les domaines `accounts`, `events`, `tickets`, `scanner` et `payments` sont actifs. La chaîne principale couvre maintenant la création d’un événement, la réservation de billets, les commandes gratuites ou payantes, l’émission de QR, le paiement sandbox ou manuel, les remboursements complets contrôlés et le contrôle d’accès anti-double-scan.
+Les domaines `accounts`, `events`, `tickets`, `scanner`, `payments` et `notifications` sont actifs. La chaîne principale couvre maintenant la création d’un événement, la réservation de billets, les commandes gratuites ou payantes, l’émission de QR, le paiement sandbox ou manuel, les remboursements complets contrôlés, les notifications transactionnelles, les rappels d’événements et le contrôle d’accès anti-double-scan.
 
-Les prochains chantiers métier sont `notifications`, `analytics_app` et `partners`, puis les adaptateurs de paiement externes réels.
+Les prochains chantiers métier sont `analytics_app` et `partners`, puis les adaptateurs de paiement externes réels et les canaux SMS/push.
 
 ## Installation locale sous PowerShell
 
@@ -84,6 +84,19 @@ Pour libérer le stock des commandes payantes arrivées à expiration :
 python manage.py expire_ticket_orders
 ```
 
+Pour envoyer les notifications en attente :
+
+```powershell
+python manage.py process_notifications --limit 100
+```
+
+Pour créer les rappels d’événements à 24 h :
+
+```powershell
+python manage.py schedule_event_reminders --hours-before 24 --window-minutes 60
+python manage.py process_notifications --limit 100
+```
+
 ## Environnement
 
 En développement, Makolo utilise `DJANGO_ENV=development` par défaut. Les vraies clés et informations d'hébergement ne doivent jamais être versionnées.
@@ -97,6 +110,8 @@ PAYMENTS_WEBHOOK_SECRET
 ```
 
 Aucun numéro de carte, CVV ou secret bancaire n’est stocké par Makolo.
+
+En développement, les e-mails sont écrits dans la console par le backend Django. En production, configurez le SMTP via les variables `DJANGO_EMAIL_*` déjà prévues dans `config/settings.py`.
 
 ## API
 
@@ -118,6 +133,8 @@ Les endpoints principaux de la v1 sont :
 /api/v1/payments/payments/
 /api/v1/payments/events/
 /api/v1/payments/webhooks/sandbox/
+/api/v1/notifications/
+/api/v1/notifications/unread-count/
 ```
 
 L'inscription crée un compte sans émettre immédiatement de JWT. Les jetons sont obtenus explicitement via l'endpoint de connexion.
@@ -127,6 +144,12 @@ L'inscription crée un compte sans émettre immédiatement de JWT. Les jetons so
 Une commande payante reste `pending` et réserve son stock jusqu’au paiement ou à son expiration. Une transaction réussie confirme la commande et émet les billets. Les confirmations directes de commandes payantes ont été retirées de l’API `tickets` afin que ce changement d’état passe par le domaine `payments`.
 
 Le sandbox permet de tester le cycle complet sans argent réel. Le mode `manual` est réservé aux organisateurs/staff pour les encaissements vérifiés hors plateforme.
+
+## Notifications
+
+Le centre de notifications est disponible sous `/notifications/`. La cloche de la navbar affiche le nombre de messages non lus. Les confirmations de billets gratuits, paiements réussis/échoués/remboursés et rappels d’événements sont dédupliqués et créés après commit de la transaction métier.
+
+Les e-mails passent par une file persistante `NotificationDelivery` avec retry et respect des préférences/heures silencieuses. SMS et push sont prévus dans le modèle mais pas encore branchés à un fournisseur réel.
 
 ## Contrôle d’accès
 
@@ -151,6 +174,7 @@ GitHub Actions exécute automatiquement sur les Pull Requests vers `main` :
 - domaine événementiel : `docs/architecture/events.md` ;
 - billetterie et QR : `docs/architecture/tickets.md` ;
 - contrôle d’accès et anti-double-scan : `docs/architecture/scanner.md` ;
-- paiements, webhooks et remboursements : `docs/architecture/payments.md`.
+- paiements, webhooks et remboursements : `docs/architecture/payments.md` ;
+- notifications, outbox, e-mails et rappels : `docs/architecture/notifications.md`.
 
 Consultez également `AUDIT_LOCAL.md` pour l'état initial du projet avant la phase de durcissement du dépôt.
