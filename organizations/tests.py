@@ -50,6 +50,11 @@ class OrganizationPermissionTests(TestCase):
             email="buyer@makolo.test",
             password="StrongPass2026!",
         )
+        self.outsider = User.objects.create_user(
+            username="outsider",
+            email="outsider@makolo.test",
+            password="StrongPass2026!",
+        )
         self.organization = create_organization(
             creator=self.owner,
             name="Makolo Community Events",
@@ -107,6 +112,19 @@ class OrganizationPermissionTests(TestCase):
         response = self.client.get(f"/organizations/{self.organization.slug}/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Makolo Community Events")
+
+    def test_non_member_cannot_open_private_team_workspace(self):
+        self.client.force_login(self.outsider)
+        response = self.client.get(f"/organizations/{self.organization.slug}/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_public_profile_is_visible_without_team_data(self):
+        response = self.client.get(f"/o/{self.organization.slug}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Makolo Community Events")
+        self.assertContains(response, "Community Day")
+        self.assertNotContains(response, self.finance.email)
+        self.assertNotContains(response, "Finance")
 
     def test_finance_role_can_confirm_manual_payment_and_refund(self):
         ticket_type = TicketType.objects.create(
