@@ -97,6 +97,14 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         instance = self.instance
         event = attrs.get("event", getattr(instance, "event", None))
+        valid_from = attrs.get("valid_from", getattr(instance, "valid_from", None))
+        valid_until = attrs.get("valid_until", getattr(instance, "valid_until", None))
+
+        if valid_from and valid_until and valid_until <= valid_from:
+            raise serializers.ValidationError(
+                {"valid_until": "La fin doit être postérieure au début."}
+            )
+
         if request and event and not user_can_manage_scanner_assignments(
             request.user,
             event,
