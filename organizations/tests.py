@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -10,6 +11,10 @@ from events.permissions import (
     user_can_manage_event_access,
     user_can_manage_event_finance,
 )
+from payments.models import PaymentProvider, PaymentStatus
+from payments.services import complete_manual_payment, initiate_payment, refund_payment
+from tickets.models import TicketOrderStatus, TicketType
+from tickets.services import create_order
 
 from .models import OrganizationRole
 from .services import add_or_update_member, create_organization
@@ -20,14 +25,53 @@ User = get_user_model()
 
 class OrganizationPermissionTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="org-owner", email="owner@makolo.test", password="StrongPass2026!")
-        self.event_manager = User.objects.create_user(username="event-manager", email="events@makolo.test", password="StrongPass2026!")
-        self.finance = User.objects.create_user(username="finance", email="finance@makolo.test", password="StrongPass2026!")
-        self.access = User.objects.create_user(username="access", email="access@makolo.test", password="StrongPass2026!")
-        self.organization = create_organization(creator=self.owner, name="Makolo Community Events")
-        add_or_update_member(organization=self.organization, actor=self.owner, user=self.event_manager, role=OrganizationRole.EVENT_MANAGER)
-        add_or_update_member(organization=self.organization, actor=self.owner, user=self.finance, role=OrganizationRole.FINANCE)
-        add_or_update_member(organization=self.organization, actor=self.owner, user=self.access, role=OrganizationRole.SCANNER_MANAGER)
+        self.owner = User.objects.create_user(
+            username="org-owner",
+            email="owner@makolo.test",
+            password="StrongPass2026!",
+        )
+        self.event_manager = User.objects.create_user(
+            username="event-manager",
+            email="events@makolo.test",
+            password="StrongPass2026!",
+        )
+        self.finance = User.objects.create_user(
+            username="finance",
+            email="finance@makolo.test",
+            password="StrongPass2026!",
+        )
+        self.access = User.objects.create_user(
+            username="access",
+            email="access@makolo.test",
+            password="StrongPass2026!",
+        )
+        self.buyer = User.objects.create_user(
+            username="org-buyer",
+            email="buyer@makolo.test",
+            password="StrongPass2026!",
+        )
+        self.organization = create_organization(
+            creator=self.owner,
+            name="Makolo Community Events",
+        )
+        add_or_update_member(
+            organization=self.organization,
+            actor=self.owner,
+            user=self.event_manager,
+            role=OrganizationRole.EVENT_MANAGER,
+        )
+        add_or_update_member(
+            organization=self.organization,
+            actor=self.owner,
+            user=self.finance,
+            role=OrganizationRole.FINANCE,
+        )
+        add_or_update_member(
+            organization=self.organization,
+            actor=self.owner,
+            user=self.access,
+            role=OrganizationRole.SCANNER_MANAGER,
+        )
         start = timezone.now() + timedelta(days=5)
         self.event = Event.objects.create(
             organizer=self.owner,
@@ -63,3 +107,44 @@ class OrganizationPermissionTests(TestCase):
         response = self.client.get(f"/organizations/{self.organization.slug}/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Makolo Community Events")
+
+    def test_finance_role_can_confirm_manual_payment_and_refund(self):
+        ticket_type = TicketType.objects.create(
+            event=self.event,
+            name="Finance Pass",
+            price=Decimal("25.00"),
+            currency="USD",
+            quantity_total=10,
+        )
+        order = create_order(
+            buyer=self.buyer,
+            event=self.event,
+            customer_name="Buyer",
+            customer_email=self.buyer.email,
+            selections=[(ticket_type, 1)],
+        )
+        payment = initiate_payment(
+            order=order,
+            actor=self.finance,
+            provider=PaymentProvider.MANUAL,
+            method="cash",
+        )
+        complete_manual_payment(
+            payment=payment,
+            actor=self.finance,
+            provider_reference="ORG-CASH-001",
+        )
+        payment.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(payment.status, PaymentStatus.SUCCEEDED)
+        self.assertEqual(order.status, TicketOrderStatus.CONFIRMED)
+
+        refund_payment(
+            payment=payment,
+            actor=self.finance,
+            reason="Test finance organization",
+        )
+        payment.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(payment.status, PaymentStatus.REFUNDED)
+        self.assertEqual(order.status, TicketOrderStatus.CANCELLED)
