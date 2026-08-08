@@ -7,7 +7,9 @@ urlpatterns = [
     path("api/v1/accounts/", include("accounts.api.urls")),
     path("api/v1/events/", include("events.api.urls")),
     path("api/v1/tickets/", include("tickets.api.urls")),
+    path("api/v1/scanner/", include("scanner.api.urls")),
     path("events/", include("events.urls")),
     path("tickets/", include("tickets.urls")),
+    path("scanner/", include("scanner.urls")),
     path("", include("core.urls")),
 ]
