@@ -1,0 +1,36 @@
+{% extends 'base/app.html' %}
+
+{% block title %}{% if object %}Modifier l’affectation{% else %}Nouvelle affectation{% endif %} | Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+    <div>
+        <a href="{% url 'scanner:assignments' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Agents scanner</a>
+        <h1 class="mt-2 text-4xl font-black text-zinc-900 dark:text-white">{% if object %}Modifier l’affectation{% else %}Affecter un agent scanner{% endif %}</h1>
+    </div>
+
+    <form method="post" class="space-y-6 rounded-3xl border border-zinc-200 bg-white p-6 md:p-8 dark:border-zinc-800 dark:bg-zinc-950">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ form.non_field_errors }}</div>{% endif %}
+
+        <div class="grid gap-5 md:grid-cols-2">
+            {% for field in form %}
+            <div class="{% if field.name == 'notes' %}md:col-span-2{% endif %}">
+                {% if field.name == 'is_active' %}
+                <label class="flex items-center gap-3 rounded-2xl border border-zinc-200 p-4 font-semibold dark:border-zinc-800">{{ field }} Affectation active</label>
+                {% else %}
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold text-zinc-900 dark:text-white">{{ field.label }}</label>
+                {{ field }}
+                {% endif %}
+                {% if field.errors %}<div class="mt-2 text-sm text-red-600">{{ field.errors|striptags }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-3">
+            <a href="{% url 'scanner:assignments' %}" class="rounded-2xl border border-zinc-300 px-5 py-3 font-semibold dark:border-zinc-700">Annuler</a>
+            <button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-500">Enregistrer</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
