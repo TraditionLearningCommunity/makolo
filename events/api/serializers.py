@@ -62,7 +62,9 @@ class EventDetailSerializer(EventListSerializer):
 
 
 class EventWriteSerializer(serializers.ModelSerializer):
-    organization_id = serializers.PrimaryKeyRelatedField(source="organization", queryset=Organization.objects.all())
+    organization_id = serializers.PrimaryKeyRelatedField(
+        source="organization", queryset=Organization.objects.all(), required=False
+    )
     category_id = serializers.PrimaryKeyRelatedField(source="category", queryset=EventCategory.objects.filter(is_active=True), allow_null=True, required=False)
     venue_id = serializers.PrimaryKeyRelatedField(source="venue", queryset=EventVenue.objects.filter(is_active=True), allow_null=True, required=False)
 
