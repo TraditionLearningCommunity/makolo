@@ -1,21 +1,22 @@
 # Makolo
 
-Makolo est une plateforme intelligente de gestion événementielle, de billetterie numérique, de paiements, de notifications et de contrôle d’accès par QR code.
+Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations et contrôle d’accès par QR code.
 
 ## Vision
 
-Makolo couvre progressivement le cycle de vie d’un événement :
+Makolo n'est pas le back-office d'une seule société. Un utilisateur peut être participant, créer une organisation, rejoindre l'équipe d'un autre organisateur ou exercer un rôle limité (événements, finance, communication, accès) sans devenir administrateur de la plateforme.
 
+La chaîne fonctionnelle couvre maintenant :
+
+- organisations et équipes organisatrices ;
 - création et publication d’événements ;
-- gestion des catégories de billets ;
-- inscriptions et ventes ;
-- génération de tickets numériques ;
-- QR codes uniques ;
-- paiements ;
-- notifications transactionnelles et rappels ;
-- contrôle d’accès ;
-- prévention du double scan ;
-- tableaux de bord et analytics.
+- catégories de billets, stock et capacité ;
+- commandes gratuites ou payantes ;
+- paiements sandbox/manuels et remboursements contrôlés ;
+- génération de tickets et QR uniques ;
+- contrôle d’accès anti-double-scan ;
+- notifications transactionnelles ;
+- Makolo Autopilot pour les tâches temporelles et réactives.
 
 ## Stack actuelle
 
@@ -27,25 +28,70 @@ Makolo couvre progressivement le cycle de vie d’un événement :
 - Alpine.js
 - Tailwind CSS
 - SQLite pour le développement initial
-- PostgreSQL recommandé pour la production et les opérations concurrentes
+- PostgreSQL recommandé en production, notamment pour les opérations concurrentes
 
 ## Applications Django
 
 - `core`
 - `accounts`
+- `organizations`
 - `events`
 - `tickets`
 - `scanner`
 - `payments`
 - `notifications`
+- `automation`
 - `partners`
 - `analytics_app`
 
-## État fonctionnel
+## Organisations et droits
 
-Les domaines `accounts`, `events`, `tickets`, `scanner`, `payments` et `notifications` sont actifs. La chaîne principale couvre maintenant la création d’un événement, la réservation de billets, les commandes gratuites ou payantes, l’émission de QR, le paiement sandbox ou manuel, les remboursements complets contrôlés, les notifications transactionnelles, les rappels d’événements et le contrôle d’accès anti-double-scan.
+`is_staff` et `is_superuser` sont des privilèges de **plateforme Makolo**. Ils ne sont pas nécessaires pour organiser un événement.
 
-Les prochains chantiers métier sont `analytics_app` et `partners`, puis les adaptateurs de paiement externes réels et les canaux SMS/push.
+Une `Organization` possède sa propre équipe :
+
+- Owner : propriété de l'espace organisateur ;
+- Admin : équipe et paramètres de l'organisation ;
+- Event manager : événements et billetterie ;
+- Finance : commandes, paiements et remboursements ;
+- Marketing : communication et futures fonctions CRM ;
+- Scanner manager : contrôle d'accès et agents scanner.
+
+Les événements existants sont automatiquement rattachés à une organisation personnelle lors de la migration vers ce modèle.
+
+## Makolo Autopilot
+
+Les opérations récurrentes ne doivent pas dépendre d'un développeur. En production, un worker persistant tourne à côté du serveur web :
+
+```text
+python manage.py autopilot_worker --poll-seconds 30 --delivery-limit 100
+```
+
+Il exécute automatiquement :
+
+- expiration des commandes non payées et libération du stock ;
+- traitement/retry de la file de notifications ;
+- rappels configurables à J-7, H-24 et H-2 ;
+- alertes de remplissage ;
+- alertes de stock faible ;
+- fermeture automatique des ventes au démarrage ;
+- passage automatique de l'événement à `completed` après sa fin ;
+- suivi post-événement.
+
+L'organisateur configure ses règles dans l'interface :
+
+```text
+/autopilot/events/<event-slug>/
+```
+
+Le moteur décide ensuite quand les exécuter. `run_autopilot` reste disponible pour un cron ou le diagnostic, mais ce n'est pas une action quotidienne d'un développeur.
+
+Des exemples de déploiement sont fournis dans :
+
+```text
+deploy/systemd/makolo-autopilot.service.example
+deploy/cron/makolo-autopilot.cron.example
+```
 
 ## Installation locale sous PowerShell
 
@@ -56,62 +102,40 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-```
-
-Préparer la base de données et démarrer le serveur :
-
-```powershell
 python manage.py migrate
 python manage.py runserver
 ```
 
 L'application est disponible sur <http://127.0.0.1:8000/>.
 
-Le script `run_local.ps1` reste disponible pour le flux local historique sur le port `8765`.
+Pour observer Autopilot en développement, lancer **dans un second terminal** :
+
+```powershell
+python manage.py autopilot_worker --poll-seconds 10
+```
+
+Ce second processus simule le worker qui sera géré automatiquement par le système de déploiement en production.
 
 ## Vérifications avant commit
 
 ```powershell
+python -m pip check
 python manage.py check
 python manage.py makemigrations --check --dry-run
 python manage.py test
-python -m pip check
-```
-
-Pour libérer le stock des commandes payantes arrivées à expiration :
-
-```powershell
-python manage.py expire_ticket_orders
-```
-
-Pour envoyer les notifications en attente :
-
-```powershell
-python manage.py process_notifications --limit 100
-```
-
-Pour créer les rappels d’événements à 24 h :
-
-```powershell
-python manage.py schedule_event_reminders --hours-before 24 --window-minutes 60
-python manage.py process_notifications --limit 100
 ```
 
 ## Environnement
 
 En développement, Makolo utilise `DJANGO_ENV=development` par défaut. Les vraies clés et informations d'hébergement ne doivent jamais être versionnées.
 
-Le fichier `.env.example` documente les variables de base. Le fichier `.env` réel est ignoré par Git.
+`.env.example` documente notamment :
 
-Le fournisseur de paiement `sandbox` est actif par défaut uniquement lorsque `DEBUG=True`. Le webhook sandbox peut être signé avec la variable d’environnement :
+- URL publique Makolo ;
+- sandbox et secret webhook Payments ;
+- paramètres SMTP de production.
 
-```text
-PAYMENTS_WEBHOOK_SECRET
-```
-
-Aucun numéro de carte, CVV ou secret bancaire n’est stocké par Makolo.
-
-En développement, les e-mails sont écrits dans la console par le backend Django. En production, configurez le SMTP via les variables `DJANGO_EMAIL_*` déjà prévues dans `config/settings.py`.
+Le fournisseur de paiement `sandbox` reste réservé au développement/test sauf activation explicite. Aucun PAN, CVV ou secret bancaire n'est stocké par Makolo.
 
 ## API
 
@@ -137,44 +161,37 @@ Les endpoints principaux de la v1 sont :
 /api/v1/notifications/unread-count/
 ```
 
-L'inscription crée un compte sans émettre immédiatement de JWT. Les jetons sont obtenus explicitement via l'endpoint de connexion.
-
-## Paiements
-
-Une commande payante reste `pending` et réserve son stock jusqu’au paiement ou à son expiration. Une transaction réussie confirme la commande et émet les billets. Les confirmations directes de commandes payantes ont été retirées de l’API `tickets` afin que ce changement d’état passe par le domaine `payments`.
-
-Le sandbox permet de tester le cycle complet sans argent réel. Le mode `manual` est réservé aux organisateurs/staff pour les encaissements vérifiés hors plateforme.
-
 ## Notifications
 
-Le centre de notifications est disponible sous `/notifications/`. La cloche de la navbar affiche le nombre de messages non lus. Les confirmations de billets gratuits, paiements réussis/échoués/remboursés et rappels d’événements sont dédupliqués et créés après commit de la transaction métier.
-
-Les e-mails passent par une file persistante `NotificationDelivery` avec retry et respect des préférences/heures silencieuses. SMS et push sont prévus dans le modèle mais pas encore branchés à un fournisseur réel.
+Le centre de notifications est disponible sous `/notifications/`. Les e-mails passent par une outbox persistante `NotificationDelivery` avec retry et respect des préférences/heures silencieuses. Autopilot consomme cette file automatiquement en production. SMS et push sont préparés mais aucun fournisseur externe n'est simulé.
 
 ## Contrôle d’accès
 
-La console web est disponible sous `/scanner/`. Un agent doit avoir le rôle `scanner-agent` et une affectation active pour l’événement. Les organisateurs peuvent contrôler leurs propres événements et le staff dispose du périmètre global.
+Le QR est validé côté serveur. Le premier scan valide marque le billet `used`; les scans suivants sont rejetés et journalisés. Un `Scanner manager` d'organisation peut administrer l'accès sans obtenir les droits finance ou plateforme.
 
-Le QR est toujours validé côté serveur. Le premier scan valide marque le billet `used`; les scans suivants sont rejetés et journalisés comme doublons.
+## Prochains axes produit
+
+La nouvelle frontière `Organization -> Events` et Autopilot préparent :
+
+- listes d'attente automatiques ;
+- transfert sécurisé de billets ;
+- CRM événementiel ;
+- abonnements/followers d'organisateurs ;
+- codes ambassadeurs et affiliation ;
+- intelligence des flux d'entrée ;
+- analytics et prévisions de remplissage ;
+- recommandations et découverte sociale d'événements.
 
 ## CI
 
-GitHub Actions exécute automatiquement sur les Pull Requests vers `main` :
-
-- installation des dépendances ;
-- `pip check` ;
-- contrôles Django ;
-- vérification des migrations ;
-- migrations ;
-- tests Django.
+GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépendances, contrôles Django, cohérence des migrations, application des migrations et tests.
 
 ## Architecture
 
-- rôles et permissions : `docs/architecture/accounts-rbac.md` ;
+- rôles historiques : `docs/architecture/accounts-rbac.md` ;
 - domaine événementiel : `docs/architecture/events.md` ;
 - billetterie et QR : `docs/architecture/tickets.md` ;
-- contrôle d’accès et anti-double-scan : `docs/architecture/scanner.md` ;
-- paiements, webhooks et remboursements : `docs/architecture/payments.md` ;
-- notifications, outbox, e-mails et rappels : `docs/architecture/notifications.md`.
-
-Consultez également `AUDIT_LOCAL.md` pour l'état initial du projet avant la phase de durcissement du dépôt.
+- contrôle d’accès : `docs/architecture/scanner.md` ;
+- paiements : `docs/architecture/payments.md` ;
+- notifications : `docs/architecture/notifications.md` ;
+- organisations, équipes et Autopilot : `docs/architecture/platform-autopilot-organizations.md`.
