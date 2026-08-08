@@ -12,16 +12,18 @@
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{% url 'tickets:list' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-300 px-5 py-3 font-semibold dark:border-zinc-700"><i data-lucide="ticket" class="h-5 w-5"></i>Mes tickets</a>
+            <a href="{% url 'payments:list' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-300 px-5 py-3 font-semibold dark:border-zinc-700"><i data-lucide="credit-card" class="h-5 w-5"></i>Paiements</a>
             {% if can_create_event %}
             <a href="{% url 'events:create' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"><i data-lucide="plus" class="h-5 w-5"></i>Créer un événement</a>
             {% endif %}
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
         <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">Événements</p><h3 class="mt-4 text-5xl font-black">{{ events_count }}</h3><p class="mt-2 text-xs text-zinc-400">{{ published_events_count }} publié(s)</p></div>
         <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">Tickets visibles</p><h3 class="mt-4 text-5xl font-black">{{ tickets_count }}</h3><p class="mt-2 text-xs text-zinc-400">{{ valid_tickets_count }} valide(s)</p></div>
         <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">Commandes en attente</p><h3 class="mt-4 text-5xl font-black">{{ pending_orders_count }}</h3><p class="mt-2 text-xs text-zinc-400">{{ confirmed_orders_count }} confirmée(s)</p></div>
+        <a href="{% url 'payments:list' %}" class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft transition hover:-translate-y-0.5 dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">Paiements réussis</p><h3 class="mt-4 text-5xl font-black">{{ succeeded_payments_count }}</h3><p class="mt-2 text-xs text-zinc-400">{{ pending_payments_count }} en attente · {{ refunded_payments_count }} remboursé(s)</p></a>
         <div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-soft dark:border-zinc-700 dark:bg-zinc-800"><p class="text-sm text-zinc-500 dark:text-zinc-400">À venir</p><h3 class="mt-4 text-5xl font-black">{{ upcoming_events_count }}</h3><p class="mt-2 text-xs text-zinc-400">sur {{ events_count }} événement(s)</p></div>
     </div>
 
