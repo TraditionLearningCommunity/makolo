@@ -33,24 +33,16 @@ class Organization(models.Model):
     country = models.CharField(max_length=120, blank=True)
     city = models.CharField(max_length=120, blank=True)
     public_profile = models.BooleanField(default=True)
-    verification_status = models.CharField(
-        max_length=20,
-        choices=OrganizationVerificationStatus.choices,
-        default=OrganizationVerificationStatus.NEW,
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="created_organizations",
-    )
+    verification_status = models.CharField(max_length=20, choices=OrganizationVerificationStatus.choices, default=OrganizationVerificationStatus.NEW)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_organizations")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
         indexes = [
-            models.Index(fields=["verification_status", "public_profile"]),
-            models.Index(fields=["created_at"]),
+            models.Index(fields=["verification_status", "public_profile"], name="organizatio_verific_68b188_idx"),
+            models.Index(fields=["created_at"], name="organizatio_created_dde2e1_idx"),
         ]
 
     def save(self, *args, **kwargs):
@@ -70,59 +62,31 @@ class Organization(models.Model):
 
 class OrganizationMembership(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.CASCADE,
-        related_name="memberships",
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="organization_memberships",
-    )
-    role = models.CharField(
-        max_length=24,
-        choices=OrganizationRole.choices,
-        default=OrganizationRole.EVENT_MANAGER,
-    )
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="organization_memberships")
+    role = models.CharField(max_length=24, choices=OrganizationRole.choices, default=OrganizationRole.EVENT_MANAGER)
     is_active = models.BooleanField(default=True)
-    invited_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="organization_invitations_sent",
-        null=True,
-        blank=True,
-    )
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="organization_invitations_sent", null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["organization__name", "user__email"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["organization", "user"],
-                name="organization_membership_unique_user",
-            )
+            models.UniqueConstraint(fields=["organization", "user"], name="organization_membership_unique_user")
         ]
         indexes = [
-            models.Index(fields=["user", "is_active"]),
-            models.Index(fields=["organization", "role", "is_active"]),
+            models.Index(fields=["user", "is_active"], name="organizatio_user_id_d45739_idx"),
+            models.Index(fields=["organization", "role", "is_active"], name="organizatio_organiz_25f1f7_idx"),
         ]
 
     def clean(self):
         super().clean()
         if self.pk:
             old = OrganizationMembership.objects.filter(pk=self.pk).first()
-            if (
-                old
-                and old.role == OrganizationRole.OWNER
-                and self.role != OrganizationRole.OWNER
-                and not OrganizationMembership.objects.filter(
-                    organization=self.organization,
-                    role=OrganizationRole.OWNER,
-                    is_active=True,
-                ).exclude(pk=self.pk).exists()
-            ):
+            if old and old.role == OrganizationRole.OWNER and self.role != OrganizationRole.OWNER and not OrganizationMembership.objects.filter(
+                organization=self.organization, role=OrganizationRole.OWNER, is_active=True
+            ).exclude(pk=self.pk).exists():
                 raise ValidationError("Une organisation doit conserver au moins un propriétaire actif.")
 
     def __str__(self):
