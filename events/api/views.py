@@ -6,18 +6,14 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
+from automation.services import ensure_policy
 from events.models import EventCategory, EventStatus, EventVenue
 from events.permissions import IsEventOrganizer, IsEventOwnerOrAdmin
 from events.selectors import get_events_visible_to
 from events.services import cancel_event, complete_event, publish_event
+from organizations.services import ensure_personal_organization
 
-from .serializers import (
-    EventCategorySerializer,
-    EventDetailSerializer,
-    EventListSerializer,
-    EventVenueSerializer,
-    EventWriteSerializer,
-)
+from .serializers import EventCategorySerializer, EventDetailSerializer, EventListSerializer, EventVenueSerializer, EventWriteSerializer
 
 
 class EventCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -36,26 +32,12 @@ class EventVenueViewSet(viewsets.ReadOnlyModelViewSet):
 class EventViewSet(viewsets.ModelViewSet):
     lookup_field = "slug"
     parser_classes = [JSONParser, MultiPartParser, FormParser]
-    http_method_names = [
-        "get",
-        "post",
-        "patch",
-        "delete",
-        "head",
-        "options",
-    ]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return get_events_visible_to(
             self.request.user,
-            for_detail=self.action in {
-                "retrieve",
-                "partial_update",
-                "destroy",
-                "publish",
-                "cancel",
-                "complete",
-            },
+            for_detail=self.action in {"retrieve", "partial_update", "destroy", "publish", "cancel", "complete"},
         )
 
     def get_serializer_class(self):
@@ -75,15 +57,15 @@ class EventViewSet(viewsets.ModelViewSet):
         return [permission() for permission in classes]
 
     def perform_create(self, serializer):
-        serializer.save(organizer=self.request.user)
+        organization = serializer.validated_data.get("organization") or ensure_personal_organization(self.request.user)
+        event = serializer.save(organizer=self.request.user, organization=organization)
+        ensure_policy(event)
 
     def destroy(self, request, *args, **kwargs):
         event = self.get_object()
         self.check_object_permissions(request, event)
         if event.status == EventStatus.PUBLISHED:
-            raise ValidationError(
-                "Un événement publié doit être annulé avant sa suppression."
-            )
+            raise ValidationError("Un événement publié doit être annulé avant sa suppression.")
         return super().destroy(request, *args, **kwargs)
 
     def _transition(self, request, service):
@@ -93,13 +75,7 @@ class EventViewSet(viewsets.ModelViewSet):
             service(event=event, actor=request.user)
         except DjangoValidationError as exc:
             raise ValidationError(exc.messages) from exc
-        return Response(
-            EventDetailSerializer(
-                event,
-                context={"request": request},
-            ).data,
-            status=status.HTTP_200_OK,
-        )
+        return Response(EventDetailSerializer(event, context={"request": request}).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def publish(self, request, slug=None):
