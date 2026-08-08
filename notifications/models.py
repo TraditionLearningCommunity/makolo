@@ -31,6 +31,7 @@ class DeliveryChannel(models.TextChoices):
 
 class DeliveryStatus(models.TextChoices):
     QUEUED = "queued", "En attente"
+    PROCESSING = "processing", "En cours"
     SENT = "sent", "Envoyé"
     FAILED = "failed", "Échoué"
     SKIPPED = "skipped", "Ignoré"
@@ -65,8 +66,14 @@ class Notification(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["recipient", "read_at", "created_at"]),
-            models.Index(fields=["category", "created_at"]),
+            models.Index(
+                fields=["recipient", "read_at", "created_at"],
+                name="notif_recipient_read_idx",
+            ),
+            models.Index(
+                fields=["category", "created_at"],
+                name="notif_category_created_idx",
+            ),
         ]
 
     @property
@@ -116,8 +123,14 @@ class NotificationDelivery(models.Model):
             )
         ]
         indexes = [
-            models.Index(fields=["status", "scheduled_for"]),
-            models.Index(fields=["channel", "status"]),
+            models.Index(
+                fields=["status", "scheduled_for"],
+                name="notif_delivery_due_idx",
+            ),
+            models.Index(
+                fields=["channel", "status"],
+                name="notif_delivery_channel_idx",
+            ),
         ]
 
     def __str__(self):
