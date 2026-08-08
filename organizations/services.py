@@ -26,6 +26,25 @@ def create_organization(*, creator, name: str, **fields) -> Organization:
 
 
 @transaction.atomic
+def ensure_personal_organization(user) -> Organization:
+    membership = (
+        OrganizationMembership.objects.filter(user=user, is_active=True)
+        .select_related("organization")
+        .order_by("joined_at")
+        .first()
+    )
+    if membership:
+        return membership.organization
+    display = getattr(user, "full_name", "") or user.username or user.email.split("@")[0]
+    return create_organization(
+        creator=user,
+        name=f"{display} Events",
+        contact_email=user.email or "",
+        public_profile=True,
+    )
+
+
+@transaction.atomic
 def add_or_update_member(*, organization, actor, user, role: str) -> OrganizationMembership:
     if not user_can_manage_organization(actor, organization):
         raise PermissionDenied("Vous ne pouvez pas gérer l'équipe de cette organisation.")
@@ -34,11 +53,7 @@ def add_or_update_member(*, organization, actor, user, role: str) -> Organizatio
     membership, _ = OrganizationMembership.objects.update_or_create(
         organization=organization,
         user=user,
-        defaults={
-            "role": role,
-            "is_active": True,
-            "invited_by": actor,
-        },
+        defaults={"role": role, "is_active": True, "invited_by": actor},
     )
     membership.full_clean()
     membership.save()
@@ -47,17 +62,13 @@ def add_or_update_member(*, organization, actor, user, role: str) -> Organizatio
 
 @transaction.atomic
 def deactivate_member(*, membership, actor) -> OrganizationMembership:
-    membership = OrganizationMembership.objects.select_for_update().select_related(
-        "organization", "user"
-    ).get(pk=membership.pk)
+    membership = OrganizationMembership.objects.select_for_update().select_related("organization", "user").get(pk=membership.pk)
     if not user_can_manage_organization(actor, membership.organization):
         raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
     if membership.user_id == actor.pk and membership.role == OrganizationRole.OWNER:
         raise ValidationError("Le propriétaire actif ne peut pas se retirer lui-même de cette façon.")
     if membership.role == OrganizationRole.OWNER and not OrganizationMembership.objects.filter(
-        organization=membership.organization,
-        role=OrganizationRole.OWNER,
-        is_active=True,
+        organization=membership.organization, role=OrganizationRole.OWNER, is_active=True
     ).exclude(pk=membership.pk).exists():
         raise ValidationError("Une organisation doit conserver au moins un propriétaire actif.")
     membership.is_active = False
@@ -72,6 +83,4 @@ def find_user_for_team(*, email: str):
     try:
         return User.objects.get(email__iexact=email)
     except User.DoesNotExist as exc:
-        raise ValidationError(
-            "Aucun compte Makolo ne correspond à cette adresse e-mail."
-        ) from exc
+        raise ValidationError("Aucun compte Makolo ne correspond à cette adresse e-mail.") from exc
