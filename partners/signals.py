@@ -1,21 +1,24 @@
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from tickets.models import TicketOrder, TicketOrderStatus
 
-from .models import PartnerPayout, ReferralAttribution
+from .models import AttributionStatus, PartnerPayout, ReferralAttribution
 from .services import confirm_order_attribution, reverse_order_attribution
 
 
 @receiver(pre_save, sender=ReferralAttribution, dispatch_uid="partners.prevent_self_referral")
 def prevent_self_referral(sender, instance, **kwargs):
+    """Keep an audit record of self-referral but never make it commissionable."""
     if not instance.order_id or not instance.partner_id:
         return
     buyer_id = instance.order.buyer_id
     partner_user_id = instance.partner.user_id
     if buyer_id and partner_user_id and buyer_id == partner_user_id:
-        raise ValidationError("Un ambassadeur ne peut pas toucher une commission sur sa propre commande.")
+        instance.status = AttributionStatus.REVERSED
+        instance.reversed_at = instance.reversed_at or timezone.now()
 
 
 @receiver(pre_save, sender=PartnerPayout, dispatch_uid="partners.prevent_zero_payout")
