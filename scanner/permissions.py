@@ -1,7 +1,7 @@
 from rest_framework.permissions import BasePermission
 
 from accounts.api.permissions import user_has_role
-from events.permissions import user_can_manage_event
+from events.permissions import user_can_manage_event_access
 
 from .models import ScannerAssignment
 
@@ -9,12 +9,7 @@ from .models import ScannerAssignment
 def get_active_assignment(user, event):
     if not getattr(user, "is_authenticated", False):
         return None
-
-    assignments = ScannerAssignment.objects.filter(
-        event=event,
-        agent=user,
-        is_active=True,
-    )
+    assignments = ScannerAssignment.objects.filter(event=event, agent=user, is_active=True)
     for assignment in assignments:
         if assignment.is_current:
             return assignment
@@ -24,25 +19,17 @@ def get_active_assignment(user, event):
 def user_can_scan_event(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-
     if user.is_staff:
         return True
-
-    if user_can_manage_event(user, event):
+    if user_can_manage_event_access(user, event):
         return True
-
-    if not user_has_role(
-        user,
-        "scanner-agent",
-        legacy_flag="is_scanner_agent",
-    ):
+    if not user_has_role(user, "scanner-agent", legacy_flag="is_scanner_agent"):
         return False
-
     return get_active_assignment(user, event) is not None
 
 
 def user_can_manage_scanner_assignments(user, event) -> bool:
-    return user_can_manage_event(user, event)
+    return user_can_manage_event_access(user, event)
 
 
 class CanUseScanner(BasePermission):
