@@ -1,15 +1,9 @@
-{% if messages %} <div class="mb-6 space-y-3">
-
-```
+{% if messages %}
+<div class="mb-6 space-y-3">
     {% for message in messages %}
-
         <div class="rounded-2xl px-5 py-4 bg-indigo-600 text-white shadow-lg">
             {{ message }}
         </div>
-
     {% endfor %}
-
 </div>
-```
-
 {% endif %}
