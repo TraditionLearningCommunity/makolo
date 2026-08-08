@@ -1,4 +1,8 @@
-from .models import OrganizationMembership, OrganizationRole
+from .models import (
+    OrganizationMembership,
+    OrganizationRole,
+    OrganizationVerificationStatus,
+)
 
 
 MANAGE_ORGANIZATION_ROLES = {
@@ -47,9 +51,14 @@ def user_has_org_role(user, organization, roles) -> bool:
     return bool(membership and membership.role in roles)
 
 
-def user_can_view_organization(user, organization) -> bool:
-    if organization.public_profile:
-        return True
+def organization_has_public_profile(organization) -> bool:
+    return bool(
+        organization.public_profile
+        and organization.verification_status != OrganizationVerificationStatus.SUSPENDED
+    )
+
+
+def user_can_access_organization_workspace(user, organization) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
     if user.is_staff:
