@@ -6,4 +6,4 @@ class PartnersConfig(AppConfig):
     name = "partners"
 
     def ready(self):
-        from . import signals  # noqa: F401
+        from . import notification_signals, signals  # noqa: F401
