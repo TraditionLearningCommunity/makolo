@@ -1,0 +1,9 @@
+Bonjour {% if recipient.first_name %}{{ recipient.first_name }}{% else %}{{ recipient.username }}{% endif %},
+
+{{ notification.title }}
+
+{{ notification.message }}
+
+{% if action_url %}Ouvrir dans Makolo : {{ action_url }}
+
+{% endif %}Vous recevez cet e-mail car vos notifications Makolo sont activées.
