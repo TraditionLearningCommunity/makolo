@@ -1,6 +1,6 @@
 # Makolo
 
-Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations et contrôle d’accès par QR code.
+Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle et contrôle d’accès par QR code.
 
 ## Vision
 
@@ -18,7 +18,8 @@ La chaîne fonctionnelle couvre maintenant :
 - transferts sécurisés de billets avec rotation du QR à l'acceptation ;
 - contrôle d’accès anti-double-scan ;
 - notifications transactionnelles ;
-- Makolo Autopilot pour les tâches temporelles et réactives.
+- Makolo Autopilot pour les tâches temporelles et réactives ;
+- Analytics & Event Intelligence : ventes, remplissage, présence, waitlist, flux d'entrée, finances autorisées et signaux explicables.
 
 ## Stack actuelle
 
@@ -59,7 +60,7 @@ Une `Organization` possède sa propre équipe :
 - Marketing : communication et futures fonctions CRM ;
 - Scanner manager : contrôle d'accès et agents scanner.
 
-Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets et journaux de scan sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
+Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan et métriques financières sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
 
 Les événements existants sont automatiquement rattachés à une organisation personnelle lors de la migration vers ce modèle.
 
@@ -98,6 +99,19 @@ Des exemples de déploiement sont fournis dans :
 deploy/systemd/makolo-autopilot.service.example
 deploy/cron/makolo-autopilot.cron.example
 ```
+
+## Analytics & Event Intelligence
+
+Le tableau de bord Analytics est disponible sous :
+
+```text
+/analytics/
+/analytics/events/<event-slug>/
+```
+
+Il calcule directement depuis les sources de vérité Makolo : billets actifs, capacité, commandes, conversions, waitlist, transferts, scans, vitesse des ventes et projection simple de sold-out. Les rôles Finance/Owner/Admin peuvent aussi voir les revenus brut, remboursé et net ; les autres rôles reçoivent uniquement les agrégats opérationnels compatibles avec leurs droits.
+
+Les devises ne sont jamais additionnées entre elles. Les réponses Analytics n'exposent aucun nom, e-mail, téléphone, QR ou référence de paiement client. Les insights sont des règles déterministes et explicables, pas des décisions automatiques opaques.
 
 ## Installation locale sous PowerShell
 
@@ -169,6 +183,8 @@ Les endpoints principaux de la v1 sont :
 /api/v1/payments/webhooks/sandbox/
 /api/v1/notifications/
 /api/v1/notifications/unread-count/
+/api/v1/analytics/overview/
+/api/v1/analytics/events/<event-slug>/
 ```
 
 ## Notifications
@@ -183,13 +199,13 @@ Le QR est validé côté serveur. Le premier scan valide marque le billet `used`
 
 Le socle actuel prépare désormais les fonctionnalités majeures suivantes :
 
-- analytics et intelligence événementielle ;
 - CRM événementiel ;
 - abonnements/followers d'organisateurs ;
 - codes ambassadeurs et affiliation ;
-- intelligence des flux d'entrée ;
+- intelligence avancée des flux d'entrée ;
 - recommandations et découverte sociale d'événements ;
-- opérations et modération de plateforme avancées.
+- opérations et modération de plateforme avancées ;
+- cohortes, attribution marketing et prévisions analytiques plus avancées.
 
 ## CI
 
@@ -205,4 +221,5 @@ GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépen
 - paiements : `docs/architecture/payments.md` ;
 - notifications : `docs/architecture/notifications.md` ;
 - organisations, équipes et Autopilot : `docs/architecture/platform-autopilot-organizations.md` ;
-- frontières d'autorisation : `docs/architecture/authorization-boundaries.md`.
+- frontières d'autorisation : `docs/architecture/authorization-boundaries.md` ;
+- Analytics & Event Intelligence : `docs/architecture/analytics-event-intelligence.md`.
