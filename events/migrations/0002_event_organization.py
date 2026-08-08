@@ -13,7 +13,7 @@ def forwards(apps, schema_editor):
     organizer_ids = Event.objects.exclude(organizer_id=None).values_list("organizer_id", flat=True).distinct()
     for organizer_id in organizer_ids:
         user = User.objects.get(pk=organizer_id)
-        display = (f"{user.first_name} {user.last_name}".strip() or user.username or user.email.split("@")[0])
+        display = f"{user.first_name} {user.last_name}".strip() or user.username or user.email.split("@")[0]
         base = slugify(f"{display}-events")[:170] or f"organizer-{str(user.pk)[:8]}"
         slug = base
         suffix = 2
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="event",
-            index=models.Index(fields=["organization", "status", "start_at"], name="events_even_organiz_5d5ed3_idx"),
+            index=models.Index(fields=["organization", "status", "start_at"], name="events_even_organiz_b26406_idx"),
         ),
         migrations.RunPython(forwards, backwards),
     ]
