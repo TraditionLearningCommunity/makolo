@@ -13,7 +13,7 @@ from notifications.models import (
 from notifications.services import create_notification, dispatch_pending
 from organizations.models import OrganizationRole
 from tickets.models import Ticket, TicketOrder, TicketOrderStatus, TicketStatus, TicketType
-from tickets.services import expire_order
+from tickets.services import expire_due_ticket_transfers, expire_order, promote_open_waitlists
 
 from .models import AutomationRun, AutomationRunStatus, EventAutomationPolicy
 
@@ -116,8 +116,6 @@ def _run_reminders(event, policy, now):
         if not getattr(policy, field_name):
             continue
         due_at = event.start_at - offset
-        # A restart ne doit jamais envoyer un vieux « J-7 » à J-1. On autorise
-        # seulement une petite fenêtre de rattrapage propre à chaque rappel.
         if now < due_at or now > due_at + grace or now >= event.start_at:
             continue
 
@@ -270,9 +268,6 @@ def _auto_complete(event, policy, now):
     if not created:
         return 0
 
-    # Ceci est une transition système issue d'une politique activée par un
-    # ayant droit. Elle ne doit pas dépendre du fait que le créateur historique
-    # de l'événement soit encore membre de l'organisation au moment de la fin.
     Event.objects.filter(pk=event.pk, status=EventStatus.PUBLISHED).update(
         status=EventStatus.COMPLETED,
         updated_at=now,
@@ -357,6 +352,8 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
     now = now or timezone.now()
     stats = {
         "expired_orders": expire_due_orders(now=now),
+        "expired_transfers": expire_due_ticket_transfers(now=now),
+        "waitlist_promotions": promote_open_waitlists(now=now),
         "recovered_deliveries": recover_stale_notification_deliveries(now=now),
         "reminders": 0,
         "capacity_alerts": 0,
