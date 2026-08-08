@@ -99,7 +99,6 @@ class Event(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="organized_events",
-        help_text="Créateur/référent historique de l'événement. Les droits métier viennent de l'organisation.",
     )
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -140,7 +139,12 @@ class Event(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(end_at__gt=models.F("start_at")), name="event_end_after_start"),
         ]
-        indexes = [models.Index(fields=["organization", "status", "start_at"])]
+        indexes = [
+            models.Index(
+                fields=["organization", "status", "start_at"],
+                name="events_even_organiz_b26406_idx",
+            )
+        ]
 
     def clean(self):
         super().clean()
