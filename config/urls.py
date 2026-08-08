@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/v1/scanner/", include("scanner.api.urls")),
     path("api/v1/payments/", include("payments.api.urls")),
     path("api/v1/notifications/", include("notifications.api.urls")),
+    path("api/v1/analytics/", include("analytics_app.api.urls")),
     path("o/", include("organizations.public_urls")),
     path("organizations/", include("organizations.urls")),
     path("autopilot/", include("automation.urls")),
@@ -20,6 +21,7 @@ urlpatterns = [
     path("scanner/", include("scanner.urls")),
     path("payments/", include("payments.urls")),
     path("notifications/", include("notifications.urls")),
+    path("analytics/", include("analytics_app.urls")),
     path("", include("core.urls")),
 ]
 
