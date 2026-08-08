@@ -1,12 +1,15 @@
 from datetime import timedelta
 
-from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
 from events.models import Event, EventStatus
-from events.services import complete_event
-from notifications.models import DeliveryStatus, NotificationDelivery, NotificationCategory, NotificationKind
+from notifications.models import (
+    DeliveryStatus,
+    NotificationCategory,
+    NotificationDelivery,
+    NotificationKind,
+)
 from notifications.services import create_notification, dispatch_pending
 from organizations.models import OrganizationRole
 from tickets.models import Ticket, TicketOrder, TicketOrderStatus, TicketStatus, TicketType
@@ -16,9 +19,27 @@ from .models import AutomationRun, AutomationRunStatus, EventAutomationPolicy
 
 
 REMINDER_RULES = (
-    ("reminder_7d_enabled", "event-reminder-7d", timedelta(days=7), "Dans 7 jours"),
-    ("reminder_24h_enabled", "event-reminder-24h", timedelta(hours=24), "Demain"),
-    ("reminder_2h_enabled", "event-reminder-2h", timedelta(hours=2), "Dans 2 heures"),
+    (
+        "reminder_7d_enabled",
+        "event-reminder-7d",
+        timedelta(days=7),
+        timedelta(hours=6),
+        "Dans 7 jours",
+    ),
+    (
+        "reminder_24h_enabled",
+        "event-reminder-24h",
+        timedelta(hours=24),
+        timedelta(hours=3),
+        "Demain",
+    ),
+    (
+        "reminder_2h_enabled",
+        "event-reminder-2h",
+        timedelta(hours=2),
+        timedelta(minutes=30),
+        "Dans 2 heures",
+    ),
 )
 
 
@@ -27,7 +48,15 @@ def ensure_policy(event: Event) -> EventAutomationPolicy:
     return policy
 
 
-def _record_once(*, event, rule_key, dedup_key, summary="", payload=None, status=AutomationRunStatus.SUCCESS):
+def _record_once(
+    *,
+    event,
+    rule_key,
+    dedup_key,
+    summary="",
+    payload=None,
+    status=AutomationRunStatus.SUCCESS,
+):
     return AutomationRun.objects.get_or_create(
         dedup_key=dedup_key,
         defaults={
@@ -38,24 +67,6 @@ def _record_once(*, event, rule_key, dedup_key, summary="", payload=None, status
             "status": status,
         },
     )
-
-
-def _event_team_users(event):
-    if event.organization_id:
-        return list(
-            event.organization.memberships.filter(
-                is_active=True,
-                role__in=[
-                    OrganizationRole.OWNER,
-                    OrganizationRole.ADMIN,
-                    OrganizationRole.EVENT_MANAGER,
-                    OrganizationRole.MARKETING,
-                ],
-            )
-            .select_related("user")
-            .values_list("user", flat=False)
-        )
-    return []
 
 
 def _event_team_recipient_objects(event):
@@ -75,7 +86,14 @@ def _event_team_recipient_objects(event):
     return [event.organizer] if event.organizer_id else []
 
 
-def _notify_event_team(event, *, title, message, dedup_prefix, category=NotificationCategory.EVENT):
+def _notify_event_team(
+    event,
+    *,
+    title,
+    message,
+    dedup_prefix,
+    category=NotificationCategory.EVENT,
+):
     count = 0
     for user in _event_team_recipient_objects(event):
         create_notification(
@@ -94,15 +112,21 @@ def _notify_event_team(event, *, title, message, dedup_prefix, category=Notifica
 
 def _run_reminders(event, policy, now):
     created = 0
-    for field_name, rule_key, offset, label in REMINDER_RULES:
+    for field_name, rule_key, offset, grace, label in REMINDER_RULES:
         if not getattr(policy, field_name):
             continue
         due_at = event.start_at - offset
-        if now < due_at or now >= event.start_at:
+        # A restart ne doit jamais envoyer un vieux « J-7 » à J-1. On autorise
+        # seulement une petite fenêtre de rattrapage propre à chaque rappel.
+        if now < due_at or now > due_at + grace or now >= event.start_at:
             continue
 
         tickets = (
-            Ticket.objects.filter(event=event, status=TicketStatus.VALID, owner__isnull=False)
+            Ticket.objects.filter(
+                event=event,
+                status=TicketStatus.VALID,
+                owner__isnull=False,
+            )
             .select_related("owner")
             .order_by("owner_id")
         )
@@ -133,7 +157,10 @@ def _run_reminders(event, policy, now):
                 ),
                 action_url=f"/events/{event.slug}/",
                 dedup_key=f"notification:{dedup_key}",
-                metadata={"event_id": str(event.pk), "automation_run_id": str(run.pk)},
+                metadata={
+                    "event_id": str(event.pk),
+                    "automation_run_id": str(run.pk),
+                },
             )
             created += 1
     return created
@@ -143,10 +170,11 @@ def _run_capacity_alert(event, policy):
     if not policy.capacity_alerts_enabled or not event.capacity:
         return 0
     committed = TicketType.objects.filter(event=event).aggregate(
-        reserved=Sum("reserved_quantity"), issued=Sum("issued_quantity")
+        reserved=Sum("reserved_quantity"),
+        issued=Sum("issued_quantity"),
     )
     total = (committed["reserved"] or 0) + (committed["issued"] or 0)
-    percent = int((total / event.capacity) * 100) if event.capacity else 0
+    percent = int((total / event.capacity) * 100)
     if percent < policy.capacity_alert_percent:
         return 0
     dedup = f"autopilot:capacity:{policy.capacity_alert_percent}:{event.pk}"
@@ -155,7 +183,11 @@ def _run_capacity_alert(event, policy):
         rule_key="capacity-alert",
         dedup_key=dedup,
         summary=f"Capacité à {percent}%",
-        payload={"percent": percent, "committed": total, "capacity": event.capacity},
+        payload={
+            "percent": percent,
+            "committed": total,
+            "capacity": event.capacity,
+        },
     )
     if not created:
         return 0
@@ -184,7 +216,10 @@ def _run_low_stock_alerts(event, policy):
             rule_key="low-stock",
             dedup_key=dedup,
             summary=f"Stock faible {ticket_type.name}: {available}",
-            payload={"ticket_type_id": str(ticket_type.pk), "available": available},
+            payload={
+                "ticket_type_id": str(ticket_type.pk),
+                "available": available,
+            },
         )
         if not created:
             continue
@@ -192,7 +227,8 @@ def _run_low_stock_alerts(event, policy):
             event,
             title=f"Stock faible — {ticket_type.name}",
             message=(
-                f"Il ne reste que {available} billet(s) « {ticket_type.name} » pour {event.title}."
+                f"Il ne reste que {available} billet(s) « {ticket_type.name} » "
+                f"pour {event.title}."
             ),
             dedup_prefix=f"notification:{dedup}",
         )
@@ -211,11 +247,18 @@ def _auto_close_sales(event, policy, now):
     )
     if not created:
         return 0
-    return TicketType.objects.filter(event=event, is_active=True).update(is_active=False, updated_at=now)
+    return TicketType.objects.filter(event=event, is_active=True).update(
+        is_active=False,
+        updated_at=now,
+    )
 
 
 def _auto_complete(event, policy, now):
-    if not policy.auto_complete_event or event.status != EventStatus.PUBLISHED or now < event.end_at:
+    if (
+        not policy.auto_complete_event
+        or event.status != EventStatus.PUBLISHED
+        or now < event.end_at
+    ):
         return 0
     dedup = f"autopilot:complete-event:{event.pk}"
     _, created = _record_once(
@@ -226,7 +269,15 @@ def _auto_complete(event, policy, now):
     )
     if not created:
         return 0
-    complete_event(event=event, actor=event.organizer)
+
+    # Ceci est une transition système issue d'une politique activée par un
+    # ayant droit. Elle ne doit pas dépendre du fait que le créateur historique
+    # de l'événement soit encore membre de l'organisation au moment de la fin.
+    Event.objects.filter(pk=event.pk, status=EventStatus.PUBLISHED).update(
+        status=EventStatus.COMPLETED,
+        updated_at=now,
+    )
+    event.status = EventStatus.COMPLETED
     return 1
 
 
@@ -261,7 +312,8 @@ def _post_event_followup(event, policy, now):
             title=f"Merci d'avoir participé à {event.title}",
             message=(
                 "Merci d'avoir utilisé Makolo. Votre participation est enregistrée. "
-                "Les fonctionnalités d'avis et de recommandations personnalisées arriveront prochainement."
+                "Les avis et recommandations personnalisées pourront s'appuyer "
+                "sur cet historique sans exposer vos données à l'organisateur."
             ),
             action_url=f"/events/{event.slug}/",
             dedup_key=f"notification:{dedup}",
@@ -315,7 +367,9 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
     }
 
     events = (
-        Event.objects.filter(status__in=[EventStatus.PUBLISHED, EventStatus.COMPLETED])
+        Event.objects.filter(
+            status__in=[EventStatus.PUBLISHED, EventStatus.COMPLETED]
+        )
         .select_related("organizer", "organization")
         .prefetch_related("organization__memberships__user")
     )
@@ -329,7 +383,6 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
             stats["low_stock_alerts"] += _run_low_stock_alerts(event, policy)
             stats["sales_closed"] += _auto_close_sales(event, policy, now)
             stats["events_completed"] += _auto_complete(event, policy, now)
-            event.refresh_from_db(fields=["status"])
         if event.status == EventStatus.COMPLETED or now >= event.end_at:
             stats["followups"] += _post_event_followup(event, policy, now)
 
