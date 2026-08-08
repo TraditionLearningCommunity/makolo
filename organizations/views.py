@@ -1,15 +1,29 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from events.models import EventStatus, EventVisibility
+
 from .forms import OrganizationForm, OrganizationMemberForm
-from .models import Organization, OrganizationMembership
-from .permissions import user_can_manage_organization, user_can_view_organization
-from .services import add_or_update_member, create_organization, deactivate_member, find_user_for_team
+from .models import (
+    Organization,
+    OrganizationMembership,
+    OrganizationVerificationStatus,
+)
+from .permissions import (
+    user_can_access_organization_workspace,
+    user_can_manage_organization,
+)
+from .services import (
+    add_or_update_member,
+    create_organization,
+    deactivate_member,
+    find_user_for_team,
+)
 
 
 class OrganizationListView(LoginRequiredMixin, ListView):
@@ -42,8 +56,36 @@ class OrganizationCreateView(LoginRequiredMixin, CreateView):
             city=form.cleaned_data.get("city", ""),
             public_profile=form.cleaned_data.get("public_profile", True),
         )
-        messages.success(self.request, "Organisation créée. Vous en êtes propriétaire.")
+        messages.success(
+            self.request,
+            "Organisation créée. Vous en êtes propriétaire.",
+        )
         return redirect("organizations:detail", slug=self.object.slug)
+
+
+class PublicOrganizationDetailView(DetailView):
+    model = Organization
+    template_name = "organizations/public_detail.html"
+    context_object_name = "organization"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_queryset(self):
+        return Organization.objects.filter(public_profile=True).exclude(
+            verification_status=OrganizationVerificationStatus.SUSPENDED
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["events"] = self.object.events.filter(
+            status=EventStatus.PUBLISHED,
+            visibility=EventVisibility.PUBLIC,
+        ).select_related("venue", "category").order_by("start_at")[:24]
+        context["is_verified"] = (
+            self.object.verification_status
+            == OrganizationVerificationStatus.VERIFIED
+        )
+        return context
 
 
 class OrganizationDetailView(LoginRequiredMixin, DetailView):
@@ -55,15 +97,22 @@ class OrganizationDetailView(LoginRequiredMixin, DetailView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if not user_can_view_organization(self.request.user, obj):
-            raise PermissionDenied("Cette organisation n'est pas accessible.")
+        if not user_can_access_organization_workspace(self.request.user, obj):
+            raise PermissionDenied(
+                "Cet espace d'équipe n'est accessible qu'aux membres de l'organisation."
+            )
         return obj
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["memberships"] = self.object.memberships.select_related("user").filter(is_active=True)
+        context["memberships"] = self.object.memberships.select_related("user").filter(
+            is_active=True
+        )
         context["events"] = self.object.events.order_by("-created_at")[:20]
-        context["can_manage"] = user_can_manage_organization(self.request.user, self.object)
+        context["can_manage"] = user_can_manage_organization(
+            self.request.user,
+            self.object,
+        )
         return context
 
 
@@ -90,8 +139,6 @@ class OrganizationMemberCreateView(LoginRequiredMixin, View):
         organization = get_object_or_404(Organization, slug=slug)
         if not user_can_manage_organization(request.user, organization):
             raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
-        from django.shortcuts import render
-
         return render(
             request,
             "organizations/member_form.html",
@@ -113,23 +160,35 @@ class OrganizationMemberCreateView(LoginRequiredMixin, View):
                     role=form.cleaned_data["role"],
                 )
             except (ValidationError, PermissionDenied) as exc:
-                form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
+                form.add_error(
+                    None,
+                    "; ".join(getattr(exc, "messages", [str(exc)])),
+                )
             else:
                 messages.success(request, "Membre ajouté ou mis à jour.")
                 return redirect("organizations:detail", slug=organization.slug)
-        from django.shortcuts import render
-
-        return render(request, "organizations/member_form.html", {"organization": organization, "form": form})
+        return render(
+            request,
+            "organizations/member_form.html",
+            {"organization": organization, "form": form},
+        )
 
 
 class OrganizationMemberDeactivateView(LoginRequiredMixin, View):
     def post(self, request, slug, pk):
         organization = get_object_or_404(Organization, slug=slug)
-        membership = get_object_or_404(OrganizationMembership, pk=pk, organization=organization)
+        membership = get_object_or_404(
+            OrganizationMembership,
+            pk=pk,
+            organization=organization,
+        )
         try:
             deactivate_member(membership=membership, actor=request.user)
         except (ValidationError, PermissionDenied) as exc:
-            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+            messages.error(
+                request,
+                "; ".join(getattr(exc, "messages", [str(exc)])),
+            )
         else:
             messages.success(request, "Membre désactivé.")
         return redirect("organizations:detail", slug=organization.slug)
