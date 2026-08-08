@@ -6,6 +6,10 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from automation.services import ensure_policy
+from organizations.models import OrganizationMembership
+from organizations.services import ensure_personal_organization
+
 from .forms import EventForm
 from .models import Event
 from .permissions import user_can_manage_event, user_can_manage_events
@@ -13,12 +17,11 @@ from .selectors import get_events_visible_to, get_manageable_events
 from .services import cancel_event, complete_event, publish_event
 
 
-class EventListView(LoginRequiredMixin, ListView):
+class EventListView(ListView):
     model = Event
     template_name = "events/event_list.html"
     context_object_name = "events"
     paginate_by = 20
-    login_url = "core:login"
 
     def get_queryset(self):
         return get_events_visible_to(self.request.user)
@@ -26,6 +29,13 @@ class EventListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["can_create_event"] = user_can_manage_events(self.request.user)
+        context["has_organization"] = bool(
+            self.request.user.is_authenticated
+            and OrganizationMembership.objects.filter(
+                user=self.request.user,
+                is_active=True,
+            ).exists()
+        )
         return context
 
 
@@ -40,25 +50,45 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def handle_no_permission(self):
         if self.request.user.is_authenticated:
-            raise PermissionDenied("Un rôle organisateur est requis.")
+            raise PermissionDenied(
+                "Créez une organisation ou rejoignez une équipe ayant le droit de gérer les événements."
+            )
         return super().handle_no_permission()
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and user_can_manage_events(request.user):
+            if not OrganizationMembership.objects.filter(
+                user=request.user,
+                is_active=True,
+            ).exists():
+                ensure_personal_organization(request.user)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         form.instance.organizer = self.request.user
-        messages.success(self.request, "Événement créé en brouillon.")
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        ensure_policy(self.object)
+        messages.success(
+            self.request,
+            "Événement créé en brouillon avec Makolo Autopilot prêt à être configuré.",
+        )
+        return response
 
     def get_success_url(self):
         return reverse("events:detail", kwargs={"slug": self.object.slug})
 
 
-class EventDetailView(LoginRequiredMixin, DetailView):
+class EventDetailView(DetailView):
     model = Event
     template_name = "events/event_detail.html"
     context_object_name = "event"
     slug_field = "slug"
     slug_url_kwarg = "slug"
-    login_url = "core:login"
 
     def get_queryset(self):
         return get_events_visible_to(self.request.user, for_detail=True)
@@ -86,6 +116,11 @@ class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def test_func(self):
         event = self.get_object()
         return user_can_manage_event(self.request.user, event)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         messages.success(self.request, "Événement mis à jour.")

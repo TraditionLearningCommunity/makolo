@@ -1,0 +1,19 @@
+[Unit]
+Description=Makolo Autopilot Worker
+After=network.target
+
+[Service]
+Type=simple
+User=makolo
+Group=makolo
+WorkingDirectory=/srv/makolo
+Environment=DJANGO_ENV=production
+EnvironmentFile=/srv/makolo/.env
+ExecStart=/srv/makolo/.venv/bin/python manage.py autopilot_worker --poll-seconds 30 --delivery-limit 100
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

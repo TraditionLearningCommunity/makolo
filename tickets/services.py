@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from events.models import Event, EventStatus
-from events.permissions import user_can_manage_event
+from events.permissions import user_can_manage_event, user_can_manage_event_finance
 
 from .models import (
     QR_SIGNING_SALT,
@@ -104,9 +104,8 @@ def create_order(
             )
         if not ticket_type.is_on_sale:
             raise ValidationError(f"{ticket_type.name} n’est pas disponible à la vente.")
-        if ticket_type.available_quantity is not None:
-            if quantity > ticket_type.available_quantity:
-                raise ValidationError(f"Stock insuffisant pour {ticket_type.name}.")
+        if ticket_type.available_quantity is not None and quantity > ticket_type.available_quantity:
+            raise ValidationError(f"Stock insuffisant pour {ticket_type.name}.")
 
         normalized.append((ticket_type, quantity))
         total_quantity += quantity
@@ -181,10 +180,12 @@ def confirm_order(*, order: TicketOrder, actor) -> TicketOrder:
 def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
     order = (
         TicketOrder.objects.select_for_update()
-        .select_related("event", "event__organizer", "buyer")
+        .select_related("event", "event__organizer", "event__organization", "buyer")
         .get(pk=order.pk)
     )
-    can_manage = user_can_manage_event(actor, order.event)
+    can_manage = user_can_manage_event(actor, order.event) or user_can_manage_event_finance(
+        actor, order.event
+    )
     is_buyer = getattr(actor, "is_authenticated", False) and order.buyer_id == actor.pk
     if not (can_manage or is_buyer):
         raise PermissionDenied("Vous ne pouvez pas annuler cette commande.")
@@ -194,7 +195,7 @@ def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
 
     if order.status == TicketOrderStatus.CONFIRMED and not can_manage:
         raise PermissionDenied(
-            "Une commande confirmée doit être annulée par l’organisateur ou le support."
+            "Une commande confirmée doit être annulée par l'équipe autorisée ou le support."
         )
 
     if order.status == TicketOrderStatus.CONFIRMED and order.tickets.filter(
@@ -210,18 +211,12 @@ def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
     if order.status == TicketOrderStatus.PENDING:
         for item in order.items.all():
             ticket_type = types_by_id[item.ticket_type_id]
-            ticket_type.reserved_quantity = max(
-                ticket_type.reserved_quantity - item.quantity,
-                0,
-            )
+            ticket_type.reserved_quantity = max(ticket_type.reserved_quantity - item.quantity, 0)
             ticket_type.save(update_fields=["reserved_quantity", "updated_at"])
     elif order.status == TicketOrderStatus.CONFIRMED:
         for item in order.items.all():
             ticket_type = types_by_id[item.ticket_type_id]
-            ticket_type.issued_quantity = max(
-                ticket_type.issued_quantity - item.quantity,
-                0,
-            )
+            ticket_type.issued_quantity = max(ticket_type.issued_quantity - item.quantity, 0)
             ticket_type.save(update_fields=["issued_quantity", "updated_at"])
         order.tickets.filter(status=TicketStatus.VALID).update(
             status=TicketStatus.CANCELLED,
@@ -260,9 +255,7 @@ def validate_qr_token(token: str) -> Ticket:
         raise ValidationError("QR code invalide.") from exc
 
     try:
-        ticket = Ticket.objects.select_related("event", "ticket_type", "order").get(
-            code=raw_code
-        )
+        ticket = Ticket.objects.select_related("event", "ticket_type", "order").get(code=raw_code)
     except (Ticket.DoesNotExist, ValueError) as exc:
         raise ValidationError("Billet introuvable.") from exc
 

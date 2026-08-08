@@ -1,6 +1,10 @@
 from rest_framework.permissions import BasePermission
 
-from events.permissions import user_can_manage_event, user_can_manage_events
+from events.permissions import (
+    user_can_manage_event,
+    user_can_manage_event_finance,
+    user_can_manage_events,
+)
 
 
 def user_can_manage_ticket_type(user, ticket_type) -> bool:
@@ -10,7 +14,7 @@ def user_can_manage_ticket_type(user, ticket_type) -> bool:
 def user_can_access_order(user, order) -> bool:
     if not user.is_authenticated:
         return False
-    if user_can_manage_event(user, order.event):
+    if user_can_manage_event(user, order.event) or user_can_manage_event_finance(user, order.event):
         return True
     return order.buyer_id == user.pk
 
