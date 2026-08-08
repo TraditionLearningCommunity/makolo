@@ -4,7 +4,24 @@
 
 {% block content %}
 <div class="mx-auto max-w-4xl space-y-6">
-    <a href="{% url 'tickets:list' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Retour aux tickets</a>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <a href="{% url 'tickets:list' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Retour aux tickets</a>
+        {% if waitlist_entry %}<a href="{% url 'tickets:waitlist-list' %}" class="text-sm font-semibold text-violet-600 dark:text-violet-400">Ma liste d’attente</a>{% endif %}
+    </div>
+
+    {% if waitlist_entry and waitlist_entry.status == 'offered' %}
+    <div class="rounded-3xl border border-violet-200 bg-violet-50 p-6 dark:border-violet-900 dark:bg-violet-950/40">
+        <p class="text-xs font-black uppercase tracking-[0.2em] text-violet-600 dark:text-violet-300">Makolo Waitlist</p>
+        <h2 class="mt-2 text-2xl font-black">Une place vous est temporairement réservée</h2>
+        <p class="mt-2 text-sm leading-6 text-violet-800 dark:text-violet-200">Cette commande a été créée automatiquement parce qu’une place s’est libérée. Elle expire le {{ waitlist_entry.offer_expires_at|date:"d/m/Y H:i" }}.</p>
+        {% if order.total_amount == 0 and order.status == 'pending' %}
+        <form method="post" action="{% url 'tickets:waitlist-accept' waitlist_entry.pk %}" class="mt-4">
+            {% csrf_token %}
+            <button class="rounded-2xl bg-violet-600 px-5 py-3 font-bold text-white hover:bg-violet-500">Accepter et recevoir mon billet</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <div class="rounded-3xl border border-zinc-200 bg-white p-8 dark:border-zinc-700 dark:bg-zinc-800">
         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -29,11 +46,11 @@
 
         {% if order.status == 'pending' %}
         <div class="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
-            Paiement en attente{% if order.expires_at %}. Réservation valable jusqu’au {{ order.expires_at|date:"d/m/Y H:i" }}{% endif %}.
+            Réservation en attente{% if order.expires_at %}. Valable jusqu’au {{ order.expires_at|date:"d/m/Y H:i" }}{% endif %}.
         </div>
         <div class="mt-5 flex flex-wrap gap-3">
             {% if order.total_amount %}<a href="{% url 'payments:start' order.pk %}" class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-500">Payer maintenant</a>{% endif %}
-            <form method="post" action="{% url 'tickets:order-cancel' order.pk %}">{% csrf_token %}<button class="rounded-2xl border border-red-300 px-5 py-3 font-semibold text-red-600 dark:border-red-800">Annuler la commande</button></form>
+            <form method="post" action="{% url 'tickets:order-cancel' order.pk %}">{% csrf_token %}<button class="rounded-2xl border border-red-300 px-5 py-3 font-semibold text-red-600 dark:border-red-800">Annuler la réservation</button></form>
         </div>
         {% endif %}
     </div>
