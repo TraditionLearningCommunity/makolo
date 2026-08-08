@@ -1,0 +1,92 @@
+{% comment %}Reusable field rendering for ticket type create/edit pages.{% endcomment %}
+{% for field in form %}
+    {% if field.name == 'event' or field.name == 'name' or field.name == 'description' %}
+        {% if forloop.first %}
+        <section class="space-y-5">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Informations générales</p>
+                <h2 class="mt-1 text-xl font-black text-zinc-900 dark:text-white">Identité du billet</h2>
+            </div>
+        {% endif %}
+
+        <div class="{% if field.name == 'description' %}md:col-span-2{% endif %}">
+            <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold text-zinc-800 dark:text-zinc-200">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="mt-2 text-xs leading-5 text-zinc-500">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+        </div>
+
+        {% if field.name == 'description' %}</section>{% endif %}
+    {% endif %}
+{% endfor %}
+
+<section class="space-y-5 border-t border-zinc-200 pt-7 dark:border-zinc-800">
+    <div>
+        <p class="text-xs font-black uppercase tracking-[0.22em] text-emerald-500">Tarification & stock</p>
+        <h2 class="mt-1 text-xl font-black text-zinc-900 dark:text-white">Prix et disponibilité</h2>
+        <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Un prix à 0 crée un billet gratuit. Laissez le stock vide si la quantité ne doit pas être limitée.</p>
+    </div>
+    <div class="grid gap-5 md:grid-cols-3">
+        {% for field in form %}
+            {% if field.name == 'price' or field.name == 'currency' or field.name == 'quantity_total' %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold text-zinc-800 dark:text-zinc-200">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="mt-2 text-xs leading-5 text-zinc-500">{{ field.help_text }}</p>{% endif %}
+                {% for error in field.errors %}<p class="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
+
+<section class="space-y-5 border-t border-zinc-200 pt-7 dark:border-zinc-800">
+    <div>
+        <p class="text-xs font-black uppercase tracking-[0.22em] text-sky-500">Fenêtre de vente</p>
+        <h2 class="mt-1 text-xl font-black text-zinc-900 dark:text-white">Quand ce billet peut-il être vendu ?</h2>
+    </div>
+    <div class="grid gap-5 md:grid-cols-2">
+        {% for field in form %}
+            {% if field.name == 'sales_start_at' or field.name == 'sales_end_at' %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold text-zinc-800 dark:text-zinc-200">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="mt-2 text-xs leading-5 text-zinc-500">{{ field.help_text }}</p>{% endif %}
+                {% for error in field.errors %}<p class="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
+
+<section class="space-y-5 border-t border-zinc-200 pt-7 dark:border-zinc-800">
+    <div>
+        <p class="text-xs font-black uppercase tracking-[0.22em] text-violet-500">Règles de commande</p>
+        <h2 class="mt-1 text-xl font-black text-zinc-900 dark:text-white">Limites par achat</h2>
+    </div>
+    <div class="grid gap-5 md:grid-cols-2">
+        {% for field in form %}
+            {% if field.name == 'min_per_order' or field.name == 'max_per_order' %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold text-zinc-800 dark:text-zinc-200">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="mt-2 text-xs leading-5 text-zinc-500">{{ field.help_text }}</p>{% endif %}
+                {% for error in field.errors %}<p class="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% for field in form %}
+        {% if field.name == 'is_active' %}
+        <label for="{{ field.id_for_label }}" class="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 transition hover:border-indigo-300 dark:border-zinc-800 dark:bg-zinc-900/70 dark:hover:border-indigo-700">
+            <div>
+                <span class="block font-bold text-zinc-900 dark:text-white">Billet actif</span>
+                <span class="mt-1 block text-sm text-zinc-500 dark:text-zinc-400">Désactivez-le pour suspendre la vente sans supprimer le type de billet.</span>
+            </div>
+            {{ field }}
+        </label>
+        {% for error in field.errors %}<p class="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+        {% endif %}
+    {% endfor %}
+</section>
