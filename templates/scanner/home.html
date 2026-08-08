@@ -1,0 +1,41 @@
+{% extends 'base/app.html' %}
+
+{% block title %}Scanner | Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Contrôle d’accès</p>
+            <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 dark:text-white">Scanner</h1>
+            <p class="mt-3 max-w-2xl text-zinc-500 dark:text-zinc-400">Choisissez un événement autorisé puis scannez les QR. Chaque tentative est journalisée côté serveur.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'scanner:logs' %}" class="rounded-2xl border border-zinc-300 px-4 py-3 font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">Historique</a>
+            {% if can_manage_assignments %}
+            <a href="{% url 'scanner:assignments' %}" class="rounded-2xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-500">Gérer les agents</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {% for event in scannable_events %}
+        <article class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <div class="flex items-center justify-between gap-3">
+                <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Publié</span>
+                <span class="text-xs text-zinc-400">{{ event.start_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            <h2 class="mt-5 text-xl font-black text-zinc-900 dark:text-white">{{ event.title }}</h2>
+            <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{% if event.venue %}{{ event.venue }}{% else %}Lieu non défini{% endif %}</p>
+            <a href="{% url 'scanner:console' event.slug %}" class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-3 font-bold text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">
+                <i data-lucide="scan-line" class="h-5 w-5"></i>Ouvrir le scanner
+            </a>
+        </article>
+        {% empty %}
+        <div class="rounded-3xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500 dark:border-zinc-700 dark:text-zinc-400 md:col-span-2 xl:col-span-3">
+            Aucun événement n’est actuellement disponible pour votre compte. Un agent scanner doit avoir le rôle <strong>scanner-agent</strong> et une affectation active.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
