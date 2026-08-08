@@ -1,6 +1,6 @@
 # Makolo
 
-Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle et contrôle d’accès par QR code.
+Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle, acquisition par partenaires et contrôle d’accès par QR code.
 
 ## Vision
 
@@ -19,7 +19,8 @@ La chaîne fonctionnelle couvre maintenant :
 - contrôle d’accès anti-double-scan ;
 - notifications transactionnelles ;
 - Makolo Autopilot pour les tâches temporelles et réactives ;
-- Analytics & Event Intelligence : ventes, remplissage, présence, waitlist, flux d'entrée, finances autorisées et signaux explicables.
+- Analytics & Event Intelligence : ventes, remplissage, présence, waitlist, flux d'entrée, finances autorisées et signaux explicables ;
+- Partners / Ambassadeurs / Affiliation : campagnes, liens de recommandation, attribution, commissions et paiements partenaires.
 
 ## Stack actuelle
 
@@ -57,10 +58,10 @@ Une `Organization` possède sa propre équipe :
 - Admin : équipe et paramètres de l'organisation ;
 - Event manager : événements et billetterie ;
 - Finance : commandes, paiements et remboursements ;
-- Marketing : communication et futures fonctions CRM ;
+- Marketing : communication, acquisition et partenaires ;
 - Scanner manager : contrôle d'accès et agents scanner.
 
-Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan et métriques financières sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
+Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan, commissions et métriques financières sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
 
 Les événements existants sont automatiquement rattachés à une organisation personnelle lors de la migration vers ce modèle.
 
@@ -112,6 +113,22 @@ Le tableau de bord Analytics est disponible sous :
 Il calcule directement depuis les sources de vérité Makolo : billets actifs, capacité, commandes, conversions, waitlist, transferts, scans, vitesse des ventes et projection simple de sold-out. Les rôles Finance/Owner/Admin peuvent aussi voir les revenus brut, remboursé et net ; les autres rôles reçoivent uniquement les agrégats opérationnels compatibles avec leurs droits.
 
 Les devises ne sont jamais additionnées entre elles. Les réponses Analytics n'exposent aucun nom, e-mail, téléphone, QR ou référence de paiement client. Les insights sont des règles déterministes et explicables, pas des décisions automatiques opaques.
+
+## Partners / Ambassadeurs / Affiliation
+
+L'espace acquisition est disponible sous `/partners/`. Une organisation peut enregistrer des ambassadeurs, influenceurs, médias, agences, communautés ou partenaires commerciaux, puis créer une campagne liée à un événement.
+
+Chaque couple campagne/partenaire reçoit un `ReferralCode` unique et un lien public du type :
+
+```text
+/partners/r/ALICE10/
+```
+
+Makolo enregistre une visite avec un UUID anonyme, le chemin de destination et uniquement le domaine référent. L'adresse IP et l'URL référente complète ne sont pas conservées. Le dernier code valide est mémorisé dans la session pendant la fenêtre d'attribution de la campagne, jusqu'à 90 jours.
+
+Une réservation n'acquiert aucune commission. La commission devient `earned` uniquement lorsque la commande est réellement confirmée. Un remboursement ou une annulation inverse automatiquement une commission non payée. Une commission déjà payée bloque une inversion silencieuse : l'équipe Finance doit d'abord traiter l'ajustement comptable.
+
+Les commissions peuvent être un pourcentage du montant de la commande ou un montant fixe. Les paiements de commissions sont groupés par devise ; Makolo ne mélange jamais USD, CDF ou d'autres monnaies dans un même solde. Les rôles Marketing gèrent partenaires/campagnes sans voir les montants financiers ; Finance gère commissions et paiements sans obtenir de droits marketing implicites. Un partenaire relié à un compte Makolo dispose de son propre portail de performance agrégé.
 
 ## Installation locale sous PowerShell
 
@@ -185,7 +202,15 @@ Les endpoints principaux de la v1 sont :
 /api/v1/notifications/unread-count/
 /api/v1/analytics/overview/
 /api/v1/analytics/events/<event-slug>/
+/api/v1/partners/partners/
+/api/v1/partners/campaigns/
+/api/v1/partners/codes/
+/api/v1/partners/commissions/
+/api/v1/partners/payouts/
+/api/v1/partners/partners/<partner-id>/metrics/
 ```
+
+`POST /api/v1/tickets/orders/` accepte aussi `referral_code` afin que les clients API/mobile puissent préserver l'attribution sans dépendre d'une session navigateur.
 
 ## Notifications
 
@@ -201,11 +226,10 @@ Le socle actuel prépare désormais les fonctionnalités majeures suivantes :
 
 - CRM événementiel ;
 - abonnements/followers d'organisateurs ;
-- codes ambassadeurs et affiliation ;
 - intelligence avancée des flux d'entrée ;
 - recommandations et découverte sociale d'événements ;
 - opérations et modération de plateforme avancées ;
-- cohortes, attribution marketing et prévisions analytiques plus avancées.
+- cohortes, attribution multi-touch et prévisions analytiques plus avancées.
 
 ## CI
 
@@ -222,4 +246,5 @@ GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépen
 - notifications : `docs/architecture/notifications.md` ;
 - organisations, équipes et Autopilot : `docs/architecture/platform-autopilot-organizations.md` ;
 - frontières d'autorisation : `docs/architecture/authorization-boundaries.md` ;
-- Analytics & Event Intelligence : `docs/architecture/analytics-event-intelligence.md`.
+- Analytics & Event Intelligence : `docs/architecture/analytics-event-intelligence.md` ;
+- Partners / Ambassadeurs / Affiliation : `docs/architecture/partners-affiliation.md`.
