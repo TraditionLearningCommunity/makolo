@@ -27,6 +27,17 @@ def user_can_access_ticket(user, ticket) -> bool:
     return ticket.owner_id == user.pk
 
 
+def user_can_access_waitlist_entry(user, entry) -> bool:
+    return bool(getattr(user, "is_authenticated", False) and (user.is_staff or entry.user_id == user.pk))
+
+
+def user_can_access_transfer(user, transfer) -> bool:
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (user.is_staff or transfer.sender_id == user.pk or transfer.recipient_id == user.pk)
+    )
+
+
 class IsTicketOrganizer(BasePermission):
     def has_permission(self, request, view):
         return user_can_manage_events(request.user)
