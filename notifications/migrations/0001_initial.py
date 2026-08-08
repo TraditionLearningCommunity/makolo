@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("channel", models.CharField(choices=[("email", "E-mail"), ("sms", "SMS"), ("push", "Push")], max_length=16)),
                 ("destination", models.CharField(max_length=255)),
-                ("status", models.CharField(choices=[("queued", "En attente"), ("sent", "Envoyé"), ("failed", "Échoué"), ("skipped", "Ignoré")], default="queued", max_length=16)),
+                ("status", models.CharField(choices=[("queued", "En attente"), ("processing", "En cours"), ("sent", "Envoyé"), ("failed", "Échoué"), ("skipped", "Ignoré")], default="queued", max_length=16)),
                 ("scheduled_for", models.DateTimeField(default=django.utils.timezone.now)),
                 ("attempts", models.PositiveSmallIntegerField(default=0)),
                 ("max_attempts", models.PositiveSmallIntegerField(default=3)),
@@ -56,11 +56,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="notification",
-            index=models.Index(fields=["recipient", "read_at", "created_at"], name="notificatio_recipie_8fdc95_idx"),
+            index=models.Index(fields=["recipient", "read_at", "created_at"], name="notif_recipient_read_idx"),
         ),
         migrations.AddIndex(
             model_name="notification",
-            index=models.Index(fields=["category", "created_at"], name="notificatio_categor_b8cdca_idx"),
+            index=models.Index(fields=["category", "created_at"], name="notif_category_created_idx"),
         ),
         migrations.AddConstraint(
             model_name="notificationdelivery",
@@ -68,10 +68,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="notificationdelivery",
-            index=models.Index(fields=["status", "scheduled_for"], name="notificatio_status_180fbe_idx"),
+            index=models.Index(fields=["status", "scheduled_for"], name="notif_delivery_due_idx"),
         ),
         migrations.AddIndex(
             model_name="notificationdelivery",
-            index=models.Index(fields=["channel", "status"], name="notificatio_channel_bcd6fa_idx"),
+            index=models.Index(fields=["channel", "status"], name="notif_delivery_channel_idx"),
         ),
     ]
