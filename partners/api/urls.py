@@ -5,7 +5,9 @@ from .views import (
     CommissionListAPIView,
     PartnerListAPIView,
     PartnerMetricsAPIView,
+    PayoutCancelAPIView,
     PayoutListAPIView,
+    PayoutMarkPaidAPIView,
     ReferralCodeListAPIView,
 )
 
@@ -17,5 +19,7 @@ urlpatterns = [
     path("codes/", ReferralCodeListAPIView.as_view(), name="codes"),
     path("commissions/", CommissionListAPIView.as_view(), name="commissions"),
     path("payouts/", PayoutListAPIView.as_view(), name="payouts"),
+    path("payouts/<uuid:pk>/paid/", PayoutMarkPaidAPIView.as_view(), name="payout-paid"),
+    path("payouts/<uuid:pk>/cancel/", PayoutCancelAPIView.as_view(), name="payout-cancel"),
     path("partners/<uuid:pk>/metrics/", PartnerMetricsAPIView.as_view(), name="partner-metrics"),
 ]
