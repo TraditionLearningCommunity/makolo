@@ -1,24 +1,22 @@
 {% comment %}Reusable field rendering for ticket type create/edit pages.{% endcomment %}
-{% for field in form %}
-    {% if field.name == 'event' or field.name == 'name' or field.name == 'description' %}
-        {% if forloop.first %}
-        <section class="space-y-5">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Informations générales</p>
-                <h2 class="mt-1 text-xl font-black text-zinc-900 dark:text-white">Identité du billet</h2>
+<section class="space-y-5">
+    <div>
+        <p class="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Informations générales</p>
+        <h2 class="mt-1 text-xl font-black text-zinc-900 dark:text-white">Identité du billet</h2>
+    </div>
+    <div class="grid gap-5 md:grid-cols-2">
+        {% for field in form %}
+            {% if field.name == 'event' or field.name == 'name' or field.name == 'description' %}
+            <div class="{% if field.name == 'description' %}md:col-span-2{% endif %}">
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold text-zinc-800 dark:text-zinc-200">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="mt-2 text-xs leading-5 text-zinc-500">{{ field.help_text }}</p>{% endif %}
+                {% for error in field.errors %}<p class="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
             </div>
-        {% endif %}
-
-        <div class="{% if field.name == 'description' %}md:col-span-2{% endif %}">
-            <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold text-zinc-800 dark:text-zinc-200">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}<p class="mt-2 text-xs leading-5 text-zinc-500">{{ field.help_text }}</p>{% endif %}
-            {% for error in field.errors %}<p class="mt-2 text-sm font-medium text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
-        </div>
-
-        {% if field.name == 'description' %}</section>{% endif %}
-    {% endif %}
-{% endfor %}
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
 
 <section class="space-y-5 border-t border-zinc-200 pt-7 dark:border-zinc-800">
     <div>
@@ -44,6 +42,7 @@
     <div>
         <p class="text-xs font-black uppercase tracking-[0.22em] text-sky-500">Fenêtre de vente</p>
         <h2 class="mt-1 text-xl font-black text-zinc-900 dark:text-white">Quand ce billet peut-il être vendu ?</h2>
+        <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Vous pouvez laisser les dates vides pour utiliser uniquement la période d'inscription de l'événement.</p>
     </div>
     <div class="grid gap-5 md:grid-cols-2">
         {% for field in form %}
