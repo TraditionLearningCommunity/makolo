@@ -188,7 +188,7 @@ def dispatch_delivery(delivery_id) -> str:
         )
         email.attach_alternative(html_body, "text/html")
         email.send(fail_silently=False)
-    except Exception as exc:  # provider/backend errors must be retried, not leak into business flows
+    except Exception as exc:
         now = timezone.now()
         delivery.refresh_from_db(fields=["attempts", "max_attempts"])
         terminal = delivery.attempts >= delivery.max_attempts
@@ -355,3 +355,21 @@ def schedule_event_reminders(*, hours_before: int = 24, window_minutes: int = 60
         if not before:
             created += 1
     return created
+
+
+def notify_waitlist_offer(entry_id):
+    from tickets.notifications import notify_waitlist_offer as implementation
+
+    return implementation(entry_id)
+
+
+def notify_ticket_transfer_created(transfer_id):
+    from tickets.notifications import notify_ticket_transfer_created as implementation
+
+    return implementation(transfer_id)
+
+
+def notify_ticket_transfer_accepted(transfer_id):
+    from tickets.notifications import notify_ticket_transfer_accepted as implementation
+
+    return implementation(transfer_id)

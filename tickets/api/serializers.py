@@ -1,10 +1,18 @@
 from rest_framework import serializers
 
 from events.models import Event
+from events.permissions import user_can_manage_event
 from events.selectors import get_events_visible_to
 
-from tickets.models import Ticket, TicketOrder, TicketOrderItem, TicketType
-from tickets.services import create_order
+from tickets.models import (
+    Ticket,
+    TicketOrder,
+    TicketOrderItem,
+    TicketTransfer,
+    TicketType,
+    TicketWaitlistEntry,
+)
+from tickets.services import create_order, create_ticket_transfer, join_waitlist
 
 
 class EventSummarySerializer(serializers.ModelSerializer):
@@ -66,11 +74,10 @@ class TicketTypeSerializer(serializers.ModelSerializer):
         instance = self.instance
         event = attrs.get("event", getattr(instance, "event", None))
         request = self.context.get("request")
-        if event and request and not request.user.is_staff:
-            if event.organizer_id != request.user.pk:
-                raise serializers.ValidationError(
-                    {"event_id": "Vous ne pouvez gérer que vos propres événements."}
-                )
+        if event and request and not user_can_manage_event(request.user, event):
+            raise serializers.ValidationError(
+                {"event_id": "Vous ne pouvez pas gérer les billets de cet événement."}
+            )
         return attrs
 
 
@@ -194,4 +201,89 @@ class TicketOrderCreateSerializer(serializers.Serializer):
             buyer=request.user,
             selections=selections,
             **validated_data,
+        )
+
+
+class TicketWaitlistSerializer(serializers.ModelSerializer):
+    ticket_type = TicketTypeSerializer(read_only=True)
+    offered_order = TicketOrderSerializer(read_only=True)
+    is_offer_active = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = TicketWaitlistEntry
+        fields = [
+            "id",
+            "ticket_type",
+            "requested_quantity",
+            "status",
+            "offered_order",
+            "offered_at",
+            "offer_expires_at",
+            "converted_at",
+            "cancelled_at",
+            "is_offer_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class TicketWaitlistCreateSerializer(serializers.Serializer):
+    ticket_type_id = serializers.PrimaryKeyRelatedField(
+        source="ticket_type",
+        queryset=TicketType.objects.select_related("event").all(),
+    )
+    quantity = serializers.IntegerField(min_value=1, default=1)
+
+    def create(self, validated_data):
+        return join_waitlist(
+            user=self.context["request"].user,
+            ticket_type=validated_data["ticket_type"],
+            quantity=validated_data["quantity"],
+        )
+
+
+class TicketTransferSerializer(serializers.ModelSerializer):
+    ticket = TicketSerializer(read_only=True)
+    sender_name = serializers.CharField(source="sender.full_name", read_only=True)
+    sender_username = serializers.CharField(source="sender.username", read_only=True)
+    recipient_name = serializers.CharField(source="recipient.full_name", read_only=True)
+    recipient_username = serializers.CharField(source="recipient.username", read_only=True)
+    is_pending_active = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = TicketTransfer
+        fields = [
+            "id",
+            "ticket",
+            "sender_name",
+            "sender_username",
+            "recipient_name",
+            "recipient_username",
+            "recipient_email",
+            "status",
+            "expires_at",
+            "accepted_at",
+            "declined_at",
+            "cancelled_at",
+            "expired_at",
+            "is_pending_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class TicketTransferCreateSerializer(serializers.Serializer):
+    ticket_id = serializers.PrimaryKeyRelatedField(
+        source="ticket",
+        queryset=Ticket.objects.select_related("event", "owner").all(),
+    )
+    recipient_email = serializers.EmailField()
+
+    def create(self, validated_data):
+        return create_ticket_transfer(
+            ticket=validated_data["ticket"],
+            sender=self.context["request"].user,
+            recipient_email=validated_data["recipient_email"],
         )
