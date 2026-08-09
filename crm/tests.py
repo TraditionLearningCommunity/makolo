@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -79,11 +79,11 @@ class EventCRMTests(TestCase):
 
     def _order(self, *, user=None, email=None, status=TicketOrderStatus.CONFIRMED):
         user = user if user is not None else self.attendee
-        email = email or (user.email if user else "guest@example.com")
+        email = email or user.email
         return TicketOrder.objects.create(
             event=self.event,
             buyer=user,
-            customer_name=user.full_name if user else "Guest Contact",
+            customer_name=user.full_name,
             customer_email=email,
             status=status,
             total_amount=Decimal("20.00"),
@@ -91,15 +91,16 @@ class EventCRMTests(TestCase):
             confirmed_at=timezone.now() if status == TicketOrderStatus.CONFIRMED else None,
         )
 
-    def _ticket(self, *, user=None, email=None, status=TicketStatus.VALID, event=None, ticket_type=None):
+    def _ticket(self, *, guest=False, email=None, status=TicketStatus.VALID, event=None, ticket_type=None):
         event = event or self.event
         ticket_type = ticket_type or self.ticket_type
-        user = user if user is not None else self.attendee
+        user = None if guest else self.attendee
         email = email or (user.email if user else "guest@example.com")
+        name = user.full_name if user else "Guest Contact"
         order = TicketOrder.objects.create(
             event=event,
             buyer=user,
-            customer_name=user.full_name if user else "Guest Contact",
+            customer_name=name,
             customer_email=email,
             status=TicketOrderStatus.CONFIRMED,
             total_amount=ticket_type.price,
@@ -111,7 +112,7 @@ class EventCRMTests(TestCase):
             ticket_type=ticket_type,
             order=order,
             owner=user,
-            holder_name=user.full_name if user else "Guest Contact",
+            holder_name=name,
             holder_email=email,
             status=status,
             used_at=timezone.now() if status == TicketStatus.USED else None,
@@ -131,92 +132,35 @@ class EventCRMTests(TestCase):
         self.assertEqual(contact.consent_source, "account_notification_preferences")
 
     def test_finance_cannot_manage_crm_but_marketing_can(self):
-        segment = create_segment(
-            organization=self.organization,
-            actor=self.marketing,
-            name="Tous",
-            audience_kind=AudienceKind.ALL,
-        )
+        segment = create_segment(organization=self.organization, actor=self.marketing, name="Tous", audience_kind=AudienceKind.ALL)
         self.assertEqual(segment.organization, self.organization)
         with self.assertRaises(PermissionDenied):
-            create_segment(
-                organization=self.organization,
-                actor=self.finance,
-                name="Finance segment",
-                audience_kind=AudienceKind.ALL,
-            )
+            create_segment(organization=self.organization, actor=self.finance, name="Finance segment", audience_kind=AudienceKind.ALL)
 
     def test_confirmed_buyer_segment_is_derived_from_ticket_orders(self):
         self._order()
-        segment = AudienceSegment.objects.create(
-            organization=self.organization,
-            event=self.event,
-            name="Acheteurs",
-            audience_kind=AudienceKind.CONFIRMED_BUYERS,
-            created_by=self.marketing,
-        )
+        segment = AudienceSegment.objects.create(organization=self.organization, event=self.event, name="Acheteurs", audience_kind=AudienceKind.CONFIRMED_BUYERS, created_by=self.marketing)
         self.assertEqual(list(audience_contacts(segment).values_list("email", flat=True)), [self.attendee.email])
 
     def test_attendee_segment_is_derived_from_used_ticket(self):
         self._ticket(status=TicketStatus.USED)
-        segment = AudienceSegment.objects.create(
-            organization=self.organization,
-            event=self.event,
-            name="Présents",
-            audience_kind=AudienceKind.ATTENDEES,
-            created_by=self.marketing,
-        )
+        segment = AudienceSegment.objects.create(organization=self.organization, event=self.event, name="Présents", audience_kind=AudienceKind.ATTENDEES, created_by=self.marketing)
         self.assertEqual(audience_contacts(segment).count(), 1)
 
     def test_no_show_segment_only_activates_after_event_end(self):
         self._ticket(status=TicketStatus.VALID)
-        segment = AudienceSegment.objects.create(
-            organization=self.organization,
-            event=self.event,
-            name="No shows futurs",
-            audience_kind=AudienceKind.NO_SHOWS,
-            created_by=self.marketing,
-        )
+        segment = AudienceSegment.objects.create(organization=self.organization, event=self.event, name="No shows futurs", audience_kind=AudienceKind.NO_SHOWS, created_by=self.marketing)
         self.assertEqual(audience_contacts(segment).count(), 0)
-
-        past = Event.objects.create(
-            organizer=self.owner,
-            organization=self.organization,
-            title="Past CRM Event",
-            status=EventStatus.COMPLETED,
-            visibility=EventVisibility.PUBLIC,
-            start_at=timezone.now() - timedelta(days=2),
-            end_at=timezone.now() - timedelta(days=1),
-            capacity=20,
-        )
+        past = Event.objects.create(organizer=self.owner, organization=self.organization, title="Past CRM Event", status=EventStatus.COMPLETED, visibility=EventVisibility.PUBLIC, start_at=timezone.now() - timedelta(days=2), end_at=timezone.now() - timedelta(days=1), capacity=20)
         past_type = TicketType.objects.create(event=past, name="Past", price=0, currency="USD", quantity_total=20)
         self._ticket(status=TicketStatus.VALID, event=past, ticket_type=past_type)
-        past_segment = AudienceSegment.objects.create(
-            organization=self.organization,
-            event=past,
-            name="No shows passés",
-            audience_kind=AudienceKind.NO_SHOWS,
-            created_by=self.marketing,
-        )
+        past_segment = AudienceSegment.objects.create(organization=self.organization, event=past, name="No shows passés", audience_kind=AudienceKind.NO_SHOWS, created_by=self.marketing)
         self.assertEqual(audience_contacts(past_segment).count(), 1)
 
     def test_marketing_campaign_skips_contact_without_consent(self):
         self._order()
-        segment = AudienceSegment.objects.create(
-            organization=self.organization,
-            name="Tous contacts",
-            audience_kind=AudienceKind.ALL,
-            created_by=self.marketing,
-        )
-        campaign = create_campaign(
-            organization=self.organization,
-            actor=self.marketing,
-            segment=segment,
-            name="Newsletter",
-            kind=CommunicationKind.MARKETING,
-            subject="Actualités Makolo",
-            body="Bonjour",
-        )
+        segment = AudienceSegment.objects.create(organization=self.organization, name="Tous contacts", audience_kind=AudienceKind.ALL, created_by=self.marketing)
+        campaign = create_campaign(organization=self.organization, actor=self.marketing, segment=segment, name="Newsletter", kind=CommunicationKind.MARKETING, subject="Actualités Makolo", body="Bonjour")
         launch_campaign(campaign=campaign, actor=self.marketing)
         process_due_campaigns()
         recipient = CampaignRecipient.objects.get(campaign=campaign)
@@ -226,24 +170,8 @@ class EventCRMTests(TestCase):
     def test_opted_in_marketing_campaign_sends_email_and_in_app_notification(self):
         NotificationPreference.objects.create(user=self.attendee, marketing_notifications=True)
         self._order()
-        segment = AudienceSegment.objects.create(
-            organization=self.organization,
-            name="Newsletter opt-in",
-            audience_kind=AudienceKind.ALL,
-            marketing_consent_only=True,
-            created_by=self.marketing,
-        )
-        campaign = create_campaign(
-            organization=self.organization,
-            actor=self.marketing,
-            segment=segment,
-            name="Annonce",
-            kind=CommunicationKind.MARKETING,
-            subject="Nouveauté",
-            body="Un nouvel événement est disponible.",
-            cta_label="Découvrir",
-            cta_url="https://example.com/event",
-        )
+        segment = AudienceSegment.objects.create(organization=self.organization, name="Newsletter opt-in", audience_kind=AudienceKind.ALL, marketing_consent_only=True, created_by=self.marketing)
+        campaign = create_campaign(organization=self.organization, actor=self.marketing, segment=segment, name="Annonce", kind=CommunicationKind.MARKETING, subject="Nouveauté", body="Un nouvel événement est disponible.", cta_label="Découvrir", cta_url="https://example.com/event")
         launch_campaign(campaign=campaign, actor=self.marketing)
         result = process_due_campaigns()
         campaign.refresh_from_db()
@@ -259,42 +187,18 @@ class EventCRMTests(TestCase):
         self._order()
         contact = CRMContact.objects.get(organization=self.organization, email=self.attendee.email)
         segment = AudienceSegment.objects.create(organization=self.organization, name="Unsub", audience_kind=AudienceKind.ALL, created_by=self.marketing)
-        campaign = CommunicationCampaign.objects.create(
-            organization=self.organization,
-            segment=segment,
-            name="Unsub campaign",
-            kind=CommunicationKind.MARKETING,
-            subject="Test",
-            body="Test",
-            created_by=self.marketing,
-        )
+        campaign = CommunicationCampaign.objects.create(organization=self.organization, segment=segment, name="Unsub campaign", kind=CommunicationKind.MARKETING, subject="Test", body="Test", created_by=self.marketing)
         recipient = CampaignRecipient.objects.create(campaign=campaign, contact=contact, user=self.attendee, email=contact.email)
-        token = campaign_unsubscribe_token(recipient)
-        unsubscribe_from_token(token)
+        unsubscribe_from_token(campaign_unsubscribe_token(recipient))
         contact.refresh_from_db()
         preference.refresh_from_db()
         self.assertEqual(contact.marketing_consent, MarketingConsent.UNSUBSCRIBED)
         self.assertFalse(preference.marketing_notifications)
 
     def test_event_update_can_reach_guest_ticket_holder_without_marketing_opt_in(self):
-        self._ticket(user=None, email="guest-event@example.com", status=TicketStatus.VALID)
-        segment = AudienceSegment.objects.create(
-            organization=self.organization,
-            event=self.event,
-            name="Détenteurs",
-            audience_kind=AudienceKind.TICKET_HOLDERS,
-            created_by=self.marketing,
-        )
-        campaign = create_campaign(
-            organization=self.organization,
-            actor=self.marketing,
-            segment=segment,
-            event=self.event,
-            name="Changement de salle",
-            kind=CommunicationKind.EVENT_UPDATE,
-            subject="Salle mise à jour",
-            body="Votre événement change de salle.",
-        )
+        self._ticket(guest=True, email="guest-event@example.com", status=TicketStatus.VALID)
+        segment = AudienceSegment.objects.create(organization=self.organization, event=self.event, name="Détenteurs", audience_kind=AudienceKind.TICKET_HOLDERS, created_by=self.marketing)
+        campaign = create_campaign(organization=self.organization, actor=self.marketing, segment=segment, event=self.event, name="Changement de salle", kind=CommunicationKind.EVENT_UPDATE, subject="Salle mise à jour", body="Votre événement change de salle.")
         launch_campaign(campaign=campaign, actor=self.marketing)
         process_due_campaigns()
         recipient = CampaignRecipient.objects.get(campaign=campaign, email="guest-event@example.com")
@@ -305,15 +209,7 @@ class EventCRMTests(TestCase):
         NotificationPreference.objects.create(user=self.attendee, marketing_notifications=True)
         self._order()
         segment = AudienceSegment.objects.create(organization=self.organization, name="Planifié", audience_kind=AudienceKind.ALL, marketing_consent_only=True, created_by=self.marketing)
-        campaign = create_campaign(
-            organization=self.organization,
-            actor=self.marketing,
-            segment=segment,
-            name="Planifiée",
-            kind=CommunicationKind.MARKETING,
-            subject="Plus tard",
-            body="Message planifié",
-        )
+        campaign = create_campaign(organization=self.organization, actor=self.marketing, segment=segment, name="Planifiée", kind=CommunicationKind.MARKETING, subject="Plus tard", body="Message planifié")
         schedule_campaign(campaign=campaign, actor=self.marketing, scheduled_at=timezone.now() + timedelta(hours=1))
         CommunicationCampaign.objects.filter(pk=campaign.pk).update(scheduled_at=timezone.now() - timedelta(minutes=1))
         result = process_due_campaigns()
@@ -323,27 +219,17 @@ class EventCRMTests(TestCase):
 
     def test_event_manager_can_read_web_crm_but_finance_cannot(self):
         self.client.force_login(self.event_manager)
-        response = self.client.get(reverse("crm:organization", kwargs={"slug": self.organization.slug}))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get(reverse("crm:organization", kwargs={"slug": self.organization.slug})).status_code, 200)
         self.client.force_login(self.finance)
-        response = self.client.get(reverse("crm:organization", kwargs={"slug": self.organization.slug}))
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.client.get(reverse("crm:organization", kwargs={"slug": self.organization.slug})).status_code, 403)
 
     def test_api_marketing_can_create_segment_and_finance_is_forbidden(self):
-        payload = {
-            "organization_id": str(self.organization.pk),
-            "name": "API buyers",
-            "event_id": str(self.event.pk),
-            "audience_kind": AudienceKind.CONFIRMED_BUYERS,
-            "marketing_consent_only": False,
-        }
+        payload = {"organization_id": str(self.organization.pk), "name": "API buyers", "event_id": str(self.event.pk), "audience_kind": AudienceKind.CONFIRMED_BUYERS, "marketing_consent_only": False}
         self.client.force_login(self.marketing)
-        response = self.client.post(reverse("crm_api:segments"), payload, content_type="application/json")
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.client.post(reverse("crm_api:segments"), payload, content_type="application/json").status_code, 201)
         self.client.force_login(self.finance)
         payload["name"] = "Finance denied"
-        response = self.client.post(reverse("crm_api:segments"), payload, content_type="application/json")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.client.post(reverse("crm_api:segments"), payload, content_type="application/json").status_code, 403)
 
     def test_contact_visibility_is_isolated_by_organization(self):
         other_org = Organization.objects.create(name="Other CRM Org", created_by=self.owner)
@@ -359,7 +245,7 @@ class EventCRMTests(TestCase):
     def test_manual_subscription_requires_documented_source(self):
         self._order()
         contact = CRMContact.objects.get(organization=self.organization, email=self.attendee.email)
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             set_marketing_consent(contact=contact, actor=self.marketing, subscribed=True, source="")
         contact = set_marketing_consent(contact=contact, actor=self.marketing, subscribed=True, source="newsletter-form")
         self.assertEqual(contact.marketing_consent, MarketingConsent.SUBSCRIBED)
