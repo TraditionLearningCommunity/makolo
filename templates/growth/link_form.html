@@ -1,0 +1,8 @@
+{% extends 'base/app.html' %}
+{% block title %}Nouveau lien Growth | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+    <div><p class="text-sm font-bold uppercase tracking-wide text-fuchsia-500">{{ organization.name }}</p><h1 class="mt-1 text-4xl font-black">Créer une source marketing</h1><p class="mt-3 text-zinc-500">Le lien court enregistre uniquement une visite first-party minimale puis attribue la commande au dernier lien valide dans sa fenêtre.</p></div>
+    <form method="post" class="space-y-5 rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">{% csrf_token %}{% for field in form %}<div><label class="mb-2 block text-sm font-bold">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}{% for error in field.errors %}<p class="mt-1 text-sm text-red-500">{{ error }}</p>{% endfor %}</div>{% endfor %}{% for error in form.non_field_errors %}<p class="text-sm text-red-500">{{ error }}</p>{% endfor %}<div class="flex gap-3"><button class="rounded-2xl bg-fuchsia-600 px-5 py-3 font-bold text-white">Créer</button><a href="{% url 'growth:organization' organization.slug %}" class="rounded-2xl border border-zinc-300 px-5 py-3 font-bold dark:border-zinc-700">Annuler</a></div></form>
+</div>
+{% endblock %}

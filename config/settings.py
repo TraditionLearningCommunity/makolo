@@ -76,6 +76,8 @@ LOCAL_APPS = [
     "loyalty.apps.LoyaltyConfig",
     "analytics_app",
     "operations.apps.OperationsConfig",
+    "discovery.apps.DiscoveryConfig",
+    "growth.apps.GrowthConfig",
 ]
 INSTALLED_APPS = [*DJANGO_APPS, *THIRD_PARTY_APPS, *LOCAL_APPS]
 
@@ -86,6 +88,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "growth.middleware.MarketingSessionUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
