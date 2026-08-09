@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="eventbookmark",
-            constraint=models.UniqueConstraint(fields=("user", "event"), name="discovery_bookmark_user_event_unique"),
+            constraint=models.UniqueConstraint(fields=("user", "event"), name="disc_bookmark_user_event_uq"),
         ),
         migrations.AddIndex(
             model_name="eventbookmark",
