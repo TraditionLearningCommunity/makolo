@@ -231,7 +231,7 @@ class CampaignSalesAttributionTests(TestCase):
             subject="Réservez",
             body="Votre place vous attend.",
             cta_label="Réserver",
-            cta_url=f"http://testserver/tickets/buy/{self.event.slug}/",
+            cta_url=f"https://example.com/tickets/buy/{self.event.slug}/",
             track_conversions=True,
             attribution_window_days=30,
         )
