@@ -12,6 +12,14 @@ ANALYTICS_ROLES = {
     OrganizationRole.SCANNER_MANAGER,
 }
 
+GROWTH_ANALYTICS_ROLES = {
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.EVENT_MANAGER,
+    OrganizationRole.FINANCE,
+    OrganizationRole.MARKETING,
+}
+
 
 def user_can_view_event_analytics(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
@@ -39,3 +47,23 @@ def user_can_view_event_financials(user, event) -> bool:
         "organizer",
         legacy_flag="is_organizer",
     )
+
+
+def user_can_view_growth_analytics(user, organization) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if user.is_staff:
+        return True
+    return user_has_org_role(user, organization, GROWTH_ANALYTICS_ROLES)
+
+
+def user_can_view_growth_financials(user, organization) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if user.is_staff:
+        return True
+    return user_has_org_role(user, organization, FINANCE_ROLES)
+
+
+def user_can_manage_growth_spend(user, organization) -> bool:
+    return user_can_view_growth_financials(user, organization)
