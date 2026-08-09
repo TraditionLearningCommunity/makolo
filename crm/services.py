@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -284,7 +283,7 @@ def launch_campaign(*, campaign: CommunicationCampaign, actor=None):
 def cancel_campaign(*, campaign: CommunicationCampaign, actor):
     campaign = CommunicationCampaign.objects.select_for_update().select_related("organization").get(pk=campaign.pk)
     if not user_can_manage_crm(actor, campaign.organization):
-        raise PermissionDenied("Vous n’avez pas le droit d’annuler cette campagne.")
+        raise PermissionDenied("Vous n’avez pas le droit d’annuler ce paiement de commissions.")
     if campaign.status == CommunicationCampaignStatus.SENT:
         raise ValidationError("Une campagne déjà envoyée ne peut pas être annulée.")
     if campaign.status == CommunicationCampaignStatus.CANCELLED:
@@ -456,23 +455,28 @@ def finalize_campaigns(*, now=None):
 
 
 def process_due_campaigns(*, now=None, campaign_limit=20, recipient_limit=100):
-    now = now or timezone.now()
+    reference_now = now or timezone.now()
     launched = 0
     due = list(
         CommunicationCampaign.objects.filter(
             status=CommunicationCampaignStatus.SCHEDULED,
-            scheduled_at__lte=now,
+            scheduled_at__lte=reference_now,
         ).order_by("scheduled_at")[:campaign_limit]
     )
     for campaign in due:
         launch_campaign(campaign=campaign)
         launched += 1
 
-    recovered = recover_stale_campaign_recipients(now=now)
+    # A campaign snapshot timestamps its recipients during launch. Refresh the
+    # dispatch cutoff so recipients created a few milliseconds after the cycle
+    # started can still be processed in this same Autopilot iteration. When a
+    # caller supplies a future reference time (tests/operations), preserve it.
+    dispatch_now = max(reference_now, timezone.now())
+    recovered = recover_stale_campaign_recipients(now=dispatch_now)
     recipient_ids = list(
         CampaignRecipient.objects.filter(
             status=CampaignRecipientStatus.QUEUED,
-            scheduled_for__lte=now,
+            scheduled_for__lte=dispatch_now,
             campaign__status=CommunicationCampaignStatus.SENDING,
         ).order_by("scheduled_for", "created_at").values_list("pk", flat=True)[:recipient_limit]
     )
@@ -480,7 +484,7 @@ def process_due_campaigns(*, now=None, campaign_limit=20, recipient_limit=100):
     for recipient_id in recipient_ids:
         outcome = dispatch_campaign_recipient(recipient_id)
         outcomes[outcome] = outcomes.get(outcome, 0) + 1
-    completed = finalize_campaigns(now=now)
+    completed = finalize_campaigns(now=dispatch_now)
     return {
         "launched": launched,
         "recovered": recovered,
