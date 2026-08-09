@@ -42,12 +42,29 @@
             {% endfor %}
         </div>
 
-        <div class="mt-6 flex items-center justify-between text-lg"><span>Total</span><strong>{{ order.total_amount }} {{ order.currency }}</strong></div>
+        {% if promotion_redemption %}
+        <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/40">
+            <div class="flex items-center justify-between gap-4"><div><p class="text-xs font-black uppercase tracking-[0.15em] text-emerald-600">Promotion appliquée</p><p class="mt-1 font-black">{{ promotion_redemption.code.code }}{% if promotion_redemption.code.label %} · {{ promotion_redemption.code.label }}{% endif %}</p></div><span class="rounded-full bg-white px-3 py-2 text-sm font-black text-emerald-700 dark:bg-zinc-900">-{{ promotion_redemption.discount_amount }} {{ promotion_redemption.currency }}</span></div>
+            <div class="mt-4 grid gap-2 text-sm md:grid-cols-3"><div><span class="text-zinc-500">Sous-total</span><div class="font-bold">{{ promotion_redemption.subtotal_amount }} {{ promotion_redemption.currency }}</div></div><div><span class="text-zinc-500">Éligible</span><div class="font-bold">{{ promotion_redemption.eligible_amount }} {{ promotion_redemption.currency }}</div></div><div><span class="text-zinc-500">Après remise</span><div class="font-black">{{ promotion_redemption.final_amount }} {{ promotion_redemption.currency }}</div></div></div>
+        </div>
+        {% endif %}
+
+        <div class="mt-6 flex items-center justify-between text-lg"><span>Total à payer</span><strong>{{ order.total_amount }} {{ order.currency }}</strong></div>
 
         {% if order.status == 'pending' %}
         <div class="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
             Réservation en attente{% if order.expires_at %}. Valable jusqu’au {{ order.expires_at|date:"d/m/Y H:i" }}{% endif %}.
         </div>
+
+        {% if not promotion_redemption and not order.payments.all %}
+        <form method="post" action="{% url 'tickets:order-promotion' order.pk %}" class="mt-5 rounded-2xl border border-indigo-200 p-4 dark:border-indigo-900">
+            {% csrf_token %}
+            <label for="promotion_code" class="text-sm font-black">Ajouter un code promotionnel avant paiement</label>
+            <div class="mt-3 flex flex-col gap-2 sm:flex-row"><input id="promotion_code" name="promotion_code" required placeholder="EX. VIP20" class="flex-1 rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 font-bold uppercase dark:border-zinc-700"><button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Appliquer</button></div>
+            {% if public_promotion_codes %}<div class="mt-3 flex flex-wrap gap-2">{% for code in public_promotion_codes %}<button type="button" onclick="document.getElementById('promotion_code').value='{{ code.code|escapejs }}'" class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ code.code }}{% if code.label %} · {{ code.label }}{% endif %}</button>{% endfor %}</div>{% endif %}
+        </form>
+        {% endif %}
+
         <div class="mt-5 flex flex-wrap gap-3">
             {% if order.total_amount %}<a href="{% url 'payments:start' order.pk %}" class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-500">Payer maintenant</a>{% endif %}
             <form method="post" action="{% url 'tickets:order-cancel' order.pk %}">{% csrf_token %}<button class="rounded-2xl border border-red-300 px-5 py-3 font-semibold text-red-600 dark:border-red-800">Annuler la réservation</button></form>
