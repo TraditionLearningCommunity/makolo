@@ -1,17 +1,14 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from crm.models import CommunicationCampaign
-from events.models import Event
 from growth.models import EventFeedback, MarketingLink
 from growth.permissions import user_can_manage_growth_acquisition
 from growth.services import submit_event_feedback
-from organizations.models import Organization
 
 
 class MarketingLinkSerializer(serializers.ModelSerializer):
     short_path = serializers.SerializerMethodField()
-    visits = serializers.IntegerField(source="visits.count", read_only=True)
+    visits = serializers.SerializerMethodField()
     conversions = serializers.SerializerMethodField()
 
     class Meta:
@@ -37,6 +34,9 @@ class MarketingLinkSerializer(serializers.ModelSerializer):
     def get_short_path(self, obj):
         return f"/g/{obj.code}/"
 
+    def get_visits(self, obj):
+        return obj.visits.count()
+
     def get_conversions(self, obj):
         return obj.attributions.filter(status="confirmed").count()
 
@@ -51,6 +51,8 @@ class MarketingLinkSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"event": "L'événement appartient à une autre organisation."})
         if campaign and campaign.organization_id != organization.pk:
             raise serializers.ValidationError({"crm_campaign": "La campagne appartient à une autre organisation."})
+        if campaign and campaign.event_id and event and campaign.event_id != event.pk:
+            raise serializers.ValidationError({"crm_campaign": "Cette campagne cible un autre événement."})
         candidate = MarketingLink(
             organization=organization,
             event=event,
