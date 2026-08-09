@@ -99,7 +99,7 @@ class GrowthSpend(models.Model):
             ),
             models.Index(
                 fields=["event", "currency"],
-                name="growth_spend_event_currency_idx",
+                name="growth_spend_event_curr_idx",
             ),
         ]
 
