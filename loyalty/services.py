@@ -107,19 +107,20 @@ def _credit_points(*, program, user, points, kind, description, idempotency_key,
     account = get_or_create_account(program, user)
     account = LoyaltyAccount.objects.select_for_update().select_related("current_tier", "program", "user").get(pk=account.pk)
     try:
-        entry = LoyaltyLedgerEntry.objects.create(
-            account=account,
-            kind=kind,
-            points=points,
-            description=description[:255],
-            idempotency_key=idempotency_key,
-            order=order,
-            ticket=ticket,
-            subscription=subscription,
-            reward_redemption=reward_redemption,
-            created_by=created_by,
-            metadata=metadata or {},
-        )
+        with transaction.atomic():
+            entry = LoyaltyLedgerEntry.objects.create(
+                account=account,
+                kind=kind,
+                points=points,
+                description=description[:255],
+                idempotency_key=idempotency_key,
+                order=order,
+                ticket=ticket,
+                subscription=subscription,
+                reward_redemption=reward_redemption,
+                created_by=created_by,
+                metadata=metadata or {},
+            )
     except IntegrityError:
         return LoyaltyLedgerEntry.objects.get(idempotency_key=idempotency_key)
     account.points_balance += points
@@ -245,8 +246,9 @@ def _create_private_benefit_code(*, promotion, created_by, starts_at, ends_at, p
             created_by=created_by,
         )
         try:
-            code.full_clean()
-            code.save()
+            with transaction.atomic():
+                code.full_clean()
+                code.save()
             return code
         except IntegrityError:
             continue
@@ -267,13 +269,21 @@ def request_membership(*, user, plan):
     ).first()
     if current:
         return current
-    subscription = MembershipSubscription.objects.create(
-        program=plan.program,
-        plan=plan,
-        user=user,
-        price_amount=plan.price,
-        currency=plan.currency,
-    )
+    try:
+        with transaction.atomic():
+            subscription = MembershipSubscription.objects.create(
+                program=plan.program,
+                plan=plan,
+                user=user,
+                price_amount=plan.price,
+                currency=plan.currency,
+            )
+    except IntegrityError:
+        return MembershipSubscription.objects.get(
+            program=plan.program,
+            user=user,
+            status__in=[MembershipStatus.PENDING, MembershipStatus.ACTIVE],
+        )
     if plan.is_free:
         return activate_membership(subscription=subscription, actor=user, free_self_activation=True)
     return subscription
