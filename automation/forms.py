@@ -123,6 +123,7 @@ class CRMWorkflowActionForm(forms.ModelForm):
             "tag",
             "title",
             "message",
+            "marketing_action",
             "is_active",
         ]
         labels = {
@@ -133,12 +134,14 @@ class CRMWorkflowActionForm(forms.ModelForm):
             "tag": "Tag CRM",
             "title": "Titre de notification",
             "message": "Message",
+            "marketing_action": "Cette notification Makolo est promotionnelle",
             "is_active": "Action active",
         }
         help_texts = {
             "delay_minutes": "0 = immédiatement. 1440 = un jour plus tard.",
             "title": "Utilisé par les notifications contact/équipe.",
             "message": "Variables disponibles : {{ contact.name }}, {{ organization.name }}, {{ event.title }}, {{ event.start_at }}, {{ order.reference }}, {{ order.amount }}, {{ order.currency }}.",
+            "marketing_action": "Si activé, Makolo exige le consentement CRM et les préférences marketing de ce compte/organisateur avant d’afficher la notification.",
         }
         widgets = {"message": forms.Textarea(attrs={"rows": 4})}
 
