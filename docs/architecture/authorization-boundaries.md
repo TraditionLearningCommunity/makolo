@@ -25,6 +25,8 @@ Les droits de plateforme (`is_staff`, `is_superuser`) restent séparés des droi
 | CRM — segments/campagnes/consentements | Oui | Non | Non | Oui | Non | Ses préférences uniquement |
 | CRM Automation — lecture scénarios/historique | Oui | Oui | Non | Oui | Non | Non |
 | CRM Automation — créer/modifier/activer | Oui | Non | Non | Oui | Non | Non |
+| Growth Analytics — cohortes/rétention/conversions | Oui | Oui | Oui | Oui | Non | Non |
+| Growth Analytics — LTV/coûts/ROI/spend | Oui | Non | Oui | Non | Non | Non |
 
 Le rôle `Admin` d'organisation n'est pas l'administrateur de la plateforme. Il hérite des capacités opérationnelles de l'organisation mais ne reçoit pas `is_staff`.
 
@@ -36,15 +38,17 @@ Un membre Marketing peut créer une promotion, définir ses codes et la rattache
 
 Pour Loyalty, Marketing/Owner/Admin définissent les règles de points, niveaux, memberships, récompenses et ajustements audités. Finance/Owner/Admin peut examiner les demandes et activer manuellement un membership payant, sans modifier la stratégie de rétention. Un participant ne peut lire et utiliser que ses propres soldes, memberships et récompenses. Les endpoints publics d'un programme n'énumèrent jamais les autres membres ni leurs soldes.
 
+Growth Analytics applique la même séparation à l'agrégation. Marketing et Event Manager peuvent voir des cohortes, taux de répétition, follower → achat et conversions agrégées sans recevoir LTV, revenus attribués, coûts ou ROI. Finance/Owner/Admin peut voir les lignes monétaires agrégées et gérer `GrowthSpend`. Scanner Manager n'obtient aucun droit Growth implicite. Les payloads Growth n'exposent jamais nom, e-mail, téléphone, QR ou référence de paiement client.
+
 Un membre Marketing n'a pas besoin de voir les références financières ou les QR pour accomplir sa mission ; il peut gérer le CRM, l'acquisition, les promotions et ses parcours automatiques à travers des vues dédiées. Un responsable Finance n'a pas besoin d'accéder aux contacts CRM, aux notes relationnelles ou aux données de contrôle d'accès. Un Event manager peut lire les contacts, audiences et historiques CRM utiles au pilotage de son événement, mais ne peut ni modifier un consentement, ni envoyer une campagne, ni créer ou activer un workflow sans rôle Marketing/Owner/Admin.
 
 Cette séparation réduit le risque d'exposition latérale au sein d'une équipe organisatrice et maintient des permissions explicites pour CRM, affiliation, promotions, fidélité, automatisation et analytics.
 
 ## Sélecteurs comme frontière de lecture
 
-Les lectures web/API doivent utiliser les sélecteurs ou permissions explicites du domaine (`tickets.selectors`, `payments.selectors`, `scanner.selectors`, `partners.selectors`, `crm.selectors`, `loyalty.selectors`, permissions CRM Automation et Promotions) au lieu de filtrer simplement sur `organization__memberships__user`.
+Les lectures web/API doivent utiliser les sélecteurs ou permissions explicites du domaine (`tickets.selectors`, `payments.selectors`, `scanner.selectors`, `partners.selectors`, `crm.selectors`, `loyalty.selectors`, `analytics_app.selectors`, permissions CRM Automation et Promotions) au lieu de filtrer simplement sur `organization__memberships__user`.
 
-Les mutations continuent à passer par les permissions/services (`user_can_manage_event`, `user_can_manage_event_finance`, `user_can_manage_event_access`, `user_can_manage_partners`, `user_can_manage_crm`, `user_can_manage_promotions`, `user_can_manage_loyalty_strategy`, etc.). La règle est donc :
+Les mutations continuent à passer par les permissions/services (`user_can_manage_event`, `user_can_manage_event_finance`, `user_can_manage_event_access`, `user_can_manage_partners`, `user_can_manage_crm`, `user_can_manage_promotions`, `user_can_manage_loyalty_strategy`, `user_can_manage_growth_spend`, etc.). La règle est donc :
 
 1. le sélecteur ou la permission de lecture limite ce qui peut être lu ;
 2. la permission valide ce qui peut être ciblé ;
@@ -63,6 +67,14 @@ L'attribution partenaire et l'attribution CRM peuvent coexister avec une remise.
 Les points Makolo ne sont ni de l'argent ni une devise. Une commande confirmée crée un crédit idempotent dans `LoyaltyLedgerEntry`; un check-in peut créer un crédit distinct. Une annulation ou un remboursement inverse intégralement le crédit d'achat d'origine. Si ces points avaient déjà été dépensés, le compte fidélité peut devenir négatif : cette dette bloque les nouvelles récompenses jusqu'à compensation, mais elle ne bloque jamais le remboursement financier du client.
 
 Les avantages membership/récompense qui prennent la forme d'une remise utilisent des `PromotionCode` privés à usage unique ; le moteur Promotions reste donc l'unique source de vérité pour appliquer une remise au checkout.
+
+## Growth Analytics et devises
+
+Growth Analytics calcule les repeat buyers et cohortes depuis les commandes confirmées. L'identité interne de regroupement utilise le compte Makolo lorsqu'il existe ou l'e-mail normalisé comme fallback, mais cette clé n'est jamais renvoyée au client.
+
+La LTV utilise les paiements réussis moins les remboursements réussis. Les revenus CRM, Partners, Promotions et Loyalty restent attribués uniquement lorsque les modèles métier correspondants prouvent cette attribution. `GrowthSpend` ajoute les coûts externes explicitement saisis. Les revenus et coûts sont toujours regroupés par devise ; aucun ROI n'est fabriqué entre USD, CDF ou autres monnaies.
+
+Le « ROI contribution » est un ratio sur revenus attribués et coûts observables, pas une preuve de causalité incrémentale ni une marge comptable complète. Les écarts de rétention Loyalty sont explicitement présentés comme corrélations.
 
 ## CRM, automatisations et consentement
 
@@ -85,3 +97,5 @@ Les tests CRM Automation ajoutent la séparation Marketing/Finance, la réévalu
 Les tests Promotions vérifient notamment calcul serveur, billets éligibles, période/devise/minimum, quotas, limites par client, rollback du stock sur code invalide, confirmation automatique à zéro, inversion sur annulation/expiration, codes privés, API mobile, séparation Marketing/Finance/Event Manager et attribution explicite campagne → code → vente.
 
 Les tests Loyalty vérifient l'idempotence des gains achat/check-in, les multiplicateurs de niveau/membership, l'activation gratuite ou Finance, les avantages Promotion privés, la dépense de points, les quotas de récompenses, l'expiration Autopilot et l'inversion intégrale des points d'une commande même après dépense préalable.
+
+Les tests Growth Analytics vérifient repeat buyers, cohortes, conversion follower après follow, LTV nette séparée par devise, attribution CRM/Partners/Promotions, coûts observables, ROI de contribution, corrélation Loyalty, absence de PII, isolation inter-organisations et séparation Marketing/Event Manager/Finance/Scanner Manager.
