@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/v1/automation/", include("automation.api.urls")),
     path("api/v1/promotions/", include("promotions.api.urls")),
     path("api/v1/loyalty/", include("loyalty.api.urls")),
+    path("api/v1/operations/", include("operations.api.urls")),
     path("o/", include("organizations.public_urls")),
     path("organizations/", include("organizations.urls")),
     path("autopilot/", include("automation.urls")),
@@ -32,6 +33,7 @@ urlpatterns = [
     path("crm/", include("crm.urls")),
     path("promotions/", include("promotions.urls")),
     path("loyalty/", include("loyalty.urls")),
+    path("operations/", include("operations.urls")),
     path("", include("core.urls")),
 ]
 
