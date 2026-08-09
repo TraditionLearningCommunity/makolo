@@ -6,6 +6,7 @@ from .views import (
     TicketDetailView,
     TicketOrderCancelView,
     TicketOrderDetailView,
+    TicketOrderPromotionApplyView,
     TicketQrView,
     TicketTransferAcceptView,
     TicketTransferCancelView,
@@ -67,6 +68,11 @@ urlpatterns = [
     ),
     path("buy/<slug:event_slug>/", EventTicketOrderView.as_view(), name="order-create"),
     path("orders/<uuid:pk>/", TicketOrderDetailView.as_view(), name="order-detail"),
+    path(
+        "orders/<uuid:pk>/promotion/",
+        TicketOrderPromotionApplyView.as_view(),
+        name="order-promotion",
+    ),
     path(
         "orders/<uuid:pk>/cancel/",
         TicketOrderCancelView.as_view(),
