@@ -9,6 +9,20 @@ from .permissions import user_can_manage_organization
 User = get_user_model()
 
 
+def _normalize_follow_preferences(values):
+    normalized = {
+        "notify_new_events": bool(values.get("notify_new_events", True)),
+        "notify_announcements": bool(values.get("notify_announcements", True)),
+        "email_new_events": bool(values.get("email_new_events", False)),
+        "email_announcements": bool(values.get("email_announcements", False)),
+    }
+    if not normalized["notify_new_events"]:
+        normalized["email_new_events"] = False
+    if not normalized["notify_announcements"]:
+        normalized["email_announcements"] = False
+    return normalized
+
+
 @transaction.atomic
 def create_organization(*, creator, name: str, **fields) -> Organization:
     if not getattr(creator, "is_authenticated", False):
@@ -103,13 +117,13 @@ def follow_organization(*, user, organization: Organization, **preferences) -> O
         raise PermissionDenied("Connectez-vous pour suivre un organisateur.")
     if not organization.public_profile or organization.verification_status == "suspended":
         raise ValidationError("Cet organisateur ne peut pas être suivi actuellement.")
-    allowed = {
-        "notify_new_events",
-        "notify_announcements",
-        "email_new_events",
-        "email_announcements",
+    current = {
+        "notify_new_events": preferences.get("notify_new_events", True),
+        "notify_announcements": preferences.get("notify_announcements", True),
+        "email_new_events": preferences.get("email_new_events", False),
+        "email_announcements": preferences.get("email_announcements", False),
     }
-    defaults = {key: bool(value) for key, value in preferences.items() if key in allowed}
+    defaults = _normalize_follow_preferences(current)
     follow, _ = OrganizationFollow.objects.update_or_create(
         organization=organization,
         user=user,
@@ -124,19 +138,21 @@ def update_follow_preferences(*, follow: OrganizationFollow, user, **preferences
     follow = OrganizationFollow.objects.select_for_update().select_related("organization", "user").get(pk=follow.pk)
     if follow.user_id != getattr(user, "pk", None):
         raise PermissionDenied("Vous ne pouvez modifier que vos propres abonnements.")
-    allowed = {
-        "notify_new_events",
-        "notify_announcements",
-        "email_new_events",
-        "email_announcements",
+    current = {
+        "notify_new_events": follow.notify_new_events,
+        "notify_announcements": follow.notify_announcements,
+        "email_new_events": follow.email_new_events,
+        "email_announcements": follow.email_announcements,
     }
+    current.update({key: value for key, value in preferences.items() if key in current})
+    normalized = _normalize_follow_preferences(current)
     changed = []
-    for key, value in preferences.items():
-        if key in allowed:
-            setattr(follow, key, bool(value))
+    for key, value in normalized.items():
+        if getattr(follow, key) != value:
+            setattr(follow, key, value)
             changed.append(key)
     if changed:
-        follow.save(update_fields=list(dict.fromkeys(changed + ["updated_at"])))
+        follow.save(update_fields=changed + ["updated_at"])
         _sync_follower_to_crm_on_commit(follow.pk)
     return follow
 
