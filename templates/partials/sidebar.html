@@ -1,25 +1,36 @@
-<aside class="hidden w-72 border-r border-zinc-200 bg-white transition-colors duration-300 dark:border-zinc-800 dark:bg-zinc-950 lg:flex lg:flex-col">
-    <div class="flex h-24 items-center border-b border-zinc-200 px-6 dark:border-zinc-800">
-        <div><h1 class="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">MAKOLO</h1><p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Smart Event Platform</p></div>
+<aside class="mk-sidebar fixed inset-y-0 left-0 z-50 hidden lg:flex lg:flex-col">
+    <div class="flex h-[72px] items-center gap-3 border-b px-5" style="border-color:var(--mk-border)">
+        <div class="mk-brand-mark">M</div>
+        <div class="min-w-0">
+            <p class="text-[15px] font-extrabold tracking-[-0.035em]" style="color:var(--mk-text)">MAKOLO</p>
+            <p class="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Event operating system</p>
+        </div>
     </div>
-    <nav class="flex-1 space-y-2 overflow-y-auto p-4">
-        <a href="{% url 'core:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="layout-dashboard" class="h-6 w-6"></i><span>Dashboard</span></a>
-        <a href="{% url 'discovery:home' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'discovery' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="compass" class="h-6 w-6"></i><span>Découvrir</span></a>
-        <a href="{% url 'organizations:list' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name != 'following' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="building-2" class="h-6 w-6"></i><span>Organisations</span></a>
-        <a href="{% url 'organizations:following' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name == 'following' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="heart" class="h-6 w-6"></i><span>Organisateurs suivis</span></a>
-        <a href="{% url 'events:list' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'events' or request.resolver_match.namespace == 'automation' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="calendar-days" class="h-6 w-6"></i><span>Événements</span></a>
-        <a href="{% url 'tickets:list' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'tickets' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="ticket" class="h-6 w-6"></i><span>Tickets</span></a>
-        <a href="{% url 'payments:list' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'payments' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="credit-card" class="h-6 w-6"></i><span>Paiements</span></a>
-        <a href="{% url 'partners:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'partners' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="users-round" class="h-6 w-6"></i><span>Partenaires</span></a>
-        <a href="{% url 'promotions:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'promotions' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="badge-percent" class="h-6 w-6"></i><span>Promotions</span></a>
-        <a href="{% url 'loyalty:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'loyalty' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="gem" class="h-6 w-6"></i><span>Fidélité</span></a>
-        <a href="{% url 'crm:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'crm' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="contact-round" class="h-6 w-6"></i><span>CRM & Audiences</span></a>
-        <a href="{% url 'growth:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'growth' %}bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="chart-no-axes-combined" class="h-6 w-6"></i><span>Growth V1</span></a>
-        <a href="{% url 'scanner:home' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'scanner' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="scan-line" class="h-6 w-6"></i><span>Scanner</span></a>
-        <a href="{% url 'analytics:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-medium transition-all duration-300 {% if request.resolver_match.namespace == 'analytics' %}bg-indigo-600 text-white shadow-lg shadow-indigo-500/20{% else %}text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white{% endif %}"><i data-lucide="bar-chart-3" class="h-6 w-6"></i><span>Analytics & Growth</span></a>
-        {% if request.user.is_staff %}
-            <div class="my-3 border-t border-zinc-200 dark:border-zinc-800"></div>
-            <a href="{% url 'operations:dashboard' %}" class="flex items-center gap-4 rounded-2xl px-5 py-4 text-lg font-semibold transition-all duration-300 {% if request.resolver_match.namespace == 'operations' %}bg-rose-600 text-white shadow-lg shadow-rose-500/20{% else %}text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30{% endif %}"><i data-lucide="shield-alert" class="h-6 w-6"></i><span>Operations Center</span></a>
-        {% endif %}
-    </nav>
+
+    <div class="flex-1 overflow-y-auto py-2">
+        {% include 'partials/navigation_links.html' %}
+    </div>
+
+    <div class="border-t p-3" style="border-color:var(--mk-border)">
+        <a href="{% url 'discovery:home' %}" class="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-black/[.035] dark:hover:bg-white/[.045]">
+            <div class="grid h-9 w-9 place-items-center rounded-xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sparkles" class="h-4 w-4"></i></div>
+            <div class="min-w-0">
+                <p class="truncate text-xs font-bold" style="color:var(--mk-text)">Makolo Discovery</p>
+                <p class="mt-0.5 truncate text-[10px]" style="color:var(--mk-subtle)">Voir ce qui se passe maintenant</p>
+            </div>
+        </a>
+    </div>
 </aside>
+
+<div x-cloak x-show="sidebarOpen" class="fixed inset-0 z-[70] lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation Makolo">
+    <div x-show="sidebarOpen" x-transition.opacity @click="sidebarOpen=false" class="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"></div>
+    <aside x-show="sidebarOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0" x-transition:leave="transition ease-in duration-160" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full" class="mk-sidebar absolute inset-y-0 left-0 flex w-[min(88vw,300px)] flex-col shadow-2xl">
+        <div class="flex h-[72px] items-center justify-between border-b px-4" style="border-color:var(--mk-border)">
+            <div class="flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="text-sm font-extrabold">MAKOLO</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Event operating system</p></div></div>
+            <button type="button" class="mk-icon-btn" @click="sidebarOpen=false" aria-label="Fermer la navigation"><i data-lucide="x" class="h-5 w-5"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto py-2" @click="if ($event.target.closest('a')) sidebarOpen=false">
+            {% include 'partials/navigation_links.html' %}
+        </div>
+    </aside>
+</div>
