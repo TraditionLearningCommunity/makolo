@@ -1,0 +1,12 @@
+{% extends 'base/app.html' %}
+{% block title %}Nouvel incident — Operations{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+    <div><p class="text-sm font-semibold uppercase tracking-[0.2em] text-rose-500">Operations</p><h1 class="mt-2 text-3xl font-black">Créer un incident</h1><p class="mt-2 text-zinc-500">Documentez uniquement les informations nécessaires. Évitez de recopier des QR bruts, secrets, PAN/CVV ou payloads de paiement complets.</p></div>
+    <form method="post" class="space-y-5 rounded-3xl bg-white p-6 shadow-sm dark:bg-zinc-950">{% csrf_token %}
+        {% if form.non_field_errors %}<div class="rounded-xl bg-rose-50 p-4 text-rose-700">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}<div><label class="mb-2 block text-sm font-semibold">{{ field.label }}</label><div class="[&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-zinc-300 [&_input]:bg-transparent [&_input]:px-4 [&_input]:py-3 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-zinc-300 [&_select]:bg-transparent [&_select]:px-4 [&_select]:py-3 [&_textarea]:w-full [&_textarea]:rounded-xl [&_textarea]:border [&_textarea]:border-zinc-300 [&_textarea]:bg-transparent [&_textarea]:px-4 [&_textarea]:py-3 dark:[&_input]:border-zinc-700 dark:[&_select]:border-zinc-700 dark:[&_textarea]:border-zinc-700">{{ field }}</div>{% if field.errors %}<p class="mt-1 text-sm text-rose-500">{{ field.errors|striptags }}</p>{% endif %}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}</div>{% endfor %}
+        <div class="flex justify-end gap-3"><a href="{% url 'operations:incidents' %}" class="rounded-xl border border-zinc-300 px-5 py-3 dark:border-zinc-700">Annuler</a><button class="rounded-xl bg-rose-600 px-5 py-3 font-semibold text-white">Créer l'incident</button></div>
+    </form>
+</div>
+{% endblock %}
