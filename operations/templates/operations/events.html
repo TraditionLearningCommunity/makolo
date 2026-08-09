@@ -1,0 +1,22 @@
+{% extends 'base/app.html' %}
+{% block title %}Événements — Operations{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-6">
+    <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><p class="text-sm font-semibold uppercase tracking-[0.2em] text-rose-500">Operations</p><h1 class="mt-2 text-3xl font-black">Modération des événements</h1><p class="mt-2 text-zinc-500">Retrait de la découverte, passage privé, annulation ou restauration de visibilité. Chaque action exige une justification et génère un dossier + audit.</p></div><a href="{% url 'operations:dashboard' %}" class="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">Retour au cockpit</a></div>
+
+    <form method="get" class="grid gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-zinc-950 md:grid-cols-[1fr_220px_auto]">
+        <input name="q" value="{{ query }}" placeholder="Titre, slug ou organisation" class="rounded-xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700">
+        <select name="status" class="rounded-xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700"><option value="">Tous les statuts</option><option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>Brouillon</option><option value="published" {% if selected_status == 'published' %}selected{% endif %}>Publié</option><option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Annulé</option><option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Terminé</option></select>
+        <button class="rounded-xl bg-zinc-900 px-5 py-3 font-semibold text-white dark:bg-white dark:text-zinc-900">Filtrer</button>
+    </form>
+
+    <div class="space-y-4">
+        {% for event in events %}
+            <article class="rounded-3xl bg-white p-5 shadow-sm dark:bg-zinc-950"><div class="grid gap-5 xl:grid-cols-[1fr_460px]">
+                <div><div class="flex flex-wrap items-center gap-2"><h2 class="text-xl font-black">{{ event.title }}</h2><span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold dark:bg-zinc-800">{{ event.status }}</span><span class="rounded-full bg-zinc-100 px-3 py-1 text-xs dark:bg-zinc-800">{{ event.visibility }}</span></div><p class="mt-2 text-sm text-zinc-500">{% if event.organization %}{{ event.organization.name }}{% else %}Événement legacy sans organisation{% endif %}</p><p class="mt-1 text-sm text-zinc-500">{{ event.start_at|date:'d/m/Y H:i' }} → {{ event.end_at|date:'d/m/Y H:i' }}</p></div>
+                <form method="post" action="{% url 'operations:event-moderate' event.pk %}" class="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">{% csrf_token %}<div class="grid gap-3 md:grid-cols-2"><select name="action" required class="rounded-xl border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"><option value="unlist">Retirer de la découverte</option><option value="private">Rendre privé</option><option value="cancel">Annuler</option><option value="restore_public">Restaurer public</option></select><button class="rounded-xl bg-rose-600 px-4 py-2 font-semibold text-white">Appliquer</button></div><textarea name="reason" rows="2" maxlength="2000" required placeholder="Justification Operations obligatoire" class="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"></textarea></form>
+            </div></article>
+        {% empty %}<div class="rounded-2xl bg-white p-6 text-zinc-500 dark:bg-zinc-950">Aucun événement ne correspond au filtre.</div>{% endfor %}
+    </div>
+</div>
+{% endblock %}
