@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count
 from django.utils import timezone
 
 from automation.models import (
@@ -17,7 +17,6 @@ from automation.models import (
 )
 from crm.models import CampaignAttribution, CampaignAttributionStatus
 from organizations.models import OrganizationFollow
-from payments.models import Payment, PaymentStatus, Refund, RefundStatus
 from tickets.models import Ticket, TicketOrder, TicketOrderStatus, TicketStatus
 
 from .models import (
@@ -171,10 +170,28 @@ def sync_marketing_attribution(order):
     return attribution
 
 
+def _create_attribution(*, order, link, visit=None):
+    status = _desired_attribution_status(order)
+    attribution = MarketingAttribution(
+        order=order,
+        link=link,
+        visit=visit,
+        status=status,
+        revenue_amount=order.total_amount,
+        currency=order.currency,
+        confirmed_at=(order.confirmed_at or timezone.now()) if status == MarketingAttributionStatus.CONFIRMED else None,
+        reversed_at=timezone.now() if status == MarketingAttributionStatus.REVERSED else None,
+    )
+    attribution.full_clean()
+    attribution.save()
+    return attribution
+
+
 @transaction.atomic
 def attribute_order_from_marketing(*, order, request=None, marketing_code=None):
-    if MarketingAttribution.objects.filter(order=order).exists():
-        return MarketingAttribution.objects.get(order=order)
+    existing = MarketingAttribution.objects.filter(order=order).first()
+    if existing:
+        return existing
     link = None
     visit = None
     if marketing_code:
@@ -190,21 +207,36 @@ def attribute_order_from_marketing(*, order, request=None, marketing_code=None):
         link, visit = get_session_marketing_link(request, event=order.event)
     if not link:
         return None
+    return _create_attribution(order=order, link=link, visit=visit)
 
-    status = _desired_attribution_status(order)
-    attribution = MarketingAttribution(
-        order=order,
-        link=link,
-        visit=visit,
-        status=status,
-        revenue_amount=order.total_amount,
-        currency=order.currency,
-        confirmed_at=(order.confirmed_at or timezone.now()) if status == MarketingAttributionStatus.CONFIRMED else None,
-        reversed_at=timezone.now() if status == MarketingAttributionStatus.REVERSED else None,
+
+@transaction.atomic
+def attribute_order_from_recent_user_visit(order):
+    """Last valid first-party marketing visit for the authenticated buyer.
+
+    The visit is attached to the account by MarketingSessionUserMiddleware. We
+    intentionally do not fingerprint anonymous visitors and never infer a
+    source from referrer alone.
+    """
+    existing = MarketingAttribution.objects.filter(order=order).first()
+    if existing or not order.buyer_id:
+        return existing
+    cutoff = timezone.now() - timedelta(days=90)
+    visits = (
+        MarketingLinkVisit.objects.select_related("link")
+        .filter(
+            user_id=order.buyer_id,
+            link__event_id=order.event_id,
+            link__is_active=True,
+            visited_at__gte=cutoff,
+        )
+        .order_by("-visited_at")[:20]
     )
-    attribution.full_clean()
-    attribution.save()
-    return attribution
+    now = timezone.now()
+    for visit in visits:
+        if now - visit.visited_at <= timedelta(days=visit.link.attribution_window_days):
+            return _create_attribution(order=order, link=visit.link, visit=visit)
+    return None
 
 
 def can_submit_feedback(user, event):
@@ -333,10 +365,7 @@ def build_growth_v1_dashboard(organization, user):
 
 
 def available_crm_presets(organization):
-    rows = []
-    for key, definition in PRESET_DEFINITIONS.items():
-        rows.append({"key": key, **definition})
-    return rows
+    return [{"key": key, **definition} for key, definition in PRESET_DEFINITIONS.items()]
 
 
 @transaction.atomic
