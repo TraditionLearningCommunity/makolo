@@ -146,4 +146,13 @@ def unfollow_organization(*, follow: OrganizationFollow, user) -> None:
     follow = OrganizationFollow.objects.select_for_update().get(pk=follow.pk)
     if follow.user_id != getattr(user, "pk", None):
         raise PermissionDenied("Vous ne pouvez supprimer que vos propres abonnements.")
+    organization_id = follow.organization_id
+    user_id = follow.user_id
     follow.delete()
+
+    def revoke():
+        from crm.services import revoke_follower_consent
+
+        revoke_follower_consent(organization_id=organization_id, user_id=user_id)
+
+    transaction.on_commit(revoke)
