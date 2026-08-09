@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from crm.services import process_due_campaigns
 from events.models import Event, EventStatus
+from loyalty.services import expire_due_memberships
 from notifications.models import (
     DeliveryStatus,
     NotificationCategory,
@@ -354,6 +355,7 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
     stats = {
         "expired_orders": expire_due_orders(now=now),
         "expired_transfers": expire_due_ticket_transfers(now=now),
+        "expired_memberships": expire_due_memberships(now=now),
         "waitlist_promotions": promote_open_waitlists(now=now),
         "recovered_deliveries": recover_stale_notification_deliveries(now=now),
         "reminders": 0,
