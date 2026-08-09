@@ -74,6 +74,10 @@ class TicketType(models.Model):
     min_per_order = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     max_per_order = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
     is_active = models.BooleanField(default=True)
+    is_public = models.BooleanField(
+        default=True,
+        help_text="Visible et achetable depuis les parcours participants publics.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
