@@ -104,7 +104,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="eventfeedback",
-            constraint=models.UniqueConstraint(fields=("event", "user"), name="growth_feedback_event_user_unique"),
+            constraint=models.UniqueConstraint(fields=("event", "user"), name="growth_feedback_event_user_uq"),
         ),
         migrations.AddIndex(
             model_name="eventfeedback",
