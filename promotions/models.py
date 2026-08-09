@@ -91,6 +91,7 @@ class Promotion(models.Model):
         ]
 
     def clean(self):
+        self.currency = (self.currency or "").strip().upper()
         super().clean()
         errors = {}
         if self.event_id and self.event.organization_id != self.organization_id:
@@ -103,6 +104,8 @@ class Promotion(models.Model):
             errors["currency"] = "Un minimum de commande nécessite une devise."
         if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
             errors["ends_at"] = "La date de fin doit être postérieure à la date de début."
+        if self.max_redemptions is not None and self.max_redemptions < 1:
+            errors["max_redemptions"] = "Le quota global doit être supérieur à zéro."
         if errors:
             raise ValidationError(errors)
 
@@ -157,10 +160,13 @@ class PromotionCode(models.Model):
         ]
 
     def clean(self):
+        self.code = (self.code or "").strip().upper()
         super().clean()
         errors = {}
         if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
             errors["ends_at"] = "La date de fin du code doit être postérieure à sa date de début."
+        if self.max_redemptions is not None and self.max_redemptions < 1:
+            errors["max_redemptions"] = "Le quota du code doit être supérieur à zéro."
         if self.crm_campaign_id:
             if self.crm_campaign.organization_id != self.promotion.organization_id:
                 errors["crm_campaign"] = "La campagne CRM doit appartenir à la même organisation."
