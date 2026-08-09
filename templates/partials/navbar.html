@@ -1,42 +1,64 @@
 {% load notification_tags %}
 {% unread_notifications_count request.user as unread_notifications %}
-
-<header x-data="themeManager()" x-init="init()" class="h-24 border-b border-zinc-200 bg-white/80 backdrop-blur-xl sticky top-0 z-40 transition-colors duration-300 dark:border-zinc-800 dark:bg-[#050816]/80">
-    <div class="h-full px-5 md:px-8 flex items-center justify-between gap-4">
-        <div class="min-w-0">
-            <h2 class="truncate text-2xl md:text-4xl font-black tracking-tight text-zinc-900 dark:text-white">Dashboard</h2>
+<header class="mk-topbar sticky top-0 z-40 h-[72px]" x-data="themeManager()" x-init="init()">
+    <div class="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div class="flex min-w-0 items-center gap-3">
+            <button type="button" @click="sidebarOpen=true" class="mk-icon-btn lg:hidden" aria-label="Ouvrir la navigation"><i data-lucide="menu" class="h-5 w-5"></i></button>
+            <div class="min-w-0">
+                <p class="truncate text-[10px] font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Makolo</p>
+                <h2 class="truncate text-[16px] font-bold tracking-[-.025em] sm:text-[18px]" style="color:var(--mk-text)">
+                    {% if request.resolver_match.namespace == 'discovery' %}Découvrir
+                    {% elif request.resolver_match.namespace == 'events' or request.resolver_match.namespace == 'automation' %}Événements
+                    {% elif request.resolver_match.namespace == 'tickets' %}Billetterie
+                    {% elif request.resolver_match.namespace == 'payments' %}Paiements
+                    {% elif request.resolver_match.namespace == 'scanner' %}Contrôle d’accès
+                    {% elif request.resolver_match.namespace == 'organizations' %}Organisations
+                    {% elif request.resolver_match.namespace == 'crm' %}CRM & audiences
+                    {% elif request.resolver_match.namespace == 'growth' %}Growth
+                    {% elif request.resolver_match.namespace == 'promotions' %}Promotions
+                    {% elif request.resolver_match.namespace == 'loyalty' %}Fidélité
+                    {% elif request.resolver_match.namespace == 'partners' %}Partenaires
+                    {% elif request.resolver_match.namespace == 'analytics' %}Analytics
+                    {% elif request.resolver_match.namespace == 'operations' %}Operations Center
+                    {% else %}Vue d’ensemble{% endif %}
+                </h2>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2 md:gap-4">
+        <div class="flex items-center gap-2">
+            <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary hidden md:inline-flex" title="Rechercher un événement"><i data-lucide="search" class="h-4 w-4"></i><span>Rechercher</span></a>
+
             {% if request.user.is_authenticated %}
-            <a href="{% url 'notifications:list' %}" aria-label="Notifications" class="relative w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 dark:bg-[#0b1220] border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all duration-300 flex items-center justify-center">
-                <i data-lucide="bell" class="w-6 h-6 text-zinc-700 dark:text-zinc-200"></i>
-                {% if unread_notifications %}
-                <span class="absolute -right-1 -top-1 flex min-w-5 h-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white dark:ring-[#050816]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>
-                {% endif %}
+            <a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative">
+                <i data-lucide="bell" class="h-5 w-5"></i>
+                {% if unread_notifications %}<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white ring-2 ring-white dark:ring-[#090b10]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}
             </a>
             {% endif %}
 
-            <button @click="toggleTheme()" aria-label="Changer de thème" class="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 dark:bg-[#0b1220] border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all duration-300 flex items-center justify-center">
-                <i x-show="dark" data-lucide="moon" class="w-6 h-6 text-zinc-700 dark:text-zinc-200"></i>
-                <i x-show="!dark" data-lucide="sun" class="w-6 h-6 text-zinc-700 dark:text-zinc-200"></i>
+            <button type="button" @click="toggleTheme()" class="mk-icon-btn" aria-label="Changer le thème">
+                <i x-show="dark" data-lucide="moon" class="h-5 w-5"></i>
+                <i x-show="!dark" x-cloak data-lucide="sun" class="h-5 w-5"></i>
             </button>
 
-            <div class="flex items-center gap-3 bg-zinc-100 dark:bg-[#0b1220] border border-zinc-200 dark:border-zinc-800 px-3 md:px-5 py-2 md:py-3 rounded-3xl transition-colors duration-300">
-                <div class="w-11 h-11 md:w-14 md:h-14 rounded-full bg-indigo-600 flex items-center justify-center text-lg md:text-xl font-bold text-white">
-                    {% if request.user.is_authenticated %}{{ request.user.username|first|upper }}{% else %}G{% endif %}
-                </div>
-                <div class="hidden md:block">
-                    <p class="text-lg font-semibold text-zinc-900 dark:text-white">
-                        {% if request.user.is_authenticated %}
-                            {% if request.user.first_name %}{{ request.user.first_name|title }}{% if request.user.last_name %} {{ request.user.last_name|title }}{% endif %}{% else %}{{ request.user.username|title }}{% endif %}
-                        {% else %}Guest{% endif %}
-                    </p>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
-                        {% if request.user.is_superuser %}Administrateur{% elif request.user.is_staff %}Staff{% elif request.user.is_authenticated %}Utilisateur{% else %}Non connecté{% endif %}
-                    </p>
+            {% if request.user.is_authenticated %}
+            <div class="relative" x-data="{open:false}" @click.outside="open=false">
+                <button type="button" @click="open=!open" class="flex h-[44px] items-center gap-2 rounded-[14px] border px-2 pr-3 shadow-sm transition hover:-translate-y-px" style="background:var(--mk-surface-solid);border-color:var(--mk-border)">
+                    <span class="grid h-8 w-8 place-items-center rounded-[10px] bg-indigo-600 text-[11px] font-extrabold text-white">{{ request.user.username|first|upper }}</span>
+                    <span class="hidden max-w-32 truncate text-xs font-bold sm:block" style="color:var(--mk-text)">{% if request.user.first_name %}{{ request.user.first_name|title }}{% else %}{{ request.user.username|title }}{% endif %}</span>
+                    <i data-lucide="chevron-down" class="hidden h-3.5 w-3.5 sm:block" style="color:var(--mk-subtle)"></i>
+                </button>
+                <div x-cloak x-show="open" x-transition.origin.top.right class="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border p-2 shadow-2xl" style="background:var(--mk-surface-solid);border-color:var(--mk-border);box-shadow:var(--mk-shadow-float)">
+                    <div class="px-3 py-2.5">
+                        <p class="truncate text-sm font-bold" style="color:var(--mk-text)">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
+                        <p class="mt-1 truncate text-[11px]" style="color:var(--mk-subtle)">{{ request.user.email }}</p>
+                    </div>
+                    <div class="my-1 border-t" style="border-color:var(--mk-border)"></div>
+                    <a href="{% url 'organizations:list' %}" class="mk-nav-item"><i data-lucide="building-2"></i><span>Mes organisations</span></a>
+                    <a href="{% url 'notifications:list' %}" class="mk-nav-item"><i data-lucide="bell"></i><span>Notifications</span></a>
+                    <form method="post" action="{% url 'core:logout' %}" class="mt-1">{% csrf_token %}<button class="mk-nav-item w-full text-left" type="submit"><i data-lucide="log-out"></i><span>Se déconnecter</span></button></form>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </header>

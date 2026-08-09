@@ -1,36 +1,61 @@
 {% extends 'base/app.html' %}
 {% block title %}{{ event.title }} | Makolo{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-6xl space-y-8">
-    <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div class="min-w-0">
+<div class="space-y-6 lg:space-y-8">
+    <section class="grid gap-6 xl:grid-cols-[1fr_auto] xl:items-end">
+        <div class="min-w-0 max-w-4xl">
             <div class="flex flex-wrap items-center gap-2">
-                <span class="rounded-full bg-zinc-200 px-3 py-1 text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{{ event.get_status_display }}</span>
-                <span class="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ event.get_visibility_display }}</span>
-                {% if event.organization %}<a href="{% url 'organizer_public:detail' event.organization.slug %}" class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{{ event.organization.name }}</a>{% endif %}
+                <span class="mk-badge {% if event.status == 'published' %}mk-badge-brand{% endif %}">{{ event.get_status_display }}</span>
+                <span class="mk-badge">{{ event.get_visibility_display }}</span>
+                {% if event.organization %}<a href="{% url 'organizer_public:detail' event.organization.slug %}" class="mk-badge transition hover:border-indigo-400/30 hover:text-indigo-600 dark:hover:text-indigo-400"><i data-lucide="building-2" class="h-3 w-3"></i>{{ event.organization.name }}</a>{% endif %}
             </div>
-            <h1 class="mt-4 text-4xl font-black tracking-tight text-zinc-900 dark:text-white md:text-5xl">{{ event.title }}</h1>
-            {% if event.short_description %}<p class="mt-4 max-w-3xl text-lg leading-8 text-zinc-500 dark:text-zinc-400">{{ event.short_description }}</p>{% endif %}
+            <h1 class="mk-page-title mt-4">{{ event.title }}</h1>
+            {% if event.short_description %}<p class="mk-page-copy mt-5 text-[15px] sm:text-base">{{ event.short_description }}</p>{% endif %}
         </div>
-        <div class="flex flex-wrap gap-2">
-            {% if event.status == 'published' %}<a href="{% url 'tickets:order-create' event.slug %}" class="rounded-2xl bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-500">Obtenir des billets</a>{% endif %}
-            {% if request.user.is_authenticated and event.status == 'published' %}<form method="post" action="{% url 'discovery:bookmark-toggle' event.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="rounded-2xl border border-amber-300 px-4 py-2 font-semibold text-amber-600 dark:border-amber-900 dark:text-amber-300">{% if is_bookmarked %}★ Favori{% else %}☆ Enregistrer{% endif %}</button></form>{% endif %}
-            {% if can_submit_feedback %}<a href="{% url 'growth:feedback-submit' event.slug %}" class="rounded-2xl border border-emerald-300 px-4 py-2 font-semibold text-emerald-600 dark:border-emerald-900 dark:text-emerald-300">{% if existing_feedback %}Modifier mon feedback{% else %}Donner mon feedback{% endif %}</a>{% endif %}
+        <div class="flex flex-wrap items-center gap-2 xl:justify-end">
+            {% if event.status == 'published' %}<a href="{% url 'tickets:order-create' event.slug %}" class="mk-btn mk-btn-primary"><i data-lucide="ticket" class="h-4 w-4"></i>Obtenir des billets</a>{% endif %}
+            {% if request.user.is_authenticated and event.status == 'published' %}<form method="post" action="{% url 'discovery:bookmark-toggle' event.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="mk-btn mk-btn-secondary"><i data-lucide="heart" class="h-4 w-4 {% if is_bookmarked %}fill-current text-rose-500{% endif %}"></i>{% if is_bookmarked %}Enregistré{% else %}Enregistrer{% endif %}</button></form>{% endif %}
+            {% if can_submit_feedback %}<a href="{% url 'growth:feedback-submit' event.slug %}" class="mk-btn mk-btn-secondary"><i data-lucide="message-square-heart" class="h-4 w-4"></i>{% if existing_feedback %}Modifier mon feedback{% else %}Donner mon feedback{% endif %}</a>{% endif %}
             {% if can_manage_event %}
-            <a href="{% url 'automation:event-policy' event.slug %}" class="rounded-2xl bg-violet-600 px-4 py-2 font-semibold text-white hover:bg-violet-500">Autopilot</a>
-            {% if event.status == 'published' %}<a href="{% url 'scanner:console' event.slug %}" class="rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-500">Scanner les entrées</a>{% endif %}
-            <a href="{% url 'tickets:manage-types' %}" class="rounded-2xl border border-indigo-300 px-4 py-2 font-semibold text-indigo-600 dark:border-indigo-800 dark:text-indigo-300">Billetterie</a>
-            <a href="{% url 'events:edit' event.slug %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">Modifier</a>
-            {% if event.status == 'draft' %}<form method="post" action="{% url 'events:publish' event.slug %}">{% csrf_token %}<button class="rounded-2xl bg-indigo-600 px-4 py-2 font-semibold text-white">Publier</button></form>{% elif event.status == 'published' %}<form method="post" action="{% url 'events:complete' event.slug %}">{% csrf_token %}<button class="rounded-2xl bg-emerald-600 px-4 py-2 font-semibold text-white">Terminer</button></form>{% endif %}
-            {% if event.status == 'draft' or event.status == 'published' %}<form method="post" action="{% url 'events:cancel' event.slug %}">{% csrf_token %}<button class="rounded-2xl border border-red-300 px-4 py-2 font-semibold text-red-600 dark:border-red-900 dark:text-red-400">Annuler</button></form>{% endif %}
+            <div class="relative" x-data="{open:false}" @click.outside="open=false">
+                <button type="button" class="mk-btn mk-btn-secondary" @click="open=!open"><i data-lucide="settings-2" class="h-4 w-4"></i>Gérer<i data-lucide="chevron-down" class="h-3.5 w-3.5"></i></button>
+                <div x-cloak x-show="open" x-transition.origin.top.right class="absolute right-0 z-30 mt-2 w-64 rounded-2xl border p-2" style="background:var(--mk-surface-solid);border-color:var(--mk-border);box-shadow:var(--mk-shadow-float)">
+                    <a href="{% url 'events:edit' event.slug %}" class="mk-nav-item"><i data-lucide="pencil"></i><span>Modifier l’événement</span></a>
+                    <a href="{% url 'tickets:manage-types' %}" class="mk-nav-item"><i data-lucide="ticket-check"></i><span>Configurer la billetterie</span></a>
+                    <a href="{% url 'automation:event-policy' event.slug %}" class="mk-nav-item"><i data-lucide="workflow"></i><span>Autopilot</span></a>
+                    {% if event.status == 'published' %}<a href="{% url 'scanner:console' event.slug %}" class="mk-nav-item"><i data-lucide="scan-line"></i><span>Scanner les entrées</span></a>{% endif %}
+                    <div class="my-1 border-t" style="border-color:var(--mk-border)"></div>
+                    {% if event.status == 'draft' %}<form method="post" action="{% url 'events:publish' event.slug %}">{% csrf_token %}<button type="submit" class="mk-nav-item w-full text-left"><i data-lucide="send"></i><span>Publier</span></button></form>{% elif event.status == 'published' %}<form method="post" action="{% url 'events:complete' event.slug %}">{% csrf_token %}<button type="submit" class="mk-nav-item w-full text-left"><i data-lucide="circle-check-big"></i><span>Marquer terminé</span></button></form>{% endif %}
+                    {% if event.status == 'draft' or event.status == 'published' %}<form method="post" action="{% url 'events:cancel' event.slug %}">{% csrf_token %}<button type="submit" class="mk-nav-item w-full text-left !text-rose-500"><i data-lucide="ban"></i><span>Annuler l’événement</span></button></form>{% endif %}
+                </div>
+            </div>
             {% endif %}
         </div>
+    </section>
+
+    {% if event.cover_image %}
+    <div class="mk-panel overflow-hidden"><img src="{{ event.cover_image.url }}" alt="Couverture de {{ event.title }}" class="max-h-[580px] w-full object-cover"></div>
+    {% else %}
+    <div class="relative h-52 overflow-hidden rounded-[28px] border sm:h-64" style="border-color:var(--mk-border);background:radial-gradient(circle at 78% 20%,rgba(99,102,241,.18),transparent 35%),linear-gradient(145deg,var(--mk-surface-solid),var(--mk-surface-muted))"><div class="absolute bottom-6 left-6 grid h-14 w-14 place-items-center rounded-2xl border" style="background:var(--mk-surface-solid);border-color:var(--mk-border);color:var(--mk-brand)"><i data-lucide="calendar-days" class="h-6 w-6"></i></div></div>
+    {% endif %}
+
+    <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section class="mk-panel p-5 sm:p-7">
+            <div class="flex items-center gap-3"><div class="grid h-9 w-9 place-items-center rounded-xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="align-left" class="h-4 w-4"></i></div><h2 class="text-lg font-[730] tracking-[-.03em]">À propos</h2></div>
+            <div class="mt-5 whitespace-pre-line text-[14px] leading-7" style="color:var(--mk-muted)">{% if event.description %}{{ event.description }}{% else %}Aucune description détaillée pour le moment.{% endif %}</div>
+        </section>
+
+        <aside class="mk-panel h-fit overflow-hidden">
+            <div class="border-b px-5 py-4" style="border-color:var(--mk-border)"><h2 class="text-sm font-bold">Informations</h2></div>
+            <div class="divide-y" style="--tw-divide-opacity:1;border-color:var(--mk-border)">
+                <div class="flex gap-3 px-5 py-4"><i data-lucide="calendar-clock" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Date</p><p class="mt-1 text-xs font-semibold">{{ event.start_at|date:"d M Y · H:i" }}</p><p class="mt-1 text-[11px]" style="color:var(--mk-muted)">jusqu’au {{ event.end_at|date:"d M Y · H:i" }}</p></div></div>
+                <div class="flex gap-3 border-t px-5 py-4" style="border-color:var(--mk-border)"><i data-lucide="map-pin" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Lieu</p><p class="mt-1 text-xs font-semibold">{% if event.venue %}{{ event.venue }}{% else %}À définir{% endif %}</p></div></div>
+                <div class="flex gap-3 border-t px-5 py-4" style="border-color:var(--mk-border)"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Capacité</p><p class="mt-1 text-xs font-semibold">{% if event.capacity %}{{ event.capacity }} places{% else %}Illimitée{% endif %}</p></div></div>
+                <div class="flex gap-3 border-t px-5 py-4" style="border-color:var(--mk-border)"><i data-lucide="tag" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Catégorie</p><p class="mt-1 text-xs font-semibold">{% if event.category %}{{ event.category.name }}{% else %}Sans catégorie{% endif %}</p></div></div>
+            </div>
+        </aside>
     </div>
-    {% if event.cover_image %}<div class="overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800"><img src="{{ event.cover_image.url }}" alt="Couverture de {{ event.title }}" class="max-h-[520px] w-full object-cover"></div>{% endif %}
-    <div class="grid gap-6 lg:grid-cols-3">
-        <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950 lg:col-span-2"><h2 class="text-xl font-bold">À propos</h2><div class="mt-4 whitespace-pre-line leading-7 text-zinc-600 dark:text-zinc-300">{% if event.description %}{{ event.description }}{% else %}Aucune description détaillée pour le moment.{% endif %}</div></section>
-        <aside class="space-y-4 rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-bold">Informations</h2><div class="space-y-4 text-sm text-zinc-600 dark:text-zinc-300"><div><strong class="block">Début</strong>{{ event.start_at|date:"d/m/Y H:i" }}</div><div><strong class="block">Fin</strong>{{ event.end_at|date:"d/m/Y H:i" }}</div><div><strong class="block">Lieu</strong>{% if event.venue %}{{ event.venue }}{% else %}À définir{% endif %}</div><div><strong class="block">Capacité</strong>{% if event.capacity %}{{ event.capacity }} places{% else %}Illimitée{% endif %}</div><div><strong class="block">Catégorie</strong>{% if event.category %}{{ event.category.name }}{% else %}Sans catégorie{% endif %}</div>{% if event.organization %}<div><strong class="block">Organisé par</strong><a href="{% url 'organizer_public:detail' event.organization.slug %}" class="font-bold text-indigo-500">{{ event.organization.name }}</a></div>{% endif %}</div></aside>
-    </div>
-    <a href="{% url 'discovery:home' %}" class="inline-flex items-center gap-2 font-semibold text-indigo-600">← Retour à la découverte</a>
+
+    <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-ghost"><i data-lucide="arrow-left" class="h-4 w-4"></i>Retour à la découverte</a>
 </div>
 {% endblock %}

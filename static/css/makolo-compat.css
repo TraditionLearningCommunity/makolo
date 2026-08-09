@@ -1,0 +1,67 @@
+[x-cloak]{display:none!important}
+
+/* Compatibility layer for the existing feature templates. It lets the 2026 shell
+   modernize the whole product without rewriting business templates or behavior. */
+main .rounded-3xl.border,
+main section.rounded-3xl,
+main article.rounded-3xl {
+  border-color: var(--mk-border) !important;
+  box-shadow: var(--mk-shadow-sm);
+}
+main .rounded-3xl { border-radius: 22px !important; }
+main .rounded-2xl { border-radius: 14px !important; }
+main .shadow-xl,
+main .shadow-2xl,
+main .shadow-lg { box-shadow: var(--mk-shadow-md) !important; }
+
+main .bg-white { background-color: var(--mk-surface-solid) !important; }
+main .bg-zinc-100 { background-color: var(--mk-surface-muted) !important; }
+.dark main .dark\:bg-zinc-950,
+.dark main .dark\:bg-zinc-900,
+.dark main .dark\:bg-zinc-800 { background-color: var(--mk-surface-solid) !important; }
+.dark main .dark\:border-zinc-800,
+.dark main .dark\:border-zinc-700 { border-color: var(--mk-border) !important; }
+
+main .text-zinc-500,
+main .dark\:text-zinc-400 { color: var(--mk-muted) !important; }
+main .text-zinc-400 { color: var(--mk-subtle) !important; }
+main .text-zinc-900,
+.dark main .dark\:text-white { color: var(--mk-text) !important; }
+
+main a.rounded-2xl,
+main button.rounded-2xl,
+main a.rounded-xl,
+main button.rounded-xl {
+  transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+main a.rounded-2xl:hover,
+main button.rounded-2xl:hover,
+main a.rounded-xl:hover,
+main button.rounded-xl:hover { transform: translateY(-1px); }
+main a.rounded-2xl:active,
+main button.rounded-2xl:active { transform: translateY(0) scale(.985); }
+
+main table { overflow: hidden; border-radius: 18px; }
+main thead tr { background: var(--mk-surface-muted) !important; }
+main thead th { color: var(--mk-subtle) !important; }
+main tbody td { color: var(--mk-muted); }
+main tbody td strong,
+main tbody td a { color: var(--mk-text); }
+
+/* Django-generated forms */
+main form p { margin-bottom: 1rem; }
+main form p > label { display:block; margin-bottom:.45rem; font-size:.76rem; }
+main .helptext { display:block; margin-top:.38rem; font-size:.7rem; color:var(--mk-subtle); line-height:1.5; }
+main ul.errorlist { margin:0 0 .55rem; padding:0; list-style:none; color:var(--mk-danger); font-size:.75rem; font-weight:650; }
+
+/* Keep colored semantic surfaces restrained in dark and light modes. */
+main .bg-indigo-50 { background: var(--mk-brand-soft) !important; }
+.dark main .dark\:bg-indigo-950,
+.dark main .dark\:bg-indigo-950\/50 { background: var(--mk-brand-soft) !important; }
+main .border-zinc-200,
+main .border-zinc-300 { border-color: var(--mk-border) !important; }
+
+@media (max-width: 640px){
+  main .p-8 { padding:1.25rem !important; }
+  main .p-6 { padding:1.1rem !important; }
+}
