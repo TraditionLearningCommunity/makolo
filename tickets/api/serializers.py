@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from crm.services import attribute_order_from_campaign
 from events.models import Event
 from events.permissions import user_can_manage_event
 from events.selectors import get_events_visible_to
@@ -166,6 +167,7 @@ class TicketOrderCreateSerializer(serializers.Serializer):
     customer_name = serializers.CharField(max_length=180)
     customer_email = serializers.EmailField()
     referral_code = serializers.CharField(max_length=40, required=False, allow_blank=True, write_only=True)
+    campaign_token = serializers.CharField(max_length=600, required=False, allow_blank=True, write_only=True)
     items = TicketSelectionSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
@@ -196,6 +198,7 @@ class TicketOrderCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         request = self.context["request"]
         referral_code = validated_data.pop("referral_code", "")
+        campaign_token = validated_data.pop("campaign_token", "")
         selections = [
             (item["ticket_type"], item["quantity"])
             for item in validated_data.pop("items")
@@ -206,6 +209,22 @@ class TicketOrderCreateSerializer(serializers.Serializer):
             **validated_data,
         )
         attribute_order(order=order, referral_code=referral_code or None)
+        try:
+            attribute_order_from_campaign(
+                order=order,
+                request=request,
+                token=campaign_token or None,
+            )
+        except Exception as exc:
+            # L’attribution ne doit pas casser une commande déjà créée. Les
+            # erreurs de jeton sont converties par DRF avant création via le
+            # chemin normal web ; côté API un jeton invalide est ignoré ici.
+            if campaign_token:
+                from django.core.exceptions import ValidationError as DjangoValidationError
+
+                if isinstance(exc, DjangoValidationError):
+                    raise serializers.ValidationError({"campaign_token": exc.messages}) from exc
+                raise
         return order
 
 
