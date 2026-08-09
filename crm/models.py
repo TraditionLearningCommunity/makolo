@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -10,6 +11,7 @@ class ContactSource(models.TextChoices):
     TICKET_ORDER = "ticket_order", "Commande"
     TICKET = "ticket", "Billet"
     WAITLIST = "waitlist", "Liste d’attente"
+    FOLLOWER = "follower", "Abonné organisateur"
     MANUAL = "manual", "Manuel"
 
 
@@ -21,6 +23,7 @@ class MarketingConsent(models.TextChoices):
 
 class AudienceKind(models.TextChoices):
     ALL = "all", "Tous les contacts"
+    FOLLOWERS = "followers", "Abonnés de l’organisateur"
     CONFIRMED_BUYERS = "confirmed_buyers", "Acheteurs confirmés"
     TICKET_HOLDERS = "ticket_holders", "Détenteurs de billets"
     ATTENDEES = "attendees", "Participants présents"
@@ -48,6 +51,20 @@ class CampaignRecipientStatus(models.TextChoices):
     SENT = "sent", "Envoyé"
     FAILED = "failed", "Échoué"
     SKIPPED = "skipped", "Ignoré"
+
+
+class CustomFieldType(models.TextChoices):
+    TEXT = "text", "Texte"
+    NUMBER = "number", "Nombre"
+    BOOLEAN = "boolean", "Oui / Non"
+    DATE = "date", "Date"
+    SELECT = "select", "Liste de choix"
+
+
+class CampaignAttributionStatus(models.TextChoices):
+    PENDING = "pending", "En attente"
+    CONFIRMED = "confirmed", "Conversion confirmée"
+    REVERSED = "reversed", "Conversion annulée"
 
 
 class CRMContact(models.Model):
@@ -113,6 +130,133 @@ class CRMContact(models.Model):
         return f"{self.organization} — {self.display_name}"
 
 
+class CRMTag(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="crm_tags",
+    )
+    name = models.CharField(max_length=80)
+    color = models.CharField(max_length=24, default="indigo")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_crm_tags",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "name"], name="crm_tag_org_name_unique")
+        ]
+
+    def save(self, *args, **kwargs):
+        self.name = (self.name or "").strip()
+        self.color = (self.color or "indigo").strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.organization} — {self.name}"
+
+
+class CRMContactTag(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contact = models.ForeignKey(CRMContact, on_delete=models.CASCADE, related_name="tag_links")
+    tag = models.ForeignKey(CRMTag, on_delete=models.CASCADE, related_name="contact_links")
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_crm_tags",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["contact", "tag"], name="crm_contact_tag_unique")
+        ]
+        indexes = [models.Index(fields=["tag", "contact"], name="crm_contact_tag_lookup_idx")]
+
+    def clean(self):
+        super().clean()
+        if self.contact_id and self.tag_id and self.contact.organization_id != self.tag.organization_id:
+            raise ValidationError("Le tag et le contact doivent appartenir à la même organisation.")
+
+    def __str__(self):
+        return f"{self.contact} — {self.tag.name}"
+
+
+class CRMCustomField(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="crm_custom_fields",
+    )
+    key = models.SlugField(max_length=80)
+    label = models.CharField(max_length=120)
+    field_type = models.CharField(max_length=16, choices=CustomFieldType.choices, default=CustomFieldType.TEXT)
+    options = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_crm_custom_fields",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["label"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "key"], name="crm_custom_field_org_key_unique")
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.field_type == CustomFieldType.SELECT:
+            if not isinstance(self.options, list) or not [item for item in self.options if str(item).strip()]:
+                raise ValidationError({"options": "Une liste de choix nécessite au moins une option."})
+        elif self.options not in (None, [], {}):
+            self.options = []
+
+    def __str__(self):
+        return f"{self.organization} — {self.label}"
+
+
+class CRMContactFieldValue(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contact = models.ForeignKey(CRMContact, on_delete=models.CASCADE, related_name="custom_values")
+    field = models.ForeignKey(CRMCustomField, on_delete=models.CASCADE, related_name="contact_values")
+    value = models.JSONField(null=True, blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_crm_custom_values",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["contact", "field"], name="crm_contact_field_value_unique")
+        ]
+        indexes = [models.Index(fields=["field", "contact"], name="crm_field_value_lookup_idx")]
+
+    def clean(self):
+        super().clean()
+        if self.contact_id and self.field_id and self.contact.organization_id != self.field.organization_id:
+            raise ValidationError("Le champ et le contact doivent appartenir à la même organisation.")
+
+    def __str__(self):
+        return f"{self.contact} — {self.field.label}"
+
+
 class AudienceSegment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
@@ -144,6 +288,8 @@ class AudienceSegment(models.Model):
     marketing_consent_only = models.BooleanField(default=False)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=120, blank=True)
+    required_tags = models.ManyToManyField(CRMTag, blank=True, related_name="segments")
+    custom_filters = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -171,15 +317,56 @@ class AudienceSegment(models.Model):
         errors = {}
         if self.event_id and self.event.organization_id != self.organization_id:
             errors["event"] = "L’événement doit appartenir à la même organisation."
-        if self.audience_kind != AudienceKind.ALL and not self.event_id:
+        if self.audience_kind not in {AudienceKind.ALL, AudienceKind.FOLLOWERS} and not self.event_id:
             errors["event"] = "Ce type d’audience nécessite un événement."
         if self.ticket_type_id:
             if not self.event_id:
                 errors["ticket_type"] = "Choisissez d’abord un événement."
             elif self.ticket_type.event_id != self.event_id:
                 errors["ticket_type"] = "Le type de billet doit appartenir à l’événement du segment."
+        if not isinstance(self.custom_filters, dict):
+            errors["custom_filters"] = "Les filtres de champs personnalisés doivent former un objet clé/valeur."
         if errors:
             raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.organization} — {self.name}"
+
+
+class CampaignTemplate(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="crm_campaign_templates",
+    )
+    name = models.CharField(max_length=160)
+    kind = models.CharField(max_length=20, choices=CommunicationKind.choices, default=CommunicationKind.MARKETING)
+    subject = models.CharField(max_length=180)
+    preview_text = models.CharField(max_length=220, blank=True)
+    body = models.TextField()
+    cta_label = models.CharField(max_length=80, blank=True)
+    cta_url = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    use_count = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_crm_campaign_templates",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "name"], name="crm_template_org_name_unique")
+        ]
+
+    def clean(self):
+        super().clean()
+        if bool(self.cta_label) != bool(self.cta_url):
+            raise ValidationError({"cta_url": "Le libellé et le lien d’action doivent être fournis ensemble."})
 
     def __str__(self):
         return f"{self.organization} — {self.name}"
@@ -196,6 +383,13 @@ class CommunicationCampaign(models.Model):
         AudienceSegment,
         on_delete=models.PROTECT,
         related_name="campaigns",
+    )
+    template = models.ForeignKey(
+        CampaignTemplate,
+        on_delete=models.SET_NULL,
+        related_name="campaigns",
+        null=True,
+        blank=True,
     )
     event = models.ForeignKey(
         "events.Event",
@@ -215,6 +409,11 @@ class CommunicationCampaign(models.Model):
     body = models.TextField()
     cta_label = models.CharField(max_length=80, blank=True)
     cta_url = models.URLField(blank=True)
+    track_conversions = models.BooleanField(default=True)
+    attribution_window_days = models.PositiveSmallIntegerField(
+        default=30,
+        validators=[MinValueValidator(1), MaxValueValidator(90)],
+    )
     status = models.CharField(
         max_length=16,
         choices=CommunicationCampaignStatus.choices,
@@ -244,6 +443,8 @@ class CommunicationCampaign(models.Model):
         errors = {}
         if self.segment_id and self.segment.organization_id != self.organization_id:
             errors["segment"] = "Le segment doit appartenir à la même organisation."
+        if self.template_id and self.template.organization_id != self.organization_id:
+            errors["template"] = "Le modèle doit appartenir à la même organisation."
         if self.event_id and self.event.organization_id != self.organization_id:
             errors["event"] = "L’événement doit appartenir à la même organisation."
         if self.segment_id and self.segment.event_id and self.event_id and self.segment.event_id != self.event_id:
@@ -291,6 +492,9 @@ class CampaignRecipient(models.Model):
     last_error = models.TextField(blank=True)
     skipped_reason = models.CharField(max_length=255, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
+    click_count = models.PositiveIntegerField(default=0)
+    first_clicked_at = models.DateTimeField(null=True, blank=True)
+    last_clicked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -313,6 +517,57 @@ class CampaignRecipient(models.Model):
 
     def __str__(self):
         return f"{self.campaign} — {self.email} — {self.status}"
+
+
+class CampaignAttribution(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField(
+        "tickets.TicketOrder",
+        on_delete=models.CASCADE,
+        related_name="crm_campaign_attribution",
+    )
+    campaign = models.ForeignKey(
+        CommunicationCampaign,
+        on_delete=models.PROTECT,
+        related_name="attributions",
+    )
+    recipient = models.ForeignKey(
+        CampaignRecipient,
+        on_delete=models.SET_NULL,
+        related_name="attributions",
+        null=True,
+        blank=True,
+    )
+    contact = models.ForeignKey(
+        CRMContact,
+        on_delete=models.SET_NULL,
+        related_name="campaign_attributions",
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=CampaignAttributionStatus.choices,
+        default=CampaignAttributionStatus.PENDING,
+    )
+    revenue_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3, blank=True)
+    captured_at = models.DateTimeField(default=timezone.now)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    reversed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-captured_at"]
+        indexes = [
+            models.Index(fields=["campaign", "status", "captured_at"], name="crm_attr_campaign_status_idx")
+        ]
+
+    def save(self, *args, **kwargs):
+        self.currency = (self.currency or "").upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.campaign} — {self.order} — {self.status}"
 
 
 class CRMContactNote(models.Model):
