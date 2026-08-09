@@ -1,0 +1,23 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ heading }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-8">
+  <div><a href="{% if editing %}{% url 'crm:segment-detail' segment.pk %}{% else %}{% url 'crm:organization' organization.slug %}{% endif %}" class="text-sm font-bold text-indigo-600">← {{ organization.name }}</a><h1 class="mt-2 text-4xl font-black">{{ heading }}</h1><p class="mt-2 text-zinc-500">Combinez audience métier, tags, champs personnalisés et critères comportementaux. L'audience reste dynamique et est recalculée au moment de l'utilisation.</p></div>
+
+  <form method="post" class="space-y-6">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{{ form.non_field_errors }}</div>{% endif %}
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase tracking-wide text-indigo-500">Définition</p><h2 class="mt-1 text-2xl font-black">Audience de base</h2><div class="mt-5 grid gap-5 md:grid-cols-2">
+      {% for field in form %}{% if field.name == 'name' or field.name == 'description' or field.name == 'audience_kind' or field.name == 'event' or field.name == 'ticket_type' or field.name == 'marketing_consent_only' or field.name == 'city' or field.name == 'country' or field.name == 'required_tags' or field.name == 'is_active' %}<div class="{% if field.name == 'description' or field.name == 'required_tags' %}md:col-span-2{% endif %}"><label class="mb-2 block text-sm font-black">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<p class="mt-1 text-sm text-red-500">{{ field.errors|striptags }}</p>{% endif %}</div>{% endif %}{% endfor %}
+    </div></section>
+
+    <section class="rounded-3xl border border-indigo-200 bg-indigo-50 p-6 dark:border-indigo-900 dark:bg-indigo-950/20"><p class="text-xs font-black uppercase tracking-wide text-indigo-500">Customer Intelligence</p><h2 class="mt-1 text-2xl font-black">Filtres comportementaux</h2><p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Tous les critères renseignés sont combinés avec une logique ET. Laissez un champ vide pour ne pas l'utiliser.</p><div class="mt-5 grid gap-5 md:grid-cols-2">
+      {% for field in form %}{% if field.name == 'min_confirmed_orders' or field.name == 'max_days_since_last_order' or field.name == 'min_days_since_last_order' or field.name == 'min_attended_events' or field.name == 'min_promotion_redemptions' or field.name == 'min_partner_referred_orders' or field.name == 'min_spend_amount' or field.name == 'spend_currency' %}<div><label class="mb-2 block text-sm font-black">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<p class="mt-1 text-sm text-red-500">{{ field.errors|striptags }}</p>{% endif %}</div>{% endif %}{% endfor %}
+    </div><div class="mt-5 rounded-2xl bg-white/70 p-4 text-xs text-zinc-600 dark:bg-zinc-950/60 dark:text-zinc-300">Les dépenses sont filtrées dans une seule devise à la fois. Makolo ne somme jamais USD, CDF ou d'autres devises ensemble. Les filtres de récence utilisent uniquement les commandes réellement confirmées.</div></section>
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase tracking-wide text-zinc-400">Extension</p><h2 class="mt-1 text-xl font-black">Champs personnalisés exacts</h2><div class="mt-5">{{ form.custom_filters }}{% if form.custom_filters.help_text %}<p class="mt-2 text-xs text-zinc-500">{{ form.custom_filters.help_text }}</p>{% endif %}{% if form.custom_filters.errors %}<p class="mt-1 text-sm text-red-500">{{ form.custom_filters.errors|striptags }}</p>{% endif %}</div></section>
+
+    <button class="rounded-2xl bg-indigo-600 px-6 py-3 font-black text-white">{{ submit_label }}</button>
+  </form>
+</div>
+{% endblock %}
