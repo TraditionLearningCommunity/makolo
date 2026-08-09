@@ -2,11 +2,25 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
-from .models import Organization, OrganizationMembership, OrganizationRole
+from .models import Organization, OrganizationFollow, OrganizationMembership, OrganizationRole
 from .permissions import user_can_manage_organization
 
 
 User = get_user_model()
+
+
+def _normalize_follow_preferences(values):
+    normalized = {
+        "notify_new_events": bool(values.get("notify_new_events", True)),
+        "notify_announcements": bool(values.get("notify_announcements", True)),
+        "email_new_events": bool(values.get("email_new_events", False)),
+        "email_announcements": bool(values.get("email_announcements", False)),
+    }
+    if not normalized["notify_new_events"]:
+        normalized["email_new_events"] = False
+    if not normalized["notify_announcements"]:
+        normalized["email_announcements"] = False
+    return normalized
 
 
 @transaction.atomic
@@ -84,3 +98,77 @@ def find_user_for_team(*, email: str):
         return User.objects.get(email__iexact=email)
     except User.DoesNotExist as exc:
         raise ValidationError("Aucun compte Makolo ne correspond à cette adresse e-mail.") from exc
+
+
+def _sync_follower_to_crm_on_commit(follow_id):
+    def callback():
+        from crm.services import sync_contact_from_follower
+
+        follow = OrganizationFollow.objects.select_related("organization", "user").filter(pk=follow_id).first()
+        if follow:
+            sync_contact_from_follower(follow)
+
+    transaction.on_commit(callback)
+
+
+@transaction.atomic
+def follow_organization(*, user, organization: Organization, **preferences) -> OrganizationFollow:
+    if not getattr(user, "is_authenticated", False):
+        raise PermissionDenied("Connectez-vous pour suivre un organisateur.")
+    if not organization.public_profile or organization.verification_status == "suspended":
+        raise ValidationError("Cet organisateur ne peut pas être suivi actuellement.")
+    current = {
+        "notify_new_events": preferences.get("notify_new_events", True),
+        "notify_announcements": preferences.get("notify_announcements", True),
+        "email_new_events": preferences.get("email_new_events", False),
+        "email_announcements": preferences.get("email_announcements", False),
+    }
+    defaults = _normalize_follow_preferences(current)
+    follow, _ = OrganizationFollow.objects.update_or_create(
+        organization=organization,
+        user=user,
+        defaults=defaults,
+    )
+    _sync_follower_to_crm_on_commit(follow.pk)
+    return follow
+
+
+@transaction.atomic
+def update_follow_preferences(*, follow: OrganizationFollow, user, **preferences) -> OrganizationFollow:
+    follow = OrganizationFollow.objects.select_for_update().select_related("organization", "user").get(pk=follow.pk)
+    if follow.user_id != getattr(user, "pk", None):
+        raise PermissionDenied("Vous ne pouvez modifier que vos propres abonnements.")
+    current = {
+        "notify_new_events": follow.notify_new_events,
+        "notify_announcements": follow.notify_announcements,
+        "email_new_events": follow.email_new_events,
+        "email_announcements": follow.email_announcements,
+    }
+    current.update({key: value for key, value in preferences.items() if key in current})
+    normalized = _normalize_follow_preferences(current)
+    changed = []
+    for key, value in normalized.items():
+        if getattr(follow, key) != value:
+            setattr(follow, key, value)
+            changed.append(key)
+    if changed:
+        follow.save(update_fields=changed + ["updated_at"])
+        _sync_follower_to_crm_on_commit(follow.pk)
+    return follow
+
+
+@transaction.atomic
+def unfollow_organization(*, follow: OrganizationFollow, user) -> None:
+    follow = OrganizationFollow.objects.select_for_update().get(pk=follow.pk)
+    if follow.user_id != getattr(user, "pk", None):
+        raise PermissionDenied("Vous ne pouvez supprimer que vos propres abonnements.")
+    organization_id = follow.organization_id
+    user_id = follow.user_id
+    follow.delete()
+
+    def revoke():
+        from crm.services import revoke_follower_consent
+
+        revoke_follower_consent(organization_id=organization_id, user_id=user_id)
+
+    transaction.on_commit(revoke)

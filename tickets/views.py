@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from crm.services import attribute_order_from_campaign
 from events.permissions import user_can_manage_event, user_can_manage_events
 from events.selectors import get_events_visible_to, get_manageable_events
 from partners.services import attribute_order, get_session_referral
@@ -239,6 +240,7 @@ class EventTicketOrderView(LoginRequiredMixin, View):
                 selections=selections,
             )
             attribute_order(order=order, request=request)
+            attribute_order_from_campaign(order=order, request=request)
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
             return render(

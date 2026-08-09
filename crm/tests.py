@@ -182,7 +182,7 @@ class EventCRMTests(TestCase):
         self.assertTrue(Notification.objects.filter(recipient=self.attendee, metadata__campaign_id=str(campaign.pk)).exists())
         self.assertEqual(result["recipients"]["sent"], 1)
 
-    def test_unsubscribe_token_revokes_marketing_consent_and_account_preference(self):
+    def test_unsubscribe_token_is_scoped_to_organizer_not_global_account(self):
         preference = NotificationPreference.objects.create(user=self.attendee, marketing_notifications=True)
         self._order()
         contact = CRMContact.objects.get(organization=self.organization, email=self.attendee.email)
@@ -193,7 +193,7 @@ class EventCRMTests(TestCase):
         contact.refresh_from_db()
         preference.refresh_from_db()
         self.assertEqual(contact.marketing_consent, MarketingConsent.UNSUBSCRIBED)
-        self.assertFalse(preference.marketing_notifications)
+        self.assertTrue(preference.marketing_notifications)
 
     def test_event_update_can_reach_guest_ticket_holder_without_marketing_opt_in(self):
         self._ticket(guest=True, email="guest-event@example.com", status=TicketStatus.VALID)

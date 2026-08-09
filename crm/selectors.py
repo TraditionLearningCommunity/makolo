@@ -1,7 +1,7 @@
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django.utils import timezone
 
-from organizations.models import OrganizationMembership
+from organizations.models import OrganizationFollow, OrganizationMembership
 from partners.models import AttributionStatus, ReferralAttribution
 from tickets.models import (
     Ticket,
@@ -15,9 +15,11 @@ from tickets.models import (
 from .models import (
     AudienceKind,
     AudienceSegment,
+    CampaignAttributionStatus,
     CampaignRecipientStatus,
     CommunicationCampaign,
     CRMContact,
+    CRMContactFieldValue,
     MarketingConsent,
 )
 from .permissions import CRM_VIEW_ROLES
@@ -36,7 +38,9 @@ def _visible_organization_ids(user):
 
 
 def get_contacts_visible_to(user):
-    queryset = CRMContact.objects.select_related("organization", "user", "user__profile")
+    queryset = CRMContact.objects.select_related("organization", "user", "user__profile").prefetch_related(
+        "tag_links__tag", "custom_values__field"
+    )
     organization_ids = _visible_organization_ids(user)
     if organization_ids is None:
         return queryset
@@ -46,7 +50,7 @@ def get_contacts_visible_to(user):
 def get_segments_visible_to(user):
     queryset = AudienceSegment.objects.select_related(
         "organization", "event", "ticket_type", "created_by"
-    )
+    ).prefetch_related("required_tags")
     organization_ids = _visible_organization_ids(user)
     if organization_ids is None:
         return queryset
@@ -55,7 +59,7 @@ def get_segments_visible_to(user):
 
 def get_campaigns_visible_to(user):
     queryset = CommunicationCampaign.objects.select_related(
-        "organization", "segment", "event", "created_by"
+        "organization", "segment", "event", "template", "created_by"
     )
     organization_ids = _visible_organization_ids(user)
     if organization_ids is None:
@@ -63,11 +67,7 @@ def get_campaigns_visible_to(user):
     return queryset.filter(organization_id__in=organization_ids)
 
 
-def audience_contacts(segment: AudienceSegment):
-    queryset = CRMContact.objects.filter(organization=segment.organization).select_related(
-        "user", "user__profile"
-    )
-
+def _apply_contact_filters(queryset, segment: AudienceSegment):
     if segment.marketing_consent_only:
         queryset = queryset.filter(marketing_consent=MarketingConsent.SUBSCRIBED)
     if segment.city:
@@ -75,8 +75,38 @@ def audience_contacts(segment: AudienceSegment):
     if segment.country:
         queryset = queryset.filter(user__profile__country__iexact=segment.country.strip())
 
+    for tag in segment.required_tags.all():
+        queryset = queryset.filter(tag_links__tag=tag)
+
+    for field_key, expected_value in (segment.custom_filters or {}).items():
+        values = CRMContactFieldValue.objects.filter(
+            contact_id=OuterRef("pk"),
+            field__organization=segment.organization,
+            field__key=field_key,
+            field__is_active=True,
+            value=expected_value,
+        )
+        queryset = queryset.annotate(**{f"_crm_field_{str(field_key).replace('-', '_')}": Exists(values)}).filter(
+            **{f"_crm_field_{str(field_key).replace('-', '_')}": True}
+        )
+    return queryset
+
+
+def audience_contacts(segment: AudienceSegment):
+    queryset = CRMContact.objects.filter(organization=segment.organization).select_related(
+        "user", "user__profile"
+    )
+    queryset = _apply_contact_filters(queryset, segment)
+
     if segment.audience_kind == AudienceKind.ALL:
         return queryset.distinct()
+
+    if segment.audience_kind == AudienceKind.FOLLOWERS:
+        follows = OrganizationFollow.objects.filter(
+            organization=segment.organization,
+            user_id=OuterRef("user_id"),
+        )
+        return queryset.annotate(_crm_match=Exists(follows)).filter(_crm_match=True).distinct()
 
     event = segment.event
     if not event:
@@ -135,11 +165,29 @@ def audience_contacts(segment: AudienceSegment):
 
 def campaign_metrics(campaign: CommunicationCampaign):
     recipients = campaign.recipients.all()
+    audience_size = recipients.count()
+    sent = recipients.filter(status=CampaignRecipientStatus.SENT).count()
+    clicked_recipients = recipients.filter(click_count__gt=0).count()
+    total_clicks = recipients.aggregate(total=Sum("click_count"))["total"] or 0
+    confirmed = campaign.attributions.filter(status=CampaignAttributionStatus.CONFIRMED)
+    conversions = confirmed.count()
+    reversed_count = campaign.attributions.filter(status=CampaignAttributionStatus.REVERSED).count()
+    revenue_by_currency = [
+        {"currency": row["currency"] or "N/A", "amount": row["amount"] or 0, "orders": row["orders"]}
+        for row in confirmed.values("currency").annotate(amount=Sum("revenue_amount"), orders=Count("id")).order_by("currency")
+    ]
     return {
-        "audience_size": recipients.count(),
+        "audience_size": audience_size,
         "queued": recipients.filter(status=CampaignRecipientStatus.QUEUED).count(),
         "processing": recipients.filter(status=CampaignRecipientStatus.PROCESSING).count(),
-        "sent": recipients.filter(status=CampaignRecipientStatus.SENT).count(),
+        "sent": sent,
         "failed": recipients.filter(status=CampaignRecipientStatus.FAILED).count(),
         "skipped": recipients.filter(status=CampaignRecipientStatus.SKIPPED).count(),
+        "clicked_recipients": clicked_recipients,
+        "total_clicks": total_clicks,
+        "click_rate": round((clicked_recipients / sent) * 100, 1) if sent else 0,
+        "conversions": conversions,
+        "conversion_rate": round((conversions / clicked_recipients) * 100, 1) if clicked_recipients else 0,
+        "reversed_conversions": reversed_count,
+        "revenue_by_currency": revenue_by_currency,
     }

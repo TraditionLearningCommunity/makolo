@@ -13,14 +13,23 @@
           <div class="mt-5 flex flex-wrap gap-2 text-sm font-semibold">
             {% if is_verified %}<span class="rounded-full bg-emerald-300/20 px-3 py-1 text-emerald-50">✓ Organisateur vérifié</span>{% else %}<span class="rounded-full bg-white/15 px-3 py-1">{{ organization.get_verification_status_display }}</span>{% endif %}
             {% if organization.city or organization.country %}<span class="rounded-full bg-white/15 px-3 py-1">{{ organization.city }}{% if organization.city and organization.country %}, {% endif %}{{ organization.country }}</span>{% endif %}
+            <span class="rounded-full bg-white/15 px-3 py-1">{{ follower_count }} abonné{{ follower_count|pluralize }}</span>
           </div>
         </div>
-        {% if organization.website %}<a href="{{ organization.website }}" rel="noopener noreferrer" target="_blank" class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">Site officiel ↗</a>{% endif %}
+        <div class="flex flex-wrap gap-3">
+          {% if request.user.is_authenticated %}
+            <form method="post" action="{% url 'organizer_public:follow-toggle' organization.slug %}">{% csrf_token %}<button class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">{% if follow %}Ne plus suivre{% else %}Suivre{% endif %}</button></form>
+            {% if follow %}<a href="{% url 'organizer_public:follow-preferences' organization.slug %}" class="rounded-2xl border border-white/40 px-5 py-3 font-black text-white">Préférences</a>{% endif %}
+          {% else %}
+            <a href="{% url 'core:login' %}?next={{ request.path }}" class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">Se connecter pour suivre</a>
+          {% endif %}
+          {% if organization.website %}<a href="{{ organization.website }}" rel="noopener noreferrer" target="_blank" class="rounded-2xl border border-white/40 px-5 py-3 font-black text-white">Site officiel ↗</a>{% endif %}
+        </div>
       </div>
     </div>
     <div class="grid gap-6 p-7 md:grid-cols-3 md:p-10">
       <div class="md:col-span-2"><h2 class="text-xl font-black">À propos</h2><p class="mt-3 whitespace-pre-line leading-7 text-zinc-600 dark:text-zinc-300">{{ organization.description|default:"Cet organisateur publie ses événements sur Makolo." }}</p></div>
-      <div class="rounded-3xl bg-zinc-50 p-5 dark:bg-zinc-900"><p class="text-sm text-zinc-500">Événements publics</p><p class="mt-1 text-4xl font-black">{{ events|length }}</p><p class="mt-3 text-xs text-zinc-500">Le profil public n'expose jamais les membres de l'équipe, rôles internes ou données financières.</p></div>
+      <div class="rounded-3xl bg-zinc-50 p-5 dark:bg-zinc-900"><p class="text-sm text-zinc-500">Communauté</p><p class="mt-1 text-4xl font-black">{{ follower_count }}</p><p class="mt-3 text-xs text-zinc-500">Suivre ne vous inscrit pas automatiquement aux e-mails. Chaque organisateur possède ses propres préférences.</p></div>
     </div>
   </section>
 

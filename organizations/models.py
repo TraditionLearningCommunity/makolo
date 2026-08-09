@@ -91,3 +91,46 @@ class OrganizationMembership(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.organization} ({self.get_role_display()})"
+
+
+class OrganizationFollow(models.Model):
+    """Relation sociale explicite entre un participant et un organisateur.
+
+    Suivre un organisateur n'est pas un consentement marketing e-mail. Les
+    préférences e-mail sont opt-in et restent subordonnées au réglage global du
+    compte Makolo.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="followers",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="followed_organizations",
+    )
+    notify_new_events = models.BooleanField(default=True)
+    notify_announcements = models.BooleanField(default=True)
+    email_new_events = models.BooleanField(default=False)
+    email_announcements = models.BooleanField(default=False)
+    followed_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-followed_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "user"],
+                name="organization_follow_unique_user",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["organization", "followed_at"], name="org_follow_org_date_idx"),
+            models.Index(fields=["user", "followed_at"], name="org_follow_user_date_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.user} suit {self.organization}"

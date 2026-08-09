@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Organization, OrganizationRole
+from .models import Organization, OrganizationFollow, OrganizationRole
 
 
 INPUT_CLASS = (
@@ -8,6 +8,7 @@ INPUT_CLASS = (
     "outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 "
     "dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
 )
+CHECKBOX_CLASS = "h-5 w-5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
 
 
 class OrganizationForm(forms.ModelForm):
@@ -40,3 +41,29 @@ class OrganizationMemberForm(forms.Form):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs["class"] = INPUT_CLASS
+
+
+class OrganizationFollowPreferenceForm(forms.ModelForm):
+    class Meta:
+        model = OrganizationFollow
+        fields = [
+            "notify_new_events",
+            "notify_announcements",
+            "email_new_events",
+            "email_announcements",
+        ]
+        labels = {
+            "notify_new_events": "Nouveaux événements dans Makolo",
+            "notify_announcements": "Annonces de l’organisateur dans Makolo",
+            "email_new_events": "Recevoir aussi les nouveaux événements par e-mail",
+            "email_announcements": "Recevoir aussi les annonces par e-mail",
+        }
+        help_texts = {
+            "email_new_events": "Opt-in propre à cet organisateur. Le réglage global e-mail de votre compte reste prioritaire.",
+            "email_announcements": "Vous pouvez suivre un organisateur sans accepter ses e-mails marketing.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = CHECKBOX_CLASS
