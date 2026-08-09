@@ -4,7 +4,7 @@ import time
 
 from django.core.management.base import BaseCommand
 
-from automation.crm_services import process_due_crm_workflows
+from automation.crm_runtime import process_due_crm_workflows
 from automation.services import run_autopilot_cycle
 
 
