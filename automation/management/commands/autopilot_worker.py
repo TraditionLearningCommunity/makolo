@@ -4,6 +4,7 @@ import time
 
 from django.core.management.base import BaseCommand
 
+from automation.crm_runtime import process_due_crm_workflows
 from automation.services import run_autopilot_cycle
 
 
@@ -30,6 +31,7 @@ class Command(BaseCommand):
             started = time.monotonic()
             try:
                 stats = run_autopilot_cycle(delivery_limit=delivery_limit)
+                stats["crm_workflows"] = process_due_crm_workflows(limit=delivery_limit)
             except Exception as exc:
                 self.stderr.write(self.style.ERROR(f"Cycle Autopilot en échec: {exc}"))
             else:

@@ -1,0 +1,41 @@
+{% extends 'base/app.html' %}
+{% block title %}Automatisations CRM — {{ organization.name }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-8">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <a href="{% url 'crm:organization' organization.slug %}" class="font-bold text-indigo-500">← CRM {{ organization.name }}</a>
+      <p class="mt-4 text-sm font-black uppercase tracking-[0.2em] text-indigo-500">Makolo CRM Automation</p>
+      <h1 class="mt-2 text-4xl font-black">Scénarios automatiques</h1>
+      <p class="mt-2 max-w-3xl text-zinc-500">Déclencheurs métier, conditions, délais et actions multi-étapes exécutés par Autopilot sans intervention quotidienne.</p>
+    </div>
+    {% if can_manage %}<a href="{% url 'automation:crm-workflow-create' organization.slug %}" class="rounded-2xl bg-indigo-600 px-6 py-3 font-black text-white hover:bg-indigo-500">+ Nouveau scénario</a>{% endif %}
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-3">
+    <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-sm font-bold text-zinc-500">Scénarios</p><p class="mt-2 text-3xl font-black">{{ workflows|length }}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-sm font-bold text-zinc-500">Actifs</p><p class="mt-2 text-3xl font-black text-emerald-600">{{ active_count }}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-sm font-bold text-zinc-500">Parcours déclenchés</p><p class="mt-2 text-3xl font-black">{{ runs_count }}</p></div>
+  </div>
+
+  <section class="space-y-4">
+    {% for workflow in workflows %}
+      <a href="{% url 'automation:crm-workflow-detail' workflow.pk %}" class="block rounded-3xl border border-zinc-200 bg-white p-6 transition hover:border-indigo-400 dark:border-zinc-800 dark:bg-zinc-950">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-xl font-black">{{ workflow.name }}</h2>
+              {% if workflow.is_active %}<span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">ACTIF</span>{% else %}<span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-500">PAUSE</span>{% endif %}
+            </div>
+            <p class="mt-2 text-sm text-zinc-500">Quand : <strong>{{ workflow.get_trigger_display }}</strong>{% if workflow.event %} · {{ workflow.event.title }}{% endif %}{% if workflow.segment %} · Segment {{ workflow.segment.name }}{% endif %}</p>
+            {% if workflow.description %}<p class="mt-2 text-sm text-zinc-500">{{ workflow.description }}</p>{% endif %}
+          </div>
+          <div class="text-sm font-bold text-zinc-500">{{ workflow.actions.count }} étape{{ workflow.actions.count|pluralize }} · {{ workflow.runs.count }} exécution{{ workflow.runs.count|pluralize }}</div>
+        </div>
+      </a>
+    {% empty %}
+      <div class="rounded-3xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-700"><h2 class="text-xl font-black">Aucun scénario CRM</h2><p class="mt-2 text-zinc-500">Créez par exemple un accueil automatique après un follow, une relance de commande expirée ou un remerciement après check-in.</p></div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

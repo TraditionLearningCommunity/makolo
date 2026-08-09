@@ -20,6 +20,7 @@ La chaîne fonctionnelle couvre maintenant :
 - contrôle d’accès anti-double-scan ;
 - notifications transactionnelles ;
 - Makolo Autopilot pour les tâches temporelles et réactives ;
+- CRM Automation : déclencheurs métier, conditions, délais, actions multi-étapes, retries et audit ;
 - Analytics & Event Intelligence : ventes, remplissage, présence, waitlist, flux d'entrée, finances autorisées et signaux explicables ;
 - Partners / Ambassadeurs / Affiliation : campagnes, liens de recommandation, attribution, commissions et paiements partenaires ;
 - CRM événementiel : contacts organisationnels, audiences dynamiques, tags, champs personnalisés, consentements, modèles réutilisables et campagnes ;
@@ -84,6 +85,8 @@ Il exécute automatiquement :
 - expiration des commandes non payées et libération du stock ;
 - traitement/retry de la file de notifications ;
 - traitement des campagnes CRM planifiées et retries de livraison ;
+- traitement des scénarios CRM multi-étapes et reprise des actions interrompues ;
+- déclencheurs CRM temporels avant/après événement, no-show et anniversaires ;
 - rappels configurables à J-7, H-24 et H-2 ;
 - alertes de remplissage ;
 - alertes de stock faible ;
@@ -93,10 +96,16 @@ Il exécute automatiquement :
 - expiration des offres waitlist et transferts non acceptés ;
 - suivi post-événement.
 
-L'organisateur configure ses règles dans l'interface :
+L'organisateur configure les règles d'exploitation d'un événement dans :
 
 ```text
 /autopilot/events/<event-slug>/
+```
+
+et les parcours CRM d'une organisation dans :
+
+```text
+/autopilot/crm/<organization-slug>/
 ```
 
 Le moteur décide ensuite quand les exécuter. `run_autopilot` reste disponible pour un cron ou le diagnostic, mais ce n'est pas une action quotidienne d'un développeur.
@@ -150,6 +159,18 @@ Les équipes peuvent créer des `CampaignTemplate` réutilisables. Le contenu es
 Lorsqu'une campagne active le suivi de conversion, son CTA passe par un jeton signé Makolo. Le clic est compté et une commande compatible peut être attribuée à la campagne. Une commande payante reste `pending` jusqu'à confirmation réelle ; l'attribution devient alors `confirmed`. Une annulation ou expiration la passe à `reversed`. Les revenus attribués sont toujours groupés par devise. Aucun pixel d'ouverture invisible n'est installé.
 
 L'attribution CRM et l'attribution partenaire peuvent coexister sur une même commande sans s'écraser : l'une mesure la campagne de communication, l'autre le partenaire commercial.
+
+### CRM Automation
+
+Les rôles Owner/Admin/Marketing peuvent créer des scénarios sous `/autopilot/crm/<organization-slug>/`. Event Manager peut les consulter, mais pas les modifier. Finance et Scanner Manager n'obtiennent aucun accès CRM implicite.
+
+Les déclencheurs disponibles couvrent : nouvel abonné, commande confirmée, commande expirée, entrée en waitlist, check-in, délai avant événement, fin d'événement, no-show et anniversaire. Un scénario peut ensuite enchaîner des actions avec délais : e-mail depuis un `CampaignTemplate`, notification Makolo, ajout/retrait de tag et notification de l'équipe.
+
+Les conditions optionnelles portent sur l'événement, le segment dynamique, le type de billet, le montant minimum et la devise. Les segments sont revalidés au déclenchement ; les no-shows sont calculés uniquement parmi les détenteurs de billets.
+
+Chaque parcours et chaque étape sont persistés, dédupliqués et audités. Les actions e-mail ont retries/backoff, les actions `processing` abandonnées sont reprises par Autopilot, et un workflow mis en pause ne consomme pas ses étapes en attente. Les contenus utilisent uniquement un petit ensemble de variables sûres, sans exécuter de template arbitraire fourni par un organisateur.
+
+Une automatisation ne contourne jamais le consentement : les modèles marketing exigent le consentement CRM et les préférences globales/organisationnelles au moment exact de l'envoi. Une notification Makolo promotionnelle doit être explicitement déclarée comme telle et passe par les mêmes garde-fous.
 
 ## Installation locale sous PowerShell
 
@@ -238,6 +259,10 @@ Les endpoints principaux de la v1 sont :
 /api/v1/crm/segments/<segment-id>/preview/
 /api/v1/crm/campaigns/
 /api/v1/crm/campaigns/<campaign-id>/metrics/
+/api/v1/automation/workflows/
+/api/v1/automation/workflows/<workflow-id>/
+/api/v1/automation/workflows/<workflow-id>/actions/
+/api/v1/automation/workflows/<workflow-id>/runs/
 ```
 
 `POST /api/v1/tickets/orders/` accepte `referral_code` pour l'affiliation et `campaign_token` pour préserver une attribution CRM signée sur les clients API/mobile.
@@ -259,7 +284,8 @@ Le socle actuel prépare désormais les fonctionnalités majeures suivantes :
 - recommandations selon préférences, localisation et organisateurs suivis ;
 - opérations et modération de plateforme avancées ;
 - cohortes, attribution multi-touch et prévisions analytiques plus avancées ;
-- automatisations CRM comportementales et parcours multi-étapes.
+- promotions/codes et offres avancées ;
+- Customer 360, scoring comportemental et fidélisation.
 
 ## CI
 
@@ -279,4 +305,5 @@ GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépen
 - Analytics & Event Intelligence : `docs/architecture/analytics-event-intelligence.md` ;
 - Partners / Ambassadeurs / Affiliation : `docs/architecture/partners-affiliation.md` ;
 - CRM événementiel, audiences et campagnes : `docs/architecture/event-crm-audiences-campaigns.md` ;
-- followers, tags/champs, modèles et attribution campagne → vente : `docs/architecture/followers-crm-growth-attribution.md`.
+- followers, tags/champs, modèles et attribution campagne → vente : `docs/architecture/followers-crm-growth-attribution.md` ;
+- CRM Automation, déclencheurs, parcours et reprise : `docs/architecture/crm-automation-engine.md`.

@@ -1,0 +1,49 @@
+{% extends 'base/app.html' %}
+{% block title %}{% if workflow %}Modifier{% else %}Nouveau{% endif %} scénario CRM | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-8">
+  <div>
+    <a href="{% if workflow %}{% url 'automation:crm-workflow-detail' workflow.pk %}{% else %}{% url 'automation:crm-workflows' organization.slug %}{% endif %}" class="font-bold text-indigo-500">← Automatisations CRM</a>
+    <p class="mt-4 text-sm font-black uppercase tracking-[0.2em] text-indigo-500">{{ organization.name }}</p>
+    <h1 class="mt-2 text-4xl font-black">{% if workflow %}Modifier le scénario{% else %}Créer un scénario{% endif %}</h1>
+  </div>
+
+  <form method="post" class="space-y-6">{% csrf_token %}
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <h2 class="text-xl font-black">Déclencheur et périmètre</h2>
+      <div class="mt-6 grid gap-5 md:grid-cols-2">
+        {% for field in form %}
+          {% if field.name == 'name' or field.name == 'description' or field.name == 'trigger' or field.name == 'event' or field.name == 'segment' or field.name == 'ticket_type' %}
+            <div class="{% if field.name == 'description' %}md:col-span-2{% endif %}"><label class="mb-2 block font-bold">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<p class="mt-1 text-sm text-red-500">{{ field.errors|striptags }}</p>{% endif %}</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <h2 class="text-xl font-black">Conditions et temps</h2>
+      <p class="mt-1 text-sm text-zinc-500">Ces filtres évitent de lancer un parcours sur un contact ou une commande qui ne correspond pas.</p>
+      <div class="mt-6 grid gap-5 md:grid-cols-2">
+        {% for field in form %}
+          {% if field.name == 'min_order_amount' or field.name == 'currency' or field.name == 'event_offset_minutes' or field.name == 'trigger_grace_minutes' %}
+            <div><label class="mb-2 block font-bold">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<p class="mt-1 text-sm text-red-500">{{ field.errors|striptags }}</p>{% endif %}</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <label class="flex items-center gap-3 font-black">{{ form.is_active }} {{ form.is_active.label }}</label>
+      <p class="mt-2 text-sm text-zinc-500">Un scénario en pause ne reçoit plus de nouveaux déclenchements et ses étapes en attente restent suspendues jusqu’à réactivation.</p>
+    </section>
+
+    {% if form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+    <button class="rounded-2xl bg-indigo-600 px-7 py-3 font-black text-white hover:bg-indigo-500">Enregistrer le scénario</button>
+  </form>
+
+  <section class="rounded-3xl border border-indigo-200 bg-indigo-50 p-6 text-sm leading-6 text-indigo-950 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100">
+    <h2 class="font-black">Exemples</h2>
+    <p class="mt-2">Nouvel abonné → e-mail de bienvenue. Commande confirmée + montant minimum → tag VIP puis e-mail d’upsell. Commande expirée → relance après 30 minutes. Check-in → remerciement le lendemain. No-show → relance ciblée. Avant événement, 4320 minutes = J-3.</p>
+  </section>
+</div>
+{% endblock %}

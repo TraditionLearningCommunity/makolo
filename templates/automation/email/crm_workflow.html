@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr">
+  <body style="margin:0;background:#f4f4f5;font-family:Arial,sans-serif;color:#18181b;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:24px;padding:32px;">
+          <tr><td>
+            <p style="margin:0 0 8px;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#4f46e5;">{{ workflow.organization.name }}</p>
+            <h1 style="margin:0 0 24px;font-size:26px;line-height:1.2;">{{ subject }}</h1>
+            <p style="font-size:16px;line-height:1.7;">Bonjour{% if contact.name %} {{ contact.name }}{% endif %},</p>
+            <div style="font-size:16px;line-height:1.7;white-space:pre-line;">{{ body }}</div>
+            {% if cta_url %}<p style="margin:28px 0;"><a href="{{ cta_url }}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:14px 20px;border-radius:12px;font-weight:bold;">{{ cta_label }}</a></p>{% endif %}
+            {% if unsubscribe_url %}<hr style="border:0;border-top:1px solid #e4e4e7;margin:28px 0;"><p style="font-size:12px;line-height:1.6;color:#71717a;">Vous recevez ce message selon vos préférences auprès de cet organisateur. <a href="{{ unsubscribe_url }}">Se désabonner</a>.</p>{% endif %}
+            <p style="font-size:12px;color:#a1a1aa;margin-top:24px;">Makolo · automatisation CRM</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>

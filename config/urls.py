@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/v1/analytics/", include("analytics_app.api.urls")),
     path("api/v1/partners/", include("partners.api.urls")),
     path("api/v1/crm/", include("crm.api.urls")),
+    path("api/v1/automation/", include("automation.api.urls")),
     path("o/", include("organizations.public_urls")),
     path("organizations/", include("organizations.urls")),
     path("autopilot/", include("automation.urls")),
