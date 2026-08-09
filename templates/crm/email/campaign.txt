@@ -1,0 +1,12 @@
+{{ campaign.subject }}
+
+{% if campaign.preview_text %}{{ campaign.preview_text }}
+
+{% endif %}{{ campaign.body }}
+
+{% if cta_url %}{{ campaign.cta_label }}: {{ cta_url }}
+
+{% endif %}{% if unsubscribe_url %}Vous recevez ce message car vous avez accepté les communications marketing de {{ campaign.organization.name }}.
+Se désabonner: {{ unsubscribe_url }}
+{% endif %}
+Makolo
