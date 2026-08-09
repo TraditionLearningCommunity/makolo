@@ -2,7 +2,6 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
@@ -83,6 +82,7 @@ class PromotionCreateView(LoginRequiredMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["organization"] = self.organization
+        context["editing"] = False
         return context
 
     def form_valid(self, form):
@@ -90,6 +90,41 @@ class PromotionCreateView(LoginRequiredMixin, FormView):
         create_promotion(actor=self.request.user, organization=self.organization, **data)
         messages.success(self.request, "Offre promotionnelle créée.")
         return redirect("promotions:organization", slug=self.organization.slug)
+
+
+class PromotionEditView(LoginRequiredMixin, FormView):
+    template_name = "promotions/promotion_form.html"
+    form_class = PromotionForm
+    login_url = "core:login"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.promotion = get_object_or_404(
+            Promotion.objects.select_related("organization", "event").prefetch_related("eligible_ticket_types"),
+            pk=kwargs["pk"],
+        )
+        self.organization = self.promotion.organization
+        if not user_can_manage_promotions(request.user, self.organization):
+            raise PermissionDenied("Vous ne pouvez pas modifier cette offre.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.organization
+        kwargs["instance"] = self.promotion
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"organization": self.organization, "promotion": self.promotion, "editing": True})
+        return context
+
+    def form_valid(self, form):
+        promotion = form.save(commit=False)
+        promotion.full_clean()
+        promotion.save()
+        form.save_m2m()
+        messages.success(self.request, "Offre promotionnelle mise à jour. Les anciennes commandes conservent leur remise historique.")
+        return redirect("promotions:detail", pk=promotion.pk)
 
 
 class PromotionDetailView(LoginRequiredMixin, TemplateView):
@@ -136,6 +171,40 @@ class PromotionCodeCreateView(LoginRequiredMixin, View):
         else:
             messages.error(request, "; ".join(message for errors in form.errors.values() for message in errors))
         return redirect("promotions:detail", pk=promotion.pk)
+
+
+class PromotionCodeEditView(LoginRequiredMixin, FormView):
+    template_name = "promotions/code_form.html"
+    form_class = PromotionCodeForm
+    login_url = "core:login"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.code = get_object_or_404(
+            PromotionCode.objects.select_related("promotion", "promotion__organization", "promotion__event"),
+            pk=kwargs["pk"],
+        )
+        self.promotion = self.code.promotion
+        if not user_can_manage_promotions(request.user, self.promotion.organization):
+            raise PermissionDenied("Vous ne pouvez pas modifier ce code.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["promotion"] = self.promotion
+        kwargs["instance"] = self.code
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"promotion": self.promotion, "code": self.code})
+        return context
+
+    def form_valid(self, form):
+        code = form.save(commit=False)
+        code.full_clean()
+        code.save()
+        messages.success(self.request, "Code promotionnel mis à jour.")
+        return redirect("promotions:detail", pk=self.promotion.pk)
 
 
 class PromotionToggleView(LoginRequiredMixin, View):
