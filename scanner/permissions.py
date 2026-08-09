@@ -9,7 +9,11 @@ from .models import ScannerAssignment
 def get_active_assignment(user, event):
     if not getattr(user, "is_authenticated", False):
         return None
-    assignments = ScannerAssignment.objects.filter(event=event, agent=user, is_active=True)
+    assignments = ScannerAssignment.objects.select_related("access_gate").filter(
+        event=event,
+        agent=user,
+        is_active=True,
+    )
     for assignment in assignments:
         if assignment.is_current:
             return assignment
