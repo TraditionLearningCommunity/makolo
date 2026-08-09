@@ -2,8 +2,6 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, permissions
-from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from events.selectors import get_public_discoverable_events
 from tickets.selectors import get_public_ticket_types_for_event
@@ -59,19 +57,13 @@ class ParticipantEventDetailAPIView(generics.RetrieveAPIView):
         return get_public_discoverable_events(upcoming_only=False)
 
 
-class ParticipantTicketTypeListAPIView(APIView):
+class ParticipantTicketTypeListAPIView(generics.ListAPIView):
+    serializer_class = ParticipantTicketTypeSerializer
     permission_classes = [permissions.AllowAny]
 
-    def get(self, request, slug):
+    def get_queryset(self):
         event = get_object_or_404(
             get_public_discoverable_events(upcoming_only=False),
-            slug=slug,
+            slug=self.kwargs["slug"],
         )
-        queryset = get_public_ticket_types_for_event(event)
-        return Response(
-            ParticipantTicketTypeSerializer(
-                queryset,
-                many=True,
-                context={"request": request},
-            ).data
-        )
+        return get_public_ticket_types_for_event(event)
