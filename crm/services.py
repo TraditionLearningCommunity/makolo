@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -230,10 +230,8 @@ def set_marketing_consent(*, contact: CRMContact, actor, subscribed: bool, sourc
     contact.consent_source = source or "crm_manual_unsubscribe"
     contact.consent_updated_at = timezone.now()
     contact.save(update_fields=["marketing_consent", "consent_source", "consent_updated_at", "updated_at"])
-    if contact.user_id:
-        preference, _ = NotificationPreference.objects.get_or_create(user=contact.user)
-        preference.marketing_notifications = bool(subscribed)
-        preference.save(update_fields=["marketing_notifications", "updated_at"])
+    # Le consentement CRM appartient à cette organisation. Un membre de l'équipe
+    # ne doit jamais modifier les préférences marketing globales du compte Makolo.
     return contact
 
 
@@ -482,12 +480,12 @@ def _recipient_allowed(recipient: CampaignRecipient):
         if recipient.user_id:
             preference = NotificationPreference.objects.filter(user_id=recipient.user_id).first()
             if preference and (not preference.email_notifications or not preference.marketing_notifications):
-                return False, "Les préférences du compte désactivent les communications marketing."
+                return False, "Les préférences globales du compte désactivent les communications marketing."
             follow = OrganizationFollow.objects.filter(
                 organization=campaign.organization,
                 user_id=recipient.user_id,
             ).first()
-            if follow and not follow.email_announcements:
+            if follow and (not follow.notify_announcements or not follow.email_announcements):
                 return False, "Les préférences de cet organisateur désactivent ses annonces e-mail."
     elif recipient.user_id:
         preference = NotificationPreference.objects.filter(user_id=recipient.user_id).first()
@@ -512,6 +510,26 @@ def campaign_click_token(recipient: CampaignRecipient):
     )
 
 
+def resolve_campaign_recipient_token(token: str):
+    if not token:
+        return None
+    try:
+        payload = signing.loads(token, salt=CAMPAIGN_CLICK_SIGNING_SALT)
+    except signing.BadSignature as exc:
+        raise ValidationError("Jeton de campagne invalide.") from exc
+    recipient = (
+        CampaignRecipient.objects.select_related("campaign", "contact")
+        .filter(pk=payload.get("recipient_id"), campaign_id=payload.get("campaign_id"))
+        .first()
+    )
+    if not recipient or not recipient.campaign.track_conversions:
+        raise ValidationError("Cette campagne ne peut pas être attribuée.")
+    reference = recipient.sent_at or recipient.campaign.started_at or recipient.created_at
+    if timezone.now() > reference + timedelta(days=recipient.campaign.attribution_window_days):
+        raise ValidationError("La fenêtre d’attribution de cette campagne est terminée.")
+    return recipient
+
+
 def _tracked_campaign_url(recipient: CampaignRecipient):
     if not recipient.campaign.cta_url:
         return ""
@@ -523,21 +541,10 @@ def _tracked_campaign_url(recipient: CampaignRecipient):
 
 @transaction.atomic
 def capture_campaign_click(*, request, token: str):
-    try:
-        payload = signing.loads(token, salt=CAMPAIGN_CLICK_SIGNING_SALT)
-    except signing.BadSignature as exc:
-        raise ValidationError("Lien de campagne invalide.") from exc
-    recipient = (
-        CampaignRecipient.objects.select_for_update()
-        .select_related("campaign", "contact")
-        .filter(pk=payload.get("recipient_id"), campaign_id=payload.get("campaign_id"))
-        .first()
-    )
-    if not recipient or not recipient.campaign.track_conversions or not recipient.campaign.cta_url:
+    recipient = resolve_campaign_recipient_token(token)
+    if not recipient or not recipient.campaign.cta_url:
         raise ValidationError("Cette campagne ne peut plus être attribuée.")
-    reference = recipient.sent_at or recipient.campaign.started_at or recipient.created_at
-    if timezone.now() > reference + timedelta(days=recipient.campaign.attribution_window_days):
-        raise ValidationError("La fenêtre d’attribution de cette campagne est terminée.")
+    recipient = CampaignRecipient.objects.select_for_update().select_related("campaign", "contact").get(pk=recipient.pk)
     now = timezone.now()
     recipient.click_count = F("click_count") + 1
     recipient.first_clicked_at = recipient.first_clicked_at or now
@@ -708,7 +715,7 @@ def _session_campaign_recipient(request):
     if not raw_id or not captured_at_raw:
         return None
     try:
-        captured_at = timezone.datetime.fromisoformat(captured_at_raw)
+        captured_at = datetime.fromisoformat(captured_at_raw)
         if timezone.is_naive(captured_at):
             captured_at = timezone.make_aware(captured_at)
     except (TypeError, ValueError):
@@ -722,10 +729,12 @@ def _session_campaign_recipient(request):
 
 
 @transaction.atomic
-def attribute_order_from_campaign(*, order: TicketOrder, request=None, recipient=None):
+def attribute_order_from_campaign(*, order: TicketOrder, request=None, recipient=None, token=None):
     existing = CampaignAttribution.objects.filter(order=order).first()
     if existing:
         return existing
+    if token and recipient is None:
+        recipient = resolve_campaign_recipient_token(token)
     recipient = recipient or _session_campaign_recipient(request)
     if not recipient:
         return None
@@ -782,7 +791,7 @@ def unsubscribe_from_token(token: str):
         payload = signing.loads(token, salt=UNSUBSCRIBE_SIGNING_SALT)
     except signing.BadSignature as exc:
         raise ValidationError("Lien de désabonnement invalide.") from exc
-    contact = CRMContact.objects.select_for_update().select_related("user").filter(pk=payload.get("contact_id")).first()
+    contact = CRMContact.objects.select_for_update().select_related("user", "organization").filter(pk=payload.get("contact_id")).first()
     if not contact:
         raise ValidationError("Contact CRM introuvable.")
     contact.marketing_consent = MarketingConsent.UNSUBSCRIBED
@@ -790,9 +799,8 @@ def unsubscribe_from_token(token: str):
     contact.consent_updated_at = timezone.now()
     contact.save(update_fields=["marketing_consent", "consent_source", "consent_updated_at", "updated_at"])
     if contact.user_id:
-        preference, _ = NotificationPreference.objects.get_or_create(user=contact.user)
-        preference.marketing_notifications = False
-        preference.save(update_fields=["marketing_notifications", "updated_at"])
+        # Désabonnement local à l'organisateur : ne jamais couper le marketing
+        # global du compte ni les préférences d'autres organisateurs.
         OrganizationFollow.objects.filter(
             organization=contact.organization,
             user=contact.user,
