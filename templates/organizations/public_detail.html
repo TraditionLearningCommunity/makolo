@@ -21,7 +21,7 @@
             <form method="post" action="{% url 'organizer_public:follow-toggle' organization.slug %}">{% csrf_token %}<button class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">{% if follow %}Ne plus suivre{% else %}Suivre{% endif %}</button></form>
             {% if follow %}<a href="{% url 'organizer_public:follow-preferences' organization.slug %}" class="rounded-2xl border border-white/40 px-5 py-3 font-black text-white">Préférences</a>{% endif %}
           {% else %}
-            <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">Se connecter pour suivre</a>
+            <a href="{% url 'core:login' %}?next={{ request.path }}" class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">Se connecter pour suivre</a>
           {% endif %}
           {% if organization.website %}<a href="{{ organization.website }}" rel="noopener noreferrer" target="_blank" class="rounded-2xl border border-white/40 px-5 py-3 font-black text-white">Site officiel ↗</a>{% endif %}
         </div>
