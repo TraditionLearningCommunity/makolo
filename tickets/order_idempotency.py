@@ -19,6 +19,11 @@ def _validate_existing(*, order, buyer, fingerprint):
     return order
 
 
+def _validate_public_selections(selections):
+    if any(not ticket_type.is_active or not ticket_type.is_public for ticket_type, _ in selections):
+        raise ValidationError("Un type de billet sélectionné n’est pas disponible au public.")
+
+
 def get_idempotent_order(*, idempotency_key, buyer, fingerprint):
     if not idempotency_key:
         return None
@@ -52,6 +57,17 @@ def create_idempotent_order_with_promotion(
     constraint rejects the second binding and the whole second stock reservation
     is rolled back before the already-created order is returned.
     """
+    if idempotency_key:
+        existing = get_idempotent_order(
+            idempotency_key=idempotency_key,
+            buyer=buyer,
+            fingerprint=idempotency_fingerprint,
+        )
+        if existing:
+            return existing
+
+    _validate_public_selections(selections)
+
     if not idempotency_key:
         order = create_order_with_promotion(
             buyer=buyer,
@@ -63,14 +79,6 @@ def create_idempotent_order_with_promotion(
         )
         order._idempotent_replay = False
         return order
-
-    existing = get_idempotent_order(
-        idempotency_key=idempotency_key,
-        buyer=buyer,
-        fingerprint=idempotency_fingerprint,
-    )
-    if existing:
-        return existing
 
     try:
         with transaction.atomic():
@@ -103,7 +111,7 @@ def create_idempotent_order_with_promotion(
             )
             order._idempotent_replay = False
             return order
-    except IntegrityError as exc:
+    except IntegrityError:
         existing = TicketOrder.objects.filter(
             idempotency_key=idempotency_key
         ).first()
