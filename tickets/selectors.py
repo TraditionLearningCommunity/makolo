@@ -16,6 +16,19 @@ def _organization_role_filter(prefix: str, user, roles) -> Q:
     )
 
 
+def get_public_ticket_types_for_event(event):
+    """Participant-facing ticket inventory for one already-public event.
+
+    Inactive ticket types are treated as internal/unavailable and are never
+    exposed through the mobile checkout contract.
+    """
+    return (
+        TicketType.objects.select_related("event")
+        .filter(event=event, is_active=True)
+        .order_by("price", "name")
+    )
+
+
 def get_ticket_types_visible_to(user):
     queryset = TicketType.objects.select_related("event", "event__organizer", "event__organization")
     public_filter = Q(
