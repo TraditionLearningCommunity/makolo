@@ -76,6 +76,8 @@ LOCAL_APPS = [
     "loyalty.apps.LoyaltyConfig",
     "analytics_app",
     "operations.apps.OperationsConfig",
+    "discovery.apps.DiscoveryConfig",
+    "growth.apps.GrowthConfig",
 ]
 INSTALLED_APPS = [*DJANGO_APPS, *THIRD_PARTY_APPS, *LOCAL_APPS]
 
