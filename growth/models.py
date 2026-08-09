@@ -90,6 +90,8 @@ class MarketingLink(models.Model):
                 if candidate and not MarketingLink.objects.filter(code=candidate).exists():
                     self.code = candidate
                     break
+            if not self.code:
+                raise RuntimeError("Impossible de générer un code marketing unique.")
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -192,7 +194,7 @@ class EventFeedback(models.Model):
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.UniqueConstraint(fields=["event", "user"], name="growth_feedback_event_user_unique")
+            models.UniqueConstraint(fields=["event", "user"], name="growth_feedback_event_user_uq")
         ]
         indexes = [
             models.Index(fields=["event", "rating"], name="growth_feedback_event_idx"),
