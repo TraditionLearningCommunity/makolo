@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from organizations.models import OrganizationFollow, OrganizationMembership
 from partners.models import AttributionStatus, ReferralAttribution
+from promotions.models import PromotionRedemption, RedemptionStatus
 from tickets.models import (
     Ticket,
     TicketOrder,
@@ -176,6 +177,29 @@ def campaign_metrics(campaign: CommunicationCampaign):
         {"currency": row["currency"] or "N/A", "amount": row["amount"] or 0, "orders": row["orders"]}
         for row in confirmed.values("currency").annotate(amount=Sum("revenue_amount"), orders=Count("id")).order_by("currency")
     ]
+
+    coupon_confirmed = PromotionRedemption.objects.filter(
+        code__crm_campaign=campaign,
+        status=RedemptionStatus.CONFIRMED,
+    )
+    coupon_reversed = PromotionRedemption.objects.filter(
+        code__crm_campaign=campaign,
+        status=RedemptionStatus.REVERSED,
+    ).count()
+    coupon_by_currency = [
+        {
+            "currency": row["currency"] or "N/A",
+            "discount_amount": row["discount_amount"] or 0,
+            "revenue_amount": row["revenue_amount"] or 0,
+            "orders": row["orders"],
+        }
+        for row in coupon_confirmed.values("currency").annotate(
+            discount_amount=Sum("discount_amount"),
+            revenue_amount=Sum("final_amount"),
+            orders=Count("id"),
+        ).order_by("currency")
+    ]
+
     return {
         "audience_size": audience_size,
         "queued": recipients.filter(status=CampaignRecipientStatus.QUEUED).count(),
@@ -190,4 +214,7 @@ def campaign_metrics(campaign: CommunicationCampaign):
         "conversion_rate": round((conversions / clicked_recipients) * 100, 1) if clicked_recipients else 0,
         "reversed_conversions": reversed_count,
         "revenue_by_currency": revenue_by_currency,
+        "promotion_code_conversions": coupon_confirmed.count(),
+        "promotion_code_reversed": coupon_reversed,
+        "promotion_code_by_currency": coupon_by_currency,
     }

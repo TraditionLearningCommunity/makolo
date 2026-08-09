@@ -14,6 +14,8 @@ from crm.services import attribute_order_from_campaign
 from events.permissions import user_can_manage_event, user_can_manage_events
 from events.selectors import get_events_visible_to, get_manageable_events
 from partners.services import attribute_order, get_session_referral
+from promotions.checkout import apply_code_to_pending_order, create_order_with_promotion
+from promotions.services import public_codes_for_event
 
 from .forms import TicketTypeForm
 from .models import (
@@ -38,7 +40,6 @@ from .services import (
     cancel_order,
     cancel_ticket_transfer,
     can_join_waitlist,
-    create_order,
     create_ticket_transfer,
     decline_ticket_transfer,
     join_waitlist,
@@ -205,6 +206,8 @@ class EventTicketOrderView(LoginRequiredMixin, View):
             "waitlist_eligible_ids": eligible_ids,
             "active_waitlist_type_ids": active_ids,
             "referral_partner": referral.partner.display_name if referral else "",
+            "public_promotion_codes": public_codes_for_event(event)[:8],
+            "promotion_code_value": request.POST.get("promotion_code", "") if request.method == "POST" else "",
         }
 
     def get(self, request, event_slug):
@@ -232,12 +235,13 @@ class EventTicketOrderView(LoginRequiredMixin, View):
         customer_email = request.POST.get("customer_email") or request.user.email
 
         try:
-            order = create_order(
+            order = create_order_with_promotion(
                 buyer=request.user,
                 event=event,
                 customer_name=customer_name,
                 customer_email=customer_email,
                 selections=selections,
+                promotion_code=request.POST.get("promotion_code", ""),
             )
             attribute_order(order=order, request=request)
             attribute_order_from_campaign(order=order, request=request)
@@ -250,13 +254,26 @@ class EventTicketOrderView(LoginRequiredMixin, View):
                 status=400,
             )
 
+        redemption = getattr(order, "promotion_redemption", None)
         if order.status == "confirmed":
-            messages.success(request, "Billets gratuits émis avec succès.")
+            if redemption:
+                messages.success(
+                    request,
+                    f"Code {redemption.code.code} appliqué : billets émis avec {redemption.discount_amount} {redemption.currency} de remise.",
+                )
+            else:
+                messages.success(request, "Billets gratuits émis avec succès.")
         else:
-            messages.success(
-                request,
-                "Commande réservée. Le paiement devra être confirmé avant expiration.",
-            )
+            if redemption:
+                messages.success(
+                    request,
+                    f"Code {redemption.code.code} appliqué : {redemption.discount_amount} {redemption.currency} de remise. Finalisez le paiement avant expiration.",
+                )
+            else:
+                messages.success(
+                    request,
+                    "Commande réservée. Le paiement devra être confirmé avant expiration.",
+                )
         return redirect("tickets:order-detail", pk=order.pk)
 
 
@@ -275,7 +292,32 @@ class TicketOrderDetailView(LoginRequiredMixin, DetailView):
             offered_order=self.object,
             user=self.request.user,
         ).first()
+        context["promotion_redemption"] = getattr(self.object, "promotion_redemption", None)
+        context["public_promotion_codes"] = public_codes_for_event(self.object.event)[:8]
         return context
+
+
+class TicketOrderPromotionApplyView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk):
+        order = get_object_or_404(get_orders_visible_to(request.user), pk=pk)
+        try:
+            updated = apply_code_to_pending_order(
+                order=order,
+                actor=request.user,
+                promotion_code=request.POST.get("promotion_code", ""),
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            redemption = getattr(updated, "promotion_redemption", None)
+            if redemption:
+                messages.success(
+                    request,
+                    f"Code {redemption.code.code} appliqué : remise de {redemption.discount_amount} {redemption.currency}.",
+                )
+        return redirect("tickets:order-detail", pk=order.pk)
 
 
 class TicketOrderCancelView(LoginRequiredMixin, View):
