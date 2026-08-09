@@ -167,6 +167,8 @@ class TicketType(models.Model):
 class TicketOrder(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reference = models.CharField(max_length=24, unique=True, editable=False)
+    idempotency_key = models.UUIDField(unique=True, null=True, blank=True, editable=False)
+    idempotency_fingerprint = models.CharField(max_length=64, blank=True, editable=False)
     event = models.ForeignKey(
         Event,
         on_delete=models.PROTECT,
