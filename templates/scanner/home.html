@@ -1,35 +1,12 @@
 {% extends 'base/app.html' %}
-
 {% block title %}Scanner | Makolo{% endblock %}
-
 {% block content %}
-<div class="mx-auto max-w-6xl space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Contrôle d’accès</p>
-            <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 dark:text-white">Scanner & Smart Access</h1>
-            <p class="mt-3 max-w-2xl text-zinc-500 dark:text-zinc-400">Scannez les QR, suivez le débit par porte et détectez les anomalies d’entrée depuis les journaux serveur.</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <a href="{% url 'scanner:logs' %}" class="rounded-2xl border border-zinc-300 px-4 py-3 font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">Historique</a>
-            {% if can_manage_assignments %}
-            <a href="{% url 'scanner:gates' %}" class="rounded-2xl border border-emerald-300 px-4 py-3 font-semibold text-emerald-700 dark:border-emerald-800 dark:text-emerald-300">Portes d’accès</a>
-            <a href="{% url 'scanner:assignments' %}" class="rounded-2xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-500">Gérer les agents</a>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+<div class="space-y-8 lg:space-y-10">
+    <section class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div class="max-w-3xl"><span class="mk-kicker">Contrôle d’accès</span><h1 class="mk-page-title">Scanner & Smart Access</h1><p class="mk-page-copy mt-4 text-[15px]">QR, débit par porte et anomalies d’entrée dans une interface pensée pour l’action sur le terrain.</p></div><div class="flex flex-wrap gap-2"><a href="{% url 'scanner:logs' %}" class="mk-btn mk-btn-secondary"><i data-lucide="history" class="h-4 w-4"></i>Historique</a>{% if can_manage_assignments %}<a href="{% url 'scanner:gates' %}" class="mk-btn mk-btn-secondary"><i data-lucide="door-open" class="h-4 w-4"></i>Portes</a><a href="{% url 'scanner:assignments' %}" class="mk-btn mk-btn-primary"><i data-lucide="users-round" class="h-4 w-4"></i>Gérer les agents</a>{% endif %}</div></section>
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {% for event in scannable_events %}
-        <article class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <div class="flex items-center justify-between gap-3"><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Publié</span><span class="text-xs text-zinc-400">{{ event.start_at|date:"d/m/Y H:i" }}</span></div>
-            <h2 class="mt-5 text-xl font-black text-zinc-900 dark:text-white">{{ event.title }}</h2>
-            <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{% if event.venue %}{{ event.venue }}{% else %}Lieu non défini{% endif %}</p>
-            <div class="mt-6 grid grid-cols-2 gap-2"><a href="{% url 'scanner:console' event.slug %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-3 font-bold text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900"><i data-lucide="scan-line" class="h-5 w-5"></i>Scanner</a><a href="{% url 'scanner:live-access' event.slug %}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-500">Live</a></div>
-        </article>
-        {% empty %}
-        <div class="rounded-3xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500 dark:border-zinc-700 dark:text-zinc-400 md:col-span-2 xl:col-span-3">Aucun événement n’est actuellement disponible pour votre compte. Un agent scanner doit avoir le rôle <strong>scanner-agent</strong> et une affectation active.</div>
-        {% endfor %}
-    </div>
+        <article class="mk-panel p-5 sm:p-6"><div class="flex items-center justify-between gap-3"><span class="mk-badge bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"><span class="h-1.5 w-1.5 rounded-full bg-current"></span>Publié</span><span class="text-[10px] uppercase tracking-[.08em]" style="color:var(--mk-subtle)">{{ event.start_at|date:"d M · H:i" }}</span></div><h2 class="mt-5 text-lg font-[740] tracking-[-.035em]">{{ event.title }}</h2><p class="mt-2 flex items-center gap-2 text-xs" style="color:var(--mk-muted)"><i data-lucide="map-pin" class="h-3.5 w-3.5"></i>{% if event.venue %}{{ event.venue }}{% else %}Lieu non défini{% endif %}</p><div class="mt-6 grid grid-cols-2 gap-2"><a href="{% url 'scanner:console' event.slug %}" class="mk-btn mk-btn-primary"><i data-lucide="scan-line" class="h-4 w-4"></i>Scanner</a><a href="{% url 'scanner:live-access' event.slug %}" class="mk-btn mk-btn-secondary"><i data-lucide="activity" class="h-4 w-4"></i>Live</a></div></article>
+        {% empty %}<div class="mk-empty py-14 text-center md:col-span-2 xl:col-span-3"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="scan-line" class="h-5 w-5"></i></div><p class="mx-auto mt-4 max-w-xl text-sm font-semibold">Aucun événement disponible pour votre compte.</p><p class="mx-auto mt-1 max-w-xl text-xs" style="color:var(--mk-muted)">Un agent doit avoir le rôle scanner-agent et une affectation active pour accéder au contrôle d’entrée.</p></div>{% endfor %}
+    </section>
 </div>
 {% endblock %}
