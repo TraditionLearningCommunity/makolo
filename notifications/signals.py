@@ -14,8 +14,8 @@ from .services import (
 
 
 @receiver(post_save, sender=TicketOrder)
-def queue_free_order_notification(sender, instance, **kwargs):
-    if instance.status == TicketOrderStatus.CONFIRMED and instance.total_amount == 0:
+def queue_order_confirmation_notification(sender, instance, **kwargs):
+    if instance.status == TicketOrderStatus.CONFIRMED:
         transaction.on_commit(lambda pk=instance.pk: notify_order_confirmed(pk))
 
 
