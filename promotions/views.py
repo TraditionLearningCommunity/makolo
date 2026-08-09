@@ -144,11 +144,14 @@ class PromotionDetailView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         promotion = self._promotion()
         financials = user_can_view_promotion_financials(self.request.user, promotion.organization)
+        recent_redemptions = []
+        if financials:
+            recent_redemptions = PromotionRedemption.objects.filter(promotion=promotion).select_related("code", "order")[:50]
         context.update(
             {
                 "promotion": promotion,
                 "metrics": promotion_metrics(promotion, include_financials=financials),
-                "recent_redemptions": PromotionRedemption.objects.filter(promotion=promotion).select_related("code", "order")[:50],
+                "recent_redemptions": recent_redemptions,
                 "can_manage": user_can_manage_promotions(self.request.user, promotion.organization),
                 "can_view_financials": financials,
                 "code_form": PromotionCodeForm(promotion=promotion),
