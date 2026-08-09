@@ -72,6 +72,7 @@ LOCAL_APPS = [
     "automation",
     "partners",
     "crm",
+    "promotions.apps.PromotionsConfig",
     "analytics_app",
 ]
 INSTALLED_APPS = [*DJANGO_APPS, *THIRD_PARTY_APPS, *LOCAL_APPS]
