@@ -23,7 +23,7 @@ class EventBookmark(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "event"],
-                name="discovery_bookmark_user_event_unique",
+                name="disc_bookmark_user_event_uq",
             )
         ]
         indexes = [
