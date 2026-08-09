@@ -1,0 +1,12 @@
+{{ subject }}
+
+Bonjour{% if contact.name %} {{ contact.name }}{% endif %},
+
+{{ body }}
+
+{% if cta_url %}{{ cta_label }} : {{ cta_url }}
+
+{% endif %}{% if unsubscribe_url %}Vous recevez ce message selon vos préférences auprès de cet organisateur.
+Se désabonner : {{ unsubscribe_url }}
+{% endif %}
+— Makolo
