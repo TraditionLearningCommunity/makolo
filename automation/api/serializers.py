@@ -18,6 +18,7 @@ class CRMWorkflowActionSerializer(serializers.ModelSerializer):
             "tag_id",
             "title",
             "message",
+            "marketing_action",
             "is_active",
         ]
         read_only_fields = ["id", "kind_label"]
@@ -95,6 +96,7 @@ class CRMWorkflowActionCreateSerializer(serializers.Serializer):
     tag_id = serializers.UUIDField(required=False, allow_null=True)
     title = serializers.CharField(required=False, allow_blank=True, max_length=180)
     message = serializers.CharField(required=False, allow_blank=True)
+    marketing_action = serializers.BooleanField(required=False)
     is_active = serializers.BooleanField(required=False)
 
 
