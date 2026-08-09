@@ -1,0 +1,9 @@
+{% extends 'base/app.html' %}
+{% block title %}Promotions | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-8">
+  <div><p class="text-sm font-black uppercase tracking-[0.2em] text-indigo-500">Growth & pricing</p><h1 class="mt-2 text-4xl font-black">Promotions & codes</h1><p class="mt-2 max-w-3xl text-zinc-500">Créez des offres contrôlées par quota, période, événement, type de billet et minimum de commande. Les remises restent auditées jusqu’à la vente confirmée ou son annulation.</p></div>
+  <div class="grid gap-4 md:grid-cols-3"><div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-sm text-zinc-500">Offres accessibles</p><p class="mt-2 text-3xl font-black">{{ promotions_count }}</p></div></div>
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-black">Organisations</h2><div class="mt-4 grid gap-3 md:grid-cols-2">{% for organization in organizations %}<a href="{% url 'promotions:organization' organization.slug %}" class="rounded-2xl border border-zinc-100 p-5 hover:border-indigo-300 dark:border-zinc-900"><div class="font-black">{{ organization.name }}</div><div class="mt-1 text-sm text-zinc-500">Gérer les offres et leurs codes →</div></a>{% empty %}<p class="text-zinc-500">Aucune organisation accessible.</p>{% endfor %}</div></section>
+</div>
+{% endblock %}
