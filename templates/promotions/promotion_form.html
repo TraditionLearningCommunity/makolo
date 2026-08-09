@@ -1,12 +1,12 @@
 {% extends 'base/app.html' %}
-{% block title %}Nouvelle promotion · {{ organization.name }} | Makolo{% endblock %}
+{% block title %}{% if editing %}Modifier {{ promotion.name }}{% else %}Nouvelle promotion{% endif %} · {{ organization.name }} | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-4xl space-y-7">
-  <div><a href="{% url 'promotions:organization' organization.slug %}" class="text-sm font-bold text-indigo-500">← {{ organization.name }}</a><h1 class="mt-2 text-4xl font-black">Nouvelle offre</h1><p class="mt-2 text-zinc-500">Définissez la règle commerciale. Les codes seront ajoutés après la création de l’offre.</p></div>
+  <div><a href="{% if editing %}{% url 'promotions:detail' promotion.pk %}{% else %}{% url 'promotions:organization' organization.slug %}{% endif %}" class="text-sm font-bold text-indigo-500">← {{ organization.name }}</a><h1 class="mt-2 text-4xl font-black">{% if editing %}Modifier l’offre{% else %}Nouvelle offre{% endif %}</h1><p class="mt-2 text-zinc-500">{% if editing %}Les nouvelles règles s’appliquent aux prochaines utilisations. Les remises historiques restent figées sur les commandes déjà créées.{% else %}Définissez la règle commerciale. Les codes seront ajoutés après la création de l’offre.{% endif %}</p></div>
   <form method="post" class="space-y-6">{% csrf_token %}
     {% if form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-red-700">{{ form.non_field_errors }}</div>{% endif %}
     <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><div class="grid gap-5 md:grid-cols-2">{% for field in form %}<div class="{% if field.name == 'description' or field.name == 'eligible_ticket_types' %}md:col-span-2{% endif %}"><label class="mb-2 block text-sm font-black">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<p class="mt-1 text-sm text-red-500">{{ field.errors|striptags }}</p>{% endif %}</div>{% endfor %}</div></section>
-    <button class="rounded-2xl bg-indigo-600 px-6 py-3 font-black text-white">Créer l’offre</button>
+    <button class="rounded-2xl bg-indigo-600 px-6 py-3 font-black text-white">{% if editing %}Enregistrer les règles{% else %}Créer l’offre{% endif %}</button>
   </form>
 </div>
 {% endblock %}
