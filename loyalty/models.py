@@ -165,7 +165,7 @@ class LoyaltyAccount(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     program = models.ForeignKey(LoyaltyProgram, on_delete=models.CASCADE, related_name="accounts")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="loyalty_accounts")
-    points_balance = models.PositiveIntegerField(default=0)
+    points_balance = models.IntegerField(default=0)
     lifetime_earned = models.PositiveIntegerField(default=0)
     lifetime_redeemed = models.PositiveIntegerField(default=0)
     current_tier = models.ForeignKey(LoyaltyTier, on_delete=models.SET_NULL, related_name="accounts", null=True, blank=True)
