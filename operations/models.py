@@ -126,17 +126,35 @@ class OperationsIncident(models.Model):
         super().clean()
         errors = {}
         self.title = (self.title or "").strip()
+        self.resolution = (self.resolution or "").strip()
         if not self.title:
             errors["title"] = "Le titre est obligatoire."
+        if self.status == IncidentStatus.RESOLVED and not self.resolution:
+            errors["resolution"] = "Une résolution est requise pour clôturer l'incident comme résolu."
         if self.assigned_to_id and not self.assigned_to.is_staff:
             errors["assigned_to"] = "Un incident Operations ne peut être assigné qu'à un membre du staff Makolo."
-        if self.event_id and self.organization_id:
-            if self.event.organization_id and self.event.organization_id != self.organization_id:
+
+        event_organization_id = self.event.organization_id if self.event_id else None
+        payment_event_id = self.payment.order.event_id if self.payment_id else None
+        payment_organization_id = self.payment.order.event.organization_id if self.payment_id else None
+        scan_event_id = self.scan_log.event_id if self.scan_log_id else None
+        scan_organization_id = self.scan_log.event.organization_id if self.scan_log_id else None
+
+        if self.event_id and self.organization_id and event_organization_id:
+            if event_organization_id != self.organization_id:
                 errors["event"] = "L'événement doit appartenir à l'organisation de l'incident."
-        if self.payment_id and self.event_id and self.payment.order.event_id != self.event_id:
+        if self.payment_id and self.event_id and payment_event_id != self.event_id:
             errors["payment"] = "Le paiement doit appartenir à l'événement de l'incident."
-        if self.scan_log_id and self.event_id and self.scan_log.event_id != self.event_id:
+        if self.scan_log_id and self.event_id and scan_event_id != self.event_id:
             errors["scan_log"] = "Le scan doit appartenir à l'événement de l'incident."
+        if self.payment_id and self.organization_id and payment_organization_id:
+            if payment_organization_id != self.organization_id:
+                errors["payment"] = "Le paiement doit appartenir à l'organisation de l'incident."
+        if self.scan_log_id and self.organization_id and scan_organization_id:
+            if scan_organization_id != self.organization_id:
+                errors["scan_log"] = "Le scan doit appartenir à l'organisation de l'incident."
+        if self.payment_id and self.scan_log_id and payment_event_id != scan_event_id:
+            errors["scan_log"] = "Le scan et le paiement liés doivent appartenir au même événement."
         if errors:
             raise ValidationError(errors)
 
