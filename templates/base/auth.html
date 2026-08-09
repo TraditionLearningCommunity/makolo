@@ -19,37 +19,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui']},colors:{primary:'#4f46e5'}}}}</script>
     <link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}">
+    <link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}">
 </head>
 <body class="min-h-screen">
     <main class="mk-auth-grid">
         <section class="mk-auth-visual hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-            <div class="relative z-10 flex items-center gap-3">
-                <div class="mk-brand-mark">M</div>
-                <div><p class="text-sm font-extrabold tracking-[-.03em]">MAKOLO</p><p class="text-[10px] uppercase tracking-[.14em] text-white/45">Event operating system</p></div>
-            </div>
-            <div class="relative z-10 max-w-xl">
-                <p class="text-xs font-bold uppercase tracking-[.16em] text-indigo-300">Une seule plateforme</p>
-                <h1 class="mt-5 text-5xl font-[750] leading-[.98] tracking-[-.06em] xl:text-6xl">Organiser. Vendre. Accueillir. Faire revenir.</h1>
-                <p class="mt-6 max-w-lg text-base leading-7 text-white/58">Makolo rassemble l’opérationnel, l’audience et l’expérience participant dans un espace pensé pour les événements réels.</p>
-            </div>
-            <div class="relative z-10 grid grid-cols-3 gap-3 text-xs text-white/55">
-                <div class="rounded-2xl border border-white/10 bg-white/[.035] p-4"><i data-lucide="ticket-check" class="mb-3 h-4 w-4 text-indigo-300"></i><p class="font-semibold text-white/85">Billetterie</p><p class="mt-1">Simple et traçable</p></div>
-                <div class="rounded-2xl border border-white/10 bg-white/[.035] p-4"><i data-lucide="scan-line" class="mb-3 h-4 w-4 text-indigo-300"></i><p class="font-semibold text-white/85">Accès</p><p class="mt-1">Rapide et sécurisé</p></div>
-                <div class="rounded-2xl border border-white/10 bg-white/[.035] p-4"><i data-lucide="chart-spline" class="mb-3 h-4 w-4 text-indigo-300"></i><p class="font-semibold text-white/85">Growth</p><p class="mt-1">Mesurable de bout en bout</p></div>
-            </div>
+            <div class="relative z-10 flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="text-sm font-extrabold tracking-[-.03em]">MAKOLO</p><p class="text-[10px] uppercase tracking-[.14em] text-white/45">Event operating system</p></div></div>
+            <div class="relative z-10 max-w-xl"><p class="text-xs font-bold uppercase tracking-[.16em] text-indigo-300">Une seule plateforme</p><h1 class="mt-5 text-5xl font-[750] leading-[.98] tracking-[-.06em] xl:text-6xl">Organiser. Vendre. Accueillir. Faire revenir.</h1><p class="mt-6 max-w-lg text-base leading-7 text-white/58">Makolo rassemble l’opérationnel, l’audience et l’expérience participant dans un espace pensé pour les événements réels.</p></div>
+            <div class="relative z-10 grid grid-cols-3 gap-3 text-xs text-white/55"><div class="rounded-2xl border border-white/10 bg-white/[.035] p-4"><i data-lucide="ticket-check" class="mb-3 h-4 w-4 text-indigo-300"></i><p class="font-semibold text-white/85">Billetterie</p><p class="mt-1">Simple et traçable</p></div><div class="rounded-2xl border border-white/10 bg-white/[.035] p-4"><i data-lucide="scan-line" class="mb-3 h-4 w-4 text-indigo-300"></i><p class="font-semibold text-white/85">Accès</p><p class="mt-1">Rapide et sécurisé</p></div><div class="rounded-2xl border border-white/10 bg-white/[.035] p-4"><i data-lucide="chart-spline" class="mb-3 h-4 w-4 text-indigo-300"></i><p class="font-semibold text-white/85">Growth</p><p class="mt-1">Mesurable de bout en bout</p></div></div>
         </section>
-
         <section class="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
             <div class="w-full max-w-[460px]">
                 <div class="mb-8 flex items-center gap-3 lg:hidden"><div class="mk-brand-mark">M</div><div><p class="text-sm font-extrabold">MAKOLO</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Event operating system</p></div></div>
-                <div class="mk-auth-card p-6 sm:p-8">
-                    {% block content %}{% endblock %}
-                </div>
+                <div class="mk-auth-card p-6 sm:p-8">{% block content %}{% endblock %}</div>
                 <p class="mt-6 text-center text-[11px]" style="color:var(--mk-subtle)">Makolo · 2026 · Expérience événementielle professionnelle</p>
             </div>
         </section>
     </main>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>lucide.createIcons();</script>
+    <script src="https://unpkg.com/lucide@latest"></script><script>lucide.createIcons();</script>
 </body>
 </html>
