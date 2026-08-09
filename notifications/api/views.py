@@ -1,5 +1,6 @@
 from django.utils import timezone
-from rest_framework import generics, permissions, response, status, views
+from rest_framework import generics, permissions, response, views
+from rest_framework.exceptions import NotFound
 
 from notifications.models import Notification
 from notifications.selectors import get_notifications_for_user
@@ -40,7 +41,7 @@ class NotificationMarkReadAPIView(views.APIView):
     def post(self, request, pk):
         notification = get_notifications_for_user(request.user).filter(pk=pk).first()
         if not notification:
-            return response.Response(status=status.HTTP_404_NOT_FOUND)
+            raise NotFound("Notification introuvable.")
         notification.mark_read()
         return response.Response(NotificationSerializer(notification).data)
 
