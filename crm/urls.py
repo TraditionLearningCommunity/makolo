@@ -1,0 +1,33 @@
+from django.urls import path
+
+from .views import (
+    CampaignCancelView,
+    CampaignCreateView,
+    CampaignDetailView,
+    CampaignSendView,
+    ContactConsentUpdateView,
+    ContactDetailView,
+    ContactNoteCreateView,
+    CRMHomeView,
+    OrganizationCRMView,
+    SegmentCreateView,
+    SegmentDetailView,
+    UnsubscribeView,
+)
+
+app_name = "crm"
+
+urlpatterns = [
+    path("", CRMHomeView.as_view(), name="dashboard"),
+    path("org/<slug:slug>/", OrganizationCRMView.as_view(), name="organization"),
+    path("org/<slug:slug>/segments/new/", SegmentCreateView.as_view(), name="segment-create"),
+    path("org/<slug:slug>/campaigns/new/", CampaignCreateView.as_view(), name="campaign-create"),
+    path("contacts/<uuid:pk>/", ContactDetailView.as_view(), name="contact-detail"),
+    path("contacts/<uuid:pk>/notes/", ContactNoteCreateView.as_view(), name="contact-note"),
+    path("contacts/<uuid:pk>/consent/", ContactConsentUpdateView.as_view(), name="contact-consent"),
+    path("segments/<uuid:pk>/", SegmentDetailView.as_view(), name="segment-detail"),
+    path("campaigns/<uuid:pk>/", CampaignDetailView.as_view(), name="campaign-detail"),
+    path("campaigns/<uuid:pk>/send/", CampaignSendView.as_view(), name="campaign-send"),
+    path("campaigns/<uuid:pk>/cancel/", CampaignCancelView.as_view(), name="campaign-cancel"),
+    path("unsubscribe/<str:token>/", UnsubscribeView.as_view(), name="unsubscribe"),
+]
