@@ -72,12 +72,12 @@ class EventAccessGate(models.Model):
             ),
             models.CheckConstraint(
                 condition=Q(throughput_target_per_minute__gt=0),
-                name="scanner_gate_throughput_positive",
+                name="scan_gate_throughput_positive",
             ),
         ]
         indexes = [
             models.Index(fields=["event", "is_active"], name="scanner_gate_event_active_idx"),
-            models.Index(fields=["event", "priority"], name="scanner_gate_event_priority_idx"),
+            models.Index(fields=["event", "priority"], name="scanner_gate_event_prio_idx"),
         ]
 
     def clean(self):
