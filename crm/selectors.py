@@ -1,4 +1,19 @@
-from django.db.models import Count, Exists, OuterRef, Q, Sum
+from datetime import timedelta
+from decimal import Decimal
+
+from django.db.models import (
+    Count,
+    DateTimeField,
+    DecimalField,
+    Exists,
+    IntegerField,
+    OuterRef,
+    Q,
+    Subquery,
+    Sum,
+    Value,
+)
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from organizations.models import OrganizationFollow, OrganizationMembership
@@ -13,6 +28,7 @@ from tickets.models import (
     WaitlistStatus,
 )
 
+from .customer360 import BEHAVIOR_FILTER_KEY, segment_behavior_filters
 from .models import (
     AudienceKind,
     AudienceSegment,
@@ -68,6 +84,131 @@ def get_campaigns_visible_to(user):
     return queryset.filter(organization_id__in=organization_ids)
 
 
+def _apply_behavior_filters(queryset, segment: AudienceSegment):
+    behavior = segment_behavior_filters(segment)
+    if not behavior:
+        return queryset
+
+    order_match = Q(customer_email__iexact=OuterRef("email")) | Q(buyer_id=OuterRef("user_id"))
+    confirmed_orders = TicketOrder.objects.filter(
+        event__organization=segment.organization,
+        status=TicketOrderStatus.CONFIRMED,
+    ).filter(order_match)
+
+    if "min_confirmed_orders" in behavior:
+        count_subquery = (
+            confirmed_orders.order_by()
+            .values("event__organization_id")
+            .annotate(total=Count("id"))
+            .values("total")[:1]
+        )
+        queryset = queryset.annotate(
+            _behavior_order_count=Coalesce(
+                Subquery(count_subquery, output_field=IntegerField()),
+                Value(0),
+            )
+        ).filter(_behavior_order_count__gte=behavior["min_confirmed_orders"])
+
+    if "max_days_since_last_order" in behavior or "min_days_since_last_order" in behavior:
+        last_order_subquery = confirmed_orders.order_by("-confirmed_at").values("confirmed_at")[:1]
+        queryset = queryset.annotate(
+            _behavior_last_order=Subquery(last_order_subquery, output_field=DateTimeField())
+        )
+        if "max_days_since_last_order" in behavior:
+            threshold = timezone.now() - timedelta(days=behavior["max_days_since_last_order"])
+            queryset = queryset.filter(_behavior_last_order__gte=threshold)
+        if "min_days_since_last_order" in behavior:
+            threshold = timezone.now() - timedelta(days=behavior["min_days_since_last_order"])
+            queryset = queryset.filter(_behavior_last_order__lte=threshold)
+
+    if "min_attended_events" in behavior:
+        ticket_match = Q(holder_email__iexact=OuterRef("email")) | Q(owner_id=OuterRef("user_id"))
+        attended_subquery = (
+            Ticket.objects.filter(
+                event__organization=segment.organization,
+                status=TicketStatus.USED,
+            )
+            .filter(ticket_match)
+            .order_by()
+            .values("event__organization_id")
+            .annotate(total=Count("event_id", distinct=True))
+            .values("total")[:1]
+        )
+        queryset = queryset.annotate(
+            _behavior_attended_count=Coalesce(
+                Subquery(attended_subquery, output_field=IntegerField()),
+                Value(0),
+            )
+        ).filter(_behavior_attended_count__gte=behavior["min_attended_events"])
+
+    if "min_promotion_redemptions" in behavior:
+        promo_subquery = (
+            PromotionRedemption.objects.filter(
+                promotion__organization=segment.organization,
+                status=RedemptionStatus.CONFIRMED,
+            )
+            .filter(
+                Q(order__customer_email__iexact=OuterRef("email"))
+                | Q(order__buyer_id=OuterRef("user_id"))
+            )
+            .order_by()
+            .values("promotion__organization_id")
+            .annotate(total=Count("id"))
+            .values("total")[:1]
+        )
+        queryset = queryset.annotate(
+            _behavior_promo_count=Coalesce(
+                Subquery(promo_subquery, output_field=IntegerField()),
+                Value(0),
+            )
+        ).filter(_behavior_promo_count__gte=behavior["min_promotion_redemptions"])
+
+    if "min_partner_referred_orders" in behavior:
+        referral_subquery = (
+            ReferralAttribution.objects.filter(
+                campaign__organization=segment.organization,
+                status=AttributionStatus.CONFIRMED,
+            )
+            .filter(
+                Q(order__customer_email__iexact=OuterRef("email"))
+                | Q(order__buyer_id=OuterRef("user_id"))
+            )
+            .order_by()
+            .values("campaign__organization_id")
+            .annotate(total=Count("id"))
+            .values("total")[:1]
+        )
+        queryset = queryset.annotate(
+            _behavior_partner_count=Coalesce(
+                Subquery(referral_subquery, output_field=IntegerField()),
+                Value(0),
+            )
+        ).filter(_behavior_partner_count__gte=behavior["min_partner_referred_orders"])
+
+    if "min_spend_amount" in behavior:
+        spend_subquery = (
+            confirmed_orders.filter(currency=behavior["spend_currency"])
+            .order_by()
+            .values("event__organization_id")
+            .annotate(total=Sum("total_amount"))
+            .values("total")[:1]
+        )
+        queryset = queryset.annotate(
+            _behavior_spend=Coalesce(
+                Subquery(
+                    spend_subquery,
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                ),
+                Value(
+                    Decimal("0.00"),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                ),
+            )
+        ).filter(_behavior_spend__gte=Decimal(behavior["min_spend_amount"]))
+
+    return queryset
+
+
 def _apply_contact_filters(queryset, segment: AudienceSegment):
     if segment.marketing_consent_only:
         queryset = queryset.filter(marketing_consent=MarketingConsent.SUBSCRIBED)
@@ -80,6 +221,8 @@ def _apply_contact_filters(queryset, segment: AudienceSegment):
         queryset = queryset.filter(tag_links__tag=tag)
 
     for field_key, expected_value in (segment.custom_filters or {}).items():
+        if field_key == BEHAVIOR_FILTER_KEY:
+            continue
         values = CRMContactFieldValue.objects.filter(
             contact_id=OuterRef("pk"),
             field__organization=segment.organization,
@@ -87,10 +230,11 @@ def _apply_contact_filters(queryset, segment: AudienceSegment):
             field__is_active=True,
             value=expected_value,
         )
-        queryset = queryset.annotate(**{f"_crm_field_{str(field_key).replace('-', '_')}": Exists(values)}).filter(
-            **{f"_crm_field_{str(field_key).replace('-', '_')}": True}
-        )
-    return queryset
+        queryset = queryset.annotate(
+            **{f"_crm_field_{str(field_key).replace('-', '_')}": Exists(values)}
+        ).filter(**{f"_crm_field_{str(field_key).replace('-', '_')}": True})
+
+    return _apply_behavior_filters(queryset, segment)
 
 
 def audience_contacts(segment: AudienceSegment):
