@@ -1,0 +1,66 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ workflow.name }} | Makolo CRM Automation{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-8">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <a href="{% url 'automation:crm-workflows' organization.slug %}" class="font-bold text-indigo-500">← Scénarios {{ organization.name }}</a>
+      <p class="mt-4 text-sm font-black uppercase tracking-[0.2em] text-indigo-500">Makolo CRM Automation</p>
+      <h1 class="mt-2 text-4xl font-black">{{ workflow.name }}</h1>
+      <p class="mt-2 text-zinc-500">Quand <strong>{{ workflow.get_trigger_display }}</strong>{% if workflow.event %} · {{ workflow.event.title }}{% endif %}{% if workflow.segment %} · segment {{ workflow.segment.name }}{% endif %}</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% if can_manage %}<a href="{% url 'automation:crm-workflow-edit' workflow.pk %}" class="rounded-2xl border border-zinc-300 px-5 py-3 font-bold dark:border-zinc-700">Modifier</a><form method="post" action="{% url 'automation:crm-workflow-toggle' workflow.pk %}">{% csrf_token %}<button class="rounded-2xl px-5 py-3 font-black {% if workflow.is_active %}bg-amber-100 text-amber-800{% else %}bg-emerald-100 text-emerald-800{% endif %}">{% if workflow.is_active %}Mettre en pause{% else %}Activer{% endif %}</button></form>{% endif %}
+    </div>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-4">
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-500">État</p><p class="mt-2 font-black {% if workflow.is_active %}text-emerald-600{% else %}text-amber-600{% endif %}">{% if workflow.is_active %}Actif{% else %}En pause{% endif %}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-500">Étapes</p><p class="mt-2 text-2xl font-black">{{ actions|length }}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-500">Exécutions</p><p class="mt-2 text-2xl font-black">{{ workflow.runs.count }}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-500">Créé par</p><p class="mt-2 font-bold">{{ workflow.created_by.full_name|default:workflow.created_by.email }}</p></div>
+  </div>
+
+  {% if workflow.description %}<div class="rounded-3xl border border-zinc-200 bg-white p-6 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">{{ workflow.description }}</div>{% endif %}
+
+  <div class="grid gap-8 lg:grid-cols-3">
+    <div class="space-y-6 lg:col-span-2">
+      <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <div class="flex items-center justify-between"><div><h2 class="text-xl font-black">Parcours</h2><p class="mt-1 text-sm text-zinc-500">Chaque délai commence lorsque l’étape précédente se termine.</p></div></div>
+        <div class="mt-6 space-y-4">
+          {% for action in actions %}
+            <div class="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
+              <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div><p class="text-xs font-black uppercase tracking-wider text-indigo-500">Étape {{ action.position }}{% if action.delay_minutes %} · +{{ action.delay_minutes }} min{% else %} · immédiat{% endif %}</p><h3 class="mt-1 font-black">{{ action.get_kind_display }}</h3>{% if action.template %}<p class="mt-2 text-sm text-zinc-500">Modèle : {{ action.template.name }}</p>{% endif %}{% if action.tag %}<p class="mt-2 text-sm text-zinc-500">Tag : {{ action.tag.name }}</p>{% endif %}{% if action.title %}<p class="mt-2 font-bold">{{ action.title }}</p>{% endif %}{% if action.message %}<p class="mt-1 text-sm text-zinc-500">{{ action.message|truncatechars:180 }}</p>{% endif %}</div>
+                {% if can_manage %}<form method="post" action="{% url 'automation:crm-workflow-action-toggle' workflow.pk action.pk %}">{% csrf_token %}<button class="rounded-xl px-3 py-2 text-xs font-black {% if action.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-zinc-100 text-zinc-500{% endif %}">{% if action.is_active %}ACTIVE{% else %}PAUSE{% endif %}</button></form>{% endif %}
+              </div>
+            </div>
+          {% empty %}<p class="rounded-2xl bg-zinc-50 p-5 text-sm text-zinc-500 dark:bg-zinc-900">Ce scénario n’a encore aucune action. Un déclenchement sans action est enregistré puis terminé sans effet.</p>{% endfor %}
+        </div>
+      </section>
+
+      <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 class="text-xl font-black">Historique d’exécution</h2>
+        <div class="mt-5 overflow-x-auto"><table class="w-full text-left text-sm"><thead class="text-zinc-500"><tr><th class="pb-3">Contact</th><th class="pb-3">Source</th><th class="pb-3">État</th><th class="pb-3">Date</th></tr></thead><tbody>
+          {% for run in recent_runs %}<tr class="border-t border-zinc-100 dark:border-zinc-900"><td class="py-3">{% if run.contact %}{{ run.contact.display_name }}<br><span class="text-xs text-zinc-500">{{ run.contact.email }}</span>{% else %}—{% endif %}</td><td class="py-3">{{ run.source_type }}<br><span class="text-xs text-zinc-500">{{ run.source_id|truncatechars:40 }}</span></td><td class="py-3"><strong>{{ run.get_status_display }}</strong>{% if run.skip_reason %}<br><span class="text-xs text-zinc-500">{{ run.skip_reason }}</span>{% endif %}{% if run.error %}<br><span class="text-xs text-red-500">{{ run.error|truncatechars:100 }}</span>{% endif %}</td><td class="py-3">{{ run.created_at|date:"d/m/Y H:i:s" }}</td></tr>{% empty %}<tr><td colspan="4" class="py-6 text-zinc-500">Aucun déclenchement pour le moment.</td></tr>{% endfor %}
+        </tbody></table></div>
+      </section>
+    </div>
+
+    <aside class="space-y-6">
+      {% if can_manage %}<section class="rounded-3xl border border-indigo-200 bg-indigo-50 p-6 dark:border-indigo-900 dark:bg-indigo-950/30">
+        <h2 class="text-xl font-black">Ajouter une étape</h2>
+        <form method="post" action="{% url 'automation:crm-workflow-action-create' workflow.pk %}" class="mt-5 space-y-4">{% csrf_token %}
+          {% for field in action_form %}<div>{% if field.name == 'is_active' %}<label class="flex items-center gap-2 font-bold">{{ field }} {{ field.label }}</label>{% else %}<label class="mb-1 block text-sm font-bold">{{ field.label }}</label>{{ field }}{% endif %}{% if field.help_text %}<p class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}</div>{% endfor %}
+          <button class="w-full rounded-2xl bg-indigo-600 px-5 py-3 font-black text-white">Ajouter l’étape</button>
+        </form>
+      </section>{% endif %}
+
+      <section class="rounded-3xl border border-zinc-200 bg-white p-6 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 class="font-black">Conditions</h2>
+        <dl class="mt-4 space-y-3 text-zinc-500"><div><dt class="font-bold text-zinc-900 dark:text-white">Segment</dt><dd>{{ workflow.segment.name|default:"Aucun" }}</dd></div><div><dt class="font-bold text-zinc-900 dark:text-white">Type de billet</dt><dd>{{ workflow.ticket_type.name|default:"Tous" }}</dd></div><div><dt class="font-bold text-zinc-900 dark:text-white">Montant minimum</dt><dd>{% if workflow.min_order_amount != None %}{{ workflow.min_order_amount }} {{ workflow.currency }}{% else %}Aucun{% endif %}</dd></div>{% if workflow.trigger == 'before_event' %}<div><dt class="font-bold text-zinc-900 dark:text-white">Avant événement</dt><dd>{{ workflow.event_offset_minutes }} minutes · fenêtre {{ workflow.trigger_grace_minutes }} min</dd></div>{% endif %}</dl>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}
