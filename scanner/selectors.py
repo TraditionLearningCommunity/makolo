@@ -5,7 +5,7 @@ from accounts.api.permissions import user_has_role
 from events.models import Event, EventStatus
 from organizations.permissions import ACCESS_ROLES
 
-from .models import ScanLog, ScannerAssignment
+from .models import EventAccessGate, ScanLog, ScannerAssignment
 
 
 def _organization_access_filter(prefix: str, user) -> Q:
@@ -56,6 +56,7 @@ def get_scan_logs_visible_to(user):
         "ticket__ticket_type",
         "scanner",
         "assignment",
+        "access_gate",
     )
 
     if not getattr(user, "is_authenticated", False):
@@ -76,6 +77,7 @@ def get_assignments_visible_to(user):
         "event__organization",
         "agent",
         "assigned_by",
+        "access_gate",
     )
 
     if not getattr(user, "is_authenticated", False):
@@ -87,4 +89,23 @@ def get_assignments_visible_to(user):
         Q(event__organizer=user)
         | _organization_access_filter("event__", user)
         | Q(agent=user)
+    ).distinct()
+
+
+def get_access_gates_visible_to(user):
+    queryset = EventAccessGate.objects.select_related(
+        "event",
+        "event__organization",
+        "created_by",
+    ).prefetch_related("assignments")
+
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    if user.is_staff:
+        return queryset
+
+    return queryset.filter(
+        Q(event__organizer=user)
+        | _organization_access_filter("event__", user)
+        | Q(assignments__agent=user, assignments__is_active=True)
     ).distinct()
