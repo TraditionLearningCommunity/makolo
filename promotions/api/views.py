@@ -8,6 +8,7 @@ from organizations.models import Organization, OrganizationMembership
 
 from promotions.models import Promotion, PromotionCode, PromotionRedemption
 from promotions.permissions import (
+    PROMOTION_FINANCE_ROLES,
     PROMOTION_VIEW_ROLES,
     user_can_manage_promotions,
     user_can_view_promotion_financials,
@@ -37,6 +38,17 @@ def _visible_organizations(user):
         user=user,
         is_active=True,
         role__in=PROMOTION_VIEW_ROLES,
+    ).values_list("organization_id", flat=True)
+    return Organization.objects.filter(pk__in=ids)
+
+
+def _financial_organizations(user):
+    if user.is_staff:
+        return Organization.objects.all()
+    ids = OrganizationMembership.objects.filter(
+        user=user,
+        is_active=True,
+        role__in=PROMOTION_FINANCE_ROLES,
     ).values_list("organization_id", flat=True)
     return Organization.objects.filter(pk__in=ids)
 
@@ -141,7 +153,7 @@ class PromotionCodeToggleAPIView(APIView):
 class PromotionRedemptionListAPIView(APIView):
     def get(self, request):
         queryset = PromotionRedemption.objects.filter(
-            promotion__organization__in=_visible_organizations(request.user)
+            promotion__organization__in=_financial_organizations(request.user)
         ).select_related("promotion", "code", "order", "order__event")
         promotion_id = request.query_params.get("promotion")
         if promotion_id:
