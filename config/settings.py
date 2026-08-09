@@ -75,6 +75,7 @@ LOCAL_APPS = [
     "promotions.apps.PromotionsConfig",
     "loyalty.apps.LoyaltyConfig",
     "analytics_app",
+    "operations.apps.OperationsConfig",
 ]
 INSTALLED_APPS = [*DJANGO_APPS, *THIRD_PARTY_APPS, *LOCAL_APPS]
 
