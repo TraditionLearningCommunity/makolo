@@ -1,0 +1,32 @@
+{% extends 'base/app.html' %}
+
+{% block title %}{% if object %}Modifier la porte{% else %}Nouvelle porte{% endif %} | Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <div>
+    <a href="{% url 'scanner:gates' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Portes d’accès</a>
+    <h1 class="mt-2 text-4xl font-black">{% if object %}Modifier {{ object.name }}{% else %}Créer une porte d’accès{% endif %}</h1>
+    <p class="mt-2 text-zinc-500">Configurez le débit cible et le seuil de refus utilisés par Smart Access pour détecter les anomalies opérationnelles.</p>
+  </div>
+
+  <form method="post" class="space-y-6 rounded-3xl border border-zinc-200 bg-white p-6 md:p-8 dark:border-zinc-800 dark:bg-zinc-950">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grid gap-5 md:grid-cols-2">
+      {% for field in form %}
+      <div class="{% if field.name == 'description' or field.name == 'notes' %}md:col-span-2{% endif %}">
+        {% if field.name == 'is_active' %}
+        <label class="flex items-center gap-3 rounded-2xl border border-zinc-200 p-4 font-semibold dark:border-zinc-800">{{ field }} Porte active</label>
+        {% else %}
+        <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>{{ field }}
+        {% endif %}
+        {% if field.help_text %}<p class="mt-2 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<div class="mt-2 text-sm text-red-600">{{ field.errors|striptags }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="flex justify-end gap-3"><a href="{% url 'scanner:gates' %}" class="rounded-2xl border border-zinc-300 px-5 py-3 font-semibold dark:border-zinc-700">Annuler</a><button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Enregistrer</button></div>
+  </form>
+</div>
+{% endblock %}
