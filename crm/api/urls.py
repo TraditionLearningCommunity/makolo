@@ -6,9 +6,15 @@ from .views import (
     CampaignMetricsAPIView,
     CampaignSendAPIView,
     ContactConsentAPIView,
+    ContactCustomFieldAPIView,
     ContactListAPIView,
+    ContactTagAPIView,
+    ContactTagDeleteAPIView,
+    CustomFieldListCreateAPIView,
     SegmentListCreateAPIView,
     SegmentPreviewAPIView,
+    TagListCreateAPIView,
+    TemplateListCreateAPIView,
 )
 
 app_name = "crm_api"
@@ -16,6 +22,12 @@ app_name = "crm_api"
 urlpatterns = [
     path("contacts/", ContactListAPIView.as_view(), name="contacts"),
     path("contacts/<uuid:pk>/consent/", ContactConsentAPIView.as_view(), name="contact-consent"),
+    path("contacts/<uuid:pk>/tags/", ContactTagAPIView.as_view(), name="contact-tag-add"),
+    path("contacts/<uuid:pk>/tags/<uuid:tag_id>/", ContactTagDeleteAPIView.as_view(), name="contact-tag-delete"),
+    path("contacts/<uuid:pk>/fields/<uuid:field_id>/", ContactCustomFieldAPIView.as_view(), name="contact-field-value"),
+    path("tags/", TagListCreateAPIView.as_view(), name="tags"),
+    path("custom-fields/", CustomFieldListCreateAPIView.as_view(), name="custom-fields"),
+    path("templates/", TemplateListCreateAPIView.as_view(), name="templates"),
     path("segments/", SegmentListCreateAPIView.as_view(), name="segments"),
     path("segments/<uuid:pk>/preview/", SegmentPreviewAPIView.as_view(), name="segment-preview"),
     path("campaigns/", CampaignListCreateAPIView.as_view(), name="campaigns"),
