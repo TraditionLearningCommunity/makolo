@@ -188,20 +188,17 @@ def reverse_order_points(order):
     if existing:
         return existing
     account = LoyaltyAccount.objects.select_for_update().get(pk=original.account_id)
-    reversible = min(original.points, account.points_balance)
-    if reversible <= 0:
-        return None
     entry = LoyaltyLedgerEntry.objects.create(
         account=account,
         kind=LedgerKind.ORDER_REVERSAL,
-        points=-reversible,
+        points=-original.points,
         description=f"Annulation {order.reference}",
         idempotency_key=reversal_key,
         order=order,
         metadata={"original_points": original.points},
     )
-    account.points_balance -= reversible
-    account.lifetime_earned = max(account.lifetime_earned - reversible, 0)
+    account.points_balance -= original.points
+    account.lifetime_earned = max(account.lifetime_earned - original.points, 0)
     account.save(update_fields=["points_balance", "lifetime_earned", "updated_at"])
     recalculate_tier(account)
     return entry
