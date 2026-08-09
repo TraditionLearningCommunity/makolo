@@ -1,5 +1,5 @@
-{% extends 'base/public.html' %}
-{% block title %}Désabonnement | Makolo{% endblock %}
-{% block content %}
-<div class="mx-auto max-w-xl px-6 py-20 text-center"><h1 class="text-4xl font-black">Préférences de communication</h1>{% if invalid %}<p class="mt-5 text-zinc-500">Ce lien de désabonnement est invalide ou ne correspond plus à un contact CRM.</p>{% else %}<p class="mt-5 text-zinc-500">{{ contact.email }} est maintenant désabonné des communications marketing de {{ contact.organization.name }}. Les messages transactionnels nécessaires à vos billets, paiements et événements restent séparés.</p>{% endif %}<a href="/" class="mt-8 inline-flex rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Retour à Makolo</a></div>
-{% endblock %}
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Désabonnement | Makolo</title><style>body{margin:0;background:#fafafa;color:#18181b;font-family:Arial,sans-serif}.card{max-width:620px;margin:12vh auto;padding:40px;background:white;border:1px solid #e4e4e7;border-radius:24px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.05)}h1{font-size:36px;margin:0 0 18px}p{color:#71717a;line-height:1.7}.btn{display:inline-block;margin-top:24px;padding:13px 20px;border-radius:14px;background:#4f46e5;color:white;text-decoration:none;font-weight:700}</style></head>
+<body><main class="card"><h1>Préférences de communication</h1>{% if invalid %}<p>Ce lien de désabonnement est invalide ou ne correspond plus à un contact CRM.</p>{% else %}<p>{{ contact.email }} est maintenant désabonné des communications marketing de {{ contact.organization.name }}. Les messages transactionnels nécessaires à vos billets, paiements et événements restent séparés.</p>{% endif %}<a class="btn" href="/">Retour à Makolo</a></main></body>
+</html>
