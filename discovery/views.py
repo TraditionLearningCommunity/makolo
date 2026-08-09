@@ -1,10 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
-from events.models import Event
 from tickets.models import Ticket, TicketOrderStatus
 
 from .models import EventBookmark
@@ -57,6 +57,13 @@ class BookmarkListView(LoginRequiredMixin, ListView):
             "event", "event__organization", "event__category", "event__venue"
         )
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["bookmarked_ids"] = set(
+            EventBookmark.objects.filter(user=self.request.user).values_list("event_id", flat=True)
+        )
+        return context
+
 
 class BookmarkToggleView(LoginRequiredMixin, View):
     login_url = "core:login"
@@ -78,16 +85,18 @@ class MyEventsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        now = timezone.now()
         tickets = Ticket.objects.filter(owner=self.request.user).select_related(
             "event", "ticket_type", "order", "event__organization", "event__venue"
         )
         context["upcoming_tickets"] = tickets.filter(
             order__status=TicketOrderStatus.CONFIRMED,
-            event__end_at__gte=self.request.user.date_joined,
+            event__end_at__gte=now,
         ).order_by("event__start_at")
-        context["past_tickets"] = tickets.filter(event__end_at__lt=self.request.user.date_joined).order_by(
-            "-event__end_at"
-        )[:30]
+        context["past_tickets"] = tickets.filter(
+            order__status=TicketOrderStatus.CONFIRMED,
+            event__end_at__lt=now,
+        ).order_by("-event__end_at")[:30]
         context["bookmarks"] = EventBookmark.objects.filter(user=self.request.user).select_related(
             "event", "event__organization"
         )[:12]
