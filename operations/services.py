@@ -11,7 +11,7 @@ from automation.models import (
     CRMWorkflowActionRun,
     CRMWorkflowActionRunStatus,
 )
-from events.models import EventStatus, EventVisibility
+from events.models import Event, EventStatus, EventVisibility
 from notifications.models import DeliveryStatus, NotificationDelivery
 from organizations.models import Organization, OrganizationVerificationStatus
 from payments.models import Payment, PaymentEvent, PaymentStatus, Refund, RefundStatus
@@ -32,6 +32,7 @@ from .permissions import user_can_access_operations
 
 
 TERMINAL_INCIDENT_STATUSES = {IncidentStatus.RESOLVED, IncidentStatus.DISMISSED}
+_UNSET = object()
 
 
 def _require_staff(user):
@@ -185,7 +186,15 @@ def create_incident(*, actor, **data):
 
 
 @transaction.atomic
-def update_incident(*, incident, actor, status=None, severity=None, assigned_to=None, resolution=None):
+def update_incident(
+    *,
+    incident,
+    actor,
+    status=None,
+    severity=None,
+    assigned_to=_UNSET,
+    resolution=None,
+):
     _require_staff(actor)
     incident = OperationsIncident.objects.select_for_update().get(pk=incident.pk)
     before = {
@@ -211,12 +220,10 @@ def update_incident(*, incident, actor, status=None, severity=None, assigned_to=
         if severity not in valid_severities:
             raise ValidationError({"severity": "Sévérité invalide."})
         incident.severity = severity
-    if assigned_to is not None:
+    if assigned_to is not _UNSET:
         incident.assigned_to = assigned_to
     if resolution is not None:
         incident.resolution = resolution.strip()
-    if incident.status == IncidentStatus.RESOLVED and not incident.resolution.strip():
-        raise ValidationError({"resolution": "Une résolution est requise pour clôturer l'incident comme résolu."})
     incident.full_clean()
     incident.save()
     after = {
@@ -433,7 +440,7 @@ def build_operations_overview(user):
             "critical_incidents": critical_incidents,
             "pending_organizations": pending_orgs.count(),
             "suspended_organizations": suspended_orgs,
-            "published_events": Organization.objects.filter(events__status=EventStatus.PUBLISHED).distinct().count(),
+            "published_events": Event.objects.filter(status=EventStatus.PUBLISHED).count(),
             "payment_attempts_24h": payment_attempts,
             "failed_payments_24h": failed_payments,
             "payment_failure_rate_24h": payment_failure_rate,
