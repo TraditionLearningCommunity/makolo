@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import migrations, models
+from django.db.models import Q
 import django.db.models.deletion
 
 
@@ -99,7 +100,7 @@ class Migration(migrations.Migration):
             name="LoyaltyAccount",
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ("points_balance", models.PositiveIntegerField(default=0)),
+                ("points_balance", models.IntegerField(default=0)),
                 ("lifetime_earned", models.PositiveIntegerField(default=0)),
                 ("lifetime_redeemed", models.PositiveIntegerField(default=0)),
                 ("joined_at", models.DateTimeField(auto_now_add=True)),
