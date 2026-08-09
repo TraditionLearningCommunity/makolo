@@ -2,9 +2,11 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
+from django.utils.text import slugify
 
 from events.models import Event
 from tickets.models import Ticket
@@ -18,6 +20,89 @@ class ScanResult(models.TextChoices):
     WRONG_EVENT = "wrong_event", "Mauvais événement"
     INVALID_STATUS = "invalid_status", "Billet non valide"
     EVENT_UNAVAILABLE = "event_unavailable", "Événement indisponible"
+    GATE_UNAVAILABLE = "gate_unavailable", "Porte indisponible"
+
+
+class EventAccessGate(models.Model):
+    """Porte/zone d'accès configurée pour un événement.
+
+    Le journal conserve aussi le libellé texte `ScanLog.gate` comme snapshot
+    historique. La relation `access_gate` permet ensuite les agrégations live
+    sans casser les scans hérités ou les terminaux qui n'envoient qu'un nom.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="access_gates",
+    )
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, blank=True)
+    description = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+    throughput_target_per_minute = models.PositiveSmallIntegerField(
+        default=20,
+        validators=[MinValueValidator(1), MaxValueValidator(600)],
+        help_text="Débit cible accepté par minute pour détecter la congestion.",
+    )
+    warning_rejection_rate = models.PositiveSmallIntegerField(
+        default=30,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text="Taux de refus à partir duquel la porte est signalée.",
+    )
+    priority = models.PositiveSmallIntegerField(default=100)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="access_gates_created",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["event__start_at", "priority", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["event", "slug"],
+                name="scanner_gate_event_slug_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(throughput_target_per_minute__gt=0),
+                name="scan_gate_throughput_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["event", "is_active"], name="scanner_gate_event_active_idx"),
+            models.Index(fields=["event", "priority"], name="scanner_gate_event_prio_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        self.name = (self.name or "").strip()
+        if not self.name:
+            raise ValidationError({"name": "Le nom de la porte est obligatoire."})
+
+    def save(self, *args, **kwargs):
+        self.name = (self.name or "").strip()
+        if not self.slug:
+            base = slugify(self.name)[:110] or "porte"
+            candidate = base
+            suffix = 2
+            while EventAccessGate.objects.exclude(pk=self.pk).filter(
+                event_id=self.event_id,
+                slug=candidate,
+            ).exists():
+                candidate = f"{base[:125]}-{suffix}"
+                suffix += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.event.title} — {self.name}"
 
 
 class ScannerAssignment(models.Model):
@@ -36,6 +121,13 @@ class ScannerAssignment(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         related_name="scanner_assignments_created",
+        null=True,
+        blank=True,
+    )
+    access_gate = models.ForeignKey(
+        EventAccessGate,
+        on_delete=models.SET_NULL,
+        related_name="assignments",
         null=True,
         blank=True,
     )
@@ -78,10 +170,13 @@ class ScannerAssignment(models.Model):
 
     def clean(self):
         super().clean()
+        errors = {}
         if self.valid_from and self.valid_until and self.valid_until <= self.valid_from:
-            raise ValidationError(
-                {"valid_until": "La fin d’affectation doit être postérieure au début."}
-            )
+            errors["valid_until"] = "La fin d’affectation doit être postérieure au début."
+        if self.access_gate_id and self.event_id and self.access_gate.event_id != self.event_id:
+            errors["access_gate"] = "Cette porte appartient à un autre événement."
+        if errors:
+            raise ValidationError(errors)
 
     @property
     def is_current(self):
@@ -119,6 +214,13 @@ class ScanLog(models.Model):
     )
     assignment = models.ForeignKey(
         ScannerAssignment,
+        on_delete=models.SET_NULL,
+        related_name="scan_logs",
+        null=True,
+        blank=True,
+    )
+    access_gate = models.ForeignKey(
+        EventAccessGate,
         on_delete=models.SET_NULL,
         related_name="scan_logs",
         null=True,
@@ -172,6 +274,10 @@ class ScanLog(models.Model):
             models.Index(
                 fields=["result", "scanned_at"],
                 name="scanner_result_time_idx",
+            ),
+            models.Index(
+                fields=["access_gate", "scanned_at"],
+                name="scanner_gate_time_idx",
             ),
         ]
 
