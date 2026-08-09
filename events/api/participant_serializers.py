@@ -67,11 +67,7 @@ class ParticipantEventBaseSerializer(serializers.ModelSerializer):
         return "open" if obj.is_registration_open else "closed"
 
     def get_ticket_availability(self, obj):
-        ticket_types = [
-            item
-            for item in obj.ticket_types.all()
-            if item.is_active and item.is_public
-        ]
+        ticket_types = [item for item in obj.ticket_types.all() if item.is_active]
         on_sale = [item for item in ticket_types if item.is_on_sale]
         stock_remaining = any(
             item.available_quantity is None or item.available_quantity > 0
