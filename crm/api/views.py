@@ -8,10 +8,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from events.models import Event
-from organizations.models import Organization
+from organizations.models import Organization, OrganizationMembership
 from tickets.models import TicketType
 
 from crm.models import AudienceSegment, CampaignTemplate, CRMCustomField, CRMTag
+from crm.permissions import CRM_VIEW_ROLES
 from crm.selectors import (
     audience_contacts,
     campaign_metrics,
@@ -63,10 +64,21 @@ def _raise_service_error(exc):
     raise exc
 
 
-def _organization_visible_to_crm_user(user, organization):
+def _visible_crm_organization_ids(user):
     if user.is_staff:
-        return True
-    return get_contacts_visible_to(user).filter(organization=organization).exists() or get_segments_visible_to(user).filter(organization=organization).exists() or organization.memberships.filter(user=user, is_active=True, role__in=["owner", "admin", "event_manager", "marketing"]).exists()
+        return None
+    return OrganizationMembership.objects.filter(
+        user=user,
+        is_active=True,
+        role__in=CRM_VIEW_ROLES,
+    ).values_list("organization_id", flat=True)
+
+
+def _scope_configuration_queryset(queryset, user):
+    organization_ids = _visible_crm_organization_ids(user)
+    if organization_ids is None:
+        return queryset
+    return queryset.filter(organization_id__in=organization_ids)
 
 
 class ContactListAPIView(APIView):
@@ -160,13 +172,13 @@ class TagListCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        queryset = _scope_configuration_queryset(
+            CRMTag.objects.select_related("organization").all(),
+            request.user,
+        )
         organization_id = request.query_params.get("organization")
-        queryset = CRMTag.objects.select_related("organization").all()
         if organization_id:
             queryset = queryset.filter(organization_id=organization_id)
-        visible_ids = get_contacts_visible_to(request.user).values_list("organization_id", flat=True)
-        if not request.user.is_staff:
-            queryset = queryset.filter(organization_id__in=visible_ids)
         return Response(CRMTagSerializer(queryset.distinct(), many=True).data)
 
     def post(self, request):
@@ -185,13 +197,13 @@ class CustomFieldListCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        queryset = _scope_configuration_queryset(
+            CRMCustomField.objects.select_related("organization").all(),
+            request.user,
+        )
         organization_id = request.query_params.get("organization")
-        queryset = CRMCustomField.objects.select_related("organization").all()
         if organization_id:
             queryset = queryset.filter(organization_id=organization_id)
-        visible_ids = get_contacts_visible_to(request.user).values_list("organization_id", flat=True)
-        if not request.user.is_staff:
-            queryset = queryset.filter(organization_id__in=visible_ids)
         return Response(CRMCustomFieldSerializer(queryset.distinct(), many=True).data)
 
     def post(self, request):
@@ -210,14 +222,13 @@ class TemplateListCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        queryset = _scope_configuration_queryset(
+            CampaignTemplate.objects.select_related("organization").all(),
+            request.user,
+        )
         organization_id = request.query_params.get("organization")
-        queryset = CampaignTemplate.objects.select_related("organization").all()
         if organization_id:
             queryset = queryset.filter(organization_id=organization_id)
-        if not request.user.is_staff:
-            visible_ids = get_campaigns_visible_to(request.user).values_list("organization_id", flat=True)
-            member_ids = Organization.objects.filter(memberships__user=request.user, memberships__is_active=True, memberships__role__in=["owner", "admin", "event_manager", "marketing"]).values_list("pk", flat=True)
-            queryset = queryset.filter(Q(organization_id__in=visible_ids) | Q(organization_id__in=member_ids))
         return Response(CampaignTemplateSerializer(queryset.distinct(), many=True).data)
 
     def post(self, request):
