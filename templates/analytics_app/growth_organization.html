@@ -1,0 +1,105 @@
+{% extends 'base/app.html' %}
+{% block title %}Growth · {{ organization.name }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-8">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <a href="{% url 'analytics:growth-dashboard' %}" class="text-sm font-bold text-fuchsia-600 dark:text-fuchsia-400">← Growth Analytics</a>
+            <p class="mt-3 text-sm font-bold uppercase tracking-[0.2em] text-zinc-400">{{ organization.name }}</p>
+            <h1 class="mt-2 text-4xl font-black tracking-tight md:text-5xl">Rétention & croissance</h1>
+            <p class="mt-3 max-w-3xl text-zinc-500 dark:text-zinc-400">Les métriques sont organisationnelles et agrégées. Aucune identité client, adresse e-mail, QR ou référence de paiement n'est exposée ici.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="?months=6&cohorts={{ cohort_months }}" class="rounded-xl border border-zinc-300 px-3 py-2 text-xs font-bold dark:border-zinc-700">6 mois</a>
+            <a href="?months=12&cohorts={{ cohort_months }}" class="rounded-xl border border-zinc-300 px-3 py-2 text-xs font-bold dark:border-zinc-700">12 mois</a>
+            <a href="?months=24&cohorts={{ cohort_months }}" class="rounded-xl border border-zinc-300 px-3 py-2 text-xs font-bold dark:border-zinc-700">24 mois</a>
+            {% if can_manage_spend %}<a href="{% url 'analytics:growth-spend-new' organization.slug %}" class="rounded-xl bg-fuchsia-600 px-4 py-2 text-xs font-bold text-white">Ajouter une dépense</a>{% endif %}
+        </div>
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Acheteurs</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.customers }}</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Repeat buyers</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.repeat_customers }}</p><p class="mt-1 text-xs text-zinc-400">{% if growth.customer_metrics.repeat_buyer_percent is not None %}{{ growth.customer_metrics.repeat_buyer_percent }}%{% else %}—{% endif %}</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Nouveaux · 30j</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.new_customers_30d }}</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Commandes / client</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.orders_per_customer }}</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Followers</p><p class="mt-2 text-3xl font-black">{{ growth.followers.followers }}</p></div>
+        <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Follow → achat</p><p class="mt-2 text-3xl font-black">{% if growth.followers.follower_to_buyer_percent is not None %}{{ growth.followers.follower_to_buyer_percent }}%{% else %}—{% endif %}</p></div>
+    </div>
+
+    {% if growth.insights %}
+    <section class="grid gap-4 lg:grid-cols-2">
+        {% for insight in growth.insights %}
+        <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+            <div class="flex items-center gap-2"><i data-lucide="sparkles" class="h-5 w-5 text-fuchsia-500"></i><h2 class="font-black">{{ insight.title }}</h2></div>
+            <p class="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{{ insight.body }}</p>
+            <p class="mt-2 text-xs font-semibold text-zinc-400">{{ insight.action }}</p>
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between"><div><h2 class="text-2xl font-black">Nouveaux vs repeat</h2><p class="text-sm text-zinc-500">{{ months }} derniers mois, à partir des commandes confirmées.</p></div><span class="text-xs text-zinc-400">Actualisé {{ growth.generated_at|date:"d/m/Y H:i" }}</span></div>
+        <div class="mt-6 overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead><tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400 dark:border-zinc-800"><th class="py-3 pr-6">Mois</th><th class="py-3 pr-6">Nouveaux</th><th class="py-3 pr-6">Repeat orders</th><th class="py-3">Commandes</th></tr></thead>
+                <tbody>{% for row in growth.growth_series %}<tr class="border-b border-zinc-100 dark:border-zinc-900"><td class="py-3 pr-6 font-bold">{{ row.label }}</td><td class="py-3 pr-6">{{ row.new_customers }}</td><td class="py-3 pr-6">{{ row.repeat_orders }}</td><td class="py-3">{{ row.orders }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <div><h2 class="text-2xl font-black">Cohortes de rétention</h2><p class="mt-1 text-sm text-zinc-500">M0 = mois du premier achat confirmé. Une cellule mesure la part du cohort qui rachète pendant le mois relatif indiqué.</p></div>
+        <div class="mt-6 overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead><tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400 dark:border-zinc-800"><th class="py-3 pr-5">Cohorte</th><th class="py-3 pr-5">Taille</th>{% if growth.cohorts %}{% for cell in growth.cohorts.0.months %}<th class="py-3 px-3">M{{ cell.offset }}</th>{% endfor %}{% endif %}</tr></thead>
+                <tbody>
+                    {% for cohort in growth.cohorts %}<tr class="border-b border-zinc-100 dark:border-zinc-900"><td class="py-3 pr-5 font-bold">{{ cohort.label }}</td><td class="py-3 pr-5">{{ cohort.size }}</td>{% for cell in cohort.months %}<td class="px-3 py-3">{% if cell.retention_percent is not None %}{{ cell.retention_percent }}%{% else %}—{% endif %}<span class="ml-1 text-xs text-zinc-400">({{ cell.active_customers }})</span></td>{% endfor %}</tr>{% empty %}<tr><td colspan="14" class="py-8 text-center text-zinc-500">Pas encore assez d'achats confirmés pour constituer des cohortes.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="grid gap-5 xl:grid-cols-2">
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 class="text-xl font-black">CRM</h2><div class="mt-4 grid grid-cols-3 gap-3"><div><p class="text-xs text-zinc-400">Envoyés</p><p class="text-2xl font-black">{{ growth.channels.crm.sent }}</p></div><div><p class="text-xs text-zinc-400">Clics</p><p class="text-2xl font-black">{{ growth.channels.crm.clicks }}</p></div><div><p class="text-xs text-zinc-400">Conversions</p><p class="text-2xl font-black">{{ growth.channels.crm.conversions }}</p></div></div>
+            <div class="mt-5 space-y-3">{% for source in growth.channels.crm.sources %}<div class="rounded-2xl bg-zinc-50 p-4 dark:bg-zinc-900"><div class="flex justify-between gap-3"><p class="font-bold">{{ source.name }}</p><span class="text-xs text-zinc-400">{{ source.conversions }} conv.</span></div><p class="mt-1 text-xs text-zinc-500">{{ source.sent }} envoyés · {{ source.clicks }} clics · {% if source.conversion_percent is not None %}{{ source.conversion_percent }}% conversion{% else %}—{% endif %}</p>{% for money in source.money %}<p class="mt-2 text-xs font-bold text-emerald-600">{{ money.attributed_revenue|floatformat:2 }} {{ money.currency }} attribué · ROI contribution {% if money.contribution_roi_percent is not None %}{{ money.contribution_roi_percent }}%{% else %}—{% endif %}</p>{% endfor %}</div>{% empty %}<p class="text-sm text-zinc-500">Aucune campagne CRM.</p>{% endfor %}</div>
+        </div>
+
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 class="text-xl font-black">Partenaires</h2><div class="mt-4 grid grid-cols-3 gap-3"><div><p class="text-xs text-zinc-400">Visites</p><p class="text-2xl font-black">{{ growth.channels.partners.visits }}</p></div><div><p class="text-xs text-zinc-400">Conversions</p><p class="text-2xl font-black">{{ growth.channels.partners.conversions }}</p></div><div><p class="text-xs text-zinc-400">Visite → achat</p><p class="text-2xl font-black">{% if growth.channels.partners.visit_to_buyer_percent is not None %}{{ growth.channels.partners.visit_to_buyer_percent }}%{% else %}—{% endif %}</p></div></div>
+            <div class="mt-5 space-y-3">{% for source in growth.channels.partners.sources %}<div class="rounded-2xl bg-zinc-50 p-4 dark:bg-zinc-900"><div class="flex justify-between gap-3"><p class="font-bold">{{ source.name }}</p><span class="text-xs text-zinc-400">{{ source.conversions }} conv.</span></div>{% for money in source.money %}<p class="mt-2 text-xs font-bold text-emerald-600">{{ money.attributed_revenue|floatformat:2 }} {{ money.currency }} attribué · coût {{ money.total_cost|floatformat:2 }} · ROI {% if money.contribution_roi_percent is not None %}{{ money.contribution_roi_percent }}%{% else %}—{% endif %}</p>{% endfor %}</div>{% empty %}<p class="text-sm text-zinc-500">Aucune campagne partenaire.</p>{% endfor %}</div>
+        </div>
+
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 class="text-xl font-black">Promotions</h2><p class="mt-1 text-sm text-zinc-500">{{ growth.channels.promotions.redemptions }} redemption(s) confirmée(s).</p>
+            <div class="mt-5 space-y-3">{% for source in growth.channels.promotions.sources %}<div class="rounded-2xl bg-zinc-50 p-4 dark:bg-zinc-900"><div class="flex justify-between gap-3"><p class="font-bold">{{ source.name }}</p><span class="text-xs text-zinc-400">{{ source.redemptions }} usages</span></div>{% for money in source.money %}<p class="mt-2 text-xs font-bold text-emerald-600">Revenu {{ money.attributed_revenue|floatformat:2 }} {{ money.currency }} · coût remise+spend {{ money.total_cost|floatformat:2 }} · ROI contribution {% if money.contribution_roi_percent is not None %}{{ money.contribution_roi_percent }}%{% else %}—{% endif %}</p>{% endfor %}</div>{% empty %}<p class="text-sm text-zinc-500">Aucune promotion confirmée.</p>{% endfor %}</div>
+        </div>
+
+        <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <h2 class="text-xl font-black">Fidélité</h2>
+            {% if growth.channels.loyalty.enabled %}<div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4"><div><p class="text-xs text-zinc-400">Comptes</p><p class="text-2xl font-black">{{ growth.channels.loyalty.accounts }}</p></div><div><p class="text-xs text-zinc-400">Memberships</p><p class="text-2xl font-black">{{ growth.channels.loyalty.active_memberships }}</p></div><div><p class="text-xs text-zinc-400">Récompenses</p><p class="text-2xl font-black">{{ growth.channels.loyalty.reward_redemptions }}</p></div><div><p class="text-xs text-zinc-400">Lift repeat</p><p class="text-2xl font-black">{% if growth.channels.loyalty.repeat_rate_lift_points is not None %}{{ growth.channels.loyalty.repeat_rate_lift_points }} pts{% else %}—{% endif %}</p></div></div><p class="mt-4 text-xs text-zinc-500">{{ growth.channels.loyalty.reward_driven_orders }} commande(s) ont utilisé un avantage Promotion issu d'une récompense fidélité. Le lift est corrélatif, pas causal.</p>{% else %}<p class="mt-4 text-sm text-zinc-500">Aucun programme fidélité actif pour cette organisation.</p>{% endif %}
+        </div>
+    </section>
+
+    {% if growth.financial_visible %}
+    <section class="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-900 dark:bg-emerald-950/20">
+        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><h2 class="text-2xl font-black">LTV & contribution financière</h2><p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Chaque devise est indépendante. Aucun taux de change implicite.</p></div>{% if can_manage_spend %}<a href="{% url 'analytics:growth-spend-new' organization.slug %}" class="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Saisir un coût observable</a>{% endif %}</div>
+        <div class="mt-5 grid gap-4 md:grid-cols-3">{% for money in growth.ltv_by_currency %}<div class="rounded-2xl bg-white p-5 dark:bg-zinc-950"><p class="text-xs font-bold uppercase tracking-wide text-zinc-400">{{ money.currency }}</p><p class="mt-2 text-3xl font-black">{{ money.average_net_ltv|floatformat:2 }}</p><p class="mt-1 text-xs text-zinc-500">LTV nette moyenne · {{ money.customers }} client(s)</p><p class="mt-3 text-xs">Net {{ money.net|floatformat:2 }} · brut {{ money.gross|floatformat:2 }} · remboursements {{ money.refunds|floatformat:2 }}</p></div>{% empty %}<p class="text-sm text-zinc-500">Aucun paiement financier confirmé.</p>{% endfor %}</div>
+
+        <div class="mt-6 grid gap-4 lg:grid-cols-2">{% for channel_name, channel in growth.channels.items %}<div class="rounded-2xl bg-white p-5 dark:bg-zinc-950"><h3 class="font-black capitalize">{{ channel_name }}</h3>{% for money in channel.money %}<div class="mt-3 border-t border-zinc-100 pt-3 text-sm dark:border-zinc-900"><div class="flex justify-between"><span>{{ money.currency }}</span><span class="font-black">{% if money.contribution_roi_percent is not None %}{{ money.contribution_roi_percent }}%{% else %}ROI —{% endif %}</span></div><p class="mt-1 text-xs text-zinc-500">Revenu attribué {{ money.attributed_revenue|floatformat:2 }} · coût intrinsèque {{ money.intrinsic_cost|floatformat:2 }} · spend {{ money.configured_spend|floatformat:2 }} · contribution {{ money.contribution|floatformat:2 }}</p></div>{% empty %}<p class="mt-3 text-xs text-zinc-500">Pas de ligne monétaire observable.</p>{% endfor %}</div>{% endfor %}</div>
+    </section>
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 class="text-xl font-black">Dépenses Growth observables</h2><p class="mt-1 text-sm text-zinc-500">Ces coûts complètent commissions et remises déjà connues de Makolo. Ils ne sont jamais convertis entre devises.</p>
+        <div class="mt-5 space-y-3">{% for spend in growth.spend_entries %}<div class="flex flex-col gap-3 rounded-2xl bg-zinc-50 p-4 dark:bg-zinc-900 md:flex-row md:items-center md:justify-between"><div><p class="font-bold">{{ spend.label }}</p><p class="text-xs text-zinc-500">{{ spend.channel_label }} · {{ spend.source }} · {{ spend.incurred_at|date:"d/m/Y" }}</p></div><div class="flex items-center gap-3"><span class="font-black">{{ spend.amount|floatformat:2 }} {{ spend.currency }}</span>{% if can_manage_spend %}<form method="post" action="{% url 'analytics:growth-spend-delete' spend.id %}" onsubmit="return confirm('Supprimer cette dépense Growth ?');">{% csrf_token %}<button class="rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600 dark:border-red-900">Supprimer</button></form>{% endif %}</div></div>{% empty %}<p class="text-sm text-zinc-500">Aucune dépense Growth saisie.</p>{% endfor %}</div>
+    </section>
+    {% else %}
+    <section class="rounded-3xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900 dark:bg-amber-950/20"><div class="flex gap-3"><i data-lucide="shield" class="h-6 w-6 text-amber-600"></i><div><h2 class="font-black">Métriques financières masquées</h2><p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Votre rôle peut piloter acquisition et rétention, mais LTV, coûts, revenus attribués et ROI restent réservés à Finance, Owner/Admin et staff.</p></div></div></section>
+    {% endif %}
+
+    <section class="rounded-3xl border border-zinc-200 bg-white p-6 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 class="text-xl font-black">Méthodologie</h2><div class="mt-4 space-y-2 text-zinc-500 dark:text-zinc-400"><p><strong>Repeat buyer :</strong> {{ growth.methodology.repeat_buyer }}</p><p><strong>Follower → acheteur :</strong> {{ growth.methodology.follower_conversion }}</p><p><strong>LTV :</strong> {{ growth.methodology.ltv }}</p><p><strong>ROI contribution :</strong> {{ growth.methodology.roi }}</p></div>
+    </section>
+</div>
+{% endblock %}
