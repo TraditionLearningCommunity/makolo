@@ -283,7 +283,7 @@ def launch_campaign(*, campaign: CommunicationCampaign, actor=None):
 def cancel_campaign(*, campaign: CommunicationCampaign, actor):
     campaign = CommunicationCampaign.objects.select_for_update().select_related("organization").get(pk=campaign.pk)
     if not user_can_manage_crm(actor, campaign.organization):
-        raise PermissionDenied("Vous n’avez pas le droit d’annuler ce paiement de commissions.")
+        raise PermissionDenied("Vous n’avez pas le droit d’annuler cette campagne.")
     if campaign.status == CommunicationCampaignStatus.SENT:
         raise ValidationError("Une campagne déjà envoyée ne peut pas être annulée.")
     if campaign.status == CommunicationCampaignStatus.CANCELLED:
