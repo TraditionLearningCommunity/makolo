@@ -1,6 +1,6 @@
 # Makolo
 
-Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle, acquisition par partenaires et contrôle d’accès par QR code.
+Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle, acquisition par partenaires, CRM événementiel et contrôle d’accès par QR code.
 
 ## Vision
 
@@ -20,7 +20,8 @@ La chaîne fonctionnelle couvre maintenant :
 - notifications transactionnelles ;
 - Makolo Autopilot pour les tâches temporelles et réactives ;
 - Analytics & Event Intelligence : ventes, remplissage, présence, waitlist, flux d'entrée, finances autorisées et signaux explicables ;
-- Partners / Ambassadeurs / Affiliation : campagnes, liens de recommandation, attribution, commissions et paiements partenaires.
+- Partners / Ambassadeurs / Affiliation : campagnes, liens de recommandation, attribution, commissions et paiements partenaires ;
+- CRM événementiel : contacts organisationnels, audiences dynamiques, segmentation, consentements et campagnes de communication.
 
 ## Stack actuelle
 
@@ -46,6 +47,7 @@ La chaîne fonctionnelle couvre maintenant :
 - `notifications`
 - `automation`
 - `partners`
+- `crm`
 - `analytics_app`
 
 ## Organisations et droits
@@ -58,10 +60,10 @@ Une `Organization` possède sa propre équipe :
 - Admin : équipe et paramètres de l'organisation ;
 - Event manager : événements et billetterie ;
 - Finance : commandes, paiements et remboursements ;
-- Marketing : communication, acquisition et partenaires ;
+- Marketing : communication, acquisition, partenaires et CRM ;
 - Scanner manager : contrôle d'accès et agents scanner.
 
-Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan, commissions et métriques financières sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
+Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan, commissions, CRM et métriques financières sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
 
 Les événements existants sont automatiquement rattachés à une organisation personnelle lors de la migration vers ce modèle.
 
@@ -77,6 +79,7 @@ Il exécute automatiquement :
 
 - expiration des commandes non payées et libération du stock ;
 - traitement/retry de la file de notifications ;
+- traitement des campagnes CRM planifiées et retries de livraison ;
 - rappels configurables à J-7, H-24 et H-2 ;
 - alertes de remplissage ;
 - alertes de stock faible ;
@@ -129,6 +132,14 @@ Makolo enregistre une visite avec un UUID anonyme, le chemin de destination et u
 Une réservation n'acquiert aucune commission. La commission devient `earned` uniquement lorsque la commande est réellement confirmée. Un remboursement ou une annulation inverse automatiquement une commission non payée. Une commission déjà payée bloque une inversion silencieuse : l'équipe Finance doit d'abord traiter l'ajustement comptable.
 
 Les commissions peuvent être un pourcentage du montant de la commande ou un montant fixe. Les paiements de commissions sont groupés par devise ; Makolo ne mélange jamais USD, CDF ou d'autres monnaies dans un même solde. Les rôles Marketing gèrent partenaires/campagnes sans voir les montants financiers ; Finance gère commissions et paiements sans obtenir de droits marketing implicites. Un partenaire relié à un compte Makolo dispose de son propre portail de performance agrégé.
+
+## CRM événementiel
+
+Le CRM est disponible sous `/crm/`. Chaque organisation possède son propre espace de contacts, alimenté par ses commandes, billets et waitlists. Les segments sont dynamiques et peuvent cibler : acheteurs confirmés, détenteurs de billets, participants présents, no-shows, waitlist ou acquisition partenaire, avec filtre optionnel par événement, type de billet, ville/pays et consentement marketing.
+
+Un achat ne vaut jamais consentement marketing. Un e-mail marketing n'est envoyé qu'à un contact `subscribed`, puis le consentement est vérifié une seconde fois au moment exact de la livraison. Chaque e-mail marketing possède un lien signé de désabonnement. Les communications liées à un événement utilisent une politique distincte et respectent les préférences `event_notifications` des comptes Makolo.
+
+Les campagnes passent par une outbox CRM auditable avec snapshot des destinataires, retries, reprise après interruption et traitement automatique par Autopilot. Cette version mesure la livraison mais n'installe ni pixel d'ouverture ni tracking invisible de clic.
 
 ## Installation locale sous PowerShell
 
@@ -208,13 +219,18 @@ Les endpoints principaux de la v1 sont :
 /api/v1/partners/commissions/
 /api/v1/partners/payouts/
 /api/v1/partners/partners/<partner-id>/metrics/
+/api/v1/crm/contacts/
+/api/v1/crm/segments/
+/api/v1/crm/segments/<segment-id>/preview/
+/api/v1/crm/campaigns/
+/api/v1/crm/campaigns/<campaign-id>/metrics/
 ```
 
 `POST /api/v1/tickets/orders/` accepte aussi `referral_code` afin que les clients API/mobile puissent préserver l'attribution sans dépendre d'une session navigateur.
 
 ## Notifications
 
-Le centre de notifications est disponible sous `/notifications/`. Les e-mails passent par une outbox persistante `NotificationDelivery` avec retry et respect des préférences/heures silencieuses. Autopilot consomme cette file automatiquement en production. SMS et push sont préparés mais aucun fournisseur externe n'est simulé.
+Le centre de notifications est disponible sous `/notifications/`. Les e-mails transactionnels passent par une outbox persistante `NotificationDelivery` avec retry et respect des préférences/heures silencieuses. Autopilot consomme cette file automatiquement en production. Les campagnes CRM disposent d'une outbox séparée afin de conserver leur audit de destinataires et leur politique de consentement. SMS et push sont préparés mais aucun fournisseur externe n'est simulé.
 
 ## Contrôle d’accès
 
@@ -224,8 +240,8 @@ Le QR est validé côté serveur. Le premier scan valide marque le billet `used`
 
 Le socle actuel prépare désormais les fonctionnalités majeures suivantes :
 
-- CRM événementiel ;
 - abonnements/followers d'organisateurs ;
+- tags/champs CRM avancés et templates réutilisables ;
 - intelligence avancée des flux d'entrée ;
 - recommandations et découverte sociale d'événements ;
 - opérations et modération de plateforme avancées ;
@@ -247,4 +263,5 @@ GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépen
 - organisations, équipes et Autopilot : `docs/architecture/platform-autopilot-organizations.md` ;
 - frontières d'autorisation : `docs/architecture/authorization-boundaries.md` ;
 - Analytics & Event Intelligence : `docs/architecture/analytics-event-intelligence.md` ;
-- Partners / Ambassadeurs / Affiliation : `docs/architecture/partners-affiliation.md`.
+- Partners / Ambassadeurs / Affiliation : `docs/architecture/partners-affiliation.md` ;
+- CRM événementiel, audiences et campagnes : `docs/architecture/event-crm-audiences-campaigns.md`.
