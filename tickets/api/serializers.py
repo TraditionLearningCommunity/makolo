@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from crm.services import attribute_order_from_campaign, resolve_campaign_recipient_token
@@ -5,6 +7,7 @@ from events.models import Event
 from events.permissions import user_can_manage_event
 from events.selectors import get_events_visible_to
 from partners.services import attribute_order
+from promotions.checkout import create_order_with_promotion
 
 from tickets.models import (
     Ticket,
@@ -14,7 +17,7 @@ from tickets.models import (
     TicketType,
     TicketWaitlistEntry,
 )
-from tickets.services import create_order, create_ticket_transfer, join_waitlist
+from tickets.services import create_ticket_transfer, join_waitlist
 
 
 class EventSummarySerializer(serializers.ModelSerializer):
@@ -87,11 +90,33 @@ class TicketOrderSerializer(serializers.ModelSerializer):
     event = EventSummarySerializer(read_only=True)
     items = TicketOrderItemSerializer(many=True, read_only=True)
     tickets = TicketSerializer(many=True, read_only=True)
+    promotion_code = serializers.SerializerMethodField()
+    subtotal_amount = serializers.SerializerMethodField()
+    discount_amount = serializers.SerializerMethodField()
+
+    def _redemption(self, obj):
+        try:
+            return obj.promotion_redemption
+        except Exception:
+            return None
+
+    def get_promotion_code(self, obj):
+        redemption = self._redemption(obj)
+        return redemption.code.code if redemption else None
+
+    def get_subtotal_amount(self, obj):
+        redemption = self._redemption(obj)
+        return redemption.subtotal_amount if redemption else obj.total_amount
+
+    def get_discount_amount(self, obj):
+        redemption = self._redemption(obj)
+        return redemption.discount_amount if redemption else Decimal("0.00")
 
     class Meta:
         model = TicketOrder
         fields = [
-            "id", "reference", "event", "customer_name", "customer_email", "status", "total_amount",
+            "id", "reference", "event", "customer_name", "customer_email", "status",
+            "subtotal_amount", "discount_amount", "promotion_code", "total_amount",
             "currency", "expires_at", "confirmed_at", "cancelled_at", "items", "tickets", "created_at", "updated_at",
         ]
         read_only_fields = fields
@@ -111,6 +136,7 @@ class TicketOrderCreateSerializer(serializers.Serializer):
     customer_email = serializers.EmailField()
     referral_code = serializers.CharField(max_length=40, required=False, allow_blank=True, write_only=True)
     campaign_token = serializers.CharField(max_length=600, required=False, allow_blank=True, write_only=True)
+    promotion_code = serializers.CharField(max_length=40, required=False, allow_blank=True, write_only=True)
     items = TicketSelectionSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
@@ -147,10 +173,16 @@ class TicketOrderCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         request = self.context["request"]
         referral_code = validated_data.pop("referral_code", "")
+        promotion_code = validated_data.pop("promotion_code", "")
         validated_data.pop("campaign_token", "")
         campaign_recipient = validated_data.pop("_campaign_recipient", None)
         selections = [(item["ticket_type"], item["quantity"]) for item in validated_data.pop("items")]
-        order = create_order(buyer=request.user, selections=selections, **validated_data)
+        order = create_order_with_promotion(
+            buyer=request.user,
+            selections=selections,
+            promotion_code=promotion_code,
+            **validated_data,
+        )
         attribute_order(order=order, referral_code=referral_code or None)
         attribute_order_from_campaign(order=order, request=request, recipient=campaign_recipient)
         return order
