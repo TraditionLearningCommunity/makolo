@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 
 from crm.models import CommunicationCampaign
 from events.models import Event
@@ -35,8 +36,8 @@ class PromotionForm(forms.ModelForm):
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
             "eligible_ticket_types": forms.CheckboxSelectMultiple(),
-            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
         }
         labels = {
             "name": "Nom de l'offre",
@@ -62,6 +63,8 @@ class PromotionForm(forms.ModelForm):
         self.fields["eligible_ticket_types"].queryset = TicketType.objects.filter(
             event__organization=organization
         ).select_related("event").order_by("event__start_at", "name")
+        self.fields["starts_at"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["ends_at"].input_formats = ["%Y-%m-%dT%H:%M"]
         for field in self.fields.values():
             if not isinstance(field.widget, (forms.CheckboxInput, forms.CheckboxSelectMultiple)):
                 field.widget.attrs.setdefault("class", INPUT_CLASS)
@@ -93,8 +96,8 @@ class PromotionCodeForm(forms.ModelForm):
             "is_active",
         ]
         widgets = {
-            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+            "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
         }
         labels = {
             "code": "Code",
@@ -112,8 +115,10 @@ class PromotionCodeForm(forms.ModelForm):
         self.promotion = promotion
         campaigns = CommunicationCampaign.objects.filter(organization=promotion.organization)
         if promotion.event_id:
-            campaigns = campaigns.filter(event__isnull=True) | campaigns.filter(event=promotion.event)
-        self.fields["crm_campaign"].queryset = campaigns.order_by("-created_at")
+            campaigns = campaigns.filter(Q(event__isnull=True) | Q(event=promotion.event))
+        self.fields["crm_campaign"].queryset = campaigns.distinct().order_by("-created_at")
+        self.fields["starts_at"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["ends_at"].input_formats = ["%Y-%m-%dT%H:%M"]
         for field in self.fields.values():
             if not isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", INPUT_CLASS)
