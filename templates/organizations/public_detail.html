@@ -1,49 +1,31 @@
 {% extends 'base/app.html' %}
 {% block title %}{{ organization.name }} | Makolo{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-7xl space-y-8">
-  <section class="overflow-hidden rounded-[2rem] border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-    <div class="bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 px-7 py-10 text-white md:px-10">
-      <div class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div class="flex items-center gap-3">
-            <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-white/15 backdrop-blur"><i data-lucide="building-2" class="h-8 w-8"></i></div>
-            <div><p class="text-sm font-bold uppercase tracking-[0.18em] text-white/70">Organisateur Makolo</p><h1 class="text-4xl font-black md:text-5xl">{{ organization.name }}</h1></div>
-          </div>
-          <div class="mt-5 flex flex-wrap gap-2 text-sm font-semibold">
-            {% if is_verified %}<span class="rounded-full bg-emerald-300/20 px-3 py-1 text-emerald-50">✓ Organisateur vérifié</span>{% else %}<span class="rounded-full bg-white/15 px-3 py-1">{{ organization.get_verification_status_display }}</span>{% endif %}
-            {% if organization.city or organization.country %}<span class="rounded-full bg-white/15 px-3 py-1">{{ organization.city }}{% if organization.city and organization.country %}, {% endif %}{{ organization.country }}</span>{% endif %}
-            <span class="rounded-full bg-white/15 px-3 py-1">{{ follower_count }} abonné{{ follower_count|pluralize }}</span>
-          </div>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          {% if request.user.is_authenticated %}
-            <form method="post" action="{% url 'organizer_public:follow-toggle' organization.slug %}">{% csrf_token %}<button class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">{% if follow %}Ne plus suivre{% else %}Suivre{% endif %}</button></form>
-            {% if follow %}<a href="{% url 'organizer_public:follow-preferences' organization.slug %}" class="rounded-2xl border border-white/40 px-5 py-3 font-black text-white">Préférences</a>{% endif %}
-          {% else %}
-            <a href="{% url 'core:login' %}?next={{ request.path }}" class="rounded-2xl bg-white px-5 py-3 font-black text-indigo-700">Se connecter pour suivre</a>
-          {% endif %}
-          {% if organization.website %}<a href="{{ organization.website }}" rel="noopener noreferrer" target="_blank" class="rounded-2xl border border-white/40 px-5 py-3 font-black text-white">Site officiel ↗</a>{% endif %}
-        </div>
+<div class="space-y-9 lg:space-y-11">
+  <section class="relative overflow-hidden rounded-[30px] border p-6 sm:p-8 lg:p-10" style="border-color:var(--mk-border);background:linear-gradient(145deg,color-mix(in srgb,var(--mk-surface-solid) 94%,var(--mk-brand-soft)),var(--mk-surface-solid));box-shadow:var(--mk-shadow-sm)">
+    <div class="pointer-events-none absolute -right-28 -top-28 h-72 w-72 rounded-full bg-indigo-500/[.09] blur-3xl"></div>
+    <div class="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+      <div class="max-w-3xl">
+        <div class="flex items-center gap-4"><div class="grid h-14 w-14 place-items-center rounded-2xl border" style="background:var(--mk-surface-solid);border-color:var(--mk-border);color:var(--mk-brand);box-shadow:var(--mk-shadow-sm)"><i data-lucide="building-2" class="h-6 w-6"></i></div><div><span class="mk-kicker">Organisateur Makolo</span><h1 class="mt-2 text-3xl font-[760] tracking-[-.05em] sm:text-4xl lg:text-5xl">{{ organization.name }}</h1></div></div>
+        <div class="mt-5 flex flex-wrap gap-2">{% if is_verified %}<span class="mk-badge bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"><i data-lucide="badge-check" class="h-3 w-3"></i>Vérifié</span>{% else %}<span class="mk-badge">{{ organization.get_verification_status_display }}</span>{% endif %}{% if organization.city or organization.country %}<span class="mk-badge"><i data-lucide="map-pin" class="h-3 w-3"></i>{{ organization.city }}{% if organization.city and organization.country %}, {% endif %}{{ organization.country }}</span>{% endif %}<span class="mk-badge"><i data-lucide="users" class="h-3 w-3"></i>{{ follower_count }} abonné{{ follower_count|pluralize }}</span></div>
+        <p class="mk-page-copy mt-6 text-[14px]">{{ organization.description|default:"Cet organisateur publie ses événements sur Makolo." }}</p>
       </div>
-    </div>
-    <div class="grid gap-6 p-7 md:grid-cols-3 md:p-10">
-      <div class="md:col-span-2"><h2 class="text-xl font-black">À propos</h2><p class="mt-3 whitespace-pre-line leading-7 text-zinc-600 dark:text-zinc-300">{{ organization.description|default:"Cet organisateur publie ses événements sur Makolo." }}</p></div>
-      <div class="rounded-3xl bg-zinc-50 p-5 dark:bg-zinc-900"><p class="text-sm text-zinc-500">Communauté</p><p class="mt-1 text-4xl font-black">{{ follower_count }}</p><p class="mt-3 text-xs text-zinc-500">Suivre ne vous inscrit pas automatiquement aux e-mails. Chaque organisateur possède ses propres préférences.</p></div>
+      <div class="flex flex-wrap gap-2">
+        {% if request.user.is_authenticated %}<form method="post" action="{% url 'organizer_public:follow-toggle' organization.slug %}">{% csrf_token %}<button type="submit" class="mk-btn {% if follow %}mk-btn-secondary{% else %}mk-btn-primary{% endif %}"><i data-lucide="{% if follow %}user-round-check{% else %}user-round-plus{% endif %}" class="h-4 w-4"></i>{% if follow %}Suivi{% else %}Suivre{% endif %}</button></form>{% if follow %}<a href="{% url 'organizer_public:follow-preferences' organization.slug %}" class="mk-btn mk-btn-secondary"><i data-lucide="settings-2" class="h-4 w-4"></i>Préférences</a>{% endif %}{% else %}<a href="{% url 'core:login' %}?next={{ request.path }}" class="mk-btn mk-btn-primary">Se connecter pour suivre</a>{% endif %}
+        {% if organization.website %}<a href="{{ organization.website }}" rel="noopener noreferrer" target="_blank" class="mk-btn mk-btn-secondary">Site officiel<i data-lucide="external-link" class="h-4 w-4"></i></a>{% endif %}
+      </div>
     </div>
   </section>
 
   <section>
-    <div class="flex items-end justify-between gap-4"><div><p class="font-bold text-indigo-500">Agenda</p><h2 class="text-3xl font-black">Événements publiés</h2></div></div>
-    <div class="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div class="flex items-end justify-between gap-4"><div><span class="mk-kicker">Agenda</span><h2 class="mt-3 text-2xl font-[750] tracking-[-.04em] sm:text-3xl">Événements publiés</h2></div></div>
+    <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {% for event in events %}
-      <a href="{% url 'events:detail' event.slug %}" class="group overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        {% if event.cover_image %}<img src="{{ event.cover_image.url }}" alt="{{ event.title }}" class="h-48 w-full object-cover transition duration-300 group-hover:scale-[1.02]">{% else %}<div class="flex h-48 items-center justify-center bg-gradient-to-br from-indigo-100 to-violet-100 dark:from-indigo-950 dark:to-violet-950"><i data-lucide="calendar-days" class="h-12 w-12 text-indigo-500"></i></div>{% endif %}
-        <div class="p-5"><p class="text-xs font-black uppercase tracking-wide text-indigo-500">{{ event.start_at|date:"d/m/Y · H:i" }}</p><h3 class="mt-2 text-xl font-black">{{ event.title }}</h3><p class="mt-2 line-clamp-2 text-sm text-zinc-500">{{ event.short_description|default:"Découvrez cet événement sur Makolo." }}</p><p class="mt-4 text-sm font-bold text-zinc-700 dark:text-zinc-300">{% if event.venue %}{{ event.venue }}{% else %}Lieu à confirmer{% endif %}</p></div>
+      <a href="{% url 'events:detail' event.slug %}" class="mk-panel mk-panel-interactive mk-media-card group overflow-hidden">
+        <div class="aspect-[16/9] overflow-hidden" style="background:var(--mk-surface-muted)">{% if event.cover_image %}<img src="{{ event.cover_image.url }}" alt="" class="mk-event-cover h-full w-full object-cover">{% else %}<div class="mk-event-cover flex h-full items-end bg-[radial-gradient(circle_at_80%_15%,rgba(99,102,241,.18),transparent_38%)] p-5"><div class="grid h-11 w-11 place-items-center rounded-2xl border" style="background:var(--mk-surface-solid);border-color:var(--mk-border);color:var(--mk-brand)"><i data-lucide="calendar-days" class="h-5 w-5"></i></div></div>{% endif %}</div>
+        <div class="p-5"><p class="text-[10px] font-bold uppercase tracking-[.1em]" style="color:var(--mk-brand)">{{ event.start_at|date:"d M Y · H:i" }}</p><h3 class="mt-2 text-lg font-[730] tracking-[-.03em] transition group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ event.title }}</h3><p class="mt-2 line-clamp-2 text-[13px] leading-5" style="color:var(--mk-muted)">{{ event.short_description|default:"Découvrez cet événement sur Makolo." }}</p><p class="mt-4 flex items-center gap-2 text-xs font-semibold" style="color:var(--mk-muted)"><i data-lucide="map-pin" class="h-3.5 w-3.5"></i>{% if event.venue %}{{ event.venue }}{% else %}Lieu à confirmer{% endif %}</p></div>
       </a>
-      {% empty %}
-      <div class="md:col-span-2 xl:col-span-3 rounded-3xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500 dark:border-zinc-700">Aucun événement public pour le moment.</div>
-      {% endfor %}
+      {% empty %}<div class="mk-empty py-14 text-center md:col-span-2 xl:col-span-3"><i data-lucide="calendar-x" class="mx-auto h-6 w-6" style="color:var(--mk-subtle)"></i><p class="mt-3 text-sm font-semibold">Aucun événement public pour le moment.</p></div>{% endfor %}
     </div>
   </section>
 </div>
