@@ -12,7 +12,9 @@ Points are not a currency and are never converted between USD, CDF or another mo
 
 ## Automatic earning
 
-A confirmed ticket order earns `points_per_order + points_per_ticket × quantity`. A successful check-in earns `points_per_checkin`. Active tier and membership multipliers are applied at earning time. Repeated signals are idempotent. Cancelling a confirmed order reverses available points from that order and never creates a negative balance.
+A confirmed ticket order earns `points_per_order + points_per_ticket × quantity`. A successful check-in earns `points_per_checkin`. Active tier and membership multipliers are applied at earning time. Repeated signals are idempotent.
+
+Cancelling or refunding a confirmed order reverses the **full** earning originally attached to that order. If the member already spent some of those points, the account may temporarily carry a negative points balance. This debt prevents further reward redemption until new earnings or an audited adjustment restore a sufficient balance. Loyalty therefore never blocks or silently reduces a legitimate financial refund.
 
 ## Levels
 
@@ -56,4 +58,4 @@ API:
 
 ## Autopilot
 
-`expire_due_memberships()` is idempotent and designed for the Makolo Autopilot cycle. Even before status cleanup, benefit enforcement checks the membership time window and generated Promotion codes have their own validity window, so stale status cannot extend a benefit beyond `ends_at`.
+`expire_due_memberships()` is idempotent and is part of the Makolo Autopilot cycle. Even before status cleanup, benefit enforcement checks the membership time window and generated Promotion codes have their own validity window, so stale status cannot extend a benefit beyond `ends_at`.
