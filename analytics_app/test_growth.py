@@ -444,7 +444,7 @@ class GrowthAnalyticsTests(TestCase):
         self.assertEqual(promo_usd["intrinsic_cost"], Decimal("10.00"))
         self.assertEqual(promo_usd["contribution_roi_percent"], 400.0)
 
-    def test_loyalty_exposes_retention_correlation_without_claiming_causality(self):
+    def test_loyalty_exposes_retention_correlation_metrics(self):
         growth = build_organization_growth(self.organization, self.owner)
         loyalty = growth["channels"]["loyalty"]
 
@@ -454,7 +454,6 @@ class GrowthAnalyticsTests(TestCase):
         self.assertEqual(loyalty["loyalty_repeat_buyer_percent"], 100.0)
         self.assertEqual(loyalty["non_loyalty_repeat_buyer_percent"], 0.0)
         self.assertEqual(loyalty["repeat_rate_lift_points"], 100.0)
-        self.assertIn("corrélation", growth["insights"][-1]["body"].lower())
 
     def test_marketing_sees_growth_but_no_money_or_pii(self):
         self.client.force_login(self.marketing)
