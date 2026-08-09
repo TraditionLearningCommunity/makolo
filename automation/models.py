@@ -216,6 +216,10 @@ class CRMWorkflowAction(models.Model):
     )
     title = models.CharField(max_length=180, blank=True)
     message = models.TextField(blank=True)
+    marketing_action = models.BooleanField(
+        default=False,
+        help_text="Pour une notification Makolo promotionnelle, exige le consentement marketing et les préférences de l’organisateur.",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -234,6 +238,11 @@ class CRMWorkflowAction(models.Model):
                 errors["template"] = "Choisissez le modèle e-mail à envoyer."
             elif self.template.organization_id != self.workflow.organization_id:
                 errors["template"] = "Le modèle doit appartenir à la même organisation."
+            elif self.template.kind == "event_update" and not self.workflow.event_id and self.workflow.trigger in {
+                CRMWorkflowTrigger.FOLLOWED_ORGANIZER,
+                CRMWorkflowTrigger.BIRTHDAY,
+            }:
+                errors["template"] = "Une communication événementielle nécessite un contexte événement."
         if self.kind in {CRMWorkflowActionKind.ADD_TAG, CRMWorkflowActionKind.REMOVE_TAG}:
             if not self.tag_id:
                 errors["tag"] = "Choisissez le tag CRM à modifier."
@@ -244,6 +253,8 @@ class CRMWorkflowAction(models.Model):
                 errors["title"] = "Le titre est obligatoire pour cette action."
             if not self.message.strip():
                 errors["message"] = "Le message est obligatoire pour cette action."
+        if self.marketing_action and self.kind != CRMWorkflowActionKind.IN_APP_NOTIFICATION:
+            errors["marketing_action"] = "Ce réglage s’applique uniquement aux notifications Makolo destinées au contact."
         if errors:
             raise ValidationError(errors)
 
