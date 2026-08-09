@@ -1,0 +1,46 @@
+{% extends 'base/app.html' %}
+
+{% block title %}Live Access · {{ event.title }} | Makolo{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-7">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div><a href="{% url 'scanner:console' event.slug %}" class="text-sm font-bold text-indigo-600">← Scanner {{ event.title }}</a><div class="mt-2 flex items-center gap-3"><h1 class="text-4xl font-black">Smart Access Live</h1><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">LIVE · 15 s</span></div><p class="mt-2 text-zinc-500">Pilotage temps réel des entrées, refus, débit et anomalies sans exposer de données participant.</p></div>
+    <div class="flex flex-wrap gap-2">{% if can_manage_access %}<a href="{% url 'scanner:gates' %}" class="rounded-2xl border border-zinc-300 px-4 py-3 font-bold dark:border-zinc-700">Configurer les portes</a>{% endif %}<a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="rounded-2xl bg-zinc-900 px-4 py-3 font-bold text-white dark:bg-white dark:text-zinc-900">Journal détaillé</a></div>
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-400">Check-in</p><p class="mt-2 text-4xl font-black">{{ snapshot.attendance.checked_in }}</p><p class="mt-1 text-sm text-zinc-500">{{ snapshot.attendance.check_in_rate }}% des billets valides/entrés</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-400">Restants</p><p class="mt-2 text-4xl font-black">{{ snapshot.attendance.remaining_not_checked_in }}</p><p class="mt-1 text-sm text-zinc-500">participants encore non scannés</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-400">Débit · 5 min</p><p class="mt-2 text-4xl font-black">{{ snapshot.windows.last_5.accepted_per_minute }}</p><p class="mt-1 text-sm text-zinc-500">entrées acceptées / minute</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs font-black uppercase text-zinc-400">Refus · 15 min</p><p class="mt-2 text-4xl font-black">{{ snapshot.windows.last_15.rejection_rate }}%</p><p class="mt-1 text-sm text-zinc-500">{{ snapshot.windows.last_15.rejected }} refus / {{ snapshot.windows.last_15.attempts }} tentatives</p></div>
+  </div>
+
+  <div class="grid gap-6 xl:grid-cols-3">
+    <section class="space-y-4 xl:col-span-2">
+      <div class="flex items-center justify-between"><h2 class="text-2xl font-black">Portes</h2><span class="text-sm text-zinc-500">fenêtre principale : 15 min</span></div>
+      <div class="grid gap-4 md:grid-cols-2">
+        {% for gate in snapshot.gates %}
+        <article class="rounded-3xl border p-5 {% if gate.state == 'critical' %}border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/20{% elif gate.state == 'busy' or gate.state == 'warning' %}border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20{% else %}border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950{% endif %}">
+          <div class="flex items-start justify-between"><div><h3 class="text-xl font-black">{{ gate.name }}</h3><p class="mt-1 text-xs uppercase text-zinc-500">{{ gate.state }}</p></div><span class="text-sm font-black">{{ gate.last_15.accepted }} entrées</span></div>
+          <div class="mt-4 grid grid-cols-3 gap-3 text-sm"><div><p class="text-xs text-zinc-500">Débit</p><p class="font-black">{{ gate.last_15.accepted_per_minute }}/min</p></div><div><p class="text-xs text-zinc-500">Refus</p><p class="font-black">{{ gate.last_15.rejection_rate }}%</p></div><div><p class="text-xs text-zinc-500">Agents</p><p class="font-black">{{ gate.active_assignments }}</p></div></div>
+          {% if gate.utilization_percent != None %}<div class="mt-4"><div class="flex justify-between text-xs text-zinc-500"><span>Charge vs cible</span><span>{{ gate.utilization_percent }}%</span></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"><div class="h-full rounded-full bg-indigo-600" style="width:{% if gate.utilization_percent > 100 %}100{% else %}{{ gate.utilization_percent }}{% endif %}%"></div></div></div>{% endif %}
+        </article>
+        {% empty %}<div class="rounded-3xl border border-dashed border-zinc-300 p-8 text-zinc-500 dark:border-zinc-700 md:col-span-2">Aucune porte ni activité de terminal héritée.</div>{% endfor %}
+      </div>
+    </section>
+
+    <aside class="space-y-4">
+      <h2 class="text-2xl font-black">Incidents</h2>
+      {% for incident in snapshot.incidents %}<div class="rounded-3xl border p-5 {% if incident.severity == 'high' %}border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/20{% else %}border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20{% endif %}"><p class="text-xs font-black uppercase {% if incident.severity == 'high' %}text-red-600{% else %}text-amber-600{% endif %}">{{ incident.severity }}</p><h3 class="mt-1 font-black">{{ incident.title }}</h3><p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ incident.detail }}</p></div>{% empty %}<div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300"><p class="font-black">Aucune anomalie récente</p><p class="mt-2 text-sm">Les seuils Smart Access ne signalent pas d’incident sur la fenêtre actuelle.</p></div>{% endfor %}
+      <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><h3 class="font-black">Actions recommandées</h3><div class="mt-3 space-y-3">{% for recommendation in snapshot.recommendations %}<p class="rounded-2xl bg-zinc-50 p-3 text-sm dark:bg-zinc-900">{{ recommendation }}</p>{% endfor %}</div></div>
+    </aside>
+  </div>
+
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><div class="flex items-center justify-between"><h2 class="text-2xl font-black">Vélocité des 60 dernières minutes</h2><span class="text-xs text-zinc-500">tranches de 5 minutes</span></div><div class="mt-5 overflow-x-auto"><table class="w-full min-w-[700px] text-left text-sm"><thead class="text-xs uppercase text-zinc-400"><tr><th class="pb-3">Heure</th><th>Tentatives</th><th>Acceptées</th><th>Refusées</th></tr></thead><tbody>{% for point in snapshot.velocity %}<tr class="border-t border-zinc-100 dark:border-zinc-900"><td class="py-3 font-bold">{{ point.at|date:'H:i' }}</td><td>{{ point.attempts }}</td><td class="text-emerald-600">{{ point.accepted }}</td><td class="text-red-500">{{ point.rejected }}</td></tr>{% endfor %}</tbody></table></div></section>
+
+  <p class="text-center text-xs text-zinc-500">Dernier calcul : {{ snapshot.generated_at|date:'d/m/Y H:i:s' }} · la page se recharge automatiquement toutes les 15 secondes.</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script>window.setTimeout(() => window.location.reload(), 15000);</script>{% endblock %}
