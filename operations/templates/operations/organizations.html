@@ -1,0 +1,28 @@
+{% extends 'base/app.html' %}
+{% block title %}Organisations — Operations{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-6">
+    <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><p class="text-sm font-semibold uppercase tracking-[0.2em] text-rose-500">Operations</p><h1 class="mt-2 text-3xl font-black">Organisations & vérification</h1><p class="mt-2 text-zinc-500">Suspendre une organisation la retire automatiquement de la visibilité publique via les frontières existantes. Les événements ne sont pas supprimés ni annulés automatiquement.</p></div><a href="{% url 'operations:dashboard' %}" class="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">Retour au cockpit</a></div>
+
+    <form method="get" class="grid gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-zinc-950 md:grid-cols-[1fr_220px_auto]">
+        <input name="q" value="{{ query }}" placeholder="Nom ou slug" class="rounded-xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700">
+        <select name="status" class="rounded-xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700"><option value="">Tous les statuts</option><option value="new" {% if selected_status == 'new' %}selected{% endif %}>Nouveau</option><option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>En cours</option><option value="verified" {% if selected_status == 'verified' %}selected{% endif %}>Vérifié</option><option value="suspended" {% if selected_status == 'suspended' %}selected{% endif %}>Suspendu</option></select>
+        <button class="rounded-xl bg-zinc-900 px-5 py-3 font-semibold text-white dark:bg-white dark:text-zinc-900">Filtrer</button>
+    </form>
+
+    <div class="space-y-4">
+        {% for organization in organizations %}
+            <article class="rounded-3xl bg-white p-5 shadow-sm dark:bg-zinc-950">
+                <div class="grid gap-5 xl:grid-cols-[1fr_460px]">
+                    <div><div class="flex flex-wrap items-center gap-2"><h2 class="text-xl font-black">{{ organization.name }}</h2><span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold dark:bg-zinc-800">{{ organization.verification_status }}</span></div><p class="mt-1 text-sm text-zinc-500">{{ organization.slug }} · {{ organization.city|default:'—' }} / {{ organization.country|default:'—' }}</p><div class="mt-4 flex flex-wrap gap-4 text-sm"><span><strong>{{ organization.event_count }}</strong> événements</span><span><strong>{{ organization.member_count }}</strong> membres</span><span>Créée {{ organization.created_at|date:'d/m/Y' }}</span></div></div>
+                    <form method="post" action="{% url 'operations:organization-review' organization.pk %}" class="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+                        {% csrf_token %}
+                        <div class="grid gap-3 md:grid-cols-2"><select name="status" required class="rounded-xl border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"><option value="pending">Vérification en cours</option><option value="verified">Vérifié</option><option value="suspended">Suspendu</option><option value="new">Nouveau</option></select><button class="rounded-xl bg-rose-600 px-4 py-2 font-semibold text-white">Appliquer</button></div>
+                        <textarea name="reason" rows="2" maxlength="2000" required placeholder="Justification Operations obligatoire" class="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"></textarea>
+                    </form>
+                </div>
+            </article>
+        {% empty %}<div class="rounded-2xl bg-white p-6 text-zinc-500 dark:bg-zinc-950">Aucune organisation ne correspond au filtre.</div>{% endfor %}
+    </div>
+</div>
+{% endblock %}
