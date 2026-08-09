@@ -48,6 +48,7 @@ class Migration(migrations.Migration):
                 ("delay_minutes", models.PositiveIntegerField(default=0, help_text="Délai après l’étape précédente.", validators=[django.core.validators.MaxValueValidator(525600)])),
                 ("title", models.CharField(blank=True, max_length=180)),
                 ("message", models.TextField(blank=True)),
+                ("marketing_action", models.BooleanField(default=False, help_text="Pour une notification Makolo promotionnelle, exige le consentement marketing et les préférences de l’organisateur.")),
                 ("is_active", models.BooleanField(default=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
