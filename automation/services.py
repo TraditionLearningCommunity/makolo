@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone
 
+from crm.services import process_due_campaigns
 from events.models import Event, EventStatus
 from notifications.models import (
     DeliveryStatus,
@@ -383,5 +384,6 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
         if event.status == EventStatus.COMPLETED or now >= event.end_at:
             stats["followups"] += _post_event_followup(event, policy, now)
 
+    stats["crm_campaigns"] = process_due_campaigns(now=now, recipient_limit=delivery_limit)
     stats["deliveries"] = dispatch_pending(limit=delivery_limit)
     return stats
