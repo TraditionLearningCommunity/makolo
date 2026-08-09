@@ -1,0 +1,5 @@
+{% extends 'base/public.html' %}
+{% block title %}Désabonnement | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-xl px-6 py-20 text-center"><h1 class="text-4xl font-black">Préférences de communication</h1>{% if invalid %}<p class="mt-5 text-zinc-500">Ce lien de désabonnement est invalide ou ne correspond plus à un contact CRM.</p>{% else %}<p class="mt-5 text-zinc-500">{{ contact.email }} est maintenant désabonné des communications marketing de {{ contact.organization.name }}. Les messages transactionnels nécessaires à vos billets, paiements et événements restent séparés.</p>{% endif %}<a href="/" class="mt-8 inline-flex rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Retour à Makolo</a></div>
+{% endblock %}
