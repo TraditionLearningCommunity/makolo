@@ -1,6 +1,6 @@
 # Makolo
 
-Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle, acquisition par partenaires, CRM événementiel, communauté d'organisateurs et contrôle d’accès par QR code.
+Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle, acquisition par partenaires, CRM événementiel, promotions, communauté d'organisateurs et contrôle d’accès par QR code.
 
 ## Vision
 
@@ -13,6 +13,7 @@ La chaîne fonctionnelle couvre maintenant :
 - création et publication d’événements ;
 - catégories de billets, stock et capacité ;
 - commandes gratuites ou payantes ;
+- promotions/codes avec périodes, quotas, billets éligibles, minimums, limites client et attribution campagne ;
 - paiements sandbox/manuels et remboursements contrôlés ;
 - génération de tickets et QR uniques ;
 - listes d'attente FIFO avec offres temporaires et promotion automatique ;
@@ -51,6 +52,7 @@ La chaîne fonctionnelle couvre maintenant :
 - `automation`
 - `partners`
 - `crm`
+- `promotions`
 - `analytics_app`
 
 ## Organisations, équipes et followers
@@ -63,10 +65,10 @@ Une `Organization` possède sa propre équipe :
 - Admin : équipe et paramètres de l'organisation ;
 - Event manager : événements et billetterie ;
 - Finance : commandes, paiements et remboursements ;
-- Marketing : communication, acquisition, partenaires et CRM ;
+- Marketing : communication, acquisition, partenaires, promotions et CRM ;
 - Scanner manager : contrôle d'accès et agents scanner.
 
-Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan, commissions, CRM et métriques financières sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
+Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan, commissions, promotions financières, CRM et métriques sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
 
 `OrganizationFollow` est une relation sociale différente de `OrganizationMembership`. Suivre un organisateur ne donne aucun droit d'équipe et ne vaut jamais consentement e-mail automatique. Le participant choisit séparément les notifications Makolo et les e-mails pour les nouveaux événements et annonces de chaque organisateur. Un désabonnement de l'organisation A ne modifie ni ses préférences globales Makolo ni celles de l'organisation B.
 
@@ -145,6 +147,18 @@ Makolo enregistre une visite avec un UUID anonyme, le chemin de destination et u
 Une réservation n'acquiert aucune commission. La commission devient `earned` uniquement lorsque la commande est réellement confirmée. Un remboursement ou une annulation inverse automatiquement une commission non payée. Une commission déjà payée bloque une inversion silencieuse : l'équipe Finance doit d'abord traiter l'ajustement comptable.
 
 Les commissions peuvent être un pourcentage du montant de la commande ou un montant fixe. Les paiements de commissions sont groupés par devise ; Makolo ne mélange jamais USD, CDF ou d'autres monnaies dans un même solde. Les rôles Marketing gèrent partenaires/campagnes sans voir les montants financiers ; Finance gère commissions et paiements sans obtenir de droits marketing implicites. Un partenaire relié à un compte Makolo dispose de son propre portail de performance agrégé.
+
+## Promotions, codes et offres avancées
+
+L'espace Promotions est disponible sous `/promotions/`. Owner/Admin/Marketing peuvent créer une offre en pourcentage ou montant fixe, la limiter à un événement et à certains types de billets, définir un minimum de commande, une période, un quota global et une limite par client. Chaque offre peut porter plusieurs codes, chacun avec sa propre période, son quota, son état public/privé et une campagne CRM associée facultative.
+
+Le participant transmet seulement le code. Makolo recalcule toujours la remise côté serveur à partir des prix réels et verrouille l'offre/code pendant la création de commande. Une redemption `reserved` consomme temporairement le quota ; elle devient `confirmed` lorsque la commande est réellement confirmée et `reversed` en cas d'annulation ou expiration. Les snapshots sous-total, montant éligible, remise et total final restent attachés à la commande même si l'offre est modifiée plus tard.
+
+Une remise qui ramène un total payant exactement à zéro confirme immédiatement la commande et émet les billets. Une commande waitlist encore `pending` peut recevoir un code avant tout paiement. Payments, affiliation et CRM voient ensuite le vrai `TicketOrder.total_amount` après remise.
+
+Les mécanismes d'attribution restent indépendants et peuvent coexister : partenaire pour l'acquisition, campagne CRM signée pour le clic, et promotion pour le prix. Une campagne CRM peut aussi être liée explicitement à un code ; Makolo mesure alors séparément campagne → code → vente sans inventer un clic.
+
+Finance/Owner/Admin peuvent consulter les lignes financières de redemption ; Marketing gère la stratégie et les codes sans obtenir cette liste monétaire détaillée ; Event Manager conserve une lecture opérationnelle.
 
 ## CRM, audiences et conversion
 
@@ -263,9 +277,13 @@ Les endpoints principaux de la v1 sont :
 /api/v1/automation/workflows/<workflow-id>/
 /api/v1/automation/workflows/<workflow-id>/actions/
 /api/v1/automation/workflows/<workflow-id>/runs/
+/api/v1/promotions/promotions/
+/api/v1/promotions/promotions/<promotion-id>/metrics/
+/api/v1/promotions/codes/
+/api/v1/promotions/redemptions/
 ```
 
-`POST /api/v1/tickets/orders/` accepte `referral_code` pour l'affiliation et `campaign_token` pour préserver une attribution CRM signée sur les clients API/mobile.
+`POST /api/v1/tickets/orders/` accepte `referral_code` pour l'affiliation, `campaign_token` pour préserver une attribution CRM signée et `promotion_code` pour demander une remise validée côté serveur.
 
 ## Notifications
 
@@ -284,7 +302,6 @@ Le socle actuel prépare désormais les fonctionnalités majeures suivantes :
 - recommandations selon préférences, localisation et organisateurs suivis ;
 - opérations et modération de plateforme avancées ;
 - cohortes, attribution multi-touch et prévisions analytiques plus avancées ;
-- promotions/codes et offres avancées ;
 - Customer 360, scoring comportemental et fidélisation.
 
 ## CI
@@ -306,4 +323,5 @@ GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépen
 - Partners / Ambassadeurs / Affiliation : `docs/architecture/partners-affiliation.md` ;
 - CRM événementiel, audiences et campagnes : `docs/architecture/event-crm-audiences-campaigns.md` ;
 - followers, tags/champs, modèles et attribution campagne → vente : `docs/architecture/followers-crm-growth-attribution.md` ;
-- CRM Automation, déclencheurs, parcours et reprise : `docs/architecture/crm-automation-engine.md`.
+- CRM Automation, déclencheurs, parcours et reprise : `docs/architecture/crm-automation-engine.md` ;
+- promotions, codes, quotas et attribution : `docs/architecture/promotions-coupons-offers.md`.
