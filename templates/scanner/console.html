@@ -10,22 +10,24 @@
             <h1 class="mt-2 text-3xl font-black text-zinc-900 dark:text-white">{{ event.title }}</h1>
             <p class="mt-2 text-zinc-500 dark:text-zinc-400">{{ event.start_at|date:"d/m/Y H:i" }}{% if event.venue %} · {{ event.venue }}{% endif %}</p>
         </div>
-        <a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="rounded-2xl border border-zinc-300 px-4 py-3 font-semibold dark:border-zinc-700">Voir l’historique</a>
+        <div class="flex flex-wrap gap-2"><a href="{% url 'scanner:live-access' event.slug %}" class="rounded-2xl bg-emerald-600 px-4 py-3 font-bold text-white">Smart Access Live</a><a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="rounded-2xl border border-zinc-300 px-4 py-3 font-semibold dark:border-zinc-700">Voir l’historique</a></div>
     </div>
+
+    {% if assigned_gate %}
+    <div class="rounded-3xl border border-indigo-200 bg-indigo-50 p-4 text-sm dark:border-indigo-900 dark:bg-indigo-950/30"><span class="font-black">Porte affectée :</span> {{ assigned_gate.name }} · débit cible {{ assigned_gate.throughput_target_per_minute }}/min</div>
+    <input type="hidden" id="access-gate-id" value="{{ assigned_gate.pk }}">
+    {% elif access_gates %}
+    <div class="rounded-3xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"><label for="access-gate-select" class="text-sm font-bold">Porte utilisée par ce terminal</label><select id="access-gate-select" class="mt-2 w-full rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700"><option value="">Non attribuée</option>{% for gate in access_gates %}<option value="{{ gate.pk }}">{{ gate.name }}</option>{% endfor %}</select></div>
+    {% endif %}
 
     <div class="grid gap-6 lg:grid-cols-5">
         <section class="overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-950 lg:col-span-3 dark:border-zinc-800">
             <div class="relative aspect-[4/3] bg-black">
                 <video id="scanner-video" class="h-full w-full object-cover" playsinline muted></video>
-                <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <div class="h-56 w-56 rounded-3xl border-4 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,.25)]"></div>
-                </div>
+                <div class="pointer-events-none absolute inset-0 flex items-center justify-center"><div class="h-56 w-56 rounded-3xl border-4 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,.25)]"></div></div>
                 <div id="camera-state" class="absolute bottom-4 left-4 right-4 rounded-2xl bg-black/70 px-4 py-3 text-center text-sm font-semibold text-white">Initialisation de la caméra…</div>
             </div>
-            <div class="flex flex-wrap gap-2 p-4">
-                <button id="start-camera" type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900">Démarrer la caméra</button>
-                <button id="stop-camera" type="button" class="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white">Arrêter</button>
-            </div>
+            <div class="flex flex-wrap gap-2 p-4"><button id="start-camera" type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900">Démarrer la caméra</button><button id="stop-camera" type="button" class="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white">Arrêter</button></div>
         </section>
 
         <aside class="space-y-5 lg:col-span-2">
@@ -58,140 +60,67 @@
     const ticketInfo = document.getElementById('ticket-info');
     const manualForm = document.getElementById('manual-form');
     const manualToken = document.getElementById('manual-token');
+    const fixedGate = document.getElementById('access-gate-id');
+    const gateSelect = document.getElementById('access-gate-select');
     const csrfToken = manualForm.querySelector('[name=csrfmiddlewaretoken]').value;
     const scanUrl = "{% url 'scanner:scan' event.slug %}";
+    let stream = null, detector = null, running = false, busy = false, lastDetectAt = 0;
 
-    let stream = null;
-    let detector = null;
-    let running = false;
-    let busy = false;
-    let lastDetectAt = 0;
-
-    function clientReference() {
-        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    }
+    function clientReference() { return window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+    function selectedGateId() { return fixedGate ? fixedGate.value : (gateSelect ? gateSelect.value : ''); }
 
     function setResult(data) {
         const accepted = Boolean(data.accepted);
         resultIcon.textContent = accepted ? '✓' : '×';
-        resultIcon.className = accepted
-            ? 'flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-3xl font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-            : 'flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-3xl font-black text-red-700 dark:bg-red-950 dark:text-red-300';
+        resultIcon.className = accepted ? 'flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-3xl font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-3xl font-black text-red-700 dark:bg-red-950 dark:text-red-300';
         resultTitle.textContent = accepted ? 'Accès autorisé' : 'Accès refusé';
         resultMessage.textContent = data.message || 'Résultat du contrôle.';
-
         if (data.ticket) {
-            ticketInfo.classList.remove('hidden');
-            ticketInfo.innerHTML = '';
-            const holder = document.createElement('p');
-            holder.className = 'font-bold text-zinc-900 dark:text-white';
-            holder.textContent = data.ticket.holder_name || 'Participant';
-            const type = document.createElement('p');
-            type.className = 'mt-1 text-zinc-500 dark:text-zinc-400';
-            type.textContent = data.ticket.ticket_type || '';
-            ticketInfo.append(holder, type);
-        } else {
-            ticketInfo.classList.add('hidden');
-            ticketInfo.innerHTML = '';
-        }
+            ticketInfo.classList.remove('hidden'); ticketInfo.innerHTML = '';
+            const holder = document.createElement('p'); holder.className = 'font-bold'; holder.textContent = data.ticket.holder_name || 'Participant';
+            const type = document.createElement('p'); type.className = 'mt-1 text-zinc-500'; type.textContent = data.ticket.ticket_type || '';
+            const gate = document.createElement('p'); gate.className = 'mt-2 text-xs text-zinc-400'; gate.textContent = data.gate ? `Porte : ${data.gate}` : '';
+            ticketInfo.append(holder, type, gate);
+        } else { ticketInfo.classList.add('hidden'); ticketInfo.innerHTML = ''; }
     }
 
     async function submitToken(token) {
-        token = (token || '').trim();
-        if (!token || busy) return;
-        busy = true;
-        cameraState.textContent = 'Validation serveur…';
-
-        const body = new URLSearchParams();
-        body.set('token', token);
-        body.set('client_reference', clientReference());
-
+        token = (token || '').trim(); if (!token || busy) return;
+        busy = true; cameraState.textContent = 'Validation serveur…';
+        const body = new URLSearchParams(); body.set('token', token); body.set('client_reference', clientReference());
+        const gateId = selectedGateId(); if (gateId) body.set('access_gate_id', gateId);
         try {
-            const response = await fetch(scanUrl, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-                },
-                body: body.toString(),
-                credentials: 'same-origin'
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                setResult({accepted: false, message: data.detail || 'Erreur de validation.'});
-            } else {
-                setResult(data);
-            }
-        } catch (error) {
-            setResult({accepted: false, message: 'Connexion au serveur impossible.'});
-        } finally {
-            cameraState.textContent = running ? 'Caméra active · présentez un QR' : 'Caméra arrêtée';
-            window.setTimeout(() => { busy = false; }, 900);
-        }
+            const response = await fetch(scanUrl, {method:'POST', headers:{'X-CSRFToken':csrfToken,'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body:body.toString(), credentials:'same-origin'});
+            const data = await response.json(); setResult(response.ok ? data : {accepted:false, message:data.detail || 'Erreur de validation.'});
+        } catch (error) { setResult({accepted:false, message:'Connexion au serveur impossible.'}); }
+        finally { cameraState.textContent = running ? 'Caméra active · présentez un QR' : 'Caméra arrêtée'; window.setTimeout(() => { busy = false; }, 900); }
     }
 
     async function scanLoop(timestamp) {
         if (!running) return;
         if (detector && video.readyState >= 2 && !busy && timestamp - lastDetectAt > 300) {
             lastDetectAt = timestamp;
-            try {
-                const codes = await detector.detect(video);
-                if (codes.length && codes[0].rawValue) {
-                    await submitToken(codes[0].rawValue);
-                }
-            } catch (error) {
-                // Une image intermédiaire non décodable n'est pas une erreur utilisateur.
-            }
+            try { const codes = await detector.detect(video); if (codes.length && codes[0].rawValue) await submitToken(codes[0].rawValue); } catch (error) {}
         }
         requestAnimationFrame(scanLoop);
     }
 
     async function startCamera() {
         if (running) return;
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            cameraState.textContent = 'Caméra non disponible. Utilisez la saisie manuelle.';
-            return;
-        }
-        if (!('BarcodeDetector' in window)) {
-            cameraState.textContent = 'Détection QR native non supportée. Utilisez la saisie manuelle.';
-            return;
-        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { cameraState.textContent = 'Caméra non disponible. Utilisez la saisie manuelle.'; return; }
+        if (!('BarcodeDetector' in window)) { cameraState.textContent = 'Détection QR native non supportée. Utilisez la saisie manuelle.'; return; }
         try {
-            detector = new BarcodeDetector({formats: ['qr_code']});
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: {facingMode: {ideal: 'environment'}},
-                audio: false
-            });
-            video.srcObject = stream;
-            await video.play();
-            running = true;
-            cameraState.textContent = 'Caméra active · présentez un QR';
-            requestAnimationFrame(scanLoop);
-        } catch (error) {
-            cameraState.textContent = 'Accès caméra refusé ou indisponible. Utilisez la saisie manuelle.';
-        }
+            detector = new BarcodeDetector({formats:['qr_code']});
+            stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+            video.srcObject = stream; await video.play(); running = true; cameraState.textContent = 'Caméra active · présentez un QR'; requestAnimationFrame(scanLoop);
+        } catch (error) { cameraState.textContent = 'Accès caméra refusé ou indisponible. Utilisez la saisie manuelle.'; }
     }
 
-    function stopCamera() {
-        running = false;
-        if (stream) stream.getTracks().forEach(track => track.stop());
-        stream = null;
-        video.srcObject = null;
-        cameraState.textContent = 'Caméra arrêtée';
-    }
-
+    function stopCamera() { running = false; if (stream) stream.getTracks().forEach(track => track.stop()); stream = null; video.srcObject = null; cameraState.textContent = 'Caméra arrêtée'; }
     document.getElementById('start-camera').addEventListener('click', startCamera);
     document.getElementById('stop-camera').addEventListener('click', stopCamera);
-    manualForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const token = manualToken.value;
-        manualToken.value = '';
-        await submitToken(token);
-    });
-    window.addEventListener('pagehide', stopCamera);
-
-    startCamera();
+    manualForm.addEventListener('submit', async (event) => { event.preventDefault(); const token = manualToken.value; manualToken.value = ''; await submitToken(token); });
+    window.addEventListener('pagehide', stopCamera); startCamera();
 })();
 </script>
 {% endblock %}
