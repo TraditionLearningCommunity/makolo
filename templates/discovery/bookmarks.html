@@ -1,0 +1,11 @@
+{% extends 'base/app.html' %}
+{% block title %}Mes favoris | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-8">
+    <div class="flex items-end justify-between gap-4"><div><p class="text-sm font-bold uppercase tracking-wide text-indigo-500">Discovery</p><h1 class="mt-1 text-4xl font-black">Mes favoris</h1></div><a href="{% url 'discovery:home' %}" class="font-semibold text-indigo-600">Découvrir →</a></div>
+    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {% for bookmark in bookmarks %}<div>{% include 'discovery/_event_card.html' with event=bookmark.event bookmarked_ids=request.user.event_bookmarks.all %}<p class="mt-2 text-xs text-zinc-500">Enregistré le {{ bookmark.created_at|date:"d/m/Y H:i" }}</p></div>{% empty %}<p class="text-zinc-500">Vous n'avez encore enregistré aucun événement.</p>{% endfor %}
+    </div>
+    {% if is_paginated %}<div class="flex gap-3 text-sm">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="text-indigo-600">← Précédent</a>{% endif %}<span>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="text-indigo-600">Suivant →</a>{% endif %}</div>{% endif %}
+</div>
+{% endblock %}
