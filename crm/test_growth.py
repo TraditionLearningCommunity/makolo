@@ -231,7 +231,7 @@ class CampaignSalesAttributionTests(TestCase):
             subject="Réservez",
             body="Votre place vous attend.",
             cta_label="Réserver",
-            cta_url=f"/tickets/buy/{self.event.slug}/",
+            cta_url=f"http://testserver/tickets/buy/{self.event.slug}/",
             track_conversions=True,
             attribution_window_days=30,
         )
@@ -353,7 +353,7 @@ class CampaignSalesAttributionTests(TestCase):
         free_type = TicketType.objects.create(event=self.event, name="Free", price=0, currency="USD", quantity_total=20)
         self.client.force_login(self.customer)
         response = self.client.post(
-            reverse("tickets_api:order-list"),
+            reverse("ticket-orders-list"),
             {
                 "event_id": str(self.event.pk),
                 "customer_name": "API Client",
