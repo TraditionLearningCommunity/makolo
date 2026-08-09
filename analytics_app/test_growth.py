@@ -208,11 +208,13 @@ class GrowthAnalyticsTests(TestCase):
             followed_at=self.now - timedelta(days=30)
         )
 
-        self.contact = CRMContact.objects.create(
+        self.contact, _ = CRMContact.objects.get_or_create(
             organization=self.organization,
-            user=self.buyer_one,
             email=self.buyer_one.email,
-            name="Buyer One Secret",
+            defaults={
+                "user": self.buyer_one,
+                "name": "Buyer One Secret",
+            },
         )
         self.segment = AudienceSegment.objects.create(
             organization=self.organization,
@@ -404,7 +406,11 @@ class GrowthAnalyticsTests(TestCase):
         self.assertEqual(growth["followers"]["followers"], 1)
         self.assertEqual(growth["followers"]["followers_converted"], 1)
         self.assertEqual(growth["followers"]["follower_to_buyer_percent"], 100.0)
-        buyer_one_cohort = next(row for row in growth["cohorts"] if row["size"] == 1 and row["months"][0]["active_customers"] == 1)
+        buyer_one_cohort = next(
+            row
+            for row in growth["cohorts"]
+            if row["size"] == 1 and row["months"][0]["active_customers"] == 1
+        )
         self.assertTrue(buyer_one_cohort["months"])
 
     def test_finance_ltv_is_net_and_never_crosses_currencies(self):
