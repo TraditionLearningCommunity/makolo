@@ -8,7 +8,7 @@ class OperationsIncidentAdmin(admin.ModelAdmin):
     list_display = ("title", "category", "severity", "status", "organization", "event", "assigned_to", "created_at")
     list_filter = ("category", "severity", "status", "created_at")
     search_fields = ("title", "description", "resolution", "organization__name", "event__title")
-    autocomplete_fields = ("organization", "event", "payment", "scan_log", "opened_by", "assigned_to")
+    raw_id_fields = ("organization", "event", "payment", "scan_log", "opened_by", "assigned_to")
     readonly_fields = ("created_at", "updated_at", "acknowledged_at", "resolved_at")
 
 
@@ -17,7 +17,7 @@ class ModerationCaseAdmin(admin.ModelAdmin):
     list_display = ("target_type", "organization", "event", "severity", "status", "assigned_to", "created_at")
     list_filter = ("target_type", "severity", "status", "created_at")
     search_fields = ("reason", "outcome", "organization__name", "event__title")
-    autocomplete_fields = ("organization", "event", "opened_by", "assigned_to")
+    raw_id_fields = ("organization", "event", "opened_by", "assigned_to")
     readonly_fields = ("closed_at", "created_at", "updated_at")
 
 
