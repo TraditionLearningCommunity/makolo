@@ -9,6 +9,88 @@ INPUT_CLASS = "w-full"
 CHECKBOX_CLASS = "h-4 w-4 rounded border-zinc-300"
 
 
+def _style_form_fields(form):
+    for field in form.fields.values():
+        if isinstance(field.widget, forms.CheckboxInput):
+            field.widget.attrs.setdefault("class", CHECKBOX_CLASS)
+        else:
+            field.widget.attrs.setdefault("class", INPUT_CLASS)
+
+
+class AccountRegistrationForm(forms.Form):
+    email = forms.EmailField(label="Adresse e-mail")
+    username = forms.CharField(max_length=150, label="Identifiant")
+    first_name = forms.CharField(max_length=150, required=False, label="Prénom")
+    last_name = forms.CharField(max_length=150, required=False, label="Nom")
+    phone = forms.CharField(max_length=40, required=False, label="Téléphone")
+    password = forms.CharField(label="Mot de passe", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    password_confirm = forms.CharField(label="Confirmer le mot de passe", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _style_form_fields(self)
+        self.fields["email"].widget.attrs.setdefault("autocomplete", "email")
+        self.fields["username"].widget.attrs.setdefault("autocomplete", "username")
+        self._serializer = None
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors:
+            return cleaned
+
+        # Reuse the API serializer so password policy, uniqueness and account
+        # initialization stay identical between web and mobile/API journeys.
+        from accounts.api.serializers import RegisterSerializer
+
+        serializer = RegisterSerializer(data=cleaned)
+        if not serializer.is_valid():
+            for field_name, errors in serializer.errors.items():
+                target = field_name if field_name in self.fields else None
+                for error in errors:
+                    self.add_error(target, str(error))
+            return cleaned
+        self._serializer = serializer
+        return cleaned
+
+    def save(self):
+        if self._serializer is None:
+            raise ValueError("Le formulaire doit être validé avant la création du compte.")
+        return self._serializer.save()
+
+
+class PasswordForgotForm(forms.Form):
+    email = forms.EmailField(label="Adresse e-mail")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _style_form_fields(self)
+        self.fields["email"].widget.attrs.setdefault("autocomplete", "email")
+
+
+class PasswordResetWebForm(forms.Form):
+    new_password = forms.CharField(label="Nouveau mot de passe", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    new_password_confirm = forms.CharField(label="Confirmer le nouveau mot de passe", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _style_form_fields(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("new_password") != cleaned.get("new_password_confirm"):
+            self.add_error("new_password_confirm", "Les mots de passe ne correspondent pas.")
+        return cleaned
+
+
+class AccountDeleteForm(forms.Form):
+    password = forms.CharField(label="Mot de passe actuel", widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}))
+    confirm = forms.BooleanField(label="Je comprends que mon compte sera désactivé et anonymisé.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _style_form_fields(self)
+
+
 class AccountProfileForm(forms.ModelForm):
     company_name = forms.CharField(required=False, label="Entreprise")
     organization_name = forms.CharField(required=False, label="Organisation")
