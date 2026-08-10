@@ -12,7 +12,8 @@ frontend/
 │   ├── styles.css       # entrée Tailwind
 │   ├── app.js           # shell global HTMX + Alpine CSP + Lucide + thème
 │   ├── theme-init.js    # initialisation précoce du thème
-│   └── scanner.js       # comportement UI du scanner web
+│   ├── scanner.js       # comportement UI du scanner web
+│   └── live-access.js   # rafraîchissement Smart Access
 ├── tailwind.config.js
 └── build.mjs
 
@@ -26,6 +27,7 @@ static/
     ├── makolo.js
     ├── theme-init.js
     ├── scanner.js
+    ├── live-access.js
     ├── qr-scanner.umd.min.js
     └── qr-scanner-worker.min.js
 ```
@@ -67,7 +69,7 @@ Le build :
 2. détecte les icônes `data-lucide` des templates ;
 3. génère un registre Lucide tree-shaké ;
 4. bundle/minifie le shell vers `static/dist/makolo.js` ;
-5. minifie le script scanner ;
+5. minifie les scripts scanner et Smart Access ;
 6. copie le runtime et le worker `qr-scanner` à côté l'un de l'autre ;
 7. ne produit pas de sourcemaps de production.
 
@@ -106,7 +108,7 @@ Les imports Google Fonts ont été retirés. Les familles `Inter` et `Manrope` r
 
 Le script de thème précoce est séparé dans `theme-init.js` afin d'appliquer le thème avant le rendu sans JavaScript inline.
 
-Le code scanner n'est pas chargé sur les pages ordinaires.
+Le code scanner et le rafraîchissement Smart Access ne sont pas chargés sur les pages ordinaires.
 
 ## 7. Scanner
 
@@ -117,6 +119,8 @@ La console scanner charge seulement sur sa page :
 - `qr-scanner.umd.min.js` ;
 - `scanner.js` ;
 - `qr-scanner-worker.min.js` à la demande du moteur QR.
+
+Smart Access charge séparément `live-access.js` pour son rafraîchissement périodique, sans script inline.
 
 Le parcours conserve : caméra, sélection de caméra, lampe si disponible, moteur QR logiciel, fallback `BarcodeDetector`, lecture d'image, saisie manuelle et validation côté serveur Makolo.
 
@@ -172,7 +176,7 @@ python manage.py collectstatic --noinput
 
 Aucun `--ignore input.css` n'est requis.
 
-`scripts/validate_static_manifest.py` vérifie explicitement les entrées critiques du manifest et l'existence de leurs cibles hashées, notamment les trois CSS historiques, le CSS/JS principal et les assets scanner.
+`scripts/validate_static_manifest.py` vérifie explicitement les entrées critiques du manifest et l'existence de leurs cibles hashées, notamment les trois CSS historiques, le CSS/JS principal et les assets scanner/Smart Access.
 
 ## 10. Contrôles CI
 
