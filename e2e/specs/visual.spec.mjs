@@ -33,6 +33,36 @@ async function stableScanner(page) {
   await page.evaluate(() => document.activeElement?.blur());
 }
 
+async function assertDesktopShellStable(page) {
+  await expect(page.locator('aside.mk-sidebar').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ouvrir la navigation' })).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Navigation Makolo' })).toBeHidden();
+
+  const layout = await page.evaluate(() => {
+    const offenders = [...document.querySelectorAll('body *')]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          id: element.id || '',
+          className: typeof element.className === 'string' ? element.className.slice(0, 160) : '',
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+        };
+      })
+      .filter(({ left, right, width }) => width > 0 && (left < -1 || right > window.innerWidth + 1))
+      .slice(0, 12);
+    return {
+      viewportWidth: window.innerWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      overflow: document.documentElement.scrollWidth - window.innerWidth,
+      offenders,
+    };
+  });
+  expect(layout.overflow, JSON.stringify(layout)).toBeLessThanOrEqual(1);
+}
+
 
 test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_e2e'], { stdio: 'inherit' });
@@ -61,6 +91,7 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
   await login(page, 'scanner@e2e.makolo.test');
   await page.goto('/scanner/event/festival-makolo-e2e/');
   await stableScanner(page);
+  await assertDesktopShellStable(page);
   await shot(page, 'scanner-light-desktop.png');
 
   await page.context().clearCookies();
@@ -84,6 +115,7 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
   await login(page, 'scanner@e2e.makolo.test');
   await page.goto('/scanner/event/festival-makolo-e2e/');
   await stableScanner(page);
+  await assertDesktopShellStable(page);
   await shot(page, 'scanner-dark-desktop.png');
 });
 
