@@ -6,7 +6,10 @@
     "build": "npm run build:css && npm run build:js",
     "build:css": "tailwindcss -c frontend/tailwind.config.js -i frontend/src/styles.css -o static/dist/makolo.css --minify",
     "build:js": "node frontend/build.mjs",
-    "check:runtime-deps": "python scripts/check_frontend_runtime_deps.py"
+    "check:runtime-deps": "python scripts/check_frontend_runtime_deps.py",
+    "test:e2e": "bash scripts/run-e2e.sh",
+    "test:e2e:playwright": "playwright test",
+    "test:e2e:update-snapshots": "playwright test e2e/specs/visual.spec.mjs --update-snapshots"
   },
   "dependencies": {
     "@alpinejs/csp": "3.15.12",
@@ -15,6 +18,8 @@
     "qr-scanner": "1.4.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.62.0",
     "esbuild": "0.28.1",
     "tailwindcss": "3.4.19"
   }
