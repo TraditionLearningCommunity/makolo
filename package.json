@@ -9,7 +9,7 @@
     "check:runtime-deps": "python scripts/check_frontend_runtime_deps.py",
     "test:e2e": "bash scripts/run-e2e.sh",
     "test:e2e:playwright": "playwright test",
-    "test:e2e:update-snapshots": "playwright test e2e/specs/visual.spec.mjs --update-snapshots"
+    "test:e2e:update-snapshots": "bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots"
   },
   "dependencies": {
     "@alpinejs/csp": "3.15.12",
