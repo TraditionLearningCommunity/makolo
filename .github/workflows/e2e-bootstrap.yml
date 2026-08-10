@@ -61,4 +61,17 @@ jobs:
           fi
 
       - name: Exercise the complete Playwright suite
-        run: npm run test:e2e
+        run: npm run test:e2e 2>&1 | tee /tmp/makolo-playwright.log
+
+      - name: Upload Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-bootstrap-diagnostics
+          path: |
+            playwright-report
+            test-results/playwright
+            /tmp/makolo-playwright.log
+            /tmp/makolo-e2e-server.log
+          if-no-files-found: ignore
+          retention-days: 5
