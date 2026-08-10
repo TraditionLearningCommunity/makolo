@@ -2,8 +2,8 @@
     <div class="flex h-[72px] items-center gap-3 border-b px-5" style="border-color:var(--mk-border)">
         <div class="mk-brand-mark">M</div>
         <div class="min-w-0">
-            <p class="text-[15px] font-extrabold tracking-[-0.035em]" style="color:var(--mk-text)">MAKOLO</p>
-            <p class="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Event operating system</p>
+            <p class="mk-brand-wordmark text-[15px]">Makolo</p>
+            <p class="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Plateforme événementielle</p>
         </div>
     </div>
 
@@ -13,10 +13,10 @@
 
     <div class="border-t p-3" style="border-color:var(--mk-border)">
         <a href="{% url 'discovery:home' %}" class="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-black/[.035] dark:hover:bg-white/[.045]">
-            <div class="grid h-9 w-9 place-items-center rounded-xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sparkles" class="h-4 w-4"></i></div>
+            <div class="grid h-9 w-9 place-items-center rounded-xl" style="background:var(--mk-pulse-soft);color:var(--mk-pulse-strong)"><i data-lucide="sparkles" class="h-4 w-4"></i></div>
             <div class="min-w-0">
-                <p class="truncate text-xs font-bold" style="color:var(--mk-text)">Makolo Discovery</p>
-                <p class="mt-0.5 truncate text-[10px]" style="color:var(--mk-subtle)">Voir ce qui se passe maintenant</p>
+                <p class="truncate text-xs font-bold" style="color:var(--mk-text)">Découvrir avec Makolo</p>
+                <p class="mt-0.5 truncate text-[10px]" style="color:var(--mk-subtle)">Voir ce qui bouge maintenant</p>
             </div>
         </a>
     </div>
@@ -26,7 +26,7 @@
     <div x-show="sidebarOpen" x-transition.opacity @click="sidebarOpen=false" class="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"></div>
     <aside x-show="sidebarOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0" x-transition:leave="transition ease-in duration-160" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full" class="mk-sidebar absolute inset-y-0 left-0 flex w-[min(88vw,300px)] flex-col shadow-2xl">
         <div class="flex h-[72px] items-center justify-between border-b px-4" style="border-color:var(--mk-border)">
-            <div class="flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="text-sm font-extrabold">MAKOLO</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Event operating system</p></div></div>
+            <div class="flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Plateforme événementielle</p></div></div>
             <button type="button" class="mk-icon-btn" @click="sidebarOpen=false" aria-label="Fermer la navigation"><i data-lucide="x" class="h-5 w-5"></i></button>
         </div>
         <div class="flex-1 overflow-y-auto py-2" @click="if ($event.target.closest('a')) sidebarOpen=false">
