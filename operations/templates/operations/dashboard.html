@@ -6,7 +6,7 @@
 <div class="mx-auto max-w-7xl space-y-6">
     <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-rose-500">Staff plateforme uniquement</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-rose-800 dark:text-rose-300">Staff plateforme uniquement</p>
             <h1 class="mt-2 text-3xl font-black">Makolo Operations Center</h1>
             <p class="mt-2 max-w-3xl text-zinc-500 dark:text-zinc-400">Supervision de la modération, des incidents, des paiements, de l'accès, des notifications et des workers. Les signaux sont déterministes et n'exposent pas les payloads de paiement ni les QR bruts.</p>
         </div>
@@ -26,7 +26,7 @@
     </div>
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-zinc-950"><p class="text-sm text-zinc-500">Incidents ouverts</p><p class="mt-2 text-3xl font-black">{{ operations.metrics.open_incidents }}</p><p class="text-sm text-rose-500">{{ operations.metrics.critical_incidents }} critiques</p></div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-zinc-950"><p class="text-sm text-zinc-500">Incidents ouverts</p><p class="mt-2 text-3xl font-black">{{ operations.metrics.open_incidents }}</p><p class="text-sm text-rose-800 dark:text-rose-300">{{ operations.metrics.critical_incidents }} critiques</p></div>
         <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-zinc-950"><p class="text-sm text-zinc-500">Organisations à vérifier</p><p class="mt-2 text-3xl font-black">{{ operations.metrics.pending_organizations }}</p><p class="text-sm text-zinc-500">{{ operations.metrics.suspended_organizations }} suspendues</p></div>
         <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-zinc-950"><p class="text-sm text-zinc-500">Échecs paiements 24 h</p><p class="mt-2 text-3xl font-black">{{ operations.metrics.failed_payments_24h }}</p><p class="text-sm text-zinc-500">{{ operations.metrics.payment_failure_rate_24h }}% / {{ operations.metrics.payment_attempts_24h }} tentatives</p></div>
         <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-zinc-950"><p class="text-sm text-zinc-500">Scans refusés 15 min</p><p class="mt-2 text-3xl font-black">{{ operations.metrics.rejected_scans_15m }}</p><p class="text-sm text-zinc-500">{{ operations.metrics.scan_rejection_rate_15m }}% / {{ operations.metrics.scans_15m }} scans</p></div>
@@ -43,18 +43,18 @@
                 <div class="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
                     <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                         <div><p class="font-bold">{{ signal.title }}</p><p class="mt-1 text-sm text-zinc-500">{{ signal.detail }}</p><p class="mt-2 text-xs uppercase tracking-wider text-zinc-400">{{ signal.domain }} · {{ signal.code }}</p></div>
-                        <div class="flex items-center gap-2"><span class="rounded-full px-3 py-1 text-xs font-bold {% if signal.severity == 'critical' %}bg-rose-100 text-rose-700{% elif signal.severity == 'high' %}bg-orange-100 text-orange-700{% else %}bg-amber-100 text-amber-700{% endif %}">{{ signal.severity|upper }}</span><span class="text-sm font-black">{{ signal.count }}</span></div>
+                        <div class="flex items-center gap-2"><span class="rounded-full px-3 py-1 text-xs font-bold {% if signal.severity == 'critical' %}bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200{% elif signal.severity == 'high' %}bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200{% else %}bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200{% endif %}">{{ signal.severity|upper }}</span><span class="text-sm font-black">{{ signal.count }}</span></div>
                     </div>
                 </div>
             {% empty %}
-                <p class="rounded-2xl bg-emerald-50 p-4 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300">Aucun signal opérationnel prioritaire détecté.</p>
+                <p class="rounded-2xl bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-200">Aucun signal opérationnel prioritaire détecté.</p>
             {% endfor %}
         </div>
     </section>
 
     <div class="grid gap-6 xl:grid-cols-2">
         <section class="rounded-3xl bg-white p-6 shadow-sm dark:bg-zinc-950">
-            <div class="flex items-center justify-between"><h2 class="text-xl font-black">File de vérification</h2><a class="text-sm font-semibold text-indigo-500" href="{% url 'operations:organizations' %}">Ouvrir</a></div>
+            <div class="flex items-center justify-between"><h2 class="text-xl font-black">File de vérification</h2><a class="text-sm font-semibold text-indigo-800 dark:text-indigo-300" href="{% url 'operations:organizations' %}">Ouvrir</a></div>
             <div class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800">
                 {% for organization in operations.organization_queue %}
                     <div class="py-3"><div class="flex items-center justify-between gap-3"><div><p class="font-semibold">{{ organization.name }}</p><p class="text-sm text-zinc-500">{{ organization.event_count }} événements · {{ organization.member_count }} membres</p></div><span class="rounded-full bg-zinc-100 px-3 py-1 text-xs dark:bg-zinc-800">{{ organization.verification_status }}</span></div></div>
@@ -63,7 +63,7 @@
         </section>
 
         <section class="rounded-3xl bg-white p-6 shadow-sm dark:bg-zinc-950">
-            <div class="flex items-center justify-between"><h2 class="text-xl font-black">Incidents actifs</h2><a class="text-sm font-semibold text-indigo-500" href="{% url 'operations:incident-new' %}">Créer</a></div>
+            <div class="flex items-center justify-between"><h2 class="text-xl font-black">Incidents actifs</h2><a class="text-sm font-semibold text-indigo-800 dark:text-indigo-300" href="{% url 'operations:incident-new' %}">Créer</a></div>
             <div class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800">
                 {% for incident in operations.incidents %}
                     <a href="{% url 'operations:incident-detail' incident.id %}" class="block py-3"><div class="flex items-center justify-between gap-3"><div><p class="font-semibold">{{ incident.title }}</p><p class="text-sm text-zinc-500">{{ incident.category }} · {{ incident.status }}</p></div><span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold dark:bg-zinc-800">{{ incident.severity }}</span></div></a>
@@ -77,7 +77,7 @@
             <h2 class="text-xl font-black">Workers</h2>
             <div class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800">
                 {% for worker in operations.workers %}
-                    <div class="py-3"><div class="flex items-center justify-between"><div><p class="font-semibold">{{ worker.worker_name }} / {{ worker.instance_id }}</p><p class="text-sm text-zinc-500">Dernier heartbeat {{ worker.last_seen_at|date:'d/m H:i:s' }}</p></div><span class="rounded-full px-3 py-1 text-xs font-bold {% if worker.stale %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">{% if worker.stale %}STALE{% else %}{{ worker.state|upper }}{% endif %}</span></div>{% if worker.last_error %}<p class="mt-2 text-sm text-rose-500">{{ worker.last_error }}</p>{% endif %}</div>
+                    <div class="py-3"><div class="flex items-center justify-between"><div><p class="font-semibold">{{ worker.worker_name }} / {{ worker.instance_id }}</p><p class="text-sm text-zinc-500">Dernier heartbeat {{ worker.last_seen_at|date:'d/m H:i:s' }}</p></div><span class="rounded-full px-3 py-1 text-xs font-bold {% if worker.stale %}bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200{% else %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200{% endif %}">{% if worker.stale %}STALE{% else %}{{ worker.state|upper }}{% endif %}</span></div>{% if worker.last_error %}<p class="mt-2 text-sm text-rose-800 dark:text-rose-300">{{ worker.last_error }}</p>{% endif %}</div>
                 {% empty %}<p class="py-4 text-zinc-500">Aucun heartbeat enregistré. Le worker apparaîtra ici après son prochain cycle.</p>{% endfor %}
             </div>
         </section>
