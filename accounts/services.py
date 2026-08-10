@@ -54,6 +54,10 @@ def request_password_reset(*, email: str) -> None:
         "Une demande de réinitialisation du mot de passe Makolo a été reçue.\n\n"
         "Ouvrez ce lien pour choisir un nouveau mot de passe :\n"
         f"{reset_url}\n\n"
+        "UID: "
+        f"{uid}\n"
+        "TOKEN: "
+        f"{token}\n\n"
         "Ce lien expire automatiquement. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail."
     )
     mail.send_mail(
