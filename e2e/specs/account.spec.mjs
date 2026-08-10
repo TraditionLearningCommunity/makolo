@@ -12,6 +12,8 @@ test('registration shows validation and creates a usable account', async ({ page
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
   await expect(page.getByText(/mots de passe/i)).toBeVisible();
 
+  // Password fields are intentionally cleared by Django after an invalid POST.
+  await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByLabel('Confirmer le mot de passe').fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
   await expect(page).toHaveURL('/login/');
@@ -31,6 +33,8 @@ test('login rejects a bad password and preserves next on success', async ({ page
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page.getByText(/Identifiants incorrects/i)).toBeVisible();
 
+  // The login form does not echo credentials after failure; re-enter both fields.
+  await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL('/tickets/');
@@ -48,8 +52,8 @@ test('forgot password follows the real generated email link and token is one-use
   const resetLink = await passwordResetLinkFor('reset.user@e2e.makolo.test');
   await page.goto(resetLink);
   const newPassword = 'Makolo-New-E2E-2026!';
-  await page.getByLabel('Nouveau mot de passe').fill(newPassword);
-  await page.getByLabel('Confirmer le nouveau mot de passe').fill(newPassword);
+  await page.getByLabel('Nouveau mot de passe', { exact: true }).fill(newPassword);
+  await page.getByLabel('Confirmer le nouveau mot de passe', { exact: true }).fill(newPassword);
   await page.getByRole('button', { name: /Réinitialiser|Enregistrer/i }).click();
   await expect(page).toHaveURL('/login/');
 
@@ -69,20 +73,20 @@ test('forgot password follows the real generated email link and token is one-use
 test('profile edits persist after reload', async ({ page }) => {
   await login(page, 'profile.user@e2e.makolo.test');
   await page.goto('/account/profile/');
-  await page.getByLabel('Prénom').fill('Grace');
-  await page.getByLabel('Nom').fill('Makolo');
-  await page.getByLabel('Ville').fill('Lubumbashi');
-  await page.getByLabel('Profession').fill('Ingénieure événementielle');
-  await page.getByLabel('Présentation').fill('Profil modifié par le parcours Playwright.');
+  await page.getByLabel('Prénom', { exact: true }).fill('Grace');
+  await page.getByLabel('Nom', { exact: true }).fill('Makolo');
+  await page.getByLabel('Ville', { exact: true }).fill('Lubumbashi');
+  await page.getByLabel('Profession', { exact: true }).fill('Ingénieure événementielle');
+  await page.getByLabel('Présentation', { exact: true }).fill('Profil modifié par le parcours Playwright.');
   await page.getByRole('button', { name: /Enregistrer mon profil/i }).click();
   await expect(page.getByText(/Profil mis à jour/i)).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Prénom')).toHaveValue('Grace');
-  await expect(page.getByLabel('Ville')).toHaveValue('Lubumbashi');
-  await expect(page.getByLabel('Profession')).toHaveValue('Ingénieure événementielle');
-  await expect(page.getByLabel('Présentation')).toHaveValue('Profil modifié par le parcours Playwright.');
-  await expect(page.getByLabel('SMS')).toBeVisible();
-  await expect(page.getByLabel('Notifications push')).toBeVisible();
+  await expect(page.getByLabel('Prénom', { exact: true })).toHaveValue('Grace');
+  await expect(page.getByLabel('Ville', { exact: true })).toHaveValue('Lubumbashi');
+  await expect(page.getByLabel('Profession', { exact: true })).toHaveValue('Ingénieure événementielle');
+  await expect(page.getByLabel('Présentation', { exact: true })).toHaveValue('Profil modifié par le parcours Playwright.');
+  await expect(page.getByLabel('SMS', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Notifications push', { exact: true })).toBeVisible();
 });
 
 
@@ -103,7 +107,7 @@ test('deletion anonymizes a participant but blocks the sole organization owner',
   await page.goto('/account/delete/');
   await page.getByLabel('Mot de passe actuel').fill(E2E_PASSWORD);
   await page.getByLabel(/Je comprends/i).check();
-  await page.getByRole('button', { name: /Supprimer|Désactiver/i }).click();
+  await page.getByRole('button', { name: 'Confirmer la suppression' }).click();
   await expect(page).toHaveURL('/');
   await expect(page.getByText(/désactivé et anonymisé/i)).toBeVisible();
 
@@ -112,7 +116,7 @@ test('deletion anonymizes a participant but blocks the sole organization owner',
   await expect(page.getByText(/dernier propriétaire/i)).toBeVisible();
   await page.getByLabel('Mot de passe actuel').fill(E2E_PASSWORD);
   await page.getByLabel(/Je comprends/i).check();
-  await page.getByRole('button', { name: /Supprimer|Désactiver/i }).click();
+  await page.getByRole('button', { name: 'Confirmer la suppression' }).click();
   await expect(page.getByText(/propriétaire|transfert/i)).toBeVisible();
   await expect(page).toHaveURL('/account/delete/');
 });
