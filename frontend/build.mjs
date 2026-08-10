@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -29,6 +29,15 @@ function toPascalCase(iconName) {
     .filter(Boolean)
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
+}
+
+async function vendorScript(sourceName, targetName) {
+  const sourcePath = path.join(root, 'node_modules', 'qr-scanner', sourceName);
+  let content = await readFile(sourcePath, 'utf8');
+  content = content
+    .replace(/\n?\/\/[#@]\s*sourceMappingURL=.*?(?=\n|$)/g, '')
+    .replace(/\/\*[#@]\s*sourceMappingURL=.*?\*\//g, '');
+  await writeFile(path.join(dist, targetName), content, 'utf8');
 }
 
 const iconNames = new Set();
@@ -92,14 +101,8 @@ await build({
   format: 'iife',
 });
 
-await copyFile(
-  path.join(root, 'node_modules', 'qr-scanner', 'qr-scanner.umd.min.js'),
-  path.join(dist, 'qr-scanner.umd.min.js'),
-);
-await copyFile(
-  path.join(root, 'node_modules', 'qr-scanner', 'qr-scanner-worker.min.js'),
-  path.join(dist, 'qr-scanner-worker.min.js'),
-);
+await vendorScript('qr-scanner.umd.min.js', 'qr-scanner.umd.min.js');
+await vendorScript('qr-scanner-worker.min.js', 'qr-scanner-worker.min.js');
 
 const files = (await readdir(dist)).sort();
 for (const file of files) {
