@@ -2,6 +2,13 @@ import { test, expect } from '../fixtures/makolo.mjs';
 import { login } from '../helpers/auth.mjs';
 
 
+async function forceLight(page) {
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.reload();
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
+}
+
+
 test('scanner explains denied camera permission while keeping image and manual fallbacks', async ({ page }) => {
   await page.addInitScript(() => {
     const denied = () => Promise.reject(new DOMException('Permission denied by E2E browser', 'NotAllowedError'));
@@ -27,8 +34,8 @@ test('scanner explains denied camera permission while keeping image and manual f
 
 
 test('keyboard supports Tab, Shift+Tab, Enter, Space and Escape on the app shell', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
   await login(page, 'empty.participant@e2e.makolo.test');
+  await forceLight(page);
   await page.keyboard.press('Home');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Aller au contenu principal' })).toBeFocused();
@@ -66,9 +73,8 @@ test('mobile navigation opens, closes with Escape and does not overflow @mobile'
 
 
 test('theme choice persists and representative surfaces remain readable @mobile', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
   await login(page, 'visual.participant@e2e.makolo.test');
-  await expect(page.locator('html')).not.toHaveClass(/dark/);
+  await forceLight(page);
   await page.getByRole('button', { name: 'Changer le thème' }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.reload();
