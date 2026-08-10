@@ -57,6 +57,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             .distinct()
         )
 
+    def get_event_queryset(self):
+        """Compatibility seam for dashboard authorization tests and callers."""
+        return self._organization_events(self.request.user)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
@@ -100,7 +104,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             )
             return context
 
-        events = self._organization_events(user)
+        events = self.get_event_queryset()
         tickets = get_tickets_visible_to(user)
         orders = get_orders_visible_to(user)
         payments = get_payments_visible_to(user)
