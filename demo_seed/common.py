@@ -65,16 +65,37 @@ def _reuse_business_created_object(model: type[models.Model], defaults: dict[str
     return None
 
 
+def _same_value(current: Any, expected: Any) -> bool:
+    if isinstance(current, models.Model) or isinstance(expected, models.Model):
+        if not isinstance(current, models.Model) or not isinstance(expected, models.Model):
+            return False
+        return current._meta.label_lower == expected._meta.label_lower and current.pk == expected.pk
+    return current == expected
+
+
+def _apply_defaults_if_changed(obj: models.Model, defaults: dict[str, Any]) -> models.Model:
+    changed = False
+    for field, value in defaults.items():
+        current = getattr(obj, field)
+        if _same_value(current, value):
+            continue
+        setattr(obj, field, value)
+        changed = True
+    # Avoid firing model save hooks/signals on a deterministic rerun when the row is
+    # already identical. This matters for business side effects such as loyalty
+    # accrual that legitimately react to TicketOrder saves.
+    if changed:
+        obj.save()
+    return obj
+
+
 def upsert(model: type[models.Model], key: str, *, defaults: dict[str, Any]) -> models.Model:
     pk = stable_uuid(f"{model._meta.label_lower}:{key}")
     obj = model.objects.filter(pk=pk).first()
     if obj is None:
         obj = _reuse_business_created_object(model, defaults)
     if obj is not None:
-        for field, value in defaults.items():
-            setattr(obj, field, value)
-        obj.save()
-        return obj
+        return _apply_defaults_if_changed(obj, defaults)
     return model.objects.create(pk=pk, **defaults)
 
 
