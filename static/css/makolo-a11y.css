@@ -1,14 +1,24 @@
 /* Accessibility hardening layered after the existing Makolo visual system. */
 :root {
-  --mk-subtle: #667085;
+  --mk-muted: #445064;
+  --mk-subtle: #4b5563;
   --mk-positive: #056b5d;
+  --mk-warning: #92400e;
+  --mk-pulse-strong: #a43a22;
 }
 
 .dark {
-  --mk-subtle: #9a94a3;
+  --mk-muted: #b5afbd;
+  --mk-subtle: #aaa4b1;
 }
 
-/* Keep status text comfortably above AA after the translucent success tint. */
+/* Keep compact status and action text comfortably above AA on tinted surfaces. */
 .mk-badge-success {
   color: var(--mk-positive);
+}
+.mk-badge-warning {
+  color: var(--mk-warning);
+}
+.mk-btn-ghost.text-rose-600 {
+  color: #b4233c;
 }
