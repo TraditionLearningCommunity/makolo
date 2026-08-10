@@ -1,0 +1,21 @@
+{
+  "name": "makolo-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "tailwindcss -c frontend/tailwind.config.js -i frontend/src/styles.css -o static/dist/makolo.css --minify",
+    "build:js": "node frontend/build.mjs",
+    "check:runtime-deps": "python scripts/check_frontend_runtime_deps.py"
+  },
+  "dependencies": {
+    "@alpinejs/csp": "3.15.12",
+    "htmx.org": "1.9.12",
+    "lucide": "1.27.0",
+    "qr-scanner": "1.4.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "tailwindcss": "3.4.19"
+  }
+}
