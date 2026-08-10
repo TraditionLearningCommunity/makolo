@@ -10,7 +10,7 @@ test('owner creates a complete event, publishes it and configures ticketing', as
   await page.locator('[name="organization"]').selectOption({ label: 'Makolo E2E Events' });
   await page.locator('[name="title"]').fill('Conférence Organisateur E2E');
   await page.locator('[name="category"]').selectOption({ label: 'Culture E2E' });
-  await page.locator('[name="venue"]').selectOption({ label: /Centre Makolo E2E/ });
+  await page.locator('[name="venue"]').selectOption({ label: 'Centre Makolo E2E — Lubumbashi' });
   await page.locator('[name="short_description"]').fill('Événement créé entièrement depuis le navigateur.');
   await page.locator('[name="description"]').fill('Ce scénario valide la création, la publication et la billetterie organisateur.');
   await page.locator('[name="visibility"]').selectOption('public');
