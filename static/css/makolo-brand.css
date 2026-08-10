@@ -1,0 +1,280 @@
+/* Makolo Brand System V1
+   Movement + encounter + trust. Presentation only: no business behavior. */
+
+:root {
+  --mk-bg: #f6f7fb;
+  --mk-surface: rgba(255, 255, 255, .88);
+  --mk-surface-solid: #ffffff;
+  --mk-surface-muted: #f6f7fb;
+  --mk-surface-warm: #fff8f3;
+  --mk-border: rgba(15, 23, 42, .09);
+  --mk-border-strong: rgba(15, 23, 42, .17);
+  --mk-text: #0f172a;
+  --mk-muted: #556070;
+  --mk-subtle: #7c8492;
+
+  --mk-brand: #5232db;
+  --mk-brand-hover: #4424c7;
+  --mk-brand-strong: #2b176e;
+  --mk-brand-soft: rgba(82, 50, 219, .10);
+  --mk-brand-softer: rgba(82, 50, 219, .055);
+
+  --mk-pulse: #ff704d;
+  --mk-pulse-strong: #d94d2f;
+  --mk-pulse-soft: rgba(255, 112, 77, .12);
+
+  --mk-positive: #07806f;
+  --mk-positive-soft: rgba(7, 128, 111, .10);
+  --mk-warning: #b45309;
+  --mk-warning-soft: rgba(180, 83, 9, .10);
+  --mk-danger: #c83c3c;
+  --mk-danger-soft: rgba(200, 60, 60, .10);
+  --mk-info: #2563eb;
+  --mk-info-soft: rgba(37, 99, 235, .10);
+
+  --mk-shadow-sm: 0 1px 2px rgba(15, 23, 42, .035), 0 8px 22px rgba(15, 23, 42, .035);
+  --mk-shadow-md: 0 16px 42px rgba(15, 23, 42, .08);
+  --mk-shadow-float: 0 24px 64px rgba(15, 23, 42, .14);
+  --mk-radius: 16px;
+  --mk-radius-lg: 20px;
+}
+
+.dark {
+  --mk-bg: #0b0a12;
+  --mk-surface: rgba(21, 18, 31, .88);
+  --mk-surface-solid: #15121f;
+  --mk-surface-muted: #1c1828;
+  --mk-surface-warm: #211822;
+  --mk-border: rgba(255, 255, 255, .08);
+  --mk-border-strong: rgba(255, 255, 255, .16);
+  --mk-text: #faf7f5;
+  --mk-muted: #b5afbd;
+  --mk-subtle: #817b89;
+  --mk-brand: #9a87ff;
+  --mk-brand-hover: #ad9eff;
+  --mk-brand-strong: #c2b6ff;
+  --mk-brand-soft: rgba(154, 135, 255, .15);
+  --mk-brand-softer: rgba(154, 135, 255, .08);
+  --mk-pulse: #ff8b70;
+  --mk-pulse-strong: #ff9b84;
+  --mk-pulse-soft: rgba(255, 139, 112, .14);
+  --mk-positive: #4ac7b5;
+  --mk-positive-soft: rgba(74, 199, 181, .13);
+  --mk-warning: #e3a559;
+  --mk-warning-soft: rgba(227, 165, 89, .13);
+  --mk-danger: #ff7878;
+  --mk-danger-soft: rgba(255, 120, 120, .13);
+  --mk-info: #7da2ff;
+  --mk-info-soft: rgba(125, 162, 255, .13);
+}
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(820px 480px at 92% -12%, var(--mk-brand-soft), transparent 62%),
+    radial-gradient(660px 420px at 12% 108%, var(--mk-pulse-soft), transparent 66%),
+    var(--mk-bg);
+  color: var(--mk-text);
+}
+
+h1, h2, h3,
+.mk-page-title,
+.mk-brand-wordmark,
+.mk-stat-value {
+  font-family: Manrope, Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  color: var(--mk-text);
+  background: var(--mk-pulse-soft);
+}
+
+.mk-panel { border-radius: var(--mk-radius-lg); }
+.mk-stat-card { border-radius: var(--mk-radius-lg); }
+.mk-empty { border-radius: var(--mk-radius-lg); }
+
+.mk-page-title {
+  letter-spacing: -.052em;
+  font-weight: 800;
+}
+
+.mk-kicker {
+  color: var(--mk-brand);
+  letter-spacing: .115em;
+}
+.mk-kicker::before {
+  background: var(--mk-pulse);
+  box-shadow: 0 0 0 5px var(--mk-pulse-soft);
+}
+
+.mk-brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  font-family: Manrope, Inter, sans-serif;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--mk-brand);
+  box-shadow: 0 10px 24px rgba(82, 50, 219, .22);
+}
+.dark .mk-brand-mark {
+  color: #ffffff;
+  background: #5232db;
+}
+.mk-brand-wordmark {
+  color: var(--mk-text);
+  font-weight: 800;
+  letter-spacing: -.035em;
+}
+
+.mk-btn { border-radius: 12px; }
+.mk-btn-primary {
+  color: #ffffff;
+  background: #5232db;
+  box-shadow: 0 8px 22px rgba(82, 50, 219, .22);
+}
+.mk-btn-primary:hover {
+  color: #ffffff;
+  background: #4424c7;
+  box-shadow: 0 12px 28px rgba(82, 50, 219, .28);
+}
+.dark .mk-btn-primary,
+.dark .mk-btn-primary:hover {
+  color: #ffffff;
+  background: #5232db;
+}
+
+.mk-icon-btn { border-radius: 12px; }
+.mk-nav-item { border-radius: 11px; }
+.mk-nav-item.is-active {
+  color: var(--mk-brand);
+  background: var(--mk-brand-soft);
+}
+.mk-nav-item.is-active::before { background: var(--mk-brand); }
+
+.mk-badge-brand {
+  color: var(--mk-brand);
+  background: var(--mk-brand-soft);
+  border-color: color-mix(in srgb, var(--mk-brand) 18%, transparent);
+}
+.mk-badge-success {
+  color: var(--mk-positive);
+  background: var(--mk-positive-soft);
+  border-color: color-mix(in srgb, var(--mk-positive) 20%, transparent);
+}
+.mk-badge-warning {
+  color: var(--mk-warning);
+  background: var(--mk-warning-soft);
+  border-color: color-mix(in srgb, var(--mk-warning) 20%, transparent);
+}
+.mk-badge-danger {
+  color: var(--mk-danger);
+  background: var(--mk-danger-soft);
+  border-color: color-mix(in srgb, var(--mk-danger) 20%, transparent);
+}
+.mk-badge-info {
+  color: var(--mk-info);
+  background: var(--mk-info-soft);
+  border-color: color-mix(in srgb, var(--mk-info) 20%, transparent);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+select,
+textarea {
+  border-radius: 12px !important;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--mk-brand) !important;
+  box-shadow: 0 0 0 4px var(--mk-brand-soft) !important;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-color: var(--mk-brand) !important;
+}
+
+/* Compatibility for remaining Tailwind indigo classes in feature templates. */
+main .text-indigo-600,
+main .dark\:text-indigo-400,
+main .hover\:text-indigo-600:hover,
+.dark main .dark\:hover\:text-indigo-400:hover {
+  color: var(--mk-brand) !important;
+}
+main .bg-indigo-50,
+main .bg-indigo-500\/\[\.06\],
+main .bg-indigo-500\/\[\.08\] {
+  background-color: var(--mk-brand-soft) !important;
+}
+main .border-indigo-200,
+main .border-indigo-500\/20 {
+  border-color: color-mix(in srgb, var(--mk-brand) 18%, transparent) !important;
+}
+
+/* Participant-facing surfaces: warm, alive, but still transaction-safe. */
+.mk-participant-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--mk-border);
+  border-radius: 24px;
+  background:
+    radial-gradient(520px 260px at 88% 0%, var(--mk-brand-soft), transparent 64%),
+    radial-gradient(440px 240px at 12% 112%, var(--mk-pulse-soft), transparent 68%),
+    linear-gradient(145deg, var(--mk-surface-warm), var(--mk-surface-solid) 58%);
+  box-shadow: var(--mk-shadow-sm);
+}
+.dark .mk-participant-hero {
+  background:
+    radial-gradient(520px 260px at 88% 0%, var(--mk-brand-soft), transparent 64%),
+    radial-gradient(440px 240px at 12% 112%, var(--mk-pulse-soft), transparent 68%),
+    linear-gradient(145deg, var(--mk-surface-warm), var(--mk-surface-solid) 58%);
+}
+.mk-pulse-orb {
+  pointer-events: none;
+  position: absolute;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  background: var(--mk-pulse-soft);
+  filter: blur(48px);
+}
+.mk-pulse-icon {
+  color: var(--mk-pulse-strong);
+  background: var(--mk-pulse-soft);
+}
+.mk-pulse-text { color: var(--mk-pulse-strong); }
+
+.mk-event-date {
+  border-color: var(--mk-border) !important;
+  background: var(--mk-surface-warm) !important;
+}
+.dark .mk-event-date { background: var(--mk-surface-muted) !important; }
+.mk-event-link:hover { color: var(--mk-brand) !important; }
+.mk-event-favorite.is-active { color: var(--mk-pulse) !important; }
+
+.mk-ticket-icon { background: var(--mk-brand-soft); color: var(--mk-brand); }
+.mk-ticket-icon.is-valid { background: var(--mk-positive-soft); color: var(--mk-positive); }
+.mk-ticket-glow {
+  background: radial-gradient(circle, var(--mk-brand-soft), transparent 68%);
+}
+
+/* Auth is intentionally deeper and more trustworthy than Discovery. */
+.mk-auth-visual {
+  background:
+    radial-gradient(620px 420px at 82% 12%, rgba(255, 112, 77, .18), transparent 62%),
+    radial-gradient(700px 500px at 12% 105%, rgba(82, 50, 219, .36), transparent 65%),
+    #2b176e;
+}
+.mk-auth-visual .mk-brand-mark {
+  background: #ffffff;
+  color: #2b176e;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .18);
+}
+
+@media (max-width: 640px) {
+  .mk-participant-hero { border-radius: 20px; }
+}
