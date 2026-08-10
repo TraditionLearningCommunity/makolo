@@ -1,5 +1,6 @@
-{% load notification_tags %}
+{% load notification_tags core_navigation %}
 {% unread_notifications_count request.user as unread_notifications %}
+{% web_capabilities request.user as caps %}
 <header class="mk-topbar sticky top-0 z-40 h-[72px]" x-data="themeManager()" x-init="init()">
     <div class="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <div class="flex min-w-0 items-center gap-3">
@@ -58,8 +59,9 @@
                     </div>
                     <div class="my-1 border-t" style="border-color:var(--mk-border)"></div>
                     <a href="{% url 'account:profile' %}" class="mk-nav-item"><i data-lucide="user-round"></i><span>Mon profil</span></a>
+                    <a href="{% url 'tickets:list' %}" class="mk-nav-item"><i data-lucide="ticket-check"></i><span>Mes billets</span></a>
                     <a href="{% url 'discovery:for-you' %}" class="mk-nav-item"><i data-lucide="sparkles"></i><span>Pour vous</span></a>
-                    <a href="{% url 'organizations:list' %}" class="mk-nav-item"><i data-lucide="building-2"></i><span>Mes organisations</span></a>
+                    {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-nav-item"><i data-lucide="building-2"></i><span>Mes organisations</span></a>{% endif %}
                     <a href="{% url 'notifications:list' %}" class="mk-nav-item"><i data-lucide="bell"></i><span>Notifications</span></a>
                     <form method="post" action="{% url 'core:logout' %}" class="mt-1">{% csrf_token %}<button class="mk-nav-item w-full text-left" type="submit"><i data-lucide="log-out"></i><span>Se déconnecter</span></button></form>
                 </div>
