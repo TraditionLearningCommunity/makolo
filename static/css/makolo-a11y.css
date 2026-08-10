@@ -29,3 +29,12 @@
 .mk-btn-ghost.text-rose-600 {
   color: #9f1239;
 }
+
+/* Preserve the page entrance motion without fading all text below AA contrast. */
+.mk-page {
+  animation-name: mk-page-in-accessible;
+}
+@keyframes mk-page-in-accessible {
+  from { transform: translateY(7px); }
+  to { transform: translateY(0); }
+}
