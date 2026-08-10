@@ -13,7 +13,10 @@ const shot = async (page, name, options = {}) => {
 };
 
 async function useLight(page) {
-  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('theme', 'light'));
+  await page.reload();
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
 }
 
 async function useDark(page) {
@@ -36,7 +39,6 @@ test.beforeAll(() => {
 
 test('representative light desktop surfaces @visual', async ({ page }) => {
   await useLight(page);
-  await page.goto('/');
   await shot(page, 'home-light-desktop.png');
   await page.goto('/discover/');
   await shot(page, 'discovery-light-desktop.png');
@@ -84,7 +86,6 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
 
 test('representative mobile surfaces @visual @mobile @mobile-only', async ({ page }) => {
   await useLight(page);
-  await page.goto('/');
   await shot(page, 'home-light-mobile.png');
   await page.goto('/discover/');
   await shot(page, 'discovery-light-mobile.png');
