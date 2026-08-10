@@ -6,6 +6,7 @@ const root = process.cwd();
 const dist = path.join(root, 'static', 'dist');
 const source = path.join(root, 'frontend', 'src');
 const generated = path.join(root, 'frontend', '.generated');
+const ICON_ALIASES = { ListClock: 'Clock' };
 
 await mkdir(dist, { recursive: true });
 await mkdir(generated, { recursive: true });
@@ -40,9 +41,15 @@ for (const file of await walk(root)) {
 }
 const sortedIcons = [...iconNames].sort();
 if (!sortedIcons.length) throw new Error('No Lucide icons found in templates.');
-const registry = `import { ${sortedIcons.join(', ')} } from 'lucide';\nexport const makoloIcons = { ${sortedIcons.join(', ')} };\n`;
+const importNames = [...new Set(sortedIcons.map(icon => ICON_ALIASES[icon] || icon))].sort();
+const registryEntries = sortedIcons.map(icon => {
+  const imported = ICON_ALIASES[icon] || icon;
+  return imported === icon ? icon : `${icon}: ${imported}`;
+});
+const registry = `import { ${importNames.join(', ')} } from 'lucide';\nexport const makoloIcons = { ${registryEntries.join(', ')} };\n`;
 await writeFile(path.join(generated, 'lucide-icons.js'), registry, 'utf8');
 console.log(`Lucide icons bundled: ${sortedIcons.length}`);
+if (Object.keys(ICON_ALIASES).length) console.log(`Lucide aliases: ${JSON.stringify(ICON_ALIASES)}`);
 
 const common = {
   minify: true,
