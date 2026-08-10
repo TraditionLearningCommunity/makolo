@@ -68,7 +68,7 @@
             {% if public_promotion_codes %}
             <div class="mt-4 flex flex-wrap gap-2">
                 {% for code in public_promotion_codes %}
-                <button type="button" onclick="document.getElementById('promotion_code').value='{{ code.code|escapejs }}'" class="rounded-full border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-indigo-700 dark:border-indigo-800 dark:bg-zinc-900 dark:text-indigo-300">{{ code.code }}{% if code.label %} · {{ code.label }}{% endif %}</button>
+                <button type="button" data-fill-target="promotion_code" data-fill-value="{{ code.code }}" class="rounded-full border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-indigo-700 dark:border-indigo-800 dark:bg-zinc-900 dark:text-indigo-300">{{ code.code }}{% if code.label %} · {{ code.label }}{% endif %}</button>
                 {% endfor %}
             </div>
             {% endif %}
