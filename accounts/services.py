@@ -6,6 +6,7 @@ from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -36,7 +37,7 @@ def blacklist_user_refresh_tokens(user) -> int:
 
 
 def request_password_reset(*, email: str) -> None:
-    """Send a secure reset token without exposing account existence."""
+    """Send a secure reset link without exposing account existence."""
     normalized_email = (email or "").strip().lower()
     user = User.objects.filter(email__iexact=normalized_email, is_active=True).first()
     if not user:
@@ -44,12 +45,20 @@ def request_password_reset(*, email: str) -> None:
 
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
+    reset_path = reverse(
+        "account:password-reset-confirm",
+        kwargs={"uid": uid, "token": token},
+    )
+    reset_url = f"{settings.MAKOLO_PUBLIC_BASE_URL}{reset_path}"
     body = (
         "Une demande de réinitialisation du mot de passe Makolo a été reçue.\n\n"
-        "Utilisez ces informations dans l’écran de réinitialisation Makolo :\n"
-        f"UID: {uid}\n"
-        f"TOKEN: {token}\n\n"
-        "Ce jeton expire automatiquement. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail."
+        "Ouvrez ce lien pour choisir un nouveau mot de passe :\n"
+        f"{reset_url}\n\n"
+        "UID: "
+        f"{uid}\n"
+        "TOKEN: "
+        f"{token}\n\n"
+        "Ce lien expire automatiquement. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail."
     )
     mail.send_mail(
         subject="Makolo — Réinitialisation du mot de passe",
@@ -93,6 +102,27 @@ def change_password(*, user, current_password: str, new_password: str):
     return locked
 
 
+def get_account_deletion_blockers(user):
+    """Return organizations for which user is the last active owner."""
+    from organizations.models import OrganizationMembership, OrganizationRole
+
+    blockers = []
+    owner_memberships = OrganizationMembership.objects.filter(
+        user=user,
+        role=OrganizationRole.OWNER,
+        is_active=True,
+    ).select_related("organization")
+    for membership in owner_memberships:
+        has_other_owner = OrganizationMembership.objects.filter(
+            organization=membership.organization,
+            role=OrganizationRole.OWNER,
+            is_active=True,
+        ).exclude(pk=membership.pk).exists()
+        if not has_other_owner:
+            blockers.append(membership.organization)
+    return blockers
+
+
 def _schedule_file_deletions(names):
     unique_names = [name for name in dict.fromkeys(names) if name]
     if not unique_names:
@@ -117,7 +147,8 @@ def delete_account(*, user, current_password: str):
     Financial/ticket/scanner records are retained. Direct personal identifiers
     owned by the account are removed or replaced with non-reversible placeholders.
     Foreign keys that form part of audit history keep pointing at the now
-    anonymized, inactive user row.
+    anonymized, inactive user row. Deletion is blocked while the user is the
+    last active owner of an organization so no workspace is orphaned silently.
     """
     from crm.models import CRMContact, MarketingConsent
     from notifications.models import Notification
@@ -132,6 +163,20 @@ def delete_account(*, user, current_password: str):
         raise ValidationError({"password": "Le mot de passe est incorrect."})
     if not locked.is_active:
         return {"status": "deleted"}
+
+    blockers = get_account_deletion_blockers(locked)
+    if blockers:
+        names = ", ".join(organization.name for organization in blockers[:5])
+        if len(blockers) > 5:
+            names += "…"
+        raise ValidationError(
+            {
+                "account": (
+                    "Transférez d’abord la propriété des organisations dont vous êtes le dernier propriétaire actif : "
+                    f"{names}."
+                )
+            }
+        )
 
     suffix = locked.pk.hex
     anonymized_email = f"deleted+{suffix}@deleted.invalid"

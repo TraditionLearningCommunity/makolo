@@ -101,7 +101,17 @@ def _seed_operations(ctx: SeedContext) -> None:
     staff = ctx.staff_users
     categories = list(IncidentCategory.values)
     severities = list(IncidentSeverity.values)
-    statuses = [IncidentStatus.RESOLVED, IncidentStatus.OPEN, IncidentStatus.INVESTIGATING, IncidentStatus.MONITORING, IncidentStatus.DISMISSED]
+    # Keep edge cases useful without making a fresh demo environment look like
+    # an active outage wall. Most seeded incidents are historical/resolved; one
+    # monitoring case per cycle remains available for demonstrations.
+    statuses = [
+        IncidentStatus.RESOLVED,
+        IncidentStatus.RESOLVED,
+        IncidentStatus.RESOLVED,
+        IncidentStatus.DISMISSED,
+        IncidentStatus.RESOLVED,
+        IncidentStatus.MONITORING,
+    ]
 
     for i in range(24):
         event = ctx.events[i % len(ctx.events)]

@@ -13,6 +13,7 @@ from .forms import (
 )
 from .models import ModerationStatus
 from .permissions import user_can_access_operations
+from .product_overview import build_product_operations_overview
 from .selectors import (
     get_moderation_cases,
     get_operations_events,
@@ -20,7 +21,6 @@ from .selectors import (
     get_operations_organizations,
 )
 from .services import (
-    build_operations_overview,
     change_organization_verification,
     create_incident,
     moderate_event,
@@ -41,7 +41,7 @@ class OperationsDashboardView(StaffOperationsMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["operations"] = build_operations_overview(self.request.user)
+        context["operations"] = build_product_operations_overview(self.request.user)
         return context
 
 

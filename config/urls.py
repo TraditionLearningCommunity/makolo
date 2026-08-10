@@ -6,6 +6,11 @@ from django.urls import include, path
 from core.api.views import HealthAPIView
 
 
+handler403 = "core.error_views.error_403"
+handler404 = "core.error_views.error_404"
+handler500 = "core.error_views.error_500"
+
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/health/", HealthAPIView.as_view(), name="api-health"),

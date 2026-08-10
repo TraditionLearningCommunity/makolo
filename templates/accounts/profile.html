@@ -1,4 +1,6 @@
 {% extends 'base/app.html' %}
+{% load core_navigation %}
+{% web_capabilities request.user as caps %}
 {% block title %}Mon profil | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-6xl space-y-8 lg:space-y-10">
@@ -11,7 +13,7 @@
         <div class="flex flex-wrap gap-2">
             <a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary"><i data-lucide="key-round" class="h-4 w-4"></i>Mot de passe</a>
             <a href="{% url 'notifications:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="bell" class="h-4 w-4"></i>Notifications</a>
-            <a href="{% url 'organizations:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="building-2" class="h-4 w-4"></i>Mes organisations</a>
+            {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="building-2" class="h-4 w-4"></i>Mes organisations</a>{% endif %}
         </div>
     </section>
 
@@ -34,10 +36,20 @@
             <p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">Statut</p>
             <div class="mt-3 flex flex-wrap gap-2">
                 {% if request.user.is_verified %}<span class="mk-badge mk-badge-success">Compte vérifié</span>{% else %}<span class="mk-badge mk-badge-warning">À vérifier</span>{% endif %}
+                {% if request.user.email_verified %}<span class="mk-badge mk-badge-success">E-mail vérifié</span>{% else %}<span class="mk-badge">E-mail non vérifié</span>{% endif %}
                 {% if request.user.is_organizer %}<span class="mk-badge mk-badge-brand">Organisateur</span>{% endif %}
                 {% if request.user.is_scanner_agent %}<span class="mk-badge mk-badge-info">Agent scanner</span>{% endif %}
             </div>
+            <p class="mt-4 text-xs" style="color:var(--mk-muted)">Membre depuis le {{ request.user.created_at|date:'d/m/Y' }}</p>
         </div>
+    </section>
+
+    <section class="mk-panel p-5 sm:p-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="shield-check" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Sécurité & compte</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Votre e-mail de connexion est {{ request.user.email }}. Gérez ici le mot de passe et les actions sensibles du compte.</p></div></div>
+            <div class="flex flex-wrap gap-2"><a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary">Changer le mot de passe</a><a href="{% url 'account:delete' %}" class="mk-btn mk-btn-ghost text-rose-600 dark:text-rose-300">Supprimer le compte</a></div>
+        </div>
+        {% if deletion_blockers %}<div class="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/[.07] p-4 text-sm"><p class="font-bold">Suppression protégée</p><p class="mt-1 leading-6" style="color:var(--mk-muted)">Vous êtes actuellement le dernier propriétaire actif d’au moins une organisation. La suppression restera bloquée jusqu’au transfert de propriété.</p></div>{% endif %}
     </section>
 
     <form method="post" enctype="multipart/form-data" class="mk-panel p-5 sm:p-6 lg:p-7">

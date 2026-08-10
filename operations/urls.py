@@ -1,9 +1,9 @@
 from django.urls import path
 
+from .product_views import ProductOperationsDashboardView
 from .views import (
     EventModerationView,
     ModerationQueueView,
-    OperationsDashboardView,
     OperationsEventsView,
     OperationsIncidentCreateView,
     OperationsIncidentDetailView,
@@ -16,7 +16,7 @@ from .views import (
 app_name = "operations"
 
 urlpatterns = [
-    path("", OperationsDashboardView.as_view(), name="dashboard"),
+    path("", ProductOperationsDashboardView.as_view(), name="dashboard"),
     path("organizations/", OperationsOrganizationsView.as_view(), name="organizations"),
     path("organizations/<uuid:pk>/review/", OrganizationReviewView.as_view(), name="organization-review"),
     path("events/", OperationsEventsView.as_view(), name="events"),

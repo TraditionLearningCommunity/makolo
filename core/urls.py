@@ -1,7 +1,7 @@
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 
-from .views import DashboardView
+from .views import DashboardView, PublicHomeView
 
 
 app_name = "core"
@@ -17,8 +17,9 @@ urlpatterns = [
     ),
     path(
         "logout/",
-        LogoutView.as_view(next_page="core:login"),
+        LogoutView.as_view(next_page="core:home"),
         name="logout",
     ),
-    path("", DashboardView.as_view(), name="dashboard"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("", PublicHomeView.as_view(), name="home"),
 ]

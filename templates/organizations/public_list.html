@@ -1,0 +1,14 @@
+{% extends 'base/public.html' %}
+{% block title %}Organisateurs | Makolo{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+    <div class="max-w-3xl"><span class="mk-kicker">Organisateurs</span><h1 class="mt-4 text-3xl font-extrabold tracking-[-.045em] sm:text-4xl">Les communautés qui font vivre Makolo.</h1><p class="mt-4 text-sm leading-6" style="color:var(--mk-muted)">Explorez les profils publics d’organisateurs et leurs événements accessibles.</p></div>
+    <form method="get" class="mt-7 flex max-w-xl gap-2"><label class="sr-only" for="org-search">Rechercher un organisateur</label><input id="org-search" name="q" value="{{ request.GET.q }}" type="search" placeholder="Nom de l’organisateur" class="min-w-0 flex-1"><button class="mk-btn mk-btn-primary" type="submit">Rechercher</button></form>
+    <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {% for organization in organizations %}
+        <a href="{% url 'organizer_public:detail' organization.slug %}" class="mk-panel group block p-5"><div class="flex items-center gap-4"><div class="grid h-12 w-12 place-items-center rounded-2xl text-lg font-extrabold" style="background:var(--mk-brand-soft);color:var(--mk-brand)">{{ organization.name|first|upper }}</div><div class="min-w-0"><h2 class="truncate text-sm font-extrabold group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{{ organization.name }}</h2><p class="mt-1 truncate text-xs" style="color:var(--mk-muted)">{% if organization.city %}{{ organization.city }}{% if organization.country %}, {{ organization.country }}{% endif %}{% else %}Organisateur Makolo{% endif %}</p></div></div>{% if organization.description %}<p class="mt-4 line-clamp-3 text-xs leading-5" style="color:var(--mk-muted)">{{ organization.description }}</p>{% endif %}</a>
+        {% empty %}<div class="mk-panel p-8 sm:col-span-2 lg:col-span-3"><p class="font-semibold">Aucun organisateur public ne correspond à cette recherche.</p></div>{% endfor %}
+    </div>
+    {% if is_paginated %}<div class="mt-8 flex items-center justify-center gap-3 text-sm">{% if page_obj.has_previous %}<a class="mk-btn mk-btn-secondary" href="?q={{ request.GET.q|urlencode }}&page={{ page_obj.previous_page_number }}">Précédent</a>{% endif %}<span style="color:var(--mk-muted)">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="mk-btn mk-btn-secondary" href="?q={{ request.GET.q|urlencode }}&page={{ page_obj.next_page_number }}">Suivant</a>{% endif %}</div>{% endif %}
+</section>
+{% endblock %}
