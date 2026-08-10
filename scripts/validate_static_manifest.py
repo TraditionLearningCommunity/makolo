@@ -16,6 +16,7 @@ CRITICAL_ASSETS = (
     "dist/makolo.js",
     "dist/theme-init.js",
     "dist/scanner.js",
+    "dist/live-access.js",
     "dist/qr-scanner.umd.min.js",
     "dist/qr-scanner-worker.min.js",
     "css/makolo-ui.css",
