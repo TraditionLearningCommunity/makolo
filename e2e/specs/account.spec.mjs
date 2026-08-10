@@ -66,7 +66,7 @@ test('forgot password follows the real generated email link and token is one-use
   await page.locator('[name="new_password"]').fill('Another-Makolo-E2E-2026!');
   await page.locator('[name="new_password_confirm"]').fill('Another-Makolo-E2E-2026!');
   await page.getByRole('button').filter({ hasText: /Réinitialiser|Enregistrer/ }).click();
-  await expect(page.getByText(/invalide|expiré|utilisé/i)).toBeVisible();
+  await expect(page.getByText('Le lien de réinitialisation est invalide ou expiré.')).toBeVisible();
 });
 
 
