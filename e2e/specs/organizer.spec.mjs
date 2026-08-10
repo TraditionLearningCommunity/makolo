@@ -5,7 +5,7 @@ import { login } from '../helpers/auth.mjs';
 test('owner creates a complete event, publishes it and configures ticketing', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
   await page.getByRole('link', { name: /Créer un événement/i }).click();
-  await expect(page.getByRole('heading', { name: 'Créer un événement' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Créer un événement', exact: true })).toBeVisible();
 
   await page.locator('[name="organization"]').selectOption({ label: 'Makolo E2E Events' });
   await page.locator('[name="title"]').fill('Conférence Organisateur E2E');
@@ -22,7 +22,7 @@ test('owner creates a complete event, publishes it and configures ticketing', as
   await page.locator('[name="capacity"]').fill('120');
   await page.getByRole('button', { name: /Créer le brouillon/i }).click();
 
-  await expect(page.getByRole('heading', { name: 'Conférence Organisateur E2E' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Conférence Organisateur E2E', exact: true })).toBeVisible();
   await expect(page.getByText('Brouillon')).toBeVisible();
   await page.getByRole('button', { name: 'Gérer' }).click();
   await page.getByRole('button', { name: 'Publier' }).click();
@@ -44,9 +44,11 @@ test('owner creates a complete event, publishes it and configures ticketing', as
   await expect(page.getByText(/Type de billet créé/i)).toBeVisible();
   await expect(page.getByText('Standard Organisateur E2E')).toBeVisible();
 
-  await page.goto('/tickets/');
-  await expect(page.getByText('Atelier Makolo Visuel').first()).toBeVisible();
-  await expect(page.getByText('Invitation E2E').first()).toBeVisible();
+  await page.goto('/events/');
+  await expect(page.getByText('Conférence Organisateur E2E').first()).toBeVisible();
+  await page.goto('/dashboard/');
+  await expect(page.getByText(/Espace organisation/i)).toBeVisible();
+  await expect(page.getByText(/Billets vendus|Commandes/i).first()).toBeVisible();
 });
 
 
