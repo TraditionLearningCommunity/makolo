@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2B176E">
+    <title>{% block title %}Makolo{% endblock %}</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem('theme');
+            const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.classList.toggle('dark', dark);
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','ui-sans-serif','system-ui'],heading:['Manrope','Inter','ui-sans-serif','system-ui']},colors:{primary:'#5232DB',secondary:'#2B176E',accent:'#FF704D',ink:'#0F172A',warm:'#FFF8F3',success:'#07806F',warning:'#B45309',danger:'#C83C3C',info:'#2563EB'}}}};
+    </script>
+    <link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}">
+    <link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}">
+    <link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}">
+</head>
+<body class="min-h-screen" style="background:var(--mk-page);color:var(--mk-text)">
+    <header class="sticky top-0 z-40 border-b backdrop-blur-xl" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-page) 90%,transparent)">
+        <div class="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <a href="{% url 'core:home' %}" class="flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Événements en mouvement</p></div></a>
+            <nav class="hidden items-center gap-1 md:flex" aria-label="Navigation publique">
+                <a class="mk-btn mk-btn-ghost" href="{% url 'discovery:home' %}">Découvrir</a>
+                <a class="mk-btn mk-btn-ghost" href="{% url 'organizations:list' %}">Organisateurs</a>
+            </nav>
+            <div class="flex items-center gap-2">
+                <a class="mk-btn mk-btn-secondary" href="{% url 'core:login' %}">Connexion</a>
+                <a class="mk-btn mk-btn-primary hidden sm:inline-flex" href="{% url 'account:register' %}">Créer un compte</a>
+            </div>
+        </div>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+    <footer class="border-t py-8" style="border-color:var(--mk-border)"><div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-xs sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8" style="color:var(--mk-muted)"><p>Makolo · expériences, billetterie et communautés.</p><div class="flex gap-4"><a href="{% url 'discovery:home' %}">Découvrir</a><a href="{% url 'core:login' %}">Se connecter</a></div></div></footer>
+    <script src="https://unpkg.com/lucide@latest"></script><script>lucide.createIcons();</script>
+</body>
+</html>
