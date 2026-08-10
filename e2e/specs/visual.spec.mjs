@@ -29,6 +29,8 @@ async function stableScanner(page) {
   await expect(page.locator('#camera-state')).not.toContainText('Initialisation');
   await page.getByRole('button', { name: 'Arrêter' }).click();
   await expect(page.locator('#camera-state')).toHaveText('Caméra arrêtée');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.activeElement?.blur());
 }
 
 
