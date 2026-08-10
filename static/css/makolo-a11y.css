@@ -46,3 +46,19 @@
     display: none;
   }
 }
+
+/* The global Makolo input styling is intentionally generous for form controls,
+   but it must not expand a Tailwind sr-only file picker. Keep the scanner image
+   picker keyboard-focusable without allowing it to create horizontal overflow. */
+input[type="file"].sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border-width: 0 !important;
+}
