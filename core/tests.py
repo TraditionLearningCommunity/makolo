@@ -31,23 +31,36 @@ class DashboardTests(TestCase):
             published_at=timezone.now(),
         )
 
+    def test_public_home_is_available_without_authentication(self):
+        response = self.client.get(reverse("core:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Les événements qui font bouger votre communauté")
+        self.assertContains(response, "Événement public")
+        self.assertContains(response, "Créer un compte")
+
+    def test_authenticated_home_redirects_to_dashboard(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("core:home"))
+
+        self.assertRedirects(response, reverse("core:dashboard"))
+
     def test_dashboard_requires_authentication(self):
         response = self.client.get(reverse("core:dashboard"))
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("core:login"), response.url)
 
-    def test_authenticated_dashboard_uses_scoped_database_metrics(self):
+    def test_participant_dashboard_is_personal_not_organizer_metrics(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("core:dashboard"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["dashboard_mode"], "participant")
+        self.assertNotIn("events_count", response.context)
         self.assertNotIn("users_count", response.context)
         self.assertNotIn("verified_users_count", response.context)
-        self.assertNotIn("roles_count", response.context)
-        self.assertNotIn("permission_groups_count", response.context)
-        self.assertEqual(response.context["events_count"], 1)
-        self.assertEqual(response.context["published_events_count"], 1)
-        self.assertEqual(response.context["upcoming_events_count"], 1)
-        self.assertContains(response, "Prochains événements")
-        self.assertContains(response, "Événement public")
+        self.assertContains(response, "Espace participant")
+        self.assertContains(response, "Mes prochains événements")
+        self.assertNotContains(response, "Paiements réussis")
+        self.assertNotContains(response, "CRM & audiences")
