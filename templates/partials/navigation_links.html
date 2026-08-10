@@ -19,17 +19,16 @@
     {% if caps.can_manage_access %}<a href="{% url 'scanner:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'scanner' %}is-active{% endif %}"><i data-lucide="scan-line"></i><span>Contrôle d’accès</span></a>{% endif %}
     {% if caps.can_manage_finance %}<a href="{% url 'payments:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'payments' %}is-active{% endif %}"><i data-lucide="wallet-cards"></i><span>Paiements</span></a>{% endif %}
 
-    {% if caps.can_manage_marketing or caps.can_manage_organization %}
+    {% if caps.can_view_crm or caps.can_view_growth or caps.can_view_promotions or caps.can_view_loyalty or caps.can_view_partners %}
     <p class="mk-nav-group-label">Audience & croissance</p>
-    <a href="{% url 'crm:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'crm' %}is-active{% endif %}"><i data-lucide="contact-round"></i><span>CRM & audiences</span></a>
-    <a href="{% url 'growth:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'growth' %}is-active{% endif %}"><i data-lucide="chart-no-axes-combined"></i><span>Growth</span></a>
-    <a href="{% url 'promotions:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'promotions' %}is-active{% endif %}"><i data-lucide="badge-percent"></i><span>Promotions</span></a>
-    <a href="{% url 'loyalty:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'loyalty' %}is-active{% endif %}"><i data-lucide="gem"></i><span>Fidélité</span></a>
-    <a href="{% url 'partners:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'partners' %}is-active{% endif %}"><i data-lucide="users-round"></i><span>Partenaires</span></a>
+    {% if caps.can_view_crm %}<a href="{% url 'crm:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'crm' %}is-active{% endif %}"><i data-lucide="contact-round"></i><span>CRM & audiences</span></a>{% endif %}
+    {% if caps.can_view_growth %}<a href="{% url 'growth:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'growth' %}is-active{% endif %}"><i data-lucide="chart-no-axes-combined"></i><span>Growth</span></a>{% endif %}
+    {% if caps.can_view_promotions %}<a href="{% url 'promotions:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'promotions' %}is-active{% endif %}"><i data-lucide="badge-percent"></i><span>Promotions</span></a>{% endif %}
+    {% if caps.can_view_loyalty %}<a href="{% url 'loyalty:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'loyalty' %}is-active{% endif %}"><i data-lucide="gem"></i><span>Fidélité</span></a>{% endif %}
+    {% if caps.can_view_partners %}<a href="{% url 'partners:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'partners' %}is-active{% endif %}"><i data-lucide="users-round"></i><span>Partenaires</span></a>{% endif %}
     {% endif %}
 
-    <p class="mk-nav-group-label">Pilotage</p>
-    <a href="{% url 'analytics:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'analytics' %}is-active{% endif %}"><i data-lucide="chart-spline"></i><span>Analytics</span></a>
+    {% if caps.can_view_analytics %}<p class="mk-nav-group-label">Pilotage</p><a href="{% url 'analytics:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'analytics' %}is-active{% endif %}"><i data-lucide="chart-spline"></i><span>Analytics</span></a>{% endif %}
     {% endif %}
 
     {% if caps.is_staff %}
