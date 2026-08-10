@@ -1,0 +1,92 @@
+{% extends 'base/app.html' %}
+{% block title %}Mon profil | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-8 lg:space-y-10">
+    <section class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div class="max-w-3xl">
+            <span class="mk-kicker">Compte</span>
+            <h1 class="mk-page-title">Mon profil</h1>
+            <p class="mk-page-copy mt-4 text-[15px]">Gérez votre identité Makolo, vos coordonnées, vos préférences et les informations utilisées pour personnaliser votre expérience.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary"><i data-lucide="key-round" class="h-4 w-4"></i>Mot de passe</a>
+            <a href="{% url 'notifications:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="bell" class="h-4 w-4"></i>Notifications</a>
+            <a href="{% url 'organizations:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="building-2" class="h-4 w-4"></i>Mes organisations</a>
+        </div>
+    </section>
+
+    <section class="grid gap-4 md:grid-cols-3">
+        <div class="mk-panel p-5 md:col-span-2">
+            <div class="flex items-center gap-4">
+                {% if request.user.avatar %}
+                <img src="{{ request.user.avatar.url }}" alt="Avatar" class="h-16 w-16 rounded-2xl object-cover">
+                {% else %}
+                <div class="grid h-16 w-16 place-items-center rounded-2xl text-xl font-extrabold text-white" style="background:var(--mk-brand)">{{ request.user.username|first|upper }}</div>
+                {% endif %}
+                <div class="min-w-0">
+                    <p class="truncate text-lg font-extrabold">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
+                    <p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{{ request.user.email }}</p>
+                    <p class="mt-1 text-xs" style="color:var(--mk-subtle)">@{{ request.user.username }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="mk-panel p-5">
+            <p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">Statut</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+                {% if request.user.is_verified %}<span class="mk-badge mk-badge-success">Compte vérifié</span>{% else %}<span class="mk-badge mk-badge-warning">À vérifier</span>{% endif %}
+                {% if request.user.is_organizer %}<span class="mk-badge mk-badge-brand">Organisateur</span>{% endif %}
+                {% if request.user.is_scanner_agent %}<span class="mk-badge mk-badge-info">Agent scanner</span>{% endif %}
+            </div>
+        </div>
+    </section>
+
+    <form method="post" enctype="multipart/form-data" class="mk-panel p-5 sm:p-6 lg:p-7">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="profile">
+        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="user-round" class="h-5 w-5"></i></div>
+            <div><h2 class="text-xl font-extrabold tracking-[-.03em]">Identité & profil</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Votre e-mail et votre identifiant de connexion restent protégés ; modifiez ici les informations visibles et utiles à Makolo.</p></div>
+        </div>
+
+        {% if profile_form.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_form.non_field_errors }}</div>{% endif %}
+
+        <div class="mt-6 grid gap-5 md:grid-cols-2">
+            {% for field in profile_form %}
+            <div class="{% if field.name == 'bio' or field.name == 'address' or field.name == 'avatar' %}md:col-span-2{% endif %}">
+                {% if field.field.widget.input_type == 'checkbox' %}
+                <label class="flex items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">{{ field }}<span><span class="block text-sm font-bold">{{ field.label }}</span>{% if field.help_text %}<span class="mt-1 block text-xs" style="color:var(--mk-muted)">{{ field.help_text }}</span>{% endif %}</span></label>
+                {% else %}
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ field.help_text }}</p>{% endif %}
+                {% endif %}
+                {% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mon profil</button></div>
+    </form>
+
+    <form method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="notifications">
+        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-pulse-soft);color:var(--mk-pulse-strong)"><i data-lucide="bell-ring" class="h-5 w-5"></i></div>
+            <div><h2 class="text-xl font-extrabold tracking-[-.03em]">Préférences de notification</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Choisissez comment Makolo doit vous prévenir et définissez vos heures calmes.</p></div>
+        </div>
+        <div class="mt-6 grid gap-4 md:grid-cols-2">
+            {% for field in preferences_form %}
+            <div class="{% if field.name == 'quiet_hours_start' or field.name == 'quiet_hours_end' %}md:col-span-1{% endif %}">
+                {% if field.field.widget.input_type == 'checkbox' %}
+                <label class="flex items-center gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">{{ field }}<span class="text-sm font-bold">{{ field.label }}</span></label>
+                {% else %}
+                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>{{ field }}
+                {% endif %}
+                {% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mes préférences</button></div>
+    </form>
+</div>
+{% endblock %}
