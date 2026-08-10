@@ -30,6 +30,7 @@ db.sqlite3-journal
 
 media/
 staticfiles/
+.e2e-emails/
 
 *.log
 django_errors.log
@@ -63,6 +64,8 @@ htmlcov/
 .tox/
 .nox/
 coverage.xml
+playwright-report/
+test-results/
 
 # ============================================================
 # Type checking and linting
