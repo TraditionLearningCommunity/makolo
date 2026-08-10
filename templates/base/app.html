@@ -16,11 +16,12 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="min-h-full" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
+    <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
     <div class="mk-app-shell flex min-h-screen">
         {% include 'partials/sidebar.html' %}
         <div class="min-w-0 flex-1 lg:pl-[264px]">
             {% include 'partials/navbar.html' %}
-            <main class="mk-content-bg min-h-[calc(100vh-72px)] px-4 pb-10 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
+            <main id="main-content" tabindex="-1" class="mk-content-bg min-h-[calc(100vh-72px)] px-4 pb-10 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
                 <div class="mk-page-shell">
                     {% include 'partials/messages.html' %}
                     <div class="mk-page">{% block content %}{% endblock %}</div>
