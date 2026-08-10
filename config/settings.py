@@ -20,12 +20,13 @@ def env_list(name: str, default: str = "") -> list[str]:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DJANGO_ENV = os.environ.get("DJANGO_ENV", "development").strip().lower()
-VALID_ENVIRONMENTS = {"development", "test", "production"}
+VALID_ENVIRONMENTS = {"development", "test", "e2e", "production"}
 if DJANGO_ENV not in VALID_ENVIRONMENTS:
-    raise ImproperlyConfigured("DJANGO_ENV doit être development, test ou production.")
+    raise ImproperlyConfigured("DJANGO_ENV doit être development, test, e2e ou production.")
 
 IS_DEVELOPMENT = DJANGO_ENV == "development"
 IS_TEST = DJANGO_ENV == "test"
+IS_E2E = DJANGO_ENV == "e2e"
 IS_PRODUCTION = DJANGO_ENV == "production"
 DEBUG = env_bool("DJANGO_DEBUG", default=IS_DEVELOPMENT)
 
@@ -117,7 +118,7 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": Path(os.environ.get("DJANGO_DB_PATH", BASE_DIR / "db.sqlite3")),
     }
 }
 
@@ -152,7 +153,7 @@ STORAGES = {
     },
 }
 WHITENOISE_USE_FINDERS = IS_DEVELOPMENT
-WHITENOISE_MANIFEST_STRICT = IS_PRODUCTION
+WHITENOISE_MANIFEST_STRICT = IS_PRODUCTION or IS_E2E
 
 MAKOLO_CONTENT_SECURITY_POLICY = "; ".join(
     [
@@ -221,7 +222,13 @@ SIMPLE_JWT = {
     "TOKEN_TYPE_CLAIM": "token_type",
 }
 
-if IS_DEVELOPMENT or IS_TEST:
+if IS_E2E:
+    EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+    EMAIL_FILE_PATH = Path(
+        os.environ.get("DJANGO_EMAIL_FILE_PATH", BASE_DIR / ".e2e-emails")
+    )
+    EMAIL_FILE_PATH.mkdir(parents=True, exist_ok=True)
+elif IS_DEVELOPMENT or IS_TEST:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:
     EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
@@ -235,9 +242,12 @@ DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "Makolo <norepl
 
 MAKOLO_PUBLIC_BASE_URL = os.environ.get(
     "MAKOLO_PUBLIC_BASE_URL",
-    "http://127.0.0.1:8000" if IS_DEVELOPMENT else "https://makolo.smnasarl.com",
+    "http://127.0.0.1:8000" if IS_DEVELOPMENT or IS_E2E else "https://makolo.smnasarl.com",
 ).rstrip("/")
-PAYMENTS_SANDBOX_ENABLED = env_bool("PAYMENTS_SANDBOX_ENABLED", default=IS_DEVELOPMENT or IS_TEST)
+PAYMENTS_SANDBOX_ENABLED = env_bool(
+    "PAYMENTS_SANDBOX_ENABLED",
+    default=IS_DEVELOPMENT or IS_TEST or IS_E2E,
+)
 PAYMENTS_WEBHOOK_SECRET = os.environ.get(
     "PAYMENTS_WEBHOOK_SECRET",
     "makolo-local-webhook-secret" if not IS_PRODUCTION else "",
@@ -311,6 +321,7 @@ LOGGING = {
 
 INTERNAL_IPS = ["127.0.0.1"]
 
-if IS_TEST:
+if IS_TEST or IS_E2E:
     PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+if IS_TEST:
     EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
