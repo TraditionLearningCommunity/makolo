@@ -1,5 +1,5 @@
 import Alpine from '@alpinejs/csp';
-import htmx from 'htmx.org/dist/htmx.esm.js';
+import htmx from 'htmx.org';
 import { createIcons } from 'lucide';
 import { makoloIcons } from '../.generated/lucide-icons.js';
 
