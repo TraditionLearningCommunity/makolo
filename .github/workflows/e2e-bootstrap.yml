@@ -61,7 +61,10 @@ jobs:
           fi
 
       - name: Exercise the complete Playwright suite
-        run: npm run test:e2e 2>&1 | tee /tmp/makolo-playwright.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee /tmp/makolo-playwright.log
 
       - name: Upload Playwright diagnostics
         if: always()
