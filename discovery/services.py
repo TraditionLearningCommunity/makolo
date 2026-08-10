@@ -1,17 +1,69 @@
 from datetime import timedelta
 
-from django.db.models import Count, Min, Q
+from django.db.models import Count, DecimalField, IntegerField, Min, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import OrganizationFollow, OrganizationVerificationStatus
-from tickets.models import TicketOrder, TicketOrderStatus
+from tickets.models import TicketOrder, TicketOrderStatus, TicketType
 
 from .models import EventBookmark
 
 
 RECENT_DAYS = 30
+
+
+def _count_for_event(queryset):
+    return (
+        queryset.order_by()
+        .values("event_id")
+        .annotate(total=Count("pk"))
+        .values("total")[:1]
+    )
+
+
+def _public_event_annotations():
+    min_ticket_price = (
+        TicketType.objects.filter(event_id=OuterRef("pk"), is_active=True)
+        .order_by()
+        .values("event_id")
+        .annotate(value=Min("price"))
+        .values("value")[:1]
+    )
+    bookmark_count = _count_for_event(EventBookmark.objects.filter(event_id=OuterRef("pk")))
+    confirmed_order_count = _count_for_event(
+        TicketOrder.objects.filter(
+            event_id=OuterRef("pk"),
+            status=TicketOrderStatus.CONFIRMED,
+        )
+    )
+    follower_count = (
+        OrganizationFollow.objects.filter(organization_id=OuterRef("organization_id"))
+        .order_by()
+        .values("organization_id")
+        .annotate(total=Count("pk"))
+        .values("total")[:1]
+    )
+    return {
+        "min_ticket_price": Subquery(
+            min_ticket_price,
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+        "bookmark_count": Coalesce(
+            Subquery(bookmark_count, output_field=IntegerField()),
+            Value(0),
+        ),
+        "confirmed_order_count": Coalesce(
+            Subquery(confirmed_order_count, output_field=IntegerField()),
+            Value(0),
+        ),
+        "follower_count": Coalesce(
+            Subquery(follower_count, output_field=IntegerField()),
+            Value(0),
+        ),
+    }
 
 
 def public_discovery_events():
@@ -26,16 +78,7 @@ def public_discovery_events():
         .exclude(
             organization__verification_status=OrganizationVerificationStatus.SUSPENDED
         )
-        .annotate(
-            min_ticket_price=Min("ticket_types__price", filter=Q(ticket_types__is_active=True)),
-            bookmark_count=Count("bookmarks", distinct=True),
-            confirmed_order_count=Count(
-                "ticket_orders",
-                filter=Q(ticket_orders__status=TicketOrderStatus.CONFIRMED),
-                distinct=True,
-            ),
-            follower_count=Count("organization__followers", distinct=True),
-        )
+        .annotate(**_public_event_annotations())
     )
 
 
@@ -186,21 +229,29 @@ def build_recommendations(user, *, limit=12):
 
 def build_trending(*, limit=10):
     cutoff = timezone.now() - timedelta(days=RECENT_DAYS)
+    recent_orders = _count_for_event(
+        TicketOrder.objects.filter(
+            event_id=OuterRef("pk"),
+            status=TicketOrderStatus.CONFIRMED,
+            confirmed_at__gte=cutoff,
+        )
+    )
+    recent_bookmarks = _count_for_event(
+        EventBookmark.objects.filter(
+            event_id=OuterRef("pk"),
+            created_at__gte=cutoff,
+        )
+    )
     events = list(
         public_discovery_events()
         .annotate(
-            recent_orders=Count(
-                "ticket_orders",
-                filter=Q(
-                    ticket_orders__status=TicketOrderStatus.CONFIRMED,
-                    ticket_orders__confirmed_at__gte=cutoff,
-                ),
-                distinct=True,
+            recent_orders=Coalesce(
+                Subquery(recent_orders, output_field=IntegerField()),
+                Value(0),
             ),
-            recent_bookmarks=Count(
-                "bookmarks",
-                filter=Q(bookmarks__created_at__gte=cutoff),
-                distinct=True,
+            recent_bookmarks=Coalesce(
+                Subquery(recent_bookmarks, output_field=IntegerField()),
+                Value(0),
             ),
         )
         .order_by("start_at")[:120]
