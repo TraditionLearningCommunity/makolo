@@ -6,11 +6,15 @@
 <div class="mx-auto max-w-5xl space-y-6">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-            <a href="{% url 'scanner:home' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Scanner</a>
+            <a href="{% url 'scanner:home' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Contrôle d’accès</a>
             <h1 class="mt-2 text-3xl font-black text-zinc-900 dark:text-white">{{ event.title }}</h1>
             <p class="mt-2 text-zinc-500 dark:text-zinc-400">{{ event.start_at|date:"d/m/Y H:i" }}{% if event.venue %} · {{ event.venue }}{% endif %}</p>
         </div>
-        <div class="flex flex-wrap gap-2"><a href="{% url 'scanner:live-access' event.slug %}" class="rounded-2xl bg-emerald-600 px-4 py-3 font-bold text-white">Smart Access Live</a><a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="rounded-2xl border border-zinc-300 px-4 py-3 font-semibold dark:border-zinc-700">Voir l’historique</a></div>
+        <div class="flex flex-wrap gap-2"><a href="{% url 'scanner:live-access' event.slug %}" class="mk-btn mk-btn-primary"><i data-lucide="activity" class="h-4 w-4"></i>Smart Access Live</a><a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="mk-btn mk-btn-secondary"><i data-lucide="history" class="h-4 w-4"></i>Historique</a></div>
+    </div>
+
+    <div class="rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border);background:var(--mk-brand-softer)">
+        <div class="flex items-start gap-3"><i data-lucide="scan-qr-code" class="mt-0.5 h-5 w-5 shrink-0" style="color:var(--mk-brand)"></i><div><p class="font-bold">Scanner web Makolo</p><p class="mt-1" style="color:var(--mk-muted)">Utilisez la caméra en direct. Si le navigateur ou le poste ne donne pas accès à la caméra, vous pouvez lire une photo du QR ou coller le jeton manuellement. La validation reste toujours faite par Makolo côté serveur.</p></div></div>
     </div>
 
     {% if assigned_gate %}
@@ -25,9 +29,16 @@
             <div class="relative aspect-[4/3] bg-black">
                 <video id="scanner-video" class="h-full w-full object-cover" playsinline muted></video>
                 <div class="pointer-events-none absolute inset-0 flex items-center justify-center"><div class="h-56 w-56 rounded-3xl border-4 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,.25)]"></div></div>
-                <div id="camera-state" class="absolute bottom-4 left-4 right-4 rounded-2xl bg-black/70 px-4 py-3 text-center text-sm font-semibold text-white">Initialisation de la caméra…</div>
+                <div id="camera-state" class="absolute bottom-4 left-4 right-4 rounded-2xl bg-black/75 px-4 py-3 text-center text-sm font-semibold text-white" aria-live="polite">Initialisation du scanner…</div>
             </div>
-            <div class="flex flex-wrap gap-2 p-4"><button id="start-camera" type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900">Démarrer la caméra</button><button id="stop-camera" type="button" class="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white">Arrêter</button></div>
+            <div class="space-y-3 p-4">
+                <div class="flex flex-wrap gap-2">
+                    <button id="start-camera" type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900">Démarrer la caméra</button>
+                    <button id="stop-camera" type="button" class="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white">Arrêter</button>
+                    <button id="toggle-flash" type="button" class="hidden rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white"><span>Lampe</span></button>
+                </div>
+                <div id="camera-picker-wrap" class="hidden"><label for="camera-picker" class="mb-1 block text-xs font-bold text-zinc-300">Caméra</label><select id="camera-picker" class="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"></select></div>
+            </div>
         </section>
 
         <aside class="space-y-5 lg:col-span-2">
@@ -36,6 +47,12 @@
                 <h2 id="result-title" class="mt-4 text-2xl font-black text-zinc-900 dark:text-white">Prêt à scanner</h2>
                 <p id="result-message" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Présentez un QR Makolo devant la caméra.</p>
                 <div id="ticket-info" class="mt-5 hidden rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-zinc-900"></div>
+            </div>
+
+            <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+                <div class="flex items-start gap-3"><i data-lucide="image" class="mt-0.5 h-5 w-5 text-indigo-500"></i><div><h3 class="text-sm font-bold text-zinc-900 dark:text-white">Lire une image QR</h3><p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Photo, capture d’écran ou image enregistrée.</p></div></div>
+                <label for="qr-image" class="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-4 text-sm font-bold transition hover:border-indigo-400 dark:border-zinc-700"><i data-lucide="image-plus" class="h-4 w-4"></i>Choisir une image</label>
+                <input id="qr-image" type="file" accept="image/*" capture="environment" class="sr-only">
             </div>
 
             <form id="manual-form" class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
@@ -50,6 +67,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 <script>
 (() => {
     const video = document.getElementById('scanner-video');
@@ -60,67 +78,238 @@
     const ticketInfo = document.getElementById('ticket-info');
     const manualForm = document.getElementById('manual-form');
     const manualToken = document.getElementById('manual-token');
+    const imageInput = document.getElementById('qr-image');
+    const cameraPicker = document.getElementById('camera-picker');
+    const cameraPickerWrap = document.getElementById('camera-picker-wrap');
+    const flashButton = document.getElementById('toggle-flash');
+    const startButton = document.getElementById('start-camera');
+    const stopButton = document.getElementById('stop-camera');
     const fixedGate = document.getElementById('access-gate-id');
     const gateSelect = document.getElementById('access-gate-select');
     const csrfToken = manualForm.querySelector('[name=csrfmiddlewaretoken]').value;
     const scanUrl = "{% url 'scanner:scan' event.slug %}";
-    let stream = null, detector = null, running = false, busy = false, lastDetectAt = 0;
 
-    function clientReference() { return window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
-    function selectedGateId() { return fixedGate ? fixedGate.value : (gateSelect ? gateSelect.value : ''); }
+    let qrScanner = null;
+    let nativeDetector = null;
+    let nativeStream = null;
+    let nativeLoopRunning = false;
+    let nativeLastDetectAt = 0;
+    let running = false;
+    let busy = false;
+    let lastToken = '';
+    let lastTokenAt = 0;
+
+    function clientReference() {
+        return window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function selectedGateId() {
+        return fixedGate ? fixedGate.value : (gateSelect ? gateSelect.value : '');
+    }
+
+    function setCameraState(message) {
+        cameraState.textContent = message;
+    }
 
     function setResult(data) {
         const accepted = Boolean(data.accepted);
         resultIcon.textContent = accepted ? '✓' : '×';
-        resultIcon.className = accepted ? 'flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-3xl font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-3xl font-black text-red-700 dark:bg-red-950 dark:text-red-300';
+        resultIcon.className = accepted
+            ? 'flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-3xl font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+            : 'flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-3xl font-black text-red-700 dark:bg-red-950 dark:text-red-300';
         resultTitle.textContent = accepted ? 'Accès autorisé' : 'Accès refusé';
         resultMessage.textContent = data.message || 'Résultat du contrôle.';
         if (data.ticket) {
-            ticketInfo.classList.remove('hidden'); ticketInfo.innerHTML = '';
+            ticketInfo.classList.remove('hidden');
+            ticketInfo.innerHTML = '';
             const holder = document.createElement('p'); holder.className = 'font-bold'; holder.textContent = data.ticket.holder_name || 'Participant';
             const type = document.createElement('p'); type.className = 'mt-1 text-zinc-500'; type.textContent = data.ticket.ticket_type || '';
             const gate = document.createElement('p'); gate.className = 'mt-2 text-xs text-zinc-400'; gate.textContent = data.gate ? `Porte : ${data.gate}` : '';
             ticketInfo.append(holder, type, gate);
-        } else { ticketInfo.classList.add('hidden'); ticketInfo.innerHTML = ''; }
+        } else {
+            ticketInfo.classList.add('hidden');
+            ticketInfo.innerHTML = '';
+        }
     }
 
     async function submitToken(token) {
-        token = (token || '').trim(); if (!token || busy) return;
-        busy = true; cameraState.textContent = 'Validation serveur…';
-        const body = new URLSearchParams(); body.set('token', token); body.set('client_reference', clientReference());
-        const gateId = selectedGateId(); if (gateId) body.set('access_gate_id', gateId);
+        token = (token || '').trim();
+        if (!token || busy) return;
+        const now = Date.now();
+        if (token === lastToken && now - lastTokenAt < 4000) return;
+        lastToken = token;
+        lastTokenAt = now;
+        busy = true;
+        setCameraState('QR détecté · validation serveur…');
+
+        const body = new URLSearchParams();
+        body.set('token', token);
+        body.set('client_reference', clientReference());
+        const gateId = selectedGateId();
+        if (gateId) body.set('access_gate_id', gateId);
+
         try {
-            const response = await fetch(scanUrl, {method:'POST', headers:{'X-CSRFToken':csrfToken,'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body:body.toString(), credentials:'same-origin'});
-            const data = await response.json(); setResult(response.ok ? data : {accepted:false, message:data.detail || 'Erreur de validation.'});
-        } catch (error) { setResult({accepted:false, message:'Connexion au serveur impossible.'}); }
-        finally { cameraState.textContent = running ? 'Caméra active · présentez un QR' : 'Caméra arrêtée'; window.setTimeout(() => { busy = false; }, 900); }
+            const response = await fetch(scanUrl, {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: body.toString(),
+                credentials: 'same-origin',
+            });
+            const data = await response.json();
+            setResult(response.ok ? data : {accepted: false, message: data.detail || 'Erreur de validation.'});
+        } catch (error) {
+            setResult({accepted: false, message: 'Connexion au serveur impossible.'});
+        } finally {
+            window.setTimeout(() => {
+                busy = false;
+                setCameraState(running ? 'Caméra active · présentez un QR' : 'Caméra arrêtée');
+            }, 900);
+        }
     }
 
-    async function scanLoop(timestamp) {
-        if (!running) return;
-        if (detector && video.readyState >= 2 && !busy && timestamp - lastDetectAt > 300) {
-            lastDetectAt = timestamp;
-            try { const codes = await detector.detect(video); if (codes.length && codes[0].rawValue) await submitToken(codes[0].rawValue); } catch (error) {}
+    async function nativeScanLoop(timestamp) {
+        if (!nativeLoopRunning) return;
+        if (nativeDetector && video.readyState >= 2 && !busy && timestamp - nativeLastDetectAt > 300) {
+            nativeLastDetectAt = timestamp;
+            try {
+                const codes = await nativeDetector.detect(video);
+                if (codes.length && codes[0].rawValue) await submitToken(codes[0].rawValue);
+            } catch (error) {}
         }
-        requestAnimationFrame(scanLoop);
+        requestAnimationFrame(nativeScanLoop);
+    }
+
+    async function populateCameraPicker() {
+        if (!window.QrScanner || !qrScanner) return;
+        try {
+            const cameras = await QrScanner.listCameras(true);
+            cameraPicker.innerHTML = '';
+            cameras.forEach((camera, index) => {
+                const option = document.createElement('option');
+                option.value = camera.id;
+                option.textContent = camera.label || `Caméra ${index + 1}`;
+                cameraPicker.appendChild(option);
+            });
+            cameraPickerWrap.classList.toggle('hidden', cameras.length < 2);
+        } catch (error) {
+            cameraPickerWrap.classList.add('hidden');
+        }
+    }
+
+    async function configureFlash() {
+        flashButton.classList.add('hidden');
+        if (!qrScanner) return;
+        try {
+            if (await qrScanner.hasFlash()) flashButton.classList.remove('hidden');
+        } catch (error) {}
+    }
+
+    async function startWithQrScanner() {
+        if (!window.QrScanner) return false;
+        if (!(await QrScanner.hasCamera())) throw new Error('Aucune caméra détectée sur cet appareil.');
+        if (!qrScanner) {
+            qrScanner = new QrScanner(
+                video,
+                result => submitToken(result && result.data ? result.data : result),
+                {
+                    preferredCamera: 'environment',
+                    maxScansPerSecond: 6,
+                    highlightScanRegion: true,
+                    highlightCodeOutline: true,
+                    returnDetailedScanResult: true,
+                    onDecodeError: () => {},
+                },
+            );
+        }
+        await qrScanner.start();
+        running = true;
+        setCameraState('Caméra active · moteur QR compatible');
+        await populateCameraPicker();
+        await configureFlash();
+        return true;
+    }
+
+    async function startWithNativeDetector() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !('BarcodeDetector' in window)) return false;
+        nativeDetector = new BarcodeDetector({formats: ['qr_code']});
+        nativeStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
+        video.srcObject = nativeStream;
+        await video.play();
+        running = true;
+        nativeLoopRunning = true;
+        setCameraState('Caméra active · détection QR native');
+        requestAnimationFrame(nativeScanLoop);
+        return true;
     }
 
     async function startCamera() {
         if (running) return;
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { cameraState.textContent = 'Caméra non disponible. Utilisez la saisie manuelle.'; return; }
-        if (!('BarcodeDetector' in window)) { cameraState.textContent = 'Détection QR native non supportée. Utilisez la saisie manuelle.'; return; }
+        startButton.disabled = true;
+        setCameraState('Demande d’accès à la caméra…');
         try {
-            detector = new BarcodeDetector({formats:['qr_code']});
-            stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-            video.srcObject = stream; await video.play(); running = true; cameraState.textContent = 'Caméra active · présentez un QR'; requestAnimationFrame(scanLoop);
-        } catch (error) { cameraState.textContent = 'Accès caméra refusé ou indisponible. Utilisez la saisie manuelle.'; }
+            if (await startWithQrScanner()) return;
+            if (await startWithNativeDetector()) return;
+            setCameraState('Scanner caméra indisponible. Utilisez une image QR ou la saisie manuelle.');
+        } catch (error) {
+            const message = error && error.message ? error.message : String(error || '');
+            if (/permission|denied|notallowed/i.test(message)) {
+                setCameraState('Accès caméra refusé. Autorisez la caméra dans le navigateur ou utilisez une image QR.');
+            } else {
+                setCameraState('Caméra indisponible. Utilisez une image QR ou la saisie manuelle.');
+            }
+        } finally {
+            startButton.disabled = false;
+        }
     }
 
-    function stopCamera() { running = false; if (stream) stream.getTracks().forEach(track => track.stop()); stream = null; video.srcObject = null; cameraState.textContent = 'Caméra arrêtée'; }
-    document.getElementById('start-camera').addEventListener('click', startCamera);
-    document.getElementById('stop-camera').addEventListener('click', stopCamera);
-    manualForm.addEventListener('submit', async (event) => { event.preventDefault(); const token = manualToken.value; manualToken.value = ''; await submitToken(token); });
-    window.addEventListener('pagehide', stopCamera); startCamera();
+    function stopCamera() {
+        running = false;
+        nativeLoopRunning = false;
+        if (qrScanner) qrScanner.stop();
+        if (nativeStream) nativeStream.getTracks().forEach(track => track.stop());
+        nativeStream = null;
+        if (!qrScanner) video.srcObject = null;
+        flashButton.classList.add('hidden');
+        setCameraState('Caméra arrêtée');
+    }
+
+    startButton.addEventListener('click', startCamera);
+    stopButton.addEventListener('click', stopCamera);
+    cameraPicker.addEventListener('change', async () => {
+        if (!qrScanner || !cameraPicker.value) return;
+        try { await qrScanner.setCamera(cameraPicker.value); setCameraState('Caméra changée · présentez un QR'); } catch (error) { setCameraState('Impossible de changer de caméra.'); }
+    });
+    flashButton.addEventListener('click', async () => {
+        if (!qrScanner) return;
+        try { await qrScanner.toggleFlash(); } catch (error) { setCameraState('Lampe non disponible sur cette caméra.'); }
+    });
+    imageInput.addEventListener('change', async () => {
+        const file = imageInput.files && imageInput.files[0];
+        if (!file) return;
+        setCameraState('Lecture de l’image QR…');
+        try {
+            if (!window.QrScanner) throw new Error('Moteur QR non chargé');
+            const result = await QrScanner.scanImage(file, {returnDetailedScanResult: true, alsoTryWithoutScanRegion: true});
+            await submitToken(result && result.data ? result.data : result);
+        } catch (error) {
+            setResult({accepted: false, message: 'Aucun QR lisible trouvé dans cette image.'});
+            setCameraState(running ? 'Caméra active · présentez un QR' : 'Choisissez une autre image ou utilisez la saisie manuelle.');
+        } finally {
+            imageInput.value = '';
+        }
+    });
+    manualForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const token = manualToken.value;
+        manualToken.value = '';
+        await submitToken(token);
+    });
+    window.addEventListener('pagehide', () => {
+        stopCamera();
+        if (qrScanner) qrScanner.destroy();
+    });
+
+    startCamera();
 })();
 </script>
 {% endblock %}
