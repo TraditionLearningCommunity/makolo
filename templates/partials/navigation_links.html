@@ -1,33 +1,47 @@
+{% load core_navigation %}
+{% web_capabilities request.user as caps %}
 <nav class="px-3 pb-6">
-    <p class="mk-nav-group-label">Principal</p>
+    {% if request.user.is_authenticated %}
+    <p class="mk-nav-group-label">Personnel</p>
     <a href="{% url 'core:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}"><i data-lucide="layout-dashboard"></i><span>Vue d’ensemble</span></a>
     <a href="{% url 'discovery:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'home' %}is-active{% endif %}"><i data-lucide="compass"></i><span>Découvrir</span></a>
-    {% if request.user.is_authenticated %}
     <a href="{% url 'discovery:for-you' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'for-you' %}is-active{% endif %}"><i data-lucide="sparkles"></i><span>Pour vous</span></a>
     <a href="{% url 'discovery:bookmarks' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'bookmarks' %}is-active{% endif %}"><i data-lucide="heart"></i><span>Favoris</span></a>
     <a href="{% url 'discovery:my-events' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'my-events' %}is-active{% endif %}"><i data-lucide="calendar-check-2"></i><span>Mes événements</span></a>
-    {% endif %}
-
-    <p class="mk-nav-group-label">Exploitation</p>
-    <a href="{% url 'events:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'events' or request.resolver_match.namespace == 'automation' %}is-active{% endif %}"><i data-lucide="calendar-days"></i><span>Événements</span></a>
-    <a href="{% url 'tickets:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'tickets' %}is-active{% endif %}"><i data-lucide="ticket-check"></i><span>Billetterie</span></a>
-    <a href="{% url 'scanner:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'scanner' %}is-active{% endif %}"><i data-lucide="scan-line"></i><span>Contrôle d’accès</span></a>
-    <a href="{% url 'payments:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'payments' %}is-active{% endif %}"><i data-lucide="wallet-cards"></i><span>Paiements</span></a>
-
-    <p class="mk-nav-group-label">Audience & croissance</p>
-    <a href="{% url 'organizations:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name != 'following' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>Organisations</span></a>
+    <a href="{% url 'tickets:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'tickets' and not caps.has_organizer_tools %}is-active{% endif %}"><i data-lucide="ticket-check"></i><span>Mes billets</span></a>
     <a href="{% url 'organizations:following' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name == 'following' %}is-active{% endif %}"><i data-lucide="heart-handshake"></i><span>Suivis</span></a>
+    <a href="{% url 'account:profile' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'account' %}is-active{% endif %}"><i data-lucide="user-round"></i><span>Profil</span></a>
+
+    {% if caps.has_organizer_tools %}
+    <p class="mk-nav-group-label">Organisation</p>
+    {% if caps.has_organization or caps.can_manage_organization %}<a href="{% url 'organizations:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name != 'following' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>Mes organisations</span></a>{% endif %}
+    {% if caps.can_manage_events %}<a href="{% url 'events:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'events' or request.resolver_match.namespace == 'automation' %}is-active{% endif %}"><i data-lucide="calendar-days"></i><span>Événements</span></a><a href="{% url 'tickets:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'tickets' %}is-active{% endif %}"><i data-lucide="ticket"></i><span>Billetterie</span></a>{% endif %}
+    {% if caps.can_manage_access %}<a href="{% url 'scanner:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'scanner' %}is-active{% endif %}"><i data-lucide="scan-line"></i><span>Contrôle d’accès</span></a>{% endif %}
+    {% if caps.can_manage_finance %}<a href="{% url 'payments:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'payments' %}is-active{% endif %}"><i data-lucide="wallet-cards"></i><span>Paiements</span></a>{% endif %}
+
+    {% if caps.can_manage_marketing or caps.can_manage_organization %}
+    <p class="mk-nav-group-label">Audience & croissance</p>
     <a href="{% url 'crm:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'crm' %}is-active{% endif %}"><i data-lucide="contact-round"></i><span>CRM & audiences</span></a>
     <a href="{% url 'growth:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'growth' %}is-active{% endif %}"><i data-lucide="chart-no-axes-combined"></i><span>Growth</span></a>
     <a href="{% url 'promotions:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'promotions' %}is-active{% endif %}"><i data-lucide="badge-percent"></i><span>Promotions</span></a>
     <a href="{% url 'loyalty:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'loyalty' %}is-active{% endif %}"><i data-lucide="gem"></i><span>Fidélité</span></a>
     <a href="{% url 'partners:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'partners' %}is-active{% endif %}"><i data-lucide="users-round"></i><span>Partenaires</span></a>
+    {% endif %}
 
     <p class="mk-nav-group-label">Pilotage</p>
     <a href="{% url 'analytics:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'analytics' %}is-active{% endif %}"><i data-lucide="chart-spline"></i><span>Analytics</span></a>
+    {% endif %}
 
-    {% if request.user.is_staff %}
+    {% if caps.is_staff %}
     <p class="mk-nav-group-label">Plateforme</p>
     <a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' %}is-active{% endif %}"><i data-lucide="shield-check"></i><span>Operations Center</span></a>
+    {% endif %}
+    {% else %}
+    <p class="mk-nav-group-label">Makolo</p>
+    <a href="{% url 'core:home' %}" class="mk-nav-item"><i data-lucide="home"></i><span>Accueil</span></a>
+    <a href="{% url 'discovery:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' %}is-active{% endif %}"><i data-lucide="compass"></i><span>Découvrir</span></a>
+    <a href="{% url 'organizer_public:list' %}" class="mk-nav-item"><i data-lucide="building-2"></i><span>Organisateurs</span></a>
+    <a href="{% url 'core:login' %}" class="mk-nav-item"><i data-lucide="log-in"></i><span>Se connecter</span></a>
+    <a href="{% url 'account:register' %}" class="mk-nav-item"><i data-lucide="user-plus"></i><span>Créer un compte</span></a>
     {% endif %}
 </nav>
