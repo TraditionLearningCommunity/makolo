@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from contextlib import contextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -14,6 +15,33 @@ def _parse_as_of(value: str) -> datetime:
     except ValueError as exc:
         raise ValueError("--as-of doit être au format YYYY-MM-DD.") from exc
     return parsed.replace(hour=12, minute=0, tzinfo=TZ)
+
+
+@contextmanager
+def _suspend_loyalty_seed_signals():
+    """Prevent seed reconstruction from replaying normal loyalty side effects.
+
+    Makolo normally awards points on every saved confirmed order / used ticket.
+    The demo seed explicitly reconstructs the loyalty history later in the same
+    transaction, so replaying those post_save receivers would make a second seed
+    depend on whether loyalty programs already existed before the run.
+    """
+    from django.db.models.signals import post_save
+
+    from loyalty.signals import sync_checkin_points, sync_order_points
+    from tickets.models import Ticket, TicketOrder
+
+    bindings = [
+        (sync_order_points, TicketOrder, "loyalty.sync_order_points"),
+        (sync_checkin_points, Ticket, "loyalty.sync_checkin_points"),
+    ]
+    for _receiver, sender, dispatch_uid in bindings:
+        post_save.disconnect(sender=sender, dispatch_uid=dispatch_uid)
+    try:
+        yield
+    finally:
+        for receiver, sender, dispatch_uid in bindings:
+            post_save.connect(receiver, sender=sender, dispatch_uid=dispatch_uid)
 
 
 def run_seed(*, scale: str = "large", as_of: str = "2026-08-10", demo_password: str) -> dict:
@@ -32,7 +60,7 @@ def run_seed(*, scale: str = "large", as_of: str = "2026-08-10", demo_password: 
         demo_password=demo_password,
     )
 
-    with transaction.atomic():
+    with _suspend_loyalty_seed_signals(), transaction.atomic():
         seed_accounts_and_organizations(ctx)
         seed_events_and_commerce(ctx)
         seed_engagement(ctx)
