@@ -68,4 +68,9 @@ class MakoloDemoSeedTests(TestCase):
         before = self._counts()
         call_command("seed_makolo_demo", **kwargs)
         after = self._counts()
-        self.assertEqual(before, after)
+        drift = {
+            label: (before.get(label, 0), after.get(label, 0))
+            for label in sorted(set(before) | set(after))
+            if before.get(label, 0) != after.get(label, 0)
+        }
+        self.assertEqual(drift, {}, msg=f"Le second seed a modifié les volumes: {drift}")
