@@ -142,7 +142,13 @@ if LOCAL_STATIC_DIR.exists():
 
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if IS_TEST
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        )
+    },
 }
 WHITENOISE_USE_FINDERS = IS_DEVELOPMENT
 WHITENOISE_MANIFEST_STRICT = IS_PRODUCTION
