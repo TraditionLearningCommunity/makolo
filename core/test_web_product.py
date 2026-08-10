@@ -79,7 +79,7 @@ class RoleAwareWebProductTests(TestCase):
         self.assertNotContains(response, "Operations Center")
         self.assertNotContains(response, "Contrôle d’accès")
 
-    def test_event_manager_sees_only_relevant_organization_tools(self):
+    def test_event_manager_sees_domain_tools_granted_to_event_managers(self):
         self.client.force_login(self.event_manager)
         response = self.client.get(reverse("core:dashboard"))
 
@@ -87,12 +87,16 @@ class RoleAwareWebProductTests(TestCase):
         self.assertEqual(response.context["dashboard_mode"], "organizer")
         self.assertContains(response, "Mes organisations")
         self.assertContains(response, "Billetterie")
+        self.assertContains(response, "CRM & audiences")
+        self.assertContains(response, "Growth")
+        self.assertContains(response, "Promotions")
+        self.assertContains(response, "Analytics")
         self.assertContains(response, "Espace organisation")
         self.assertNotContains(response, "Paiements réussis")
-        self.assertNotContains(response, "CRM & audiences")
+        self.assertNotContains(response, "Fidélité")
         self.assertEqual(response.context["events_count"], 1)
 
-    def test_finance_member_sees_finance_capability_without_marketing_tools(self):
+    def test_finance_member_sees_finance_capability_without_crm(self):
         self.client.force_login(self.finance_member)
         response = self.client.get(reverse("core:dashboard"))
 
@@ -100,6 +104,10 @@ class RoleAwareWebProductTests(TestCase):
         self.assertEqual(response.context["dashboard_mode"], "organizer")
         self.assertTrue(response.context["web_capabilities"]["can_manage_finance"])
         self.assertContains(response, "Paiements")
+        self.assertContains(response, "Growth")
+        self.assertContains(response, "Promotions")
+        self.assertContains(response, "Fidélité")
+        self.assertContains(response, "Analytics")
         self.assertNotContains(response, "CRM & audiences")
 
     def test_staff_sees_operations_shortcut(self):
