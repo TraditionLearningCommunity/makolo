@@ -24,9 +24,13 @@ test('event manager sees event, access and audience tools but not finance', asyn
   await expect(page.getByRole('link', { name: 'Contrôle d’accès' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'CRM & audiences' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Paiements', exact: true })).toHaveCount(0);
-  const response = await page.goto('/events/new/');
+  let response = await page.goto('/events/new/');
   expect(response.status()).toBe(200);
   await expect(page.getByRole('heading', { name: /Créer|Nouvel événement/i })).toBeVisible();
+
+  response = await page.goto('/tickets/types/new/');
+  expect(response.status()).toBe(200);
+  await expect(page.getByLabel('Événement').getByRole('option', { name: 'Festival Makolo E2E' })).toHaveCount(1);
 });
 
 
