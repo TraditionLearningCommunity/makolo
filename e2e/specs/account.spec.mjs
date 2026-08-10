@@ -114,7 +114,7 @@ test('deletion anonymizes a participant but blocks the sole organization owner',
   await login(page, 'sole.owner@e2e.makolo.test');
   await page.goto('/account/delete/');
   await expect(page.getByText(/dernier propriétaire/i)).toBeVisible();
-  await expect(page.getByText(/transférer|transfert/i)).toBeVisible();
+  await expect(page.getByText(/Ajoutez ou transférez la propriété/i)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Confirmer la suppression' })).toBeDisabled();
   await expect(page).toHaveURL('/account/delete/');
 });
