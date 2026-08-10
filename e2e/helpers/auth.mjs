@@ -14,8 +14,7 @@ export async function login(page, email, password = E2E_PASSWORD) {
 }
 
 export async function logout(page) {
-  const menuButton = page.locator('header button').filter({ has: page.locator('[data-lucide="chevron-down"]') });
-  await menuButton.click();
+  await page.getByRole('button', { name: 'Menu utilisateur' }).click();
   await page.getByRole('button', { name: 'Se déconnecter' }).click();
   await page.waitForURL('/');
 }
