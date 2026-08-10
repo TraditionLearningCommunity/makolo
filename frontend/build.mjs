@@ -84,6 +84,14 @@ await build({
   format: 'iife',
 });
 
+await build({
+  ...common,
+  entryPoints: [path.join(source, 'live-access.js')],
+  outfile: path.join(dist, 'live-access.js'),
+  bundle: false,
+  format: 'iife',
+});
+
 await copyFile(
   path.join(root, 'node_modules', 'qr-scanner', 'qr-scanner.umd.min.js'),
   path.join(dist, 'qr-scanner.umd.min.js'),
