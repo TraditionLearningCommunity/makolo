@@ -19,9 +19,10 @@ test('403 and public 404 are branded safe exits without tracebacks', async ({ pa
   await login(page, 'participant@e2e.makolo.test');
   let response = await page.goto('/events/new/');
   expect(response.status()).toBe(403);
-  await expect(page.getByText(/Accès refusé|403/i).first()).toBeVisible();
+  await expect(page.getByText(/Erreur 403/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Cet espace n’est pas accessible/i })).toBeVisible();
   await expect(page.getByText(/Traceback|PermissionDenied/)).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Vue d’ensemble|Accueil|Découvrir/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Vue d’ensemble|Découvrir/i }).first()).toBeVisible();
 
   await page.context().clearCookies();
   response = await page.goto('/page-e2e-qui-n-existe-pas/');
@@ -40,8 +41,9 @@ rawTest('controlled 500 exposes an MKL correlation id and writes the same id to 
   rawExpect(incident).toMatch(/^MKL-[A-F0-9]{6}$/);
   await rawExpect(page.getByText(/Traceback|RuntimeError/)).toHaveCount(0);
 
+  const serverLog = process.env.E2E_SERVER_LOG || '/tmp/makolo-e2e-server.log';
   await rawExpect.poll(async () => {
-    const content = await fs.readFile('logs/django.log', 'utf8').catch(() => '');
+    const content = await fs.readFile(serverLog, 'utf8').catch(() => '');
     return content.includes(incident);
   }).toBe(true);
 });
