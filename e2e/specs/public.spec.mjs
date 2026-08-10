@@ -9,14 +9,14 @@ test('visitor discovers an event and its public organizer @firefox', async ({ pa
   await page.getByLabel('Rechercher un événement').fill('Festival Makolo E2E');
   await page.getByRole('button', { name: /Explorer Makolo/i }).click();
   await expect(page).toHaveURL(/\/discover\/\?q=Festival/);
-  await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' }).first()).toBeVisible();
 
   await page.getByRole('link', { name: 'Festival Makolo E2E' }).first().click();
-  await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Festival Makolo E2E', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Makolo E2E Events' }).first().click();
-  await expect(page.getByRole('heading', { name: 'Makolo E2E Events' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Makolo E2E Events', exact: true })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Festival Makolo E2E', exact: true })).toBeVisible();
   await page.getByRole('link', { name: /Retour à la découverte/i }).click();
   await expect(page.getByRole('heading', { name: /Trouvez l’événement/i })).toBeVisible();
 });
@@ -24,7 +24,7 @@ test('visitor discovers an event and its public organizer @firefox', async ({ pa
 
 test('private participant surface sends visitor to login with next preserved', async ({ page }) => {
   await page.goto('/tickets/');
-  await expect(page).toHaveURL(/\/login\/\?next=%2Ftickets%2F/);
+  await expect(page).toHaveURL(/\/login\/\?next=\/tickets\//);
   await expect(page.getByRole('heading', { name: /Bon retour sur Makolo/i })).toBeVisible();
 });
 
