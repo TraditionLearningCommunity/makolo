@@ -47,7 +47,9 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
   await shot(page, 'participant-dashboard-light-desktop.png');
   await page.goto('/tickets/');
   await page.getByRole('link', { name: /Invitation E2E/i }).first().click();
-  await shot(page, 'ticket-light-desktop.png');
+  await shot(page, 'ticket-light-desktop.png', {
+    mask: [page.getByRole('img', { name: 'QR du ticket' })],
+  });
 
   await page.context().clearCookies();
   await login(page, 'new.organizer@e2e.makolo.test');
