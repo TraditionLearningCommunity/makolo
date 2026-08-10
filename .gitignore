@@ -125,6 +125,7 @@ cgi-bin/
 # ============================================================
 
 node_modules/
+frontend/.generated/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
