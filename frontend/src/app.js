@@ -26,6 +26,13 @@ function bindFirstPartyInteractions() {
     target.dispatchEvent(new Event('input', { bubbles: true }));
     target.focus();
   });
+
+  document.addEventListener('submit', event => {
+    const form = event.target.closest('form[data-confirm-message]');
+    if (!form) return;
+    const message = form.dataset.confirmMessage || 'Confirmer cette action ?';
+    if (!window.confirm(message)) event.preventDefault();
+  });
 }
 
 window.htmx = htmx;
