@@ -1,6 +1,8 @@
 from collections.abc import Mapping
 
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.http import Http404
 
 from rest_framework import exceptions as drf_exceptions
 from rest_framework.views import exception_handler as drf_exception_handler
@@ -72,10 +74,10 @@ def custom_exception_handler(exc, context):
     elif isinstance(exc, (drf_exceptions.NotAuthenticated, drf_exceptions.AuthenticationFailed)):
         code = "authentication_required"
         message = _as_message(response.data) or "Authentification requise."
-    elif isinstance(exc, drf_exceptions.PermissionDenied):
+    elif isinstance(exc, (drf_exceptions.PermissionDenied, DjangoPermissionDenied)):
         code = "permission_denied"
         message = _as_message(response.data) or "Vous n'avez pas la permission d'effectuer cette action."
-    elif isinstance(exc, drf_exceptions.NotFound):
+    elif isinstance(exc, (drf_exceptions.NotFound, Http404)):
         code = "not_found"
         message = _as_message(response.data) or "Ressource introuvable."
     elif isinstance(exc, drf_exceptions.Throttled):
@@ -97,4 +99,9 @@ def custom_exception_handler(exc, context):
             "fields": fields,
         }
     }
+    # Transitional compatibility for existing API clients/tests that still
+    # read validation fields at the top level. The canonical contract remains
+    # error.fields and new clients should use that envelope.
+    if code == "validation_error":
+        response.data.update(fields)
     return response
