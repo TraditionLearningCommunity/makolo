@@ -38,3 +38,11 @@
   from { transform: translateY(7px); }
   to { transform: translateY(0); }
 }
+
+/* makolo-ui.css loads after Tailwind and gives icon buttons an explicit display.
+   Keep the mobile navigation trigger mobile-only despite that component rule. */
+@media (min-width: 1024px) {
+  .mk-icon-btn.mk-mobile-nav-trigger {
+    display: none;
+  }
+}
