@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import TemplateView
@@ -6,7 +7,7 @@ from django.views.generic import TemplateView
 from discovery.models import EventBookmark
 from discovery.services import build_recommendations
 from events.models import Event, EventStatus
-from events.selectors import get_events_visible_to, get_public_discoverable_events
+from events.selectors import get_public_discoverable_events
 from organizations.models import Organization, OrganizationVerificationStatus
 from payments.models import PaymentStatus
 from payments.selectors import get_payments_visible_to
@@ -38,6 +39,23 @@ class PublicHomeView(TemplateView):
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "base/dashboard.html"
     login_url = "core:login"
+
+    def _organization_events(self, user):
+        if user.is_staff:
+            return Event.objects.select_related(
+                "category", "venue", "organizer", "organization"
+            )
+        return (
+            Event.objects.select_related("category", "venue", "organizer", "organization")
+            .filter(
+                Q(organizer=user)
+                | Q(
+                    organization__memberships__user=user,
+                    organization__memberships__is_active=True,
+                )
+            )
+            .distinct()
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -82,11 +100,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             )
             return context
 
-        events = (
-            Event.objects.select_related("category", "venue", "organizer", "organization")
-            if user.is_staff
-            else get_events_visible_to(user)
-        )
+        events = self._organization_events(user)
         tickets = get_tickets_visible_to(user)
         orders = get_orders_visible_to(user)
         payments = get_payments_visible_to(user)
