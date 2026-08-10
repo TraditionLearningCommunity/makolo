@@ -9,8 +9,9 @@
             <p class="mk-page-copy mt-4 text-[15px]">Votre activité Makolo, sans bruit : événements, billetterie, commandes et paiements visibles selon votre rôle.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary"><i data-lucide="compass" class="h-4 w-4"></i>Découvrir</a>
+            <a href="{% url 'discovery:for-you' %}" class="mk-btn mk-btn-secondary"><i data-lucide="sparkles" class="h-4 w-4"></i>Pour vous</a>
             <a href="{% url 'tickets:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="ticket-check" class="h-4 w-4"></i>Mes billets</a>
+            <a href="{% url 'account:profile' %}" class="mk-btn mk-btn-secondary"><i data-lucide="user-round" class="h-4 w-4"></i>Mon profil</a>
             {% if can_create_event %}<a href="{% url 'events:create' %}" class="mk-btn mk-btn-primary"><i data-lucide="plus" class="h-4 w-4"></i>Créer un événement</a>{% endif %}
         </div>
     </section>

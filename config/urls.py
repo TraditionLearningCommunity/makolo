@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/v1/growth/", include("growth.api.urls")),
     path("g/", include("growth.public_urls")),
     path("o/", include("organizations.public_urls")),
+    path("account/", include("accounts.web_urls")),
     path("organizations/", include("organizations.urls")),
     path("autopilot/", include("automation.urls")),
     path("discover/", include("discovery.urls")),
