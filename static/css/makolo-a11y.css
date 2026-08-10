@@ -1,15 +1,22 @@
 /* Accessibility hardening layered after the existing Makolo visual system. */
 :root {
-  --mk-muted: #445064;
-  --mk-subtle: #4b5563;
-  --mk-positive: #056b5d;
-  --mk-warning: #92400e;
-  --mk-pulse-strong: #a43a22;
+  --mk-primary: #3730a3;
+  --mk-primary-hover: #312e81;
+  --mk-muted: #343d4a;
+  --mk-subtle: #343d4a;
+  --mk-positive: #003f35;
+  --mk-warning: #7c2d12;
+  --mk-pulse-strong: #9a3412;
 }
 
 .dark {
+  --mk-primary: #a99bf4;
+  --mk-primary-hover: #c1b7f8;
   --mk-muted: #b5afbd;
   --mk-subtle: #aaa4b1;
+  --mk-positive: #6ee7c7;
+  --mk-warning: #fbbf7a;
+  --mk-pulse-strong: #ff9278;
 }
 
 /* Keep compact status and action text comfortably above AA on tinted surfaces. */
@@ -20,5 +27,5 @@
   color: var(--mk-warning);
 }
 .mk-btn-ghost.text-rose-600 {
-  color: #b4233c;
+  color: #9f1239;
 }
