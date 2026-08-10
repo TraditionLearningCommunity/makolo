@@ -7,10 +7,15 @@ export async function expectNoSeriousAxeViolations(page) {
     ['serious', 'critical'].includes(violation.impact),
   );
   const summary = blocking.map(violation => ({
+    url: page.url(),
     id: violation.id,
     impact: violation.impact,
     help: violation.help,
-    targets: violation.nodes.map(node => node.target),
+    nodes: violation.nodes.map(node => ({
+      target: node.target,
+      html: node.html,
+      failureSummary: node.failureSummary,
+    })),
   }));
   expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
 }
