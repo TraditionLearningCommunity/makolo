@@ -69,8 +69,10 @@ test('participant goes from discovery to favorite, payment, QR, accepted scan th
   await expect(page.getByRole('heading', { name: 'Accès refusé' })).toBeVisible();
   await expect(page.getByText(/déjà utilisé/i)).toBeVisible();
   await page.getByRole('link', { name: 'Historique' }).click();
-  await expect(page.getByText(/Accès autorisé/i).first()).toBeVisible();
-  await expect(page.getByText(/Billet déjà utilisé/i).first()).toBeVisible();
+  const scanRows = page.locator('tbody tr');
+  await expect(scanRows.filter({ hasText: 'Accès autorisé' })).toHaveCount(1);
+  await expect(scanRows.filter({ hasText: 'Billet déjà utilisé' })).toHaveCount(1);
+  await expect(scanRows.filter({ hasText: 'Festival Makolo E2E' })).toHaveCount(2);
 
   await logout(page);
   await login(page, 'participant@e2e.makolo.test');
