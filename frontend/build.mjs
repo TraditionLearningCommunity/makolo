@@ -1,12 +1,48 @@
 import { build } from 'esbuild';
-import { copyFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
 const dist = path.join(root, 'static', 'dist');
 const source = path.join(root, 'frontend', 'src');
+const generated = path.join(root, 'frontend', '.generated');
 
 await mkdir(dist, { recursive: true });
+await mkdir(generated, { recursive: true });
+
+async function walk(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (['.git', 'node_modules', 'staticfiles'].includes(entry.name)) continue;
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...await walk(fullPath));
+    else files.push(fullPath);
+  }
+  return files;
+}
+
+function toPascalCase(iconName) {
+  return iconName
+    .split('-')
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+}
+
+const iconNames = new Set();
+for (const file of await walk(root)) {
+  if (!file.endsWith('.html')) continue;
+  const content = await readFile(file, 'utf8');
+  for (const match of content.matchAll(/data-lucide=["']([a-z0-9-]+)["']/g)) {
+    iconNames.add(toPascalCase(match[1]));
+  }
+}
+const sortedIcons = [...iconNames].sort();
+if (!sortedIcons.length) throw new Error('No Lucide icons found in templates.');
+const registry = `import { ${sortedIcons.join(', ')} } from 'lucide';\nexport const makoloIcons = { ${sortedIcons.join(', ')} };\n`;
+await writeFile(path.join(generated, 'lucide-icons.js'), registry, 'utf8');
+console.log(`Lucide icons bundled: ${sortedIcons.length}`);
 
 const common = {
   minify: true,
