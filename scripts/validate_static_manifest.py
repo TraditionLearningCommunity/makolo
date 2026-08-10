@@ -22,6 +22,7 @@ CRITICAL_ASSETS = (
     "css/makolo-ui.css",
     "css/makolo-compat.css",
     "css/makolo-brand.css",
+    "css/makolo-a11y.css",
 )
 
 
