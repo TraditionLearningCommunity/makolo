@@ -1,6 +1,7 @@
 from django import forms
 
 from events.models import Event
+from events.selectors import get_manageable_events
 
 from .models import TicketType
 
@@ -99,8 +100,8 @@ class TicketTypeForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         queryset = Event.objects.order_by("start_at")
-        if user and not user.is_staff:
-            queryset = queryset.filter(organizer=user)
+        if user:
+            queryset = get_manageable_events(user).order_by("start_at")
         self.fields["event"].queryset = queryset
 
     def clean_currency(self):
