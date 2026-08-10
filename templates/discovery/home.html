@@ -2,12 +2,12 @@
 {% block title %}Découvrir | Makolo{% endblock %}
 {% block content %}
 <div class="space-y-10 lg:space-y-12">
-    <section class="relative overflow-hidden rounded-[30px] border px-5 py-7 sm:px-7 sm:py-9 lg:px-10 lg:py-11" style="border-color:var(--mk-border);background:linear-gradient(145deg,color-mix(in srgb,var(--mk-surface-solid) 96%,var(--mk-brand-soft)),var(--mk-surface-solid));box-shadow:var(--mk-shadow-sm)">
-        <div class="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-indigo-500/[.08] blur-3xl"></div>
+    <section class="mk-participant-hero px-5 py-7 sm:px-7 sm:py-9 lg:px-10 lg:py-11">
+        <div class="mk-pulse-orb -right-20 -top-24"></div>
         <div class="relative max-w-3xl">
-            <span class="mk-kicker">Discovery</span>
+            <span class="mk-kicker">Découvrir</span>
             <h1 class="mk-page-title max-w-3xl">Trouvez l’événement qui mérite votre temps.</h1>
-            <p class="mk-page-copy mt-5 text-[15px] sm:text-base">Recherche, tendances et recommandations explicables à partir de ce que vous suivez, enregistrez et fréquentez.</p>
+            <p class="mk-page-copy mt-5 text-[15px] sm:text-base">Découvrez ce qui se passe autour de vous, trouvez votre prochain rendez-vous et gardez vos favoris à portée de main.</p>
         </div>
 
         <form method="get" class="relative mt-8 space-y-3">
@@ -16,7 +16,7 @@
                 <div class="relative"><i data-lucide="map-pin" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input name="city" value="{{ filters.city|default:'' }}" placeholder="Ville" class="!min-h-[50px] !pl-11"></div>
                 <button class="mk-btn mk-btn-primary min-h-[50px] px-6"><i data-lucide="search" class="h-4 w-4"></i>Rechercher</button>
             </div>
-            <details class="group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 78%,transparent)">
+            <details class="group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold" style="color:var(--mk-muted)"><span class="flex items-center gap-2"><i data-lucide="sliders-horizontal" class="h-4 w-4"></i>Filtres avancés</span><i data-lucide="chevron-down" class="h-4 w-4 transition group-open:rotate-180"></i></summary>
                 <div class="grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-4" style="border-color:var(--mk-border)">
                     <input name="category" value="{{ filters.category|default:'' }}" placeholder="Catégorie">
@@ -32,22 +32,22 @@
 
     {% if recommendations %}
     <section>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><span class="mk-kicker">Pour vous</span><h2 class="mt-3 text-2xl font-[750] tracking-[-.04em] sm:text-3xl">Sélection Makolo</h2></div><a href="{% url 'discovery:for-you' %}" class="mk-btn mk-btn-ghost self-start sm:self-auto">Voir tout<i data-lucide="arrow-right" class="h-4 w-4"></i></a></div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><span class="mk-kicker">Pour vous</span><h2 class="mt-3 text-2xl font-extrabold tracking-[-.04em] sm:text-3xl">Sélection Makolo</h2></div><a href="{% url 'discovery:for-you' %}" class="mk-btn mk-btn-ghost self-start sm:self-auto">Voir tout<i data-lucide="arrow-right" class="h-4 w-4"></i></a></div>
         <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {% for row in recommendations %}<div>{% include 'discovery/_event_card.html' with event=row.event %}<p class="mt-2.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold" style="color:var(--mk-muted)"><i data-lucide="sparkles" class="h-3.5 w-3.5" style="color:var(--mk-brand)"></i>{{ row.reasons|join:' · ' }}</p></div>{% endfor %}
+            {% for row in recommendations %}<div>{% include 'discovery/_event_card.html' with event=row.event %}<p class="mt-2.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold" style="color:var(--mk-muted)"><i data-lucide="sparkles" class="h-3.5 w-3.5" style="color:var(--mk-pulse)"></i>{{ row.reasons|join:' · ' }}</p></div>{% endfor %}
         </div>
     </section>
     {% endif %}
 
     {% if trending %}
     <section class="mk-panel p-5 sm:p-6 lg:p-7">
-        <div class="flex items-center gap-3"><div class="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/10 text-amber-500"><i data-lucide="trending-up" class="h-5 w-5"></i></div><div><p class="text-xs font-bold uppercase tracking-[.1em] text-amber-500">Tendances</p><h2 class="mt-1 text-xl font-[730] tracking-[-.035em] sm:text-2xl">Ce qui bouge maintenant</h2></div></div>
+        <div class="flex items-center gap-3"><div class="mk-pulse-icon grid h-10 w-10 place-items-center rounded-2xl"><i data-lucide="trending-up" class="h-5 w-5"></i></div><div><p class="mk-pulse-text text-xs font-bold uppercase tracking-[.1em]">Ça bouge</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.035em] sm:text-2xl">Ce qui bouge maintenant</h2></div></div>
         <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{% for row in trending %}{% include 'discovery/_event_card.html' with event=row.event %}{% endfor %}</div>
     </section>
     {% endif %}
 
     <section>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><span class="mk-kicker">Explorer</span><h2 class="mt-3 text-2xl font-[750] tracking-[-.04em] sm:text-3xl">Événements disponibles</h2></div>{% if request.user.is_authenticated %}<div class="flex gap-2"><a href="{% url 'discovery:bookmarks' %}" class="mk-btn mk-btn-secondary"><i data-lucide="heart" class="h-4 w-4"></i>Favoris</a><a href="{% url 'discovery:my-events' %}" class="mk-btn mk-btn-secondary"><i data-lucide="calendar-check-2" class="h-4 w-4"></i>Mes événements</a></div>{% endif %}</div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><span class="mk-kicker">Explorer</span><h2 class="mt-3 text-2xl font-extrabold tracking-[-.04em] sm:text-3xl">Événements disponibles</h2></div>{% if request.user.is_authenticated %}<div class="flex gap-2"><a href="{% url 'discovery:bookmarks' %}" class="mk-btn mk-btn-secondary"><i data-lucide="heart" class="h-4 w-4"></i>Favoris</a><a href="{% url 'discovery:my-events' %}" class="mk-btn mk-btn-secondary"><i data-lucide="calendar-check-2" class="h-4 w-4"></i>Mes événements</a></div>{% endif %}</div>
         <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {% for event in events %}{% include 'discovery/_event_card.html' with event=event %}{% empty %}<div class="mk-empty col-span-full py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucun résultat</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Essayez d’élargir vos critères de recherche.</p></div>{% endfor %}
         </div>
