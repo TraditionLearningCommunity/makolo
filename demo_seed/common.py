@@ -50,10 +50,32 @@ def backdate(obj: models.Model, **values: Any) -> None:
         setattr(obj, key, value)
 
 
+def _reuse_business_created_object(model: type[models.Model], defaults: dict[str, Any]):
+    """Reuse rows that Makolo itself may create while higher-level data is seeded.
+
+    Ticketing/follow flows synchronize CRM contacts before the explicit CRM seed runs.
+    Those rows have legitimate random UUIDs, so forcing a second deterministic UUID
+    would violate CRMContact's unique (organization, email) business key.
+    """
+    if model._meta.label_lower == "crm.crmcontact":
+        organization = defaults.get("organization")
+        email = (defaults.get("email") or "").strip().lower()
+        if organization and email:
+            return model.objects.filter(organization=organization, email__iexact=email).first()
+    return None
+
+
 def upsert(model: type[models.Model], key: str, *, defaults: dict[str, Any]) -> models.Model:
     pk = stable_uuid(f"{model._meta.label_lower}:{key}")
-    obj, _ = model.objects.update_or_create(pk=pk, defaults=defaults)
-    return obj
+    obj = model.objects.filter(pk=pk).first()
+    if obj is None:
+        obj = _reuse_business_created_object(model, defaults)
+    if obj is not None:
+        for field, value in defaults.items():
+            setattr(obj, field, value)
+        obj.save()
+        return obj
+    return model.objects.create(pk=pk, **defaults)
 
 
 def choose(seq, index: int):
