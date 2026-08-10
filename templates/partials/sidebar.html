@@ -29,7 +29,7 @@
             <div class="flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Plateforme événementielle</p></div></div>
             <button type="button" class="mk-icon-btn" @click="sidebarOpen=false" aria-label="Fermer la navigation"><i data-lucide="x" class="h-5 w-5"></i></button>
         </div>
-        <div class="flex-1 overflow-y-auto py-2" @click="if ($event.target.closest('a')) sidebarOpen=false">
+        <div class="flex-1 overflow-y-auto py-2" @click="sidebarOpen=false">
             {% include 'partials/navigation_links.html' %}
         </div>
     </aside>
