@@ -8,6 +8,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from organizations.models import OrganizationMembership
+from organizations.permissions import FINANCE_ROLES
 from payments.models import PaymentMethod, PaymentProvider
 from payments.selectors import get_payment_events_visible_to, get_payments_visible_to
 from payments.services import (
@@ -43,13 +45,25 @@ def _raise_service_error(exc):
     raise exc
 
 
+def _can_see_manual_provider(user):
+    if user.is_staff:
+        return True
+    return OrganizationMembership.objects.filter(
+        user=user,
+        is_active=True,
+        role__in=FINANCE_ROLES,
+    ).exists()
+
+
 class PaymentConfigurationAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        providers = [PaymentProvider.MANUAL]
+        providers = []
         if getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False):
-            providers.insert(0, PaymentProvider.SANDBOX)
+            providers.append(PaymentProvider.SANDBOX)
+        if _can_see_manual_provider(request.user):
+            providers.append(PaymentProvider.MANUAL)
         return Response(
             {
                 "providers": [
@@ -61,9 +75,7 @@ class PaymentConfigurationAPIView(APIView):
                     {"value": value, "label": label}
                     for value, label in PaymentMethod.choices
                 ],
-                "sandbox_enabled": bool(
-                    getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False)
-                ),
+                "sandbox_enabled": bool(getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False)),
             }
         )
 
@@ -93,12 +105,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def get_throttles(self):
         if self.action == "create":
             return [PaymentInitiationThrottle()]
-        if self.action in {
-            "sandbox_complete",
-            "manual_complete",
-            "cancel",
-            "refund",
-        }:
+        if self.action in {"sandbox_complete", "manual_complete", "cancel", "refund"}:
             return [PaymentTransitionThrottle()]
         return super().get_throttles()
 
@@ -133,9 +140,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             complete_manual_payment(
                 payment=payment,
                 actor=request.user,
-                provider_reference=serializer.validated_data.get(
-                    "provider_reference", ""
-                ),
+                provider_reference=serializer.validated_data.get("provider_reference", ""),
             )
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _raise_service_error(exc)
@@ -162,10 +167,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 payment=payment,
                 actor=request.user,
                 reason=serializer.validated_data.get("reason", ""),
-                idempotency_key=serializer.validated_data.get(
-                    "idempotency_key", ""
-                )
-                or None,
+                idempotency_key=serializer.validated_data.get("idempotency_key", "") or None,
             )
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _raise_service_error(exc)
@@ -213,9 +215,7 @@ class SandboxWebhookAPIView(APIView):
             "duplicate": outcome.duplicate,
             "event_id": str(outcome.event.id),
             "processed": outcome.event.processed,
-            "payment_reference": (
-                outcome.payment.reference if outcome.payment else None
-            ),
+            "payment_reference": outcome.payment.reference if outcome.payment else None,
             "payment_status": outcome.payment.status if outcome.payment else None,
         }
         return Response(data, status=status.HTTP_200_OK)

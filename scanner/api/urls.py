@@ -2,6 +2,7 @@ from django.urls import include, path
 
 from rest_framework.routers import DefaultRouter
 
+from .mobile_views import CurrentScannerAssignmentListAPIView
 from .views import (
     EventAccessGateViewSet,
     LiveAccessAPIView,
@@ -20,6 +21,11 @@ router.register("logs", ScanLogViewSet, basename="scanner-log")
 
 urlpatterns = [
     path("scan/", ScanAPIView.as_view(), name="scan"),
+    path(
+        "assignments/current/",
+        CurrentScannerAssignmentListAPIView.as_view(),
+        name="current-assignments",
+    ),
     path("events/<slug:slug>/live/", LiveAccessAPIView.as_view(), name="live-access"),
     path("", include(router.urls)),
 ]

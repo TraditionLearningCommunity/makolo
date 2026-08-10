@@ -106,11 +106,14 @@ class TicketOrderViewSet(viewsets.ModelViewSet):
         try:
             order = serializer.save()
         except DjangoValidationError as exc:
+            if hasattr(exc, "message_dict"):
+                raise ValidationError(exc.message_dict) from exc
             raise ValidationError(exc.messages) from exc
 
+        replay = bool(getattr(order, "_idempotent_replay", False))
         return Response(
             TicketOrderSerializer(order, context={"request": request}).data,
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED,
         )
 
     def _transition(self, request, service):

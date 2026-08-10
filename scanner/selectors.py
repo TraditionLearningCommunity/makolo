@@ -92,6 +92,16 @@ def get_assignments_visible_to(user):
     ).distinct()
 
 
+def get_current_assignments_visible_to(user):
+    now = timezone.now()
+    return get_assignments_visible_to(user).filter(
+        is_active=True,
+    ).filter(
+        Q(valid_from__isnull=True) | Q(valid_from__lte=now),
+        Q(valid_until__isnull=True) | Q(valid_until__gte=now),
+    )
+
+
 def get_access_gates_visible_to(user):
     queryset = EventAccessGate.objects.select_related(
         "event",

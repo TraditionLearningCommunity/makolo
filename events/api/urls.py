@@ -1,6 +1,11 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from .participant_views import (
+    ParticipantEventDetailAPIView,
+    ParticipantEventDiscoverAPIView,
+    ParticipantTicketTypeListAPIView,
+)
 from .views import EventCategoryViewSet, EventVenueViewSet, EventViewSet
 
 
@@ -13,6 +18,17 @@ venue_list = EventVenueViewSet.as_view({"get": "list"})
 venue_detail = EventVenueViewSet.as_view({"get": "retrieve"})
 
 urlpatterns = [
+    path("discover/", ParticipantEventDiscoverAPIView.as_view(), name="participant-event-discover"),
+    path(
+        "discover/<slug:slug>/",
+        ParticipantEventDetailAPIView.as_view(),
+        name="participant-event-detail",
+    ),
+    path(
+        "<slug:slug>/ticket-types/",
+        ParticipantTicketTypeListAPIView.as_view(),
+        name="participant-ticket-type-list",
+    ),
     path("categories/", category_list, name="event-category-list"),
     path(
         "categories/<slug:slug>/",
