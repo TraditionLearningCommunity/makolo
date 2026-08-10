@@ -1,6 +1,7 @@
 import Alpine from '@alpinejs/csp';
 import htmx from 'htmx.org/dist/htmx.esm.js';
-import { createIcons, icons } from 'lucide';
+import { createIcons } from 'lucide';
+import { makoloIcons } from '../.generated/lucide-icons.js';
 
 const root = document.documentElement;
 
@@ -12,11 +13,11 @@ function preferredDark() {
 }
 
 function refreshIcons() {
-  createIcons({ icons });
+  createIcons({ icons: makoloIcons });
 }
 
 window.htmx = htmx;
-window.lucide = { createIcons: refreshIcons, icons };
+window.lucide = { createIcons: refreshIcons, icons: makoloIcons };
 window.Alpine = Alpine;
 
 Alpine.data('themeManager', () => ({
