@@ -56,7 +56,9 @@ test('participant goes from discovery to favorite, payment, QR, accepted scan th
   await logout(page);
   await login(page, 'scanner@e2e.makolo.test');
   await page.goto('/scanner/');
-  await page.getByRole('link', { name: /Festival Makolo E2E/i }).click();
+  const eventCard = page.locator('article').filter({ hasText: 'Festival Makolo E2E' });
+  await expect(eventCard).toBeVisible();
+  await eventCard.getByRole('link', { name: 'Scanner' }).click();
   await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
   await expect(page.getByText(/Saisie manuelle du jeton QR/i)).toBeVisible();
   await page.locator('#qr-image').setInputFiles(qrPath);
