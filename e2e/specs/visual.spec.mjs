@@ -30,7 +30,11 @@ async function stableScanner(page) {
   await page.getByRole('button', { name: 'Arrêter' }).click();
   await expect(page.locator('#camera-state')).toHaveText('Caméra arrêtée');
   await page.keyboard.press('Escape');
-  await page.evaluate(() => document.activeElement?.blur());
+  await page.evaluate(() => {
+    document.activeElement?.blur();
+    window.scrollTo(0, 0);
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 
 async function assertDesktopShellStable(page) {
