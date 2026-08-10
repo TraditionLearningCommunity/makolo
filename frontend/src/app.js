@@ -16,6 +16,18 @@ function refreshIcons() {
   createIcons({ icons: makoloIcons });
 }
 
+function bindFirstPartyInteractions() {
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-fill-target][data-fill-value]');
+    if (!trigger) return;
+    const target = document.getElementById(trigger.dataset.fillTarget || '');
+    if (!target) return;
+    target.value = trigger.dataset.fillValue || '';
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    target.focus();
+  });
+}
+
 window.htmx = htmx;
 window.lucide = { createIcons: refreshIcons, icons: makoloIcons };
 window.Alpine = Alpine;
@@ -40,5 +52,6 @@ document.addEventListener('DOMContentLoaded', refreshIcons);
 document.addEventListener('htmx:afterSwap', refreshIcons);
 document.addEventListener('htmx:afterSettle', refreshIcons);
 document.addEventListener('alpine:initialized', refreshIcons);
+bindFirstPartyInteractions();
 
 Alpine.start();
