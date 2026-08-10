@@ -13,19 +13,19 @@
 
         <form method="get" class="relative mt-8 space-y-3">
             <div class="grid gap-3 lg:grid-cols-[2fr_1fr_auto]">
-                <div class="relative"><i data-lucide="search" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input name="q" value="{{ filters.q|default:'' }}" placeholder="Concert, conférence, organisateur…" class="!min-h-[50px] !pl-11"></div>
-                <div class="relative"><i data-lucide="map-pin" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input name="city" value="{{ filters.city|default:'' }}" placeholder="Ville" class="!min-h-[50px] !pl-11"></div>
+                <div class="relative"><label for="discover-query" class="sr-only">Rechercher par événement, conférence ou organisateur</label><i data-lucide="search" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-query" name="q" value="{{ filters.q|default:'' }}" placeholder="Concert, conférence, organisateur…" class="!min-h-[50px] !pl-11"></div>
+                <div class="relative"><label for="discover-city" class="sr-only">Ville</label><i data-lucide="map-pin" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-city" name="city" value="{{ filters.city|default:'' }}" placeholder="Ville" class="!min-h-[50px] !pl-11"></div>
                 <button class="mk-btn mk-btn-primary min-h-[50px] px-6"><i data-lucide="search" class="h-4 w-4"></i>Rechercher</button>
             </div>
             <details class="group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)">
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold" style="color:var(--mk-muted)"><span class="flex items-center gap-2"><i data-lucide="sliders-horizontal" class="h-4 w-4"></i>Filtres avancés</span><i data-lucide="chevron-down" class="h-4 w-4 transition group-open:rotate-180"></i></summary>
                 <div class="grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-4" style="border-color:var(--mk-border)">
-                    <input name="category" value="{{ filters.category|default:'' }}" placeholder="Catégorie">
-                    <select name="price"><option value="">Tous les prix</option><option value="free" {% if filters.price == 'free' %}selected{% endif %}>Gratuit</option><option value="paid" {% if filters.price == 'paid' %}selected{% endif %}>Payant</option></select>
-                    <select name="ordering"><option value="upcoming">Bientôt</option><option value="popular" {% if filters.ordering == 'popular' %}selected{% endif %}>Populaire</option><option value="newest" {% if filters.ordering == 'newest' %}selected{% endif %}>Nouveautés</option></select>
-                    <input name="organizer" value="{{ filters.organizer|default:'' }}" placeholder="Organisateur">
-                    <input type="date" name="date_from" value="{{ filters.date_from|default:'' }}">
-                    <input type="date" name="date_to" value="{{ filters.date_to|default:'' }}">
+                    <div><label for="discover-category" class="sr-only">Catégorie</label><input id="discover-category" name="category" value="{{ filters.category|default:'' }}" placeholder="Catégorie"></div>
+                    <div><label for="discover-price" class="sr-only">Prix</label><select id="discover-price" name="price"><option value="">Tous les prix</option><option value="free" {% if filters.price == 'free' %}selected{% endif %}>Gratuit</option><option value="paid" {% if filters.price == 'paid' %}selected{% endif %}>Payant</option></select></div>
+                    <div><label for="discover-ordering" class="sr-only">Ordre des résultats</label><select id="discover-ordering" name="ordering"><option value="upcoming">Bientôt</option><option value="popular" {% if filters.ordering == 'popular' %}selected{% endif %}>Populaire</option><option value="newest" {% if filters.ordering == 'newest' %}selected{% endif %}>Nouveautés</option></select></div>
+                    <div><label for="discover-organizer" class="sr-only">Organisateur</label><input id="discover-organizer" name="organizer" value="{{ filters.organizer|default:'' }}" placeholder="Organisateur"></div>
+                    <div><label for="discover-date-from" class="sr-only">Date de début</label><input id="discover-date-from" type="date" name="date_from" value="{{ filters.date_from|default:'' }}"></div>
+                    <div><label for="discover-date-to" class="sr-only">Date de fin</label><input id="discover-date-to" type="date" name="date_to" value="{{ filters.date_to|default:'' }}"></div>
                 </div>
             </details>
         </form>
