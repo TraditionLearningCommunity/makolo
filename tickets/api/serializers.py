@@ -121,11 +121,13 @@ class TicketOrderSerializer(serializers.ModelSerializer):
 
     def get_subtotal_amount(self, obj):
         redemption = self._redemption(obj)
-        return redemption.subtotal_amount if redemption else obj.total_amount
+        amount = redemption.subtotal_amount if redemption else obj.total_amount
+        return format(amount, ".2f")
 
     def get_discount_amount(self, obj):
         redemption = self._redemption(obj)
-        return redemption.discount_amount if redemption else Decimal("0.00")
+        amount = redemption.discount_amount if redemption else Decimal("0.00")
+        return format(amount, ".2f")
 
     class Meta:
         model = TicketOrder
