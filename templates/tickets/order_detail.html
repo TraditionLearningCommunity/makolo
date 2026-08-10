@@ -61,7 +61,7 @@
             {% csrf_token %}
             <label for="promotion_code" class="text-sm font-black">Ajouter un code promotionnel avant paiement</label>
             <div class="mt-3 flex flex-col gap-2 sm:flex-row"><input id="promotion_code" name="promotion_code" required placeholder="EX. VIP20" class="flex-1 rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 font-bold uppercase dark:border-zinc-700"><button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Appliquer</button></div>
-            {% if public_promotion_codes %}<div class="mt-3 flex flex-wrap gap-2">{% for code in public_promotion_codes %}<button type="button" onclick="document.getElementById('promotion_code').value='{{ code.code|escapejs }}'" class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ code.code }}{% if code.label %} · {{ code.label }}{% endif %}</button>{% endfor %}</div>{% endif %}
+            {% if public_promotion_codes %}<div class="mt-3 flex flex-wrap gap-2">{% for code in public_promotion_codes %}<button type="button" data-fill-target="promotion_code" data-fill-value="{{ code.code }}" class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ code.code }}{% if code.label %} · {{ code.label }}{% endif %}</button>{% endfor %}</div>{% endif %}
         </form>
         {% endif %}
 
