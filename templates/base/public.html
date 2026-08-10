@@ -14,6 +14,7 @@
     <script defer src="{% static 'dist/makolo.js' %}"></script>
 </head>
 <body class="min-h-screen" style="background:var(--mk-page);color:var(--mk-text)">
+    <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
     <header class="sticky top-0 z-40 border-b backdrop-blur-xl" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-page) 90%,transparent)">
         <div class="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <a href="{% url 'core:home' %}" class="flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Événements en mouvement</p></div></a>
@@ -27,7 +28,7 @@
             </div>
         </div>
     </header>
-    <main>{% block content %}{% endblock %}</main>
+    <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
     <footer class="border-t py-8" style="border-color:var(--mk-border)"><div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-xs sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8" style="color:var(--mk-muted)"><p>Makolo · expériences, billetterie et communautés.</p><div class="flex gap-4"><a href="{% url 'discovery:home' %}">Découvrir</a><a href="{% url 'core:login' %}">Se connecter</a></div></div></footer>
 </body>
 </html>
