@@ -26,13 +26,24 @@ test('scanner explains denied camera permission while keeping image and manual f
 });
 
 
-test('keyboard can skip content, open user menu and close it with Escape', async ({ page }) => {
+test('keyboard supports Tab, Shift+Tab, Enter, Space and Escape on the app shell', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
   await login(page, 'empty.participant@e2e.makolo.test');
   await page.keyboard.press('Home');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Aller au contenu principal' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#main-content')).toBeFocused();
+
+  const themeButton = page.getByRole('button', { name: 'Changer le thème' });
+  const notifications = page.getByRole('link', { name: 'Notifications' }).first();
+  await themeButton.focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(notifications).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(themeButton).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page.locator('html')).toHaveClass(/dark/);
 
   await page.getByRole('button', { name: 'Menu utilisateur' }).focus();
   await page.keyboard.press('Enter');
