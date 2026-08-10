@@ -11,10 +11,13 @@
     <link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}">
+    <link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}">
     <script defer src="{% static 'dist/makolo.js' %}"></script>
 </head>
 <body class="min-h-screen">
-    <main class="mk-auth-grid">
+    <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
+    {% include 'partials/messages.html' %}
+    <main id="main-content" tabindex="-1" class="mk-auth-grid">
         <section class="mk-auth-visual hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
             <div class="relative z-10 flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="mk-brand-wordmark text-sm text-white">Makolo</p><p class="text-[10px] uppercase tracking-[.14em] text-white/50">Plateforme événementielle</p></div></div>
             <div class="relative z-10 max-w-xl"><p class="text-xs font-bold uppercase tracking-[.16em]" style="color:#FFB09D">Mouvement · Rencontre · Confiance</p><h1 class="mt-5 font-heading text-5xl font-extrabold leading-[.98] tracking-[-.055em] xl:text-6xl">Organiser. Vendre. Accueillir. Faire revenir.</h1><p class="mt-6 max-w-lg text-base leading-7 text-white/65">Makolo rassemble l’opérationnel, l’audience et l’expérience participant dans un espace pensé pour les événements réels.</p></div>

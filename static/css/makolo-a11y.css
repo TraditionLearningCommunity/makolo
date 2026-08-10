@@ -1,0 +1,64 @@
+/* Accessibility hardening layered after the existing Makolo visual system. */
+:root {
+  --mk-primary: #3730a3;
+  --mk-primary-hover: #312e81;
+  --mk-muted: #343d4a;
+  --mk-subtle: #343d4a;
+  --mk-positive: #003f35;
+  --mk-warning: #7c2d12;
+  --mk-pulse-strong: #9a3412;
+}
+
+.dark {
+  --mk-primary: #a99bf4;
+  --mk-primary-hover: #c1b7f8;
+  --mk-muted: #b5afbd;
+  --mk-subtle: #aaa4b1;
+  --mk-positive: #6ee7c7;
+  --mk-warning: #fbbf7a;
+  --mk-pulse-strong: #ff9278;
+}
+
+/* Keep compact status and action text comfortably above AA on tinted surfaces. */
+.mk-badge-success {
+  color: var(--mk-positive);
+}
+.mk-badge-warning {
+  color: var(--mk-warning);
+}
+.mk-btn-ghost.text-rose-600 {
+  color: #9f1239;
+}
+
+/* Preserve the page entrance motion without fading all text below AA contrast. */
+.mk-page {
+  animation-name: mk-page-in-accessible;
+}
+@keyframes mk-page-in-accessible {
+  from { transform: translateY(7px); }
+  to { transform: translateY(0); }
+}
+
+/* makolo-ui.css loads after Tailwind and gives icon buttons an explicit display.
+   Keep the mobile navigation trigger mobile-only despite that component rule. */
+@media (min-width: 1024px) {
+  .mk-icon-btn.mk-mobile-nav-trigger {
+    display: none;
+  }
+}
+
+/* The global Makolo input styling is intentionally generous for form controls,
+   but it must not expand a Tailwind sr-only file picker. Keep the scanner image
+   picker keyboard-focusable without allowing it to create horizontal overflow. */
+input[type="file"].sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border-width: 0 !important;
+}

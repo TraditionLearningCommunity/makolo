@@ -19,6 +19,10 @@ FORBIDDEN = (
     "fonts.gstatic.com",
 )
 INLINE_SCRIPT = re.compile(r"<script\b(?![^>]*\bsrc\s*=)[^>]*>", re.IGNORECASE)
+INLINE_EVENT_HANDLER = re.compile(
+    r"\son(?:abort|auxclick|beforeinput|beforetoggle|blur|cancel|canplay|change|click|close|contextmenu|copy|cut|dblclick|drag|drop|error|focus|input|keydown|keypress|keyup|load|mousedown|mouseenter|mouseleave|mousemove|mouseout|mouseover|mouseup|paste|pause|play|pointerdown|pointerup|reset|resize|scroll|submit|toggle|touchstart|touchend|wheel)\s*=",
+    re.IGNORECASE,
+)
 
 
 def iter_templates():
@@ -55,6 +59,10 @@ def main() -> int:
             if 'type="application/json"' in tag or "type='application/json'" in tag:
                 continue
             failures.append(f"{rel}:{line_number(text, match.start())} inline JavaScript is incompatible with script-src 'self'")
+        for match in INLINE_EVENT_HANDLER.finditer(text):
+            failures.append(
+                f"{rel}:{line_number(text, match.start())} inline event handler is incompatible with script-src 'self'"
+            )
 
     if failures:
         print("Frontend runtime dependency check failed:")
@@ -62,7 +70,7 @@ def main() -> int:
             print(f" - {failure}")
         return 1
 
-    print("Frontend runtime dependency check passed: no critical CDN or inline-script regressions found.")
+    print("Frontend runtime dependency check passed: no critical CDN, inline-script or inline-handler regressions found.")
     return 0
 
 

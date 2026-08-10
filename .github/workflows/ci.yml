@@ -103,3 +103,83 @@ jobs:
 
       - name: Run tests
         run: python manage.py test
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      DJANGO_ENV: e2e
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: makolo-e2e-only-secret-key-never-production-2026
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost
+      DJANGO_DB_PATH: /tmp/makolo-e2e.sqlite3
+      DJANGO_EMAIL_FILE_PATH: /tmp/makolo-e2e-emails
+      MAKOLO_PUBLIC_BASE_URL: http://127.0.0.1:8000
+      PAYMENTS_SANDBOX_ENABLED: "True"
+      PAYMENTS_WEBHOOK_SECRET: makolo-e2e-webhook-secret
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Set up Node 24.18.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Install locked frontend dependencies
+        run: npm ci
+
+      - name: Build production frontend
+        run: npm run build
+
+      - name: Verify committed frontend artifacts are synchronized
+        run: |
+          git diff --exit-code -- package-lock.json static/dist
+          git status --porcelain -- package-lock.json static/dist | tee /tmp/frontend-status.txt
+          test ! -s /tmp/frontend-status.txt
+
+      - name: Reject critical runtime CDN and inline-script regressions
+        run: npm run check:runtime-deps
+
+      - name: Check for missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Prepare deterministic E2E environment
+        run: bash scripts/prepare-e2e.sh
+
+      - name: Run end-to-end product validation
+        env:
+          E2E_SKIP_PREP: "1"
+        run: npm run test:e2e
+
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-diagnostics
+          path: |
+            playwright-report
+            test-results/playwright
+            /tmp/makolo-e2e-server.log
+          if-no-files-found: ignore
+          retention-days: 5
