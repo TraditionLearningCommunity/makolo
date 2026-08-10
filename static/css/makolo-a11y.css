@@ -1,0 +1,14 @@
+/* Accessibility hardening layered after the existing Makolo visual system. */
+:root {
+  --mk-subtle: #667085;
+  --mk-positive: #056b5d;
+}
+
+.dark {
+  --mk-subtle: #9a94a3;
+}
+
+/* Keep status text comfortably above AA after the translucent success tint. */
+.mk-badge-success {
+  color: var(--mk-positive);
+}
