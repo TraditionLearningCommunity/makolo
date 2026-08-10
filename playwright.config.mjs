@@ -29,7 +29,7 @@ export default defineConfig({
     {
       name: 'chromium-desktop',
       use: { browserName: 'chromium', viewport: { width: 1440, height: 900 } },
-      grepInvert: /@mobile-only|@firefox-only/,
+      grepInvert: /@mobile|@firefox-only/,
     },
     {
       name: 'chromium-mobile',
