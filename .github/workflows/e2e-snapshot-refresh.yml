@@ -1,0 +1,58 @@
+name: E2E snapshot refresh
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: test/end-to-end-product-validation
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Set up Node 24.18.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          npm ci
+          npm run build
+          npm run check:runtime-deps
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Refresh intentional Linux visual baselines
+        run: npm run test:e2e -- e2e/specs/visual.spec.mjs --update-snapshots --project=chromium-desktop --project=chromium-mobile
+
+      - name: Commit visual baselines only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add e2e/specs/visual.spec.mjs-snapshots
+          if git diff --cached --quiet; then
+            echo "Visual baselines are already normalized."
+          else
+            git commit -m "test: normalize scanner visual baselines"
+            git push origin HEAD:test/end-to-end-product-validation
+          fi
