@@ -78,6 +78,8 @@ coverage.xml
 
 build/
 dist/
+!static/dist/
+!static/dist/**
 *.egg-info/
 .eggs/
 
@@ -119,10 +121,11 @@ restart.txt
 cgi-bin/
 
 # ============================================================
-# Node / frontend, for future use
+# Node / frontend
 # ============================================================
 
 node_modules/
+frontend/.generated/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

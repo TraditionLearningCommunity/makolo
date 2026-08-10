@@ -6,29 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2B176E">
     <title>{% block title %}Makolo{% endblock %}</title>
-    <script>
-        (() => {
-            const saved = localStorage.getItem('theme');
-            const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.classList.toggle('dark', dark);
-        })();
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config={
-            darkMode:'class',
-            theme:{extend:{
-                fontFamily:{sans:['Inter','ui-sans-serif','system-ui'],heading:['Manrope','Inter','ui-sans-serif','system-ui']},
-                colors:{primary:'#5232DB',secondary:'#2B176E',accent:'#FF704D',ink:'#0F172A',warm:'#FFF8F3',success:'#07806F',warning:'#B45309',danger:'#C83C3C',info:'#2563EB'}
-            }}
-        };
-    </script>
+    <script src="{% static 'dist/theme-init.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'dist/makolo.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}">
+    <script defer src="{% static 'dist/makolo.js' %}"></script>
 </head>
 <body class="min-h-screen">
     <main class="mk-auth-grid">
@@ -45,6 +28,5 @@
             </div>
         </section>
     </main>
-    <script src="https://unpkg.com/lucide@latest"></script><script>lucide.createIcons();</script>
 </body>
 </html>

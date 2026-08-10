@@ -1,5 +1,7 @@
 from datetime import timedelta
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -34,11 +36,19 @@ class ScannerWebUiTests(TestCase):
         self.client.force_login(self.staff)
         response = self.client.get(reverse("scanner:console", kwargs={"slug": self.event.slug}))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "qr-scanner@1.4.2")
+        self.assertContains(response, "dist/qr-scanner.umd.min.js")
+        self.assertContains(response, "dist/scanner.js")
+        self.assertNotContains(response, "cdn.jsdelivr.net")
         self.assertContains(response, "Démarrer la caméra")
         self.assertContains(response, "Lire une image QR")
         self.assertContains(response, "Saisie manuelle du jeton QR")
-        self.assertContains(response, "QrScanner.scanImage")
+        self.assertContains(response, "data-scan-url")
+
+        scanner_source = (Path(settings.BASE_DIR) / "frontend" / "src" / "scanner.js").read_text(encoding="utf-8")
+        self.assertIn("QrScanner.scanImage", scanner_source)
+        self.assertIn("QrScanner.listCameras", scanner_source)
+        self.assertIn("qrScanner.toggleFlash", scanner_source)
+        self.assertIn("BarcodeDetector", scanner_source)
 
     def test_scanner_console_requires_authentication(self):
         response = self.client.get(reverse("scanner:console", kwargs={"slug": self.event.slug}))

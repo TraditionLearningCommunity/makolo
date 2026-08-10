@@ -1,9 +1,10 @@
 {% extends 'base/app.html' %}
+{% load static %}
 
 {% block title %}Live Access · {{ event.title }} | Makolo{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-7xl space-y-7">
+<div class="mx-auto max-w-7xl space-y-7" data-auto-reload-ms="15000">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div><a href="{% url 'scanner:console' event.slug %}" class="text-sm font-bold text-indigo-600">← Scanner {{ event.title }}</a><div class="mt-2 flex items-center gap-3"><h1 class="text-4xl font-black">Smart Access Live</h1><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">LIVE · 15 s</span></div><p class="mt-2 text-zinc-500">Pilotage temps réel des entrées, refus, débit et anomalies sans exposer de données participant.</p></div>
     <div class="flex flex-wrap gap-2">{% if can_manage_access %}<a href="{% url 'scanner:gates' %}" class="rounded-2xl border border-zinc-300 px-4 py-3 font-bold dark:border-zinc-700">Configurer les portes</a>{% endif %}<a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="rounded-2xl bg-zinc-900 px-4 py-3 font-bold text-white dark:bg-white dark:text-zinc-900">Journal détaillé</a></div>
@@ -43,4 +44,4 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}<script>window.setTimeout(() => window.location.reload(), 15000);</script>{% endblock %}
+{% block extra_js %}<script src="{% static 'dist/live-access.js' %}"></script>{% endblock %}

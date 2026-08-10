@@ -1,0 +1,1 @@
+(()=>{(()=>{const e=document.querySelector("[data-auto-reload-ms]");if(!e)return;const o=Number(e.dataset.autoReloadMs);Number.isFinite(o)&&o>0&&window.setTimeout(()=>window.location.reload(),o)})();})();
