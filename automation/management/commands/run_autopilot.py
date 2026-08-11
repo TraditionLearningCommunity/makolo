@@ -61,10 +61,12 @@ class Command(BaseCommand):
                 )
             raise
         if record_scheduled:
+            # A one-shot scheduler is expected to stop after a healthy cycle;
+            # STOPPED avoids treating the absence of a persistent worker as an incident.
             record_worker_heartbeat(
                 worker_name="autopilot",
                 instance_id=instance_id,
-                state=WorkerState.HEALTHY,
+                state=WorkerState.STOPPED,
                 metadata={**metadata, "last_stats": stats},
                 cycle_finished=True,
             )
