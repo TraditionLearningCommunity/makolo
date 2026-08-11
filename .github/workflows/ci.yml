@@ -104,6 +104,72 @@ jobs:
       - name: Run tests
         run: python manage.py test
 
+  postgresql-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_ci
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: makolo-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-postgresql-only-secret-key-not-used-in-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_ci
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: makolo-ci-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Run PostgreSQL Django checks
+        run: python manage.py check
+
+      - name: Apply migrations on PostgreSQL
+        run: python manage.py migrate --noinput
+
+      - name: Run targeted PostgreSQL smoke suite
+        run: >-
+          python manage.py test
+          core.test_operational_readiness
+          accounts.test_operational_hardening
+          events.test_operational_hardening
+          payments.test_operational_hardening
+          automation.test_operational_hardening
+          payments.tests
+          scanner.tests
+          tickets.test_security
+          automation.tests
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
