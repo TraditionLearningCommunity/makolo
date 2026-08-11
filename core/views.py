@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView
 from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -15,6 +16,37 @@ from tickets.models import TicketOrderStatus, TicketStatus
 from tickets.selectors import get_orders_visible_to, get_tickets_visible_to
 
 from .capabilities import get_web_capabilities
+from .web_throttling import (
+    RATE_LIMIT_MESSAGE,
+    allow_web_request,
+    client_rate_identity,
+    value_rate_identity,
+)
+
+
+class RateLimitedLoginView(LoginView):
+    template_name = "auth/login.html"
+    redirect_authenticated_user = True
+
+    def post(self, request, *args, **kwargs):
+        username = request.POST.get("username", "")
+        allowed = allow_web_request(
+            request,
+            scope="login",
+            limit=10,
+            window_seconds=60,
+            identities=[
+                client_rate_identity(request),
+                value_rate_identity("account", username),
+            ],
+        )
+        if not allowed:
+            form = self.get_form()
+            form.add_error(None, RATE_LIMIT_MESSAGE)
+            response = self.form_invalid(form)
+            response.status_code = 429
+            return response
+        return super().post(request, *args, **kwargs)
 
 
 class PublicHomeView(TemplateView):
