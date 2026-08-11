@@ -3,6 +3,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -36,15 +37,30 @@ if not SECRET_KEY:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY doit être définie en production.")
     SECRET_KEY = "django-insecure-makolo-local-development-only-do-not-use-this-key-in-production-2026"
 
-DEFAULT_ALLOWED_HOSTS = "127.0.0.1,localhost,[::1]"
 if IS_PRODUCTION:
-    DEFAULT_ALLOWED_HOSTS = "makolo.smnasarl.com,www.makolo.smnasarl.com"
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS)
+    ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS doit être définie en production.")
+else:
+    ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,[::1]")
 
-DEFAULT_CSRF_TRUSTED_ORIGINS = ""
+MAKOLO_PUBLIC_BASE_URL = os.environ.get(
+    "MAKOLO_PUBLIC_BASE_URL",
+    "http://127.0.0.1:8000" if not IS_PRODUCTION else "",
+).rstrip("/")
 if IS_PRODUCTION:
-    DEFAULT_CSRF_TRUSTED_ORIGINS = "https://makolo.smnasarl.com,https://www.makolo.smnasarl.com"
-CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", DEFAULT_CSRF_TRUSTED_ORIGINS)
+    if not MAKOLO_PUBLIC_BASE_URL:
+        raise ImproperlyConfigured("MAKOLO_PUBLIC_BASE_URL doit être définie en production.")
+    parsed_public_url = urlparse(MAKOLO_PUBLIC_BASE_URL)
+    if parsed_public_url.scheme != "https" or not parsed_public_url.netloc:
+        raise ImproperlyConfigured(
+            "MAKOLO_PUBLIC_BASE_URL doit être une URL HTTPS absolue en production."
+        )
+
+if IS_PRODUCTION:
+    CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", MAKOLO_PUBLIC_BASE_URL)
+else:
+    CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -115,12 +131,51 @@ TEMPLATES = [
     },
 ]
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": Path(os.environ.get("DJANGO_DB_PATH", BASE_DIR / "db.sqlite3")),
+DATABASE_ENGINE = os.environ.get("DJANGO_DATABASE_ENGINE", "sqlite").strip().lower()
+if DATABASE_ENGINE == "sqlite":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": Path(os.environ.get("DJANGO_DB_PATH", BASE_DIR / "db.sqlite3")),
+            "OPTIONS": {
+                "timeout": int(os.environ.get("DJANGO_SQLITE_TIMEOUT_SECONDS", "20")),
+            },
+        }
     }
-}
+elif DATABASE_ENGINE in {"postgresql", "postgres"}:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DJANGO_DATABASE_NAME", "").strip(),
+            "USER": os.environ.get("DJANGO_DATABASE_USER", "").strip(),
+            "PASSWORD": os.environ.get("DJANGO_DATABASE_PASSWORD", ""),
+            "HOST": os.environ.get("DJANGO_DATABASE_HOST", "").strip(),
+            "PORT": os.environ.get("DJANGO_DATABASE_PORT", "5432").strip(),
+            "CONN_MAX_AGE": int(os.environ.get("DJANGO_DATABASE_CONN_MAX_AGE", "60")),
+            "OPTIONS": {
+                "connect_timeout": int(
+                    os.environ.get("DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS", "5")
+                ),
+            },
+        }
+    }
+    missing_database_settings = [
+        name
+        for name, value in (
+            ("DJANGO_DATABASE_NAME", DATABASES["default"]["NAME"]),
+            ("DJANGO_DATABASE_USER", DATABASES["default"]["USER"]),
+            ("DJANGO_DATABASE_HOST", DATABASES["default"]["HOST"]),
+        )
+        if not value
+    ]
+    if missing_database_settings:
+        raise ImproperlyConfigured(
+            "Configuration PostgreSQL incomplète: "
+            + ", ".join(missing_database_settings)
+            + "."
+        )
+else:
+    raise ImproperlyConfigured("DJANGO_DATABASE_ENGINE doit être sqlite ou postgresql.")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -136,7 +191,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"))
 STATICFILES_DIRS = []
 LOCAL_STATIC_DIR = BASE_DIR / "static"
 if LOCAL_STATIC_DIR.exists():
@@ -175,7 +230,14 @@ MAKOLO_CONTENT_SECURITY_POLICY = "; ".join(
 MAKOLO_PERMISSIONS_POLICY = "camera=(self), microphone=(), geolocation=()"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
+MAKOLO_BACKUP_DIR = Path(os.environ.get("MAKOLO_BACKUP_DIR", BASE_DIR / "backups"))
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.environ.get("DJANGO_DATA_UPLOAD_MAX_MEMORY_SIZE", str(12 * 1024 * 1024))
+)
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.environ.get("DJANGO_FILE_UPLOAD_MAX_MEMORY_SIZE", str(3 * 1024 * 1024))
+)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "accounts:login"
@@ -231,19 +293,26 @@ if IS_E2E:
 elif IS_DEVELOPMENT or IS_TEST:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:
-    EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-    EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST", "")
+    EMAIL_BACKEND = os.environ.get(
+        "DJANGO_EMAIL_BACKEND",
+        "django.core.mail.backends.console.EmailBackend",
+    )
+    EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST", "").strip()
     EMAIL_PORT = int(os.environ.get("DJANGO_EMAIL_PORT", "587"))
     EMAIL_USE_TLS = env_bool("DJANGO_EMAIL_USE_TLS", True)
     EMAIL_USE_SSL = env_bool("DJANGO_EMAIL_USE_SSL", False)
-    EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER", "")
+    EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER", "").strip()
     EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_HOST_PASSWORD", "")
+    if EMAIL_USE_TLS and EMAIL_USE_SSL:
+        raise ImproperlyConfigured(
+            "DJANGO_EMAIL_USE_TLS et DJANGO_EMAIL_USE_SSL ne peuvent pas être activés ensemble."
+        )
+    if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not EMAIL_HOST:
+        raise ImproperlyConfigured(
+            "DJANGO_EMAIL_HOST doit être défini quand le backend SMTP est activé."
+        )
 DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "Makolo <noreply@localhost>")
 
-MAKOLO_PUBLIC_BASE_URL = os.environ.get(
-    "MAKOLO_PUBLIC_BASE_URL",
-    "http://127.0.0.1:8000" if IS_DEVELOPMENT or IS_E2E else "https://makolo.smnasarl.com",
-).rstrip("/")
 PAYMENTS_SANDBOX_ENABLED = env_bool(
     "PAYMENTS_SANDBOX_ENABLED",
     default=IS_DEVELOPMENT or IS_TEST or IS_E2E,
@@ -252,6 +321,10 @@ PAYMENTS_WEBHOOK_SECRET = os.environ.get(
     "PAYMENTS_WEBHOOK_SECRET",
     "makolo-local-webhook-secret" if not IS_PRODUCTION else "",
 )
+if IS_PRODUCTION and PAYMENTS_SANDBOX_ENABLED and not PAYMENTS_WEBHOOK_SECRET:
+    raise ImproperlyConfigured(
+        "PAYMENTS_WEBHOOK_SECRET doit être défini quand le sandbox paiement est activé en production."
+    )
 
 SESSION_COOKIE_NAME = "makolo_sessionid"
 CSRF_COOKIE_NAME = "makolo_csrftoken"
@@ -259,6 +332,11 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = int(
+    os.environ.get("DJANGO_SESSION_COOKIE_AGE_SECONDS", str(14 * 24 * 3600))
+)
+SESSION_SAVE_EVERY_REQUEST = False
+SESSION_EXPIRE_AT_BROWSER_CLOSE = env_bool("DJANGO_SESSION_EXPIRE_AT_BROWSER_CLOSE", False)
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
@@ -286,36 +364,67 @@ else:
     SECURE_HSTS_PRELOAD = False
 
 LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO" if DEBUG else "WARNING").upper()
-LOG_DIR = BASE_DIR / "logs"
+LOG_DIR = Path(os.environ.get("DJANGO_LOG_DIR", BASE_DIR / "logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "redact_sensitive": {
+            "()": "core.logging_filters.SensitiveDataFilter",
+        },
+    },
     "formatters": {
-        "verbose": {"format": "{levelname} {asctime} {name} {process:d} {thread:d} {message}", "style": "{"},
+        "verbose": {
+            "format": "{levelname} {asctime} {name} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
         "simple": {"format": "{levelname} {name}: {message}", "style": "{"},
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+            "filters": ["redact_sensitive"],
+        },
         "django_file": {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": LOG_DIR / "django.log",
-            "maxBytes": 5 * 1024 * 1024,
-            "backupCount": 5,
+            "maxBytes": int(os.environ.get("DJANGO_LOG_MAX_BYTES", str(5 * 1024 * 1024))),
+            "backupCount": int(os.environ.get("DJANGO_LOG_BACKUP_COUNT", "5")),
             "formatter": "verbose",
+            "filters": ["redact_sensitive"],
         },
         "security_file": {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": LOG_DIR / "security.log",
-            "maxBytes": 5 * 1024 * 1024,
-            "backupCount": 5,
+            "maxBytes": int(os.environ.get("DJANGO_LOG_MAX_BYTES", str(5 * 1024 * 1024))),
+            "backupCount": int(os.environ.get("DJANGO_LOG_BACKUP_COUNT", "5")),
             "formatter": "verbose",
+            "filters": ["redact_sensitive"],
         },
     },
     "loggers": {
-        "django": {"handlers": ["console", "django_file"], "level": LOG_LEVEL, "propagate": False},
-        "django.security": {"handlers": ["console", "security_file"], "level": "WARNING", "propagate": False},
-        "makolo": {"handlers": ["console", "django_file"], "level": LOG_LEVEL, "propagate": False},
+        "django": {
+            "handlers": ["console", "django_file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console", "security_file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "makolo": {
+            "handlers": ["console", "django_file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console", "django_file"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }
 
