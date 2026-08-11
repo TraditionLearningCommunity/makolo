@@ -3,7 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from core.api.views import HealthAPIView
+from core.api.views import HealthAPIView, ReadinessAPIView
 
 
 handler403 = "core.error_views.error_403"
@@ -14,6 +14,7 @@ handler500 = "core.error_views.error_500"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/health/", HealthAPIView.as_view(), name="api-health"),
+    path("api/v1/readiness/", ReadinessAPIView.as_view(), name="api-readiness"),
     path("api/v1/accounts/", include("accounts.api.urls")),
     path("api/v1/organizations/", include("organizations.api.urls")),
     path("api/v1/events/", include("events.api.urls")),
