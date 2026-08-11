@@ -30,17 +30,21 @@ class RateLimitedLoginView(LoginView):
 
     def post(self, request, *args, **kwargs):
         username = request.POST.get("username", "")
-        allowed = allow_web_request(
+        account_allowed = allow_web_request(
             request,
-            scope="login",
+            scope="login-account",
             limit=10,
             window_seconds=60,
-            identities=[
-                client_rate_identity(request),
-                value_rate_identity("account", username),
-            ],
+            identities=[value_rate_identity("account", username)],
         )
-        if not allowed:
+        ip_allowed = allow_web_request(
+            request,
+            scope="login-ip",
+            limit=60,
+            window_seconds=60,
+            identities=[client_rate_identity(request)],
+        )
+        if not account_allowed or not ip_allowed:
             form = self.get_form()
             form.add_error(None, RATE_LIMIT_MESSAGE)
             response = self.form_invalid(form)
