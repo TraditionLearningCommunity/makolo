@@ -1,3 +1,5 @@
+# Exemple générique pour un futur hébergement Linux avec systemd.
+# NE PAS utiliser comme procédure PythonAnywhere : voir docs/operations-runbook.md.
 [Unit]
 Description=Makolo Autopilot Worker
 After=network.target
