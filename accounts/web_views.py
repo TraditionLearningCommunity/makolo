@@ -8,6 +8,13 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import FormView
 
+from core.web_throttling import (
+    RATE_LIMIT_MESSAGE,
+    allow_web_request,
+    client_rate_identity,
+    value_rate_identity,
+)
+
 from .forms import (
     AccountDeleteForm,
     AccountProfileForm,
@@ -25,6 +32,14 @@ from .services import (
 )
 
 
+def _rate_limited_form_response(view):
+    form = view.get_form()
+    form.add_error(None, RATE_LIMIT_MESSAGE)
+    response = view.form_invalid(form)
+    response.status_code = 429
+    return response
+
+
 class AccountRegistrationView(FormView):
     template_name = "accounts/register.html"
     form_class = AccountRegistrationForm
@@ -33,6 +48,17 @@ class AccountRegistrationView(FormView):
         if request.user.is_authenticated:
             return redirect("core:dashboard")
         return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        if not allow_web_request(
+            request,
+            scope="registration",
+            limit=5,
+            window_seconds=3600,
+            identities=[client_rate_identity(request)],
+        ):
+            return _rate_limited_form_response(self)
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         form.save()
@@ -43,6 +69,21 @@ class AccountRegistrationView(FormView):
 class PasswordForgotView(FormView):
     template_name = "accounts/password_forgot.html"
     form_class = PasswordForgotForm
+
+    def post(self, request, *args, **kwargs):
+        email = request.POST.get("email", "")
+        if not allow_web_request(
+            request,
+            scope="password-forgot",
+            limit=5,
+            window_seconds=3600,
+            identities=[
+                client_rate_identity(request),
+                value_rate_identity("email", email),
+            ],
+        ):
+            return _rate_limited_form_response(self)
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         request_password_reset(email=form.cleaned_data["email"])
