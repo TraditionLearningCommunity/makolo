@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
@@ -8,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import NotificationPreference
+from core.logging_filters import redact_sensitive_text
 
 from .models import (
     DeliveryChannel,
@@ -76,10 +78,9 @@ def _public_url(path: str) -> str:
     if path.startswith("http://") or path.startswith("https://"):
         return path
     configured = getattr(settings, "MAKOLO_PUBLIC_BASE_URL", "").rstrip("/")
-    if configured:
-        return f"{configured}/{path.lstrip('/')}"
-    base = "http://127.0.0.1:8000" if settings.DEBUG else "https://makolo.smnasarl.com"
-    return f"{base}/{path.lstrip('/')}"
+    if not configured:
+        raise ImproperlyConfigured("MAKOLO_PUBLIC_BASE_URL doit être configurée.")
+    return f"{configured}/{path.lstrip('/')}"
 
 
 @transaction.atomic
@@ -194,7 +195,7 @@ def dispatch_delivery(delivery_id) -> str:
         terminal = delivery.attempts >= delivery.max_attempts
         NotificationDelivery.objects.filter(pk=delivery.pk).update(
             status=DeliveryStatus.FAILED if terminal else DeliveryStatus.QUEUED,
-            last_error=str(exc)[:1000],
+            last_error=redact_sensitive_text(str(exc))[:1000],
             scheduled_for=now + timedelta(minutes=max(delivery.attempts, 1) * 5),
             updated_at=now,
         )
