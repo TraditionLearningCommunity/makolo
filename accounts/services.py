@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -23,6 +25,7 @@ from accounts.models import (
 )
 
 
+logger = logging.getLogger("makolo")
 User = get_user_model()
 DELETED_DISPLAY_NAME = "Compte supprimé"
 
@@ -54,19 +57,19 @@ def request_password_reset(*, email: str) -> None:
         "Une demande de réinitialisation du mot de passe Makolo a été reçue.\n\n"
         "Ouvrez ce lien pour choisir un nouveau mot de passe :\n"
         f"{reset_url}\n\n"
-        "UID: "
-        f"{uid}\n"
-        "TOKEN: "
-        f"{token}\n\n"
         "Ce lien expire automatiquement. Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail."
     )
-    mail.send_mail(
-        subject="Makolo — Réinitialisation du mot de passe",
-        message=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
-    )
+    try:
+        mail.send_mail(
+            subject="Makolo — Réinitialisation du mot de passe",
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except Exception:
+        # Keep the public response enumeration-safe and avoid logging the reset URL/token.
+        logger.error("Password reset email delivery failed user_id=%s", user.pk)
 
 
 def _resolve_password_reset_user(*, uid: str, token: str):
