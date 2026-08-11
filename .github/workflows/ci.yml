@@ -157,17 +157,29 @@ jobs:
       - name: Apply migrations on PostgreSQL
         run: python manage.py migrate --noinput
 
-      - name: Run targeted PostgreSQL smoke suite
+      - name: Run operational readiness PostgreSQL tests
         run: >-
           python manage.py test
           core.test_operational_readiness
           accounts.test_operational_hardening
           events.test_operational_hardening
+
+      - name: Run payment PostgreSQL tests
+        run: >-
+          python manage.py test
           payments.test_operational_hardening
-          automation.test_operational_hardening
           payments.tests
+
+      - name: Run ticket and scanner PostgreSQL tests
+        run: >-
+          python manage.py test
           scanner.tests
           tickets.test_security
+
+      - name: Run automation PostgreSQL tests
+        run: >-
+          python manage.py test
+          automation.test_operational_hardening
           automation.tests
 
   e2e:
