@@ -45,7 +45,7 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
                 raise ValidationError("Cette clé d’idempotence appartient à une autre commande.")
             return existing
 
-    order = TicketOrder.objects.select_for_update().select_related("event", "event__organizer", "event__organization", "buyer").get(pk=order.pk)
+    order = TicketOrder.objects.select_for_update(of=("self",)).select_related("event", "event__organizer", "event__organization", "buyer").get(pk=order.pk)
     if not _payment_actor_can_initiate(actor, order):
         raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette commande.")
     if order.status != TicketOrderStatus.PENDING:
@@ -90,13 +90,13 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
 
 @transaction.atomic
 def complete_payment(*, payment: Payment, provider_reference: str, source: str = "provider") -> Payment:
-    payment = Payment.objects.select_for_update().select_related("order", "order__event", "order__event__organizer").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event", "order__event__organizer").get(pk=payment.pk)
     if payment.status == PaymentStatus.SUCCEEDED:
         return payment
     if payment.status in {PaymentStatus.FAILED, PaymentStatus.CANCELLED, PaymentStatus.REFUNDED}:
         raise ValidationError("Ce paiement est déjà dans un état terminal incompatible.")
 
-    order = TicketOrder.objects.select_for_update().select_related("event", "event__organizer").get(pk=payment.order_id)
+    order = TicketOrder.objects.select_for_update(of=("self",)).select_related("event", "event__organizer").get(pk=payment.order_id)
     if order.status != TicketOrderStatus.PENDING:
         raise ValidationError("La commande n’est plus en attente de paiement.")
     if order.is_expired:
@@ -127,7 +127,7 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
 
 @transaction.atomic
 def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: str = "", provider_reference: str = "", source: str = "provider") -> Payment:
-    payment = Payment.objects.select_for_update().select_related("order").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order").get(pk=payment.pk)
     if payment.status == PaymentStatus.FAILED:
         return payment
     if payment.status in {PaymentStatus.SUCCEEDED, PaymentStatus.REFUNDED}:
@@ -148,7 +148,7 @@ def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: s
 
 @transaction.atomic
 def cancel_payment(*, payment: Payment, actor) -> Payment:
-    payment = Payment.objects.select_for_update().select_related("order", "order__event", "order__buyer").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event", "order__buyer").get(pk=payment.pk)
     if not user_can_access_order(actor, payment.order):
         raise PermissionDenied("Vous ne pouvez pas annuler ce paiement.")
     if payment.status == PaymentStatus.CANCELLED:
@@ -168,7 +168,7 @@ def cancel_payment(*, payment: Payment, actor) -> Payment:
 def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
     if not _sandbox_enabled():
         raise ValidationError("Le sandbox de paiement est désactivé.")
-    payment = Payment.objects.select_for_update().select_related("order", "order__event", "order__buyer").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event", "order__buyer").get(pk=payment.pk)
     if payment.provider != PaymentProvider.SANDBOX:
         raise ValidationError("Ce paiement n’utilise pas le fournisseur sandbox.")
     if not user_can_access_order(actor, payment.order):
@@ -178,7 +178,7 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
 
 @transaction.atomic
 def complete_manual_payment(*, payment: Payment, actor, provider_reference: str = "") -> Payment:
-    payment = Payment.objects.select_for_update().select_related("order", "order__event").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event").get(pk=payment.pk)
     if payment.provider != PaymentProvider.MANUAL:
         raise ValidationError("Ce paiement n’est pas de type manuel.")
     if not _payment_actor_can_manage(actor, payment):
@@ -195,7 +195,7 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
                 raise ValidationError("Cette clé d’idempotence appartient à un autre remboursement.")
             return existing
 
-    payment = Payment.objects.select_for_update().select_related("order", "order__event", "order__event__organizer").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event", "order__event__organizer").get(pk=payment.pk)
     if not _payment_actor_can_manage(actor, payment):
         raise PermissionDenied("Vous ne pouvez pas rembourser ce paiement.")
     if payment.status == PaymentStatus.REFUNDED:
