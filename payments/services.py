@@ -242,6 +242,24 @@ def _safe_webhook_payload(payload: dict) -> dict:
     return {key: payload[key] for key in allowed if key in payload}
 
 
+def _existing_webhook_outcome(*, event_id: str, payload_hash: str) -> WebhookOutcome | None:
+    existing = (
+        PaymentEvent.objects.filter(
+            provider=PaymentProvider.SANDBOX,
+            event_id=event_id,
+        )
+        .select_related("payment")
+        .first()
+    )
+    if not existing:
+        return None
+    if not hmac.compare_digest(existing.payload_hash, payload_hash):
+        raise ValidationError(
+            "Identifiant d’événement webhook déjà utilisé avec un payload différent."
+        )
+    return WebhookOutcome(event=existing, payment=existing.payment, duplicate=True)
+
+
 @transaction.atomic
 def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcome:
     payload_hash = hashlib.sha256(raw_body).hexdigest()
@@ -257,24 +275,34 @@ def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcom
     if not event_id or not event_type:
         raise ValidationError("Le webhook doit contenir id et type.")
 
-    existing = PaymentEvent.objects.filter(provider=PaymentProvider.SANDBOX, event_id=event_id).select_related("payment").first()
-    if existing:
-        return WebhookOutcome(event=existing, payment=existing.payment, duplicate=True)
-
-    signature_valid = verify_sandbox_signature(raw_body, signature)
-    event = PaymentEvent.objects.create(
-        provider=PaymentProvider.SANDBOX,
-        event_id=event_id,
-        event_type=event_type,
-        signature_valid=signature_valid,
-        payload_hash=payload_hash,
-        payload=_safe_webhook_payload(payload),
-    )
-    if not signature_valid:
-        event.processing_error = "Signature webhook invalide."
-        event.processed_at = timezone.now()
-        event.save(update_fields=["processing_error", "processed_at"])
+    if not verify_sandbox_signature(raw_body, signature):
         raise PermissionDenied("Signature webhook invalide.")
+
+    existing_outcome = _existing_webhook_outcome(
+        event_id=event_id,
+        payload_hash=payload_hash,
+    )
+    if existing_outcome:
+        return existing_outcome
+
+    try:
+        with transaction.atomic():
+            event = PaymentEvent.objects.create(
+                provider=PaymentProvider.SANDBOX,
+                event_id=event_id,
+                event_type=event_type,
+                signature_valid=True,
+                payload_hash=payload_hash,
+                payload=_safe_webhook_payload(payload),
+            )
+    except IntegrityError:
+        concurrent_outcome = _existing_webhook_outcome(
+            event_id=event_id,
+            payload_hash=payload_hash,
+        )
+        if concurrent_outcome:
+            return concurrent_outcome
+        raise ValidationError("Impossible d’enregistrer le webhook de façon unique.")
 
     payment_reference = str(payload.get("payment_reference", "")).strip()
     try:
