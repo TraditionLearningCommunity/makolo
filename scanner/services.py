@@ -206,7 +206,7 @@ def scan_ticket(
 
     try:
         ticket = (
-            Ticket.objects.select_for_update()
+            Ticket.objects.select_for_update(of=("self",))
             .select_related("event", "ticket_type", "order", "owner")
             .get(code=code)
         )

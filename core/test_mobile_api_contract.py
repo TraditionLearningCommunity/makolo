@@ -573,8 +573,12 @@ class MobileMVPAPIContractTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
 
         body = mail.outbox[0].body
-        uid = re.search(r"^UID: (\S+)$", body, re.MULTILINE).group(1)
-        token = re.search(r"^TOKEN: (\S+)$", body, re.MULTILINE).group(1)
+        reset_match = re.search(
+            r"https?://[^\s]+/account/password/reset/([^/\s]+)/([^/\s]+)/?",
+            body,
+        )
+        self.assertIsNotNone(reset_match)
+        uid, token = reset_match.groups()
         reset = self.client.post(
             "/api/v1/accounts/auth/password/reset/",
             {

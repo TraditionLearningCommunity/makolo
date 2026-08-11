@@ -1,3 +1,4 @@
-# Fallback pour un hébergement sans worker persistant.
-# À adapter au chemin réel du projet et de l'environnement Python.
-* * * * * cd /srv/makolo && DJANGO_ENV=production /srv/makolo/.venv/bin/python manage.py run_autopilot >> /var/log/makolo-autopilot.log 2>&1
+# Exemple générique pour un futur hébergement Linux sans worker persistant.
+# NE PAS utiliser comme procédure PythonAnywhere : voir docs/operations-runbook.md.
+# Adapter les chemins et charger le fichier d'environnement réel sans commiter de secret.
+* * * * * cd /srv/makolo && set -a && . /srv/makolo/.env && set +a && /srv/makolo/.venv/bin/python manage.py run_autopilot --delivery-limit 100 >> /var/log/makolo-autopilot.log 2>&1

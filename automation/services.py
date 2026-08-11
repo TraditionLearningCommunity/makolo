@@ -1,6 +1,7 @@
 from datetime import timedelta
 
-from django.db.models import Sum
+from django.contrib.auth import get_user_model
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from crm.services import process_due_campaigns
@@ -20,6 +21,8 @@ from tickets.services import expire_due_ticket_transfers, expire_order, promote_
 from .models import AutomationRun, AutomationRunStatus, EventAutomationPolicy
 
 
+User = get_user_model()
+COMPLETED_EVENT_CATCHUP_DAYS = 30
 REMINDER_RULES = (
     (
         "reminder_7d_enabled",
@@ -39,15 +42,18 @@ REMINDER_RULES = (
         "reminder_2h_enabled",
         "event-reminder-2h",
         timedelta(hours=2),
-        timedelta(minutes=30),
+        timedelta(minutes=70),
         "Dans 2 heures",
     ),
 )
 
 
 def ensure_policy(event: Event) -> EventAutomationPolicy:
-    policy, _ = EventAutomationPolicy.objects.get_or_create(event=event)
-    return policy
+    try:
+        return event.automation_policy
+    except EventAutomationPolicy.DoesNotExist:
+        policy, _ = EventAutomationPolicy.objects.get_or_create(event=event)
+        return policy
 
 
 def _record_once(
@@ -88,6 +94,14 @@ def _event_team_recipient_objects(event):
     return [event.organizer] if event.organizer_id else []
 
 
+def _event_participants(event, *, include_cancelled=False):
+    tickets = Ticket.objects.filter(event=event, owner__isnull=False)
+    if not include_cancelled:
+        tickets = tickets.exclude(status=TicketStatus.CANCELLED)
+    owner_ids = tickets.values_list("owner_id", flat=True).distinct()
+    return User.objects.filter(pk__in=owner_ids).order_by("pk")
+
+
 def _notify_event_team(
     event,
     *,
@@ -121,32 +135,19 @@ def _run_reminders(event, policy, now):
         if now < due_at or now > due_at + grace or now >= event.start_at:
             continue
 
-        tickets = (
-            Ticket.objects.filter(
-                event=event,
-                status=TicketStatus.VALID,
-                owner__isnull=False,
-            )
-            .select_related("owner")
-            .order_by("owner_id")
-        )
-        seen = set()
-        for ticket in tickets:
-            if ticket.owner_id in seen:
-                continue
-            seen.add(ticket.owner_id)
-            dedup_key = f"autopilot:{rule_key}:{event.pk}:{ticket.owner_id}"
+        for participant in _event_participants(event, include_cancelled=False):
+            dedup_key = f"autopilot:{rule_key}:{event.pk}:{participant.pk}"
             run, run_created = _record_once(
                 event=event,
                 rule_key=rule_key,
                 dedup_key=dedup_key,
-                summary=f"Rappel {label} pour {ticket.owner.email}",
-                payload={"user_id": str(ticket.owner_id)},
+                summary=f"Rappel {label} pour {participant.email}",
+                payload={"user_id": str(participant.pk)},
             )
             if not run_created:
                 continue
             create_notification(
-                recipient=ticket.owner,
+                recipient=participant,
                 kind=NotificationKind.EVENT_REMINDER,
                 category=NotificationCategory.EVENT,
                 title=f"{label} — {event.title}",
@@ -281,29 +282,19 @@ def _auto_complete(event, policy, now):
 def _post_event_followup(event, policy, now):
     if not policy.post_event_followup_enabled or now < event.end_at:
         return 0
-    users = (
-        Ticket.objects.filter(event=event, owner__isnull=False)
-        .exclude(status=TicketStatus.CANCELLED)
-        .select_related("owner")
-        .order_by("owner_id")
-    )
     created = 0
-    seen = set()
-    for ticket in users:
-        if ticket.owner_id in seen:
-            continue
-        seen.add(ticket.owner_id)
-        dedup = f"autopilot:followup:{event.pk}:{ticket.owner_id}"
+    for participant in _event_participants(event, include_cancelled=False):
+        dedup = f"autopilot:followup:{event.pk}:{participant.pk}"
         _, run_created = _record_once(
             event=event,
             rule_key="post-event-followup",
             dedup_key=dedup,
-            summary=f"Suivi post-événement pour {ticket.owner.email}",
+            summary=f"Suivi post-événement pour {participant.email}",
         )
         if not run_created:
             continue
         create_notification(
-            recipient=ticket.owner,
+            recipient=participant,
             kind=NotificationKind.SYSTEM,
             category=NotificationCategory.EVENT,
             title=f"Merci d'avoir participé à {event.title}",
@@ -366,12 +357,14 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
         "followups": 0,
     }
 
+    completed_cutoff = now - timedelta(days=COMPLETED_EVENT_CATCHUP_DAYS)
     events = (
         Event.objects.filter(
-            status__in=[EventStatus.PUBLISHED, EventStatus.COMPLETED]
+            Q(status=EventStatus.PUBLISHED)
+            | Q(status=EventStatus.COMPLETED, end_at__gte=completed_cutoff)
         )
-        .select_related("organizer", "organization")
-        .prefetch_related("organization__memberships__user")
+        .select_related("organizer", "organization", "automation_policy")
+        .order_by("start_at")
     )
     for event in events:
         policy = ensure_policy(event)

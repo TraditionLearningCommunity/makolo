@@ -40,7 +40,7 @@ def _validate_event_sales(event: Event) -> None:
 
 def _lock_event_ticket_types(event: Event):
     return list(
-        TicketType.objects.select_for_update()
+        TicketType.objects.select_for_update(of=("self",))
         .filter(event=event)
         .select_related("event")
         .order_by("id")
@@ -232,7 +232,7 @@ def _confirm_locked_order(order: TicketOrder, locked_types: list[TicketType]) ->
 @transaction.atomic
 def confirm_order(*, order: TicketOrder, actor) -> TicketOrder:
     order = (
-        TicketOrder.objects.select_for_update()
+        TicketOrder.objects.select_for_update(of=("self",))
         .select_related("event", "event__organizer")
         .get(pk=order.pk)
     )
@@ -254,7 +254,7 @@ def _schedule_waitlist_promotion(ticket_type_ids):
 @transaction.atomic
 def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
     order = (
-        TicketOrder.objects.select_for_update()
+        TicketOrder.objects.select_for_update(of=("self",))
         .select_related("event", "event__organizer", "event__organization", "buyer")
         .get(pk=order.pk)
     )
@@ -319,7 +319,7 @@ def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
 
 @transaction.atomic
 def expire_order(*, order: TicketOrder) -> TicketOrder:
-    order = TicketOrder.objects.select_for_update().select_related("event").get(pk=order.pk)
+    order = TicketOrder.objects.select_for_update(of=("self",)).select_related("event").get(pk=order.pk)
     if order.status != TicketOrderStatus.PENDING or not order.is_expired:
         return order
 
@@ -431,7 +431,7 @@ def promote_waitlist_for_ticket_type(
         return 0
 
     entries = list(
-        TicketWaitlistEntry.objects.select_for_update()
+        TicketWaitlistEntry.objects.select_for_update(of=("self",))
         .select_related("user")
         .filter(ticket_type=ticket_type, status=WaitlistStatus.WAITING)
         .order_by("created_at", "id")
@@ -504,7 +504,7 @@ def promote_open_waitlists(*, now=None) -> int:
 @transaction.atomic
 def accept_waitlist_offer(*, entry: TicketWaitlistEntry, user) -> TicketOrder:
     entry = (
-        TicketWaitlistEntry.objects.select_for_update()
+        TicketWaitlistEntry.objects.select_for_update(of=("self",))
         .select_related("offered_order__event", "ticket_type", "user")
         .get(pk=entry.pk)
     )
@@ -529,7 +529,7 @@ def accept_waitlist_offer(*, entry: TicketWaitlistEntry, user) -> TicketOrder:
 @transaction.atomic
 def leave_waitlist(*, entry: TicketWaitlistEntry, user) -> TicketWaitlistEntry:
     entry = (
-        TicketWaitlistEntry.objects.select_for_update()
+        TicketWaitlistEntry.objects.select_for_update(of=("self",))
         .select_related("offered_order", "ticket_type")
         .get(pk=entry.pk)
     )
@@ -570,7 +570,7 @@ def create_ticket_transfer(
     expiry_hours: int = TRANSFER_EXPIRY_HOURS,
 ) -> TicketTransfer:
     ticket = (
-        Ticket.objects.select_for_update()
+        Ticket.objects.select_for_update(of=("self",))
         .select_related("event", "owner", "ticket_type")
         .get(pk=ticket.pk)
     )
@@ -617,7 +617,7 @@ def create_ticket_transfer(
 @transaction.atomic
 def accept_ticket_transfer(*, transfer: TicketTransfer, recipient) -> TicketTransfer:
     transfer = (
-        TicketTransfer.objects.select_for_update()
+        TicketTransfer.objects.select_for_update(of=("self",))
         .select_related("ticket__event", "ticket__owner", "sender", "recipient")
         .get(pk=transfer.pk)
     )
@@ -633,7 +633,7 @@ def accept_ticket_transfer(*, transfer: TicketTransfer, recipient) -> TicketTran
         transfer.save(update_fields=["status", "expired_at", "updated_at"])
         raise ValidationError("Ce transfert a expiré.")
 
-    ticket = Ticket.objects.select_for_update().select_related("event", "owner").get(pk=transfer.ticket_id)
+    ticket = Ticket.objects.select_for_update(of=("self",)).select_related("event", "owner").get(pk=transfer.ticket_id)
     if ticket.owner_id != transfer.sender_id:
         raise ValidationError("Le propriétaire du billet a changé depuis la création du transfert.")
     if ticket.status != TicketStatus.VALID or not ticket.is_valid:
