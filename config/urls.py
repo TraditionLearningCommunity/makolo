@@ -35,6 +35,7 @@ urlpatterns = [
     path("o/", include("organizations.public_urls")),
     path("account/", include("accounts.web_urls")),
     path("organizations/", include("organizations.urls")),
+    path("groups/", include("groups.urls")),
     path("autopilot/", include("automation.urls")),
     path("discover/", include("discovery.urls")),
     path("growth/", include("growth.urls")),
