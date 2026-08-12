@@ -16,7 +16,9 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from organizations.models import OrganizationFollow, OrganizationMembership
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+from organizations.models import OrganizationFollow
 from partners.models import AttributionStatus, ReferralAttribution
 from promotions.models import PromotionRedemption, RedemptionStatus
 from tickets.models import (
@@ -39,19 +41,12 @@ from .models import (
     CRMContactFieldValue,
     MarketingConsent,
 )
-from .permissions import CRM_VIEW_ROLES
 
 
 def _visible_organization_ids(user):
     if not getattr(user, "is_authenticated", False):
         return []
-    if user.is_staff:
-        return None
-    return OrganizationMembership.objects.filter(
-        user=user,
-        is_active=True,
-        role__in=CRM_VIEW_ROLES,
-    ).values_list("organization_id", flat=True)
+    return space_ids_with_permission(user, PermissionCode.CRM_VIEW)
 
 
 def get_contacts_visible_to(user):
@@ -258,107 +253,80 @@ def audience_contacts(segment: AudienceSegment):
         return queryset.none()
 
     contact_match = Q(customer_email=OuterRef("email")) | Q(buyer_id=OuterRef("user_id"))
-    ticket_match = Q(holder_email=OuterRef("email")) | Q(owner_id=OuterRef("user_id"))
-
     if segment.audience_kind == AudienceKind.CONFIRMED_BUYERS:
-        orders = TicketOrder.objects.filter(event=event, status=TicketOrderStatus.CONFIRMED).filter(contact_match)
-        if segment.ticket_type_id:
-            orders = orders.filter(items__ticket_type_id=segment.ticket_type_id)
+        orders = TicketOrder.objects.filter(
+            event=event,
+            status=TicketOrderStatus.CONFIRMED,
+        ).filter(contact_match)
         return queryset.annotate(_crm_match=Exists(orders)).filter(_crm_match=True).distinct()
-
-    if segment.audience_kind in {
-        AudienceKind.TICKET_HOLDERS,
-        AudienceKind.ATTENDEES,
-        AudienceKind.NO_SHOWS,
-    }:
-        tickets = Ticket.objects.filter(event=event).filter(ticket_match)
-        if segment.audience_kind == AudienceKind.TICKET_HOLDERS:
-            tickets = tickets.filter(status__in=[TicketStatus.VALID, TicketStatus.USED])
-        elif segment.audience_kind == AudienceKind.ATTENDEES:
-            tickets = tickets.filter(status=TicketStatus.USED)
-        else:
-            if event.end_at > timezone.now():
-                return queryset.none()
-            tickets = tickets.filter(status=TicketStatus.VALID)
-        if segment.ticket_type_id:
-            tickets = tickets.filter(ticket_type_id=segment.ticket_type_id)
-        return queryset.annotate(_crm_match=Exists(tickets)).filter(_crm_match=True).distinct()
 
     if segment.audience_kind == AudienceKind.WAITLIST:
         waitlist = TicketWaitlistEntry.objects.filter(
             ticket_type__event=event,
             status__in=[WaitlistStatus.WAITING, WaitlistStatus.OFFERED],
-            user_id=OuterRef("user_id"),
-        )
-        if segment.ticket_type_id:
-            waitlist = waitlist.filter(ticket_type_id=segment.ticket_type_id)
+        ).filter(Q(user_id=OuterRef("user_id")))
         return queryset.annotate(_crm_match=Exists(waitlist)).filter(_crm_match=True).distinct()
 
-    if segment.audience_kind == AudienceKind.PARTNER_REFERRED:
-        attributions = ReferralAttribution.objects.filter(
-            campaign__event=event,
+    ticket_filters = Q(event=event)
+    if segment.ticket_type_id:
+        ticket_filters &= Q(ticket_type=segment.ticket_type)
+    tickets = Ticket.objects.filter(ticket_filters).filter(
+        Q(holder_email=OuterRef("email")) | Q(owner_id=OuterRef("user_id"))
+    )
+    if segment.audience_kind == AudienceKind.ATTENDEES:
+        tickets = tickets.filter(status=TicketStatus.USED)
+    elif segment.audience_kind == AudienceKind.NO_SHOWS:
+        tickets = tickets.exclude(status=TicketStatus.USED)
+    elif segment.audience_kind == AudienceKind.PARTNER_REFERRED:
+        referrals = ReferralAttribution.objects.filter(
+            campaign__organization=segment.organization,
+            event=event,
             status=AttributionStatus.CONFIRMED,
         ).filter(
-            Q(order__customer_email=OuterRef("email")) | Q(order__buyer_id=OuterRef("user_id"))
+            Q(order__customer_email=OuterRef("email"))
+            | Q(order__buyer_id=OuterRef("user_id"))
         )
-        if segment.ticket_type_id:
-            attributions = attributions.filter(order__items__ticket_type_id=segment.ticket_type_id)
-        return queryset.annotate(_crm_match=Exists(attributions)).filter(_crm_match=True).distinct()
+        return queryset.annotate(_crm_match=Exists(referrals)).filter(_crm_match=True).distinct()
 
-    return queryset.none()
+    return queryset.annotate(_crm_match=Exists(tickets)).filter(_crm_match=True).distinct()
 
 
-def campaign_metrics(campaign: CommunicationCampaign):
-    recipients = campaign.recipients.all()
-    audience_size = recipients.count()
-    sent = recipients.filter(status=CampaignRecipientStatus.SENT).count()
-    clicked_recipients = recipients.filter(click_count__gt=0).count()
-    total_clicks = recipients.aggregate(total=Sum("click_count"))["total"] or 0
-    confirmed = campaign.attributions.filter(status=CampaignAttributionStatus.CONFIRMED)
-    conversions = confirmed.count()
-    reversed_count = campaign.attributions.filter(status=CampaignAttributionStatus.REVERSED).count()
-    revenue_by_currency = [
-        {"currency": row["currency"] or "N/A", "amount": row["amount"] or 0, "orders": row["orders"]}
-        for row in confirmed.values("currency").annotate(amount=Sum("revenue_amount"), orders=Count("id")).order_by("currency")
-    ]
+def campaign_delivery_summary(campaign: CommunicationCampaign):
+    grouped = campaign.recipients.values("status").annotate(total=Count("id"))
+    summary = {choice: 0 for choice, _label in CampaignRecipientStatus.choices}
+    for item in grouped:
+        summary[item["status"]] = item["total"]
+    return summary
 
-    coupon_confirmed = PromotionRedemption.objects.filter(
-        code__crm_campaign=campaign,
-        status=RedemptionStatus.CONFIRMED,
+
+def campaign_conversion_summary(campaign: CommunicationCampaign):
+    grouped = campaign.attributions.values("status", "currency").annotate(
+        orders=Count("id"),
+        revenue=Sum("revenue_amount"),
     )
-    coupon_reversed = PromotionRedemption.objects.filter(
-        code__crm_campaign=campaign,
-        status=RedemptionStatus.REVERSED,
-    ).count()
-    coupon_by_currency = [
+    return [
         {
-            "currency": row["currency"] or "N/A",
-            "discount_amount": row["discount_amount"] or 0,
-            "revenue_amount": row["revenue_amount"] or 0,
-            "orders": row["orders"],
+            "status": item["status"],
+            "currency": item["currency"],
+            "orders": item["orders"],
+            "revenue": item["revenue"] or Decimal("0.00"),
         }
-        for row in coupon_confirmed.values("currency").annotate(
-            discount_amount=Sum("discount_amount"),
-            revenue_amount=Sum("final_amount"),
-            orders=Count("id"),
-        ).order_by("currency")
+        for item in grouped
     ]
 
-    return {
-        "audience_size": audience_size,
-        "queued": recipients.filter(status=CampaignRecipientStatus.QUEUED).count(),
-        "processing": recipients.filter(status=CampaignRecipientStatus.PROCESSING).count(),
-        "sent": sent,
-        "failed": recipients.filter(status=CampaignRecipientStatus.FAILED).count(),
-        "skipped": recipients.filter(status=CampaignRecipientStatus.SKIPPED).count(),
-        "clicked_recipients": clicked_recipients,
-        "total_clicks": total_clicks,
-        "click_rate": round((clicked_recipients / sent) * 100, 1) if sent else 0,
-        "conversions": conversions,
-        "conversion_rate": round((conversions / clicked_recipients) * 100, 1) if clicked_recipients else 0,
-        "reversed_conversions": reversed_count,
-        "revenue_by_currency": revenue_by_currency,
-        "promotion_code_conversions": coupon_confirmed.count(),
-        "promotion_code_reversed": coupon_reversed,
-        "promotion_code_by_currency": coupon_by_currency,
-    }
+
+def attributed_revenue_by_currency(campaign: CommunicationCampaign):
+    grouped = (
+        campaign.attributions.filter(status=CampaignAttributionStatus.CONFIRMED)
+        .values("currency")
+        .annotate(revenue=Sum("revenue_amount"), orders=Count("id"))
+        .order_by("currency")
+    )
+    return [
+        {
+            "currency": item["currency"],
+            "revenue": item["revenue"] or Decimal("0.00"),
+            "orders": item["orders"],
+        }
+        for item in grouped
+    ]
