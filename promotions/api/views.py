@@ -4,12 +4,12 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import Organization, OrganizationMembership
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+from organizations.models import Organization
 
 from promotions.models import Promotion, PromotionCode, PromotionRedemption
 from promotions.permissions import (
-    PROMOTION_FINANCE_ROLES,
-    PROMOTION_VIEW_ROLES,
     user_can_manage_promotions,
     user_can_view_promotion_financials,
     user_can_view_promotions,
@@ -31,26 +31,20 @@ from .serializers import (
 )
 
 
+def _organizations_with_permission(user, permission_code):
+    ids = space_ids_with_permission(user, permission_code)
+    queryset = Organization.objects.all()
+    if ids is not None:
+        queryset = queryset.filter(pk__in=ids)
+    return queryset
+
+
 def _visible_organizations(user):
-    if user.is_staff:
-        return Organization.objects.all()
-    ids = OrganizationMembership.objects.filter(
-        user=user,
-        is_active=True,
-        role__in=PROMOTION_VIEW_ROLES,
-    ).values_list("organization_id", flat=True)
-    return Organization.objects.filter(pk__in=ids)
+    return _organizations_with_permission(user, PermissionCode.PROMOTIONS_VIEW)
 
 
 def _financial_organizations(user):
-    if user.is_staff:
-        return Organization.objects.all()
-    ids = OrganizationMembership.objects.filter(
-        user=user,
-        is_active=True,
-        role__in=PROMOTION_FINANCE_ROLES,
-    ).values_list("organization_id", flat=True)
-    return Organization.objects.filter(pk__in=ids)
+    return _organizations_with_permission(user, PermissionCode.PROMOTIONS_FINANCIALS_VIEW)
 
 
 def _validation_response(exc):
@@ -74,7 +68,7 @@ class PromotionListCreateAPIView(APIView):
         data = dict(serializer.validated_data)
         organization = data.pop("organization")
         if not user_can_manage_promotions(request.user, organization):
-            raise PermissionDenied("Vous ne pouvez pas créer d'offre pour cette organisation.")
+            raise PermissionDenied("Vous ne pouvez pas créer d'offre pour cet Espace.")
         try:
             promotion = create_promotion(actor=request.user, organization=organization, **data)
         except (DjangoValidationError, DjangoPermissionDenied) as exc:
