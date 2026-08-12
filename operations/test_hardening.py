@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from authorization.services import ensure_platform_admin_mandate
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import Organization, OrganizationVerificationStatus
 from payments.models import Payment, PaymentProvider, PaymentStatus
@@ -28,6 +29,7 @@ class OperationsHardeningTests(TestCase):
             password="Strong-password-2026!",
             is_staff=True,
         )
+        ensure_platform_admin_mandate(profile=self.staff, source="test-fixture")
         self.buyer = User.objects.create_user(
             username="ops-hardening-buyer",
             email="ops-hardening-buyer@test.local",
