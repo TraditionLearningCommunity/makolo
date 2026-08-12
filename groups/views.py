@@ -3,10 +3,10 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 
 from authorization.constants import PermissionCode
@@ -26,8 +26,8 @@ from .models import (
     Group,
     GroupInvitation,
     GroupInvitationStatus,
+    GroupMembership,
     GroupMembershipStatus,
-    GroupStatus,
 )
 from .selectors import (
     direct_group_role_codes,
@@ -228,7 +228,7 @@ class GroupMemberStateView(LoginRequiredMixin, View):
         require_group_permission(request.user, PermissionCode.GROUP_MEMBERS_MANAGE, group)
         try:
             profile = group.memberships.select_related("profile").get(profile_id=profile_id).profile
-        except group.memberships.model.DoesNotExist as exc:
+        except GroupMembership.DoesNotExist as exc:
             raise Http404 from exc
         if self.action == "suspend":
             suspend_member(actor=request.user, group=group, profile=profile)
