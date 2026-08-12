@@ -1,0 +1,43 @@
+/* Canonical Makolo brand assets. Presentation only. */
+.mk-brand-symbol-wrap {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 42px;
+  height: 36px;
+}
+
+.mk-brand-symbol {
+  display: block;
+  width: auto;
+  height: 30px;
+  max-width: 44px;
+  object-fit: contain;
+}
+
+.mk-brand-symbol-dark { display: none; }
+.dark .mk-brand-symbol-light { display: none; }
+.dark .mk-brand-symbol-dark { display: block; }
+
+.mk-brand-symbol-auth {
+  height: 32px;
+  max-width: 47px;
+}
+
+.mk-brand-lockup {
+  display: block;
+  width: auto;
+  object-fit: contain;
+}
+
+.mk-brand-lockup-public {
+  height: 36px;
+  max-width: 128px;
+}
+
+@media (min-width: 640px) {
+  .mk-brand-lockup-public {
+    height: 40px;
+    max-width: 142px;
+  }
+}
