@@ -8,6 +8,7 @@ from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
@@ -68,7 +69,6 @@ def request_password_reset(*, email: str) -> None:
             fail_silently=False,
         )
     except Exception:
-        # Keep the public response enumeration-safe and avoid logging the reset URL/token.
         logger.error("Password reset email delivery failed user_id=%s", user.pk)
 
 
@@ -106,23 +106,43 @@ def change_password(*, user, current_password: str, new_password: str):
 
 
 def get_account_deletion_blockers(user):
-    """Return organizations for which user is the last active owner."""
-    from organizations.models import OrganizationMembership, OrganizationRole
+    """Return Spaces for which the profile is the last current owner."""
+    from authorization.constants import SystemRoleCode
+    from authorization.models import AuthorityScope, Mandate, MandateStatus
 
+    now = timezone.now()
+    current = (
+        Q(status=MandateStatus.ACTIVE, revoked_at__isnull=True)
+        & (Q(valid_from__isnull=True) | Q(valid_from__lte=now))
+        & (Q(valid_until__isnull=True) | Q(valid_until__gt=now))
+    )
+    owners = (
+        Mandate.objects.filter(
+            profile=user,
+            scope_type=AuthorityScope.SPACE,
+            role__code=SystemRoleCode.SPACE_OWNER,
+            role__is_system=True,
+            role__is_active=True,
+        )
+        .filter(current)
+        .select_related("space")
+    )
     blockers = []
-    owner_memberships = OrganizationMembership.objects.filter(
-        user=user,
-        role=OrganizationRole.OWNER,
-        is_active=True,
-    ).select_related("organization")
-    for membership in owner_memberships:
-        has_other_owner = OrganizationMembership.objects.filter(
-            organization=membership.organization,
-            role=OrganizationRole.OWNER,
-            is_active=True,
-        ).exclude(pk=membership.pk).exists()
+    for mandate in owners:
+        has_other_owner = (
+            Mandate.objects.filter(
+                space=mandate.space,
+                scope_type=AuthorityScope.SPACE,
+                role__code=SystemRoleCode.SPACE_OWNER,
+                role__is_system=True,
+                role__is_active=True,
+            )
+            .filter(current)
+            .exclude(pk=mandate.pk)
+            .exists()
+        )
         if not has_other_owner:
-            blockers.append(membership.organization)
+            blockers.append(mandate.space)
     return blockers
 
 
@@ -136,8 +156,6 @@ def _schedule_file_deletions(names):
             try:
                 default_storage.delete(name)
             except Exception:
-                # Account state/anonymization must not be rolled back merely
-                # because a storage backend is temporarily unavailable.
                 pass
 
     transaction.on_commit(delete_files)
@@ -145,17 +163,16 @@ def _schedule_file_deletions(names):
 
 @transaction.atomic
 def delete_account(*, user, current_password: str):
-    """Deactivate and anonymize one account while preserving audit history.
-
-    Financial/ticket/scanner records are retained. Direct personal identifiers
-    owned by the account are removed or replaced with non-reversible placeholders.
-    Foreign keys that form part of audit history keep pointing at the now
-    anonymized, inactive user row. Deletion is blocked while the user is the
-    last active owner of an organization so no workspace is orphaned silently.
-    """
+    """Deactivate/anonymize an account while preserving commercial audit history."""
+    from authorization.models import Mandate, MandateStatus
     from crm.models import CRMContact, MarketingConsent
     from notifications.models import Notification
-    from organizations.models import OrganizationFollow, OrganizationMembership
+    from organizations.models import (
+        OrganizationFollow,
+        OrganizationMembership,
+        TeamMembership,
+        TeamMembershipStatus,
+    )
     from partners.models import Partner
     from payments.models import Payment, Refund
     from promotions.models import PromotionRedemption
@@ -175,7 +192,7 @@ def delete_account(*, user, current_password: str):
         raise ValidationError(
             {
                 "account": (
-                    "Transférez d’abord la propriété des organisations dont vous êtes le dernier propriétaire actif : "
+                    "Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif : "
                     f"{names}."
                 )
             }
@@ -188,12 +205,7 @@ def delete_account(*, user, current_password: str):
     if locked.avatar:
         file_names.append(locked.avatar.name)
 
-    order_ids = list(
-        TicketOrder.objects.filter(buyer=locked).values_list("pk", flat=True)
-    )
-
-    # Historical commercial records keep amounts, currencies and references,
-    # while participant snapshots are anonymized.
+    order_ids = list(TicketOrder.objects.filter(buyer=locked).values_list("pk", flat=True))
     TicketOrder.objects.filter(pk__in=order_ids).update(
         buyer=None,
         customer_name=DELETED_DISPLAY_NAME,
@@ -215,13 +227,9 @@ def delete_account(*, user, current_password: str):
         buyer=None,
         customer_email=anonymized_email,
     )
-    TicketTransfer.objects.filter(recipient=locked).update(
-        recipient_email=anonymized_email
-    )
+    TicketTransfer.objects.filter(recipient=locked).update(recipient_email=anonymized_email)
     TicketWaitlistEntry.objects.filter(user=locked).delete()
 
-    # Marketing/CRM identity is organizer-scoped: unlink and anonymize each
-    # contact without altering historic campaign/order attribution.
     for contact in CRMContact.objects.select_for_update().filter(user=locked):
         contact.user = None
         contact.email = f"deleted+{contact.pk.hex}@deleted.invalid"
@@ -233,32 +241,31 @@ def delete_account(*, user, current_password: str):
         contact.metadata = {}
         contact.save(
             update_fields=[
-                "user",
-                "email",
-                "name",
-                "phone",
-                "marketing_consent",
-                "consent_source",
-                "consent_updated_at",
-                "metadata",
-                "updated_at",
+                "user", "email", "name", "phone", "marketing_consent",
+                "consent_source", "consent_updated_at", "metadata", "updated_at",
             ]
         )
 
+    now = timezone.now()
     OrganizationFollow.objects.filter(user=locked).delete()
+    TeamMembership.objects.filter(user=locked).update(
+        status=TeamMembershipStatus.INACTIVE,
+        updated_at=now,
+    )
     OrganizationMembership.objects.filter(user=locked).update(is_active=False)
+    Mandate.objects.filter(profile=locked, status=MandateStatus.ACTIVE).update(
+        status=MandateStatus.REVOKED,
+        revoked_at=now,
+        updated_at=now,
+    )
     Partner.objects.filter(user=locked).update(user=None)
     Partner.objects.filter(created_by=locked).update(created_by=None)
     Notification.objects.filter(recipient=locked).delete()
     NotificationPreference.objects.filter(user=locked).delete()
 
     UserDevice.objects.filter(user=locked).delete()
-    UserSession.objects.filter(user=locked).update(active=False, ended_at=timezone.now())
-    UserActivity.objects.filter(user=locked).update(
-        ip_address=None,
-        user_agent="",
-        metadata={},
-    )
+    UserSession.objects.filter(user=locked).update(active=False, ended_at=now)
+    UserActivity.objects.filter(user=locked).update(ip_address=None, user_agent="", metadata={})
     for document in VerificationDocument.objects.filter(user=locked):
         if document.file:
             file_names.append(document.file.name)
@@ -278,6 +285,8 @@ def delete_account(*, user, current_password: str):
         profile_completed=False,
     )
 
+    # Historical global RBAC is kept only as a compatibility surface until its
+    # API contract can be retired; deletion still removes every old assignment.
     locked.roles.clear()
     locked.permission_groups.clear()
     blacklist_user_refresh_tokens(locked)
