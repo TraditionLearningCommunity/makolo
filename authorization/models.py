@@ -20,7 +20,7 @@ class MandateStatus(models.TextChoices):
 
 class Permission(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.SlugField(max_length=120, unique=True)
+    code = models.CharField(max_length=120, unique=True)
     name = models.CharField(max_length=160)
     description = models.TextField(blank=True)
     domain = models.CharField(max_length=80)
@@ -81,7 +81,7 @@ class Role(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(scope_type=AuthorityScope.PLATFORM, organization__isnull=True)
+                    Q(scope_type=AuthorityScope.PLATFORM, is_system=True, organization__isnull=True)
                     | Q(scope_type=AuthorityScope.SPACE, is_system=True, organization__isnull=True)
                     | Q(scope_type=AuthorityScope.SPACE, is_system=False, organization__isnull=False)
                 ),
@@ -96,8 +96,8 @@ class Role(models.Model):
     def clean(self):
         super().clean()
         errors = {}
-        if self.scope_type == AuthorityScope.PLATFORM and self.organization_id:
-            errors["organization"] = "Un rôle plateforme ne peut pas appartenir à un Espace."
+        if self.scope_type == AuthorityScope.PLATFORM and (not self.is_system or self.organization_id):
+            errors["scope_type"] = "Les rôles plateforme sont uniquement des rôles système Makolo."
         if self.scope_type == AuthorityScope.SPACE and not self.is_system and not self.organization_id:
             errors["organization"] = "Un rôle personnalisé Espace doit appartenir à un Espace."
         if errors:
