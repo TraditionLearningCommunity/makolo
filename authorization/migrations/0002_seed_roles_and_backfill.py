@@ -16,6 +16,7 @@ PERMISSIONS = [
     ("space.view", "Accéder à un Espace", "spaces", "space"),
     ("space.manage", "Gérer un Espace", "spaces", "space"),
     ("space.team.manage", "Gérer l'équipe d'un Espace", "spaces", "space"),
+    ("space.ownership.manage", "Gérer la propriété d'un Espace", "spaces", "space"),
     ("activity.manage", "Gérer les activités", "activities", "space"),
     ("orders.view", "Voir les commandes opérationnelles", "commerce", "space"),
     ("tickets.view", "Voir les droits/billets opérationnels", "access", "space"),
@@ -42,6 +43,7 @@ PERMISSIONS = [
 
 
 SPACE_PERMISSION_CODES = [code for code, _name, _domain, scope in PERMISSIONS if scope == "space"]
+ADMIN_PERMISSION_CODES = [code for code in SPACE_PERMISSION_CODES if code != "space.ownership.manage"]
 
 ROLE_DEFINITIONS = {
     "makolo-platform-admin": {
@@ -52,30 +54,23 @@ ROLE_DEFINITIONS = {
     },
     "space-owner": {
         "name": "Propriétaire d'Espace",
-        "description": "Responsabilité complète sur un Espace, y compris son équipe.",
+        "description": "Responsabilité complète sur un Espace, y compris sa propriété et son équipe.",
         "scope": "space",
         "permissions": SPACE_PERMISSION_CODES,
     },
     "space-admin": {
         "name": "Administrateur d'Espace",
-        "description": "Administration opérationnelle complète d'un Espace.",
+        "description": "Administration opérationnelle complète sans pouvoir transférer la propriété.",
         "scope": "space",
-        "permissions": SPACE_PERMISSION_CODES,
+        "permissions": ADMIN_PERMISSION_CODES,
     },
     "activity-manager": {
         "name": "Responsable activité",
         "description": "Pilotage des activités, commandes opérationnelles et accès sans finances.",
         "scope": "space",
         "permissions": [
-            "space.view",
-            "activity.manage",
-            "orders.view",
-            "tickets.view",
-            "access.manage",
-            "crm.view",
-            "promotions.view",
-            "analytics.view",
-            "analytics.growth.view",
+            "space.view", "activity.manage", "orders.view", "tickets.view", "access.manage",
+            "crm.view", "promotions.view", "analytics.view", "analytics.growth.view",
             "growth.feedback.view",
         ],
     },
@@ -84,18 +79,9 @@ ROLE_DEFINITIONS = {
         "description": "Paiements, remboursements et lectures financières sans marketing/CRM.",
         "scope": "space",
         "permissions": [
-            "space.view",
-            "orders.view",
-            "finance.view",
-            "finance.manage",
-            "promotions.view",
-            "promotions.financials.view",
-            "loyalty.view",
-            "loyalty.finance",
-            "partners.finance",
-            "analytics.view",
-            "analytics.growth.view",
-            "analytics.financials.view",
+            "space.view", "orders.view", "finance.view", "finance.manage", "promotions.view",
+            "promotions.financials.view", "loyalty.view", "loyalty.finance", "partners.finance",
+            "analytics.view", "analytics.growth.view", "analytics.financials.view",
         ],
     },
     "marketing": {
@@ -103,30 +89,16 @@ ROLE_DEFINITIONS = {
         "description": "CRM, acquisition, promotions et fidélité sans données financières privées.",
         "scope": "space",
         "permissions": [
-            "space.view",
-            "marketing.manage",
-            "crm.view",
-            "crm.manage",
-            "promotions.view",
-            "promotions.manage",
-            "loyalty.view",
-            "loyalty.manage",
-            "partners.manage",
-            "analytics.view",
-            "analytics.growth.view",
-            "growth.feedback.view",
+            "space.view", "marketing.manage", "crm.view", "crm.manage", "promotions.view",
+            "promotions.manage", "loyalty.view", "loyalty.manage", "partners.manage",
+            "analytics.view", "analytics.growth.view", "growth.feedback.view",
         ],
     },
     "access-manager": {
         "name": "Responsable accès",
         "description": "Contrôle d'accès et données de titulaire nécessaires à cette mission.",
         "scope": "space",
-        "permissions": [
-            "space.view",
-            "tickets.view",
-            "access.manage",
-            "analytics.view",
-        ],
+        "permissions": ["space.view", "tickets.view", "access.manage", "analytics.view"],
     },
 }
 
@@ -256,8 +228,6 @@ def seed_and_backfill(apps, schema_editor):
 
 
 def noop_reverse(apps, schema_editor):
-    # Schema reversal removes these tables; historical OrganizationMembership
-    # remains untouched, so no destructive reverse data operation is needed.
     pass
 
 
@@ -267,6 +237,4 @@ class Migration(migrations.Migration):
         ("organizations", "0003_team_teammembership"),
     ]
 
-    operations = [
-        migrations.RunPython(seed_and_backfill, noop_reverse),
-    ]
+    operations = [migrations.RunPython(seed_and_backfill, noop_reverse)]
