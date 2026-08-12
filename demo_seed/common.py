@@ -16,7 +16,7 @@ TZ = ZoneInfo("Africa/Lubumbashi")
 NAMESPACE = uuid.UUID("5b6b4558-2b73-45c0-bdb4-b2a279b2560b")
 SEED_TAG = "makolo-demo-2024-2027"
 PROJECT_APPS = {
-    "accounts", "organizations", "events", "tickets", "scanner", "payments",
+    "accounts", "authorization", "organizations", "events", "tickets", "scanner", "payments",
     "notifications", "automation", "partners", "crm", "promotions", "loyalty",
     "analytics_app", "operations", "discovery", "growth",
 }
@@ -51,12 +51,6 @@ def backdate(obj: models.Model, **values: Any) -> None:
 
 
 def _reuse_business_created_object(model: type[models.Model], defaults: dict[str, Any]):
-    """Reuse rows that Makolo itself may create while higher-level data is seeded.
-
-    Ticketing/follow flows synchronize CRM contacts before the explicit CRM seed runs.
-    Those rows have legitimate random UUIDs, so forcing a second deterministic UUID
-    would violate CRMContact's unique (organization, email) business key.
-    """
     if model._meta.label_lower == "crm.crmcontact":
         organization = defaults.get("organization")
         email = (defaults.get("email") or "").strip().lower()
@@ -81,9 +75,6 @@ def _apply_defaults_if_changed(obj: models.Model, defaults: dict[str, Any]) -> m
             continue
         setattr(obj, field, value)
         changed = True
-    # Avoid firing model save hooks/signals on a deterministic rerun when the row is
-    # already identical. This matters for business side effects such as loyalty
-    # accrual that legitimately react to TicketOrder saves.
     if changed:
         obj.save()
     return obj
