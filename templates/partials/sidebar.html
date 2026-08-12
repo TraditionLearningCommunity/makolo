@@ -1,6 +1,10 @@
+{% load static %}
 <aside class="mk-sidebar fixed inset-y-0 left-0 z-50 hidden lg:flex lg:flex-col">
     <div class="flex h-[72px] items-center gap-3 border-b px-5" style="border-color:var(--mk-border)">
-        <div class="mk-brand-mark">M</div>
+        <span class="mk-brand-symbol-wrap" aria-hidden="true">
+            <img src="{% static 'brand/makolo-mark-violet.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-light" width="42" height="29">
+            <img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-dark" width="42" height="29">
+        </span>
         <div class="min-w-0">
             <p class="mk-brand-wordmark text-[15px]">Makolo</p>
             <p class="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Plateforme événementielle</p>
@@ -26,7 +30,13 @@
     <div x-show="sidebarOpen" x-transition.opacity @click="sidebarOpen=false" class="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"></div>
     <aside x-show="sidebarOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0" x-transition:leave="transition ease-in duration-160" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full" class="mk-sidebar absolute inset-y-0 left-0 flex w-[min(88vw,300px)] flex-col shadow-2xl">
         <div class="flex h-[72px] items-center justify-between border-b px-4" style="border-color:var(--mk-border)">
-            <div class="flex items-center gap-3"><div class="mk-brand-mark">M</div><div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Plateforme événementielle</p></div></div>
+            <div class="flex items-center gap-3">
+                <span class="mk-brand-symbol-wrap" aria-hidden="true">
+                    <img src="{% static 'brand/makolo-mark-violet.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-light" width="42" height="29">
+                    <img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-dark" width="42" height="29">
+                </span>
+                <div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Plateforme événementielle</p></div>
+            </div>
             <button type="button" class="mk-icon-btn" @click="sidebarOpen=false" aria-label="Fermer la navigation"><i data-lucide="x" class="h-5 w-5"></i></button>
         </div>
         <div class="flex-1 overflow-y-auto py-2" @click="sidebarOpen=false">
