@@ -49,13 +49,16 @@ from .services import (
     import_group_csv,
     invite_member,
     leave_group,
+    normalize_email,
     reject_invitation,
     remove_member,
+    request_invitation_email_verification,
     require_group_permission,
     revoke_invitation,
     suspend_member,
     transfer_personal_group_ownership,
     update_group,
+    verify_invitation_email_identity,
 )
 
 
@@ -420,9 +423,19 @@ class GroupInvitationClaimView(View):
             raise ValidationError("Cette invitation est invalide ou a déjà été utilisée.")
         if invitation.expires_at <= timezone.now():
             raise ValidationError("Cette invitation a expiré.")
+        if invitation.profile_id:
+            if invitation.profile_id != request.user.pk:
+                raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
+            return invitation, False
+        if invitation.email:
+            if normalize_email(invitation.email) != normalize_email(request.user.email):
+                raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
+            if getattr(request.user, "email_verified", False):
+                return invitation, False
+            return None, True
         if not _invitation_matches_profile(invitation, request.user):
             raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
-        return invitation
+        return invitation, False
 
     def get(self, request, token):
         if not request.user.is_authenticated:
@@ -435,7 +448,7 @@ class GroupInvitationClaimView(View):
                 {"login_url": login_url, "register_url": register_url},
             )
         try:
-            invitation = self._invitation_for_user(request, token)
+            invitation, needs_verification = self._invitation_for_user(request, token)
         except ValidationError as exc:
             return render(
                 request,
@@ -443,7 +456,15 @@ class GroupInvitationClaimView(View):
                 {"invalid_message": " ".join(exc.messages)},
                 status=400,
             )
-        return render(request, "groups/invitation_claim.html", {"invitation": invitation, "token": token})
+        return render(
+            request,
+            "groups/invitation_claim.html",
+            {
+                "invitation": invitation,
+                "token": token,
+                "needs_verification": needs_verification,
+            },
+        )
 
     def post(self, request, token):
         if not request.user.is_authenticated:
@@ -451,6 +472,25 @@ class GroupInvitationClaimView(View):
             return redirect(f"{reverse('core:login')}?{urlencode({'next': next_path})}")
         action = request.POST.get("action", "accept")
         try:
+            if action == "request-verification":
+                request_invitation_email_verification(profile=request.user, token=token)
+                return render(
+                    request,
+                    "groups/invitation_claim.html",
+                    {
+                        "token": token,
+                        "needs_verification": True,
+                        "verification_sent": True,
+                    },
+                )
+            if action == "verify-identity":
+                verify_invitation_email_identity(
+                    profile=request.user,
+                    token=token,
+                    code=request.POST.get("verification_code", ""),
+                )
+                messages.success(request, "Identité e-mail vérifiée. Vous pouvez maintenant rejoindre le Groupe.")
+                return redirect("groups:invitation", token=token)
             if action == "reject":
                 reject_invitation(profile=request.user, token=token)
                 messages.success(request, "Invitation refusée.")
@@ -460,7 +500,11 @@ class GroupInvitationClaimView(View):
             return render(
                 request,
                 "groups/invitation_claim.html",
-                {"invalid_message": " ".join(exc.messages)},
+                {
+                    "invalid_message": " ".join(exc.messages),
+                    "token": token,
+                    "needs_verification": action in {"request-verification", "verify-identity"},
+                },
                 status=400,
             )
         messages.success(request, "Invitation acceptée. Vous êtes maintenant membre du Groupe.")
