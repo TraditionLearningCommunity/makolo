@@ -11,6 +11,7 @@ class PermissionCode:
     SPACE_VIEW = "space.view"
     SPACE_MANAGE = "space.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
+    SPACE_OWNERSHIP_MANAGE = "space.ownership.manage"
 
     ACTIVITY_MANAGE = "activity.manage"
     ORDERS_VIEW = "orders.view"
