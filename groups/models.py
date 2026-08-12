@@ -43,7 +43,7 @@ class GroupInvitationStatus(models.TextChoices):
 class Group(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=180)
-    slug = models.SlugField(max_length=220, unique=True)
+    slug = models.SlugField(max_length=220, unique=True, blank=True)
     description = models.TextField(blank=True)
     space = models.ForeignKey(
         "organizations.Organization",
