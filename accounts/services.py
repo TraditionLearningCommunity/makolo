@@ -106,9 +106,10 @@ def change_password(*, user, current_password: str, new_password: str):
 
 
 def get_account_deletion_blockers(user):
-    """Return Spaces for which the profile is the last current owner."""
+    """Return active Spaces or personal Groups that would become ownerless."""
     from authorization.constants import SystemRoleCode
     from authorization.models import AuthorityScope, Mandate, MandateStatus
+    from groups.models import Group, GroupStatus
 
     now = timezone.now()
     current = (
@@ -143,6 +144,13 @@ def get_account_deletion_blockers(user):
         )
         if not has_other_owner:
             blockers.append(mandate.space)
+
+    blockers.extend(
+        Group.objects.filter(
+            owner_profile=user,
+            status=GroupStatus.ACTIVE,
+        ).order_by("name")
+    )
     return blockers
 
 
@@ -186,13 +194,13 @@ def delete_account(*, user, current_password: str):
 
     blockers = get_account_deletion_blockers(locked)
     if blockers:
-        names = ", ".join(organization.name for organization in blockers[:5])
+        names = ", ".join(item.name for item in blockers[:5])
         if len(blockers) > 5:
             names += "…"
         raise ValidationError(
             {
                 "account": (
-                    "Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif : "
+                    "Transférez d’abord la propriété des Espaces ou Groupes personnels actifs dont vous êtes responsable : "
                     f"{names}."
                 )
             }
