@@ -1,7 +1,8 @@
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from authorization.constants import PermissionCode
-from authorization.models import AuthorityScope, Mandate
+from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.services import group_ids_with_permission, space_ids_with_permission
 
 from .models import (
@@ -72,15 +73,17 @@ def pending_invitations_for_admin(profile, group):
 
 
 def direct_group_role_codes(profile, group):
+    now = timezone.now()
     return list(
         Mandate.objects.filter(
             profile=profile,
             group=group,
             scope_type=AuthorityScope.GROUP,
-            status="active",
+            status=MandateStatus.ACTIVE,
             role__is_active=True,
             revoked_at__isnull=True,
         )
-        .select_related("role")
+        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
         .values_list("role__code", flat=True)
     )
