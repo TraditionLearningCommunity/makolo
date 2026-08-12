@@ -58,6 +58,7 @@ class MandateAdmin(ReadOnlyAuthorityAdminMixin, admin.ModelAdmin):
         "role",
         "scope_type",
         "space",
+        "group",
         "status",
         "valid_from",
         "valid_until",
@@ -71,7 +72,9 @@ class MandateAdmin(ReadOnlyAuthorityAdminMixin, admin.ModelAdmin):
         "role__code",
         "space__name",
         "space__slug",
+        "group__name",
+        "group__slug",
         "source",
     )
-    list_select_related = ("profile", "role", "space", "granted_by")
+    list_select_related = ("profile", "role", "space", "group", "granted_by")
     date_hierarchy = "granted_at"
