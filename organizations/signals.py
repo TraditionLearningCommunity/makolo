@@ -52,20 +52,12 @@ def notify_followers_on_published_event(sender, instance, **kwargs):
 def sync_legacy_membership_authority(sender, instance, raw=False, **kwargs):
     """Compatibility bridge while old callers still write OrganizationMembership.
 
-    New code writes TeamMembership + Mandate first. This receiver ensures old
-    fixtures/APIs do not silently create a second authority source during the
-    staged cutover.
+    It runs in the same transaction as the legacy writer so no request can
+    observe a committed compatibility membership without its Team/Mandate
+    projection. New code does not rely on this receiver.
     """
     if raw:
         return
+    from .services import sync_legacy_membership_to_authority
 
-    membership_id = instance.pk
-
-    def synchronize():
-        from .services import sync_legacy_membership_to_authority
-
-        membership = OrganizationMembership.objects.filter(pk=membership_id).first()
-        if membership:
-            sync_legacy_membership_to_authority(membership)
-
-    transaction.on_commit(synchronize)
+    sync_legacy_membership_to_authority(instance)
