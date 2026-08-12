@@ -16,7 +16,7 @@
     <p class="mk-nav-group-label">Organisation</p>
     {% if caps.has_organization or caps.can_manage_organization %}<a href="{% url 'organizations:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name != 'following' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>Mes organisations</span></a>{% endif %}
     {% if caps.can_manage_events %}<a href="{% url 'events:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'events' or request.resolver_match.namespace == 'automation' %}is-active{% endif %}"><i data-lucide="calendar-days"></i><span>Événements</span></a><a href="{% url 'tickets:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'tickets' %}is-active{% endif %}"><i data-lucide="ticket"></i><span>Billetterie</span></a>{% endif %}
-    {% if caps.can_manage_access %}<a href="{% url 'scanner:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'scanner' %}is-active{% endif %}"><i data-lucide="scan-line"></i><span>Contrôle d’accès</span></a>{% endif %}
+    {% if caps.can_use_access %}<a href="{% url 'scanner:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'scanner' %}is-active{% endif %}"><i data-lucide="scan-line"></i><span>Contrôle d’accès</span></a>{% endif %}
     {% if caps.can_manage_finance %}<a href="{% url 'payments:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'payments' %}is-active{% endif %}"><i data-lucide="wallet-cards"></i><span>Paiements</span></a>{% endif %}
 
     {% if caps.can_view_crm or caps.can_view_growth or caps.can_view_promotions or caps.can_view_loyalty or caps.can_view_partners %}
