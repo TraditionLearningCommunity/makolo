@@ -1,16 +1,14 @@
-from organizations.permissions import FINANCE_ROLES, MARKETING_ROLES, user_has_org_role
-
-
-LOYALTY_VIEW_ROLES = set(MARKETING_ROLES) | set(FINANCE_ROLES)
+from authorization.constants import PermissionCode
+from authorization.services import can
 
 
 def user_can_view_loyalty_workspace(user, organization) -> bool:
-    return user_has_org_role(user, organization, LOYALTY_VIEW_ROLES)
+    return can(user, PermissionCode.LOYALTY_VIEW, organization)
 
 
 def user_can_manage_loyalty_strategy(user, organization) -> bool:
-    return user_has_org_role(user, organization, MARKETING_ROLES)
+    return can(user, PermissionCode.LOYALTY_MANAGE, organization)
 
 
 def user_can_manage_loyalty_finance(user, organization) -> bool:
-    return user_has_org_role(user, organization, FINANCE_ROLES)
+    return can(user, PermissionCode.LOYALTY_FINANCE, organization)
