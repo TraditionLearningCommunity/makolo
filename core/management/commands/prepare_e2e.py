@@ -46,12 +46,16 @@ class Command(BaseCommand):
 
         call_command("flush", interactive=False, verbosity=0)
         # flush removes versioned system rows along with test data. Re-run the
-        # frozen authority data migration explicitly before building fixtures;
+        # frozen authority data migrations explicitly before building fixtures;
         # production never relies on a startup signal for these contracts.
         authority_seed = importlib.import_module(
             "authorization.migrations.0002_seed_roles_and_backfill"
         )
         authority_seed.seed_and_backfill(apps, None)
+        group_authority_seed = importlib.import_module(
+            "authorization.migrations.0003_group_scope"
+        )
+        group_authority_seed.seed_group_authority(apps, None)
 
         users = {
             key: self._user(email, username, **flags)
