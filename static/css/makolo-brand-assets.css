@@ -24,11 +24,22 @@
   max-width: 47px;
 }
 
+.mk-brand-lockup-wrap {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
 .mk-brand-lockup {
   display: block;
+  grid-area: 1 / 1;
   width: auto;
   object-fit: contain;
 }
+
+.mk-brand-lockup-dark { display: none; }
+.dark .mk-brand-lockup-light { display: none; }
+.dark .mk-brand-lockup-dark { display: block; }
 
 .mk-brand-lockup-public {
   height: 36px;
