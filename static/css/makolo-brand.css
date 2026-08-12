@@ -107,20 +107,6 @@ h1, h2, h3,
   box-shadow: 0 0 0 5px var(--mk-pulse-soft);
 }
 
-.mk-brand-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  font-family: Manrope, Inter, sans-serif;
-  font-weight: 800;
-  color: #ffffff;
-  background: var(--mk-brand);
-  box-shadow: 0 10px 24px rgba(82, 50, 219, .22);
-}
-.dark .mk-brand-mark {
-  color: #ffffff;
-  background: #5232db;
-}
 .mk-brand-wordmark {
   color: var(--mk-text);
   font-weight: 800;
@@ -268,11 +254,6 @@ main .border-indigo-500\/20 {
     radial-gradient(620px 420px at 82% 12%, rgba(255, 112, 77, .18), transparent 62%),
     radial-gradient(700px 500px at 12% 105%, rgba(82, 50, 219, .36), transparent 65%),
     #2b176e;
-}
-.mk-auth-visual .mk-brand-mark {
-  background: #ffffff;
-  color: #2b176e;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, .18);
 }
 
 @media (max-width: 640px) {
