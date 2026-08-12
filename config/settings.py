@@ -80,6 +80,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "core",
     "accounts",
+    "authorization.apps.AuthorizationConfig",
     "organizations",
     "events",
     "tickets",
