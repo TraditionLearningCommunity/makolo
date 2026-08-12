@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
             name="Permission",
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ("code", models.SlugField(max_length=120, unique=True)),
+                ("code", models.CharField(max_length=120, unique=True)),
                 ("name", models.CharField(max_length=160)),
                 ("description", models.TextField(blank=True)),
                 ("domain", models.CharField(max_length=80)),
@@ -92,7 +92,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="role",
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(("organization__isnull", True), ("scope_type", "platform")), models.Q(("is_system", True), ("organization__isnull", True), ("scope_type", "space")), models.Q(("is_system", False), ("organization__isnull", False), ("scope_type", "space")), _connector="OR"), name="auth_role_scope_organization_valid"),
+            constraint=models.CheckConstraint(condition=models.Q(models.Q(("is_system", True), ("organization__isnull", True), ("scope_type", "platform")), models.Q(("is_system", True), ("organization__isnull", True), ("scope_type", "space")), models.Q(("is_system", False), ("organization__isnull", False), ("scope_type", "space")), _connector="OR"), name="auth_role_scope_organization_valid"),
         ),
         migrations.AddIndex(
             model_name="role",
