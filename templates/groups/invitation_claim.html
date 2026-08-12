@@ -1,0 +1,19 @@
+{% extends 'base/app.html' %}
+{% block title %}Invitation Groupe — Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-xl py-8">
+  <div class="mk-card p-7 text-center">
+    <h1 class="text-2xl font-black" style="color:var(--mk-text)">Invitation à un Groupe Makolo</h1>
+    {% if invalid_message %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">{{ invalid_message }}</p>
+      <a href="{% url 'groups:list' %}" class="mk-btn mk-btn-secondary mt-5">Mes Groupes</a>
+    {% elif invitation %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">Le Profil connecté correspond à l’identité prévue. Vous pouvez rejoindre <strong>{{ invitation.group.name }}</strong>.</p>
+      <form method="post" class="mt-6 flex flex-wrap justify-center gap-3">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit" name="action" value="accept">Rejoindre le Groupe</button><button class="mk-btn mk-btn-secondary" type="submit" name="action" value="reject">Refuser</button></form>
+    {% else %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">Connectez-vous ou créez votre compte avec l’identité à laquelle l’invitation est destinée. Le nom du Groupe et les données de la personne invitée restent masqués avant validation.</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3"><a class="mk-btn mk-btn-primary" href="{{ login_url }}">Se connecter</a><a class="mk-btn mk-btn-secondary" href="{{ register_url }}">Créer un compte</a></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
