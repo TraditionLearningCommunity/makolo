@@ -108,15 +108,17 @@ class PartnerCreateView(LoginRequiredMixin, View):
                 organization=organization,
                 actor=request.user,
                 name=data["name"],
-                partner_type=data["partner_type"],
-                contact_name=data.get("contact_name", ""),
-                email=data.get("email", ""),
-                phone=data.get("phone", ""),
-                user=data.get("user"),
-                notes=data.get("notes", ""),
+                email=data["email"],
+                phone=data["phone"],
+                kind=data["kind"],
+                user=getattr(form, "linked_user", None),
+                notes=data["notes"],
             )
-            messages.success(request, f"Partenaire {partner.name} créé.")
-            return redirect("partners:organization", slug=organization.slug)
+            if data.get("public_label"):
+                partner.public_label = data["public_label"]
+                partner.save(update_fields=["public_label", "updated_at"])
+            messages.success(request, "Partenaire créé. Vous pouvez maintenant lui attribuer un code de campagne.")
+            return redirect("partners:partner-detail", pk=partner.pk)
         return render(request, "partners/form.html", {"form": form, "title": "Nouveau partenaire", "organization": organization}, status=400)
 
 
@@ -131,7 +133,7 @@ class CampaignCreateView(LoginRequiredMixin, View):
 
     def get(self, request, slug):
         organization = self._organization(request, slug)
-        return render(request, "partners/form.html", {"form": AffiliateCampaignForm(organization=organization), "title": "Nouvelle campagne partenaire", "organization": organization})
+        return render(request, "partners/form.html", {"form": AffiliateCampaignForm(organization=organization), "title": "Nouvelle campagne d’affiliation", "organization": organization})
 
     def post(self, request, slug):
         organization = self._organization(request, slug)
@@ -140,61 +142,77 @@ class CampaignCreateView(LoginRequiredMixin, View):
             data = form.cleaned_data
             campaign = create_campaign(
                 organization=organization,
+                event=data["event"],
                 actor=request.user,
                 name=data["name"],
-                event=data.get("event"),
-                attribution_window_days=data["attribution_window_days"],
                 commission_type=data["commission_type"],
                 commission_value=data["commission_value"],
-                currency=data.get("currency", ""),
-                starts_at=data.get("starts_at"),
-                ends_at=data.get("ends_at"),
+                commission_currency=data["commission_currency"],
+                attribution_window_days=data["attribution_window_days"],
+                starts_at=data["starts_at"],
+                ends_at=data["ends_at"],
+                status=data["status"],
             )
-            messages.success(request, f"Campagne {campaign.name} créée.")
-            return redirect("partners:organization", slug=organization.slug)
-        return render(request, "partners/form.html", {"form": form, "title": "Nouvelle campagne partenaire", "organization": organization}, status=400)
+            messages.success(request, "Campagne créée.")
+            return redirect("partners:campaign-detail", pk=campaign.pk)
+        return render(request, "partners/form.html", {"form": form, "title": "Nouvelle campagne d’affiliation", "organization": organization}, status=400)
+
+
+class CampaignDetailView(LoginRequiredMixin, DetailView):
+    model = AffiliateCampaign
+    template_name = "partners/campaign_detail.html"
+    context_object_name = "campaign"
+    login_url = "core:login"
+
+    def get_queryset(self):
+        return get_campaigns_visible_to(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["codes"] = get_referral_codes_visible_to(self.request.user).filter(campaign=self.object).annotate(
+            visits_count=Count("visits", distinct=True),
+            conversions_count=Count("attributions", distinct=True),
+        )
+        context["form"] = ReferralCodeForm(campaign=self.object)
+        context["can_manage"] = user_can_manage_partners(self.request.user, self.object.organization)
+        context["can_finance"] = user_can_view_partner_finance(self.request.user, self.object.organization)
+        return context
 
 
 class ReferralCodeCreateView(LoginRequiredMixin, View):
     login_url = "core:login"
 
-    def get_campaign(self, request, pk):
+    def post(self, request, pk):
         campaign = get_object_or_404(AffiliateCampaign.objects.select_related("organization"), pk=pk)
         if not user_can_manage_partners(request.user, campaign.organization):
             raise PermissionDenied
-        return campaign
-
-    def get(self, request, pk):
-        campaign = self.get_campaign(request, pk)
-        return render(request, "partners/form.html", {"form": ReferralCodeForm(campaign=campaign), "title": "Nouveau lien partenaire", "campaign": campaign})
-
-    def post(self, request, pk):
-        campaign = self.get_campaign(request, pk)
         form = ReferralCodeForm(request.POST, campaign=campaign)
-        if form.is_valid():
-            data = form.cleaned_data
+        if not form.is_valid():
+            messages.error(request, "; ".join(sum(form.errors.values(), [])))
+            return redirect("partners:campaign-detail", pk=campaign.pk)
+        data = form.cleaned_data
+        try:
             referral = create_referral_code(
                 campaign=campaign,
                 partner=data["partner"],
                 actor=request.user,
-                code=data.get("code", ""),
-                destination_url=data.get("destination_url", ""),
+                code=data["code"],
+                commission_type_override=data["commission_type_override"],
+                commission_value_override=data["commission_value_override"],
             )
-            messages.success(request, f"Lien partenaire {referral.code} créé.")
-            return redirect("partners:organization", slug=campaign.organization.slug)
-        return render(request, "partners/form.html", {"form": form, "title": "Nouveau lien partenaire", "campaign": campaign}, status=400)
-
-
-class ReferralCaptureView(View):
-    def get(self, request, code):
-        referral = get_object_or_404(ReferralCode.objects.select_related("campaign"), code=code.upper(), is_active=True)
-        destination = capture_referral_request(referral_code=referral, request=request)
-        return redirect(destination)
+            if not data["is_active"]:
+                referral.is_active = False
+                referral.save(update_fields=["is_active", "updated_at"])
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            messages.success(request, f"Code {referral.code} créé pour {referral.partner.display_name}.")
+        return redirect("partners:campaign-detail", pk=campaign.pk)
 
 
 class PartnerDetailView(LoginRequiredMixin, DetailView):
     model = Partner
-    template_name = "partners/detail.html"
+    template_name = "partners/partner_detail.html"
     context_object_name = "partner"
     login_url = "core:login"
 
@@ -203,15 +221,22 @@ class PartnerDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        partner = self.object
-        if not user_can_view_partner(self.request.user, partner):
-            raise PermissionDenied
-        campaigns = get_campaigns_visible_to(self.request.user).filter(referral_codes__partner=partner).distinct()
-        metrics = [build_partner_metrics(partner=partner, campaign=campaign) for campaign in campaigns]
-        context["metrics"] = metrics
-        context["balance"] = partner_balance(partner=partner)
-        context["can_finance"] = user_can_view_partner_finance(self.request.user, partner.organization)
+        finance_visible = user_can_view_partner_finance(self.request.user, self.object.organization) or self.object.user_id == self.request.user.pk
+        context["metrics"] = build_partner_metrics(self.object, finance_visible=finance_visible)
+        context["codes"] = get_referral_codes_visible_to(self.request.user).filter(partner=self.object)
+        context["balances"] = partner_balance(self.object) if finance_visible else []
+        context["payouts"] = get_payouts_visible_to(self.request.user).filter(partner=self.object)[:20]
+        context["can_finance"] = user_can_manage_partner_payouts(self.request.user, self.object.organization)
         return context
+
+
+class ReferralLandingView(View):
+    def get(self, request, code):
+        referral = capture_referral_request(request, code)
+        if not referral:
+            messages.error(request, "Ce lien ambassadeur n’est plus actif.")
+            return redirect("events:list")
+        return redirect(f"{reverse('events:detail', kwargs={'slug': referral.campaign.event.slug})}?ref={referral.code}")
 
 
 class PayoutCreateView(LoginRequiredMixin, View):
@@ -222,35 +247,43 @@ class PayoutCreateView(LoginRequiredMixin, View):
         if not user_can_manage_partner_payouts(request.user, partner.organization):
             raise PermissionDenied
         try:
-            payout = create_payout(organization=partner.organization, partner=partner, actor=request.user)
+            payout = create_payout(
+                partner=partner,
+                actor=request.user,
+                currency=request.POST.get("currency", ""),
+                reference=request.POST.get("reference", ""),
+                notes=request.POST.get("notes", ""),
+            )
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            messages.success(request, f"Paiement {payout.reference} préparé.")
-        return redirect("partners:detail", pk=partner.pk)
+            messages.success(request, f"Paiement de commissions préparé : {payout.amount} {payout.currency}.")
+        return redirect("partners:partner-detail", pk=partner.pk)
 
 
 class PayoutMarkPaidView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, pk):
-        payout = get_object_or_404(PartnerPayout, pk=pk)
-        if not user_can_manage_partner_payouts(request.user, payout.organization):
-            raise PermissionDenied
-        mark_payout_paid(payout=payout, actor=request.user)
-        messages.success(request, f"Paiement {payout.reference} marqué payé.")
-        return redirect("partners:detail", pk=payout.partner_id)
+        payout = get_object_or_404(PartnerPayout.objects.select_related("organization", "partner"), pk=pk)
+        try:
+            mark_payout_paid(payout=payout, actor=request.user, reference=request.POST.get("reference", ""))
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Paiement partenaire marqué comme payé.")
+        return redirect("partners:partner-detail", pk=payout.partner_id)
 
 
 class PayoutCancelView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, pk):
-        payout = get_object_or_404(PartnerPayout, pk=pk)
-        if not user_can_manage_partner_payouts(request.user, payout.organization):
-            raise PermissionDenied
-        if payout.status == PayoutStatus.PAID:
-            raise PermissionDenied("Un paiement déjà payé ne peut pas être annulé.")
-        cancel_payout(payout=payout, actor=request.user)
-        messages.success(request, f"Paiement {payout.reference} annulé.")
-        return redirect("partners:detail", pk=payout.partner_id)
+        payout = get_object_or_404(PartnerPayout.objects.select_related("organization", "partner"), pk=pk)
+        try:
+            cancel_payout(payout=payout, actor=request.user)
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Paiement partenaire annulé et commissions libérées.")
+        return redirect("partners:partner-detail", pk=payout.partner_id)
