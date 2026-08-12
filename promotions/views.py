@@ -75,95 +75,163 @@ class PromotionCreateView(LoginRequiredMixin, FormView):
         kwargs["organization"] = self.organization
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["organization"] = self.organization
+        context["editing"] = False
+        return context
+
     def form_valid(self, form):
-        try:
-            promotion = create_promotion(
-                organization=self.organization,
-                actor=self.request.user,
-                **form.cleaned_data,
-            )
-        except ValidationError as exc:
-            form.add_error(None, exc)
-            return self.form_invalid(form)
-        messages.success(self.request, "Offre créée.")
+        data = dict(form.cleaned_data)
+        create_promotion(actor=self.request.user, organization=self.organization, **data)
+        messages.success(self.request, "Offre promotionnelle créée.")
         return redirect("promotions:organization", slug=self.organization.slug)
 
 
-class PromotionCodeCreateView(LoginRequiredMixin, FormView):
+class PromotionEditView(LoginRequiredMixin, FormView):
+    template_name = "promotions/promotion_form.html"
+    form_class = PromotionForm
+    login_url = "core:login"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.promotion = get_object_or_404(
+            Promotion.objects.select_related("organization", "event").prefetch_related("eligible_ticket_types"),
+            pk=kwargs["pk"],
+        )
+        self.organization = self.promotion.organization
+        if not user_can_manage_promotions(request.user, self.organization):
+            raise PermissionDenied("Vous ne pouvez pas modifier cette offre.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.organization
+        kwargs["instance"] = self.promotion
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"organization": self.organization, "promotion": self.promotion, "editing": True})
+        return context
+
+    def form_valid(self, form):
+        promotion = form.save(commit=False)
+        promotion.full_clean()
+        promotion.save()
+        form.save_m2m()
+        messages.success(self.request, "Offre promotionnelle mise à jour. Les anciennes commandes conservent leur remise historique.")
+        return redirect("promotions:detail", pk=promotion.pk)
+
+
+class PromotionDetailView(LoginRequiredMixin, TemplateView):
+    template_name = "promotions/promotion_detail.html"
+    login_url = "core:login"
+
+    def _promotion(self):
+        promotion = get_object_or_404(
+            Promotion.objects.select_related("organization", "event").prefetch_related("codes", "eligible_ticket_types"),
+            pk=self.kwargs["pk"],
+        )
+        if not user_can_view_promotions(self.request.user, promotion.organization):
+            raise PermissionDenied("Vous n'avez pas accès à cette offre.")
+        return promotion
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        promotion = self._promotion()
+        financials = user_can_view_promotion_financials(self.request.user, promotion.organization)
+        recent_redemptions = []
+        if financials:
+            recent_redemptions = PromotionRedemption.objects.filter(promotion=promotion).select_related("code", "order")[:50]
+        context.update(
+            {
+                "promotion": promotion,
+                "metrics": promotion_metrics(promotion, include_financials=financials),
+                "recent_redemptions": recent_redemptions,
+                "can_manage": user_can_manage_promotions(self.request.user, promotion.organization),
+                "can_view_financials": financials,
+                "code_form": PromotionCodeForm(promotion=promotion),
+            }
+        )
+        return context
+
+
+class PromotionCodeCreateView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk):
+        promotion = get_object_or_404(Promotion.objects.select_related("organization"), pk=pk)
+        if not user_can_manage_promotions(request.user, promotion.organization):
+            raise PermissionDenied("Vous ne pouvez pas créer de code pour cette offre.")
+        form = PromotionCodeForm(request.POST, promotion=promotion)
+        if form.is_valid():
+            create_promotion_code(actor=request.user, promotion=promotion, **form.cleaned_data)
+            messages.success(request, "Code promotionnel créé.")
+        else:
+            messages.error(request, "; ".join(message for errors in form.errors.values() for message in errors))
+        return redirect("promotions:detail", pk=promotion.pk)
+
+
+class PromotionCodeEditView(LoginRequiredMixin, FormView):
     template_name = "promotions/code_form.html"
     form_class = PromotionCodeForm
     login_url = "core:login"
 
     def dispatch(self, request, *args, **kwargs):
-        self.promotion = get_object_or_404(Promotion.objects.select_related("organization", "event"), pk=kwargs["pk"])
+        self.code = get_object_or_404(
+            PromotionCode.objects.select_related("promotion", "promotion__organization", "promotion__event"),
+            pk=kwargs["pk"],
+        )
+        self.promotion = self.code.promotion
         if not user_can_manage_promotions(request.user, self.promotion.organization):
-            raise PermissionDenied("Vous ne pouvez pas gérer les codes de cet Espace.")
+            raise PermissionDenied("Vous ne pouvez pas modifier ce code.")
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["promotion"] = self.promotion
+        kwargs["instance"] = self.code
         return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["promotion"] = self.promotion
+        context.update({"promotion": self.promotion, "code": self.code})
         return context
 
     def form_valid(self, form):
-        try:
-            create_promotion_code(
-                promotion=self.promotion,
-                actor=self.request.user,
-                **form.cleaned_data,
-            )
-        except ValidationError as exc:
-            form.add_error(None, exc)
-            return self.form_invalid(form)
-        messages.success(self.request, "Code promotionnel créé.")
-        return redirect("promotions:organization", slug=self.promotion.organization.slug)
+        code = form.save(commit=False)
+        code.full_clean()
+        code.save()
+        messages.success(self.request, "Code promotionnel mis à jour.")
+        return redirect("promotions:detail", pk=self.promotion.pk)
 
 
 class PromotionToggleView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
     def post(self, request, pk):
         promotion = get_object_or_404(Promotion.objects.select_related("organization"), pk=pk)
-        toggle_promotion(promotion=promotion, actor=request.user)
-        messages.success(request, "État de l'offre mis à jour.")
-        return redirect("promotions:organization", slug=promotion.organization.slug)
+        try:
+            promotion = toggle_promotion(actor=request.user, promotion=promotion)
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Offre activée." if promotion.is_active else "Offre mise en pause.")
+        return redirect("promotions:detail", pk=promotion.pk)
 
 
 class PromotionCodeToggleView(LoginRequiredMixin, View):
-    def post(self, request, pk):
-        code = get_object_or_404(PromotionCode.objects.select_related("promotion__organization"), pk=pk)
-        toggle_promotion_code(code=code, actor=request.user)
-        messages.success(request, "État du code mis à jour.")
-        return redirect("promotions:organization", slug=code.promotion.organization.slug)
-
-
-class PromotionMetricsView(LoginRequiredMixin, TemplateView):
-    template_name = "promotions/metrics.html"
     login_url = "core:login"
 
-    def dispatch(self, request, *args, **kwargs):
-        self.promotion = get_object_or_404(Promotion.objects.select_related("organization", "event"), pk=kwargs["pk"])
-        if not user_can_view_promotions(request.user, self.promotion.organization):
-            raise PermissionDenied("Vous n'avez pas accès aux statistiques de cette offre.")
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        financials = user_can_view_promotion_financials(self.request.user, self.promotion.organization)
-        context.update(
-            {
-                "promotion": self.promotion,
-                "metrics": promotion_metrics(self.promotion, include_financials=financials),
-                "can_view_financials": financials,
-                "redemptions": (
-                    PromotionRedemption.objects.filter(promotion=self.promotion)
-                    .select_related("order", "code", "buyer")[:100]
-                    if financials
-                    else []
-                ),
-            }
+    def post(self, request, pk):
+        code = get_object_or_404(
+            PromotionCode.objects.select_related("promotion", "promotion__organization"),
+            pk=pk,
         )
-        return context
+        try:
+            code = toggle_promotion_code(actor=request.user, code=code)
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Code activé." if code.is_active else "Code désactivé.")
+        return redirect("promotions:detail", pk=code.promotion_id)
