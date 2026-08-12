@@ -22,7 +22,10 @@
     <header class="sticky top-0 z-40 border-b backdrop-blur-xl" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-page) 90%,transparent)">
         <div class="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <a href="{% url 'core:home' %}" class="flex min-w-0 items-center gap-3" aria-label="Makolo — accueil">
-                <img src="{% static 'brand/makolo-logo-light.svg' %}" alt="Makolo" class="mk-brand-lockup mk-brand-lockup-public" width="159" height="48">
+                <span class="mk-brand-lockup-wrap" aria-hidden="true">
+                    <img src="{% static 'brand/makolo-logo-light.svg' %}" alt="" class="mk-brand-lockup mk-brand-lockup-public mk-brand-lockup-light" width="159" height="48">
+                    <img src="{% static 'brand/makolo-logo-dark.svg' %}" alt="" class="mk-brand-lockup mk-brand-lockup-public mk-brand-lockup-dark" width="159" height="48">
+                </span>
                 <span class="hidden text-[10px] uppercase tracking-[.12em] sm:inline" style="color:var(--mk-subtle)">Événements en mouvement</span>
             </a>
             <nav class="hidden items-center gap-1 md:flex" aria-label="Navigation publique">
