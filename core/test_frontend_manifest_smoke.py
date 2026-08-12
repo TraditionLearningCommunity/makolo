@@ -7,9 +7,7 @@ from django.utils import timezone
 
 from authorization.services import ensure_platform_admin_mandate
 from events.models import Event, EventStatus, EventVisibility
-from organizations.models import Organization
-from organizations.services import add_or_update_member, create_organization
-from authorization.constants import SystemRoleCode
+from organizations.services import create_organization
 
 
 User = get_user_model()
@@ -45,12 +43,6 @@ class ProductionManifestPageSmokeTests(TestCase):
         self.organization = create_organization(
             creator=self.organizer,
             name="Manifest Smoke Organization",
-        )
-        add_or_update_member(
-            organization=self.organization,
-            actor=self.organizer,
-            user=self.organizer,
-            role=SystemRoleCode.ACTIVITY_MANAGER,
         )
         start_at = timezone.now() + timedelta(days=2)
         self.event = Event.objects.create(
