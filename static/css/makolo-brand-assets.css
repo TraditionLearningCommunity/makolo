@@ -46,9 +46,17 @@
   max-width: 128px;
 }
 
+.mk-brand-public-tagline {
+  display: none;
+}
+
 @media (min-width: 640px) {
   .mk-brand-lockup-public {
     height: 40px;
     max-width: 142px;
+  }
+
+  .mk-brand-public-tagline {
+    display: inline;
   }
 }
