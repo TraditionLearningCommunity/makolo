@@ -6,7 +6,11 @@ from events.models import Event, EventStatus
 from notifications.models import NotificationCategory, NotificationKind
 from notifications.services import create_notification
 
-from .models import OrganizationFollow, OrganizationVerificationStatus
+from .models import (
+    OrganizationFollow,
+    OrganizationMembership,
+    OrganizationVerificationStatus,
+)
 
 
 def _notify_event_followers(event_id):
@@ -38,3 +42,30 @@ def _notify_event_followers(event_id):
 def notify_followers_on_published_event(sender, instance, **kwargs):
     if instance.status == EventStatus.PUBLISHED and instance.organization_id:
         transaction.on_commit(lambda event_id=instance.pk: _notify_event_followers(event_id))
+
+
+@receiver(
+    post_save,
+    sender=OrganizationMembership,
+    dispatch_uid="organizations.sync_legacy_membership_authority",
+)
+def sync_legacy_membership_authority(sender, instance, raw=False, **kwargs):
+    """Compatibility bridge while old callers still write OrganizationMembership.
+
+    New code writes TeamMembership + Mandate first. This receiver ensures old
+    fixtures/APIs do not silently create a second authority source during the
+    staged cutover.
+    """
+    if raw:
+        return
+
+    membership_id = instance.pk
+
+    def synchronize():
+        from .services import sync_legacy_membership_to_authority
+
+        membership = OrganizationMembership.objects.filter(pk=membership_id).first()
+        if membership:
+            sync_legacy_membership_to_authority(membership)
+
+    transaction.on_commit(synchronize)
