@@ -6,18 +6,22 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from authorization.constants import PermissionCode
+from authorization.services import can, primary_space_roles_for_profiles, space_ids_with_permission
 from events.models import EventStatus, EventVisibility
 
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
 from .models import (
     Organization,
     OrganizationFollow,
-    OrganizationMembership,
     OrganizationVerificationStatus,
+    TeamMembership,
+    TeamMembershipStatus,
 )
 from .permissions import (
     user_can_access_organization_workspace,
     user_can_manage_organization,
+    user_can_manage_organization_team,
 )
 from .services import (
     add_or_update_member,
@@ -36,12 +40,11 @@ class OrganizationListView(LoginRequiredMixin, ListView):
     context_object_name = "organizations"
 
     def get_queryset(self):
-        if self.request.user.is_staff:
-            return Organization.objects.all()
-        return Organization.objects.filter(
-            memberships__user=self.request.user,
-            memberships__is_active=True,
-        ).distinct()
+        space_ids = space_ids_with_permission(self.request.user, PermissionCode.SPACE_VIEW)
+        queryset = Organization.objects.all()
+        if space_ids is None:
+            return queryset
+        return queryset.filter(pk__in=space_ids)
 
 
 class FollowingListView(LoginRequiredMixin, ListView):
@@ -70,7 +73,7 @@ class OrganizationCreateView(LoginRequiredMixin, CreateView):
             city=form.cleaned_data.get("city", ""),
             public_profile=form.cleaned_data.get("public_profile", True),
         )
-        messages.success(self.request, "Organisation créée. Vous en êtes propriétaire.")
+        messages.success(self.request, "Espace créé. Vous en êtes propriétaire.")
         return redirect("organizations:detail", slug=self.object.slug)
 
 
@@ -159,14 +162,31 @@ class OrganizationDetailView(LoginRequiredMixin, DetailView):
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
         if not user_can_access_organization_workspace(self.request.user, obj):
-            raise PermissionDenied("Cet espace d'équipe n'est accessible qu'aux membres de l'organisation.")
+            raise PermissionDenied("Vous n'avez pas d'autorité active dans cet Espace.")
         return obj
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["memberships"] = self.object.memberships.select_related("user").filter(is_active=True)
+        memberships = list(
+            TeamMembership.objects.filter(
+                team__organization=self.object,
+                team__is_default=True,
+                status=TeamMembershipStatus.ACTIVE,
+            ).select_related("team", "user")
+        )
+        role_by_profile = primary_space_roles_for_profiles(
+            space=self.object,
+            profile_ids=[membership.user_id for membership in memberships],
+        )
+        for membership in memberships:
+            membership.responsibility_role = role_by_profile.get(membership.user_id)
+        context["memberships"] = memberships
         context["events"] = self.object.events.order_by("-created_at")[:20]
         context["can_manage"] = user_can_manage_organization(self.request.user, self.object)
+        context["can_manage_team"] = user_can_manage_organization_team(self.request.user, self.object)
+        context["can_manage_activity"] = can(
+            self.request.user, PermissionCode.ACTIVITY_MANAGE, self.object
+        )
         context["follower_count"] = self.object.followers.count()
         return context
 
@@ -181,24 +201,24 @@ class OrganizationUpdateView(LoginRequiredMixin, UpdateView):
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()
         if not user_can_manage_organization(request.user, self.object):
-            raise PermissionDenied("Vous ne pouvez pas modifier cette organisation.")
+            raise PermissionDenied("Vous ne pouvez pas modifier cet Espace.")
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
-        messages.success(self.request, "Organisation mise à jour.")
+        messages.success(self.request, "Espace mis à jour.")
         return reverse("organizations:detail", kwargs={"slug": self.object.slug})
 
 
 class OrganizationMemberCreateView(LoginRequiredMixin, View):
     def get(self, request, slug):
         organization = get_object_or_404(Organization, slug=slug)
-        if not user_can_manage_organization(request.user, organization):
+        if not user_can_manage_organization_team(request.user, organization):
             raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
         return render(request, "organizations/member_form.html", {"organization": organization, "form": OrganizationMemberForm()})
 
     def post(self, request, slug):
         organization = get_object_or_404(Organization, slug=slug)
-        if not user_can_manage_organization(request.user, organization):
+        if not user_can_manage_organization_team(request.user, organization):
             raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
         form = OrganizationMemberForm(request.POST)
         if form.is_valid():
@@ -213,7 +233,7 @@ class OrganizationMemberCreateView(LoginRequiredMixin, View):
             except (ValidationError, PermissionDenied) as exc:
                 form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
             else:
-                messages.success(request, "Membre ajouté ou mis à jour.")
+                messages.success(request, "Membre et responsabilité mis à jour.")
                 return redirect("organizations:detail", slug=organization.slug)
         return render(request, "organizations/member_form.html", {"organization": organization, "form": form})
 
@@ -221,11 +241,15 @@ class OrganizationMemberCreateView(LoginRequiredMixin, View):
 class OrganizationMemberDeactivateView(LoginRequiredMixin, View):
     def post(self, request, slug, pk):
         organization = get_object_or_404(Organization, slug=slug)
-        membership = get_object_or_404(OrganizationMembership, pk=pk, organization=organization)
+        membership = get_object_or_404(
+            TeamMembership.objects.select_related("team__organization", "user"),
+            pk=pk,
+            team__organization=organization,
+        )
         try:
             deactivate_member(membership=membership, actor=request.user)
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(request, "Membre désactivé.")
+            messages.success(request, "Membre retiré de l'équipe.")
         return redirect("organizations:detail", slug=organization.slug)
