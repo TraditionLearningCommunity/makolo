@@ -20,6 +20,7 @@ urlpatterns = [
     path("<slug:slug>/", OrganizationDetailView.as_view(), name="detail"),
     path("<slug:slug>/edit/", OrganizationUpdateView.as_view(), name="edit"),
     path("<slug:slug>/members/new/", OrganizationMemberCreateView.as_view(), name="member-create"),
+    path("<slug:slug>/team/add/", OrganizationMemberCreateView.as_view(), name="team-member-create"),
     path(
         "<slug:slug>/members/<uuid:pk>/deactivate/",
         OrganizationMemberDeactivateView.as_view(),
