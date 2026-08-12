@@ -136,7 +136,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="mandate",
-            index=models.Index(fields=["profile", "status"], name="auth_mandate_profile_status_idx"),
+            index=models.Index(fields=["profile", "status"], name="auth_mand_prof_status_idx"),
         ),
         migrations.AddIndex(
             model_name="mandate",
