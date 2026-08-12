@@ -124,7 +124,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="mandate",
-            constraint=models.CheckConstraint(condition=models.Q(("valid_until__isnull", True), models.Q(("valid_from__isnull", True)), ("valid_until__gt", models.F("valid_from")), _connector="OR"), name="auth_mandate_valid_window"),
+            constraint=models.CheckConstraint(condition=models.Q(("valid_until__isnull", True), ("valid_from__isnull", True), ("valid_until__gt", models.F("valid_from")), _connector="OR"), name="auth_mandate_valid_window"),
         ),
         migrations.AddConstraint(
             model_name="mandate",
