@@ -9,7 +9,6 @@ from authorization.constants import (
     SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE,
     SystemRoleCode,
 )
-from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.services import (
     can,
     grant_space_role,
@@ -21,7 +20,6 @@ from .models import (
     Organization,
     OrganizationFollow,
     OrganizationMembership,
-    OrganizationRole,
     Team,
     TeamMembership,
     TeamMembershipStatus,
@@ -92,10 +90,11 @@ def _sync_legacy_membership(*, organization, user, canonical_role_code, invited_
 
 @transaction.atomic
 def sync_legacy_membership_to_authority(membership: OrganizationMembership):
-    """Compatibility bridge for old writers such as the deterministic demo seed.
+    """Project a historical OrganizationMembership into Team + Mandate.
 
-    New application flows must write TeamMembership + Mandate first. This helper
-    exists only while OrganizationMembership remains a compatibility projection.
+    New application flows write TeamMembership + Mandate first. This bridge
+    exists while old fixtures/API clients still write the compatibility model.
+    It deliberately applies the same owner invariant as canonical services.
     """
     membership = OrganizationMembership.objects.select_related(
         "organization", "user", "invited_by"
@@ -115,15 +114,10 @@ def sync_legacy_membership_to_authority(membership: OrganizationMembership):
         },
     )
     if not membership.is_active:
-        Mandate.objects.filter(
+        revoke_all_space_mandates(
             profile=membership.user,
             space=membership.organization,
-            scope_type=AuthorityScope.SPACE,
-            status=MandateStatus.ACTIVE,
-        ).update(
-            status=MandateStatus.REVOKED,
-            revoked_at=timezone.now(),
-            updated_at=timezone.now(),
+            actor=membership.invited_by,
         )
         return team_membership
 
@@ -186,7 +180,6 @@ def ensure_personal_organization(user) -> Organization:
     if team_membership:
         return team_membership.team.organization
 
-    # One compatibility fallback for pre-migration rows or partial fixtures.
     legacy = (
         OrganizationMembership.objects.filter(user=user, is_active=True)
         .select_related("organization")
@@ -257,11 +250,10 @@ def deactivate_member(*, membership, actor) -> TeamMembership:
     organization = membership.team.organization
     if not user_can_manage_organization_team(actor, organization):
         raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
-    if membership.user_id == actor.pk and can(
-        actor, PermissionCode.SPACE_OWNERSHIP_MANAGE, organization
-    ):
-        raise ValidationError("Le propriétaire actif ne peut pas se retirer lui-même de cette façon.")
 
+    # revoke_all_space_mandates enforces the only special rule needed here:
+    # an Espace can never be left without a current owner. A co-owner may leave
+    # once another active owner exists.
     revoke_all_space_mandates(profile=membership.user, space=organization, actor=actor)
     membership.status = TeamMembershipStatus.INACTIVE
     membership.save(update_fields=["status", "updated_at"])
