@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import hmac
 import io
 import logging
 import secrets
@@ -20,6 +21,7 @@ from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.services import (
     can,
+    get_system_role,
     grant_group_role,
     replace_standard_group_role,
     revoke_mandate,
@@ -43,6 +45,7 @@ logger = logging.getLogger("makolo")
 User = get_user_model()
 IMPORT_MAX_ROWS = 1000
 INVITATION_TTL = timedelta(days=7)
+INVITATION_VERIFICATION_TTL = timedelta(minutes=15)
 
 _GROUP_MANAGEMENT_CODES = {
     PermissionCode.GROUP_MANAGE,
@@ -68,6 +71,11 @@ def normalize_phone(value: str) -> str:
 
 def _token_digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _verification_digest(invitation_id, code: str) -> str:
+    payload = f"{invitation_id}:{code}".encode("utf-8")
+    return hmac.new(settings.SECRET_KEY.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
 
 def _new_invitation_token() -> tuple[str, str]:
@@ -336,6 +344,26 @@ def _send_invitation_email(invitation_id, raw_token):
         logger.exception("Group invitation email delivery failed invitation_id=%s", invitation_id)
 
 
+def _send_invitation_verification_email(invitation_id, code):
+    try:
+        invitation = GroupInvitation.objects.get(pk=invitation_id)
+        if not invitation.email:
+            return
+        mail.send_mail(
+            subject="Makolo — Vérification de votre invitation Groupe",
+            message=(
+                "Une vérification d'identité a été demandée pour rejoindre un Groupe Makolo.\n\n"
+                f"Code de vérification : {code}\n\n"
+                "Ce code expire dans 15 minutes. Ne le transmettez pas avec le lien d'invitation."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[invitation.email],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("Group invitation verification delivery failed invitation_id=%s", invitation_id)
+
+
 def _create_or_refresh_invitation_locked(
     *,
     group,
@@ -387,6 +415,9 @@ def _create_or_refresh_invitation_locked(
         invitation.invited_by = invited_by
         invitation.expires_at = expires_at
         invitation.token_digest = digest
+        invitation.verification_digest = ""
+        invitation.verification_expires_at = None
+        invitation.identity_verified_at = None
         invitation.save()
     else:
         invitation = GroupInvitation(
@@ -453,7 +484,18 @@ def link_invitation_profile(*, actor, invitation, profile) -> GroupInvitation:
     if locked.phone and normalize_phone(profile.phone or "") != normalize_phone(locked.phone):
         raise ValidationError("Le Profil ne correspond pas au téléphone de l'invitation.")
     locked.profile = profile
-    locked.save(update_fields=["profile", "updated_at"])
+    locked.identity_verified_at = timezone.now()
+    locked.verification_digest = ""
+    locked.verification_expires_at = None
+    locked.save(
+        update_fields=[
+            "profile",
+            "identity_verified_at",
+            "verification_digest",
+            "verification_expires_at",
+            "updated_at",
+        ]
+    )
     return locked
 
 
@@ -461,7 +503,10 @@ def _invitation_matches_profile(invitation: GroupInvitation, profile) -> bool:
     if invitation.profile_id:
         return invitation.profile_id == profile.pk
     if invitation.email:
-        return normalize_email(invitation.email) == normalize_email(profile.email)
+        return bool(
+            getattr(profile, "email_verified", False)
+            and normalize_email(invitation.email) == normalize_email(profile.email)
+        )
     if invitation.phone:
         return bool(
             getattr(profile, "phone_verified", False)
@@ -469,6 +514,92 @@ def _invitation_matches_profile(invitation: GroupInvitation, profile) -> bool:
         )
     # Une référence externe seule n'est jamais une preuve self-service.
     return False
+
+
+@transaction.atomic
+def request_invitation_email_verification(*, profile, token: str) -> GroupInvitation:
+    if not getattr(profile, "is_authenticated", False):
+        raise PermissionDenied("Connectez-vous avant de vérifier cette invitation.")
+    digest = _token_digest(token)
+    pointer = GroupInvitation.objects.filter(token_digest=digest).values("group_id").first()
+    if not pointer:
+        raise ValidationError("Cette invitation est invalide ou a déjà été utilisée.")
+    locked_group = _lock_group(pointer["group_id"])
+    invitation = GroupInvitation.objects.select_for_update().filter(
+        token_digest=digest,
+        group=locked_group,
+        status=GroupInvitationStatus.PENDING,
+    ).order_by().first()
+    if not invitation or invitation.expires_at <= timezone.now():
+        raise ValidationError("Cette invitation est invalide ou expirée.")
+    if invitation.profile_id:
+        if invitation.profile_id != profile.pk:
+            raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
+        return invitation
+    if not invitation.email or normalize_email(invitation.email) != normalize_email(profile.email):
+        raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
+
+    code = f"{secrets.randbelow(100_000_000):08d}"
+    invitation.verification_digest = _verification_digest(invitation.pk, code)
+    invitation.verification_expires_at = timezone.now() + INVITATION_VERIFICATION_TTL
+    invitation.save(
+        update_fields=["verification_digest", "verification_expires_at", "updated_at"]
+    )
+    transaction.on_commit(
+        lambda invitation_id=invitation.pk, verification_code=code: _send_invitation_verification_email(
+            invitation_id,
+            verification_code,
+        )
+    )
+    return invitation
+
+
+@transaction.atomic
+def verify_invitation_email_identity(*, profile, token: str, code: str) -> GroupInvitation:
+    if not getattr(profile, "is_authenticated", False):
+        raise PermissionDenied("Connectez-vous avant de vérifier cette invitation.")
+    digest = _token_digest(token)
+    pointer = GroupInvitation.objects.filter(token_digest=digest).values("group_id").first()
+    if not pointer:
+        raise ValidationError("Cette invitation est invalide ou a déjà été utilisée.")
+    locked_group = _lock_group(pointer["group_id"])
+    invitation = GroupInvitation.objects.select_for_update().filter(
+        token_digest=digest,
+        group=locked_group,
+        status=GroupInvitationStatus.PENDING,
+    ).order_by().first()
+    if not invitation or invitation.expires_at <= timezone.now():
+        raise ValidationError("Cette invitation est invalide ou expirée.")
+    if invitation.profile_id and invitation.profile_id != profile.pk:
+        raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
+    if not invitation.email or normalize_email(invitation.email) != normalize_email(profile.email):
+        raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
+    if not invitation.verification_digest or not invitation.verification_expires_at:
+        raise ValidationError("Demandez d'abord un nouveau code de vérification.")
+    if invitation.verification_expires_at <= timezone.now():
+        raise ValidationError("Le code de vérification a expiré.")
+    candidate = _verification_digest(invitation.pk, (code or "").strip())
+    if not hmac.compare_digest(candidate, invitation.verification_digest):
+        raise ValidationError("Le code de vérification est incorrect.")
+
+    now = timezone.now()
+    invitation.profile = profile
+    invitation.identity_verified_at = now
+    invitation.verification_digest = ""
+    invitation.verification_expires_at = None
+    invitation.save(
+        update_fields=[
+            "profile",
+            "identity_verified_at",
+            "verification_digest",
+            "verification_expires_at",
+            "updated_at",
+        ]
+    )
+    if not getattr(profile, "email_verified", False):
+        profile.email_verified = True
+        profile.save(update_fields=["email_verified", "updated_at"])
+    return invitation
 
 
 @transaction.atomic
@@ -491,7 +622,7 @@ def accept_invitation(*, profile, token: str) -> tuple[GroupInvitation, GroupMem
     if locked_group.status != GroupStatus.ACTIVE:
         raise ValidationError("Ce Groupe est archivé.")
     if not _invitation_matches_profile(invitation, profile):
-        raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté.")
+        raise PermissionDenied("Cette invitation ne correspond pas au Profil connecté ou son identité n'est pas encore vérifiée.")
 
     membership = GroupMembership.objects.select_for_update().filter(
         group=locked_group,
@@ -524,10 +655,22 @@ def accept_invitation(*, profile, token: str) -> tuple[GroupInvitation, GroupMem
 
     invitation.status = GroupInvitationStatus.ACCEPTED
     invitation.profile = profile
+    invitation.identity_verified_at = invitation.identity_verified_at or now
     invitation.accepted_at = now
     invitation.token_digest = _new_invitation_token()[1]
+    invitation.verification_digest = ""
+    invitation.verification_expires_at = None
     invitation.save(
-        update_fields=["status", "profile", "accepted_at", "token_digest", "updated_at"]
+        update_fields=[
+            "status",
+            "profile",
+            "identity_verified_at",
+            "accepted_at",
+            "token_digest",
+            "verification_digest",
+            "verification_expires_at",
+            "updated_at",
+        ]
     )
     return invitation, membership
 
@@ -551,7 +694,18 @@ def reject_invitation(*, profile, token: str) -> GroupInvitation:
     invitation.status = GroupInvitationStatus.REJECTED
     invitation.rejected_at = timezone.now()
     invitation.token_digest = _new_invitation_token()[1]
-    invitation.save(update_fields=["status", "rejected_at", "token_digest", "updated_at"])
+    invitation.verification_digest = ""
+    invitation.verification_expires_at = None
+    invitation.save(
+        update_fields=[
+            "status",
+            "rejected_at",
+            "token_digest",
+            "verification_digest",
+            "verification_expires_at",
+            "updated_at",
+        ]
+    )
     return invitation
 
 
@@ -566,7 +720,17 @@ def revoke_invitation(*, actor, invitation) -> GroupInvitation:
         raise ValidationError("Cette invitation n'est plus révocable.")
     locked.status = GroupInvitationStatus.REVOKED
     locked.token_digest = _new_invitation_token()[1]
-    locked.save(update_fields=["status", "token_digest", "updated_at"])
+    locked.verification_digest = ""
+    locked.verification_expires_at = None
+    locked.save(
+        update_fields=[
+            "status",
+            "token_digest",
+            "verification_digest",
+            "verification_expires_at",
+            "updated_at",
+        ]
+    )
     return locked
 
 
@@ -615,10 +779,11 @@ def transfer_personal_group_ownership(*, actor, group, new_owner) -> Group:
         raise ValidationError("Archivez ou réactivez le Groupe avant un transfert de propriété.")
 
     old_owner_id = locked_group.owner_profile_id
+    owner_role = get_system_role(SystemRoleCode.GROUP_OWNER, scope_type=AuthorityScope.GROUP)
     grant_group_role(
         profile=new_owner,
         group=locked_group,
-        role=SystemRoleCode.GROUP_OWNER,
+        role=owner_role,
         granted_by=actor,
         source="ownership-transfer",
     )
@@ -630,7 +795,7 @@ def transfer_personal_group_ownership(*, actor, group, new_owner) -> Group:
             profile_id=old_owner_id,
             group=locked_group,
             scope_type=AuthorityScope.GROUP,
-            role__code=SystemRoleCode.GROUP_OWNER,
+            role_id=owner_role.pk,
             status=MandateStatus.ACTIVE,
         )
         .order_by()
@@ -780,8 +945,9 @@ def import_group_csv(*, actor, group, upload) -> GroupImportResult:
                 if membership.status == GroupMembershipStatus.ACTIVE:
                     if row.external_reference and not membership.external_reference:
                         try:
-                            membership.external_reference = row.external_reference
-                            membership.save(update_fields=["external_reference", "updated_at"])
+                            with transaction.atomic():
+                                membership.external_reference = row.external_reference
+                                membership.save(update_fields=["external_reference", "updated_at"])
                         except IntegrityError:
                             result.conflicts += 1
                             result.errors.append(f"Ligne {row.line}: référence externe déjà utilisée.")
@@ -794,14 +960,15 @@ def import_group_csv(*, actor, group, upload) -> GroupImportResult:
                     )
                 continue
             try:
-                GroupMembership.objects.create(
-                    group=locked_group,
-                    profile=profile,
-                    status=GroupMembershipStatus.ACTIVE,
-                    source=GroupMembershipSource.IMPORT,
-                    verified_at=timezone.now(),
-                    external_reference=row.external_reference,
-                )
+                with transaction.atomic():
+                    GroupMembership.objects.create(
+                        group=locked_group,
+                        profile=profile,
+                        status=GroupMembershipStatus.ACTIVE,
+                        source=GroupMembershipSource.IMPORT,
+                        verified_at=timezone.now(),
+                        external_reference=row.external_reference,
+                    )
                 result.members_added += 1
             except IntegrityError:
                 result.conflicts += 1
@@ -822,18 +989,23 @@ def import_group_csv(*, actor, group, upload) -> GroupImportResult:
             result.duplicates_ignored += 1
             continue
         try:
-            _create_or_refresh_invitation_locked(
-                group=locked_group,
-                invited_by=actor,
-                email=row.email,
-                phone=row.phone,
-                external_reference=row.external_reference,
-                first_name=row.first_name,
-                last_name=row.last_name,
-                send_email=bool(row.email),
-            )
+            with transaction.atomic():
+                _create_or_refresh_invitation_locked(
+                    group=locked_group,
+                    invited_by=actor,
+                    email=row.email,
+                    phone=row.phone,
+                    external_reference=row.external_reference,
+                    first_name=row.first_name,
+                    last_name=row.last_name,
+                    send_email=bool(row.email),
+                )
             result.invitations_created += 1
-        except ValidationError as exc:
+        except (IntegrityError, ValidationError) as exc:
             result.conflicts += 1
-            result.errors.append(f"Ligne {row.line}: {' '.join(exc.messages)}")
+            if isinstance(exc, ValidationError):
+                message = " ".join(exc.messages)
+            else:
+                message = "conflit d'unicité pendant la création de l'invitation"
+            result.errors.append(f"Ligne {row.line}: {message}.")
     return result
