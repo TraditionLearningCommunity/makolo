@@ -1,6 +1,5 @@
 from rest_framework.permissions import BasePermission
 
-from accounts.api.permissions import user_has_role
 from events.permissions import user_can_manage_event_access
 
 from .models import ScannerAssignment
@@ -23,12 +22,10 @@ def get_active_assignment(user, event):
 def user_can_scan_event(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if user.is_staff:
-        return True
     if user_can_manage_event_access(user, event):
         return True
-    if not user_has_role(user, "scanner-agent", legacy_flag="is_scanner_agent"):
-        return False
+    # Assignment is already an explicit event-scoped authority. The historical
+    # global User.is_scanner_agent/Role flag is no longer required.
     return get_active_assignment(user, event) is not None
 
 
