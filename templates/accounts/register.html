@@ -11,6 +11,7 @@
     {% if form.non_field_errors %}<div class="mb-5 rounded-2xl border border-rose-500/20 bg-rose-500/[.07] p-4 text-sm text-rose-600 dark:text-rose-300">{{ form.non_field_errors }}</div>{% endif %}
     <form method="post" class="space-y-4">
         {% csrf_token %}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
         {% for field in form %}
         <div>
             <label for="{{ field.id_for_label }}" class="mb-2 block text-xs font-semibold">{{ field.label }}</label>
@@ -20,6 +21,6 @@
         {% endfor %}
         <button type="submit" class="mk-btn mk-btn-primary w-full justify-center">Créer mon compte<i data-lucide="arrow-right" class="h-4 w-4"></i></button>
     </form>
-    <p class="mt-6 text-center text-xs" style="color:var(--mk-muted)">Déjà membre ? <a href="{% url 'core:login' %}" class="font-bold" style="color:var(--mk-brand)">Se connecter</a></p>
+    <p class="mt-6 text-center text-xs" style="color:var(--mk-muted)">Déjà membre ? <a href="{% url 'core:login' %}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}" class="font-bold" style="color:var(--mk-brand)">Se connecter</a></p>
 </div>
 {% endblock %}
