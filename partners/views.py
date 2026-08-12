@@ -7,6 +7,8 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import DetailView, ListView
 
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
 from organizations.models import Organization
 
 from .forms import AffiliateCampaignForm, PartnerForm, ReferralCodeForm
@@ -26,6 +28,15 @@ from .services import (
 )
 
 
+def _partner_workspace_spaces(user):
+    marketing_ids = space_ids_with_permission(user, PermissionCode.PARTNERS_MANAGE)
+    finance_ids = space_ids_with_permission(user, PermissionCode.PARTNERS_FINANCE)
+    queryset = Organization.objects.all().order_by("name")
+    if marketing_ids is None or finance_ids is None:
+        return queryset
+    return queryset.filter(pk__in=set(marketing_ids) | set(finance_ids))
+
+
 class PartnerDashboardView(LoginRequiredMixin, ListView):
     model = Partner
     template_name = "partners/dashboard.html"
@@ -43,10 +54,7 @@ class PartnerDashboardView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["campaigns"] = get_campaigns_visible_to(self.request.user)[:20]
         context["my_partner_profiles"] = Partner.objects.filter(user=self.request.user).select_related("organization")
-        context["manageable_organizations"] = Organization.objects.filter(
-            memberships__user=self.request.user,
-            memberships__is_active=True,
-        ).distinct() if not self.request.user.is_staff else Organization.objects.all()
+        context["manageable_organizations"] = _partner_workspace_spaces(self.request.user)
         return context
 
 
@@ -56,7 +64,7 @@ class OrganizationPartnerView(LoginRequiredMixin, View):
     def _organization(self, request, slug):
         organization = get_object_or_404(Organization, slug=slug)
         if not (user_can_manage_partners(request.user, organization) or user_can_view_partner_finance(request.user, organization)):
-            raise PermissionDenied("Vous n’avez pas accès aux partenaires de cette organisation.")
+            raise PermissionDenied("Vous n’avez pas accès aux partenaires de cet Espace.")
         return organization
 
     def get(self, request, slug):

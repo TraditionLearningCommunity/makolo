@@ -1,18 +1,15 @@
 from django.db.models import Q
 
-from organizations.permissions import FINANCE_ROLES
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
 
 from .models import Payment, PaymentEvent, Refund
 
 
-def _organization_finance_filter(prefix: str, user) -> Q:
-    return Q(
-        **{
-            f"{prefix}organization__memberships__user": user,
-            f"{prefix}organization__memberships__is_active": True,
-            f"{prefix}organization__memberships__role__in": FINANCE_ROLES,
-        }
-    )
+def _space_filter(prefix: str, space_ids) -> Q:
+    if not space_ids:
+        return Q(pk__isnull=True)
+    return Q(**{f"{prefix}organization_id__in": space_ids})
 
 
 def get_payments_visible_to(user):
@@ -24,30 +21,25 @@ def get_payments_visible_to(user):
         "order__buyer",
         "initiated_by",
     ).prefetch_related("refunds")
-    if not user.is_authenticated:
+    if not getattr(user, "is_authenticated", False):
         return queryset.none()
-    if user.is_staff:
-        return queryset
 
-    # Financial data is intentionally narrower than general event management.
-    # Buyers see their own payments; historical legacy organizers keep access;
-    # organization access is granted only to finance-capable roles.
-    filters = (
+    space_ids = space_ids_with_permission(user, PermissionCode.FINANCE_VIEW)
+    if space_ids is None:
+        return queryset
+    contextual = _space_filter("order__event__", space_ids)
+    return queryset.filter(
         Q(order__buyer=user)
         | Q(initiated_by=user)
-        | Q(order__event__organizer=user)
-        | _organization_finance_filter("order__event__", user)
-    )
-    return queryset.filter(filters).distinct()
+        | contextual
+        | Q(order__event__organization__isnull=True, order__event__organizer=user)
+    ).distinct()
 
 
 def get_refunds_visible_to(user):
     payment_ids = get_payments_visible_to(user).values("pk")
     return Refund.objects.select_related(
-        "payment",
-        "payment__order",
-        "payment__order__event",
-        "requested_by",
+        "payment", "payment__order", "payment__order__event", "requested_by"
     ).filter(payment_id__in=payment_ids)
 
 
@@ -59,12 +51,17 @@ def get_payment_events_visible_to(user):
         "payment__order__event__organizer",
         "payment__order__event__organization",
     )
-    if not user.is_authenticated:
+    if not getattr(user, "is_authenticated", False):
         return queryset.none()
-    if user.is_staff:
-        return queryset
 
+    space_ids = space_ids_with_permission(user, PermissionCode.FINANCE_VIEW)
+    if space_ids is None:
+        return queryset
+    contextual = _space_filter("payment__order__event__", space_ids)
     return queryset.filter(
-        Q(payment__order__event__organizer=user)
-        | _organization_finance_filter("payment__order__event__", user)
+        contextual
+        | Q(
+            payment__order__event__organization__isnull=True,
+            payment__order__event__organizer=user,
+        )
     ).distinct()

@@ -1,10 +1,13 @@
+import importlib
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from django.apps import apps
 from django.conf import settings
 from django.core.management import BaseCommand, CommandError, call_command
 
 from accounts.models import NotificationPreference, User, UserProfile
+from authorization.services import ensure_platform_admin_mandate
 from events.models import (
     Event,
     EventCategory,
@@ -42,6 +45,13 @@ class Command(BaseCommand):
             raise CommandError("prepare_e2e est réservé à DJANGO_ENV=e2e.")
 
         call_command("flush", interactive=False, verbosity=0)
+        # flush removes versioned system rows along with test data. Re-run the
+        # frozen authority data migration explicitly before building fixtures;
+        # production never relies on a startup signal for these contracts.
+        authority_seed = importlib.import_module(
+            "authorization.migrations.0002_seed_roles_and_backfill"
+        )
+        authority_seed.seed_and_backfill(apps, None)
 
         users = {
             key: self._user(email, username, **flags)
@@ -64,6 +74,7 @@ class Command(BaseCommand):
                 ("staff", "staff@e2e.makolo.test", "e2e-staff", {"is_staff": True}),
             ]
         }
+        ensure_platform_admin_mandate(profile=users["staff"], source="e2e-fixture")
 
         main_org = Organization.objects.create(
             name="Makolo E2E Events",

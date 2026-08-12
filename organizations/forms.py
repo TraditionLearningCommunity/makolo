@@ -1,6 +1,12 @@
 from django import forms
 
-from .models import Organization, OrganizationFollow, OrganizationRole
+from authorization.constants import (
+    LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE,
+    STANDARD_SPACE_ROLE_CODES,
+)
+from authorization.models import AuthorityScope, Role
+
+from .models import Organization, OrganizationFollow
 
 
 INPUT_CLASS = (
@@ -35,10 +41,25 @@ class OrganizationForm(forms.ModelForm):
 
 class OrganizationMemberForm(forms.Form):
     email = forms.EmailField(label="E-mail du membre")
-    role = forms.ChoiceField(label="Rôle", choices=OrganizationRole.choices)
+    role = forms.ChoiceField(label="Responsabilité")
 
     def __init__(self, *args, **kwargs):
+        # Preserve old POST values such as event_manager during the compatibility
+        # window, while every newly rendered form uses canonical role codes.
+        if args and args[0] is not None and "role" in args[0]:
+            data = args[0].copy()
+            data["role"] = LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.get(
+                data.get("role"), data.get("role")
+            )
+            args = (data, *args[1:])
         super().__init__(*args, **kwargs)
+        roles = Role.objects.filter(
+            scope_type=AuthorityScope.SPACE,
+            is_system=True,
+            is_active=True,
+            code__in=STANDARD_SPACE_ROLE_CODES,
+        ).order_by("name")
+        self.fields["role"].choices = [(role.code, role.name) for role in roles]
         for field in self.fields.values():
             field.widget.attrs["class"] = INPUT_CLASS
 

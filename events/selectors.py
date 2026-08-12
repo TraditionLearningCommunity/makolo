@@ -1,19 +1,11 @@
 from django.db.models import Q
 from django.utils import timezone
 
-from organizations.models import (
-    OrganizationRole,
-    OrganizationVerificationStatus,
-)
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+from organizations.models import OrganizationVerificationStatus
 
 from .models import Event, EventStatus, EventVisibility
-
-
-MANAGER_ROLES = [
-    OrganizationRole.OWNER,
-    OrganizationRole.ADMIN,
-    OrganizationRole.EVENT_MANAGER,
-]
 
 
 def get_events():
@@ -32,11 +24,6 @@ def _organization_is_not_suspended_filter() -> Q:
 
 
 def get_public_discoverable_events(*, upcoming_only: bool = True):
-    """Participant-facing public event read model.
-
-    This selector never includes events merely because the current user can
-    administer them. It is safe to use for public/mobile discovery.
-    """
     queryset = get_events().filter(
         status=EventStatus.PUBLISHED,
         visibility=EventVisibility.PUBLIC,
@@ -47,7 +34,6 @@ def get_public_discoverable_events(*, upcoming_only: bool = True):
 
 
 def get_events_available_for_ticket_purchase():
-    """Events a participant may purchase from, including direct unlisted links."""
     return get_events().filter(
         status=EventStatus.PUBLISHED,
         visibility__in=[EventVisibility.PUBLIC, EventVisibility.UNLISTED],
@@ -56,41 +42,32 @@ def get_events_available_for_ticket_purchase():
 
 def get_events_visible_to(user, *, for_detail: bool = False):
     queryset = get_events()
-    if user.is_authenticated and user.is_staff:
-        return queryset
-
     public_visibilities = [EventVisibility.PUBLIC]
     if for_detail:
         public_visibilities.append(EventVisibility.UNLISTED)
 
     public_filter = (
-        Q(
-            status=EventStatus.PUBLISHED,
-            visibility__in=public_visibilities,
-        )
+        Q(status=EventStatus.PUBLISHED, visibility__in=public_visibilities)
         & _organization_is_not_suspended_filter()
     )
 
-    if user.is_authenticated:
-        member_filter = Q(
-            organization__memberships__user=user,
-            organization__memberships__is_active=True,
-        )
-        return queryset.filter(
-            public_filter | Q(organizer=user) | member_filter
-        ).distinct()
-    return queryset.filter(public_filter)
+    if not getattr(user, "is_authenticated", False):
+        return queryset.filter(public_filter)
+
+    space_ids = space_ids_with_permission(user, PermissionCode.SPACE_VIEW)
+    if space_ids is None:
+        return queryset
+    contextual_filter = Q(organization_id__in=space_ids) if space_ids else Q(pk__isnull=True)
+    return queryset.filter(public_filter | Q(organizer=user) | contextual_filter).distinct()
 
 
 def get_manageable_events(user):
     queryset = get_events()
-    if user.is_staff:
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    space_ids = space_ids_with_permission(user, PermissionCode.ACTIVITY_MANAGE)
+    if space_ids is None:
         return queryset
-    return queryset.filter(
-        Q(organizer=user)
-        | Q(
-            organization__memberships__user=user,
-            organization__memberships__is_active=True,
-            organization__memberships__role__in=MANAGER_ROLES,
-        )
-    ).distinct()
+    contextual_filter = Q(organization_id__in=space_ids) if space_ids else Q(pk__isnull=True)
+    # organizer is retained only for historical organization-less Event rows.
+    return queryset.filter(contextual_filter | Q(organization__isnull=True, organizer=user)).distinct()

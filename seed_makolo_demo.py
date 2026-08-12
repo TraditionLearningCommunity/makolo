@@ -48,6 +48,7 @@ def run_seed(*, scale: str = "large", as_of: str = "2026-08-10", demo_password: 
     from django.db import transaction
 
     from demo_seed.accounts_orgs import seed_accounts_and_organizations
+    from demo_seed.authority import seed_contextual_authority
     from demo_seed.common import SeedContext, assert_model_coverage
     from demo_seed.engagement import seed_engagement
     from demo_seed.events_commerce import seed_events_and_commerce
@@ -62,6 +63,7 @@ def run_seed(*, scale: str = "large", as_of: str = "2026-08-10", demo_password: 
 
     with _suspend_loyalty_seed_signals(), transaction.atomic():
         seed_accounts_and_organizations(ctx)
+        seed_contextual_authority(ctx)
         seed_events_and_commerce(ctx)
         seed_engagement(ctx)
         seed_partners_loyalty_and_analytics(ctx)

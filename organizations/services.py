@@ -1,9 +1,30 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.utils import timezone
 
-from .models import Organization, OrganizationFollow, OrganizationMembership, OrganizationRole
-from .permissions import user_can_manage_organization
+from authorization.constants import (
+    LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE,
+    PermissionCode,
+    SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE,
+    SystemRoleCode,
+)
+from authorization.services import (
+    can,
+    grant_space_role,
+    replace_standard_space_role,
+    revoke_all_space_mandates,
+)
+
+from .models import (
+    Organization,
+    OrganizationFollow,
+    OrganizationMembership,
+    Team,
+    TeamMembership,
+    TeamMembershipStatus,
+)
+from .permissions import user_can_manage_organization_team
 
 
 User = get_user_model()
@@ -23,32 +44,152 @@ def _normalize_follow_preferences(values):
     return normalized
 
 
+def ensure_default_team(organization: Organization) -> Team:
+    team = organization.teams.filter(is_default=True).first()
+    if team:
+        if not team.is_active:
+            team.is_active = True
+            team.save(update_fields=["is_active", "updated_at"])
+        return team
+    team = Team(
+        organization=organization,
+        name="Équipe principale",
+        is_default=True,
+        is_active=True,
+    )
+    team.full_clean()
+    team.save()
+    return team
+
+
+def _canonical_role_code(role_or_code: str) -> str:
+    return LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.get(role_or_code, role_or_code)
+
+
+def _legacy_role_code(role_or_code: str) -> str:
+    canonical = _canonical_role_code(role_or_code)
+    try:
+        return SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE[canonical]
+    except KeyError as exc:
+        raise ValidationError("Rôle standard d'Espace invalide.") from exc
+
+
+def _sync_legacy_membership(*, organization, user, canonical_role_code, invited_by, active=True):
+    legacy_role = _legacy_role_code(canonical_role_code)
+    membership, _ = OrganizationMembership.objects.update_or_create(
+        organization=organization,
+        user=user,
+        defaults={
+            "role": legacy_role,
+            "is_active": active,
+            "invited_by": invited_by,
+        },
+    )
+    return membership
+
+
+@transaction.atomic
+def sync_legacy_membership_to_authority(membership: OrganizationMembership):
+    """Project a historical OrganizationMembership into Team + Mandate.
+
+    New application flows write TeamMembership + Mandate first. This bridge
+    exists while old fixtures/API clients still write the compatibility model.
+    It deliberately applies the same owner invariant as canonical services.
+    """
+    membership = OrganizationMembership.objects.select_related(
+        "organization", "user", "invited_by"
+    ).get(pk=membership.pk)
+    team = ensure_default_team(membership.organization)
+    team_membership, _ = TeamMembership.objects.update_or_create(
+        team=team,
+        user=membership.user,
+        defaults={
+            "status": (
+                TeamMembershipStatus.ACTIVE
+                if membership.is_active
+                else TeamMembershipStatus.INACTIVE
+            ),
+            "invited_by": membership.invited_by,
+            "joined_at": membership.joined_at,
+        },
+    )
+    if not membership.is_active:
+        revoke_all_space_mandates(
+            profile=membership.user,
+            space=membership.organization,
+            actor=membership.invited_by,
+        )
+        return team_membership
+
+    role_code = _canonical_role_code(membership.role)
+    replace_standard_space_role(
+        profile=membership.user,
+        space=membership.organization,
+        role_code=role_code,
+        granted_by=membership.invited_by or membership.organization.created_by,
+        source="legacy-membership-sync",
+    )
+    return team_membership
+
+
 @transaction.atomic
 def create_organization(*, creator, name: str, **fields) -> Organization:
     if not getattr(creator, "is_authenticated", False):
-        raise PermissionDenied("Vous devez être connecté pour créer une organisation.")
+        raise PermissionDenied("Vous devez être connecté pour créer un Espace.")
     organization = Organization(created_by=creator, name=name.strip(), **fields)
     organization.full_clean()
     organization.save()
-    OrganizationMembership.objects.create(
+
+    team = ensure_default_team(organization)
+    TeamMembership.objects.create(
+        team=team,
+        user=creator,
+        status=TeamMembershipStatus.ACTIVE,
+        invited_by=creator,
+        joined_at=timezone.now(),
+    )
+    grant_space_role(
+        profile=creator,
+        space=organization,
+        role=SystemRoleCode.SPACE_OWNER,
+        granted_by=creator,
+        source="space-creation",
+    )
+    _sync_legacy_membership(
         organization=organization,
         user=creator,
-        role=OrganizationRole.OWNER,
+        canonical_role_code=SystemRoleCode.SPACE_OWNER,
         invited_by=creator,
+        active=True,
     )
     return organization
 
 
 @transaction.atomic
 def ensure_personal_organization(user) -> Organization:
-    membership = (
+    team_membership = (
+        TeamMembership.objects.filter(
+            user=user,
+            status=TeamMembershipStatus.ACTIVE,
+            team__is_active=True,
+        )
+        .select_related("team__organization")
+        .order_by("joined_at", "created_at")
+        .first()
+    )
+    if team_membership:
+        return team_membership.team.organization
+
+    legacy = (
         OrganizationMembership.objects.filter(user=user, is_active=True)
         .select_related("organization")
         .order_by("joined_at")
         .first()
     )
-    if membership:
-        return membership.organization
+    if legacy:
+        sync_legacy_membership_to_authority(legacy)
+        return legacy.organization
+
     display = getattr(user, "full_name", "") or user.username or user.email.split("@")[0]
     return create_organization(
         creator=user,
@@ -59,34 +200,67 @@ def ensure_personal_organization(user) -> Organization:
 
 
 @transaction.atomic
-def add_or_update_member(*, organization, actor, user, role: str) -> OrganizationMembership:
-    if not user_can_manage_organization(actor, organization):
-        raise PermissionDenied("Vous ne pouvez pas gérer l'équipe de cette organisation.")
-    if role not in OrganizationRole.values:
-        raise ValidationError("Rôle d'organisation invalide.")
-    membership, _ = OrganizationMembership.objects.update_or_create(
-        organization=organization,
+def add_or_update_member(*, organization, actor, user, role: str) -> TeamMembership:
+    if not user_can_manage_organization_team(actor, organization):
+        raise PermissionDenied("Vous ne pouvez pas gérer l'équipe de cet Espace.")
+
+    canonical_role = _canonical_role_code(role)
+    if canonical_role == SystemRoleCode.SPACE_OWNER and not can(
+        actor, PermissionCode.SPACE_OWNERSHIP_MANAGE, organization
+    ):
+        raise PermissionDenied("Seul un propriétaire peut accorder la propriété de cet Espace.")
+
+    team = ensure_default_team(organization)
+    membership, _ = TeamMembership.objects.update_or_create(
+        team=team,
         user=user,
-        defaults={"role": role, "is_active": True, "invited_by": actor},
+        defaults={
+            "status": TeamMembershipStatus.ACTIVE,
+            "invited_by": actor,
+            "joined_at": timezone.now(),
+        },
     )
     membership.full_clean()
     membership.save()
+
+    replace_standard_space_role(
+        profile=user,
+        space=organization,
+        role_code=canonical_role,
+        granted_by=actor,
+        source="team-service",
+    )
+    _sync_legacy_membership(
+        organization=organization,
+        user=user,
+        canonical_role_code=canonical_role,
+        invited_by=actor,
+        active=True,
+    )
     return membership
 
 
 @transaction.atomic
-def deactivate_member(*, membership, actor) -> OrganizationMembership:
-    membership = OrganizationMembership.objects.select_for_update().select_related("organization", "user").get(pk=membership.pk)
-    if not user_can_manage_organization(actor, membership.organization):
+def deactivate_member(*, membership, actor) -> TeamMembership:
+    membership = (
+        TeamMembership.objects.select_for_update()
+        .select_related("team__organization", "user")
+        .get(pk=membership.pk)
+    )
+    organization = membership.team.organization
+    if not user_can_manage_organization_team(actor, organization):
         raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
-    if membership.user_id == actor.pk and membership.role == OrganizationRole.OWNER:
-        raise ValidationError("Le propriétaire actif ne peut pas se retirer lui-même de cette façon.")
-    if membership.role == OrganizationRole.OWNER and not OrganizationMembership.objects.filter(
-        organization=membership.organization, role=OrganizationRole.OWNER, is_active=True
-    ).exclude(pk=membership.pk).exists():
-        raise ValidationError("Une organisation doit conserver au moins un propriétaire actif.")
-    membership.is_active = False
-    membership.save(update_fields=["is_active", "updated_at"])
+
+    # revoke_all_space_mandates enforces the only special rule needed here:
+    # an Espace can never be left without a current owner. A co-owner may leave
+    # once another active owner exists.
+    revoke_all_space_mandates(profile=membership.user, space=organization, actor=actor)
+    membership.status = TeamMembershipStatus.INACTIVE
+    membership.save(update_fields=["status", "updated_at"])
+    OrganizationMembership.objects.filter(
+        organization=organization,
+        user=membership.user,
+    ).update(is_active=False)
     return membership
 
 

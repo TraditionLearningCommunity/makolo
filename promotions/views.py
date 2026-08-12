@@ -5,12 +5,13 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
-from organizations.models import Organization, OrganizationMembership
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+from organizations.models import Organization
 
 from .forms import PromotionCodeForm, PromotionForm
 from .models import Promotion, PromotionCode, PromotionRedemption
 from .permissions import (
-    PROMOTION_VIEW_ROLES,
     user_can_manage_promotions,
     user_can_view_promotion_financials,
     user_can_view_promotions,
@@ -24,15 +25,10 @@ class PromotionsHomeView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        if self.request.user.is_staff:
-            organizations = Organization.objects.all().order_by("name")
-        else:
-            ids = OrganizationMembership.objects.filter(
-                user=self.request.user,
-                is_active=True,
-                role__in=PROMOTION_VIEW_ROLES,
-            ).values_list("organization_id", flat=True)
-            organizations = Organization.objects.filter(pk__in=ids).order_by("name")
+        ids = space_ids_with_permission(self.request.user, PermissionCode.PROMOTIONS_VIEW)
+        organizations = Organization.objects.all().order_by("name")
+        if ids is not None:
+            organizations = organizations.filter(pk__in=ids)
         context["organizations"] = organizations
         context["promotions_count"] = Promotion.objects.filter(organization__in=organizations).count()
         return context
@@ -45,7 +41,7 @@ class OrganizationPromotionsView(LoginRequiredMixin, TemplateView):
     def _organization(self):
         organization = get_object_or_404(Organization, slug=self.kwargs["slug"])
         if not user_can_view_promotions(self.request.user, organization):
-            raise PermissionDenied("Vous n'avez pas accès aux promotions de cette organisation.")
+            raise PermissionDenied("Vous n'avez pas accès aux promotions de cet Espace.")
         return organization
 
     def get_context_data(self, **kwargs):
@@ -71,7 +67,7 @@ class PromotionCreateView(LoginRequiredMixin, FormView):
     def dispatch(self, request, *args, **kwargs):
         self.organization = get_object_or_404(Organization, slug=kwargs["slug"])
         if not user_can_manage_promotions(request.user, self.organization):
-            raise PermissionDenied("Vous ne pouvez pas créer d'offre pour cette organisation.")
+            raise PermissionDenied("Vous ne pouvez pas créer d'offre pour cet Espace.")
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):

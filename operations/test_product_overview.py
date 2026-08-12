@@ -5,6 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from authorization.services import ensure_platform_admin_mandate
 from notifications.models import DeliveryChannel, DeliveryStatus, Notification, NotificationDelivery
 
 from .models import (
@@ -29,6 +30,7 @@ class DemoSafeOperationsOverviewTests(TestCase):
             password="Strong-demo-safe-ops-2026!",
             is_staff=True,
         )
+        ensure_platform_admin_mandate(profile=self.staff, source="test-fixture")
 
     def test_demo_incident_worker_and_notification_backlog_are_not_operational_alerts(self):
         now = timezone.now()

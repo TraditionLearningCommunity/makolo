@@ -14,12 +14,24 @@ class OrganizationVerificationStatus(models.TextChoices):
 
 
 class OrganizationRole(models.TextChoices):
+    """Legacy compatibility roles.
+
+    Runtime authority is canonical in authorization.Mandate. Keep these values
+    stable until all historical consumers and data have completed cutover.
+    """
+
     OWNER = "owner", "Propriétaire"
     ADMIN = "admin", "Administrateur"
     EVENT_MANAGER = "event_manager", "Gestionnaire d'événements"
     FINANCE = "finance", "Finance"
     MARKETING = "marketing", "Marketing / Communication"
     SCANNER_MANAGER = "scanner_manager", "Responsable accès"
+
+
+class TeamMembershipStatus(models.TextChoices):
+    INVITED = "invited", "Invité"
+    ACTIVE = "active", "Actif"
+    INACTIVE = "inactive", "Inactif"
 
 
 class Organization(models.Model):
@@ -60,7 +72,84 @@ class Organization(models.Model):
         return self.name
 
 
+class Team(models.Model):
+    """Operational collaboration group for one Makolo Espace.
+
+    Membership is not authority. Permissions are resolved exclusively from
+    authorization.Mandate.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="teams")
+    name = models.CharField(max_length=160, default="Équipe principale")
+    is_default = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["organization__name", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "name"], name="team_org_name_unique"),
+            models.UniqueConstraint(
+                fields=["organization"],
+                condition=models.Q(is_default=True),
+                name="team_one_default_per_org",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "is_active"], name="team_org_active_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.organization} — {self.name}"
+
+
+class TeamMembership(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="team_memberships")
+    status = models.CharField(
+        max_length=16,
+        choices=TeamMembershipStatus.choices,
+        default=TeamMembershipStatus.ACTIVE,
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="team_invitations_sent",
+        null=True,
+        blank=True,
+    )
+    joined_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["team__organization__name", "user__email"]
+        constraints = [
+            models.UniqueConstraint(fields=["team", "user"], name="team_membership_unique_user"),
+        ]
+        indexes = [
+            models.Index(fields=["user", "status"], name="team_member_user_status_idx"),
+            models.Index(fields=["team", "status"], name="team_member_team_status_idx"),
+        ]
+
+    @property
+    def is_active(self):
+        return self.status == TeamMembershipStatus.ACTIVE
+
+    def __str__(self):
+        return f"{self.user} — {self.team} ({self.get_status_display()})"
+
+
 class OrganizationMembership(models.Model):
+    """Legacy compatibility projection of one standard Espace responsibility.
+
+    New authorization decisions must not read this model or ``role`` field.
+    Services keep it synchronized while historical event/mobile paths migrate.
+    """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="memberships")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="organization_memberships")

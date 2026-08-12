@@ -5,8 +5,9 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from authorization.services import ensure_platform_admin_mandate
 from events.models import Event, EventStatus, EventVisibility
-from organizations.models import Organization, OrganizationMembership, OrganizationRole
+from organizations.services import create_organization
 
 
 User = get_user_model()
@@ -38,15 +39,10 @@ class ProductionManifestPageSmokeTests(TestCase):
             password="Strong-manifest-staff-2026!",
             is_staff=True,
         )
-        self.organization = Organization.objects.create(
+        ensure_platform_admin_mandate(profile=self.staff, source="test-fixture")
+        self.organization = create_organization(
+            creator=self.organizer,
             name="Manifest Smoke Organization",
-            created_by=self.organizer,
-        )
-        OrganizationMembership.objects.create(
-            organization=self.organization,
-            user=self.organizer,
-            role=OrganizationRole.EVENT_MANAGER,
-            is_active=True,
         )
         start_at = timezone.now() + timedelta(days=2)
         self.event = Event.objects.create(

@@ -8,6 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from authorization.services import ensure_platform_admin_mandate
 from automation.models import AutomationRun, AutomationRunStatus
 from events.models import Event, EventStatus, EventVisibility
 from events.selectors import get_events_visible_to
@@ -49,6 +50,9 @@ class OperationsCenterTests(TestCase):
             password="Strong-password-2026!",
             is_staff=True,
         )
+        # is_staff remains a Django-admin capability. Operations is Makolo
+        # business authority and is therefore granted explicitly.
+        ensure_platform_admin_mandate(profile=self.staff, source="operations-test")
         self.regular = User.objects.create_user(
             username="ops-regular",
             email="ops-regular@test.local",
@@ -84,7 +88,7 @@ class OperationsCenterTests(TestCase):
             expires_at=self.now + timedelta(minutes=20),
         )
 
-    def test_operations_web_is_staff_only(self):
+    def test_operations_web_requires_platform_authority(self):
         self.client.force_login(self.regular)
         response = self.client.get(reverse("operations:dashboard"))
         self.assertEqual(response.status_code, 403)
@@ -94,7 +98,7 @@ class OperationsCenterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Makolo Operations Center")
 
-    def test_operations_api_is_staff_only(self):
+    def test_operations_api_requires_platform_authority(self):
         self.client.force_login(self.regular)
         response = self.client.get(reverse("operations_api:overview"))
         self.assertEqual(response.status_code, 403)

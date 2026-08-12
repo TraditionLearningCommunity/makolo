@@ -8,7 +8,9 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
-from organizations.models import Organization, OrganizationMembership
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+from organizations.models import Organization
 
 from .forms import (
     AudienceSegmentForm,
@@ -28,7 +30,7 @@ from .models import (
     CRMCustomField,
     CRMTag,
 )
-from .permissions import CRM_VIEW_ROLES, user_can_manage_crm, user_can_view_crm
+from .permissions import user_can_manage_crm, user_can_view_crm
 from .selectors import (
     audience_contacts,
     campaign_metrics,
@@ -62,15 +64,10 @@ class CRMHomeView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        if self.request.user.is_staff:
-            organizations = Organization.objects.all().order_by("name")
-        else:
-            organization_ids = OrganizationMembership.objects.filter(
-                user=self.request.user,
-                is_active=True,
-                role__in=CRM_VIEW_ROLES,
-            ).values_list("organization_id", flat=True)
-            organizations = Organization.objects.filter(pk__in=organization_ids).order_by("name")
+        organization_ids = space_ids_with_permission(self.request.user, PermissionCode.CRM_VIEW)
+        organizations = Organization.objects.all().order_by("name")
+        if organization_ids is not None:
+            organizations = organizations.filter(pk__in=organization_ids)
         context["organizations"] = organizations
         context["contacts_count"] = get_contacts_visible_to(self.request.user).count()
         context["segments_count"] = get_segments_visible_to(self.request.user).filter(is_active=True).count()
@@ -85,7 +82,7 @@ class OrganizationCRMView(LoginRequiredMixin, TemplateView):
     def _organization(self):
         organization = get_object_or_404(Organization, slug=self.kwargs["slug"])
         if not user_can_view_crm(self.request.user, organization):
-            raise PermissionDenied("Vous n’avez pas accès au CRM de cette organisation.")
+            raise PermissionDenied("Vous n’avez pas accès au CRM de cet Espace.")
         return organization
 
     def get_context_data(self, **kwargs):

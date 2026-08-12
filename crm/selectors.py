@@ -16,7 +16,9 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from organizations.models import OrganizationFollow, OrganizationMembership
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+from organizations.models import OrganizationFollow
 from partners.models import AttributionStatus, ReferralAttribution
 from promotions.models import PromotionRedemption, RedemptionStatus
 from tickets.models import (
@@ -39,19 +41,12 @@ from .models import (
     CRMContactFieldValue,
     MarketingConsent,
 )
-from .permissions import CRM_VIEW_ROLES
 
 
 def _visible_organization_ids(user):
     if not getattr(user, "is_authenticated", False):
         return []
-    if user.is_staff:
-        return None
-    return OrganizationMembership.objects.filter(
-        user=user,
-        is_active=True,
-        role__in=CRM_VIEW_ROLES,
-    ).values_list("organization_id", flat=True)
+    return space_ids_with_permission(user, PermissionCode.CRM_VIEW)
 
 
 def get_contacts_visible_to(user):
