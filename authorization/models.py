@@ -211,7 +211,7 @@ class Mandate(models.Model):
             ),
         ]
         indexes = [
-            models.Index(fields=["profile", "status"], name="auth_mandate_profile_status_idx"),
+            models.Index(fields=["profile", "status"], name="auth_mand_prof_status_idx"),
             models.Index(fields=["scope_type", "status"], name="auth_mandate_scope_status_idx"),
             models.Index(fields=["space", "status"], name="auth_mandate_space_status_idx"),
             models.Index(fields=["valid_from", "valid_until"], name="auth_mandate_validity_idx"),
