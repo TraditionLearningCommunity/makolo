@@ -7,12 +7,13 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
 from events.models import Event
-from organizations.models import Organization, OrganizationMembership
+from organizations.models import Organization
 from tickets.models import TicketType
 
 from crm.models import AudienceSegment, CampaignTemplate, CRMCustomField, CRMTag
-from crm.permissions import CRM_VIEW_ROLES
 from crm.selectors import (
     audience_contacts,
     campaign_metrics,
@@ -65,13 +66,7 @@ def _raise_service_error(exc):
 
 
 def _visible_crm_organization_ids(user):
-    if user.is_staff:
-        return None
-    return OrganizationMembership.objects.filter(
-        user=user,
-        is_active=True,
-        role__in=CRM_VIEW_ROLES,
-    ).values_list("organization_id", flat=True)
+    return space_ids_with_permission(user, PermissionCode.CRM_VIEW)
 
 
 def _scope_configuration_queryset(queryset, user):
