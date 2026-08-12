@@ -142,6 +142,9 @@ def grant_space_role(*, profile, space, role, granted_by=None, source="service")
         role = get_system_role(role, scope_type=AuthorityScope.SPACE)
     validate_role_for_space(role, space)
 
+    # Clear Mandate.Meta.ordering before FOR UPDATE. The default ordering follows
+    # the nullable ``space`` relation and therefore generates a LEFT OUTER JOIN;
+    # PostgreSQL correctly refuses to lock the nullable side of that join.
     existing = (
         Mandate.objects.select_for_update()
         .filter(
@@ -151,6 +154,7 @@ def grant_space_role(*, profile, space, role, granted_by=None, source="service")
             space=space,
             status=MandateStatus.ACTIVE,
         )
+        .order_by()
         .first()
     )
     if existing:
@@ -193,6 +197,7 @@ def ensure_platform_admin_mandate(*, profile, granted_by=None, source="staff-bac
             scope_type=AuthorityScope.PLATFORM,
             status=MandateStatus.ACTIVE,
         )
+        .order_by()
         .first()
     )
     if existing:
@@ -236,11 +241,10 @@ def _assert_owner_can_be_removed(mandate: Mandate) -> None:
 
 @transaction.atomic
 def revoke_mandate(*, mandate, actor=None) -> Mandate:
-    locked = (
-        Mandate.objects.select_for_update()
-        .select_related("role", "space", "profile")
-        .get(pk=mandate.pk)
-    )
+    # Keep the locking SELECT on the Mandate table only. Eager-loading the
+    # nullable ``space`` FK turns it into an outer join that PostgreSQL cannot
+    # legally lock with FOR UPDATE.
+    locked = Mandate.objects.select_for_update().order_by().get(pk=mandate.pk)
     if locked.status == MandateStatus.REVOKED:
         return locked
     _assert_owner_can_be_removed(locked)
@@ -258,7 +262,6 @@ def replace_standard_space_role(*, profile, space, role_code: str, granted_by=No
 
     current = list(
         Mandate.objects.select_for_update()
-        .select_related("role", "space")
         .filter(
             profile=profile,
             space=space,
@@ -266,6 +269,7 @@ def replace_standard_space_role(*, profile, space, role_code: str, granted_by=No
             status=MandateStatus.ACTIVE,
             role__code__in=STANDARD_SPACE_ROLE_CODES,
         )
+        .order_by()
     )
     for mandate in current:
         if mandate.role_id == target_role.pk:
@@ -288,13 +292,13 @@ def replace_standard_space_role(*, profile, space, role_code: str, granted_by=No
 def revoke_all_space_mandates(*, profile, space, actor=None) -> int:
     mandates = list(
         Mandate.objects.select_for_update()
-        .select_related("role", "space")
         .filter(
             profile=profile,
             space=space,
             scope_type=AuthorityScope.SPACE,
             status=MandateStatus.ACTIVE,
         )
+        .order_by()
     )
     for mandate in mandates:
         _assert_owner_can_be_removed(mandate)
