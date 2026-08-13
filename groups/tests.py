@@ -524,7 +524,7 @@ class GroupWebPermissionTests(GroupTestBase):
         self.assertIn("login", response.url)
 
     def test_invitation_page_hides_group_before_authentication(self):
-        _, token = invite_member(actor=self.owner, group=self.group, email=self.member.email)
+        _, token = invite_member(actor=self.owner, group=self.group, email="privacy-invitee@example.com")
         response = self.client.get(reverse("groups:invitation", kwargs={"token": token}))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, self.group.name)
