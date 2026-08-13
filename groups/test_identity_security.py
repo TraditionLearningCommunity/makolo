@@ -34,11 +34,12 @@ class InvitationIdentityVerificationTests(TestCase):
         self.group = create_group(actor=self.owner, name="Groupe identité")
 
     def test_unknown_email_requires_secondary_verification_after_signup(self):
-        invitation, token = invite_member(
-            actor=self.owner,
-            group=self.group,
-            email="alice.new@example.com",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            invitation, token = invite_member(
+                actor=self.owner,
+                group=self.group,
+                email="alice.new@example.com",
+            )
         self.assertIsNone(invitation.profile_id)
 
         alice = User.objects.create_user(
@@ -50,7 +51,8 @@ class InvitationIdentityVerificationTests(TestCase):
         with self.assertRaises(PermissionDenied):
             accept_invitation(profile=alice, token=token)
 
-        request_invitation_email_verification(profile=alice, token=token)
+        with self.captureOnCommitCallbacks(execute=True):
+            request_invitation_email_verification(profile=alice, token=token)
         self.assertEqual(len(mail.outbox), 2)
         challenge_email = mail.outbox[-1]
         self.assertEqual(challenge_email.to, ["alice.new@example.com"])
