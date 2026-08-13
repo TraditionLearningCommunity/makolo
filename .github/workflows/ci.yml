@@ -164,6 +164,8 @@ jobs:
           authorization.test_group_scope
           organizations.tests
           groups.tests
+          groups.test_identity_security
+          groups.test_account_continuity
 
       - name: Run operational readiness PostgreSQL tests
         run: >-
