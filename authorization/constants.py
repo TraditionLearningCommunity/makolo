@@ -49,8 +49,11 @@ class SystemRoleCode:
     PLATFORM_ADMIN = "makolo-platform-admin"
     SPACE_OWNER = "space-owner"
     SPACE_ADMIN = "space-admin"
-    SPACE_ACTIVITY_MANAGER = "space-activity-manager"
-    ACTIVITY_MANAGER = "activity-manager"
+    # Historical Python contract kept as the Space-scoped Activity portfolio role.
+    ACTIVITY_MANAGER = "space-activity-manager"
+    SPACE_ACTIVITY_MANAGER = ACTIVITY_MANAGER
+    # New local role introduced with AuthorityScope.ACTIVITY.
+    ACTIVITY_LOCAL_MANAGER = "activity-manager"
     FINANCE = "finance"
     MARKETING = "marketing"
     ACCESS_MANAGER = "access-manager"
@@ -60,32 +63,43 @@ class SystemRoleCode:
 
 
 GROUP_PERMISSION_CODES = {
-    PermissionCode.GROUP_VIEW, PermissionCode.GROUP_MANAGE,
-    PermissionCode.GROUP_MEMBERS_VIEW, PermissionCode.GROUP_MEMBERS_MANAGE,
-    PermissionCode.GROUP_INVITATIONS_MANAGE, PermissionCode.GROUP_SNAPSHOTS_CREATE,
+    PermissionCode.GROUP_VIEW,
+    PermissionCode.GROUP_MANAGE,
+    PermissionCode.GROUP_MEMBERS_VIEW,
+    PermissionCode.GROUP_MEMBERS_MANAGE,
+    PermissionCode.GROUP_INVITATIONS_MANAGE,
+    PermissionCode.GROUP_SNAPSHOTS_CREATE,
     PermissionCode.GROUP_OWNERSHIP_MANAGE,
 }
 ACTIVITY_PERMISSION_CODES = {PermissionCode.ACTIVITY_VIEW, PermissionCode.ACTIVITY_MANAGE}
 SPACE_PERMISSION_CODES = {
-    value for name, value in PermissionCode.__dict__.items()
-    if name.isupper() and value != PermissionCode.PLATFORM_MANAGE
-    and value not in GROUP_PERMISSION_CODES and value not in ACTIVITY_PERMISSION_CODES
+    value
+    for name, value in PermissionCode.__dict__.items()
+    if name.isupper()
+    and value != PermissionCode.PLATFORM_MANAGE
+    and value not in GROUP_PERMISSION_CODES
+    and value not in ACTIVITY_PERMISSION_CODES
 }
 
 STANDARD_SPACE_ROLE_CODES = {
-    SystemRoleCode.SPACE_OWNER, SystemRoleCode.SPACE_ADMIN,
-    SystemRoleCode.SPACE_ACTIVITY_MANAGER, SystemRoleCode.FINANCE,
-    SystemRoleCode.MARKETING, SystemRoleCode.ACCESS_MANAGER,
+    SystemRoleCode.SPACE_OWNER,
+    SystemRoleCode.SPACE_ADMIN,
+    SystemRoleCode.ACTIVITY_MANAGER,
+    SystemRoleCode.FINANCE,
+    SystemRoleCode.MARKETING,
+    SystemRoleCode.ACCESS_MANAGER,
 }
 STANDARD_GROUP_ROLE_CODES = {
-    SystemRoleCode.GROUP_OWNER, SystemRoleCode.GROUP_ADMIN, SystemRoleCode.GROUP_MODERATOR,
+    SystemRoleCode.GROUP_OWNER,
+    SystemRoleCode.GROUP_ADMIN,
+    SystemRoleCode.GROUP_MODERATOR,
 }
-STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_MANAGER}
+STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER}
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
     "owner": SystemRoleCode.SPACE_OWNER,
     "admin": SystemRoleCode.SPACE_ADMIN,
-    "event_manager": SystemRoleCode.SPACE_ACTIVITY_MANAGER,
+    "event_manager": SystemRoleCode.ACTIVITY_MANAGER,
     "finance": SystemRoleCode.FINANCE,
     "marketing": SystemRoleCode.MARKETING,
     "scanner_manager": SystemRoleCode.ACCESS_MANAGER,
