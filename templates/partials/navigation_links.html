@@ -9,6 +9,7 @@
     <a href="{% url 'discovery:bookmarks' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'bookmarks' %}is-active{% endif %}"><i data-lucide="heart"></i><span>Favoris</span></a>
     <a href="{% url 'discovery:my-events' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'my-events' %}is-active{% endif %}"><i data-lucide="calendar-check-2"></i><span>Mes événements</span></a>
     <a href="{% url 'tickets:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'tickets' and not caps.has_organizer_tools %}is-active{% endif %}"><i data-lucide="ticket-check"></i><span>Mes billets</span></a>
+    <a href="{% url 'groups:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'groups' %}is-active{% endif %}"><i data-lucide="users"></i><span>Mes groupes</span></a>
     <a href="{% url 'organizations:following' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' and request.resolver_match.url_name == 'following' %}is-active{% endif %}"><i data-lucide="heart-handshake"></i><span>Suivis</span></a>
     <a href="{% url 'account:profile' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'account' %}is-active{% endif %}"><i data-lucide="user-round"></i><span>Profil</span></a>
 

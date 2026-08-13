@@ -8,7 +8,17 @@ logger = logging.getLogger(__name__)
 
 
 def error_403(request, exception=None):
-    return render(request, "errors/403.html", status=403)
+    base_template = (
+        "base/app.html"
+        if getattr(getattr(request, "user", None), "is_authenticated", False)
+        else "base/public.html"
+    )
+    return render(
+        request,
+        "errors/403.html",
+        {"error_base_template": base_template},
+        status=403,
+    )
 
 
 def error_404(request, exception=None):

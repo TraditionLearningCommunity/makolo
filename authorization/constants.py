@@ -12,6 +12,16 @@ class PermissionCode:
     SPACE_MANAGE = "space.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
     SPACE_OWNERSHIP_MANAGE = "space.ownership.manage"
+    SPACE_GROUPS_VIEW = "space.groups.view"
+    SPACE_GROUPS_MANAGE = "space.groups.manage"
+
+    GROUP_VIEW = "group.view"
+    GROUP_MANAGE = "group.manage"
+    GROUP_MEMBERS_VIEW = "group.members.view"
+    GROUP_MEMBERS_MANAGE = "group.members.manage"
+    GROUP_INVITATIONS_MANAGE = "group.invitations.manage"
+    GROUP_SNAPSHOTS_CREATE = "group.snapshots.create"
+    GROUP_OWNERSHIP_MANAGE = "group.ownership.manage"
 
     ACTIVITY_MANAGE = "activity.manage"
     ORDERS_VIEW = "orders.view"
@@ -51,12 +61,27 @@ class SystemRoleCode:
     FINANCE = "finance"
     MARKETING = "marketing"
     ACCESS_MANAGER = "access-manager"
+    GROUP_OWNER = "group-owner"
+    GROUP_ADMIN = "group-admin"
+    GROUP_MODERATOR = "group-moderator"
 
+
+GROUP_PERMISSION_CODES = {
+    PermissionCode.GROUP_VIEW,
+    PermissionCode.GROUP_MANAGE,
+    PermissionCode.GROUP_MEMBERS_VIEW,
+    PermissionCode.GROUP_MEMBERS_MANAGE,
+    PermissionCode.GROUP_INVITATIONS_MANAGE,
+    PermissionCode.GROUP_SNAPSHOTS_CREATE,
+    PermissionCode.GROUP_OWNERSHIP_MANAGE,
+}
 
 SPACE_PERMISSION_CODES = {
     value
     for name, value in PermissionCode.__dict__.items()
-    if name.isupper() and value != PermissionCode.PLATFORM_MANAGE
+    if name.isupper()
+    and value != PermissionCode.PLATFORM_MANAGE
+    and value not in GROUP_PERMISSION_CODES
 }
 
 STANDARD_SPACE_ROLE_CODES = {
@@ -66,6 +91,12 @@ STANDARD_SPACE_ROLE_CODES = {
     SystemRoleCode.FINANCE,
     SystemRoleCode.MARKETING,
     SystemRoleCode.ACCESS_MANAGER,
+}
+
+STANDARD_GROUP_ROLE_CODES = {
+    SystemRoleCode.GROUP_OWNER,
+    SystemRoleCode.GROUP_ADMIN,
+    SystemRoleCode.GROUP_MODERATOR,
 }
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {

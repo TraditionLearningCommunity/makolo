@@ -68,6 +68,11 @@ class Organization(models.Model):
             self.slug = candidate
         super().save(*args, **kwargs)
 
+    @property
+    def primary_team(self):
+        """Return the canonical default Team for this Espace, when present."""
+        return self.teams.filter(is_default=True).first()
+
     def __str__(self):
         return self.name
 

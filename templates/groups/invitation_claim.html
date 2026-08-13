@@ -1,0 +1,25 @@
+{% extends 'base/app.html' %}
+{% block title %}Invitation Groupe — Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-xl py-8">
+  <div class="mk-card p-7 text-center">
+    <h1 class="text-2xl font-black" style="color:var(--mk-text)">Invitation à un Groupe Makolo</h1>
+    {% if invalid_message %}<div class="mt-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">{{ invalid_message }}</div>{% endif %}
+
+    {% if invitation %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">Le Profil connecté correspond à l’identité prévue. Vous pouvez rejoindre <strong>{{ invitation.group.name }}</strong>.</p>
+      <form method="post" class="mt-6 flex flex-wrap justify-center gap-3">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit" name="action" value="accept">Rejoindre le Groupe</button><button class="mk-btn mk-btn-secondary" type="submit" name="action" value="reject">Refuser</button></form>
+    {% elif needs_verification %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">Ce compte utilise l’e-mail prévu par l’invitation, mais cette identité doit encore être prouvée. Le Groupe reste masqué jusqu’à la vérification.</p>
+      {% if verification_sent %}<p class="mt-3 text-sm font-bold" style="color:var(--mk-text)">Un code à 8 chiffres vient d’être envoyé à l’adresse invitée.</p>{% endif %}
+      <form method="post" class="mt-6 space-y-3">{% csrf_token %}<button class="mk-btn mk-btn-secondary w-full justify-center" type="submit" name="action" value="request-verification">{% if verification_sent %}Renvoyer un code{% else %}Envoyer un code de vérification{% endif %}</button></form>
+      {% if verification_sent or invalid_message %}<form method="post" class="mt-4 space-y-3">{% csrf_token %}<label for="verification_code" class="block text-left text-xs font-bold" style="color:var(--mk-text)">Code de vérification</label><input id="verification_code" name="verification_code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required class="w-full rounded-xl border px-3 py-2 text-center tracking-[.2em]" placeholder="00000000"><button class="mk-btn mk-btn-primary w-full justify-center" type="submit" name="action" value="verify-identity">Vérifier mon identité</button></form>{% endif %}
+    {% elif login_url %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">Connectez-vous ou créez votre compte avec l’identité à laquelle l’invitation est destinée. Le nom du Groupe et les données de la personne invitée restent masqués avant validation.</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3"><a class="mk-btn mk-btn-primary" href="{{ login_url }}">Se connecter</a><a class="mk-btn mk-btn-secondary" href="{{ register_url }}">Créer un compte</a></div>
+    {% elif invalid_message %}
+      <a href="{% url 'groups:list' %}" class="mk-btn mk-btn-secondary mt-5">Mes Groupes</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

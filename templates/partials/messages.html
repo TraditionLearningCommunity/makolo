@@ -1,12 +1,12 @@
 {% if messages %}
 <div class="pointer-events-none fixed right-4 top-[84px] z-[90] w-[min(92vw,420px)] space-y-2 sm:right-6">
     {% for message in messages %}
-    <div x-data="{show:true}" x-show="show" x-transition class="mk-toast pointer-events-auto flex items-start gap-3 rounded-2xl p-4" role="status">
+    <div x-data="{show:true}" x-show="show" x-transition class="mk-toast pointer-events-none flex items-start gap-3 rounded-2xl p-4" role="status">
         <div class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl {% if 'error' in message.tags %}bg-rose-500/10 text-rose-500{% elif 'warning' in message.tags %}bg-amber-500/10 text-amber-500{% elif 'success' in message.tags %}bg-emerald-500/10 text-emerald-500{% else %}bg-indigo-500/10 text-indigo-500{% endif %}">
             {% if 'error' in message.tags %}<i data-lucide="circle-alert" class="h-4 w-4"></i>{% elif 'warning' in message.tags %}<i data-lucide="triangle-alert" class="h-4 w-4"></i>{% elif 'success' in message.tags %}<i data-lucide="circle-check" class="h-4 w-4"></i>{% else %}<i data-lucide="info" class="h-4 w-4"></i>{% endif %}
         </div>
         <p class="min-w-0 flex-1 pt-1 text-sm font-medium leading-6" style="color:var(--mk-text)">{{ message }}</p>
-        <button type="button" @click="show=false" class="rounded-lg p-1 transition hover:bg-black/5 dark:hover:bg-white/5" aria-label="Fermer"><i data-lucide="x" class="h-4 w-4" style="color:var(--mk-subtle)"></i></button>
+        <button type="button" @click="show=false" class="pointer-events-auto rounded-lg p-1 transition hover:bg-black/5 dark:hover:bg-white/5" aria-label="Fermer"><i data-lucide="x" class="h-4 w-4" style="color:var(--mk-subtle)"></i></button>
     </div>
     {% endfor %}
 </div>

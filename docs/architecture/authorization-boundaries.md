@@ -12,14 +12,17 @@ La source canonique est :
 Profil + Rôle + Portée = Mandat
 ```
 
-Pour cette première migration, les portées réellement implémentées sont :
+Les portées réellement implémentées sont désormais :
 
 - `platform` — plateforme Makolo ;
-- `space` — un Espace précis, techniquement encore représenté par `organizations.Organization`.
+- `space` — un Espace précis, techniquement encore représenté par `organizations.Organization` ;
+- `group` — un Groupe précis, représenté par `groups.Group`.
 
-Les portées Activity et Group seront ajoutées lorsque ces domaines canoniques existeront. Aucun `ContentType` ou `GenericForeignKey` n'est utilisé pour simuler ces futures portées.
+La portée Activity sera ajoutée lorsque ce domaine canonique existera. Aucun `ContentType` ou `GenericForeignKey` n'est utilisé pour simuler les futures portées.
 
 `TeamMembership` exprime uniquement la collaboration dans une Équipe. Il ne porte aucune Permission. Les actions d'équipe créent transactionnellement la `TeamMembership` et le `Mandate` correspondant afin de conserver une UX simple sans confondre appartenance et autorité.
+
+`GroupMembership` exprime uniquement l'appartenance d'un Profil à une population. Il ne porte lui non plus aucune Permission. L'administration d'un Groupe passe par un Mandat Groupe explicite ou, pour un Groupe appartenant à un Espace, par la règle d'héritage `space.groups.*` décrite plus bas.
 
 ## Staff Django et autorité Makolo
 
@@ -44,6 +47,39 @@ Les anciens `OrganizationRole` sont mappés vers les rôles système canoniques 
 
 Le Propriétaire et l'Administrateur conservent les capacités opérationnelles larges existantes. La propriété reste cependant spéciale : la Permission `space.ownership.manage` appartient au Propriétaire, pas à l'Administrateur. Un Espace doit toujours conserver au moins un Mandat propriétaire actif.
 
+## Rôles système Groupe
+
+Le bounded context `groups` introduit trois responsabilités administratives simples :
+
+| Rôle | Responsabilité |
+|---|---|
+| `group-owner` | Administration complète et transfert de propriété d'un Groupe personnel |
+| `group-admin` | Informations, membres, invitations et snapshots, sans transfert de propriété |
+| `group-moderator` | Lecture et gestion courante des membres |
+
+Il n'existe volontairement **aucun rôle « membre »**. Être membre est un `GroupMembership`, pas un Mandat.
+
+Les Permissions Groupe stables sont notamment :
+
+```text
+group.view
+group.manage
+group.members.view
+group.members.manage
+group.invitations.manage
+group.snapshots.create
+group.ownership.manage
+```
+
+Les Permissions Espace qui gouvernent les Groupes appartenant à un Espace sont :
+
+```text
+space.groups.view
+space.groups.manage
+```
+
+Elles sont composées dans les rôles système Propriétaire/Admin d'Espace ; elles ne sont pas accordées automatiquement à tous les membres d'une Équipe.
+
 ## Matrice minimale
 
 | Domaine | Propriétaire/Admin | Responsable activité | Finance | Marketing | Responsable accès | Profil utilisateur |
@@ -54,6 +90,7 @@ Le Propriétaire et l'Administrateur conservent les capacités opérationnelles 
 | Paiements / remboursements | Oui | Non | Oui | Non | Non | Ses paiements |
 | Billets / identité titulaire | Oui | Oui | Non | Non | Oui | Ses billets |
 | Scanner / journaux d'accès | Oui | Oui | Non | Non | Oui | Non |
+| Groupes de l'Espace | Oui | Non | Non | Non | Non | Selon appartenance/Mandat Groupe |
 | Partenaires / campagnes d'affiliation | Oui | Non | Finance partenaire seulement | Oui | Non | Son portail partenaire si lié |
 | Promotions — règles/codes | Oui | Lecture | Lecture | Oui | Non | Utilisation au checkout |
 | Promotions — détail financier des remises | Oui | Non | Oui | Non | Non | Sa commande uniquement |
@@ -87,7 +124,10 @@ can(profile, "space.manage", space)
 can(profile, "finance.view", space)
 can(profile, "activity.manage", space)
 can(profile, "access.manage", space)
+can(profile, "group.members.manage", group=group)
 ```
+
+La signature historique avec l'Espace positionnel reste compatible. La portée Groupe utilise un argument explicite `group=` et aucune résolution générique par `ContentType`.
 
 Le résolveur vérifie :
 
@@ -99,13 +139,24 @@ Le résolveur vérifie :
 6. `valid_from` / `valid_until` ;
 7. privilège superuser ou Mandat plateforme lorsque pertinent.
 
-`effective_permission_codes`, `can_many` et `space_ids_with_permission` permettent aux dashboards, navigations et selectors de résoudre les capacités sans refaire une requête par élément de menu.
+`effective_permission_codes`, `can_many`, `space_ids_with_permission` et `group_ids_with_permission` permettent aux dashboards, navigations et selectors de résoudre les capacités sans refaire une requête par élément de menu.
+
+## Héritage Espace → Groupe
+
+Un Groupe d'Espace ne reçoit pas une copie des Mandats Espace. L'héritage est une règle métier explicite de `groups.services` :
+
+1. vérifier d'abord une Permission Groupe directe sur le Groupe exact ;
+2. sinon, si `Group.space` est renseigné, accepter `space.groups.manage` pour les opérations de gestion ;
+3. pour les lectures administratives, accepter `space.groups.view` ou `space.groups.manage` ;
+4. ne jamais utiliser une Permission détenue sur un autre Espace.
+
+Cette règle permet la continuité administrative des Groupes d'Espace sans créer des centaines de Mandats artificiels. Un Mandat Groupe local ne donne réciproquement aucune autorité sur l'Espace.
 
 ## Sélecteurs comme frontière de lecture
 
-Les lectures web/API utilisent les selectors ou Permissions explicites du domaine (`events.selectors`, `tickets.selectors`, `payments.selectors`, `scanner.selectors`, `partners.selectors`, `crm.selectors`, `loyalty.selectors`, `analytics_app.selectors`, Growth et Promotions) au lieu de filtrer simplement sur `organization__memberships__user`.
+Les lectures web/API utilisent les selectors ou Permissions explicites du domaine (`events.selectors`, `tickets.selectors`, `payments.selectors`, `scanner.selectors`, `partners.selectors`, `crm.selectors`, `loyalty.selectors`, `analytics_app.selectors`, Growth, Promotions et désormais `groups.selectors`) au lieu de filtrer simplement sur `organization__memberships__user`.
 
-Les mutations continuent à passer par les services de domaine (`user_can_manage_event`, `user_can_manage_event_finance`, `user_can_manage_event_access`, `user_can_manage_partners`, `user_can_manage_crm`, `user_can_manage_promotions`, `user_can_manage_loyalty_strategy`, etc.). Ces helpers sont maintenant des adaptateurs lisibles autour de Permissions canoniques lorsqu'une portée Espace existe.
+Les mutations continuent à passer par les services de domaine (`user_can_manage_event`, `user_can_manage_event_finance`, `user_can_manage_event_access`, `user_can_manage_partners`, `user_can_manage_crm`, `user_can_manage_promotions`, `user_can_manage_loyalty_strategy`, etc.). Ces helpers sont maintenant des adaptateurs lisibles autour de Permissions canoniques lorsqu'une portée Espace existe. Les écritures Groupe passent par `groups.services`.
 
 La règle reste :
 
@@ -113,7 +164,7 @@ La règle reste :
 2. la Permission valide ce qui peut être ciblé ;
 3. le service applique la transition métier et les verrous transactionnels.
 
-## Propriété et équipe
+## Propriété, équipe et Groupe
 
 Chaque nouvel Espace est créé transactionnellement avec :
 
@@ -126,6 +177,18 @@ Chaque nouvel Espace est créé transactionnellement avec :
 Ajouter une personne via l'interface d'équipe effectue également une écriture cohérente TeamMembership + Mandate. Être TeamMember sans Mandat ne donne aucune autorité.
 
 La révocation ou désactivation du dernier propriétaire est refusée. Après ajout d'un second propriétaire, le premier peut transférer/quitter sa responsabilité sans casser l'invariant.
+
+Un Groupe possède exactement un propriétaire logique : soit un Espace, soit un Profil personnel. Pour un Groupe personnel actif, la propriété logique et le Mandat `group-owner` sont maintenus séparément mais de façon cohérente. Le transfert accorde d'abord le Mandat au nouveau propriétaire, change `owner_profile`, puis révoque l'ancien Mandat. La suppression/anonymisation du compte est bloquée tant qu'un Groupe personnel actif n'a pas été transféré ou archivé.
+
+## Verrous transactionnels PostgreSQL
+
+Les services transactionnels Groups appliquent la discipline issue de la migration Espace :
+
+- `select_for_update()` cible la table réellement nécessaire ;
+- les `Meta.ordering` relationnels sont neutralisés par `.order_by()` avant les locks ;
+- aucune FK nullable n'est `select_related()` dans un SELECT verrouillé ;
+- les relations nécessaires sont chargées après le lock ;
+- les conflits d'unicité récupérables de l'import CSV sont isolés dans des savepoints imbriqués afin qu'un `IntegrityError` n'empoisonne pas la transaction PostgreSQL extérieure.
 
 ## Promotions et prix côté serveur
 
@@ -152,13 +215,30 @@ La source canonique d'autorité est désormais `authorization.Mandate`. Les méc
 - `OrganizationMembership.role` : projection de compatibilité pour anciens callsites/API/fixtures. Les services et le signal de transition maintiennent TeamMembership + Mandate synchronisés pendant le cutover ;
 - `OrganizationRole` : vocabulaire historique mappé vers les rôles système ;
 - `User.is_organizer` et `User.is_scanner_agent` : uniquement chemins historiques sans Espace encore migré ;
-- `accounts.Role`, `PermissionGroup`, `User.roles`, `User.permission_groups` : ancien RBAC global conservé pour compatibilité des contrats existants, jamais utilisé comme autorité contextuelle d'un Espace ;
+- `accounts.Role`, `PermissionGroup`, `User.roles`, `User.permission_groups` : ancien RBAC global conservé pour compatibilité des contrats existants, jamais utilisé comme autorité contextuelle d'un Espace ou d'un Groupe ;
 - `Event.organizer` : fallback des anciens événements sans Organization.
 
+Le modèle canonique `groups.Group` évite également toute collision avec `User.groups`, nom déjà utilisé par l'auth Django, grâce à des relations `collective_*` explicites.
+
 Aucune nouvelle fonctionnalité ne doit lire `OrganizationMembership.role` pour décider une autorisation. La migration Activity/Occurrence permettra de retirer une nouvelle couche de ces adaptateurs.
+
+## Migrations Groupe
+
+La portée Groupe est introduite sans relation générique :
+
+- `groups.0001_initial` crée `Group`, `GroupMembership`, `GroupInvitation`, `GroupSnapshot` et `GroupSnapshotMember` ;
+- `groups.0002_group_slug_blank` aligne l'état de migration avec le slug généré par le service/modèle ;
+- `groups.0003_invitation_identity_verification` conserve l'état temporaire du challenge e-mail sans stocker le code en clair ;
+- `authorization.0003_group_scope` ajoute `AuthorityScope.GROUP`, la FK explicite `Mandate.group`, les contraintes de forme de portée, les Permissions et rôles Groupe et `space.groups.*`.
+
+Aucune FK Activity factice, `GroupEligibility`, relation vers `Event`, `Ticket`, QR collectif ou modèle Access provisoire n'est créée dans cette étape.
 
 ## Régressions couvertes
 
 Les tests vérifient notamment : portée Espace correcte, refus inter-Espaces, TeamMember sans Mandat, Mandats futurs/expirés/révoqués, Rôle/Permission inactifs, séparation Finance/Marketing/Responsable activité/Responsable accès, staff sans autorité implicite, plateforme explicite, superuser, création d'Espace complète et invariant du dernier propriétaire.
+
+La suite Groups ajoute : appartenance sans autorité, isolation Groupe A/B, rôles owner/admin/moderator, héritage Espace contrôlé, import CSV jusqu'à 1 000 lignes, sécurité des invitations et challenge d'identité pour les nouveaux comptes, snapshots immuables et continuité du propriétaire d'un Groupe personnel.
+
+Le gate PostgreSQL exécute directement `authorization.tests`, les tests de portée Groupe, `organizations.tests` et `groups.tests` afin que les services transactionnels et contraintes soient validés sur PostgreSQL 16, pas uniquement sur SQLite.
 
 Les suites existantes continuent aussi à protéger la séparation des PII et finances, le consentement CRM, Promotions, Loyalty, Growth, Payments, scanner et les parcours E2E multi-rôles.

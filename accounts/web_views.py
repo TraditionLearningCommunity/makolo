@@ -1,10 +1,13 @@
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import FormView
 
@@ -40,14 +43,34 @@ def _rate_limited_form_response(view):
     return response
 
 
+def _safe_next_url(request, value):
+    value = (value or "").strip()
+    if value and url_has_allowed_host_and_scheme(
+        value,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return value
+    return ""
+
+
 class AccountRegistrationView(FormView):
     template_name = "accounts/register.html"
     form_class = AccountRegistrationForm
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            return redirect("core:dashboard")
+            next_url = _safe_next_url(request, request.GET.get("next"))
+            return redirect(next_url or "core:dashboard")
         return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["next_url"] = _safe_next_url(
+            self.request,
+            self.request.POST.get("next") or self.request.GET.get("next"),
+        )
+        return context
 
     def post(self, request, *args, **kwargs):
         if not allow_web_request(
@@ -63,7 +86,11 @@ class AccountRegistrationView(FormView):
     def form_valid(self, form):
         form.save()
         messages.success(self.request, "Compte créé. Vous pouvez maintenant vous connecter.")
-        return redirect("core:login")
+        next_url = _safe_next_url(self.request, self.request.POST.get("next"))
+        login_url = reverse("core:login")
+        if next_url:
+            login_url = f"{login_url}?{urlencode({'next': next_url})}"
+        return redirect(login_url)
 
 
 class PasswordForgotView(FormView):
