@@ -170,7 +170,7 @@ class Mandate(models.Model):
             models.Index(fields=["scope_type", "status"], name="auth_mandate_scope_status_idx"),
             models.Index(fields=["space", "status"], name="auth_mandate_space_status_idx"),
             models.Index(fields=["group", "status"], name="auth_mandate_group_status_idx"),
-            models.Index(fields=["activity", "status"], name="auth_mandate_activity_status_idx"),
+            models.Index(fields=["activity", "status"], name="auth_mand_act_status_idx"),
             models.Index(fields=["valid_from", "valid_until"], name="auth_mandate_validity_idx"),
         ]
 
