@@ -60,5 +60,5 @@ class Migration(migrations.Migration):
             model_name="mandate",
             constraint=models.UniqueConstraint(fields=("profile", "role", "scope_type", "activity"), condition=Q(scope_type="activity", status="active"), name="auth_mandate_active_activity_unique"),
         ),
-        migrations.AddIndex(model_name="mandate", index=models.Index(fields=["activity", "status"], name="auth_mandate_activity_status_idx")),
+        migrations.AddIndex(model_name="mandate", index=models.Index(fields=["activity", "status"], name="auth_mand_act_status_idx")),
     ]
