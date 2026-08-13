@@ -17,7 +17,8 @@ PERMISSIONS = [
     ("space.manage", "Gérer un Espace", "spaces", "space"),
     ("space.team.manage", "Gérer l'équipe d'un Espace", "spaces", "space"),
     ("space.ownership.manage", "Gérer la propriété d'un Espace", "spaces", "space"),
-    ("activity.manage", "Gérer les activités", "activities", "space"),
+    ("space.activities.view", "Voir les activités d'un Espace", "activities", "space"),
+    ("space.activities.manage", "Gérer les activités d'un Espace", "activities", "space"),
     ("orders.view", "Voir les commandes opérationnelles", "commerce", "space"),
     ("tickets.view", "Voir les droits/billets opérationnels", "access", "space"),
     ("finance.view", "Voir les données financières", "finance", "space"),
@@ -64,12 +65,12 @@ ROLE_DEFINITIONS = {
         "scope": "space",
         "permissions": ADMIN_PERMISSION_CODES,
     },
-    "activity-manager": {
-        "name": "Responsable activité",
+    "space-activity-manager": {
+        "name": "Responsable des activités",
         "description": "Pilotage des activités, commandes opérationnelles et accès sans finances.",
         "scope": "space",
         "permissions": [
-            "space.view", "activity.manage", "orders.view", "tickets.view", "access.manage",
+            "space.view", "space.activities.view", "space.activities.manage", "orders.view", "tickets.view", "access.manage",
             "crm.view", "promotions.view", "analytics.view", "analytics.growth.view",
             "growth.feedback.view",
         ],
@@ -105,7 +106,7 @@ ROLE_DEFINITIONS = {
 LEGACY_ROLE_MAP = {
     "owner": "space-owner",
     "admin": "space-admin",
-    "event_manager": "activity-manager",
+    "event_manager": "space-activity-manager",
     "finance": "finance",
     "marketing": "marketing",
     "scanner_manager": "access-manager",
@@ -236,5 +237,4 @@ class Migration(migrations.Migration):
         ("authorization", "0001_initial"),
         ("organizations", "0003_team_teammembership"),
     ]
-
     operations = [migrations.RunPython(seed_and_backfill, noop_reverse)]
