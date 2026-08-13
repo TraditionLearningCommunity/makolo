@@ -57,3 +57,24 @@ test('new organizer empty state keeps the create-event next action visible', asy
   await expect(page.getByText(/Aucun événement à venir/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /Créer un événement/i })).toBeVisible();
 });
+
+
+test('space owner creates a reusable place with coordinates', async ({ page }) => {
+  await login(page, 'owner@e2e.makolo.test');
+  await page.goto('/organizations/makolo-e2e-events/');
+  await page.getByRole('link', { name: 'Lieux' }).click();
+  await page.getByRole('link', { name: 'Ajouter un lieu' }).click();
+  await page.getByLabel('Nom du lieu').fill('Agence Centre-ville');
+  await page.getByLabel('Adresse').fill('12 avenue des Tests');
+  await page.getByLabel('Ville / localité').fill('Lubumbashi');
+  await page.getByLabel('Province / région').fill('Haut-Katanga');
+  await page.getByLabel('Pays').fill('CD');
+  await page.getByLabel('Latitude').fill('-11.664000');
+  await page.getByLabel('Longitude').fill('27.479000');
+  await page.getByLabel('Fuseau horaire').fill('Africa/Lubumbashi');
+  await page.getByLabel('Rôle du lieu').selectOption('branch');
+  await page.getByLabel('Lieu principal pour ce rôle').check();
+  await page.getByRole('button', { name: 'Ajouter le lieu' }).click();
+  await expect(page.getByRole('heading', { name: 'Agence Centre-ville' })).toBeVisible();
+  await expect(page.getByText(/Coordonnées : -11\.664000, 27\.479000/)).toBeVisible();
+});
