@@ -2,7 +2,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
-from authorization.services import activity_ids_with_permission
+from authorization.services import activity_ids_with_permission, space_ids_with_permission
 from organizations.models import OrganizationVerificationStatus
 
 from .models import Event, EventStatus, EventVisibility
@@ -27,6 +27,15 @@ def get_events_available_for_ticket_purchase():
     return get_events().filter(status=EventStatus.PUBLISHED, visibility__in=[EventVisibility.PUBLIC, EventVisibility.UNLISTED]).filter(_organization_is_not_suspended_filter())
 
 
+def _legacy_space_filter(user, permission_code):
+    space_ids = space_ids_with_permission(user, permission_code)
+    if space_ids is None:
+        return None
+    if not space_ids:
+        return Q(pk__isnull=True)
+    return Q(activity__isnull=True, organization_id__in=space_ids)
+
+
 def get_events_visible_to(user, *, for_detail: bool = False):
     queryset = get_events()
     public_visibilities = [EventVisibility.PUBLIC]
@@ -39,7 +48,10 @@ def get_events_visible_to(user, *, for_detail: bool = False):
     if activity_ids is None:
         return queryset
     contextual_filter = Q(activity_id__in=activity_ids) if activity_ids else Q(pk__isnull=True)
-    return queryset.filter(public_filter | Q(organizer=user) | contextual_filter).distinct()
+    legacy_space_filter = _legacy_space_filter(user, PermissionCode.SPACE_ACTIVITIES_VIEW)
+    if legacy_space_filter is None:
+        return queryset
+    return queryset.filter(public_filter | Q(organizer=user) | contextual_filter | legacy_space_filter).distinct()
 
 
 def get_manageable_events(user):
@@ -50,4 +62,8 @@ def get_manageable_events(user):
     if activity_ids is None:
         return queryset
     contextual_filter = Q(activity_id__in=activity_ids) if activity_ids else Q(pk__isnull=True)
-    return queryset.filter(contextual_filter | Q(activity__isnull=True, organization__isnull=True, organizer=user)).distinct()
+    legacy_space_filter = _legacy_space_filter(user, PermissionCode.SPACE_ACTIVITIES_MANAGE)
+    if legacy_space_filter is None:
+        return queryset
+    legacy_personal_filter = Q(activity__isnull=True, organization__isnull=True, organizer=user)
+    return queryset.filter(contextual_filter | legacy_space_filter | legacy_personal_filter).distinct()
