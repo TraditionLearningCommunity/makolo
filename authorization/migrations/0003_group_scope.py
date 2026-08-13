@@ -160,6 +160,10 @@ class Migration(migrations.Migration):
             name="group",
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name="authority_mandates", to="groups.group"),
         ),
+        migrations.AlterModelOptions(
+            name="mandate",
+            options={"ordering": ["scope_type", "space__name", "group__name", "profile__email", "role__name"]},
+        ),
         migrations.RemoveConstraint(model_name="role", name="auth_role_scope_organization_valid"),
         migrations.AddConstraint(
             model_name="role",
