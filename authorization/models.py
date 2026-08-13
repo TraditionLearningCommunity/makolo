@@ -11,6 +11,7 @@ class AuthorityScope(models.TextChoices):
     PLATFORM = "platform", "Plateforme Makolo"
     SPACE = "space", "Espace"
     GROUP = "group", "Groupe"
+    ACTIVITY = "activity", "Activité"
 
 
 class MandateStatus(models.TextChoices):
@@ -56,12 +57,7 @@ class Role(models.Model):
         blank=True,
         help_text="Renseigné uniquement pour un rôle personnalisé propre à un Espace.",
     )
-    permissions = models.ManyToManyField(
-        Permission,
-        through="RolePermission",
-        related_name="roles",
-        blank=True,
-    )
+    permissions = models.ManyToManyField(Permission, through="RolePermission", related_name="roles", blank=True)
     is_system = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -70,22 +66,15 @@ class Role(models.Model):
     class Meta:
         ordering = ["scope_type", "name"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["code"],
-                condition=Q(is_system=True),
-                name="auth_role_system_code_unique",
-            ),
-            models.UniqueConstraint(
-                fields=["organization", "code"],
-                condition=Q(is_system=False),
-                name="auth_role_custom_space_code_unique",
-            ),
+            models.UniqueConstraint(fields=["code"], condition=Q(is_system=True), name="auth_role_system_code_unique"),
+            models.UniqueConstraint(fields=["organization", "code"], condition=Q(is_system=False), name="auth_role_custom_space_code_unique"),
             models.CheckConstraint(
                 condition=(
                     Q(scope_type=AuthorityScope.PLATFORM, is_system=True, organization__isnull=True)
                     | Q(scope_type=AuthorityScope.SPACE, is_system=True, organization__isnull=True)
                     | Q(scope_type=AuthorityScope.SPACE, is_system=False, organization__isnull=False)
                     | Q(scope_type=AuthorityScope.GROUP, is_system=True, organization__isnull=True)
+                    | Q(scope_type=AuthorityScope.ACTIVITY, is_system=True, organization__isnull=True)
                 ),
                 name="auth_role_scope_organization_valid",
             ),
@@ -104,6 +93,8 @@ class Role(models.Model):
             errors["organization"] = "Un rôle personnalisé Espace doit appartenir à un Espace."
         if self.scope_type == AuthorityScope.GROUP and (not self.is_system or self.organization_id):
             errors["scope_type"] = "Les rôles Groupe disponibles actuellement sont des rôles système Makolo."
+        if self.scope_type == AuthorityScope.ACTIVITY and (not self.is_system or self.organization_id):
+            errors["scope_type"] = "Les rôles Activité disponibles actuellement sont des rôles système Makolo."
         if errors:
             raise ValidationError(errors)
 
@@ -114,35 +105,19 @@ class Role(models.Model):
 class RolePermission(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="role_permissions")
-    permission = models.ForeignKey(
-        Permission,
-        on_delete=models.PROTECT,
-        related_name="role_permissions",
-    )
+    permission = models.ForeignKey(Permission, on_delete=models.PROTECT, related_name="role_permissions")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["role__name", "permission__code"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["role", "permission"],
-                name="auth_role_permission_unique",
-            )
-        ]
-        indexes = [
-            models.Index(fields=["permission", "role"], name="auth_role_perm_lookup_idx"),
-        ]
+        constraints = [models.UniqueConstraint(fields=["role", "permission"], name="auth_role_permission_unique")]
+        indexes = [models.Index(fields=["permission", "role"], name="auth_role_perm_lookup_idx")]
 
     def clean(self):
         super().clean()
         if self.role_id and self.permission_id and self.role.scope_type != self.permission.scope_type:
             raise ValidationError("Le rôle et la permission doivent partager la même portée.")
-        if (
-            self.role_id
-            and not self.role.is_system
-            and self.permission_id
-            and self.permission.scope_type != AuthorityScope.SPACE
-        ):
+        if self.role_id and not self.role.is_system and self.permission_id and self.permission.scope_type != AuthorityScope.SPACE:
             raise ValidationError("Un rôle personnalisé ne peut contenir que des permissions Espace.")
 
     def __str__(self):
@@ -151,41 +126,16 @@ class RolePermission(models.Model):
 
 class Mandate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    profile = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="authority_mandates",
-    )
+    profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="authority_mandates")
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="mandates")
     scope_type = models.CharField(max_length=16, choices=AuthorityScope.choices)
-    space = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.CASCADE,
-        related_name="authority_mandates",
-        null=True,
-        blank=True,
-    )
-    group = models.ForeignKey(
-        "groups.Group",
-        on_delete=models.CASCADE,
-        related_name="authority_mandates",
-        null=True,
-        blank=True,
-    )
-    status = models.CharField(
-        max_length=16,
-        choices=MandateStatus.choices,
-        default=MandateStatus.ACTIVE,
-    )
+    space = models.ForeignKey("organizations.Organization", on_delete=models.CASCADE, related_name="authority_mandates", null=True, blank=True)
+    group = models.ForeignKey("groups.Group", on_delete=models.CASCADE, related_name="authority_mandates", null=True, blank=True)
+    activity = models.ForeignKey("activities.Activity", on_delete=models.CASCADE, related_name="authority_mandates", null=True, blank=True)
+    status = models.CharField(max_length=16, choices=MandateStatus.choices, default=MandateStatus.ACTIVE)
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)
-    granted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="authority_mandates_granted",
-        null=True,
-        blank=True,
-    )
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="authority_mandates_granted", null=True, blank=True)
     granted_at = models.DateTimeField(default=timezone.now)
     revoked_at = models.DateTimeField(null=True, blank=True)
     source = models.CharField(max_length=80, default="service")
@@ -193,57 +143,43 @@ class Mandate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["scope_type", "space__name", "group__name", "profile__email", "role__name"]
+        ordering = ["scope_type", "space__name", "group__name", "activity__title", "profile__email", "role__name"]
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    Q(scope_type=AuthorityScope.PLATFORM, space__isnull=True, group__isnull=True)
-                    | Q(scope_type=AuthorityScope.SPACE, space__isnull=False, group__isnull=True)
-                    | Q(scope_type=AuthorityScope.GROUP, space__isnull=True, group__isnull=False)
+                    Q(scope_type=AuthorityScope.PLATFORM, space__isnull=True, group__isnull=True, activity__isnull=True)
+                    | Q(scope_type=AuthorityScope.SPACE, space__isnull=False, group__isnull=True, activity__isnull=True)
+                    | Q(scope_type=AuthorityScope.GROUP, space__isnull=True, group__isnull=False, activity__isnull=True)
+                    | Q(scope_type=AuthorityScope.ACTIVITY, space__isnull=True, group__isnull=True, activity__isnull=False)
                 ),
                 name="auth_mandate_scope_target_valid",
             ),
-            models.CheckConstraint(
-                condition=(
-                    Q(valid_until__isnull=True)
-                    | Q(valid_from__isnull=True)
-                    | Q(valid_until__gt=F("valid_from"))
-                ),
-                name="auth_mandate_valid_window",
-            ),
-            models.UniqueConstraint(
-                fields=["profile", "role", "scope_type"],
-                condition=Q(scope_type=AuthorityScope.PLATFORM, status=MandateStatus.ACTIVE),
-                name="auth_mandate_active_platform_unique",
-            ),
-            models.UniqueConstraint(
-                fields=["profile", "role", "scope_type", "space"],
-                condition=Q(scope_type=AuthorityScope.SPACE, status=MandateStatus.ACTIVE),
-                name="auth_mandate_active_space_unique",
-            ),
-            models.UniqueConstraint(
-                fields=["profile", "role", "scope_type", "group"],
-                condition=Q(scope_type=AuthorityScope.GROUP, status=MandateStatus.ACTIVE),
-                name="auth_mandate_active_group_unique",
-            ),
+            models.CheckConstraint(condition=Q(valid_until__isnull=True) | Q(valid_from__isnull=True) | Q(valid_until__gt=F("valid_from")), name="auth_mandate_valid_window"),
+            models.UniqueConstraint(fields=["profile", "role", "scope_type"], condition=Q(scope_type=AuthorityScope.PLATFORM, status=MandateStatus.ACTIVE), name="auth_mandate_active_platform_unique"),
+            models.UniqueConstraint(fields=["profile", "role", "scope_type", "space"], condition=Q(scope_type=AuthorityScope.SPACE, status=MandateStatus.ACTIVE), name="auth_mandate_active_space_unique"),
+            models.UniqueConstraint(fields=["profile", "role", "scope_type", "group"], condition=Q(scope_type=AuthorityScope.GROUP, status=MandateStatus.ACTIVE), name="auth_mandate_active_group_unique"),
+            models.UniqueConstraint(fields=["profile", "role", "scope_type", "activity"], condition=Q(scope_type=AuthorityScope.ACTIVITY, status=MandateStatus.ACTIVE), name="auth_mandate_active_activity_unique"),
         ]
         indexes = [
             models.Index(fields=["profile", "status"], name="auth_mand_prof_status_idx"),
             models.Index(fields=["scope_type", "status"], name="auth_mandate_scope_status_idx"),
             models.Index(fields=["space", "status"], name="auth_mandate_space_status_idx"),
             models.Index(fields=["group", "status"], name="auth_mandate_group_status_idx"),
+            models.Index(fields=["activity", "status"], name="auth_mandate_activity_status_idx"),
             models.Index(fields=["valid_from", "valid_until"], name="auth_mandate_validity_idx"),
         ]
 
     def clean(self):
         super().clean()
         errors = {}
-        if self.scope_type == AuthorityScope.PLATFORM and (self.space_id or self.group_id):
-            errors["scope_type"] = "Un Mandat plateforme ne cible ni Espace ni Groupe."
-        if self.scope_type == AuthorityScope.SPACE and (not self.space_id or self.group_id):
+        if self.scope_type == AuthorityScope.PLATFORM and (self.space_id or self.group_id or self.activity_id):
+            errors["scope_type"] = "Un Mandat plateforme ne cible aucun objet local."
+        if self.scope_type == AuthorityScope.SPACE and (not self.space_id or self.group_id or self.activity_id):
             errors["scope_type"] = "Un Mandat Espace doit cibler uniquement un Espace."
-        if self.scope_type == AuthorityScope.GROUP and (not self.group_id or self.space_id):
+        if self.scope_type == AuthorityScope.GROUP and (not self.group_id or self.space_id or self.activity_id):
             errors["scope_type"] = "Un Mandat Groupe doit cibler uniquement un Groupe."
+        if self.scope_type == AuthorityScope.ACTIVITY and (not self.activity_id or self.space_id or self.group_id):
+            errors["scope_type"] = "Un Mandat Activité doit cibler uniquement une Activité."
         if self.role_id and self.role.scope_type != self.scope_type:
             errors["role"] = "Le rôle ne correspond pas à la portée du Mandat."
         if self.valid_from and self.valid_until and self.valid_until <= self.valid_from:
@@ -255,9 +191,7 @@ class Mandate(models.Model):
 
     def is_current(self, at=None):
         at = at or timezone.now()
-        if self.status != MandateStatus.ACTIVE or self.revoked_at:
-            return False
-        if not self.role.is_active:
+        if self.status != MandateStatus.ACTIVE or self.revoked_at or not self.role.is_active:
             return False
         if self.valid_from and at < self.valid_from:
             return False
@@ -270,6 +204,8 @@ class Mandate(models.Model):
             target = "Makolo"
         elif self.scope_type == AuthorityScope.SPACE:
             target = self.space
-        else:
+        elif self.scope_type == AuthorityScope.GROUP:
             target = self.group
+        else:
+            target = self.activity
         return f"{self.profile} — {self.role} — {target}"
