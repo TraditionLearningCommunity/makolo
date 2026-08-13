@@ -16,6 +16,7 @@ from events.models import (
     EventVisibility,
     VenueKind,
 )
+from geography.models import Place
 from operations.models import (
     IncidentCategory,
     IncidentSeverity,
@@ -56,6 +57,10 @@ class Command(BaseCommand):
             "authorization.migrations.0003_group_scope"
         )
         group_authority_seed.seed_group_authority(apps, None)
+        geography_authority_seed = importlib.import_module(
+            "authorization.migrations.0004_space_places_permissions"
+        )
+        geography_authority_seed.seed_space_place_permissions(apps, None)
 
         users = {
             key: self._user(email, username, **flags)
@@ -125,9 +130,18 @@ class Command(BaseCommand):
             name="Culture E2E",
             description="Catégorie stable pour les tests Playwright.",
         )
+        venue_place = Place.objects.create(
+            name="Centre Makolo E2E",
+            address_line="1 avenue des Tests",
+            locality="Lubumbashi",
+            country_code="CD",
+            timezone="Africa/Lubumbashi",
+            created_by=users["owner"],
+        )
         venue = EventVenue.objects.create(
             name="Centre Makolo E2E",
             kind=VenueKind.PHYSICAL,
+            place=venue_place,
             address="1 avenue des Tests",
             city="Lubumbashi",
             country="RDC",
