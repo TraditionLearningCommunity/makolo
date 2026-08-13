@@ -66,6 +66,7 @@ class EventVenue(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=180)
     kind = models.CharField(max_length=20, choices=VenueKind.choices, default=VenueKind.PHYSICAL)
+    place = models.ForeignKey("geography.Place", on_delete=models.SET_NULL, related_name="event_venues", null=True, blank=True)
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=120, blank=True)
@@ -89,43 +90,38 @@ class EventVenue(models.Model):
         if errors:
             raise ValidationError(errors)
 
+    @property
+    def effective_address(self):
+        return self.place.address_line if self.place_id else self.address
+
+    @property
+    def effective_city(self):
+        return self.place.locality if self.place_id else self.city
+
     def __str__(self):
-        return f"{self.name} — {self.city}" if self.city else self.name
+        city = self.effective_city
+        return f"{self.name} — {city}" if city else self.name
 
 
 class Event(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organizer = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="organized_events",
-    )
-    organization = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.PROTECT,
-        related_name="events",
-        null=True,
-        blank=True,
-    )
+    organizer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="organized_events")
+    organization = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="events", null=True, blank=True)
     category = models.ForeignKey(EventCategory, on_delete=models.SET_NULL, related_name="events", null=True, blank=True)
     venue = models.ForeignKey(EventVenue, on_delete=models.SET_NULL, related_name="events", null=True, blank=True)
-
     title = models.CharField(max_length=220)
     slug = models.SlugField(max_length=240, unique=True, blank=True)
     short_description = models.CharField(max_length=320, blank=True)
     description = models.TextField(blank=True)
     cover_image = models.ImageField(upload_to=event_cover_path, validators=[validate_event_cover], blank=True, null=True)
-
     status = models.CharField(max_length=20, choices=EventStatus.choices, default=EventStatus.DRAFT)
     visibility = models.CharField(max_length=20, choices=EventVisibility.choices, default=EventVisibility.PUBLIC)
-
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
     registration_start_at = models.DateTimeField(null=True, blank=True)
     registration_end_at = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=100, default="Africa/Lubumbashi")
     capacity = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)], help_text="Laisser vide pour une capacité illimitée.")
-
     published_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -136,15 +132,8 @@ class Event(models.Model):
         ordering = ["start_at", "title"]
         verbose_name = "événement"
         verbose_name_plural = "événements"
-        constraints = [
-            models.CheckConstraint(condition=models.Q(end_at__gt=models.F("start_at")), name="event_end_after_start"),
-        ]
-        indexes = [
-            models.Index(
-                fields=["organization", "status", "start_at"],
-                name="events_even_organiz_b26406_idx",
-            )
-        ]
+        constraints = [models.CheckConstraint(condition=models.Q(end_at__gt=models.F("start_at")), name="event_end_after_start")]
+        indexes = [models.Index(fields=["organization", "status", "start_at"], name="events_even_organiz_b26406_idx")]
 
     def clean(self):
         super().clean()
@@ -152,7 +141,7 @@ class Event(models.Model):
         if self.start_at and self.end_at and self.end_at <= self.start_at:
             errors["end_at"] = "La fin doit être postérieure au début."
         if self.registration_start_at and self.registration_end_at and self.registration_end_at <= self.registration_start_at:
-            errors["registration_end_at"] = "La fin des inscriptions doit être postérieure à leur début."
+            errors["registration_end_at"] = "La fin des inscriptions doit être postérieure au début."
         if self.registration_end_at and self.end_at and self.registration_end_at > self.end_at:
             errors["registration_end_at"] = "Les inscriptions ne peuvent pas se terminer après l’événement."
         if self.registration_start_at and self.end_at and self.registration_start_at >= self.end_at:
