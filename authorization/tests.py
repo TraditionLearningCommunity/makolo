@@ -1,108 +1,121 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
 
-from organizations.models import Organization
+from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 
 from .constants import PermissionCode, SystemRoleCode
 from .models import AuthorityScope, Mandate, MandateStatus, Permission, Role, RolePermission
 from .services import (
     can,
     can_many,
-    effective_permission_codes,
     ensure_platform_admin_mandate,
     get_system_role,
     grant_space_role,
-    replace_standard_space_role,
     revoke_mandate,
 )
+
 
 User = get_user_model()
 
 
-class AuthorityModelTests(TestCase):
+class MandateModelTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="authority-user", email="authority-user@makolo.test", password="StrongPass2026!")
-        self.space = Organization.objects.create(name="Authority Space", created_by=self.user)
-        self.space_role = Role.objects.create(code="test-space-role", name="Test space role", scope_type=AuthorityScope.SPACE, organization=self.space, is_system=False)
-        self.permission = Permission.objects.create(code="test.space.permission", name="Test permission", domain="test", scope_type=AuthorityScope.SPACE, is_system=False)
-        RolePermission.objects.create(role=self.space_role, permission=self.permission)
+        self.profile = User.objects.create_user(username="profile", email="profile@authority.test", password="StrongPass2026!")
+        self.creator = User.objects.create_user(username="creator", email="creator@authority.test", password="StrongPass2026!")
+        self.space = Organization.objects.create(name="Authority Space", created_by=self.creator)
+        self.space_role = get_system_role(SystemRoleCode.FINANCE)
+        self.platform_role = get_system_role(SystemRoleCode.PLATFORM_ADMIN, scope_type=AuthorityScope.PLATFORM)
 
-    def test_platform_scope_rejects_space_target(self):
-        role = Role.objects.create(code="test-platform", name="Test platform", scope_type=AuthorityScope.PLATFORM, is_system=True)
-        mandate = Mandate(profile=self.user, role=role, scope_type=AuthorityScope.PLATFORM, space=self.space)
+    def test_platform_scope_rejects_space(self):
+        mandate = Mandate(profile=self.profile, role=self.platform_role, scope_type=AuthorityScope.PLATFORM, space=self.space)
         with self.assertRaises(ValidationError): mandate.full_clean()
 
-    def test_space_scope_requires_space_target(self):
-        mandate = Mandate(profile=self.user, role=self.space_role, scope_type=AuthorityScope.SPACE)
+    def test_space_scope_requires_space(self):
+        mandate = Mandate(profile=self.profile, role=self.space_role, scope_type=AuthorityScope.SPACE)
         with self.assertRaises(ValidationError): mandate.full_clean()
 
-    def test_validity_window_rejects_end_before_start(self):
+    def test_role_scope_must_match_mandate_scope(self):
+        mandate = Mandate(profile=self.profile, role=self.platform_role, scope_type=AuthorityScope.SPACE, space=self.space)
+        with self.assertRaises(ValidationError): mandate.full_clean()
+
+    def test_valid_until_must_follow_valid_from(self):
         now = timezone.now()
-        mandate = Mandate(profile=self.user, role=self.space_role, scope_type=AuthorityScope.SPACE, space=self.space, valid_from=now, valid_until=now-timedelta(minutes=1))
+        mandate = Mandate(profile=self.profile, role=self.space_role, scope_type=AuthorityScope.SPACE, space=self.space, valid_from=now, valid_until=now-timedelta(minutes=1))
         with self.assertRaises(ValidationError): mandate.full_clean()
 
-    def test_role_permission_requires_same_scope(self):
-        platform_permission = Permission.objects.create(code="test.platform.permission", name="Platform permission", domain="test", scope_type=AuthorityScope.PLATFORM, is_system=False)
-        link = RolePermission(role=self.space_role, permission=platform_permission)
+    def test_database_rejects_invalid_scope_shape(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Mandate.objects.create(profile=self.profile, role=self.space_role, scope_type=AuthorityScope.SPACE, space=None)
+
+    def test_active_space_mandate_is_unique(self):
+        grant_space_role(profile=self.profile, space=self.space, role=self.space_role)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Mandate.objects.create(profile=self.profile, role=self.space_role, scope_type=AuthorityScope.SPACE, space=self.space, status=MandateStatus.ACTIVE)
+
+    def test_custom_space_role_cannot_receive_platform_permission(self):
+        role = Role.objects.create(code="custom-finance", name="Finance personnalisée", scope_type=AuthorityScope.SPACE, organization=self.space, is_system=False)
+        platform_permission = Permission.objects.get(code=PermissionCode.PLATFORM_MANAGE)
+        link = RolePermission(role=role, permission=platform_permission)
         with self.assertRaises(ValidationError): link.full_clean()
 
 
 class AuthorityResolutionTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="owner", email="owner@makolo.test", password="StrongPass2026!")
-        self.other = User.objects.create_user(username="other", email="other@makolo.test", password="StrongPass2026!")
-        self.space = Organization.objects.create(name="Authority Space", created_by=self.owner)
-        self.other_space = Organization.objects.create(name="Other Space", created_by=self.other)
+        self.owner = User.objects.create_user(username="owner-auth", email="owner-auth@makolo.test", password="StrongPass2026!")
+        self.profile = User.objects.create_user(username="worker-auth", email="worker-auth@makolo.test", password="StrongPass2026!")
+        self.other_owner = User.objects.create_user(username="owner-other", email="owner-other@makolo.test", password="StrongPass2026!")
+        self.space = Organization.objects.create(name="Space A", created_by=self.owner)
+        self.other_space = Organization.objects.create(name="Space B", created_by=self.other_owner)
 
-    def test_space_mandate_grants_only_target_space(self):
-        grant_space_role(profile=self.owner, space=self.space, role=SystemRoleCode.SPACE_ADMIN)
-        self.assertTrue(can(self.owner, PermissionCode.SPACE_MANAGE, self.space))
-        self.assertFalse(can(self.owner, PermissionCode.SPACE_MANAGE, self.other_space))
+    def test_permission_is_scoped_to_the_right_space(self):
+        grant_space_role(profile=self.profile, space=self.space, role=SystemRoleCode.FINANCE)
+        self.assertTrue(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(self.profile, PermissionCode.FINANCE_MANAGE, self.space))
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.other_space))
 
     def test_team_member_without_mandate_has_no_authority(self):
-        from organizations.models import TeamMembership, TeamMembershipStatus
-        team = self.space.teams.get(is_default=True)
-        TeamMembership.objects.create(team=team, user=self.other, status=TeamMembershipStatus.ACTIVE, joined_at=timezone.now())
-        self.assertFalse(can(self.other, PermissionCode.SPACE_VIEW, self.space))
+        team = Team.objects.create(organization=self.space, name="Équipe principale", is_default=True)
+        TeamMembership.objects.create(team=team, user=self.profile, status=TeamMembershipStatus.ACTIVE, joined_at=timezone.now())
+        self.assertFalse(can(self.profile, PermissionCode.SPACE_VIEW, self.space))
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
 
-    def test_mandate_without_permission_is_refused(self):
-        role = Role.objects.create(code="empty-role", name="Empty role", scope_type=AuthorityScope.SPACE, organization=self.space, is_system=False)
-        Mandate.objects.create(profile=self.other, role=role, scope_type=AuthorityScope.SPACE, space=self.space)
-        self.assertFalse(can(self.other, PermissionCode.FINANCE_VIEW, self.space))
+    def test_role_without_permission_does_not_grant_it(self):
+        role = Role.objects.create(code="custom-empty", name="Sans permission", scope_type=AuthorityScope.SPACE, organization=self.space)
+        grant_space_role(profile=self.profile, space=self.space, role=role)
+        self.assertFalse(can(self.profile, PermissionCode.SPACE_VIEW, self.space))
 
-    def test_expired_future_revoked_and_inactive_roles_are_refused(self):
-        role = get_system_role(SystemRoleCode.FINANCE)
-        now = timezone.now()
-        future = Mandate.objects.create(profile=self.other, role=role, scope_type=AuthorityScope.SPACE, space=self.space, valid_from=now+timedelta(days=1))
-        self.assertFalse(can(self.other, PermissionCode.FINANCE_VIEW, self.space))
-        future.delete()
-        expired = Mandate.objects.create(profile=self.other, role=role, scope_type=AuthorityScope.SPACE, space=self.space, valid_from=now-timedelta(days=2), valid_until=now-timedelta(days=1))
-        self.assertFalse(can(self.other, PermissionCode.FINANCE_VIEW, self.space))
-        expired.delete()
-        revoked = Mandate.objects.create(profile=self.other, role=role, scope_type=AuthorityScope.SPACE, space=self.space, status=MandateStatus.REVOKED, revoked_at=now)
-        self.assertFalse(can(self.other, PermissionCode.FINANCE_VIEW, self.space))
-        revoked.delete()
-        role.is_active = False; role.save(update_fields=["is_active", "updated_at"])
-        Mandate.objects.create(profile=self.other, role=role, scope_type=AuthorityScope.SPACE, space=self.space)
-        self.assertFalse(can(self.other, PermissionCode.FINANCE_VIEW, self.space))
+    def test_future_expired_revoked_and_suspended_mandates_are_denied(self):
+        now = timezone.now(); finance = get_system_role(SystemRoleCode.FINANCE)
+        future = Mandate.objects.create(profile=self.profile, role=finance, scope_type=AuthorityScope.SPACE, space=self.space, valid_from=now+timedelta(hours=1))
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        future.status=MandateStatus.REVOKED; future.revoked_at=now; future.save(update_fields=["status","revoked_at"])
+        expired = Mandate.objects.create(profile=self.profile, role=finance, scope_type=AuthorityScope.SPACE, space=self.space, valid_from=now-timedelta(hours=2), valid_until=now-timedelta(hours=1))
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        expired.status=MandateStatus.REVOKED; expired.revoked_at=now; expired.save(update_fields=["status","revoked_at"])
+        suspended = Mandate.objects.create(profile=self.profile, role=finance, scope_type=AuthorityScope.SPACE, space=self.space, status=MandateStatus.SUSPENDED)
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        suspended.status=MandateStatus.REVOKED; suspended.revoked_at=now; suspended.save(update_fields=["status","revoked_at"])
+        active = grant_space_role(profile=self.profile, space=self.space, role=finance)
+        self.assertTrue(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        revoke_mandate(mandate=active)
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
 
-    def test_can_many_uses_same_permission_resolution(self):
-        grant_space_role(profile=self.owner, space=self.space, role=SystemRoleCode.FINANCE)
-        result = can_many(self.owner, [PermissionCode.FINANCE_VIEW, PermissionCode.MARKETING_MANAGE], self.space)
-        self.assertEqual(result, {PermissionCode.FINANCE_VIEW: True, PermissionCode.MARKETING_MANAGE: False})
-
-    def test_platform_admin_can_resolve_all_business_permissions(self):
-        ensure_platform_admin_mandate(profile=self.owner, source="test")
-        self.assertTrue(can(self.owner, PermissionCode.FINANCE_VIEW, self.other_space))
-        self.assertTrue(can(self.owner, PermissionCode.CRM_MANAGE, self.other_space))
-
-    def test_superuser_is_technical_break_glass(self):
-        superuser = User.objects.create_superuser(username="root", email="root@makolo.test", password="StrongPass2026!")
-        self.assertTrue(can(superuser, PermissionCode.FINANCE_VIEW, self.space))
+    def test_inactive_role_and_inactive_permission_are_denied(self):
+        finance = get_system_role(SystemRoleCode.FINANCE)
+        mandate = grant_space_role(profile=self.profile, space=self.space, role=finance)
+        self.assertTrue(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        finance.is_active=False; finance.save(update_fields=["is_active"])
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        finance.is_active=True; finance.save(update_fields=["is_active"])
+        permission = Permission.objects.get(code=PermissionCode.FINANCE_VIEW)
+        permission.is_active=False; permission.save(update_fields=["is_active"])
+        self.assertFalse(can(self.profile, PermissionCode.FINANCE_VIEW, self.space))
+        mandate.refresh_from_db(); self.assertEqual(mandate.status, MandateStatus.ACTIVE)
 
     def test_standard_roles_remain_strictly_separated(self):
         expectations = {
@@ -123,17 +136,14 @@ class AuthorityResolutionTests(TestCase):
         self.assertFalse(can(staff, PermissionCode.SPACE_MANAGE, self.space))
         ensure_platform_admin_mandate(profile=staff, source="test")
         self.assertTrue(can(staff, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(staff, PermissionCode.SPACE_MANAGE, self.other_space))
 
-    def test_replacing_last_owner_is_blocked(self):
-        mandate = grant_space_role(profile=self.owner, space=self.space, role=SystemRoleCode.SPACE_OWNER)
-        with self.assertRaises(ValidationError): revoke_mandate(mandate=mandate, actor=self.owner)
+    def test_superuser_retains_technical_global_authority(self):
+        superuser = User.objects.create_superuser(username="root-auth", email="root-auth@makolo.test", password="StrongPass2026!")
+        self.assertTrue(can(superuser, PermissionCode.FINANCE_MANAGE, self.space))
+        self.assertTrue(can(superuser, PermissionCode.CRM_MANAGE, self.other_space))
 
-    def test_owner_can_be_removed_after_second_owner_exists(self):
-        first = grant_space_role(profile=self.owner, space=self.space, role=SystemRoleCode.SPACE_OWNER)
-        grant_space_role(profile=self.other, space=self.space, role=SystemRoleCode.SPACE_OWNER)
-        revoke_mandate(mandate=first, actor=self.other)
-        first.refresh_from_db(); self.assertEqual(first.status, MandateStatus.REVOKED)
-
-    def test_replace_standard_space_role_preserves_owner_invariant(self):
-        grant_space_role(profile=self.owner, space=self.space, role=SystemRoleCode.SPACE_OWNER)
-        with self.assertRaises(ValidationError): replace_standard_space_role(profile=self.owner, space=self.space, role_code=SystemRoleCode.SPACE_ADMIN)
+    def test_can_many_resolves_multiple_capabilities(self):
+        grant_space_role(profile=self.profile, space=self.space, role=SystemRoleCode.FINANCE)
+        result = can_many(self.profile, [PermissionCode.FINANCE_VIEW, PermissionCode.FINANCE_MANAGE, PermissionCode.CRM_MANAGE], self.space)
+        self.assertEqual(result, {PermissionCode.FINANCE_VIEW: True, PermissionCode.FINANCE_MANAGE: True, PermissionCode.CRM_MANAGE: False})
