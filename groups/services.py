@@ -316,10 +316,13 @@ def _resolve_profile_for_identity(*, email="", phone=""):
     phone_matches = list(User.objects.filter(phone=phone)[:2]) if phone else []
     if len(phone_matches) > 1:
         raise ValidationError({"phone": "Plusieurs Profils correspondent à ce téléphone; aucun choix automatique n'est sûr."})
-    by_phone = phone_matches[0] if phone_matches else None
-    if by_email and by_phone and by_email.pk != by_phone.pk:
+    phone_profile = phone_matches[0] if phone_matches else None
+    if by_email and phone_profile and by_email.pk != phone_profile.pk:
         raise ValidationError("L'e-mail et le téléphone correspondent à deux Profils différents.")
-    return by_email or by_phone
+    verified_phone_profile = (
+        phone_profile if phone_profile and getattr(phone_profile, "phone_verified", False) else None
+    )
+    return by_email or verified_phone_profile
 
 
 def _send_invitation_email(invitation_id, raw_token):
