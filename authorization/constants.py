@@ -14,6 +14,8 @@ class PermissionCode:
     SPACE_OWNERSHIP_MANAGE = "space.ownership.manage"
     SPACE_GROUPS_VIEW = "space.groups.view"
     SPACE_GROUPS_MANAGE = "space.groups.manage"
+    SPACE_PLACES_VIEW = "space.places.view"
+    SPACE_PLACES_MANAGE = "space.places.manage"
 
     GROUP_VIEW = "group.view"
     GROUP_MANAGE = "group.manage"

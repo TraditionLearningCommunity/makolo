@@ -83,6 +83,7 @@ LOCAL_APPS = [
     "authorization.apps.AuthorizationConfig",
     "organizations",
     "groups.apps.GroupsConfig",
+    "geography.apps.GeographyConfig",
     "events",
     "tickets",
     "scanner",

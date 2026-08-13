@@ -66,6 +66,13 @@ class EventVenue(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=180)
     kind = models.CharField(max_length=20, choices=VenueKind.choices, default=VenueKind.PHYSICAL)
+    place = models.ForeignKey(
+        "geography.Place",
+        on_delete=models.SET_NULL,
+        related_name="event_venues",
+        null=True,
+        blank=True,
+    )
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=120, blank=True)
@@ -89,8 +96,17 @@ class EventVenue(models.Model):
         if errors:
             raise ValidationError(errors)
 
+    @property
+    def effective_address(self):
+        return self.place.address_line if self.place_id else self.address
+
+    @property
+    def effective_city(self):
+        return self.place.locality if self.place_id else self.city
+
     def __str__(self):
-        return f"{self.name} — {self.city}" if self.city else self.name
+        city = self.effective_city
+        return f"{self.name} — {city}" if city else self.name
 
 
 class Event(models.Model):
