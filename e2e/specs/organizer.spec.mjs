@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/makolo.mjs';
-import { login } from '../helpers/auth.mjs';
+import { login, logout } from '../helpers/auth.mjs';
 
 
 test('owner creates a complete event, publishes it and configures ticketing', async ({ page }) => {
@@ -59,7 +59,7 @@ test('new organizer empty state keeps the create-event next action visible', asy
 });
 
 
-test('space owner creates a reusable place with coordinates', async ({ page }) => {
+test('space owner creates a reusable place and another space owner is isolated', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
   await page.goto('/organizations/makolo-e2e-events/');
   await page.getByRole('link', { name: 'Lieux' }).click();
@@ -74,7 +74,17 @@ test('space owner creates a reusable place with coordinates', async ({ page }) =
   await page.getByLabel('Fuseau horaire').fill('Africa/Lubumbashi');
   await page.getByLabel('Rôle du lieu').selectOption('branch');
   await page.getByLabel('Lieu principal pour ce rôle').check();
-  await page.getByRole('button', { name: 'Ajouter le lieu' }).click();
-  await expect(page.getByRole('heading', { name: 'Agence Centre-ville' })).toBeVisible();
-  await expect(page.getByText(/Coordonnées : -11\.664000, 27\.479000/)).toBeVisible();
+  await page.getByRole('button', { name: 'Enregistrer le lieu' }).click();
+
+  const placeHeading = page.getByRole('heading', { name: 'Agence Centre-ville', exact: true });
+  await expect(placeHeading).toBeVisible();
+  await expect(page.getByText('Coordonnées : -11.664000, 27.479000', { exact: true })).toBeVisible();
+  const card = placeHeading.locator('xpath=ancestor::article');
+  const editHref = await card.getByRole('link', { name: 'Modifier' }).getAttribute('href');
+  expect(editHref).toBeTruthy();
+
+  await logout(page);
+  await login(page, 'new.organizer@e2e.makolo.test');
+  const response = await page.goto(editHref);
+  expect(response.status()).toBe(403);
 });
