@@ -35,12 +35,18 @@ def migrate_activity_roles(apps, schema_editor):
 
     local_role, _ = Role.objects.get_or_create(
         code="activity-manager",
+        scope_type="activity",
         is_system=True,
-        defaults={"id": stable_uuid("role", "activity-manager")},
+        defaults={
+            "id": stable_uuid("role", "activity-manager"),
+            "name": "Responsable de l’activité",
+            "description": "Autorité limitée à une Activity précise.",
+            "organization_id": None,
+            "is_active": True,
+        },
     )
     local_role.name = "Responsable de l’activité"
     local_role.description = "Autorité limitée à une Activity précise."
-    local_role.scope_type = "activity"
     local_role.organization_id = None
     local_role.is_active = True
     local_role.save()
