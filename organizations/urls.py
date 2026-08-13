@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from .views import (
     FollowingListView,
@@ -10,7 +10,6 @@ from .views import (
     OrganizationUpdateView,
 )
 
-
 app_name = "organizations"
 
 urlpatterns = [
@@ -19,11 +18,8 @@ urlpatterns = [
     path("new/", OrganizationCreateView.as_view(), name="create"),
     path("<slug:slug>/", OrganizationDetailView.as_view(), name="detail"),
     path("<slug:slug>/edit/", OrganizationUpdateView.as_view(), name="edit"),
+    path("", include("geography.urls")),
     path("<slug:slug>/members/new/", OrganizationMemberCreateView.as_view(), name="member-create"),
     path("<slug:slug>/team/add/", OrganizationMemberCreateView.as_view(), name="team-member-create"),
-    path(
-        "<slug:slug>/members/<uuid:pk>/deactivate/",
-        OrganizationMemberDeactivateView.as_view(),
-        name="member-deactivate",
-    ),
+    path("<slug:slug>/members/<uuid:pk>/deactivate/", OrganizationMemberDeactivateView.as_view(), name="member-deactivate"),
 ]
