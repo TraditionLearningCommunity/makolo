@@ -48,6 +48,13 @@ class Payment(models.Model):
         on_delete=models.PROTECT,
         related_name="payments",
     )
+    commerce_order = models.ForeignKey(
+        "commerce.CommerceOrder",
+        on_delete=models.PROTECT,
+        related_name="payments",
+        null=True,
+        blank=True,
+    )
     initiated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -101,6 +108,7 @@ class Payment(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["order", "status"], name="pay_order_status_idx"),
+            models.Index(fields=["commerce_order", "status"], name="pay_commerce_status_idx"),
             models.Index(fields=["provider", "status"], name="pay_provider_status_idx"),
             models.Index(fields=["created_at"], name="pay_created_idx"),
         ]
@@ -113,6 +121,11 @@ class Payment(models.Model):
                 fields=["order"],
                 condition=Q(status=PaymentStatus.SUCCEEDED),
                 name="payment_one_success_order",
+            ),
+            models.UniqueConstraint(
+                fields=["commerce_order"],
+                condition=Q(status=PaymentStatus.SUCCEEDED) & Q(commerce_order__isnull=False),
+                name="payment_one_success_commerce_order",
             ),
             models.UniqueConstraint(
                 fields=["provider", "provider_reference"],
@@ -134,6 +147,15 @@ class Payment(models.Model):
                 errors["amount"] = "Le montant doit correspondre au total de la commande."
             if self.currency != self.order.currency:
                 errors["currency"] = "La devise doit correspondre à celle de la commande."
+        if self.commerce_order_id:
+            if self.commerce_order.total <= 0:
+                errors["commerce_order"] = "Une CommerceOrder gratuite ne nécessite pas de paiement."
+            if self.amount != self.commerce_order.total:
+                errors["amount"] = "Le montant doit correspondre au total commercial snapshot."
+            if self.currency != self.commerce_order.currency:
+                errors["currency"] = "La devise doit correspondre à celle de la CommerceOrder."
+            if self.order_id and self.order.commerce_order_id not in {None, self.commerce_order_id}:
+                errors["commerce_order"] = "Le Payment et le TicketOrder pointent vers des commandes canoniques différentes."
         if errors:
             raise ValidationError(errors)
 
