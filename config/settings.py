@@ -85,6 +85,8 @@ LOCAL_APPS = [
     "groups.apps.GroupsConfig",
     "geography.apps.GeographyConfig",
     "activities.apps.ActivitiesConfig",
+    "journeys.apps.JourneysConfig",
+    "access.apps.AccessConfig",
     "events",
     "tickets",
     "scanner",
