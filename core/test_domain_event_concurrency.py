@@ -1,5 +1,6 @@
 import threading
 import unittest
+import uuid
 
 from django.db import connection, connections
 from django.test import TransactionTestCase
@@ -31,14 +32,15 @@ class DomainEventProcessorConcurrencyTests(TransactionTestCase):
         register_consumer(
             "tests.concurrent",
             consumer,
-            event_types={DomainEventType.ACCESS_ISSUED},
+            event_types={DomainEventType.REQUEST_CREATED},
         )
+        request_id = str(uuid.uuid4())
         event = emit_domain_event(
-            event_type=DomainEventType.ACCESS_ISSUED,
-            source_type="access",
-            source_id="concurrent",
+            event_type=DomainEventType.REQUEST_CREATED,
+            source_type="request",
+            source_id=request_id,
             idempotency_key="test:processor:concurrent",
-            payload={"access_id": "concurrent"},
+            payload={"request_id": request_id, "status": "pending"},
             process_on_commit=False,
         )
 
