@@ -270,7 +270,11 @@ def sync_order_item_commerce(item: TicketOrderItem):
                 expires_at=item.order.expires_at if item.order.status == TicketOrderStatus.PENDING else None,
                 source_key=source_key,
             )
-        reservation = _sync_item_reservation_status(reservation, item.order)
+
+    # Existing reservations must follow the TicketOrder lifecycle as well. Without
+    # this, an Event order could remain HELD forever after confirmation/cancellation
+    # and keep the waitlist sold out even though the legacy Event projection released it.
+    reservation = _sync_item_reservation_status(reservation, item.order)
 
     line_subtotal = item.unit_price * item.quantity
     if commerce_item is None:
