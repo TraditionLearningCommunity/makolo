@@ -51,7 +51,7 @@ class Migration(migrations.Migration):
         migrations.AddIndex(model_name="capacitypool", index=models.Index(fields=["occurrence", "is_active"], name="capacity_pool_occurrence_idx")),
         migrations.AddConstraint(model_name="capacitypool", constraint=models.CheckConstraint(condition=models.Q(("total_quantity__isnull", True), ("total_quantity__gt", 0), _connector="OR"), name="capacity_pool_total_positive")),
         migrations.AddIndex(model_name="capacityreservation", index=models.Index(fields=["pool", "status"], name="capacity_res_pool_status_idx")),
-        migrations.AddIndex(model_name="capacityreservation", index=models.Index(fields=["journey", "status"], name="capacity_res_journey_status_idx")),
+        migrations.AddIndex(model_name="capacityreservation", index=models.Index(fields=["journey", "status"], name="cap_res_journey_status_idx")),
         migrations.AddIndex(model_name="capacityreservation", index=models.Index(fields=["expires_at", "status"], name="capacity_res_expiry_status_idx")),
         migrations.AddConstraint(model_name="capacityreservation", constraint=models.CheckConstraint(condition=models.Q(("quantity__gt", 0)), name="capacity_res_quantity_positive")),
         migrations.AddConstraint(model_name="capacityreservation", constraint=models.UniqueConstraint(condition=models.Q(("source_key", ""), _negated=True), fields=("pool", "journey", "source_key"), name="capacity_res_source_unique")),
