@@ -20,6 +20,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="payment",
-            constraint=models.UniqueConstraint(condition=models.Q(("commerce_order__isnull", False), ("status", "succeeded")), fields=("commerce_order",), name="payment_one_success_commerce_order"),
+            constraint=models.UniqueConstraint(
+                condition=models.Q(status="succeeded") & models.Q(commerce_order__isnull=False),
+                fields=("commerce_order",),
+                name="payment_one_success_commerce_order",
+            ),
         ),
     ]
