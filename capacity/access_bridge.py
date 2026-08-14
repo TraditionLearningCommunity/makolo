@@ -14,6 +14,7 @@ def issue_access_from_capacity(
     beneficiary,
     source_key,
     issued_by=None,
+    status="valid",
     valid_from=None,
     valid_until=None,
     single_use=True,
@@ -32,18 +33,16 @@ def issue_access_from_capacity(
     if reservation.journey.activity_id != reservation.pool.activity_id:
         raise ValidationError("La réservation Capacity est incohérente avec sa Démarche.")
 
-    kwargs = {
-        "beneficiary": beneficiary,
-        "activity": reservation.pool.activity,
-        "occurrence": reservation.pool.occurrence,
-        "journey": reservation.journey,
-        "issued_by": issued_by,
-        "single_use": single_use,
-        "source_key": source_key,
-        "create_credential": create_credential,
-    }
-    if valid_from is not None:
-        kwargs["valid_from"] = valid_from
-    if valid_until is not None:
-        kwargs["valid_until"] = valid_until
-    return issue_access(**kwargs)
+    return issue_access(
+        beneficiary=beneficiary,
+        activity=reservation.pool.activity,
+        occurrence=reservation.pool.occurrence,
+        journey=reservation.journey,
+        issued_by=issued_by,
+        status=status,
+        valid_from=valid_from,
+        valid_until=valid_until,
+        single_use=single_use,
+        source_key=source_key,
+        create_credential=create_credential,
+    )
