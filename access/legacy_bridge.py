@@ -58,12 +58,23 @@ def transfer_access_beneficiary(*, access, beneficiary, actor=None, source="tran
     )
     if actor is not None and not _can_manage(actor, access.activity):
         raise PermissionDenied("Vous ne pouvez pas transférer cet Accès.")
-    if access.status not in {AccessStatus.PENDING, AccessStatus.VALID}:
-        raise ValidationError("Seul un Accès actif peut changer de bénéficiaire.")
     if access.beneficiary_id == beneficiary.pk:
         return access
+
+    if access.status in {AccessStatus.PENDING, AccessStatus.VALID}:
+        access.beneficiary = beneficiary
+        access.save(update_fields=["beneficiary", "updated_at"])
+        _revoke_active_credentials(access)
+        _create_credential(access)
+        return access
+
+    if source not in {"ticket_transfer", "ticket_bridge", "legacy_backfill"}:
+        raise ValidationError("Seul un Accès actif peut changer de bénéficiaire.")
+
+    # Compatibility-only synchronization for historical Ticket rows that are
+    # already terminal. No new right is created: ownership is aligned and any
+    # remaining bearer representation is revoked without issuing a fresh one.
     access.beneficiary = beneficiary
     access.save(update_fields=["beneficiary", "updated_at"])
     _revoke_active_credentials(access)
-    _create_credential(access)
     return access
