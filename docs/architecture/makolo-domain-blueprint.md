@@ -237,7 +237,6 @@ erDiagram
 ## 5. Frontières de domaine Django
 
 La cible doit rester modulaire sans créer une app par nom du glossaire.
-
 | Bounded context / app recommandée | Responsabilité cible | Stratégie avec l'existant |
 |---|---|---|
 | `accounts` | Profil, authentification, préférences, sessions/appareils | Conserver le custom `User` comme identité technique. Retirer progressivement rôles métier globaux/flags historiques. |
@@ -357,7 +356,6 @@ Lie un Groupe à une Activité, une Occurrence ou une Offre selon la règle d'é
 Une éligibilité ne crée pas automatiquement un droit partagé : le claim/approval crée des Accès individuels.
 
 ### OccurrencePlace
-
 Modèle intermédiaire pour les usages communs où une occurrence a plusieurs lieux fonctionnels, avec `role`, ordre et fenêtre éventuelle. Les rôles génériques doivent rester peu nombreux.
 
 Pour le transport, **origine/destination/étapes doivent vivre dans la verticale transport**, par exemple via `TransportStop`, car leur ordre et leur sémantique dépassent un simple label de lieu générique.
@@ -597,7 +595,6 @@ Introduire `authorization` (Permissions, Roles, Mandates) et Équipes ; mapper l
 **Dépend de** : Profil, Espace, autorité contextuelle.
 
 Créer Group/GroupMembership et permissions de gestion. Ne pas les confondre avec CRM Audience. Préparer l'éligibilité sans encore délivrer de nouveaux Accès génériques.
-
 ### 3. Géographie
 
 **Dépend de** : hébergement DB cible pour la phase PostGIS ; peut commencer par le modèle conceptuel/migration des données avant activation géospatiale complète.
@@ -715,3 +712,11 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 Tant que les migrations ci-dessus ne sont pas réalisées, [`authorization-boundaries.md`](authorization-boundaries.md) reste la référence opérationnelle des permissions actuellement exécutées par le code. Le présent blueprint définit **où ces frontières doivent converger**, pas une autorisation déjà disponible dans le runtime.
 
 Les prochaines PR de refactoring doivent citer la section et l'étape de migration qu'elles mettent en œuvre, et préciser les adaptateurs de compatibilité conservés ou supprimés.
+
+### Note d'implémentation — Démarche / Demande / Accès
+
+L'étape 5 est désormais matérialisée par les bounded contexts `journeys` et `access` : `Journey`, `JourneyRequest`, `JourneyTransition`, `Access`, `AccessCredential` et `AccessUse` existent avec workflows/transitions contrôlés, émission individuelle, credential QR signé et rotatable, validation transactionnelle single-use et permissions Activity-scoped.
+
+`TicketOrder.journey` et `Ticket.access` constituent les bridges explicites de migration. `TicketOrder`, `Ticket`, `TicketType`, `Payment`, `ScannerAssignment` et l'UX Event restent conservés par compatibilité ; les QR Ticket historiques utilisent un resolver legacy contrôlé, tandis que toute nouvelle représentation canonique invalide l'ancien bearer. La décision de scan converge vers `Access` et produit `AccessUse` sans supprimer `ScanLog`.
+
+La prochaine étape structurante reste **Commerce / capacité / paiement**. Le détail des invariants, mappings de backfill et compatibilités de cette implémentation est documenté dans [`journey-request-access.md`](journey-request-access.md).
