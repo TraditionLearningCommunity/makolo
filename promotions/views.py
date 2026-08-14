@@ -9,6 +9,7 @@ from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 from organizations.models import Organization
 
+from .canonical_models import PromotionTargeting
 from .forms import PromotionCodeForm, PromotionForm
 from .models import Promotion, PromotionCode, PromotionRedemption
 from .permissions import (
@@ -83,7 +84,15 @@ class PromotionCreateView(LoginRequiredMixin, FormView):
 
     def form_valid(self, form):
         data = dict(form.cleaned_data)
-        create_promotion(actor=self.request.user, organization=self.organization, **data)
+        audience = data.pop("audience", None)
+        promotion = create_promotion(actor=self.request.user, organization=self.organization, **data)
+        event = data.get("event")
+        activity_id = getattr(event, "activity_id", None) if event else None
+        targeting, _created = PromotionTargeting.objects.get_or_create(promotion=promotion)
+        targeting.activity_id = activity_id
+        targeting.audience = audience
+        targeting.full_clean()
+        targeting.save()
         messages.success(self.request, "Offre promotionnelle créée.")
         return redirect("promotions:organization", slug=self.organization.slug)
 
