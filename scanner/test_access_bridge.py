@@ -1,9 +1,11 @@
+from django.core.exceptions import ValidationError
 from django.core.signing import Signer
 from django.test import TestCase
 
 from access.models import CredentialStatus
 from access.services import render_access_credential, rotate_access_credential
 from tickets.models import QR_SIGNING_SALT
+from tickets.services import validate_qr_token
 
 from .models import ScanResult
 from .services import scan_ticket
@@ -55,3 +57,26 @@ class ScannerAccessBridgeTests(ScannerFixtureMixin, TestCase):
         self.assertEqual(outcome.result, ScanResult.ACCEPTED)
         self.assertTrue(outcome.accepted)
         self.assertEqual(access.status, "used")
+
+    def test_issuing_canonical_credential_invalidates_historical_ticket_qr_everywhere(self):
+        access = self.ticket.access
+        access.credentials.all().delete()
+        old_code = self.ticket.code
+        legacy_token = Signer(salt=QR_SIGNING_SALT).sign(str(old_code))
+
+        canonical = rotate_access_credential(access=access)
+        self.ticket.refresh_from_db()
+        self.assertNotEqual(self.ticket.code, old_code)
+        self.assertEqual(canonical.status, CredentialStatus.ACTIVE)
+
+        with self.assertRaises(ValidationError):
+            validate_qr_token(legacy_token)
+
+        outcome = scan_ticket(
+            token=legacy_token,
+            actor=self.agent,
+            event=self.event,
+            client_reference="legacy-after-canonical",
+        )
+        self.assertFalse(outcome.accepted)
+        self.assertEqual(outcome.result, ScanResult.UNKNOWN_TICKET)
