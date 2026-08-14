@@ -181,8 +181,6 @@ def create_order(
             raise ValidationError("Un bénéficiaire financier explicite est requis pour cette Activity.")
         from organizations.models import Organization
         payee_space = Organization.objects.get(pk=activity_space_id)
-    if activity_space_id is not None and payee_space.pk != activity_space_id:
-        raise ValidationError("Cette première version ne permet pas de mélanger plusieurs bénéficiaires financiers.")
 
     order = CommerceOrder(
         journey=journey,
