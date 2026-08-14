@@ -8,6 +8,8 @@ from django.core.signing import BadSignature, Signer
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from access.models import AccessStatus, CredentialStatus
+from access.services import resolve_access_credential
 from events.models import Event, EventStatus
 from events.permissions import user_can_manage_event, user_can_manage_event_finance
 
@@ -699,7 +701,40 @@ def expire_due_ticket_transfers(*, now=None) -> int:
     return count
 
 
+def _validate_canonical_ticket_qr(token: str) -> Ticket | None:
+    try:
+        credential = resolve_access_credential(token)
+    except ValidationError:
+        return None
+
+    access = credential.access
+    now = timezone.now()
+    if credential.status != CredentialStatus.ACTIVE:
+        raise ValidationError("Ce QR code n’est plus actif.")
+    if access.status != AccessStatus.VALID:
+        raise ValidationError("Ce billet n’est pas valide.")
+    if access.valid_from and now < access.valid_from:
+        raise ValidationError("Ce billet n’est pas encore valide.")
+    if access.valid_until and now >= access.valid_until:
+        raise ValidationError("Ce billet a expiré.")
+
+    ticket = (
+        Ticket.objects.select_related("event", "ticket_type", "order", "access")
+        .filter(access=access)
+        .first()
+    )
+    if ticket is None:
+        raise ValidationError("Billet introuvable.")
+    if not ticket.is_valid:
+        raise ValidationError("Ce billet n’est pas valide.")
+    return ticket
+
+
 def validate_qr_token(token: str) -> Ticket:
+    canonical = _validate_canonical_ticket_qr(token)
+    if canonical is not None:
+        return canonical
+
     try:
         raw_code = Signer(salt=QR_SIGNING_SALT).unsign(token)
     except BadSignature as exc:

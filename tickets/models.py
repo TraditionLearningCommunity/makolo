@@ -44,6 +44,28 @@ class TransferStatus(models.TextChoices):
     EXPIRED = "expired", "Expiré"
 
 
+class TicketQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        sync_required = bool({"status", "owner", "owner_id", "code"} & set(kwargs))
+        ticket_ids = list(self.values_list("pk", flat=True)) if sync_required else []
+        updated = super().update(**kwargs)
+        if ticket_ids:
+            from .journey_access_bridge import sync_ticket_access_ids
+
+            sync_ticket_access_ids(ticket_ids)
+        return updated
+
+
+class TicketManager(models.Manager.from_queryset(TicketQuerySet)):
+    def bulk_create(self, objs, **kwargs):
+        created = super().bulk_create(objs, **kwargs)
+        if created:
+            from .journey_access_bridge import sync_ticket_access_ids
+
+            sync_ticket_access_ids([ticket.pk for ticket in created])
+        return created
+
+
 class TicketType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(
@@ -185,6 +207,13 @@ class TicketOrder(models.Model):
         null=True,
         blank=True,
     )
+    journey = models.OneToOneField(
+        "journeys.Journey",
+        on_delete=models.SET_NULL,
+        related_name="ticket_order",
+        null=True,
+        blank=True,
+    )
     customer_name = models.CharField(max_length=180)
     customer_email = models.EmailField()
     status = models.CharField(
@@ -286,6 +315,13 @@ class Ticket(models.Model):
         on_delete=models.PROTECT,
         related_name="tickets",
     )
+    access = models.OneToOneField(
+        "access.Access",
+        on_delete=models.SET_NULL,
+        related_name="ticket",
+        null=True,
+        blank=True,
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -305,6 +341,8 @@ class Ticket(models.Model):
     cancelled_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TicketManager()
 
     class Meta:
         ordering = ["-issued_at"]
@@ -327,6 +365,15 @@ class Ticket(models.Model):
 
     @property
     def qr_token(self):
+        if self.access_id:
+            from access.models import CredentialStatus
+            from access.services import render_access_credential
+
+            credential = self.access.credentials.filter(
+                status=CredentialStatus.ACTIVE,
+            ).order_by("-version").first()
+            if credential:
+                return render_access_credential(credential)
         return Signer(salt=QR_SIGNING_SALT).sign(str(self.code))
 
     @property

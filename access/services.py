@@ -1,0 +1,486 @@
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass
+
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.signing import BadSignature, Signer
+from django.db import IntegrityError, transaction
+from django.db.models import Max
+from django.utils import timezone
+
+from authorization.constants import PermissionCode
+from authorization.services import can
+
+from .models import (
+    Access,
+    AccessCredential,
+    AccessStatus,
+    AccessUse,
+    AccessUseResult,
+    CredentialStatus,
+    CredentialType,
+    TERMINAL_ACCESS_STATUSES,
+)
+
+
+ACCESS_CREDENTIAL_SIGNING_SALT = "makolo.access.credential.v1"
+_UNSET = object()
+
+
+@dataclass(frozen=True)
+class AccessValidationOutcome:
+    result: str
+    message: str
+    access: Access | None = None
+    credential: AccessCredential | None = None
+    use: AccessUse | None = None
+
+    @property
+    def accepted(self) -> bool:
+        return self.result == AccessUseResult.ACCEPTED
+
+
+def render_access_credential(credential: AccessCredential) -> str:
+    payload = f"{credential.credential_type}|{credential.public_id}|{credential.version}"
+    return Signer(salt=ACCESS_CREDENTIAL_SIGNING_SALT).sign(payload)
+
+
+def _parse_credential_token(token: str):
+    try:
+        payload = Signer(salt=ACCESS_CREDENTIAL_SIGNING_SALT).unsign((token or "").strip())
+        credential_type, public_id, raw_version = payload.split("|", 2)
+        return credential_type, uuid.UUID(public_id), int(raw_version)
+    except (BadSignature, ValueError, TypeError, AttributeError) as exc:
+        raise ValidationError("Credential invalide.") from exc
+
+
+def resolve_access_credential(token: str, *, expected_type=CredentialType.QR) -> AccessCredential:
+    credential_type, public_id, version = _parse_credential_token(token)
+    if credential_type != expected_type:
+        raise ValidationError("Type de credential invalide.")
+    try:
+        return AccessCredential.objects.select_related("access").get(
+            public_id=public_id,
+            version=version,
+            credential_type=credential_type,
+        )
+    except AccessCredential.DoesNotExist as exc:
+        raise ValidationError("Credential invalide.") from exc
+
+
+def _validate_scope(*, beneficiary, activity, occurrence, journey):
+    if occurrence is not None and occurrence.activity_id != activity.pk:
+        raise ValidationError("L’Occurrence appartient à une autre Activity.")
+    if journey is not None:
+        if journey.activity_id != activity.pk:
+            raise ValidationError("La Démarche appartient à une autre Activity.")
+        if occurrence is not None and journey.occurrence_id and journey.occurrence_id != occurrence.pk:
+            raise ValidationError("L’Occurrence est incohérente avec la Démarche.")
+        if beneficiary is None:
+            raise ValidationError("Un bénéficiaire individuel est obligatoire.")
+
+
+def _next_credential_version(access):
+    return (
+        AccessCredential.objects.filter(access=access).aggregate(value=Max("version"))["value"] or 0
+    ) + 1
+
+
+def _create_credential(access, *, credential_type=CredentialType.QR):
+    return AccessCredential.objects.create(
+        access=access,
+        credential_type=credential_type,
+        version=_next_credential_version(access),
+    )
+
+
+@transaction.atomic
+def issue_access(
+    *,
+    beneficiary,
+    activity,
+    occurrence=None,
+    journey=None,
+    issued_by=None,
+    status=AccessStatus.VALID,
+    valid_from=_UNSET,
+    valid_until=_UNSET,
+    single_use=True,
+    source_key="",
+    create_credential=True,
+) -> Access:
+    if beneficiary is None:
+        raise ValidationError("Un Accès appartient toujours à un bénéficiaire individuel.")
+    if journey is not None:
+        from journeys.models import Journey
+
+        journey = (
+            Journey.objects.select_for_update(of=("self",))
+            .select_related("activity", "occurrence")
+            .order_by()
+            .get(pk=journey.pk)
+        )
+    _validate_scope(
+        beneficiary=beneficiary,
+        activity=activity,
+        occurrence=occurrence,
+        journey=journey,
+    )
+    source_key = (source_key or "").strip()[:180]
+    if journey is not None and not source_key:
+        source_key = "primary"
+    if journey is not None and source_key:
+        existing = (
+            Access.objects.select_for_update(of=("self",))
+            .filter(journey=journey, source_key=source_key)
+            .order_by()
+            .first()
+        )
+        if existing:
+            if (
+                existing.beneficiary_id != beneficiary.pk
+                or existing.activity_id != activity.pk
+                or existing.occurrence_id != getattr(occurrence, "pk", None)
+            ):
+                raise ValidationError("La clé d’émission existe déjà pour un autre résultat métier.")
+            if create_credential and not existing.credentials.filter(status=CredentialStatus.ACTIVE).exists():
+                _create_credential(existing)
+            return existing
+
+    if occurrence is not None:
+        if valid_from is _UNSET:
+            valid_from = occurrence.start_at
+        if valid_until is _UNSET:
+            valid_until = occurrence.end_at
+    if valid_from is _UNSET:
+        valid_from = None
+    if valid_until is _UNSET:
+        valid_until = None
+    if valid_from and valid_until and valid_until <= valid_from:
+        raise ValidationError("La fin de validité doit être postérieure au début.")
+    if valid_until and valid_until <= timezone.now() and status == AccessStatus.VALID:
+        status = AccessStatus.EXPIRED
+
+    access = Access(
+        beneficiary=beneficiary,
+        activity=activity,
+        occurrence=occurrence,
+        journey=journey,
+        issued_by=issued_by if getattr(issued_by, "is_authenticated", False) else None,
+        status=status,
+        single_use=single_use,
+        source_key=source_key,
+        valid_from=valid_from,
+        valid_until=valid_until,
+    )
+    access.full_clean()
+    try:
+        access.save()
+    except IntegrityError:
+        if journey is not None and source_key:
+            return Access.objects.get(journey=journey, source_key=source_key)
+        raise
+    if create_credential and access.status in {AccessStatus.PENDING, AccessStatus.VALID}:
+        _create_credential(access)
+    return access
+
+
+def _set_access_status(access, status):
+    access.status = status
+    access._allow_status_transition = True
+    access.save(update_fields=["status", "updated_at"])
+    return access
+
+
+def _revoke_active_credentials(access, *, status=CredentialStatus.REVOKED, now=None):
+    now = now or timezone.now()
+    credentials = list(
+        AccessCredential.objects.select_for_update(of=("self",))
+        .filter(access=access, status=CredentialStatus.ACTIVE)
+        .order_by()
+    )
+    for credential in credentials:
+        credential.status = status
+        if status == CredentialStatus.REVOKED:
+            credential.revoked_at = now
+        else:
+            credential.expired_at = now
+        credential._allow_status_transition = True
+        credential.save(update_fields=["status", "revoked_at", "expired_at", "updated_at"])
+    return credentials
+
+
+@transaction.atomic
+def rotate_access_credential(*, access, actor=None, credential_type=CredentialType.QR):
+    access = Access.objects.select_for_update(of=("self",)).order_by().get(pk=access.pk)
+    if access.status not in {AccessStatus.PENDING, AccessStatus.VALID}:
+        raise ValidationError("Un Accès non actif ne peut pas recevoir un nouveau credential.")
+    if actor is not None:
+        if not getattr(actor, "is_authenticated", False) or not can(
+            actor,
+            PermissionCode.ACTIVITY_ACCESS_MANAGE,
+            activity=access.activity,
+        ):
+            raise PermissionDenied("Vous ne pouvez pas faire tourner ce credential.")
+    _revoke_active_credentials(access)
+    return _create_credential(access, credential_type=credential_type)
+
+
+@transaction.atomic
+def revoke_access(*, access, actor=None):
+    access = Access.objects.select_for_update(of=("self",)).select_related("activity").order_by().get(pk=access.pk)
+    if actor is not None and (
+        not getattr(actor, "is_authenticated", False)
+        or not can(actor, PermissionCode.ACTIVITY_ACCESS_MANAGE, activity=access.activity)
+    ):
+        raise PermissionDenied("Vous ne pouvez pas révoquer cet Accès.")
+    if access.status == AccessStatus.REVOKED:
+        return access
+    _set_access_status(access, AccessStatus.REVOKED)
+    _revoke_active_credentials(access)
+    return access
+
+
+@transaction.atomic
+def cancel_access(*, access, actor=None):
+    access = Access.objects.select_for_update(of=("self",)).select_related("activity").order_by().get(pk=access.pk)
+    if actor is not None and (
+        not getattr(actor, "is_authenticated", False)
+        or not can(actor, PermissionCode.ACTIVITY_ACCESS_MANAGE, activity=access.activity)
+    ):
+        raise PermissionDenied("Vous ne pouvez pas annuler cet Accès.")
+    if access.status == AccessStatus.CANCELLED:
+        return access
+    if access.status == AccessStatus.USED:
+        raise ValidationError("Un Accès déjà utilisé ne peut pas être annulé.")
+    _set_access_status(access, AccessStatus.CANCELLED)
+    _revoke_active_credentials(access)
+    return access
+
+
+@transaction.atomic
+def expire_access(*, access, now=None):
+    now = now or timezone.now()
+    access = Access.objects.select_for_update(of=("self",)).order_by().get(pk=access.pk)
+    if access.status in TERMINAL_ACCESS_STATUSES:
+        return access
+    if access.valid_until is None or access.valid_until > now:
+        return access
+    _set_access_status(access, AccessStatus.EXPIRED)
+    _revoke_active_credentials(access, status=CredentialStatus.EXPIRED, now=now)
+    return access
+
+
+def expire_due_accesses(*, now=None):
+    now = now or timezone.now()
+    ids = list(
+        Access.objects.filter(valid_until__lte=now)
+        .exclude(status__in=TERMINAL_ACCESS_STATUSES)
+        .values_list("pk", flat=True)
+    )
+    count = 0
+    for access_id in ids:
+        access = Access.objects.get(pk=access_id)
+        before = access.status
+        access = expire_access(access=access, now=now)
+        count += int(access.status != before)
+    return count
+
+
+def _record_use(*, access, credential, controller, occurrence, result, source):
+    return AccessUse.objects.create(
+        access=access,
+        credential=credential,
+        actor=controller if getattr(controller, "is_authenticated", False) else None,
+        occurrence=occurrence,
+        result=result,
+        source=(source or "")[:80],
+    )
+
+
+def _outcome(*, result, message, access=None, credential=None, use=None):
+    return AccessValidationOutcome(
+        result=result,
+        message=message,
+        access=access,
+        credential=credential,
+        use=use,
+    )
+
+
+@transaction.atomic
+def validate_access(
+    *,
+    access,
+    credential=None,
+    controller=None,
+    authority_check=None,
+    expected_activity=None,
+    expected_occurrence=None,
+    source="",
+    now=None,
+) -> AccessValidationOutcome:
+    now = now or timezone.now()
+    access = (
+        Access.objects.select_for_update(of=("self",))
+        .select_related("activity", "occurrence", "beneficiary")
+        .order_by()
+        .get(pk=access.pk)
+    )
+    locked_credential = None
+    if credential is not None:
+        locked_credential = (
+            AccessCredential.objects.select_for_update(of=("self",))
+            .filter(pk=credential.pk, access=access)
+            .order_by()
+            .first()
+        )
+        if locked_credential is None:
+            return _outcome(result=AccessUseResult.INVALID_CREDENTIAL, message="Credential invalide.", access=access)
+        if locked_credential.status != CredentialStatus.ACTIVE:
+            result = AccessUseResult.EXPIRED if locked_credential.status == CredentialStatus.EXPIRED else AccessUseResult.REVOKED
+            use = _record_use(
+                access=access,
+                credential=locked_credential,
+                controller=controller,
+                occurrence=expected_occurrence,
+                result=result,
+                source=source,
+            )
+            return _outcome(result=result, message="Credential inactif.", access=access, credential=locked_credential, use=use)
+
+    if controller is not None:
+        if authority_check is not None:
+            authorized = bool(authority_check(controller, access))
+        else:
+            authorized = getattr(controller, "is_authenticated", False) and can(
+                controller,
+                PermissionCode.ACTIVITY_ACCESS_MANAGE,
+                activity=access.activity,
+            )
+        if not authorized:
+            raise PermissionDenied("Ce contrôleur n’est pas autorisé pour cet Accès.")
+
+    if expected_activity is not None and access.activity_id != expected_activity.pk:
+        use = _record_use(
+            access=access,
+            credential=locked_credential,
+            controller=controller,
+            occurrence=expected_occurrence,
+            result=AccessUseResult.WRONG_ACTIVITY,
+            source=source,
+        )
+        return _outcome(result=AccessUseResult.WRONG_ACTIVITY, message="Accès prévu pour une autre Activity.", access=access, credential=locked_credential, use=use)
+
+    if expected_occurrence is not None and access.occurrence_id not in {None, expected_occurrence.pk}:
+        use = _record_use(
+            access=access,
+            credential=locked_credential,
+            controller=controller,
+            occurrence=expected_occurrence,
+            result=AccessUseResult.WRONG_OCCURRENCE,
+            source=source,
+        )
+        return _outcome(result=AccessUseResult.WRONG_OCCURRENCE, message="Accès prévu pour une autre Occurrence.", access=access, credential=locked_credential, use=use)
+
+    status_result = {
+        AccessStatus.USED: AccessUseResult.ALREADY_USED,
+        AccessStatus.REVOKED: AccessUseResult.REVOKED,
+        AccessStatus.CANCELLED: AccessUseResult.CANCELLED,
+        AccessStatus.EXPIRED: AccessUseResult.EXPIRED,
+        AccessStatus.TRANSFERRED: AccessUseResult.REVOKED,
+    }.get(access.status)
+    if status_result:
+        use = _record_use(
+            access=access,
+            credential=locked_credential,
+            controller=controller,
+            occurrence=expected_occurrence,
+            result=status_result,
+            source=source,
+        )
+        return _outcome(result=status_result, message="Accès non valide.", access=access, credential=locked_credential, use=use)
+    if access.status != AccessStatus.VALID:
+        use = _record_use(
+            access=access,
+            credential=locked_credential,
+            controller=controller,
+            occurrence=expected_occurrence,
+            result=AccessUseResult.CANCELLED,
+            source=source,
+        )
+        return _outcome(result=AccessUseResult.CANCELLED, message="Accès non actif.", access=access, credential=locked_credential, use=use)
+    if access.valid_from and now < access.valid_from:
+        use = _record_use(
+            access=access,
+            credential=locked_credential,
+            controller=controller,
+            occurrence=expected_occurrence,
+            result=AccessUseResult.NOT_YET_VALID,
+            source=source,
+        )
+        return _outcome(result=AccessUseResult.NOT_YET_VALID, message="Accès pas encore valide.", access=access, credential=locked_credential, use=use)
+    if access.valid_until and now >= access.valid_until:
+        _set_access_status(access, AccessStatus.EXPIRED)
+        _revoke_active_credentials(access, status=CredentialStatus.EXPIRED, now=now)
+        use = _record_use(
+            access=access,
+            credential=locked_credential,
+            controller=controller,
+            occurrence=expected_occurrence,
+            result=AccessUseResult.EXPIRED,
+            source=source,
+        )
+        return _outcome(result=AccessUseResult.EXPIRED, message="Accès expiré.", access=access, credential=locked_credential, use=use)
+
+    if access.single_use:
+        if AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).exists():
+            _set_access_status(access, AccessStatus.USED)
+            use = _record_use(
+                access=access,
+                credential=locked_credential,
+                controller=controller,
+                occurrence=expected_occurrence,
+                result=AccessUseResult.ALREADY_USED,
+                source=source,
+            )
+            return _outcome(result=AccessUseResult.ALREADY_USED, message="Accès déjà utilisé.", access=access, credential=locked_credential, use=use)
+        _set_access_status(access, AccessStatus.USED)
+
+    use = _record_use(
+        access=access,
+        credential=locked_credential,
+        controller=controller,
+        occurrence=expected_occurrence or access.occurrence,
+        result=AccessUseResult.ACCEPTED,
+        source=source,
+    )
+    return _outcome(result=AccessUseResult.ACCEPTED, message="Accès autorisé.", access=access, credential=locked_credential, use=use)
+
+
+def validate_access_credential(
+    token: str,
+    *,
+    controller=None,
+    authority_check=None,
+    expected_activity=None,
+    expected_occurrence=None,
+    expected_type=CredentialType.QR,
+    source="",
+    now=None,
+):
+    try:
+        credential = resolve_access_credential(token, expected_type=expected_type)
+    except ValidationError:
+        return _outcome(result=AccessUseResult.INVALID_CREDENTIAL, message="Credential invalide.")
+    return validate_access(
+        access=credential.access,
+        credential=credential,
+        controller=controller,
+        authority_check=authority_check,
+        expected_activity=expected_activity,
+        expected_occurrence=expected_occurrence,
+        source=source,
+        now=now,
+    )

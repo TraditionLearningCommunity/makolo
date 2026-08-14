@@ -8,7 +8,11 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from access.models import AccessStatus, AccessUseResult
+from access.services import validate_access, validate_access_credential
+from events.activity_bridge import sync_event_core
 from events.models import Event, EventStatus
+from tickets.journey_access_bridge import sync_ticket_access
 from tickets.models import QR_SIGNING_SALT, Ticket, TicketStatus
 
 from .models import EventAccessGate, ScanLog, ScanResult
@@ -94,6 +98,78 @@ def _resolve_access_gate(*, event, assignment, access_gate, gate_text):
     ).first()
 
 
+def _scan_result_for_access(result):
+    return {
+        AccessUseResult.ACCEPTED: ScanResult.ACCEPTED,
+        AccessUseResult.ALREADY_USED: ScanResult.DUPLICATE,
+        AccessUseResult.WRONG_ACTIVITY: ScanResult.WRONG_EVENT,
+        AccessUseResult.WRONG_OCCURRENCE: ScanResult.WRONG_EVENT,
+        AccessUseResult.INVALID_CREDENTIAL: ScanResult.INVALID_TOKEN,
+        AccessUseResult.EXPIRED: ScanResult.INVALID_STATUS,
+        AccessUseResult.NOT_YET_VALID: ScanResult.INVALID_STATUS,
+        AccessUseResult.REVOKED: ScanResult.INVALID_STATUS,
+        AccessUseResult.CANCELLED: ScanResult.INVALID_STATUS,
+    }[result]
+
+
+def _message_for_access(result):
+    return {
+        AccessUseResult.ACCEPTED: "Accès autorisé.",
+        AccessUseResult.ALREADY_USED: "Billet déjà utilisé.",
+        AccessUseResult.WRONG_ACTIVITY: "Ce billet appartient à un autre événement.",
+        AccessUseResult.WRONG_OCCURRENCE: "Ce billet appartient à une autre occurrence.",
+        AccessUseResult.INVALID_CREDENTIAL: "QR code invalide ou altéré.",
+        AccessUseResult.EXPIRED: "Billet expiré.",
+        AccessUseResult.NOT_YET_VALID: "Billet pas encore valide.",
+        AccessUseResult.REVOKED: "Billet révoqué.",
+        AccessUseResult.CANCELLED: "Billet annulé.",
+    }[result]
+
+
+def _scanner_authority(event):
+    return lambda controller, access: user_can_scan_event(controller, event)
+
+
+def _sync_ticket_after_access_accept(ticket):
+    if ticket is None or ticket.status == TicketStatus.USED:
+        return
+    now = timezone.now()
+    ticket.status = TicketStatus.USED
+    ticket.used_at = now
+    ticket.save(update_fields=["status", "used_at", "updated_at"])
+
+
+def _log_access_outcome(
+    *,
+    outcome,
+    event,
+    actor,
+    assignment,
+    token,
+    ticket,
+    client_reference,
+    gate,
+    effective_gate,
+    metadata,
+):
+    if outcome.accepted:
+        _sync_ticket_after_access_accept(ticket)
+    result = _scan_result_for_access(outcome.result)
+    return _create_log(
+        event=event,
+        scanner=actor,
+        assignment=assignment,
+        access_gate=effective_gate,
+        result=result,
+        message=_message_for_access(outcome.result),
+        token=token,
+        ticket=ticket,
+        client_reference=client_reference,
+        gate=gate,
+        metadata=metadata,
+    )
+
+
 @transaction.atomic
 def scan_ticket(
     *,
@@ -105,18 +181,8 @@ def scan_ticket(
     access_gate: EventAccessGate | None = None,
     metadata: dict | None = None,
 ) -> ScanOutcome:
-    """Validate and consume one ticket exactly once.
-
-    The event and ticket rows are locked for the duration of the transaction.
-    PostgreSQL is the production target for strong row-level concurrency.
-    A conditional unique constraint on accepted scans provides a second database
-    guard against two accepted access records for the same ticket.
-
-    A scanner assignment may optionally pin a terminal to one first-class
-    EventAccessGate. The free-text gate value remains an immutable snapshot for
-    compatibility with older clients, while `access_gate` powers live metrics.
-    """
-    event = Event.objects.select_for_update().get(pk=event.pk)
+    """Validate an Event access through canonical Access while preserving Ticket UX."""
+    event = Event.objects.select_related("activity").get(pk=event.pk)
 
     if not user_can_scan_event(actor, event):
         raise PermissionDenied("Vous n’êtes pas autorisé à scanner cet événement.")
@@ -187,6 +253,54 @@ def scan_ticket(
             metadata=metadata,
         )
 
+    activity, occurrence = sync_event_core(event)
+    authority_check = _scanner_authority(event)
+
+    canonical = validate_access_credential(
+        token,
+        controller=actor,
+        authority_check=authority_check,
+        expected_activity=activity,
+        expected_occurrence=occurrence,
+        source="scanner",
+    )
+    if canonical.result != AccessUseResult.INVALID_CREDENTIAL:
+        ticket = None
+        if canonical.access is not None:
+            ticket = (
+                Ticket.objects.select_related("ticket_type", "order", "owner")
+                .filter(access=canonical.access)
+                .first()
+            )
+        try:
+            return _log_access_outcome(
+                outcome=canonical,
+                event=event,
+                actor=actor,
+                assignment=assignment,
+                token=token,
+                ticket=ticket,
+                client_reference=client_reference,
+                gate=gate,
+                effective_gate=effective_gate,
+                metadata=metadata,
+            )
+        except IntegrityError:
+            return _create_log(
+                event=event,
+                scanner=actor,
+                assignment=assignment,
+                access_gate=effective_gate,
+                result=ScanResult.DUPLICATE,
+                message="Billet déjà accepté par un autre contrôle.",
+                token=token,
+                ticket=ticket,
+                client_reference=client_reference,
+                gate=gate,
+                metadata=metadata,
+            )
+
+    # Controlled beta compatibility: resolve the former signed Ticket.code.
     try:
         raw_code = Signer(salt=QR_SIGNING_SALT).unsign(token)
         code = uuid.UUID(raw_code)
@@ -207,7 +321,8 @@ def scan_ticket(
     try:
         ticket = (
             Ticket.objects.select_for_update(of=("self",))
-            .select_related("event", "ticket_type", "order", "owner")
+            .select_related("event", "ticket_type", "order", "owner", "access")
+            .order_by()
             .get(code=code)
         )
     except Ticket.DoesNotExist:
@@ -239,6 +354,49 @@ def scan_ticket(
             metadata=metadata,
         )
 
+    access = ticket.access or sync_ticket_access(ticket)
+    if access is not None:
+        has_credentials = access.credentials.exists()
+        if has_credentials and access.status in {AccessStatus.PENDING, AccessStatus.VALID}:
+            # An active canonical representation replaced this legacy bearer.
+            return _create_log(
+                event=event,
+                scanner=actor,
+                assignment=assignment,
+                access_gate=effective_gate,
+                result=ScanResult.INVALID_TOKEN,
+                message="Ce QR historique a été remplacé.",
+                token=token,
+                ticket=ticket,
+                client_reference=client_reference,
+                gate=gate,
+                metadata=metadata,
+            )
+        # Terminal Access states still decide the semantic result. This keeps
+        # cancelled/refunded historical Tickets as INVALID_STATUS rather than
+        # misclassifying a once-authentic QR as a forged token.
+        outcome = validate_access(
+            access=access,
+            credential=None,
+            controller=actor,
+            authority_check=authority_check,
+            expected_activity=activity,
+            expected_occurrence=occurrence,
+            source="scanner-legacy-ticket",
+        )
+        return _log_access_outcome(
+            outcome=outcome,
+            event=event,
+            actor=actor,
+            assignment=assignment,
+            token=token,
+            ticket=ticket,
+            client_reference=client_reference,
+            gate=gate,
+            effective_gate=effective_gate,
+            metadata=metadata,
+        )
+
     if ticket.status == TicketStatus.USED:
         return _create_log(
             event=event,
@@ -253,7 +411,6 @@ def scan_ticket(
             gate=gate,
             metadata=metadata,
         )
-
     if ticket.status != TicketStatus.VALID or not ticket.is_valid:
         return _create_log(
             event=event,
@@ -269,14 +426,10 @@ def scan_ticket(
             metadata=metadata,
         )
 
-    now = timezone.now()
-    ticket.status = TicketStatus.USED
-    ticket.used_at = now
-    ticket.save(update_fields=["status", "used_at", "updated_at"])
-
+    _sync_ticket_after_access_accept(ticket)
     try:
         with transaction.atomic():
-            outcome = _create_log(
+            return _create_log(
                 event=event,
                 scanner=actor,
                 assignment=assignment,
@@ -303,5 +456,3 @@ def scan_ticket(
             gate=gate,
             metadata=metadata,
         )
-
-    return outcome
