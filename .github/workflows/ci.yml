@@ -195,6 +195,15 @@ jobs:
           payments.test_commerce_bridge
           payments.test_generic_commerce
 
+      - name: Run Domain Events, Notifications and Automation PostgreSQL tests
+        run: >-
+          python manage.py test
+          core.test_domain_events
+          core.test_domain_event_concurrency
+          notifications.test_domain_events
+          automation.test_domain_events
+          automation.test_domain_event_concurrency
+
       - name: Run operational readiness PostgreSQL tests
         run: >-
           python manage.py test
