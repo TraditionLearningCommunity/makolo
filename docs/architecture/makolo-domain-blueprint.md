@@ -728,3 +728,11 @@ L'étape 6 est désormais matérialisée par deux bounded contexts séparés : `
 Les bridges explicites sont `TicketType → Offer/CapacityPool`, `TicketOrder → CommerceOrder`, `TicketOrderItem → CommerceOrderItem/CapacityReservation` et `Payment → CommerceOrder`. `Payment` reste la source de vérité provider et peut désormais référencer une CommerceOrder sans TicketOrder ; Journey reste propriétaire du workflow et Access du droit. Les modèles Ticket historiques, Promotions et Waitlist restent conservés comme compatibilités de la verticale Events.
 
 Le verrouillage de capacité est transactionnel sur `CapacityPool` et la disponibilité est dérivée des réservations `held` non expirées et `committed`, sans compteur canonique concurrent. Les détails des invariants, backfills, modes `none/upfront/after_approval/on_site/later` et limites volontaires sont documentés dans [`commerce-capacity.md`](commerce-capacity.md).
+
+### Note d'implémentation — 8A Domain Events / Notifications / Automation
+
+La généralisation des capacités transversales est désormais découpée en étapes maîtrisables. **8A** introduit un contrat de Domain Events stables `<domain>.<fact>`, une outbox transactionnelle persistée dans `core`, un processor batché/retryable et des traces de consommation idempotentes. Les transitions canoniques de Journey/Request, Activity/Occurrence, Access, Commerce et Payment produisent leurs faits depuis leurs services ; le contrat ne dépend pas de la verticale historique `events.Event`.
+
+`notifications` consomme ces faits comme **consumer système** et conserve le vocabulaire contextuel Event/registration/invitation ainsi que les préférences existantes. `automation` peut désormais déclencher des règles configurables par `event_type`, avec portée Espace/Activity, conditions whitelistées et exécutions idempotentes ; Autopilot reste le scheduler des travaux temporels et peut traiter l'outbox sans devenir propriétaire des workflows.
+
+Les bridges Event/Ticket et les moteurs historiques encore nécessaires restent des compatibilités. La généralisation **CRM + Promotions / audiences commerciales** est reportée à **8B** ; **Scanner/Operations + Analytics** à **8C**. Les détails du contrat, du retry et de la séparation consumers système/règles configurables sont documentés dans [`domain-events-automation.md`](domain-events-automation.md).
