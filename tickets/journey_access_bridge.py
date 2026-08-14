@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from access.legacy_bridge import sync_legacy_access_status, transfer_access_beneficiary
 from access.models import AccessStatus
@@ -49,6 +50,16 @@ def _order_journey_status(order):
     if order.status == TicketOrderStatus.CONFIRMED:
         return JourneyStatus.FULFILLED if order.tickets.exists() else JourneyStatus.CONFIRMED
     return ORDER_STATUS_MAP[order.status]
+
+
+def _ticket_access_status(ticket):
+    status = TICKET_STATUS_MAP[ticket.status]
+    # A legacy Ticket may still say "valid" after its Event window has ended.
+    # Access validity is stricter: never reactivate that historical right merely
+    # because a seed/admin operation changes holder metadata afterwards.
+    if status == AccessStatus.VALID and ticket.event.end_at <= timezone.now():
+        return AccessStatus.EXPIRED
+    return status
 
 
 @transaction.atomic
@@ -119,7 +130,7 @@ def sync_ticket_access(ticket: Ticket):
 
     journey = ticket.order.journey or sync_order_journey(ticket.order)
     activity, occurrence = sync_event_core(ticket.event)
-    target_status = TICKET_STATUS_MAP[ticket.status]
+    target_status = _ticket_access_status(ticket)
 
     if ticket.access_id:
         access = ticket.access
