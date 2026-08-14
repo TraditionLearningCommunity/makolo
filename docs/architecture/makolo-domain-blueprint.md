@@ -720,3 +720,11 @@ L'étape 5 est désormais matérialisée par les bounded contexts `journeys` et 
 `TicketOrder.journey` et `Ticket.access` constituent les bridges explicites de migration. `TicketOrder`, `Ticket`, `TicketType`, `Payment`, `ScannerAssignment` et l'UX Event restent conservés par compatibilité ; les QR Ticket historiques utilisent un resolver legacy contrôlé, tandis que toute nouvelle représentation canonique invalide l'ancien bearer. La décision de scan converge vers `Access` et produit `AccessUse` sans supprimer `ScanLog`.
 
 La prochaine étape structurante reste **Commerce / capacité / paiement**. Le détail des invariants, mappings de backfill et compatibilités de cette implémentation est documenté dans [`journey-request-access.md`](journey-request-access.md).
+
+### Note d'implémentation — Commerce / capacité / paiement
+
+L'étape 6 est désormais matérialisée par deux bounded contexts séparés : `capacity` porte `CapacityPool` et `CapacityReservation`, tandis que `commerce` porte `Offer`, `CommerceOrder`, `CommerceOrderItem` et les `PaymentMode` contrôlés. La capacité reste indépendante du commerce et du paiement : une Journey gratuite peut réserver puis engager une place et produire un Access sans CommerceOrder ni Payment.
+
+Les bridges explicites sont `TicketType → Offer/CapacityPool`, `TicketOrder → CommerceOrder`, `TicketOrderItem → CommerceOrderItem/CapacityReservation` et `Payment → CommerceOrder`. `Payment` reste la source de vérité provider et peut désormais référencer une CommerceOrder sans TicketOrder ; Journey reste propriétaire du workflow et Access du droit. Les modèles Ticket historiques, Promotions et Waitlist restent conservés comme compatibilités de la verticale Events.
+
+Le verrouillage de capacité est transactionnel sur `CapacityPool` et la disponibilité est dérivée des réservations `held` non expirées et `committed`, sans compteur canonique concurrent. Les détails des invariants, backfills, modes `none/upfront/after_approval/on_site/later` et limites volontaires sont documentés dans [`commerce-capacity.md`](commerce-capacity.md).
