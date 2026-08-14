@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.services import can
+from domain_events.contracts import DomainEventType
+from domain_events.services import emit_domain_event
 
 from .models import (
     Access,
@@ -39,6 +41,37 @@ class AccessValidationOutcome:
     @property
     def accepted(self) -> bool:
         return self.result == AccessUseResult.ACCEPTED
+
+
+def _string_id(value):
+    return str(value) if value else None
+
+
+def _emit_access_event(access, *, event_type, previous_status=None, use=None):
+    suffix = event_type.rsplit(".", 1)[-1]
+    if use is not None:
+        suffix = f"{suffix}:{use.pk}"
+    space_id = getattr(access.activity, "space_id", None)
+    payload = {
+        "access_id": str(access.pk),
+        "activity_id": str(access.activity_id),
+        "occurrence_id": _string_id(access.occurrence_id),
+        "journey_id": _string_id(access.journey_id),
+        "beneficiary_id": _string_id(access.beneficiary_id),
+        "previous_status": previous_status,
+        "status": access.status,
+    }
+    if use is not None:
+        payload["access_use_id"] = str(use.pk)
+    return emit_domain_event(
+        event_type=event_type,
+        source_type="access",
+        source_id=access.pk,
+        idempotency_key=f"access:{access.pk}:{suffix}",
+        space_id=space_id,
+        activity_id=access.activity_id,
+        payload=payload,
+    )
 
 
 def render_access_credential(credential: AccessCredential) -> str:
@@ -183,13 +216,27 @@ def issue_access(
         raise
     if create_credential and access.status in {AccessStatus.PENDING, AccessStatus.VALID}:
         _create_credential(access)
+    _emit_access_event(access, event_type=DomainEventType.ACCESS_ISSUED)
     return access
 
 
 def _set_access_status(access, status):
+    previous_status = access.status
+    if previous_status == status:
+        return access
     access.status = status
     access._allow_status_transition = True
     access.save(update_fields=["status", "updated_at"])
+    event_type = {
+        AccessStatus.REVOKED: DomainEventType.ACCESS_REVOKED,
+        AccessStatus.EXPIRED: DomainEventType.ACCESS_EXPIRED,
+    }.get(status)
+    if event_type:
+        _emit_access_event(
+            access,
+            event_type=event_type,
+            previous_status=previous_status,
+        )
     return access
 
 
@@ -262,7 +309,7 @@ def cancel_access(*, access, actor=None):
 @transaction.atomic
 def expire_access(*, access, now=None):
     now = now or timezone.now()
-    access = Access.objects.select_for_update(of=("self",)).order_by().get(pk=access.pk)
+    access = Access.objects.select_for_update(of=("self",)).select_related("activity").order_by().get(pk=access.pk)
     if access.status in TERMINAL_ACCESS_STATUSES:
         return access
     if access.valid_until is None or access.valid_until > now:
@@ -455,6 +502,12 @@ def validate_access(
         occurrence=expected_occurrence or access.occurrence,
         result=AccessUseResult.ACCEPTED,
         source=source,
+    )
+    _emit_access_event(
+        access,
+        event_type=DomainEventType.ACCESS_USED,
+        previous_status=AccessStatus.VALID,
+        use=use,
     )
     return _outcome(result=AccessUseResult.ACCEPTED, message="Accès autorisé.", access=access, credential=locked_credential, use=use)
 

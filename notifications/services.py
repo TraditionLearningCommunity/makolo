@@ -95,9 +95,21 @@ def create_notification(
     dedup_key: str | None = None,
     metadata: dict | None = None,
     queue_email: bool = True,
+    domain_event=None,
+    activity=None,
+    journey=None,
+    access=None,
+    commerce_order=None,
+    template_key: str = "",
 ) -> Notification:
     defaults = {
         "recipient": recipient,
+        "domain_event": domain_event,
+        "activity": activity,
+        "journey": journey,
+        "access": access,
+        "commerce_order": commerce_order,
+        "template_key": (template_key or "")[:100],
         "kind": kind,
         "category": category,
         "title": title[:180],
@@ -220,6 +232,8 @@ def dispatch_pending(*, limit: int = 100) -> dict[str, int]:
     return result
 
 
+# Explicit compatibility helpers. They are no longer wired to post_save signals;
+# new runtime transitions flow through Domain Events and the system consumer.
 def notify_order_confirmed(order_id):
     from tickets.models import TicketOrder
 
@@ -251,7 +265,7 @@ def notify_payment_succeeded(payment_id):
     from payments.models import Payment
 
     payment = Payment.objects.select_related("order__buyer", "order__event").filter(pk=payment_id).first()
-    if not payment or not payment.order.buyer_id:
+    if not payment or not payment.order_id or not payment.order.buyer_id:
         return None
     return create_notification(
         recipient=payment.order.buyer,
@@ -272,7 +286,7 @@ def notify_payment_failed(payment_id):
     from payments.models import Payment
 
     payment = Payment.objects.select_related("order__buyer", "order__event").filter(pk=payment_id).first()
-    if not payment or not payment.order.buyer_id:
+    if not payment or not payment.order_id or not payment.order.buyer_id:
         return None
     return create_notification(
         recipient=payment.order.buyer,
@@ -293,7 +307,7 @@ def notify_payment_refunded(payment_id):
     from payments.models import Payment
 
     payment = Payment.objects.select_related("order__buyer", "order__event").filter(pk=payment_id).first()
-    if not payment or not payment.order.buyer_id:
+    if not payment or not payment.order_id or not payment.order.buyer_id:
         return None
     return create_notification(
         recipient=payment.order.buyer,

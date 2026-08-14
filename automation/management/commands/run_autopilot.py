@@ -5,13 +5,16 @@ from django.core.management.base import BaseCommand
 
 from automation.crm_runtime import process_due_crm_workflows
 from automation.services import run_autopilot_cycle
+from capacity.services import expire_stale_capacity_reservations
 from core.logging_filters import redact_sensitive_text
+from domain_events.services import process_domain_events, recover_stale_domain_events
+from journeys.services import expire_due_journeys
 from operations.models import WorkerState
 from operations.services import record_worker_heartbeat
 
 
 class Command(BaseCommand):
-    help = "Exécute un cycle Makolo Autopilot (scheduler, expirations, notifications et CRM)."
+    help = "Exécute un cycle Makolo Autopilot (scheduler, expirations, Domain Events, notifications et CRM)."
 
     def add_arguments(self, parser):
         parser.add_argument("--delivery-limit", type=int, default=100)
@@ -47,7 +50,16 @@ class Command(BaseCommand):
                 cycle_started=True,
             )
         try:
+            # Time-driven work remains scheduler-owned. Each canonical service
+            # emits its own facts; the scheduler never duplicates workflow logic.
+            canonical_stats = {
+                "expired_capacity_holds": expire_stale_capacity_reservations(),
+                "expired_journeys": expire_due_journeys(),
+                "recovered_domain_events": recover_stale_domain_events(),
+                "domain_events": process_domain_events(batch_size=limit, limit=limit),
+            }
             stats = run_autopilot_cycle(delivery_limit=limit)
+            stats.update(canonical_stats)
             stats["crm_workflows"] = process_due_crm_workflows(limit=limit)
         except Exception as exc:
             if record_scheduled:

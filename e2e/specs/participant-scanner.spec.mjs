@@ -43,6 +43,14 @@ test('participant goes from discovery to favorite, payment, QR, accepted scan th
   await page.getByRole('button', { name: /Créer la commande/i }).click();
   await completeSandboxPayment(page);
 
+  const paymentDetailUrl = page.url();
+  await page.goto('/notifications/');
+  const paymentNotifications = page.getByRole('heading', { name: 'Paiement confirmé', exact: true });
+  const ticketNotifications = page.getByRole('heading', { name: 'Vos billets sont disponibles', exact: true });
+  await expect(paymentNotifications).toHaveCount(1);
+  await expect(ticketNotifications).toHaveCount(1);
+  await page.goto(paymentDetailUrl);
+
   await page.getByRole('link', { name: /Commande MKO-/i }).click();
   const ticketLink = page.getByRole('link', { name: /Pass standard E2E/i }).first();
   await expect(ticketLink).toBeVisible();

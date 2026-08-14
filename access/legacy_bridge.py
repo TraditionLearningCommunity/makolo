@@ -3,6 +3,8 @@ from django.db import transaction
 
 from authorization.constants import PermissionCode
 from authorization.services import can
+from domain_events.contracts import DomainEventType
+from domain_events.services import emit_domain_event
 
 from .models import Access, AccessStatus, CredentialStatus
 from .services import _create_credential, _revoke_active_credentials, _set_access_status
@@ -15,6 +17,28 @@ def _can_manage(actor, activity):
             can(actor, PermissionCode.ACTIVITY_ACCESS_MANAGE, activity=activity)
             or can(actor, PermissionCode.ACTIVITY_MANAGE, activity=activity)
         )
+    )
+
+
+def _emit_transfer(access, *, previous_beneficiary_id, source):
+    if source == "legacy_backfill":
+        return None
+    return emit_domain_event(
+        event_type=DomainEventType.ACCESS_TRANSFERRED,
+        source_type="access",
+        source_id=access.pk,
+        idempotency_key=f"access:{access.pk}:transferred:{access.beneficiary_id}",
+        space_id=getattr(access.activity, "space_id", None),
+        activity_id=access.activity_id,
+        payload={
+            "access_id": str(access.pk),
+            "activity_id": str(access.activity_id),
+            "occurrence_id": str(access.occurrence_id) if access.occurrence_id else None,
+            "journey_id": str(access.journey_id) if access.journey_id else None,
+            "previous_beneficiary_id": str(previous_beneficiary_id) if previous_beneficiary_id else None,
+            "beneficiary_id": str(access.beneficiary_id),
+            "status": access.status,
+        },
     )
 
 
@@ -61,11 +85,17 @@ def transfer_access_beneficiary(*, access, beneficiary, actor=None, source="tran
     if access.beneficiary_id == beneficiary.pk:
         return access
 
+    previous_beneficiary_id = access.beneficiary_id
     if access.status in {AccessStatus.PENDING, AccessStatus.VALID}:
         access.beneficiary = beneficiary
         access.save(update_fields=["beneficiary", "updated_at"])
         _revoke_active_credentials(access)
         _create_credential(access)
+        _emit_transfer(
+            access,
+            previous_beneficiary_id=previous_beneficiary_id,
+            source=source,
+        )
         return access
 
     if source not in {"ticket_transfer", "ticket_bridge", "legacy_backfill"}:
@@ -77,4 +107,9 @@ def transfer_access_beneficiary(*, access, beneficiary, actor=None, source="tran
     access.beneficiary = beneficiary
     access.save(update_fields=["beneficiary", "updated_at"])
     _revoke_active_credentials(access)
+    _emit_transfer(
+        access,
+        previous_beneficiary_id=previous_beneficiary_id,
+        source=source,
+    )
     return access
