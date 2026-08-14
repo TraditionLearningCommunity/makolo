@@ -1,6 +1,4 @@
 from django.db import transaction
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 
 from commerce.models import CommerceOrder, CommerceOrderStatus
 from commerce.services import confirm_order
@@ -10,6 +8,7 @@ from .models import Payment, PaymentStatus
 
 @transaction.atomic
 def sync_payment_commerce(payment):
+    """Synchronize Payment's canonical Commerce projection explicitly from services."""
     payment = (
         Payment.objects.select_for_update(of=("self",))
         .select_related("order__commerce_order", "commerce_order")
@@ -31,12 +30,7 @@ def sync_payment_commerce(payment):
     if payment.status == PaymentStatus.SUCCEEDED:
         confirm_order(order=commerce_order, payment_verified=True)
     elif payment.status == PaymentStatus.REFUNDED and commerce_order.status != CommerceOrderStatus.REFUNDED:
-        # Payment owns the provider/refund truth. Commerce receives only the
-        # commercial projection; Capacity release remains an explicit policy.
+        # Payment owns provider/refund truth. This remains only a commercial
+        # projection; Capacity release is an explicit policy elsewhere.
         CommerceOrder.objects.filter(pk=commerce_order.pk).update(status=CommerceOrderStatus.REFUNDED)
     return commerce_order
-
-
-@receiver(post_save, sender=Payment, dispatch_uid="payments.sync_payment_commerce")
-def _payment_saved(sender, instance, **kwargs):
-    sync_payment_commerce(instance)

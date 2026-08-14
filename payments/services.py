@@ -10,11 +10,14 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
+from domain_events.contracts import DomainEventType
 from events.permissions import user_can_manage_event_finance
 from tickets.models import TicketOrder, TicketOrderStatus, TicketStatus
 from tickets.permissions import user_can_access_order
 from tickets.services import _confirm_locked_order, _lock_event_ticket_types, cancel_order
 
+from .commerce_bridge import sync_payment_commerce
+from .domain_events import emit_payment_domain_event
 from .models import Payment, PaymentEvent, PaymentProvider, PaymentStatus, Refund, RefundStatus
 
 
@@ -235,12 +238,14 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
         payment.save(update_fields=["status", "provider_reference", "processed_at", "succeeded_at", "failure_code", "failure_message", "metadata", "updated_at"])
     except IntegrityError as exc:
         raise ValidationError("Référence fournisseur déjà utilisée ou commande déjà payée.") from exc
+    emit_payment_domain_event(payment, event_type=DomainEventType.PAYMENT_SUCCEEDED)
+    sync_payment_commerce(payment)
     return payment
 
 
 @transaction.atomic
 def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: str = "", provider_reference: str = "", source: str = "provider") -> Payment:
-    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "commerce_order").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event", "commerce_order").get(pk=payment.pk)
     if payment.status == PaymentStatus.FAILED:
         return payment
     if payment.status in {PaymentStatus.SUCCEEDED, PaymentStatus.REFUNDED}:
@@ -256,6 +261,7 @@ def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: s
     payment.failed_at = now
     payment.metadata = {**payment.metadata, "failure_source": source}
     payment.save(update_fields=["status", "failure_code", "failure_message", "provider_reference", "processed_at", "failed_at", "metadata", "updated_at"])
+    emit_payment_domain_event(payment, event_type=DomainEventType.PAYMENT_FAILED)
     return payment
 
 
@@ -363,6 +369,8 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
     payment.status = PaymentStatus.REFUNDED
     payment.processed_at = now
     payment.save(update_fields=["status", "processed_at", "updated_at"])
+    emit_payment_domain_event(payment, event_type=DomainEventType.PAYMENT_REFUNDED)
+    sync_payment_commerce(payment)
     return refund
 
 

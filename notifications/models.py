@@ -44,6 +44,43 @@ class Notification(models.Model):
         on_delete=models.CASCADE,
         related_name="makolo_notifications",
     )
+    domain_event = models.ForeignKey(
+        "core.DomainEventOutbox",
+        on_delete=models.SET_NULL,
+        related_name="notifications",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    activity = models.ForeignKey(
+        "activities.Activity",
+        on_delete=models.SET_NULL,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    journey = models.ForeignKey(
+        "journeys.Journey",
+        on_delete=models.SET_NULL,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    access = models.ForeignKey(
+        "access.Access",
+        on_delete=models.SET_NULL,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    commerce_order = models.ForeignKey(
+        "commerce.CommerceOrder",
+        on_delete=models.SET_NULL,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    template_key = models.CharField(max_length=100, blank=True)
     kind = models.CharField(
         max_length=40,
         choices=NotificationKind.choices,
@@ -73,6 +110,10 @@ class Notification(models.Model):
             models.Index(
                 fields=["category", "created_at"],
                 name="notif_category_created_idx",
+            ),
+            models.Index(
+                fields=["domain_event", "recipient"],
+                name="notif_domain_recipient_idx",
             ),
         ]
 

@@ -1,10 +1,12 @@
 import uuid
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from domain_events.contracts import DomainEventType
 from events.models import Event
 
 
@@ -58,6 +60,160 @@ class AutomationRun(models.Model):
 
     def __str__(self):
         return f"{self.rule_key} — {self.status}"
+
+
+class DomainAutomationActionKind(models.TextChoices):
+    NOTIFICATION = "notification", "Créer une notification"
+
+
+class DomainAutomationExecutionStatus(models.TextChoices):
+    PENDING = "pending", "En attente"
+    RUNNING = "running", "En cours"
+    COMPLETED = "completed", "Terminé"
+    SKIPPED = "skipped", "Ignoré"
+    FAILED = "failed", "Échoué"
+
+
+AUTOMATION_CONDITION_KEYS = frozenset({"workflow", "payment_mode", "status", "currency", "amount_gte"})
+AUTOMATION_ACTION_CONFIG_KEYS = frozenset({"recipient", "title", "message", "category", "queue_email"})
+AUTOMATION_RECIPIENT_FIELDS = frozenset({"beneficiary", "initiated_by", "buyer", "requester"})
+AUTOMATION_NOTIFICATION_CATEGORIES = frozenset({"event", "ticket", "payment", "security", "system"})
+
+
+class AutomationRule(models.Model):
+    """Controlled configurable reaction to a canonical Domain Event."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="domain_automation_rules",
+    )
+    activity = models.ForeignKey(
+        "activities.Activity",
+        on_delete=models.CASCADE,
+        related_name="automation_rules",
+        null=True,
+        blank=True,
+    )
+    name = models.CharField(max_length=160)
+    trigger_event_type = models.CharField(max_length=100)
+    conditions = models.JSONField(default=dict, blank=True)
+    action_kind = models.CharField(
+        max_length=32,
+        choices=DomainAutomationActionKind.choices,
+        default=DomainAutomationActionKind.NOTIFICATION,
+    )
+    action_config = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_domain_automation_rules",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["space_id", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["space", "name"], name="auto_domain_rule_space_name_unique")
+        ]
+        indexes = [
+            models.Index(fields=["space", "is_active", "trigger_event_type"], name="auto_de_rule_space_idx"),
+            models.Index(fields=["activity", "is_active", "trigger_event_type"], name="auto_de_rule_activity_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.activity_id and self.space_id and self.activity.space_id != self.space_id:
+            errors["activity"] = "L’Activity doit appartenir à l’Espace de la règle."
+        if self.trigger_event_type not in DomainEventType.values:
+            errors["trigger_event_type"] = "Type de Domain Event inconnu."
+        if not isinstance(self.conditions, dict):
+            errors["conditions"] = "Les conditions doivent être un objet JSON."
+        else:
+            unexpected = set(self.conditions) - AUTOMATION_CONDITION_KEYS
+            if unexpected:
+                errors["conditions"] = f"Conditions non autorisées: {', '.join(sorted(unexpected))}."
+            for key in {"workflow", "payment_mode", "status", "currency"} & set(self.conditions):
+                if not isinstance(self.conditions[key], str):
+                    errors["conditions"] = f"La condition {key} doit être une chaîne."
+            if "amount_gte" in self.conditions:
+                try:
+                    value = Decimal(str(self.conditions["amount_gte"]))
+                    if value < 0:
+                        raise InvalidOperation
+                except (InvalidOperation, ValueError, TypeError):
+                    errors["conditions"] = "amount_gte doit être un montant positif ou nul."
+        if self.action_kind != DomainAutomationActionKind.NOTIFICATION:
+            errors["action_kind"] = "Action Automation non autorisée pour ce socle."
+        if not isinstance(self.action_config, dict):
+            errors["action_config"] = "La configuration d’action doit être un objet JSON."
+        else:
+            unexpected = set(self.action_config) - AUTOMATION_ACTION_CONFIG_KEYS
+            if unexpected:
+                errors["action_config"] = f"Paramètres d’action non autorisés: {', '.join(sorted(unexpected))}."
+            recipient = self.action_config.get("recipient", "beneficiary")
+            if recipient not in AUTOMATION_RECIPIENT_FIELDS:
+                errors["action_config"] = "Destinataire Automation non autorisé."
+            category = self.action_config.get("category", "system")
+            if category not in AUTOMATION_NOTIFICATION_CATEGORIES:
+                errors["action_config"] = "Catégorie de notification non autorisée."
+            if not str(self.action_config.get("title", "")).strip():
+                errors["action_config"] = "Le titre de notification est obligatoire."
+            if not str(self.action_config.get("message", "")).strip():
+                errors["action_config"] = "Le message de notification est obligatoire."
+            if "queue_email" in self.action_config and not isinstance(self.action_config["queue_email"], bool):
+                errors["action_config"] = "queue_email doit être booléen."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.space} — {self.name}"
+
+
+class AutomationExecution(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rule = models.ForeignKey(AutomationRule, on_delete=models.CASCADE, related_name="executions")
+    domain_event = models.ForeignKey(
+        "core.DomainEventOutbox",
+        on_delete=models.PROTECT,
+        related_name="automation_executions",
+    )
+    action = models.CharField(max_length=32, choices=DomainAutomationActionKind.choices)
+    status = models.CharField(
+        max_length=16,
+        choices=DomainAutomationExecutionStatus.choices,
+        default=DomainAutomationExecutionStatus.PENDING,
+    )
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(default=3)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["rule", "domain_event"], name="auto_execution_rule_event_unique"),
+            models.CheckConstraint(condition=models.Q(max_attempts__gt=0), name="auto_execution_max_attempts_pos"),
+        ]
+        indexes = [
+            models.Index(fields=["rule", "status"], name="auto_de_exec_rule_status_idx"),
+            models.Index(fields=["domain_event"], name="auto_de_exec_event_idx"),
+            models.Index(fields=["created_at"], name="auto_de_exec_created_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.rule} — {self.domain_event_id} — {self.status}"
 
 
 class CRMWorkflowTrigger(models.TextChoices):

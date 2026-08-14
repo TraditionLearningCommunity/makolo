@@ -1,6 +1,8 @@
 from django.contrib import admin
 
 from .models import (
+    AutomationExecution,
+    AutomationRule,
     AutomationRun,
     CRMWorkflow,
     CRMWorkflowAction,
@@ -26,6 +28,28 @@ class AutomationRunAdmin(admin.ModelAdmin):
     readonly_fields = [field.name for field in AutomationRun._meta.fields]
 
     def has_add_permission(self, request):
+        return False
+
+
+@admin.register(AutomationRule)
+class AutomationRuleAdmin(admin.ModelAdmin):
+    list_display = ("name", "space", "activity", "trigger_event_type", "action_kind", "is_active", "updated_at")
+    list_filter = ("space", "is_active", "trigger_event_type", "action_kind")
+    search_fields = ("name", "space__name", "activity__title", "trigger_event_type")
+    autocomplete_fields = ("space", "activity", "created_by")
+
+
+@admin.register(AutomationExecution)
+class AutomationExecutionAdmin(admin.ModelAdmin):
+    list_display = ("rule", "domain_event", "action", "status", "attempts", "created_at", "completed_at")
+    list_filter = ("status", "action", "rule__space")
+    search_fields = ("rule__name", "domain_event__event_type", "domain_event__id")
+    readonly_fields = [field.name for field in AutomationExecution._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False
 
 

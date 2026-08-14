@@ -6,6 +6,8 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.services import can
+from domain_events.contracts import DomainEventType, JOURNEY_STATUS_EVENT_TYPES
+from domain_events.services import emit_domain_event
 
 from .models import (
     Journey,
@@ -25,6 +27,62 @@ APPROVAL_WORKFLOWS = {
     WorkflowKind.REGISTRATION,
     WorkflowKind.INVITATION,
 }
+
+
+def _string_id(value):
+    return str(value) if value else None
+
+
+def _journey_scope(journey):
+    activity = journey.activity
+    return getattr(activity, "space_id", None), activity.pk
+
+
+def _emit_journey_event(journey, *, previous_status, status):
+    event_type = JOURNEY_STATUS_EVENT_TYPES.get(status)
+    if not event_type:
+        return None
+    space_id, activity_id = _journey_scope(journey)
+    return emit_domain_event(
+        event_type=event_type,
+        source_type="journey",
+        source_id=journey.pk,
+        idempotency_key=f"journey:{journey.pk}:{status}",
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "journey_id": str(journey.pk),
+            "activity_id": str(activity_id),
+            "occurrence_id": _string_id(journey.occurrence_id),
+            "initiated_by_id": _string_id(journey.initiated_by_id),
+            "beneficiary_id": _string_id(journey.beneficiary_id),
+            "workflow": journey.workflow,
+            "previous_status": previous_status or None,
+            "status": status,
+        },
+    )
+
+
+def _emit_request_event(request, journey, event_type):
+    space_id, activity_id = _journey_scope(journey)
+    return emit_domain_event(
+        event_type=event_type,
+        source_type="journey_request",
+        source_id=request.pk,
+        idempotency_key=f"request:{request.pk}:{event_type.rsplit('.', 1)[-1]}",
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "request_id": str(request.pk),
+            "journey_id": str(journey.pk),
+            "activity_id": str(activity_id),
+            "occurrence_id": _string_id(journey.occurrence_id),
+            "requester_id": _string_id(request.requester_id),
+            "beneficiary_id": _string_id(journey.beneficiary_id),
+            "purpose": request.purpose,
+            "status": request.status,
+        },
+    )
 
 
 def _check_occurrence(activity, occurrence):
@@ -54,6 +112,8 @@ def create_journey(
     )
     journey.full_clean()
     journey.save()
+    if status != JourneyStatus.DRAFT:
+        _emit_journey_event(journey, previous_status="", status=status)
     return journey
 
 
@@ -67,6 +127,7 @@ def _save_transition(journey, *, previous_status, new_status, actor=None, reason
         actor=actor if getattr(actor, "is_authenticated", False) else None,
         reason=(reason or "")[:160],
     )
+    _emit_journey_event(journey, previous_status=previous_status, status=new_status)
     return journey
 
 
@@ -262,6 +323,7 @@ def create_request(
     )
     request.full_clean()
     request.save()
+    _emit_request_event(request, journey, DomainEventType.REQUEST_CREATED)
     return request
 
 
@@ -270,7 +332,7 @@ def _lock_request_and_journey(request):
     journey_id = JourneyRequest.objects.only("journey_id").get(pk=request_id).journey_id
     journey = (
         Journey.objects.select_for_update(of=("self",))
-        .select_related("activity")
+        .select_related("activity", "occurrence", "beneficiary", "initiated_by")
         .order_by()
         .get(pk=journey_id)
     )
@@ -307,6 +369,7 @@ def approve_request(*, request, actor, comment=""):
     _save_request_decision(request, status=RequestStatus.APPROVED, actor=actor, comment=comment)
     if journey.status not in {JourneyStatus.PENDING_APPROVAL, JourneyStatus.SUBMITTED}:
         raise ValidationError("La Démarche n’est plus dans un état approuvable.")
+    _emit_request_event(request, journey, DomainEventType.REQUEST_APPROVED)
     _transition_locked(journey, new_status=JourneyStatus.APPROVED, actor=actor, reason="request_approved")
     return request
 
@@ -318,6 +381,7 @@ def reject_request(*, request, actor, comment=""):
     if request.status != RequestStatus.PENDING:
         raise ValidationError("Cette Demande a déjà été décidée.")
     _save_request_decision(request, status=RequestStatus.REJECTED, actor=actor, comment=comment)
+    _emit_request_event(request, journey, DomainEventType.REQUEST_REJECTED)
     if journey.status in {JourneyStatus.PENDING_APPROVAL, JourneyStatus.SUBMITTED}:
         _transition_locked(journey, new_status=JourneyStatus.REJECTED, actor=actor, reason="request_rejected")
     return request

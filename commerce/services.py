@@ -7,6 +7,8 @@ from django.utils import timezone
 
 from capacity.models import CapacityReservationStatus
 from capacity.services import commit_capacity, expire_capacity, release_capacity, reserve_capacity
+from domain_events.contracts import DomainEventType
+from domain_events.services import emit_domain_event
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from journeys.services import confirm_journey, expire_journey, require_payment
 
@@ -19,6 +21,34 @@ class OrderSelection:
     quantity: int
     beneficiary: object | None = None
     discount_total: Decimal = Decimal("0.00")
+
+
+def _string_id(value):
+    return str(value) if value else None
+
+
+def _emit_order_event(order, *, event_type, activity_id, space_id, occurrence_id=None):
+    suffix = event_type.rsplit(".", 1)[-1]
+    return emit_domain_event(
+        event_type=event_type,
+        source_type="commerce_order",
+        source_id=order.pk,
+        idempotency_key=f"commerce-order:{order.pk}:{suffix}",
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "commerce_order_id": str(order.pk),
+            "journey_id": str(order.journey_id),
+            "activity_id": str(activity_id),
+            "occurrence_id": _string_id(occurrence_id),
+            "buyer_id": _string_id(order.buyer_id),
+            "payee_space_id": _string_id(order.payee_space_id),
+            "payment_mode": order.payment_mode,
+            "currency": order.currency,
+            "amount": str(order.total),
+            "status": order.status,
+        },
+    )
 
 
 def create_offer(**values):
@@ -175,7 +205,9 @@ def create_order(
     if payment_mode == PaymentMode.NONE and total != Decimal("0.00"):
         raise ValidationError("Une commande payment_mode=none doit être gratuite.")
 
-    activity_space_id = Journey.objects.filter(pk=journey.pk).values_list("activity__space_id", flat=True).get()
+    activity_space_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
+        "activity__space_id", "activity_id", "occurrence_id"
+    ).get()
     if payee_space is None:
         if activity_space_id is None:
             raise ValidationError("Un bénéficiaire financier explicite est requis pour cette Activity.")
@@ -233,6 +265,13 @@ def create_order(
             line_total=line_subtotal - line_discount,
         )
 
+    _emit_order_event(
+        order,
+        event_type=DomainEventType.COMMERCE_ORDER_CREATED,
+        activity_id=activity_id,
+        space_id=activity_space_id,
+        occurrence_id=occurrence_id,
+    )
     _prepare_journey_payment_state(journey, payment_mode)
     return order
 
@@ -240,6 +279,12 @@ def create_order(
 def _successful_payment_exists(order):
     from payments.models import Payment, PaymentStatus
     return Payment.objects.filter(commerce_order=order, status=PaymentStatus.SUCCEEDED).exists()
+
+
+def _order_scope(order):
+    return Journey.objects.filter(pk=order.journey_id).values_list(
+        "activity__space_id", "activity_id", "occurrence_id"
+    ).get()
 
 
 @transaction.atomic
@@ -263,7 +308,16 @@ def confirm_order(*, order, actor=None, payment_verified=False):
     journey = Journey.objects.get(pk=order.journey_id)
     if journey.status != JourneyStatus.CONFIRMED:
         confirm_journey(journey=journey, actor=actor, reason="commerce_order_confirmed")
-    return _set_order_status(order, CommerceOrderStatus.CONFIRMED)
+    order = _set_order_status(order, CommerceOrderStatus.CONFIRMED)
+    space_id, activity_id, occurrence_id = _order_scope(order)
+    _emit_order_event(
+        order,
+        event_type=DomainEventType.COMMERCE_ORDER_CONFIRMED,
+        activity_id=activity_id,
+        space_id=space_id,
+        occurrence_id=occurrence_id,
+    )
+    return order
 
 
 @transaction.atomic
@@ -281,7 +335,16 @@ def cancel_order(*, order, actor=None, release_committed=False):
             release_capacity(reservation=reservation)
         elif reservation.status == CapacityReservationStatus.COMMITTED and release_committed:
             release_capacity(reservation=reservation, allow_committed=True)
-    return _set_order_status(order, CommerceOrderStatus.CANCELLED)
+    order = _set_order_status(order, CommerceOrderStatus.CANCELLED)
+    space_id, activity_id, occurrence_id = _order_scope(order)
+    _emit_order_event(
+        order,
+        event_type=DomainEventType.COMMERCE_ORDER_CANCELLED,
+        activity_id=activity_id,
+        space_id=space_id,
+        occurrence_id=occurrence_id,
+    )
+    return order
 
 
 @transaction.atomic
@@ -303,4 +366,13 @@ def expire_order(*, order, now=None):
     Journey.objects.filter(pk=order.journey_id).update(expires_at=now)
     journey = Journey.objects.get(pk=order.journey_id)
     expire_journey(journey=journey, now=now, reason="commerce_order_expired")
-    return _set_order_status(order, CommerceOrderStatus.EXPIRED, now=now)
+    order = _set_order_status(order, CommerceOrderStatus.EXPIRED, now=now)
+    space_id, activity_id, occurrence_id = _order_scope(order)
+    _emit_order_event(
+        order,
+        event_type=DomainEventType.COMMERCE_ORDER_EXPIRED,
+        activity_id=activity_id,
+        space_id=space_id,
+        occurrence_id=occurrence_id,
+    )
+    return order
