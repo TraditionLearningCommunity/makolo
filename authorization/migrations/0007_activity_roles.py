@@ -18,7 +18,7 @@ def migrate_activity_roles(apps, schema_editor):
     historical = Role.objects.filter(code="activity-manager", scope_type="space", is_system=True).first()
     if historical:
         historical.code = "space-activity-manager"
-        historical.name = "Responsable des activités"
+        historical.name = "Responsable activité"
         historical.description = "Pilotage du portefeuille d’activités de l’Espace."
         historical.save()
 
