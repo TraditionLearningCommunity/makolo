@@ -47,6 +47,8 @@ class Payment(models.Model):
         TicketOrder,
         on_delete=models.PROTECT,
         related_name="payments",
+        null=True,
+        blank=True,
     )
     commerce_order = models.ForeignKey(
         "commerce.CommerceOrder",
@@ -117,6 +119,10 @@ class Payment(models.Model):
                 condition=Q(amount__gt=0),
                 name="payment_amount_positive",
             ),
+            models.CheckConstraint(
+                condition=Q(order__isnull=False) | Q(commerce_order__isnull=False),
+                name="payment_has_order_source",
+            ),
             models.UniqueConstraint(
                 fields=["order"],
                 condition=Q(status=PaymentStatus.SUCCEEDED),
@@ -140,6 +146,8 @@ class Payment(models.Model):
         self.currency = (self.currency or "USD").upper()
         if len(self.currency) != 3:
             errors["currency"] = "La devise doit contenir exactement 3 lettres."
+        if not self.order_id and not self.commerce_order_id:
+            errors["commerce_order"] = "Un paiement doit référencer une commande Event ou une CommerceOrder."
         if self.order_id:
             if self.order.total_amount <= 0:
                 errors["order"] = "Une commande gratuite ne nécessite pas de paiement."
@@ -188,7 +196,8 @@ class Payment(models.Model):
         return max(self.amount - self.refunded_amount, Decimal("0.00"))
 
     def __str__(self):
-        return f"{self.reference} — {self.order.reference}"
+        source = self.order.reference if self.order_id else self.commerce_order.reference
+        return f"{self.reference} — {source}"
 
 
 class Refund(models.Model):
