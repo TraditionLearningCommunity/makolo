@@ -22,6 +22,10 @@ class PermissionCode:
     GROUP_OWNERSHIP_MANAGE = "group.ownership.manage"
     ACTIVITY_VIEW = "activity.view"
     ACTIVITY_MANAGE = "activity.manage"
+    ACTIVITY_REQUESTS_VIEW = "activity.requests.view"
+    ACTIVITY_REQUESTS_DECIDE = "activity.requests.decide"
+    ACTIVITY_ACCESS_VIEW = "activity.access.view"
+    ACTIVITY_ACCESS_MANAGE = "activity.access.manage"
     ORDERS_VIEW = "orders.view"
     TICKETS_VIEW = "tickets.view"
     FINANCE_VIEW = "finance.view"
@@ -71,7 +75,14 @@ GROUP_PERMISSION_CODES = {
     PermissionCode.GROUP_SNAPSHOTS_CREATE,
     PermissionCode.GROUP_OWNERSHIP_MANAGE,
 }
-ACTIVITY_PERMISSION_CODES = {PermissionCode.ACTIVITY_VIEW, PermissionCode.ACTIVITY_MANAGE}
+ACTIVITY_PERMISSION_CODES = {
+    PermissionCode.ACTIVITY_VIEW,
+    PermissionCode.ACTIVITY_MANAGE,
+    PermissionCode.ACTIVITY_REQUESTS_VIEW,
+    PermissionCode.ACTIVITY_REQUESTS_DECIDE,
+    PermissionCode.ACTIVITY_ACCESS_VIEW,
+    PermissionCode.ACTIVITY_ACCESS_MANAGE,
+}
 SPACE_PERMISSION_CODES = {
     value
     for name, value in PermissionCode.__dict__.items()
