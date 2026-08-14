@@ -26,6 +26,10 @@ class PermissionCode:
     ACTIVITY_REQUESTS_DECIDE = "activity.requests.decide"
     ACTIVITY_ACCESS_VIEW = "activity.access.view"
     ACTIVITY_ACCESS_MANAGE = "activity.access.manage"
+    ACTIVITY_COMMERCE_VIEW = "activity.commerce.view"
+    ACTIVITY_COMMERCE_MANAGE = "activity.commerce.manage"
+    ACTIVITY_CAPACITY_VIEW = "activity.capacity.view"
+    ACTIVITY_CAPACITY_MANAGE = "activity.capacity.manage"
     ORDERS_VIEW = "orders.view"
     TICKETS_VIEW = "tickets.view"
     FINANCE_VIEW = "finance.view"
@@ -82,6 +86,10 @@ ACTIVITY_PERMISSION_CODES = {
     PermissionCode.ACTIVITY_REQUESTS_DECIDE,
     PermissionCode.ACTIVITY_ACCESS_VIEW,
     PermissionCode.ACTIVITY_ACCESS_MANAGE,
+    PermissionCode.ACTIVITY_COMMERCE_VIEW,
+    PermissionCode.ACTIVITY_COMMERCE_MANAGE,
+    PermissionCode.ACTIVITY_CAPACITY_VIEW,
+    PermissionCode.ACTIVITY_CAPACITY_MANAGE,
 }
 SPACE_PERMISSION_CODES = {
     value
