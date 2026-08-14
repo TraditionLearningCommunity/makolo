@@ -2,14 +2,14 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from authorization.constants import PermissionCode
-from authorization.services import has_space_permission
+from authorization.services import can
 from groups.models import GroupMembershipStatus
 
 from .canonical_models import Audience, AudienceMember, AudienceMemberSource, AudienceStatus
 
 
 def _require_manage(actor, organization):
-    if not actor or not actor.is_authenticated or not has_space_permission(actor, organization, PermissionCode.CRM_MANAGE):
+    if not actor or not actor.is_authenticated or not can(actor, PermissionCode.CRM_MANAGE, organization):
         raise PermissionDenied("Vous n’avez pas le droit de gérer les Audiences de cet Espace.")
 
 
@@ -45,6 +45,9 @@ def add_audience_member(*, audience, profile, actor, source=AudienceMemberSource
     _require_manage(actor, audience.organization)
     if audience.status != AudienceStatus.ACTIVE:
         raise ValidationError("Une Audience archivée ne peut plus recevoir de membres.")
+    existing = AudienceMember.objects.filter(audience=audience, profile=profile).first()
+    if existing:
+        return existing
     member = AudienceMember(
         audience=audience,
         profile=profile,
@@ -52,16 +55,8 @@ def add_audience_member(*, audience, profile, actor, source=AudienceMemberSource
         source_group=source_group,
         source_snapshot=source_snapshot,
     )
-    member.full_clean(exclude=["id"])
-    member, _created = AudienceMember.objects.get_or_create(
-        audience=audience,
-        profile=profile,
-        defaults={
-            "source": source,
-            "source_group": source_group,
-            "source_snapshot": source_snapshot,
-        },
-    )
+    member.full_clean()
+    member.save()
     return member
 
 
