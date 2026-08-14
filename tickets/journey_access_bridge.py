@@ -9,12 +9,13 @@ from django.utils import timezone
 from access.legacy_bridge import sync_legacy_access_status, transfer_access_beneficiary
 from access.models import AccessStatus
 from access.services import issue_access
+from capacity.access_bridge import issue_access_from_capacity
 from events.activity_bridge import sync_event_core
 from journeys.legacy_bridge import sync_legacy_journey_status
 from journeys.models import JourneyStatus, WorkflowKind
 from journeys.services import create_journey
 
-from .models import Ticket, TicketOrder, TicketOrderStatus, TicketStatus
+from .models import Ticket, TicketOrder, TicketOrderItem, TicketOrderStatus, TicketStatus
 
 
 ORDER_STATUS_MAP = {
@@ -54,9 +55,6 @@ def _order_journey_status(order):
 
 def _ticket_access_status(ticket):
     status = TICKET_STATUS_MAP[ticket.status]
-    # A legacy Ticket may still say "valid" after its Event window has ended.
-    # Access validity is stricter: never reactivate that historical right merely
-    # because a seed/admin operation changes holder metadata afterwards.
     if status == AccessStatus.VALID and ticket.event.end_at <= timezone.now():
         return AccessStatus.EXPIRED
     return status
@@ -105,6 +103,17 @@ def sync_order_journey(order: TicketOrder):
     return journey
 
 
+def _capacity_reservation_for_ticket(ticket):
+    item = (
+        TicketOrderItem.objects.select_related("commerce_item__capacity_reservation")
+        .filter(order=ticket.order, ticket_type=ticket.ticket_type)
+        .first()
+    )
+    if item and item.commerce_item_id and item.commerce_item.capacity_reservation_id:
+        return item.commerce_item.capacity_reservation
+    return None
+
+
 @transaction.atomic
 def sync_ticket_access(ticket: Ticket):
     ticket = (
@@ -124,8 +133,6 @@ def sync_ticket_access(ticket: Ticket):
     )
     beneficiary = _ticket_beneficiary(ticket)
     if beneficiary is None:
-        # Controlled legacy compatibility for beta guest tickets whose holder
-        # cannot be deterministically linked to a Makolo Profile.
         return None
 
     journey = ticket.order.journey or sync_order_journey(ticket.order)
@@ -152,18 +159,31 @@ def sync_ticket_access(ticket: Ticket):
         )
         return access
 
-    access = issue_access(
-        beneficiary=beneficiary,
-        activity=activity,
-        occurrence=occurrence,
-        journey=journey,
-        status=target_status,
-        valid_from=None,
-        valid_until=ticket.event.end_at,
-        single_use=True,
-        source_key=f"ticket:{ticket.pk}",
-        create_credential=True,
-    )
+    reservation = _capacity_reservation_for_ticket(ticket)
+    if reservation is not None:
+        access = issue_access_from_capacity(
+            reservation=reservation,
+            beneficiary=beneficiary,
+            status=target_status,
+            valid_from=None,
+            valid_until=ticket.event.end_at,
+            single_use=True,
+            source_key=f"ticket:{ticket.pk}",
+            create_credential=True,
+        )
+    else:
+        access = issue_access(
+            beneficiary=beneficiary,
+            activity=activity,
+            occurrence=occurrence,
+            journey=journey,
+            status=target_status,
+            valid_from=None,
+            valid_until=ticket.event.end_at,
+            single_use=True,
+            source_key=f"ticket:{ticket.pk}",
+            create_credential=True,
+        )
     Ticket.objects.filter(pk=ticket.pk).update(access=access)
     ticket.access = access
     return access
