@@ -312,14 +312,20 @@ def committed_reservation_for_ticket(ticket):
 
 @receiver(post_save, sender=TicketType, dispatch_uid="tickets.sync_ticket_type_commerce")
 def _ticket_type_saved(sender, instance, **kwargs):
-    sync_ticket_type_commerce(instance)
+    offer, pool = sync_ticket_type_commerce(instance)
+    instance.offer = offer
+    instance.capacity_pool = pool
 
 
 @receiver(post_save, sender=TicketOrder, dispatch_uid="tickets.sync_order_commerce")
 def _ticket_order_saved(sender, instance, **kwargs):
-    sync_order_commerce(instance)
+    commerce_order = sync_order_commerce(instance)
+    if commerce_order is not None:
+        instance.commerce_order = commerce_order
 
 
 @receiver(post_save, sender=TicketOrderItem, dispatch_uid="tickets.sync_order_item_commerce")
 def _ticket_order_item_saved(sender, instance, **kwargs):
-    sync_order_item_commerce(instance)
+    commerce_item = sync_order_item_commerce(instance)
+    if commerce_item is not None:
+        instance.commerce_item = commerce_item
