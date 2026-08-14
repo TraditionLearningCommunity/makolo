@@ -106,6 +106,18 @@ class Command(BaseCommand):
         visual_type = TicketType.objects.create(event=visual_event, name="Invitation E2E", price="0.00", currency="USD", quantity_total=40, min_per_order=1, max_per_order=2, is_active=True, is_public=True)
         create_order(buyer=users["visual"], event=visual_event, customer_name="Visual Participant", customer_email=users["visual"].email, selections=[(visual_type,1)])
 
+        sold_out_event = Event.objects.create(
+            organizer=users["owner"], organization=main_org, category=category, venue=venue,
+            title="Capacité Makolo E2E", short_description="Événement à une seule place pour valider le sold-out canonique.",
+            description="Fixture Capacity déterministe pour vérifier la consommation et l’indisponibilité après réservation.",
+            status=EventStatus.PUBLISHED, visibility=EventVisibility.PUBLIC,
+            start_at=self._dt(2030,8,5,10,0), end_at=self._dt(2030,8,5,12,0),
+            registration_start_at=self._dt(2026,1,1,0,0), registration_end_at=self._dt(2030,8,5,9,0),
+            timezone="Africa/Lubumbashi", capacity=1, published_at=self._dt(2026,1,1,0,0), metadata={"source":"makolo-e2e","purpose":"capacity"},
+        )
+        sync_event_core(sold_out_event)
+        TicketType.objects.create(event=sold_out_event, name="Place unique E2E", description="Une seule place gratuite.", price="0.00", currency="USD", quantity_total=1, min_per_order=1, max_per_order=1, is_active=True, is_public=True)
+
         gate = EventAccessGate.objects.create(event=paid_event, name="Entrée E2E", description="Porte du scénario QR end-to-end.", priority=1, created_by=users["owner"])
         ScannerAssignment.objects.create(event=paid_event, agent=users["scanner"], assigned_by=users["owner"], access_gate=gate, label="Contrôle E2E", is_active=True)
         OperationsIncident.objects.create(title="Incident démo E2E à ignorer", category=IncidentCategory.PAYMENT, severity=IncidentSeverity.CRITICAL, status=IncidentStatus.OPEN, description="Incident marqué démo qui ne doit pas dégrader le health réel.", opened_by=users["staff"], metadata={"seed":"makolo-demo","source":"e2e"})
