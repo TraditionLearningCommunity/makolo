@@ -14,14 +14,27 @@ def user_can_manage_events(user) -> bool:
     return user_has_role(user, "organizer", legacy_flag="is_organizer")
 
 
+def _is_legacy_event_organizer(user, event) -> bool:
+    return bool(
+        not event.organization_id
+        and event.organizer_id == user.pk
+        and user_has_role(user, "organizer", legacy_flag="is_organizer")
+    )
+
+
 def user_can_manage_event(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
     if event.activity_id:
-        return can(user, PermissionCode.ACTIVITY_MANAGE, activity=event.activity)
+        if can(user, PermissionCode.ACTIVITY_MANAGE, activity=event.activity):
+            return True
+        # Event -> Activity is an expand/backfill bridge. Creating the canonical
+        # Activity must not silently remove the historical organizer authority
+        # of a standalone Event before Event itself is cut over.
+        return _is_legacy_event_organizer(user, event)
     if event.organization_id:
         return can(user, PermissionCode.SPACE_ACTIVITIES_MANAGE, event.organization)
-    return event.organizer_id == user.pk and user_has_role(user, "organizer", legacy_flag="is_organizer")
+    return _is_legacy_event_organizer(user, event)
 
 
 def user_can_manage_event_finance(user, event) -> bool:
