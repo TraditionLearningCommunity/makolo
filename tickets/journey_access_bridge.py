@@ -198,9 +198,13 @@ def sync_ticket_access_ids(ticket_ids):
 
 @receiver(post_save, sender=TicketOrder, dispatch_uid="tickets.sync_order_journey")
 def _ticket_order_saved(sender, instance, **kwargs):
-    sync_order_journey(instance)
+    journey = sync_order_journey(instance)
+    if journey is not None:
+        instance.journey = journey
 
 
 @receiver(post_save, sender=Ticket, dispatch_uid="tickets.sync_ticket_access")
 def _ticket_saved(sender, instance, **kwargs):
-    sync_ticket_access(instance)
+    access = sync_ticket_access(instance)
+    if access is not None:
+        instance.access = access
