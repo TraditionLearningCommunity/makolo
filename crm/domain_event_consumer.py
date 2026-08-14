@@ -60,6 +60,8 @@ def _contact_for_profile(*, organization_id, profile, occurred_at):
             candidate.save(update_fields=["user", "updated_at"])
             contact = candidate
     if contact is None:
+        if not email:
+            return None
         contact = CRMContact.objects.create(
             organization_id=organization_id,
             user=profile,
@@ -117,6 +119,8 @@ def consume_crm_event(domain_event):
         profile=profile,
         occurred_at=domain_event.occurred_at,
     )
+    if contact is None:
+        return
     activity = None
     if domain_event.activity_id:
         activity = Activity.objects.filter(pk=domain_event.activity_id).first()
