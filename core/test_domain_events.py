@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -60,8 +62,14 @@ class DomainEventOutboxTests(TestCase):
             )
 
     def test_business_mutation_and_event_roll_back_together(self):
-        initiator = User.objects.create_user(username="rollback-initiator")
-        beneficiary = User.objects.create_user(username="rollback-beneficiary")
+        initiator = User.objects.create_user(
+            username="rollback-initiator",
+            email="rollback-initiator@example.com",
+        )
+        beneficiary = User.objects.create_user(
+            username="rollback-beneficiary",
+            email="rollback-beneficiary@example.com",
+        )
         activity = Activity.objects.create(created_by=initiator, title="Rollback Activity")
         journey = create_journey(
             initiated_by=initiator,
@@ -93,14 +101,15 @@ class DomainEventOutboxTests(TestCase):
         register_consumer(
             "tests.capture",
             capture,
-            event_types={DomainEventType.JOURNEY_CONFIRMED},
+            event_types={DomainEventType.REQUEST_CREATED},
         )
+        request_id = str(uuid.uuid4())
         event = emit_domain_event(
-            event_type=DomainEventType.JOURNEY_CONFIRMED,
-            source_type="journey",
-            source_id="1",
+            event_type=DomainEventType.REQUEST_CREATED,
+            source_type="request",
+            source_id=request_id,
             idempotency_key="test:processor:success",
-            payload={"journey_id": "1", "status": "confirmed"},
+            payload={"request_id": request_id, "status": "pending"},
             process_on_commit=False,
         )
         first = process_domain_events(limit=1)
@@ -126,14 +135,15 @@ class DomainEventOutboxTests(TestCase):
         register_consumer(
             "tests.flaky",
             flaky,
-            event_types={DomainEventType.PAYMENT_FAILED},
+            event_types={DomainEventType.REQUEST_CREATED},
         )
+        request_id = str(uuid.uuid4())
         event = emit_domain_event(
-            event_type=DomainEventType.PAYMENT_FAILED,
-            source_type="payment",
-            source_id="1",
+            event_type=DomainEventType.REQUEST_CREATED,
+            source_type="request",
+            source_id=request_id,
             idempotency_key="test:processor:retry",
-            payload={"payment_id": "1", "status": "failed"},
+            payload={"request_id": request_id, "status": "pending"},
             process_on_commit=False,
         )
         first = process_domain_events(limit=1)
