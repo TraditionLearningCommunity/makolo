@@ -101,14 +101,6 @@ jobs:
       - name: Validate WhiteNoise manifest
         run: python scripts/validate_static_manifest.py
 
-      - name: Diagnose core commerce apps on SQLite
-        continue-on-error: true
-        run: python manage.py test capacity commerce journeys access tickets payments
-
-      - name: Diagnose Event and scanner compatibility on SQLite
-        continue-on-error: true
-        run: python manage.py test events scanner
-
       - name: Run tests
         run: python manage.py test
 
@@ -289,15 +281,6 @@ jobs:
         run: npx playwright install --with-deps chromium firefox
 
       - name: Prepare deterministic E2E environment
-        run: bash scripts/prepare-e2e.sh
-
-      - name: Diagnose canonical sold-out Event E2E
-        continue-on-error: true
-        env:
-          E2E_SKIP_PREP: "1"
-        run: npm run test:e2e -- --grep "a free Event consumes its last canonical place and becomes sold out"
-
-      - name: Reset deterministic E2E environment after diagnostic
         run: bash scripts/prepare-e2e.sh
 
       - name: Run end-to-end product validation
