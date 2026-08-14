@@ -8,7 +8,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from access.models import AccessUseResult
+from access.models import AccessStatus, AccessUseResult
 from access.services import validate_access, validate_access_credential
 from events.activity_bridge import sync_event_core
 from events.models import Event, EventStatus
@@ -181,13 +181,7 @@ def scan_ticket(
     access_gate: EventAccessGate | None = None,
     metadata: dict | None = None,
 ) -> ScanOutcome:
-    """Validate an Event access through canonical Access while preserving Ticket UX.
-
-    Access owns the single-use decision and row lock. ScanLog remains the
-    Event-facing audit trail. Historical signed Ticket QR codes are accepted
-    only while the linked Access has no AccessCredential; once a credential is
-    issued/rotated the legacy representation can no longer bypass revocation.
-    """
+    """Validate an Event access through canonical Access while preserving Ticket UX."""
     event = Event.objects.select_related("activity").get(pk=event.pk)
 
     if not user_can_scan_event(actor, event):
@@ -362,9 +356,9 @@ def scan_ticket(
 
     access = ticket.access or sync_ticket_access(ticket)
     if access is not None:
-        # Once the Access has any canonical credential, its old Ticket QR is no
-        # longer an acceptable bearer representation. Rotation is therefore real.
-        if access.credentials.exists():
+        has_credentials = access.credentials.exists()
+        if has_credentials and access.status in {AccessStatus.PENDING, AccessStatus.VALID}:
+            # An active canonical representation replaced this legacy bearer.
             return _create_log(
                 event=event,
                 scanner=actor,
@@ -378,6 +372,9 @@ def scan_ticket(
                 gate=gate,
                 metadata=metadata,
             )
+        # Terminal Access states still decide the semantic result. This keeps
+        # cancelled/refunded historical Tickets as INVALID_STATUS rather than
+        # misclassifying a once-authentic QR as a forged token.
         outcome = validate_access(
             access=access,
             credential=None,
@@ -400,8 +397,6 @@ def scan_ticket(
             metadata=metadata,
         )
 
-    # Last compatibility branch for a beta guest Ticket that cannot be linked
-    # deterministically to an individual Makolo Profile.
     if ticket.status == TicketStatus.USED:
         return _create_log(
             event=event,
