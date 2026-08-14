@@ -86,6 +86,8 @@ LOCAL_APPS = [
     "geography.apps.GeographyConfig",
     "activities.apps.ActivitiesConfig",
     "journeys.apps.JourneysConfig",
+    "capacity.apps.CapacityConfig",
+    "commerce.apps.CommerceConfig",
     "access.apps.AccessConfig",
     "events",
     "tickets",
