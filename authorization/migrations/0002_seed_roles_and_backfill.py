@@ -17,7 +17,8 @@ PERMISSIONS = [
     ("space.manage", "Gérer un Espace", "spaces", "space"),
     ("space.team.manage", "Gérer l'équipe d'un Espace", "spaces", "space"),
     ("space.ownership.manage", "Gérer la propriété d'un Espace", "spaces", "space"),
-    ("activity.manage", "Gérer les activités", "activities", "space"),
+    ("space.activities.view", "Voir les activités d'un Espace", "activities", "space"),
+    ("space.activities.manage", "Gérer les activités d'un Espace", "activities", "space"),
     ("orders.view", "Voir les commandes opérationnelles", "commerce", "space"),
     ("tickets.view", "Voir les droits/billets opérationnels", "access", "space"),
     ("finance.view", "Voir les données financières", "finance", "space"),
@@ -64,12 +65,12 @@ ROLE_DEFINITIONS = {
         "scope": "space",
         "permissions": ADMIN_PERMISSION_CODES,
     },
-    "activity-manager": {
+    "space-activity-manager": {
         "name": "Responsable activité",
         "description": "Pilotage des activités, commandes opérationnelles et accès sans finances.",
         "scope": "space",
         "permissions": [
-            "space.view", "activity.manage", "orders.view", "tickets.view", "access.manage",
+            "space.view", "space.activities.view", "space.activities.manage", "orders.view", "tickets.view", "access.manage",
             "crm.view", "promotions.view", "analytics.view", "analytics.growth.view",
             "growth.feedback.view",
         ],
@@ -105,11 +106,47 @@ ROLE_DEFINITIONS = {
 LEGACY_ROLE_MAP = {
     "owner": "space-owner",
     "admin": "space-admin",
-    "event_manager": "activity-manager",
+    "event_manager": "space-activity-manager",
     "finance": "finance",
     "marketing": "marketing",
     "scanner_manager": "access-manager",
 }
+
+
+def _upsert_system_role(Role, code, definition):
+    role = Role.objects.filter(code=code, is_system=True).first()
+    if role is None:
+        role = Role(id=stable_uuid(f"role:{code}"), code=code, is_system=True)
+    role.name = definition["name"]
+    role.description = definition["description"]
+    role.scope_type = definition["scope"]
+    role.organization_id = None
+    role.is_active = True
+    role.save()
+    return role
+
+
+def _upsert_active_mandate(Mandate, *, stable_key, profile_id, role_id, scope_type, space_id, defaults):
+    mandate = Mandate.objects.filter(
+        profile_id=profile_id,
+        role_id=role_id,
+        scope_type=scope_type,
+        space_id=space_id,
+        status="active",
+    ).first()
+    if mandate is None:
+        mandate = Mandate(id=stable_uuid(stable_key))
+    for field, value in {
+        "profile_id": profile_id,
+        "role_id": role_id,
+        "scope_type": scope_type,
+        "space_id": space_id,
+        "status": "active",
+        **defaults,
+    }.items():
+        setattr(mandate, field, value)
+    mandate.save()
+    return mandate
 
 
 def seed_and_backfill(apps, schema_editor):
@@ -140,24 +177,14 @@ def seed_and_backfill(apps, schema_editor):
 
     role_by_code = {}
     for code, definition in ROLE_DEFINITIONS.items():
-        role, _ = Role.objects.update_or_create(
-            id=stable_uuid(f"role:{code}"),
-            defaults={
-                "code": code,
-                "name": definition["name"],
-                "description": definition["description"],
-                "scope_type": definition["scope"],
-                "organization_id": None,
-                "is_system": True,
-                "is_active": True,
-            },
-        )
+        role = _upsert_system_role(Role, code, definition)
         role_by_code[code] = role
         for permission_code in definition["permissions"]:
             permission = permission_by_code[permission_code]
-            RolePermission.objects.update_or_create(
-                id=stable_uuid(f"role-permission:{code}:{permission_code}"),
-                defaults={"role_id": role.pk, "permission_id": permission.pk},
+            RolePermission.objects.get_or_create(
+                role_id=role.pk,
+                permission_id=permission.pk,
+                defaults={"id": stable_uuid(f"role-permission:{code}:{permission_code}")},
             )
 
     now = timezone.now()
@@ -190,14 +217,14 @@ def seed_and_backfill(apps, schema_editor):
             if not role_code:
                 continue
             role = role_by_code[role_code]
-            Mandate.objects.update_or_create(
-                id=stable_uuid(f"space-mandate:{membership.pk}:{role_code}"),
+            _upsert_active_mandate(
+                Mandate,
+                stable_key=f"space-mandate:{membership.pk}:{role_code}",
+                profile_id=membership.user_id,
+                role_id=role.pk,
+                scope_type="space",
+                space_id=organization.pk,
                 defaults={
-                    "profile_id": membership.user_id,
-                    "role_id": role.pk,
-                    "scope_type": "space",
-                    "space_id": organization.pk,
-                    "status": "active",
                     "valid_from": None,
                     "valid_until": None,
                     "granted_by_id": membership.invited_by_id or organization.created_by_id,
@@ -209,22 +236,26 @@ def seed_and_backfill(apps, schema_editor):
 
     platform_role = role_by_code["makolo-platform-admin"]
     for user in User.objects.filter(is_staff=True).iterator():
-        Mandate.objects.update_or_create(
-            id=stable_uuid(f"platform-admin:{user.pk}"),
-            defaults={
-                "profile_id": user.pk,
-                "role_id": platform_role.pk,
-                "scope_type": "platform",
-                "space_id": None,
-                "status": "active",
-                "valid_from": None,
-                "valid_until": None,
-                "granted_by_id": None,
-                "granted_at": now,
-                "revoked_at": None,
-                "source": "staff-backfill",
-            },
-        )
+        mandate = Mandate.objects.filter(
+            profile_id=user.pk,
+            role_id=platform_role.pk,
+            scope_type="platform",
+            status="active",
+        ).first()
+        if mandate is None:
+            mandate = Mandate(id=stable_uuid(f"platform-admin:{user.pk}"))
+        mandate.profile_id = user.pk
+        mandate.role_id = platform_role.pk
+        mandate.scope_type = "platform"
+        mandate.space_id = None
+        mandate.status = "active"
+        mandate.valid_from = None
+        mandate.valid_until = None
+        mandate.granted_by_id = None
+        mandate.granted_at = now
+        mandate.revoked_at = None
+        mandate.source = "staff-backfill"
+        mandate.save()
 
 
 def noop_reverse(apps, schema_editor):
@@ -236,5 +267,4 @@ class Migration(migrations.Migration):
         ("authorization", "0001_initial"),
         ("organizations", "0003_team_teammembership"),
     ]
-
     operations = [migrations.RunPython(seed_and_backfill, noop_reverse)]

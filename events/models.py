@@ -50,8 +50,7 @@ class EventCategory(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             base = slugify(self.name)[:120] or "categorie"
-            candidate = base
-            suffix = 2
+            candidate, suffix = base, 2
             while EventCategory.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
                 candidate = f"{base[:110]}-{suffix}"
                 suffix += 1
@@ -66,13 +65,7 @@ class EventVenue(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=180)
     kind = models.CharField(max_length=20, choices=VenueKind.choices, default=VenueKind.PHYSICAL)
-    place = models.ForeignKey(
-        "geography.Place",
-        on_delete=models.SET_NULL,
-        related_name="event_venues",
-        null=True,
-        blank=True,
-    )
+    place = models.ForeignKey("geography.Place", on_delete=models.SET_NULL, related_name="event_venues", null=True, blank=True)
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=120, blank=True)
@@ -90,11 +83,8 @@ class EventVenue(models.Model):
 
     def clean(self):
         super().clean()
-        errors = {}
         if self.kind in {VenueKind.ONLINE, VenueKind.HYBRID} and not self.online_url:
-            errors["online_url"] = "Une URL est requise pour un événement en ligne ou hybride."
-        if errors:
-            raise ValidationError(errors)
+            raise ValidationError({"online_url": "Une URL est requise pour un événement en ligne ou hybride."})
 
     @property
     def effective_address(self):
@@ -105,43 +95,29 @@ class EventVenue(models.Model):
         return self.place.locality if self.place_id else self.city
 
     def __str__(self):
-        city = self.effective_city
-        return f"{self.name} — {city}" if city else self.name
+        return f"{self.name} — {self.effective_city}" if self.effective_city else self.name
 
 
 class Event(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organizer = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="organized_events",
-    )
-    organization = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.PROTECT,
-        related_name="events",
-        null=True,
-        blank=True,
-    )
+    organizer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="organized_events")
+    organization = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="events", null=True, blank=True)
+    activity = models.OneToOneField("activities.Activity", on_delete=models.PROTECT, related_name="event_vertical", null=True, blank=True)
     category = models.ForeignKey(EventCategory, on_delete=models.SET_NULL, related_name="events", null=True, blank=True)
     venue = models.ForeignKey(EventVenue, on_delete=models.SET_NULL, related_name="events", null=True, blank=True)
-
     title = models.CharField(max_length=220)
     slug = models.SlugField(max_length=240, unique=True, blank=True)
     short_description = models.CharField(max_length=320, blank=True)
     description = models.TextField(blank=True)
     cover_image = models.ImageField(upload_to=event_cover_path, validators=[validate_event_cover], blank=True, null=True)
-
     status = models.CharField(max_length=20, choices=EventStatus.choices, default=EventStatus.DRAFT)
     visibility = models.CharField(max_length=20, choices=EventVisibility.choices, default=EventVisibility.PUBLIC)
-
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
     registration_start_at = models.DateTimeField(null=True, blank=True)
     registration_end_at = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=100, default="Africa/Lubumbashi")
     capacity = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)], help_text="Laisser vide pour une capacité illimitée.")
-
     published_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -152,15 +128,8 @@ class Event(models.Model):
         ordering = ["start_at", "title"]
         verbose_name = "événement"
         verbose_name_plural = "événements"
-        constraints = [
-            models.CheckConstraint(condition=models.Q(end_at__gt=models.F("start_at")), name="event_end_after_start"),
-        ]
-        indexes = [
-            models.Index(
-                fields=["organization", "status", "start_at"],
-                name="events_even_organiz_b26406_idx",
-            )
-        ]
+        constraints = [models.CheckConstraint(condition=models.Q(end_at__gt=models.F("start_at")), name="event_end_after_start")]
+        indexes = [models.Index(fields=["organization", "status", "start_at"], name="events_even_organiz_b26406_idx")]
 
     def clean(self):
         super().clean()
@@ -179,8 +148,7 @@ class Event(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             base = slugify(self.title)[:200] or "evenement"
-            candidate = base
-            suffix = 2
+            candidate, suffix = base, 2
             while Event.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
                 candidate = f"{base[:225]}-{suffix}"
                 suffix += 1

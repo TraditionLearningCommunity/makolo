@@ -54,27 +54,14 @@ class RolePermissionAdmin(ReadOnlyAuthorityAdminMixin, admin.ModelAdmin):
 @admin.register(Mandate)
 class MandateAdmin(ReadOnlyAuthorityAdminMixin, admin.ModelAdmin):
     list_display = (
-        "profile",
-        "role",
-        "scope_type",
-        "space",
-        "group",
-        "status",
-        "valid_from",
-        "valid_until",
-        "granted_at",
+        "profile", "role", "scope_type", "space", "group", "activity",
+        "status", "valid_from", "valid_until", "granted_at",
     )
     list_filter = ("scope_type", "status", "role", "valid_from", "valid_until")
     search_fields = (
-        "profile__email",
-        "profile__username",
-        "role__name",
-        "role__code",
-        "space__name",
-        "space__slug",
-        "group__name",
-        "group__slug",
-        "source",
+        "profile__email", "profile__username", "role__name", "role__code",
+        "space__name", "space__slug", "group__name", "group__slug",
+        "activity__title", "activity__slug", "source",
     )
-    list_select_related = ("profile", "role", "space", "group", "granted_by")
+    list_select_related = ("profile", "role", "space", "group", "activity", "granted_by")
     date_hierarchy = "granted_at"
