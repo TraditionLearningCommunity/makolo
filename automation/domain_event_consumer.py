@@ -87,7 +87,6 @@ def _start_execution(rule, event):
         if execution.status in {
             DomainAutomationExecutionStatus.COMPLETED,
             DomainAutomationExecutionStatus.SKIPPED,
-            DomainAutomationExecutionStatus.RUNNING,
         }:
             return None, execution.status
         if execution.attempts >= execution.max_attempts:
