@@ -44,6 +44,9 @@ class JourneyAccessBackfillTests(TestCase):
             published_at=timezone.now(),
             capacity=100,
         )
+        # Event→Activity projection is performed by the compatibility bridge
+        # after Event creation; refresh the fixture before asserting that FK.
+        self.event.refresh_from_db(fields=["activity"])
         self.ticket_type = TicketType.objects.create(
             event=self.event,
             name="Backfill Ticket",
