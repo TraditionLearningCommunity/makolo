@@ -190,6 +190,7 @@ jobs:
           capacity.test_concurrency
           commerce.tests
           tickets.test_commerce_capacity_bridge
+          tickets.test_commerce_capacity_backfill
           tickets.test_commerce_capacity_concurrency
           payments.test_commerce_bridge
 
