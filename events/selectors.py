@@ -65,5 +65,8 @@ def get_manageable_events(user):
     legacy_space_filter = _legacy_space_filter(user, PermissionCode.SPACE_ACTIVITIES_MANAGE)
     if legacy_space_filter is None:
         return queryset
-    legacy_personal_filter = Q(activity__isnull=True, organization__isnull=True, organizer=user)
+    # Event -> Activity is still an expand/backfill bridge. A standalone Event
+    # keeps its historical organizer authority even after its canonical Activity
+    # has been materialized; organization-scoped Events remain Space-controlled.
+    legacy_personal_filter = Q(organization__isnull=True, organizer=user)
     return queryset.filter(contextual_filter | legacy_space_filter | legacy_personal_filter).distinct()
