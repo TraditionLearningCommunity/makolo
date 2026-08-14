@@ -193,6 +193,7 @@ jobs:
           tickets.test_commerce_capacity_backfill
           tickets.test_commerce_capacity_concurrency
           payments.test_commerce_bridge
+          payments.test_generic_commerce
 
       - name: Run operational readiness PostgreSQL tests
         run: >-
