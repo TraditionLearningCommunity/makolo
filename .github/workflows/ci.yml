@@ -204,6 +204,14 @@ jobs:
           automation.test_domain_events
           automation.test_domain_event_concurrency
 
+      - name: Run CRM, audiences and promotions PostgreSQL tests
+        run: >-
+          python manage.py test
+          crm.test_canonical_crm
+          crm.test_audiences
+          promotions.test_commerce_promotions
+          promotions.test_concurrency
+
       - name: Run operational readiness PostgreSQL tests
         run: >-
           python manage.py test
