@@ -182,6 +182,17 @@ jobs:
           tickets.test_journey_access_bridge
           scanner.test_access_bridge
 
+      - name: Run Commerce and Capacity PostgreSQL tests
+        run: >-
+          python manage.py test
+          capacity.tests
+          capacity.test_access_bridge
+          capacity.test_concurrency
+          commerce.tests
+          tickets.test_commerce_capacity_bridge
+          tickets.test_commerce_capacity_concurrency
+          payments.test_commerce_bridge
+
       - name: Run operational readiness PostgreSQL tests
         run: >-
           python manage.py test
