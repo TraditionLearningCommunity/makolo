@@ -150,6 +150,7 @@ def create_order(
     expires_at=None,
     idempotency_key=None,
     source_key=None,
+    promotion_code=None,
 ):
     if idempotency_key:
         existing = CommerceOrder.objects.filter(idempotency_key=idempotency_key).first()
@@ -164,7 +165,7 @@ def create_order(
                 raise ValidationError("Cette référence source appartient à une autre Démarche.")
             return existing
 
-    journey = Journey.objects.select_for_update(of=("self",)).order_by().get(pk=journey.pk)
+    journey = Journey.objects.select_for_update(of=("self",)).select_related("beneficiary").order_by().get(pk=journey.pk)
     normalized = [_normalize_selection(raw) for raw in selections]
     if not normalized:
         raise ValidationError("Une commande doit contenir au moins une ligne.")
@@ -187,6 +188,8 @@ def create_order(
         quantity = _validate_offer_for_journey(offer, journey, selection.quantity, now=now)
         line_subtotal = offer.unit_price * quantity
         line_discount = Decimal(selection.discount_total)
+        if promotion_code and line_discount != Decimal("0.00"):
+            raise ValidationError("Le montant de remise est calculé par le serveur lorsqu’un code Promotion est utilisé.")
         if line_discount < 0 or line_discount > line_subtotal:
             raise ValidationError("La remise de ligne est invalide.")
         currencies.add(offer.currency)
@@ -201,9 +204,6 @@ def create_order(
         raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement.")
     currency = currencies.pop()
     payment_mode = payment_modes.pop()
-    total = subtotal - discount_total
-    if payment_mode == PaymentMode.NONE and total != Decimal("0.00"):
-        raise ValidationError("Une commande payment_mode=none doit être gratuite.")
 
     activity_space_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
         "activity__space_id", "activity_id", "occurrence_id"
@@ -213,6 +213,28 @@ def create_order(
             raise ValidationError("Un bénéficiaire financier explicite est requis pour cette Activity.")
         from organizations.models import Organization
         payee_space = Organization.objects.get(pk=activity_space_id)
+
+    promotion_quote = None
+    if promotion_code:
+        from promotions.canonical_services import allocate_discount, quote_commerce_promotion
+
+        promotion_profile = buyer if getattr(buyer, "is_authenticated", False) else journey.beneficiary
+        promotion_quote = quote_commerce_promotion(
+            code_value=promotion_code,
+            buyer=promotion_profile,
+            customer_email=getattr(promotion_profile, "email", "") or "",
+            selections=[(row[0], row[1]) for row in prepared],
+            subtotal_amount=subtotal,
+            currency=currency,
+            payee_space=payee_space,
+            now=now,
+        )
+        prepared = allocate_discount(prepared=prepared, quote=promotion_quote)
+        discount_total = promotion_quote["discount_amount"]
+
+    total = subtotal - discount_total
+    if payment_mode == PaymentMode.NONE and total != Decimal("0.00"):
+        raise ValidationError("Une commande payment_mode=none doit être gratuite.")
 
     order = CommerceOrder(
         journey=journey,
@@ -265,6 +287,10 @@ def create_order(
             line_total=line_subtotal - line_discount,
         )
 
+    if promotion_quote:
+        from promotions.canonical_services import create_commerce_redemption
+        create_commerce_redemption(order=order, quote=promotion_quote)
+
     _emit_order_event(
         order,
         event_type=DomainEventType.COMMERCE_ORDER_CREATED,
@@ -309,6 +335,11 @@ def confirm_order(*, order, actor=None, payment_verified=False):
     if journey.status != JourneyStatus.CONFIRMED:
         confirm_journey(journey=journey, actor=actor, reason="commerce_order_confirmed")
     order = _set_order_status(order, CommerceOrderStatus.CONFIRMED)
+    try:
+        from promotions.canonical_services import confirm_commerce_redemption
+        confirm_commerce_redemption(order=order)
+    except ImportError:
+        pass
     space_id, activity_id, occurrence_id = _order_scope(order)
     _emit_order_event(
         order,
@@ -336,6 +367,11 @@ def cancel_order(*, order, actor=None, release_committed=False):
         elif reservation.status == CapacityReservationStatus.COMMITTED and release_committed:
             release_capacity(reservation=reservation, allow_committed=True)
     order = _set_order_status(order, CommerceOrderStatus.CANCELLED)
+    try:
+        from promotions.canonical_services import reverse_commerce_redemption
+        reverse_commerce_redemption(order=order)
+    except ImportError:
+        pass
     space_id, activity_id, occurrence_id = _order_scope(order)
     _emit_order_event(
         order,
@@ -367,6 +403,11 @@ def expire_order(*, order, now=None):
     journey = Journey.objects.get(pk=order.journey_id)
     expire_journey(journey=journey, now=now, reason="commerce_order_expired")
     order = _set_order_status(order, CommerceOrderStatus.EXPIRED, now=now)
+    try:
+        from promotions.canonical_services import reverse_commerce_redemption
+        reverse_commerce_redemption(order=order)
+    except ImportError:
+        pass
     space_id, activity_id, occurrence_id = _order_scope(order)
     _emit_order_event(
         order,
