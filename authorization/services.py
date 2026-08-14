@@ -17,6 +17,16 @@ from .constants import (
 from .models import AuthorityScope, Mandate, MandateStatus, Permission, Role, RolePermission
 
 
+ACTIVITY_PERMISSION_INHERITANCE = {
+    PermissionCode.ACTIVITY_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
+    PermissionCode.ACTIVITY_MANAGE: PermissionCode.SPACE_ACTIVITIES_MANAGE,
+    PermissionCode.ACTIVITY_REQUESTS_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
+    PermissionCode.ACTIVITY_REQUESTS_DECIDE: PermissionCode.SPACE_ACTIVITIES_MANAGE,
+    PermissionCode.ACTIVITY_ACCESS_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
+    PermissionCode.ACTIVITY_ACCESS_MANAGE: PermissionCode.SPACE_ACTIVITIES_MANAGE,
+}
+
+
 def _current_mandate_q(at=None) -> Q:
     at = at or timezone.now()
     return (
@@ -76,10 +86,7 @@ def can(profile, permission_code: str, space=None, *, group=None, activity=None,
     if permission_code in effective_permission_codes(profile, space=space, group=group, activity=activity, at=at):
         return True
     if activity is not None and getattr(activity, "space_id", None):
-        inherited = {
-            PermissionCode.ACTIVITY_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
-            PermissionCode.ACTIVITY_MANAGE: PermissionCode.SPACE_ACTIVITIES_MANAGE,
-        }.get(permission_code)
+        inherited = ACTIVITY_PERMISSION_INHERITANCE.get(permission_code)
         if inherited:
             return inherited in effective_permission_codes(profile, space=activity.space, at=at)
     return False
@@ -143,10 +150,7 @@ def activity_ids_with_permission(profile, permission_code: str, *, at=None):
             role__role_permissions__permission__is_active=True,
         ).filter(_current_mandate_q(at)).exclude(activity_id=None).values_list("activity_id", flat=True).distinct()
     )
-    inherited_code = {
-        PermissionCode.ACTIVITY_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
-        PermissionCode.ACTIVITY_MANAGE: PermissionCode.SPACE_ACTIVITIES_MANAGE,
-    }.get(permission_code)
+    inherited_code = ACTIVITY_PERMISSION_INHERITANCE.get(permission_code)
     if inherited_code:
         space_ids = space_ids_with_permission(profile, inherited_code, at=at)
         if space_ids is None:
