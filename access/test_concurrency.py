@@ -54,7 +54,9 @@ class AccessConcurrencyTests(TransactionTestCase):
             )
             return outcome.result
         finally:
-            close_old_connections()
+            # The connection proxy is thread-local here. Close it explicitly so
+            # PostgreSQL can drop Django's temporary test database at teardown.
+            connection.close()
 
     def test_two_simultaneous_validations_accept_exactly_once(self):
         barrier = Barrier(2)
