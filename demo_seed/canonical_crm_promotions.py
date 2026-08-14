@@ -57,27 +57,31 @@ def seed_canonical_crm_promotions(ctx: SeedContext) -> None:
             ctx.promotions[0],
         )
         activity_id = getattr(promotion.event, "activity_id", None) if promotion.event_id else None
-        targeting = upsert(
-            PromotionTargeting,
-            "canonical-promotion-target-0",
-            defaults={
-                "promotion": promotion,
-                "activity_id": activity_id,
-                "audience": audience if promotion.organization_id == audience.organization_id else None,
-            },
-        )
+        targeting = PromotionTargeting.objects.filter(promotion=promotion).first()
+        if targeting is None:
+            targeting = PromotionTargeting.objects.create(
+                promotion=promotion,
+                activity_id=activity_id,
+                audience=audience if promotion.organization_id == audience.organization_id else None,
+            )
+        else:
+            targeting.activity_id = targeting.activity_id or activity_id
+            if promotion.organization_id == audience.organization_id:
+                targeting.audience = audience
+            targeting.save(update_fields=["activity", "audience", "updated_at"])
 
         ticket_type = promotion.eligible_ticket_types.exclude(offer_id__isnull=True).first()
         if ticket_type is not None:
-            upsert(
-                PromotionOffer,
-                "canonical-promotion-offer-0",
-                defaults={
-                    "promotion": promotion,
-                    "offer": ticket_type.offer,
-                    "source": "ticket_type",
-                },
-            )
+            target = PromotionOffer.objects.filter(promotion=promotion, offer=ticket_type.offer).first()
+            if target is None:
+                PromotionOffer.objects.create(
+                    promotion=promotion,
+                    offer=ticket_type.offer,
+                    source="ticket_type",
+                )
+            elif target.source != "ticket_type":
+                target.source = "ticket_type"
+                target.save(update_fields=["source"])
 
     redemption_order = next(
         (
@@ -98,22 +102,29 @@ def seed_canonical_crm_promotions(ctx: SeedContext) -> None:
     commerce_order = redemption_order.commerce_order
     discount = Decimal("1.00") if commerce_order.total >= Decimal("1.00") else Decimal("0.00")
     subtotal = commerce_order.total + discount
-    upsert(
-        CommercePromotionRedemption,
-        "canonical-commerce-redemption-0",
-        defaults={
-            "promotion": promotion,
-            "code": code,
-            "commerce_order": commerce_order,
-            "buyer": redemption_order.buyer,
-            "customer_email": redemption_order.customer_email,
-            "status": RedemptionStatus.CONFIRMED if commerce_order.status == "confirmed" else RedemptionStatus.RESERVED,
-            "subtotal_amount": subtotal,
-            "eligible_amount": subtotal,
-            "discount_amount": discount,
-            "final_amount": commerce_order.total,
-            "currency": commerce_order.currency,
-            "confirmed_at": commerce_order.confirmed_at,
-            "reversed_at": None,
-        },
-    )
+    existing = CommercePromotionRedemption.objects.filter(commerce_order=commerce_order).first()
+    defaults = {
+        "promotion": promotion,
+        "code": code,
+        "commerce_order": commerce_order,
+        "buyer": redemption_order.buyer,
+        "customer_email": redemption_order.customer_email,
+        "status": RedemptionStatus.CONFIRMED if commerce_order.status == "confirmed" else RedemptionStatus.RESERVED,
+        "subtotal_amount": subtotal,
+        "eligible_amount": subtotal,
+        "discount_amount": discount,
+        "final_amount": commerce_order.total,
+        "currency": commerce_order.currency,
+        "confirmed_at": commerce_order.confirmed_at,
+        "reversed_at": None,
+    }
+    if existing is None:
+        upsert(
+            CommercePromotionRedemption,
+            "canonical-commerce-redemption-0",
+            defaults=defaults,
+        )
+    else:
+        for field, value in defaults.items():
+            setattr(existing, field, value)
+        existing.save()
