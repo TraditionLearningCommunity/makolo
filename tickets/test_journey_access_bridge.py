@@ -23,7 +23,7 @@ User = get_user_model()
 
 class TicketJourneyAccessBridgeTests(TestCase):
     def setUp(self):
-        self.organizer = User.objects.create_user(
+        self.organizer = User.objects.create_superuser(
             username="bridge-organizer",
             email="bridge-organizer@example.com",
             password="Bridge-2026!",
