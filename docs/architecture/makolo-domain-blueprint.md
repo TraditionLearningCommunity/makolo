@@ -736,3 +736,11 @@ La généralisation des capacités transversales est désormais découpée en é
 `notifications` consomme ces faits comme **consumer système** et conserve le vocabulaire contextuel Event/registration/invitation ainsi que les préférences existantes. `automation` peut désormais déclencher des règles configurables par `event_type`, avec portée Espace/Activity, conditions whitelistées et exécutions idempotentes ; Autopilot reste le scheduler des travaux temporels et peut traiter l'outbox sans devenir propriétaire des workflows.
 
 Les bridges Event/Ticket et les moteurs historiques encore nécessaires restent des compatibilités. La généralisation **CRM + Promotions / audiences commerciales** est reportée à **8B** ; **Scanner/Operations + Analytics** à **8C**. Les détails du contrat, du retry et de la séparation consumers système/règles configurables sont documentés dans [`domain-events-automation.md`](domain-events-automation.md).
+
+### Note d'implémentation — 8B CRM / Audiences / Promotions
+
+**8B** matérialise la relation CRM `Espace ↔ Profil` avec une unicité par Espace/Profil et des `CRMInteraction` dérivées des Domain Events via le consumer système `crm.system`. `Audience`/`AudienceMember` matérialisent une population statique, issue d'une sélection de Profils, d'un Groupe courant ou d'un `GroupSnapshot` ; **Groupe ≠ Audience** et **Audience ≠ consentement marketing**.
+
+Les Promotions ciblent désormais Commerce par `PromotionTargeting` et `PromotionOffer`, avec une Audience optionnelle contrôlée au checkout. Les `TicketType` historiques restent une projection Events et leur bridge `ticket_type.offer` alimente les cibles Offer sans devenir la cible canonique. Les quotas historiques et canoniques sont comptés ensemble, tandis que `CommerceOrder`/`CommerceOrderItem` conservent les snapshots de prix et remise.
+
+`AudienceSegment`, `CRMWorkflow*`, `Promotion.event`, `eligible_ticket_types` et les redemptions TicketOrder restent des couches de compatibilité. Scanner/Operations et Analytics restent réservés à **8C**. Les détails sont documentés dans [`crm-promotions-audiences.md`](crm-promotions-audiences.md).
