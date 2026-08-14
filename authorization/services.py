@@ -158,6 +158,11 @@ def activity_ids_with_permission(profile, permission_code: str, *, at=None):
 
 
 def get_system_role(code: str, *, scope_type=AuthorityScope.SPACE) -> Role:
+    # Compatibility: the historical Python constant ACTIVITY_MANAGER remains
+    # the Space-scoped portfolio role. When callers explicitly request an
+    # Activity-scoped role, resolve it to the new local manager role.
+    if scope_type == AuthorityScope.ACTIVITY and code == SystemRoleCode.ACTIVITY_MANAGER:
+        code = SystemRoleCode.ACTIVITY_LOCAL_MANAGER
     try:
         return Role.objects.get(code=code, scope_type=scope_type, is_system=True, is_active=True)
     except Role.DoesNotExist as exc:
