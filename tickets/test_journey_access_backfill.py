@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from access.models import Access, AccessStatus, AccessCredential
+from access.models import Access, AccessStatus, AccessCredential, AccessUse
 from events.models import Event, EventStatus, EventVisibility
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
@@ -77,6 +77,11 @@ class JourneyAccessBackfillTests(TestCase):
     def _detach_runtime_bridge(self):
         Ticket.objects.all().update(access=None)
         TicketOrder.objects.all().update(journey=None)
+        # Runtime fixtures can already have AccessUse rows through the canonical
+        # bridge. The historical-migration simulation must remove those audit
+        # rows before deleting Access because AccessUse intentionally PROTECTs
+        # its right in production.
+        AccessUse.objects.all().delete()
         Access.objects.all().delete()
         Journey.objects.all().delete()
 
