@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from .models import Promotion, PromotionCode, PromotionRedemptionStatus
+from .models import Promotion, PromotionCode, RedemptionStatus
 
 
 class PromotionTargeting(models.Model):
@@ -108,8 +108,8 @@ class CommercePromotionRedemption(models.Model):
     customer_email = models.EmailField()
     status = models.CharField(
         max_length=16,
-        choices=PromotionRedemptionStatus.choices,
-        default=PromotionRedemptionStatus.RESERVED,
+        choices=RedemptionStatus.choices,
+        default=RedemptionStatus.RESERVED,
     )
     subtotal_amount = models.DecimalField(max_digits=12, decimal_places=2)
     eligible_amount = models.DecimalField(max_digits=12, decimal_places=2)
