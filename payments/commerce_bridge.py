@@ -16,11 +16,13 @@ def sync_payment_commerce(payment):
         .order_by()
         .get(pk=payment.pk)
     )
-    commerce_order = payment.commerce_order or payment.order.commerce_order
-    if commerce_order is None:
-        from tickets.commerce_capacity_bridge import sync_order_commerce
+    commerce_order = payment.commerce_order
+    if commerce_order is None and payment.order_id:
+        commerce_order = payment.order.commerce_order
+        if commerce_order is None:
+            from tickets.commerce_capacity_bridge import sync_order_commerce
 
-        commerce_order = sync_order_commerce(payment.order)
+            commerce_order = sync_order_commerce(payment.order)
     if commerce_order is None:
         return None
     if payment.commerce_order_id != commerce_order.pk:
