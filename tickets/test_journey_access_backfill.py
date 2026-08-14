@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from access.models import Access, AccessStatus, AccessCredential, AccessUse
+from events.activity_bridge import sync_event_core
 from events.models import Event, EventStatus, EventVisibility
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
@@ -44,8 +45,9 @@ class JourneyAccessBackfillTests(TestCase):
             published_at=timezone.now(),
             capacity=100,
         )
-        # Event→Activity projection is performed by the compatibility bridge
-        # after Event creation; refresh the fixture before asserting that FK.
+        # Make the existing Event→Activity compatibility projection explicit in
+        # this migration fixture before asserting the canonical Activity FK.
+        sync_event_core(self.event)
         self.event.refresh_from_db(fields=["activity"])
         self.ticket_type = TicketType.objects.create(
             event=self.event,
