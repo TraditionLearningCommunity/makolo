@@ -108,9 +108,9 @@ class Command(BaseCommand):
 
         sold_out_event = Event.objects.create(
             organizer=users["owner"], organization=main_org, category=category, venue=venue,
-            title="Capacité Makolo E2E", short_description="Événement à une seule place pour valider le sold-out canonique.",
+            title="Capacité Makolo E2E", slug="capacite-makolo-e2e", short_description="Événement à une seule place pour valider le sold-out canonique.",
             description="Fixture Capacity déterministe pour vérifier la consommation et l’indisponibilité après réservation.",
-            status=EventStatus.PUBLISHED, visibility=EventVisibility.PUBLIC,
+            status=EventStatus.PUBLISHED, visibility=EventVisibility.UNLISTED,
             start_at=self._dt(2030,8,5,10,0), end_at=self._dt(2030,8,5,12,0),
             registration_start_at=self._dt(2026,1,1,0,0), registration_end_at=self._dt(2030,8,5,9,0),
             timezone="Africa/Lubumbashi", capacity=1, published_at=self._dt(2026,1,1,0,0), metadata={"source":"makolo-e2e","purpose":"capacity"},
