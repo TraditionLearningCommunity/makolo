@@ -60,6 +60,7 @@ class PromotionOffer(models.Model):
         on_delete=models.CASCADE,
         related_name="promotion_targets",
     )
+    source = models.CharField(max_length=24, default="canonical")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
