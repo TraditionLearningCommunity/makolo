@@ -9,6 +9,7 @@ from access.services import issue_access
 from activities.models import Activity, Occurrence
 from commerce.models import Offer, OfferStatus, PaymentMode
 from commerce.services import confirm_order, create_order
+from core.models import DomainEventOutbox
 from domain_events.contracts import DomainEventType
 from domain_events.services import process_domain_events
 from journeys.models import WorkflowKind
@@ -144,7 +145,10 @@ class CanonicalCRMTests(TestCase):
         )
         journey = self.journey()
         submit_journey(journey=journey, actor=self.profile)
-        event = journey.domain_events.get(event_type=DomainEventType.JOURNEY_SUBMITTED)
+        event = DomainEventOutbox.objects.get(
+            source_id=str(journey.pk),
+            event_type=DomainEventType.JOURNEY_SUBMITTED,
+        )
 
         consume_crm_event(event)
         consume_crm_event(event)
