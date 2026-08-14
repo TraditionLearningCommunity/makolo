@@ -18,7 +18,7 @@ ACTIVE_OCCURRENCE_JOURNEY_STATUSES = {
 
 
 def occurrence_recipient_ids(occurrence):
-    access_ids = occurrence.accesses.filter(
+    access_ids = occurrence.access_rights.filter(
         beneficiary__isnull=False,
         status__in={AccessStatus.PENDING, AccessStatus.VALID, AccessStatus.USED},
     ).values_list("beneficiary_id", flat=True)
