@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import timedelta
 
 from automation.models import (
+    AutomationExecution,
+    AutomationRule,
     AutomationRun,
     AutomationRunStatus,
     CRMWorkflow,
@@ -13,11 +15,15 @@ from automation.models import (
     CRMWorkflowRun,
     CRMWorkflowRunStatus,
     CRMWorkflowTrigger,
+    DomainAutomationActionKind,
+    DomainAutomationExecutionStatus,
     EventAutomationPolicy,
 )
+from core.models import DomainEventOutbox, DomainEventStatus
+from domain_events.contracts import DomainEventType
 from events.models import EventStatus
 
-from .common import SeedContext, backdate, choose, money, upsert
+from .common import SeedContext, backdate, choose, money, stable_uuid, upsert
 
 
 def _seed_automation(ctx: SeedContext) -> None:
@@ -162,3 +168,79 @@ def _seed_automation(ctx: SeedContext) -> None:
                     "completed_at": run.completed_at if ar_status == CRMWorkflowActionRunStatus.COMPLETED else None,
                 })
                 backdate(ar, created_at=run.created_at, updated_at=run.updated_at)
+
+    canonical_event = next(
+        (event for event in ctx.events if event.organization_id and event.activity_id),
+        None,
+    )
+    if canonical_event is not None:
+        occurred_at = ctx.as_of - timedelta(days=5)
+        journey_id = stable_uuid("automation-domain-event-demo-journey")
+        domain_event = upsert(
+            DomainEventOutbox,
+            "automation-domain-event-demo",
+            defaults={
+                "event_type": DomainEventType.JOURNEY_SUBMITTED,
+                "source_type": "journey",
+                "source_id": str(journey_id),
+                "space_id": canonical_event.organization_id,
+                "activity_id": canonical_event.activity_id,
+                "payload_version": 1,
+                "payload": {
+                    "journey_id": str(journey_id),
+                    "activity_id": str(canonical_event.activity_id),
+                    "beneficiary_id": str(canonical_event.organizer_id),
+                    "workflow": "registration",
+                    "status": "submitted",
+                },
+                "occurred_at": occurred_at,
+                "status": DomainEventStatus.PROCESSED,
+                "attempts": 1,
+                "max_attempts": 5,
+                "claimed_at": None,
+                "processed_at": occurred_at,
+                "last_error": "",
+                "idempotency_key": "demo:automation:journey-submitted",
+            },
+        )
+        backdate(domain_event, created_at=occurred_at, updated_at=occurred_at)
+
+        rule = upsert(
+            AutomationRule,
+            "canonical-registration-notification",
+            defaults={
+                "space": canonical_event.organization,
+                "activity": canonical_event.activity,
+                "name": "Accueil après inscription canonique",
+                "trigger_event_type": DomainEventType.JOURNEY_SUBMITTED,
+                "conditions": {"workflow": "registration"},
+                "action_kind": DomainAutomationActionKind.NOTIFICATION,
+                "action_config": {
+                    "recipient": "beneficiary",
+                    "title": "Inscription reçue",
+                    "message": "Votre inscription a été prise en compte.",
+                    "category": "system",
+                    "queue_email": False,
+                },
+                "is_active": False,
+                "created_by": canonical_event.organizer,
+            },
+        )
+        backdate(rule, created_at=occurred_at, updated_at=occurred_at)
+
+        execution = upsert(
+            AutomationExecution,
+            "canonical-registration-notification-execution",
+            defaults={
+                "rule": rule,
+                "domain_event": domain_event,
+                "action": DomainAutomationActionKind.NOTIFICATION,
+                "status": DomainAutomationExecutionStatus.COMPLETED,
+                "attempts": 1,
+                "max_attempts": 3,
+                "started_at": occurred_at,
+                "completed_at": occurred_at,
+                "last_error": "",
+            },
+        )
+        backdate(execution, created_at=occurred_at, updated_at=occurred_at)
