@@ -250,6 +250,18 @@ def sync_order_item_commerce(item: TicketOrderItem):
         existing = CapacityReservation.objects.filter(pool=pool, journey=commerce_order.journey, source_key=source_key).first()
         if existing:
             reservation = existing
+        elif item.order.status == TicketOrderStatus.PENDING and item.order.is_expired:
+            # Compatibility for historical/demo legacy rows whose temporary TicketOrder
+            # hold had already elapsed before the canonical Capacity bridge existed.
+            # They must not consume capacity, and runtime reserve_capacity remains strict.
+            reservation = CapacityReservation.objects.create(
+                pool=pool,
+                journey=commerce_order.journey,
+                quantity=item.quantity,
+                status=CapacityReservationStatus.EXPIRED,
+                expires_at=item.order.expires_at,
+                source_key=source_key,
+            )
         else:
             reservation = reserve_capacity(
                 pool=pool,
@@ -322,6 +334,9 @@ def _ticket_order_saved(sender, instance, **kwargs):
     commerce_order = sync_order_commerce(instance)
     if commerce_order is not None:
         instance.commerce_order = commerce_order
+        # Order status changes (confirm/cancel/expire) must transition the canonical
+        # reservation before any on_commit waitlist promotion sees availability.
+        sync_order_items(instance)
 
 
 @receiver(post_save, sender=TicketOrderItem, dispatch_uid="tickets.sync_order_item_commerce")
