@@ -171,6 +171,15 @@ jobs:
           activities.tests
           events.test_activity_bridge
 
+      - name: Run Journey, Request and Access PostgreSQL tests
+        run: >-
+          python manage.py test
+          journeys.tests
+          access.tests
+          access.test_concurrency
+          tickets.test_journey_access_bridge
+          scanner.test_access_bridge
+
       - name: Run operational readiness PostgreSQL tests
         run: >-
           python manage.py test
