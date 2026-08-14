@@ -6,4 +6,7 @@ class CrmConfig(AppConfig):
     name = "crm"
 
     def ready(self):
+        from . import canonical_models  # noqa: F401
+        from . import canonical_admin  # noqa: F401
+        from . import domain_event_consumer  # noqa: F401
         from . import signals  # noqa: F401
