@@ -45,8 +45,8 @@ test('participant goes from discovery to favorite, payment, QR, accepted scan th
 
   const paymentDetailUrl = page.url();
   await page.goto('/notifications/');
-  const paymentNotifications = page.locator('article').filter({ hasText: 'Paiement confirmé' });
-  const ticketNotifications = page.locator('article').filter({ hasText: 'Vos billets sont disponibles' });
+  const paymentNotifications = page.getByRole('heading', { name: 'Paiement confirmé', exact: true });
+  const ticketNotifications = page.getByRole('heading', { name: 'Vos billets sont disponibles', exact: true });
   await expect(paymentNotifications).toHaveCount(1);
   await expect(ticketNotifications).toHaveCount(1);
   await page.goto(paymentDetailUrl);
