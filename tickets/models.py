@@ -73,6 +73,20 @@ class TicketType(models.Model):
         on_delete=models.CASCADE,
         related_name="ticket_types",
     )
+    offer = models.OneToOneField(
+        "commerce.Offer",
+        on_delete=models.SET_NULL,
+        related_name="ticket_type",
+        null=True,
+        blank=True,
+    )
+    capacity_pool = models.OneToOneField(
+        "capacity.CapacityPool",
+        on_delete=models.SET_NULL,
+        related_name="ticket_type",
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=140)
     slug = models.SlugField(max_length=160, blank=True)
     description = models.TextField(blank=True)
@@ -164,6 +178,10 @@ class TicketType(models.Model):
 
     @property
     def available_quantity(self):
+        if self.capacity_pool_id:
+            from capacity.selectors import available_quantity
+
+            return available_quantity(self.capacity_pool)
         if self.quantity_total is None:
             return None
         return max(
@@ -209,6 +227,13 @@ class TicketOrder(models.Model):
     )
     journey = models.OneToOneField(
         "journeys.Journey",
+        on_delete=models.SET_NULL,
+        related_name="ticket_order",
+        null=True,
+        blank=True,
+    )
+    commerce_order = models.OneToOneField(
+        "commerce.CommerceOrder",
         on_delete=models.SET_NULL,
         related_name="ticket_order",
         null=True,
@@ -267,6 +292,13 @@ class TicketOrderItem(models.Model):
         TicketType,
         on_delete=models.PROTECT,
         related_name="order_items",
+    )
+    commerce_item = models.OneToOneField(
+        "commerce.CommerceOrderItem",
+        on_delete=models.SET_NULL,
+        related_name="ticket_order_item",
+        null=True,
+        blank=True,
     )
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)

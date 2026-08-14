@@ -47,6 +47,15 @@ class Payment(models.Model):
         TicketOrder,
         on_delete=models.PROTECT,
         related_name="payments",
+        null=True,
+        blank=True,
+    )
+    commerce_order = models.ForeignKey(
+        "commerce.CommerceOrder",
+        on_delete=models.PROTECT,
+        related_name="payments",
+        null=True,
+        blank=True,
     )
     initiated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -101,6 +110,7 @@ class Payment(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["order", "status"], name="pay_order_status_idx"),
+            models.Index(fields=["commerce_order", "status"], name="pay_commerce_status_idx"),
             models.Index(fields=["provider", "status"], name="pay_provider_status_idx"),
             models.Index(fields=["created_at"], name="pay_created_idx"),
         ]
@@ -109,10 +119,19 @@ class Payment(models.Model):
                 condition=Q(amount__gt=0),
                 name="payment_amount_positive",
             ),
+            models.CheckConstraint(
+                condition=Q(order__isnull=False) | Q(commerce_order__isnull=False),
+                name="payment_has_order_source",
+            ),
             models.UniqueConstraint(
                 fields=["order"],
                 condition=Q(status=PaymentStatus.SUCCEEDED),
                 name="payment_one_success_order",
+            ),
+            models.UniqueConstraint(
+                fields=["commerce_order"],
+                condition=Q(status=PaymentStatus.SUCCEEDED) & Q(commerce_order__isnull=False),
+                name="payment_one_success_commerce_order",
             ),
             models.UniqueConstraint(
                 fields=["provider", "provider_reference"],
@@ -127,6 +146,8 @@ class Payment(models.Model):
         self.currency = (self.currency or "USD").upper()
         if len(self.currency) != 3:
             errors["currency"] = "La devise doit contenir exactement 3 lettres."
+        if not self.order_id and not self.commerce_order_id:
+            errors["commerce_order"] = "Un paiement doit référencer une commande Event ou une CommerceOrder."
         if self.order_id:
             if self.order.total_amount <= 0:
                 errors["order"] = "Une commande gratuite ne nécessite pas de paiement."
@@ -134,6 +155,15 @@ class Payment(models.Model):
                 errors["amount"] = "Le montant doit correspondre au total de la commande."
             if self.currency != self.order.currency:
                 errors["currency"] = "La devise doit correspondre à celle de la commande."
+        if self.commerce_order_id:
+            if self.commerce_order.total <= 0:
+                errors["commerce_order"] = "Une CommerceOrder gratuite ne nécessite pas de paiement."
+            if self.amount != self.commerce_order.total:
+                errors["amount"] = "Le montant doit correspondre au total commercial snapshot."
+            if self.currency != self.commerce_order.currency:
+                errors["currency"] = "La devise doit correspondre à celle de la CommerceOrder."
+            if self.order_id and self.order.commerce_order_id not in {None, self.commerce_order_id}:
+                errors["commerce_order"] = "Le Payment et le TicketOrder pointent vers des commandes canoniques différentes."
         if errors:
             raise ValidationError(errors)
 
@@ -166,7 +196,8 @@ class Payment(models.Model):
         return max(self.amount - self.refunded_amount, Decimal("0.00"))
 
     def __str__(self):
-        return f"{self.reference} — {self.order.reference}"
+        source = self.order.reference if self.order_id else self.commerce_order.reference
+        return f"{self.reference} — {source}"
 
 
 class Refund(models.Model):

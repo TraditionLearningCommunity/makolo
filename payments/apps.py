@@ -19,3 +19,4 @@ class PaymentsConfig(AppConfig):
                 "PAYMENTS_WEBHOOK_SECRET",
                 "",
             )
+        from . import commerce_bridge  # noqa: F401

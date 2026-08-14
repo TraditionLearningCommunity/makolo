@@ -6,11 +6,13 @@ from django.test import TestCase
 from django.utils import timezone
 
 from access.models import Access, AccessStatus, AccessCredential, AccessUse
+from capacity.models import CapacityPool, CapacityReservation
+from commerce.models import CommerceOrder, CommerceOrderItem, Offer
 from events.activity_bridge import sync_event_core
 from events.models import Event, EventStatus, EventVisibility
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
-from .models import Ticket, TicketOrder, TicketOrderStatus, TicketStatus, TicketType
+from .models import Ticket, TicketOrder, TicketOrderItem, TicketOrderStatus, TicketStatus, TicketType
 
 
 User = get_user_model()
@@ -81,6 +83,21 @@ class JourneyAccessBackfillTests(TestCase):
 
     def _detach_runtime_bridge(self):
         Ticket.objects.all().update(access=None)
+
+        # Task 7 runtime bridges may already have created canonical Commerce and
+        # Capacity projections around these legacy Event rows. This fixture is
+        # intentionally simulating the pre-Task-6 database, so detach and remove
+        # those newer projections first. Production PROTECT constraints remain
+        # unchanged and continue to protect real historical records.
+        TicketOrderItem.objects.all().update(commerce_item=None)
+        TicketOrder.objects.all().update(commerce_order=None)
+        TicketType.objects.all().update(offer=None, capacity_pool=None)
+        CommerceOrderItem.objects.all().delete()
+        CommerceOrder.objects.all().delete()
+        CapacityReservation.objects.all().delete()
+        Offer.objects.all().delete()
+        CapacityPool.objects.all().delete()
+
         TicketOrder.objects.all().update(journey=None)
         # Runtime fixtures can already have AccessUse rows through the canonical
         # bridge. The historical-migration simulation must remove those audit

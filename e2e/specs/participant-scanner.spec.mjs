@@ -105,3 +105,19 @@ test('sandbox payment can be cancelled and retried without losing the order', as
   await page.getByRole('button', { name: /Initialiser le paiement/i }).click();
   await expect(page.getByRole('button', { name: /Simuler un paiement réussi/i })).toBeVisible();
 });
+
+
+test('a free Event consumes its last canonical place and becomes sold out', async ({ page }) => {
+  await login(page, 'empty.participant@e2e.makolo.test');
+  await page.goto('/events/capacite-makolo-e2e/');
+  await page.getByRole('link', { name: /Obtenir des billets/i }).click();
+  const orderFormUrl = page.url();
+  await expect(page.getByText(/1 restant\(s\)/i)).toBeVisible();
+  await page.getByLabel('Quantité').fill('1');
+  await page.getByRole('button', { name: /Créer la commande/i }).click();
+  await expect(page.getByText('Place unique E2E').first()).toBeVisible();
+
+  await page.goto(orderFormUrl);
+  await expect(page.getByText(/0 restant\(s\)/i)).toBeVisible();
+  await expect(page.getByText(/Complet pour le moment|Indisponible/i)).toBeVisible();
+});
