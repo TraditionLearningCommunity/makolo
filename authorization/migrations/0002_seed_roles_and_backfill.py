@@ -66,7 +66,7 @@ ROLE_DEFINITIONS = {
         "permissions": ADMIN_PERMISSION_CODES,
     },
     "space-activity-manager": {
-        "name": "Responsable des activités",
+        "name": "Responsable activité",
         "description": "Pilotage des activités, commandes opérationnelles et accès sans finances.",
         "scope": "space",
         "permissions": [
