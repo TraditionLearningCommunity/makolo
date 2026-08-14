@@ -9,7 +9,7 @@ from django.utils import timezone
 from activities.models import Activity, Occurrence
 from capacity.models import CapacityPool, CapacityReservationStatus
 from journeys.models import JourneyStatus, WorkflowKind
-from journeys.services import approve_journey, create_journey, request_approval, submit_journey
+from journeys.services import create_journey, request_approval, submit_journey
 from organizations.models import Organization
 
 from .models import CommerceOrderStatus, Offer, OfferStatus, PaymentMode
@@ -59,6 +59,7 @@ class CommerceCoreTests(TestCase):
         order = confirm_order(order=order)
         self.assertEqual(order.status, CommerceOrderStatus.CONFIRMED)
         self.assertEqual(order.total, Decimal("20.00"))
+        self.assertEqual(order.payments.count(), 0)
 
     def test_upfront_moves_purchase_journey_to_pending_payment(self):
         journey = self.journey()
@@ -71,8 +72,6 @@ class CommerceCoreTests(TestCase):
         journey = self.journey(workflow=WorkflowKind.ORDER_APPROVAL)
         submit_journey(journey=journey, actor=self.user)
         request_approval(journey=journey, actor=self.user)
-        # Permission checks for human decisions are covered by authorization tests;
-        # this core test uses the canonical approved state to isolate Commerce.
         from journeys.legacy_bridge import sync_legacy_journey_status
         sync_legacy_journey_status(journey=journey, status=JourneyStatus.APPROVED, actor=None, reason="commerce-test")
         journey.refresh_from_db()
@@ -99,12 +98,12 @@ class CommerceCoreTests(TestCase):
         with self.assertRaises(ValidationError):
             create_order(journey=journey, buyer=self.user, selections=[(usd, 1), (cdf, 1)], payee_space=self.space)
 
-    def test_payee_mismatch_is_rejected(self):
+    def test_explicit_payee_can_differ_from_activity_space(self):
         journey = self.journey()
         offer = self.offer(price="10.00")
-        other = Organization.objects.create(name="Other Space", created_by=self.user)
-        with self.assertRaises(ValidationError):
-            create_order(journey=journey, buyer=self.user, selections=[(offer, 1)], payee_space=other)
+        other = Organization.objects.create(name="Principal Payee", created_by=self.user)
+        order = create_order(journey=journey, buyer=self.user, selections=[(offer, 1)], payee_space=other)
+        self.assertEqual(order.payee_space, other)
 
     def test_cancel_releases_hold_and_expire_is_idempotent(self):
         pool = CapacityPool.objects.create(activity=self.activity, occurrence=self.occurrence, total_quantity=1)
