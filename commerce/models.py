@@ -210,10 +210,6 @@ class CommerceOrder(models.Model):
             errors["total"] = "Le total doit être égal au sous-total moins la remise."
         if self.payment_mode == PaymentMode.NONE and self.total != Decimal("0.00"):
             errors["payment_mode"] = "Une commande sans paiement attendu doit avoir un total nul."
-        if self.journey_id and self.payee_space_id and self.journey.activity.space_id and self.journey.activity.space_id != self.payee_space_id:
-            # The beta core deliberately supports one principal payee. Cross-space
-            # marketplace settlement is deferred and must not happen implicitly.
-            errors["payee_space"] = "Le bénéficiaire financier ne correspond pas à l’Espace de l’Activity."
         if errors:
             raise ValidationError(errors)
 
