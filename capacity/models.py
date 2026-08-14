@@ -111,7 +111,7 @@ class CapacityReservation(models.Model):
         ordering = ["created_at", "id"]
         indexes = [
             models.Index(fields=["pool", "status"], name="capacity_res_pool_status_idx"),
-            models.Index(fields=["journey", "status"], name="capacity_res_journey_status_idx"),
+            models.Index(fields=["journey", "status"], name="cap_res_journey_status_idx"),
             models.Index(fields=["expires_at", "status"], name="capacity_res_expiry_status_idx"),
         ]
         constraints = [
@@ -131,7 +131,7 @@ class CapacityReservation(models.Model):
                 errors["journey"] = "La Démarche appartient à une autre Activity que le pool."
             if self.pool.occurrence_id and self.journey.occurrence_id != self.pool.occurrence_id:
                 errors["journey"] = "La Démarche doit cibler l’Occurrence du pool."
-        if self.status == CapacityReservationStatus.HELD and self.expires_at and self.expires_at <= self.created_at if self.created_at else False:
+        if self.created_at and self.status == CapacityReservationStatus.HELD and self.expires_at and self.expires_at <= self.created_at:
             errors["expires_at"] = "L’expiration d’un hold doit être postérieure à sa création."
         if errors:
             raise ValidationError(errors)
