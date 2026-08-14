@@ -24,6 +24,7 @@ def backfill_commerce_targets(apps, schema_editor):
                 PromotionOffer.objects.get_or_create(
                     promotion_id=promotion.pk,
                     offer_id=offer_id,
+                    defaults={"source": "ticket_type"},
                 )
 
 
@@ -55,6 +56,7 @@ class Migration(migrations.Migration):
             name="PromotionOffer",
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ("source", models.CharField(default="canonical", max_length=24)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("offer", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="promotion_targets", to="commerce.offer")),
                 ("promotion", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="offer_targets", to="promotions.promotion")),
