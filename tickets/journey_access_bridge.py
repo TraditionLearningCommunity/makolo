@@ -5,15 +5,13 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from access.models import AccessStatus, CredentialStatus
-from access.services import (
-    issue_access,
-    sync_legacy_access_status,
-    transfer_access_beneficiary,
-)
+from access.legacy_bridge import sync_legacy_access_status, transfer_access_beneficiary
+from access.models import AccessStatus
+from access.services import issue_access
 from events.activity_bridge import sync_event_core
+from journeys.legacy_bridge import sync_legacy_journey_status
 from journeys.models import JourneyStatus, WorkflowKind
-from journeys.services import create_journey, sync_legacy_journey_status
+from journeys.services import create_journey
 
 from .models import Ticket, TicketOrder, TicketOrderStatus, TicketStatus
 
