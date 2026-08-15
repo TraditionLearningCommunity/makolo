@@ -71,6 +71,11 @@ def user_can_scan_activity(user, activity, *, occurrence=None) -> bool:
 def user_can_scan_event(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
+    # Events keeps its historical organizer/access-manager authority while the
+    # scanner engine itself moves to Activity/Occurrence. This is a bridge, not
+    # a new source of Access validity.
+    if user_can_manage_event_access(user, event):
+        return True
     activity = getattr(event, "activity", None)
     if activity is not None:
         if can(user, PermissionCode.ACTIVITY_ACCESS_SCAN, activity=activity):
@@ -83,8 +88,6 @@ def user_can_scan_event(user, event) -> bool:
             activity=activity,
             occurrence=_event_occurrence(event),
         ) is not None
-    if user_can_manage_event_access(user, event):
-        return True
     return get_active_assignment(user, event) is not None
 
 
@@ -97,10 +100,14 @@ def user_can_manage_activity_scanner_assignments(user, activity) -> bool:
 
 
 def user_can_manage_scanner_assignments(user, event) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if user_can_manage_event_access(user, event):
+        return True
     activity = getattr(event, "activity", None)
     if activity is not None:
         return user_can_manage_activity_scanner_assignments(user, activity)
-    return user_can_manage_event_access(user, event)
+    return False
 
 
 class CanUseScanner(BasePermission):
@@ -113,8 +120,8 @@ class CanManageScannerAssignments(BasePermission):
         return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
-        if obj.activity_id:
-            return user_can_manage_activity_scanner_assignments(request.user, obj.activity)
+        if obj.activity_id and user_can_manage_activity_scanner_assignments(request.user, obj.activity):
+            return True
         if obj.event_id:
             return user_can_manage_scanner_assignments(request.user, obj.event)
         return False
