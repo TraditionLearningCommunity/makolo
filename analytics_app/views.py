@@ -7,12 +7,13 @@ from django.views.generic import TemplateView
 
 from partners.analytics import build_event_partner_analytics
 
+from .event_adapter import build_event_analytics
 from .forms import GrowthSpendForm
 from .growth import build_growth_portfolio, build_organization_growth
 from .models import GrowthSpend
 from .permissions import user_can_manage_growth_spend, user_can_view_event_financials
 from .selectors import get_analytics_events, get_growth_organizations, get_growth_spends
-from .services import build_event_analytics, build_portfolio_analytics
+from .services import build_portfolio_analytics
 
 
 class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
@@ -32,10 +33,7 @@ class EventAnalyticsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        event = get_object_or_404(
-            get_analytics_events(self.request.user),
-            slug=self.kwargs["slug"],
-        )
+        event = get_object_or_404(get_analytics_events(self.request.user), slug=self.kwargs["slug"])
         try:
             days = int(self.request.GET.get("days", "30"))
         except ValueError:
@@ -67,8 +65,7 @@ class OrganizationGrowthAnalyticsView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         organization = get_object_or_404(
-            get_growth_organizations(self.request.user),
-            slug=self.kwargs["slug"],
+            get_growth_organizations(self.request.user), slug=self.kwargs["slug"]
         )
         try:
             months = int(self.request.GET.get("months", "12"))
@@ -82,17 +79,11 @@ class OrganizationGrowthAnalyticsView(LoginRequiredMixin, TemplateView):
         cohort_months = min(max(cohort_months, 3), 12)
         context["organization"] = organization
         context["growth"] = build_organization_growth(
-            organization,
-            self.request.user,
-            months=months,
-            cohort_months=cohort_months,
+            organization, self.request.user, months=months, cohort_months=cohort_months
         )
         context["months"] = months
         context["cohort_months"] = cohort_months
-        context["can_manage_spend"] = user_can_manage_growth_spend(
-            self.request.user,
-            organization,
-        )
+        context["can_manage_spend"] = user_can_manage_growth_spend(self.request.user, organization)
         return context
 
 
@@ -109,11 +100,7 @@ class GrowthSpendCreateView(LoginRequiredMixin, View):
     def get(self, request, slug):
         organization = self._organization(request, slug)
         form = GrowthSpendForm(organization=organization)
-        return render(
-            request,
-            self.template_name,
-            {"organization": organization, "form": form},
-        )
+        return render(request, self.template_name, {"organization": organization, "form": form})
 
     def post(self, request, slug):
         organization = self._organization(request, slug)
@@ -126,10 +113,7 @@ class GrowthSpendCreateView(LoginRequiredMixin, View):
             messages.success(request, "Dépense Growth enregistrée dans sa devise d'origine.")
             return redirect("analytics:growth-organization", slug=organization.slug)
         return render(
-            request,
-            self.template_name,
-            {"organization": organization, "form": form},
-            status=400,
+            request, self.template_name, {"organization": organization, "form": form}, status=400
         )
 
 
