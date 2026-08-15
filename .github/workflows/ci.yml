@@ -212,6 +212,13 @@ jobs:
           promotions.test_commerce_promotions
           promotions.test_concurrency
 
+      - name: Run Scanner, Operations and Analytics canonical PostgreSQL tests
+        run: >-
+          python manage.py test
+          scanner.test_canonical_scope
+          operations.test_canonical_scope
+          analytics_app.test_canonical_metrics
+
       - name: Run operational readiness PostgreSQL tests
         run: >-
           python manage.py test
