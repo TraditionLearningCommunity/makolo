@@ -55,57 +55,42 @@ class OperationsIncident(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=220)
     category = models.CharField(max_length=24, choices=IncidentCategory.choices)
-    severity = models.CharField(
-        max_length=16,
-        choices=IncidentSeverity.choices,
-        default=IncidentSeverity.MEDIUM,
-    )
-    status = models.CharField(
-        max_length=20,
-        choices=IncidentStatus.choices,
-        default=IncidentStatus.OPEN,
-    )
+    severity = models.CharField(max_length=16, choices=IncidentSeverity.choices, default=IncidentSeverity.MEDIUM)
+    status = models.CharField(max_length=20, choices=IncidentStatus.choices, default=IncidentStatus.OPEN)
     organization = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.SET_NULL,
-        related_name="operations_incidents",
-        null=True,
-        blank=True,
+        "organizations.Organization", on_delete=models.SET_NULL,
+        related_name="operations_incidents", null=True, blank=True,
+    )
+    activity = models.ForeignKey(
+        "activities.Activity", on_delete=models.PROTECT,
+        related_name="operations_incidents", null=True, blank=True,
+    )
+    occurrence = models.ForeignKey(
+        "activities.Occurrence", on_delete=models.PROTECT,
+        related_name="operations_incidents", null=True, blank=True,
     )
     event = models.ForeignKey(
-        "events.Event",
-        on_delete=models.SET_NULL,
-        related_name="operations_incidents",
-        null=True,
-        blank=True,
+        "events.Event", on_delete=models.SET_NULL,
+        related_name="operations_incidents", null=True, blank=True,
+        help_text="Projection Events historique; Operations utilise Activity/Occurrence comme contexte canonique.",
     )
     payment = models.ForeignKey(
-        "payments.Payment",
-        on_delete=models.SET_NULL,
-        related_name="operations_incidents",
-        null=True,
-        blank=True,
+        "payments.Payment", on_delete=models.SET_NULL,
+        related_name="operations_incidents", null=True, blank=True,
     )
     scan_log = models.ForeignKey(
-        "scanner.ScanLog",
-        on_delete=models.SET_NULL,
-        related_name="operations_incidents",
-        null=True,
-        blank=True,
+        "scanner.ScanLog", on_delete=models.SET_NULL,
+        related_name="operations_incidents", null=True, blank=True,
     )
     description = models.TextField()
     resolution = models.TextField(blank=True)
     opened_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name="operations_incidents_opened",
     )
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="operations_incidents_assigned",
-        null=True,
-        blank=True,
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="operations_incidents_assigned", null=True, blank=True,
     )
     detected_at = models.DateTimeField(default=timezone.now)
     acknowledged_at = models.DateTimeField(null=True, blank=True)
@@ -119,8 +104,28 @@ class OperationsIncident(models.Model):
         indexes = [
             models.Index(fields=["status", "severity", "created_at"], name="ops_inc_status_idx"),
             models.Index(fields=["organization", "status"], name="ops_inc_org_idx"),
+            models.Index(fields=["activity", "status"], name="ops_inc_activity_idx"),
+            models.Index(fields=["occurrence", "status"], name="ops_inc_occurrence_idx"),
             models.Index(fields=["event", "status"], name="ops_inc_event_idx"),
         ]
+
+    def _payment_scope(self):
+        if not self.payment_id:
+            return None, None
+        payment = self.payment
+        if payment.commerce_order_id:
+            journey = payment.commerce_order.journey
+            return journey.activity, journey.occurrence
+        if payment.order_id:
+            event = payment.order.event
+            activity = getattr(event, "activity", None)
+            if activity is None:
+                return None, None
+            occurrence = activity.occurrences.filter(
+                start_at=event.start_at, end_at=event.end_at
+            ).order_by("id").first()
+            return activity, occurrence
+        return None, None
 
     def clean(self):
         super().clean()
@@ -134,27 +139,41 @@ class OperationsIncident(models.Model):
         if self.assigned_to_id and not self.assigned_to.is_staff:
             errors["assigned_to"] = "Un incident Operations ne peut être assigné qu'à un membre du staff Makolo."
 
-        event_organization_id = self.event.organization_id if self.event_id else None
-        payment_event_id = self.payment.order.event_id if self.payment_id else None
-        payment_organization_id = self.payment.order.event.organization_id if self.payment_id else None
-        scan_event_id = self.scan_log.event_id if self.scan_log_id else None
-        scan_organization_id = self.scan_log.event.organization_id if self.scan_log_id else None
+        if self.occurrence_id and not self.activity_id:
+            self.activity_id = self.occurrence.activity_id
+        if self.event_id and not self.activity_id and self.event.activity_id:
+            self.activity_id = self.event.activity_id
+        if self.activity_id and not self.organization_id and self.activity.space_id:
+            self.organization_id = self.activity.space_id
 
-        if self.event_id and self.organization_id and event_organization_id:
-            if event_organization_id != self.organization_id:
-                errors["event"] = "L'événement doit appartenir à l'organisation de l'incident."
-        if self.payment_id and self.event_id and payment_event_id != self.event_id:
-            errors["payment"] = "Le paiement doit appartenir à l'événement de l'incident."
-        if self.scan_log_id and self.event_id and scan_event_id != self.event_id:
-            errors["scan_log"] = "Le scan doit appartenir à l'événement de l'incident."
-        if self.payment_id and self.organization_id and payment_organization_id:
-            if payment_organization_id != self.organization_id:
-                errors["payment"] = "Le paiement doit appartenir à l'organisation de l'incident."
-        if self.scan_log_id and self.organization_id and scan_organization_id:
-            if scan_organization_id != self.organization_id:
-                errors["scan_log"] = "Le scan doit appartenir à l'organisation de l'incident."
-        if self.payment_id and self.scan_log_id and payment_event_id != scan_event_id:
-            errors["scan_log"] = "Le scan et le paiement liés doivent appartenir au même événement."
+        if self.occurrence_id and self.activity_id and self.occurrence.activity_id != self.activity_id:
+            errors["occurrence"] = "L’Occurrence doit appartenir à l’Activity de l’incident."
+        if self.activity_id and self.organization_id and self.activity.space_id:
+            if self.activity.space_id != self.organization_id:
+                errors["activity"] = "L’Activity doit appartenir à l’Espace de l’incident."
+        if self.event_id and self.activity_id and self.event.activity_id:
+            if self.event.activity_id != self.activity_id:
+                errors["event"] = "L’Event projette une autre Activity que l’incident."
+        if self.event_id and self.organization_id and self.event.organization_id:
+            if self.event.organization_id != self.organization_id:
+                errors["event"] = "L’événement doit appartenir à l’Espace de l’incident."
+
+        payment_activity, payment_occurrence = self._payment_scope()
+        if payment_activity is not None:
+            if self.activity_id and payment_activity.pk != self.activity_id:
+                errors["payment"] = "Le paiement appartient à une autre Activity."
+            if self.organization_id and payment_activity.space_id and payment_activity.space_id != self.organization_id:
+                errors["payment"] = "Le paiement appartient à un autre Espace."
+            if self.occurrence_id and payment_occurrence is not None and payment_occurrence.pk != self.occurrence_id:
+                errors["payment"] = "Le paiement appartient à une autre Occurrence."
+
+        if self.scan_log_id:
+            scan_event = self.scan_log.event
+            scan_activity_id = scan_event.activity_id
+            if self.activity_id and scan_activity_id and scan_activity_id != self.activity_id:
+                errors["scan_log"] = "Le scan appartient à une autre Activity."
+            if self.organization_id and scan_event.organization_id and scan_event.organization_id != self.organization_id:
+                errors["scan_log"] = "Le scan appartient à un autre Espace."
         if errors:
             raise ValidationError(errors)
 
@@ -166,42 +185,24 @@ class ModerationCase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     target_type = models.CharField(max_length=20, choices=ModerationTarget.choices)
     organization = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.SET_NULL,
-        related_name="moderation_cases",
-        null=True,
-        blank=True,
+        "organizations.Organization", on_delete=models.SET_NULL,
+        related_name="moderation_cases", null=True, blank=True,
     )
     event = models.ForeignKey(
-        "events.Event",
-        on_delete=models.SET_NULL,
-        related_name="moderation_cases",
-        null=True,
-        blank=True,
+        "events.Event", on_delete=models.SET_NULL,
+        related_name="moderation_cases", null=True, blank=True,
     )
-    severity = models.CharField(
-        max_length=16,
-        choices=IncidentSeverity.choices,
-        default=IncidentSeverity.MEDIUM,
-    )
-    status = models.CharField(
-        max_length=20,
-        choices=ModerationStatus.choices,
-        default=ModerationStatus.OPEN,
-    )
+    severity = models.CharField(max_length=16, choices=IncidentSeverity.choices, default=IncidentSeverity.MEDIUM)
+    status = models.CharField(max_length=20, choices=ModerationStatus.choices, default=ModerationStatus.OPEN)
     reason = models.TextField()
     outcome = models.TextField(blank=True)
     opened_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name="moderation_cases_opened",
     )
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="moderation_cases_assigned",
-        null=True,
-        blank=True,
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="moderation_cases_assigned", null=True, blank=True,
     )
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -236,11 +237,8 @@ class ModerationCase(models.Model):
 class OperationsAuditLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="operations_audit_actions",
-        null=True,
-        blank=True,
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="operations_audit_actions", null=True, blank=True,
     )
     action = models.CharField(max_length=80)
     target_type = models.CharField(max_length=40)
@@ -280,9 +278,7 @@ class WorkerHeartbeat(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["worker_name", "instance_id"], name="ops_worker_instance_unique")
         ]
-        indexes = [
-            models.Index(fields=["state", "last_seen_at"], name="ops_worker_seen_idx"),
-        ]
+        indexes = [models.Index(fields=["state", "last_seen_at"], name="ops_worker_seen_idx")]
 
     def __str__(self):
         return f"{self.worker_name}:{self.instance_id} — {self.state}"
