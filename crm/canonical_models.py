@@ -74,7 +74,7 @@ class CRMInteraction(models.Model):
             )
         ]
         indexes = [
-            models.Index(fields=["contact", "occurred_at"], name="crm_interaction_contact_date_idx"),
+            models.Index(fields=["contact", "occurred_at"], name="crm_interact_contact_dt_idx"),
             models.Index(fields=["domain_event"], name="crm_interaction_event_idx"),
         ]
 
@@ -178,7 +178,7 @@ class AudienceMember(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["audience", "profile"], name="crm_audience_member_unique")
         ]
-        indexes = [models.Index(fields=["profile"], name="crm_audience_member_profile_idx")]
+        indexes = [models.Index(fields=["profile"], name="crm_aud_member_profile_idx")]
 
     def clean(self):
         super().clean()
