@@ -107,10 +107,27 @@ class EventAccessGate(models.Model):
 
 class ScannerAssignment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    activity = models.ForeignKey(
+        "activities.Activity",
+        on_delete=models.PROTECT,
+        related_name="scanner_assignments",
+        null=True,
+        blank=True,
+    )
+    occurrence = models.ForeignKey(
+        "activities.Occurrence",
+        on_delete=models.PROTECT,
+        related_name="scanner_assignments",
+        null=True,
+        blank=True,
+    )
     event = models.ForeignKey(
         Event,
         on_delete=models.PROTECT,
         related_name="scanner_assignments",
+        null=True,
+        blank=True,
+        help_text="Projection Events historique; le scope canonique est Activity/Occurrence.",
     )
     agent = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -140,13 +157,23 @@ class ScannerAssignment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["event__start_at", "label", "agent__username"]
+        ordering = ["activity__title", "occurrence__start_at", "label", "agent__username"]
         verbose_name = "affectation scanner"
         verbose_name_plural = "affectations scanner"
         constraints = [
+            models.CheckConstraint(
+                condition=Q(activity__isnull=False) | Q(event__isnull=False),
+                name="scanner_assignment_has_scope",
+            ),
             models.UniqueConstraint(
-                fields=["event", "agent"],
-                name="scanner_unique_event_agent",
+                fields=["activity", "agent"],
+                condition=Q(activity__isnull=False, occurrence__isnull=True),
+                name="scanner_unique_activity_agent",
+            ),
+            models.UniqueConstraint(
+                fields=["activity", "occurrence", "agent"],
+                condition=Q(activity__isnull=False, occurrence__isnull=False),
+                name="scanner_unique_occ_agent",
             ),
             models.CheckConstraint(
                 condition=(
@@ -159,8 +186,12 @@ class ScannerAssignment(models.Model):
         ]
         indexes = [
             models.Index(
-                fields=["event", "is_active"],
-                name="scanner_assign_event_idx",
+                fields=["activity", "is_active"],
+                name="scanner_assign_activity_idx",
+            ),
+            models.Index(
+                fields=["occurrence", "is_active"],
+                name="scanner_assign_occ_idx",
             ),
             models.Index(
                 fields=["agent", "is_active"],
@@ -171,12 +202,30 @@ class ScannerAssignment(models.Model):
     def clean(self):
         super().clean()
         errors = {}
+        if self.occurrence_id and not self.activity_id:
+            self.activity_id = self.occurrence.activity_id
+        if self.event_id and not self.activity_id and self.event.activity_id:
+            self.activity_id = self.event.activity_id
+        if not self.activity_id and not self.event_id:
+            errors["activity"] = "Une Activity est obligatoire pour une nouvelle affectation scanner."
+        if self.occurrence_id and self.activity_id and self.occurrence.activity_id != self.activity_id:
+            errors["occurrence"] = "Cette Occurrence appartient à une autre Activity."
+        if self.event_id and self.activity_id and self.event.activity_id:
+            if self.event.activity_id != self.activity_id:
+                errors["event"] = "Cet Event projette une autre Activity."
         if self.valid_from and self.valid_until and self.valid_until <= self.valid_from:
             errors["valid_until"] = "La fin d’affectation doit être postérieure au début."
-        if self.access_gate_id and self.event_id and self.access_gate.event_id != self.event_id:
-            errors["access_gate"] = "Cette porte appartient à un autre événement."
+        if self.access_gate_id:
+            if not self.event_id:
+                errors["access_gate"] = "Une porte Event nécessite la projection Event correspondante."
+            elif self.access_gate.event_id != self.event_id:
+                errors["access_gate"] = "Cette porte appartient à un autre événement."
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     @property
     def is_current(self):
@@ -190,7 +239,8 @@ class ScannerAssignment(models.Model):
         return True
 
     def __str__(self):
-        return f"{self.event.title} — {self.agent.username} ({self.label})"
+        scope = self.occurrence or self.activity or self.event
+        return f"{scope} — {self.agent.username} ({self.label})"
 
 
 class ScanLog(models.Model):
