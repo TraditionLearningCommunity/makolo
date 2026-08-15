@@ -108,7 +108,7 @@ class Migration(migrations.Migration):
             model_name="crminteraction",
             constraint=models.UniqueConstraint(fields=("contact", "domain_event", "interaction_type"), condition=Q(domain_event__isnull=False), name="crm_interaction_event_type_unique"),
         ),
-        migrations.AddIndex(model_name="crminteraction", index=models.Index(fields=["contact", "occurred_at"], name="crm_interaction_contact_date_idx")),
+        migrations.AddIndex(model_name="crminteraction", index=models.Index(fields=["contact", "occurred_at"], name="crm_interact_contact_dt_idx")),
         migrations.AddIndex(model_name="crminteraction", index=models.Index(fields=["domain_event"], name="crm_interaction_event_idx")),
         migrations.CreateModel(
             name="Audience",
@@ -142,5 +142,5 @@ class Migration(migrations.Migration):
             options={"ordering": ["profile__email"]},
         ),
         migrations.AddConstraint(model_name="audiencemember", constraint=models.UniqueConstraint(fields=("audience", "profile"), name="crm_audience_member_unique")),
-        migrations.AddIndex(model_name="audiencemember", index=models.Index(fields=["profile"], name="crm_audience_member_profile_idx")),
+        migrations.AddIndex(model_name="audiencemember", index=models.Index(fields=["profile"], name="crm_aud_member_profile_idx")),
     ]
