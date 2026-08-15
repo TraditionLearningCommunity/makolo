@@ -48,6 +48,11 @@ class AudienceTests(TestCase):
         self.other_space = Organization.objects.create(name="Other Audience Space", created_by=self.owner)
         OrganizationMembership.objects.create(
             organization=self.space,
+            user=self.owner,
+            role=OrganizationRole.OWNER,
+        )
+        OrganizationMembership.objects.create(
+            organization=self.space,
             user=self.marketing,
             role=OrganizationRole.MARKETING,
         )
