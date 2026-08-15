@@ -16,11 +16,40 @@ def _require_incident_manage(actor, incident):
         raise PermissionDenied("Vous n’avez pas l’autorité Operations requise dans ce contexte.")
 
 
+def _normalize_legacy_event_scope(data):
+    """Prefer the canonical Event projection without making Event mandatory."""
+    event = data.get("event")
+    if event is None:
+        return data
+
+    activity = data.get("activity")
+    if activity is None and event.activity_id:
+        activity = event.activity
+        data["activity"] = activity
+
+    if data.get("occurrence") is None and activity is not None:
+        occurrence = (
+            activity.occurrences.filter(start_at=event.start_at, end_at=event.end_at)
+            .order_by("id")
+            .first()
+        )
+        if occurrence is not None:
+            data["occurrence"] = occurrence
+
+    if data.get("organization") is None:
+        if activity is not None and activity.space_id:
+            data["organization"] = activity.space
+        elif event.organization_id:
+            data["organization"] = event.organization
+    return data
+
+
 @transaction.atomic
 def create_incident(*, actor, **data):
+    data = _normalize_legacy_event_scope(data)
     incident = OperationsIncident(opened_by=actor, **data)
-    # full_clean normalizes Event/Occurrence -> Activity/Space before the
-    # authorization decision, without creating any canonical object.
+    # full_clean preserves coherence across explicit canonical relations and
+    # legacy Event/Payment/ScanLog projections before the authority decision.
     incident.full_clean()
     _require_incident_manage(actor, incident)
     incident.save()
