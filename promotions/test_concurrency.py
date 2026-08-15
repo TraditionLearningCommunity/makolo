@@ -99,7 +99,7 @@ class CommercePromotionConcurrencyTests(TransactionTestCase):
             except ValidationError as exc:
                 outcome = ("quota", " ".join(exc.messages))
             finally:
-                close_old_connections()
+                connection.close()
             with results_lock:
                 results.append(outcome)
 
