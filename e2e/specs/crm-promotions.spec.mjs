@@ -22,12 +22,18 @@ test('marketing creates an audience and targets an Event promotion to it', async
   await page.locator('input[name="discount_value"]').fill('15.00');
   await page.locator('input[name="currency"]').fill('USD');
   await page.locator('input[name="eligible_ticket_types"]').first().check();
-  await page.locator('select[name="audience"]').selectOption({ label: 'Audience Marketing E2E' });
+
+  const audienceOption = page.locator('select[name="audience"] option').filter({ hasText: 'Audience Marketing E2E' });
+  await expect(audienceOption).toHaveCount(1);
+  const audienceId = await audienceOption.getAttribute('value');
+  expect(audienceId).toBeTruthy();
+  await page.locator('select[name="audience"]').selectOption(audienceId);
+
   await page.getByRole('button', { name: "Créer l’offre" }).click();
 
   await expect(page.getByRole('link', { name: 'Promotion Audience E2E' })).toBeVisible();
   await page.getByRole('link', { name: 'Promotion Audience E2E' }).click();
   await page.getByRole('link', { name: 'Modifier les règles' }).click();
-  await expect(page.locator('select[name="audience"]')).toHaveValue(/.+/);
+  await expect(page.locator('select[name="audience"]')).toHaveValue(audienceId);
   await expect(page.locator('input[name="eligible_ticket_types"]').first()).toBeChecked();
 });
