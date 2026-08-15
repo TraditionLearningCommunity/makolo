@@ -68,6 +68,10 @@ class PromotionForm(forms.ModelForm):
     def __init__(self, *args, organization, **kwargs):
         super().__init__(*args, **kwargs)
         self.organization = organization
+        # Organization is intentionally not an editable form field, but Promotion.clean()
+        # needs the canonical Space while ModelForm performs its model validation.
+        # Without this assignment, a valid Event on create is compared against None.
+        self.instance.organization = organization
         self.fields["event"].queryset = Event.objects.filter(organization=organization).order_by("-start_at")
         self.fields["eligible_ticket_types"].queryset = TicketType.objects.filter(
             event__organization=organization
