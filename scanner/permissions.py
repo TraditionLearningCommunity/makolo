@@ -36,19 +36,23 @@ def get_active_assignment(user, event=None, *, activity=None, occurrence=None):
         Q(valid_until__isnull=True) | Q(valid_until__gt=now),
     )
     if activity is not None:
-        assignments = assignments.filter(activity=activity)
+        scoped = assignments.filter(activity=activity)
         if occurrence is None:
-            assignments = assignments.filter(occurrence__isnull=True)
+            match = scoped.filter(occurrence__isnull=True).order_by("created_at").first()
         else:
-            assignments = assignments.filter(Q(occurrence__isnull=True) | Q(occurrence=occurrence)).order_by(
-                "occurrence_id", "created_at"
-            )
-            exact = assignments.filter(occurrence=occurrence).first()
-            return exact or assignments.filter(occurrence__isnull=True).first()
-        return assignments.order_by("created_at").first()
+            eligible = scoped.filter(Q(occurrence__isnull=True) | Q(occurrence=occurrence))
+            match = eligible.filter(occurrence=occurrence).order_by("created_at").first()
+            match = match or eligible.filter(occurrence__isnull=True).order_by("created_at").first()
+        if match is not None:
+            return match
+        # Expand/backfill compatibility: an old Event-scoped assignment may
+        # legitimately survive without a deterministic canonical occurrence.
+        # It remains a delegation bridge, while Access still makes the final
+        # Activity/Occurrence decision.
+        if event is not None:
+            return assignments.filter(event=event).order_by("created_at").first()
+        return None
 
-    # Transitional compatibility for historical rows whose Event could not be
-    # deterministically mapped during the expand/backfill migration.
     if event is not None:
         return assignments.filter(event=event).order_by("created_at").first()
     return None
@@ -69,7 +73,16 @@ def user_can_scan_event(user, event) -> bool:
         return False
     activity = getattr(event, "activity", None)
     if activity is not None:
-        return user_can_scan_activity(user, activity, occurrence=_event_occurrence(event))
+        if can(user, PermissionCode.ACTIVITY_ACCESS_SCAN, activity=activity):
+            return True
+        if activity.space_id and can(user, PermissionCode.ACCESS_MANAGE, activity.space):
+            return True
+        return get_active_assignment(
+            user,
+            event,
+            activity=activity,
+            occurrence=_event_occurrence(event),
+        ) is not None
     if user_can_manage_event_access(user, event):
         return True
     return get_active_assignment(user, event) is not None
