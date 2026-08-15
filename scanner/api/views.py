@@ -9,7 +9,10 @@ from rest_framework.views import APIView
 
 from scanner.intelligence import event_access_snapshot
 from scanner.models import EventAccessGate
-from scanner.permissions import user_can_manage_scanner_assignments
+from scanner.permissions import (
+    user_can_manage_activity_scanner_assignments,
+    user_can_manage_scanner_assignments,
+)
 from scanner.selectors import (
     get_access_gates_visible_to,
     get_assignments_visible_to,
@@ -92,31 +95,33 @@ class ScannerAssignmentViewSet(viewsets.ModelViewSet):
         return get_assignments_visible_to(self.request.user)
 
     def perform_create(self, serializer):
-        event = serializer.validated_data["event"]
-        if not user_can_manage_scanner_assignments(self.request.user, event):
-            raise PermissionDenied("Vous ne pouvez pas affecter un agent à cet événement.")
+        activity = serializer.validated_data["activity"]
+        if not user_can_manage_activity_scanner_assignments(self.request.user, activity):
+            raise PermissionDenied("Vous ne pouvez pas affecter un agent à cette Activity.")
         assignment = serializer.save(assigned_by=self.request.user)
         try:
             assignment.full_clean()
         except DjangoValidationError as exc:
             assignment.delete()
             raise ValidationError(exc.message_dict) from exc
-        assignment.save()
 
     def perform_update(self, serializer):
         current = self.get_object()
-        event = serializer.validated_data.get("event", current.event)
-        if not user_can_manage_scanner_assignments(self.request.user, event):
+        activity = serializer.validated_data.get("activity", current.activity)
+        if activity is None or not user_can_manage_activity_scanner_assignments(self.request.user, activity):
             raise PermissionDenied("Vous ne pouvez pas modifier cette affectation.")
         assignment = serializer.save()
         try:
             assignment.full_clean()
         except DjangoValidationError as exc:
             raise ValidationError(exc.message_dict) from exc
-        assignment.save()
 
     def perform_destroy(self, instance):
-        if not user_can_manage_scanner_assignments(self.request.user, instance.event):
+        if instance.activity_id:
+            allowed = user_can_manage_activity_scanner_assignments(self.request.user, instance.activity)
+        else:
+            allowed = bool(instance.event_id and user_can_manage_scanner_assignments(self.request.user, instance.event))
+        if not allowed:
             raise PermissionDenied("Vous ne pouvez pas supprimer cette affectation.")
         if instance.scan_logs.exists():
             instance.is_active = False
