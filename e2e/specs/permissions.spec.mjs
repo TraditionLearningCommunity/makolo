@@ -61,7 +61,8 @@ test('assigned scanner agent can access only its event without organizer privile
   const response = await page.goto('/scanner/event/festival-makolo-e2e/');
   expect(response.status()).toBe(200);
   await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
-  await expectForbidden(page, '/scanner/event/atelier-makolo-visuel/');
+  const isolated = await page.goto('/scanner/event/atelier-makolo-visuel/');
+  expect(isolated.status()).toBe(404);
   await expectForbidden(page, '/events/new/');
 });
 
