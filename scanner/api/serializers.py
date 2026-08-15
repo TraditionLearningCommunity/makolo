@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from accounts.api.permissions import user_has_role
 from activities.models import Activity, Occurrence
+from events.activity_bridge import sync_event_core
 from events.models import Event
 from scanner.models import EventAccessGate, ScanLog, ScannerAssignment
 from scanner.permissions import (
@@ -108,20 +109,21 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"agent_id": "Cet utilisateur doit avoir le rôle scanner-agent."}
                 )
+            bridged_occurrence = None
             if not event.activity_id:
-                raise serializers.ValidationError({"event_id": "Cet Event n’a pas de projection Activity canonique."})
+                bridged_activity, bridged_occurrence = sync_event_core(event)
+                event.activity = bridged_activity
             if activity is not None and activity.pk != event.activity_id:
                 raise serializers.ValidationError({"activity_id": "Cette Activity ne correspond pas à l’Event."})
             activity = event.activity
             attrs["activity"] = activity
             if occurrence is None:
-                occurrence = (
+                occurrence = bridged_occurrence or (
                     activity.occurrences.filter(start_at=event.start_at, end_at=event.end_at)
                     .order_by("id").first()
                 )
-                if occurrence is None:
-                    raise serializers.ValidationError({"event_id": "L’Occurrence canonique de cet Event est introuvable."})
-                attrs["occurrence"] = occurrence
+                if occurrence is not None:
+                    attrs["occurrence"] = occurrence
         if activity is None:
             raise serializers.ValidationError({"activity_id": "Une Activity est obligatoire."})
         if occurrence is not None and occurrence.activity_id != activity.pk:
