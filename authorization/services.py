@@ -240,3 +240,114 @@ def grant_activity_role(*, profile, activity, role=SystemRoleCode.ACTIVITY_MANAG
     mandate.full_clean()
     mandate.save()
     return mandate
+
+
+@transaction.atomic
+def ensure_platform_admin_mandate(*, profile, granted_by=None, source="staff-backfill") -> Mandate:
+    role = get_system_role(SystemRoleCode.PLATFORM_ADMIN, scope_type=AuthorityScope.PLATFORM)
+    existing = Mandate.objects.select_for_update().filter(profile=profile, role=role, scope_type=AuthorityScope.PLATFORM, status=MandateStatus.ACTIVE).order_by().first()
+    if existing:
+        return existing
+    mandate = Mandate(profile=profile, role=role, scope_type=AuthorityScope.PLATFORM, status=MandateStatus.ACTIVE, granted_by=granted_by, source=source)
+    mandate.full_clean()
+    mandate.save()
+    return mandate
+
+
+def _current_owner_mandates(space, *, exclude_pk=None, at=None):
+    queryset = Mandate.objects.filter(space=space, scope_type=AuthorityScope.SPACE, role__code=SystemRoleCode.SPACE_OWNER, role__is_system=True, role__is_active=True).filter(_current_mandate_q(at))
+    if exclude_pk:
+        queryset = queryset.exclude(pk=exclude_pk)
+    return queryset
+
+
+def _assert_owner_can_be_removed(mandate: Mandate) -> None:
+    if mandate.scope_type == AuthorityScope.SPACE and mandate.space_id and mandate.role.code == SystemRoleCode.SPACE_OWNER and mandate.status == MandateStatus.ACTIVE and not _current_owner_mandates(mandate.space, exclude_pk=mandate.pk).exists():
+        raise ValidationError("Un Espace doit conserver au moins un propriétaire actif.")
+    if mandate.scope_type == AuthorityScope.GROUP and mandate.group_id and mandate.role.code == SystemRoleCode.GROUP_OWNER and mandate.status == MandateStatus.ACTIVE:
+        group = mandate.group
+        if group.status == "active" and group.owner_profile_id is not None and group.owner_profile_id == mandate.profile_id:
+            raise ValidationError("Le propriétaire d’un Groupe personnel doit transférer la propriété ou archiver le Groupe avant de perdre son Mandat propriétaire.")
+
+
+@transaction.atomic
+def revoke_mandate(*, mandate, actor=None) -> Mandate:
+    locked = Mandate.objects.select_for_update().order_by().get(pk=mandate.pk)
+    if locked.status == MandateStatus.REVOKED:
+        return locked
+    _assert_owner_can_be_removed(locked)
+    locked.status = MandateStatus.REVOKED
+    locked.revoked_at = timezone.now()
+    locked.save(update_fields=["status", "revoked_at", "updated_at"])
+    return locked
+
+
+@transaction.atomic
+def replace_standard_space_role(*, profile, space, role_code: str, granted_by=None, source="team-service") -> Mandate:
+    target_role = get_system_role(role_code, scope_type=AuthorityScope.SPACE)
+    if target_role.code not in STANDARD_SPACE_ROLE_CODES:
+        raise ValidationError("Ce rôle n'est pas un rôle standard d'Espace.")
+    current = list(Mandate.objects.select_for_update().filter(profile=profile, space=space, scope_type=AuthorityScope.SPACE, status=MandateStatus.ACTIVE, role__code__in=STANDARD_SPACE_ROLE_CODES).order_by())
+    for mandate in current:
+        if mandate.role_id == target_role.pk:
+            continue
+        _assert_owner_can_be_removed(mandate)
+        mandate.status = MandateStatus.REVOKED
+        mandate.revoked_at = timezone.now()
+        mandate.save(update_fields=["status", "revoked_at", "updated_at"])
+    return grant_space_role(profile=profile, space=space, role=target_role, granted_by=granted_by, source=source)
+
+
+@transaction.atomic
+def replace_standard_group_role(*, profile, group, role_code: str, granted_by=None, source="group-service") -> Mandate:
+    target_role = get_system_role(role_code, scope_type=AuthorityScope.GROUP)
+    validate_role_for_group(target_role)
+    current = list(Mandate.objects.select_for_update().filter(profile=profile, group=group, scope_type=AuthorityScope.GROUP, status=MandateStatus.ACTIVE, role__code__in=STANDARD_GROUP_ROLE_CODES).order_by())
+    for mandate in current:
+        if mandate.role_id == target_role.pk:
+            continue
+        _assert_owner_can_be_removed(mandate)
+        mandate.status = MandateStatus.REVOKED
+        mandate.revoked_at = timezone.now()
+        mandate.save(update_fields=["status", "revoked_at", "updated_at"])
+    return grant_group_role(profile=profile, group=group, role=target_role, granted_by=granted_by, source=source)
+
+
+@transaction.atomic
+def revoke_all_space_mandates(*, profile, space, actor=None) -> int:
+    mandates = list(Mandate.objects.select_for_update().filter(profile=profile, space=space, scope_type=AuthorityScope.SPACE, status=MandateStatus.ACTIVE).order_by())
+    for mandate in mandates:
+        _assert_owner_can_be_removed(mandate)
+    now = timezone.now()
+    for mandate in mandates:
+        mandate.status = MandateStatus.REVOKED
+        mandate.revoked_at = now
+        mandate.save(update_fields=["status", "revoked_at", "updated_at"])
+    return len(mandates)
+
+
+def primary_space_roles_for_profiles(*, space, profile_ids, at=None) -> dict:
+    if not profile_ids:
+        return {}
+    priority = {SystemRoleCode.SPACE_OWNER: 0, SystemRoleCode.SPACE_ADMIN: 10, SystemRoleCode.SPACE_ACTIVITY_MANAGER: 20, SystemRoleCode.FINANCE: 30, SystemRoleCode.MARKETING: 40, SystemRoleCode.ACCESS_MANAGER: 50}
+    mandates = Mandate.objects.filter(profile_id__in=profile_ids, space=space, scope_type=AuthorityScope.SPACE, role__is_active=True).filter(_current_mandate_q(at)).select_related("role")
+    grouped = defaultdict(list)
+    for mandate in mandates:
+        grouped[mandate.profile_id].append(mandate.role)
+    return {profile_id: sorted(roles, key=lambda role: (priority.get(role.code, 1000), role.name))[0] for profile_id, roles in grouped.items()}
+
+
+def primary_group_roles_for_profiles(*, group, profile_ids, at=None) -> dict:
+    if not profile_ids:
+        return {}
+    priority = {SystemRoleCode.GROUP_OWNER: 0, SystemRoleCode.GROUP_ADMIN: 10, SystemRoleCode.GROUP_MODERATOR: 20}
+    mandates = Mandate.objects.filter(profile_id__in=profile_ids, group=group, scope_type=AuthorityScope.GROUP, role__is_active=True).filter(_current_mandate_q(at)).select_related("role")
+    grouped = defaultdict(list)
+    for mandate in mandates:
+        grouped[mandate.profile_id].append(mandate.role)
+    return {profile_id: sorted(roles, key=lambda role: (priority.get(role.code, 1000), role.name))[0] for profile_id, roles in grouped.items()}
+
+
+def require(profile, permission_code: str, space=None, *, group=None, activity=None, message=None) -> None:
+    if not can(profile, permission_code, space, group=group, activity=activity):
+        raise PermissionDenied(message or "Vous n'avez pas l'autorisation requise.")
