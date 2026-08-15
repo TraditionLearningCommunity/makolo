@@ -105,6 +105,13 @@ class CanonicalOperationsScopeTests(TestCase):
             end_at=start + timedelta(hours=2),
         )
         event.refresh_from_db()
+        grant_activity_role(
+            profile=self.owner,
+            activity=event.activity,
+            role=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            granted_by=self.owner,
+            source="test-event-bridge",
+        )
         incident = create_incident(
             actor=self.owner,
             title="Legacy bridge incident",
