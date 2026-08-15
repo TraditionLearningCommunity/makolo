@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
+from activities.models import Activity, Occurrence
 from events.models import Event
 from organizations.models import OrganizationVerificationStatus
 
@@ -18,18 +19,20 @@ class OperationsIncidentCreateForm(forms.ModelForm):
             "category",
             "severity",
             "organization",
+            "activity",
+            "occurrence",
             "event",
             "description",
             "assigned_to",
         ]
-        widgets = {
-            "description": forms.Textarea(attrs={"rows": 6}),
-        }
+        widgets = {"description": forms.Textarea(attrs={"rows": 6})}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["assigned_to"].queryset = User.objects.filter(is_staff=True, is_active=True).order_by("email")
-        self.fields["event"].queryset = Event.objects.select_related("organization").order_by("-created_at")
+        self.fields["activity"].queryset = Activity.objects.select_related("space").order_by("space__name", "title")
+        self.fields["occurrence"].queryset = Occurrence.objects.select_related("activity", "activity__space").order_by("-start_at")
+        self.fields["event"].queryset = Event.objects.select_related("organization", "activity").order_by("-created_at")
 
 
 class OperationsIncidentUpdateForm(forms.ModelForm):
