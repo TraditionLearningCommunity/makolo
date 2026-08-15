@@ -89,6 +89,12 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
             "valid_from", "valid_until", "notes", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "assigned_by", "is_current", "created_at", "updated_at"]
+        # The canonical Activity/Occurrence scope may be derived from Event in
+        # validate(). DRF's model-constraint validators run before validate()
+        # and would incorrectly require those derived fields. The same
+        # uniqueness invariants are enforced explicitly below and again by the
+        # database constraints.
+        validators = []
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -133,6 +139,21 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
         if access_gate:
             if event is None or access_gate.event_id != event.pk:
                 raise serializers.ValidationError({"access_gate_id": "Cette porte appartient à un autre événement."})
+
+        if agent is not None:
+            duplicates = ScannerAssignment.objects.filter(activity=activity, agent=agent)
+            if instance is not None:
+                duplicates = duplicates.exclude(pk=instance.pk)
+            if occurrence is None:
+                duplicates = duplicates.filter(occurrence__isnull=True)
+            else:
+                duplicates = duplicates.filter(occurrence=occurrence)
+            if duplicates.exists():
+                field = "occurrence_id" if occurrence is not None else "activity_id"
+                raise serializers.ValidationError(
+                    {field: "Cet agent possède déjà une affectation dans ce scope Scanner."}
+                )
+
         if request:
             if event is not None and user_can_manage_scanner_assignments(request.user, event):
                 return attrs
