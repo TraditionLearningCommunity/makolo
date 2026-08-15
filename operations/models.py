@@ -55,42 +55,72 @@ class OperationsIncident(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=220)
     category = models.CharField(max_length=24, choices=IncidentCategory.choices)
-    severity = models.CharField(max_length=16, choices=IncidentSeverity.choices, default=IncidentSeverity.MEDIUM)
-    status = models.CharField(max_length=20, choices=IncidentStatus.choices, default=IncidentStatus.OPEN)
+    severity = models.CharField(
+        max_length=16,
+        choices=IncidentSeverity.choices,
+        default=IncidentSeverity.MEDIUM,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=IncidentStatus.choices,
+        default=IncidentStatus.OPEN,
+    )
     organization = models.ForeignKey(
-        "organizations.Organization", on_delete=models.SET_NULL,
-        related_name="operations_incidents", null=True, blank=True,
+        "organizations.Organization",
+        on_delete=models.SET_NULL,
+        related_name="operations_incidents",
+        null=True,
+        blank=True,
     )
     activity = models.ForeignKey(
-        "activities.Activity", on_delete=models.PROTECT,
-        related_name="operations_incidents", null=True, blank=True,
+        "activities.Activity",
+        on_delete=models.PROTECT,
+        related_name="operations_incidents",
+        null=True,
+        blank=True,
     )
     occurrence = models.ForeignKey(
-        "activities.Occurrence", on_delete=models.PROTECT,
-        related_name="operations_incidents", null=True, blank=True,
+        "activities.Occurrence",
+        on_delete=models.PROTECT,
+        related_name="operations_incidents",
+        null=True,
+        blank=True,
     )
     event = models.ForeignKey(
-        "events.Event", on_delete=models.SET_NULL,
-        related_name="operations_incidents", null=True, blank=True,
+        "events.Event",
+        on_delete=models.SET_NULL,
+        related_name="operations_incidents",
+        null=True,
+        blank=True,
         help_text="Projection Events historique; Operations utilise Activity/Occurrence comme contexte canonique.",
     )
     payment = models.ForeignKey(
-        "payments.Payment", on_delete=models.SET_NULL,
-        related_name="operations_incidents", null=True, blank=True,
+        "payments.Payment",
+        on_delete=models.SET_NULL,
+        related_name="operations_incidents",
+        null=True,
+        blank=True,
     )
     scan_log = models.ForeignKey(
-        "scanner.ScanLog", on_delete=models.SET_NULL,
-        related_name="operations_incidents", null=True, blank=True,
+        "scanner.ScanLog",
+        on_delete=models.SET_NULL,
+        related_name="operations_incidents",
+        null=True,
+        blank=True,
     )
     description = models.TextField()
     resolution = models.TextField(blank=True)
     opened_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
         related_name="operations_incidents_opened",
     )
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        related_name="operations_incidents_assigned", null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="operations_incidents_assigned",
+        null=True,
+        blank=True,
     )
     detected_at = models.DateTimeField(default=timezone.now)
     acknowledged_at = models.DateTimeField(null=True, blank=True)
@@ -122,7 +152,8 @@ class OperationsIncident(models.Model):
             if activity is None:
                 return None, None
             occurrence = activity.occurrences.filter(
-                start_at=event.start_at, end_at=event.end_at
+                start_at=event.start_at,
+                end_at=event.end_at,
             ).order_by("id").first()
             return activity, occurrence
         return None, None
@@ -206,24 +237,42 @@ class ModerationCase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     target_type = models.CharField(max_length=20, choices=ModerationTarget.choices)
     organization = models.ForeignKey(
-        "organizations.Organization", on_delete=models.SET_NULL,
-        related_name="moderation_cases", null=True, blank=True,
+        "organizations.Organization",
+        on_delete=models.SET_NULL,
+        related_name="moderation_cases",
+        null=True,
+        blank=True,
     )
     event = models.ForeignKey(
-        "events.Event", on_delete=models.SET_NULL,
-        related_name="moderation_cases", null=True, blank=True,
+        "events.Event",
+        on_delete=models.SET_NULL,
+        related_name="moderation_cases",
+        null=True,
+        blank=True,
     )
-    severity = models.CharField(max_length=16, choices=IncidentSeverity.choices, default=IncidentSeverity.MEDIUM)
-    status = models.CharField(max_length=20, choices=ModerationStatus.choices, default=ModerationStatus.OPEN)
+    severity = models.CharField(
+        max_length=16,
+        choices=IncidentSeverity.choices,
+        default=IncidentSeverity.MEDIUM,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ModerationStatus.choices,
+        default=ModerationStatus.OPEN,
+    )
     reason = models.TextField()
     outcome = models.TextField(blank=True)
     opened_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
         related_name="moderation_cases_opened",
     )
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        related_name="moderation_cases_assigned", null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="moderation_cases_assigned",
+        null=True,
+        blank=True,
     )
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -258,8 +307,11 @@ class ModerationCase(models.Model):
 class OperationsAuditLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        related_name="operations_audit_actions", null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="operations_audit_actions",
+        null=True,
+        blank=True,
     )
     action = models.CharField(max_length=80)
     target_type = models.CharField(max_length=40)
@@ -299,7 +351,9 @@ class WorkerHeartbeat(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["worker_name", "instance_id"], name="ops_worker_instance_unique")
         ]
-        indexes = [models.Index(fields=["state", "last_seen_at"], name="ops_worker_seen_idx")]
+        indexes = [
+            models.Index(fields=["state", "last_seen_at"], name="ops_worker_seen_idx"),
+        ]
 
     def __str__(self):
         return f"{self.worker_name}:{self.instance_id} — {self.state}"
