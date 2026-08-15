@@ -27,6 +27,7 @@ class CanonicalOperationsScopeTests(TestCase):
         self.marketing = User.objects.create_user("ops-marketing-c", "ops-marketing-c@example.com", "Ops-2026!")
         self.finance = User.objects.create_user("ops-finance-c", "ops-finance-c@example.com", "Ops-2026!")
         self.space = Organization.objects.create(name="Operations canonical space", created_by=self.owner)
+        grant_space_role(profile=self.owner, space=self.space, role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner)
         self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="Activity A")
         self.other_activity = Activity.objects.create(space=self.space, created_by=self.owner, title="Activity B")
         now = timezone.now()
@@ -103,7 +104,6 @@ class CanonicalOperationsScopeTests(TestCase):
             start_at=start,
             end_at=start + timedelta(hours=2),
         )
-        # Event signals from the previous tasks create its canonical Activity/Occurrence.
         event.refresh_from_db()
         incident = create_incident(
             actor=self.owner,
