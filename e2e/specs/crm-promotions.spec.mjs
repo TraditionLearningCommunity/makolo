@@ -16,18 +16,18 @@ test('marketing creates an audience and targets an Event promotion to it', async
 
   response = await page.goto('/promotions/org/makolo-e2e-events/new/');
   expect(response.status()).toBe(200);
-  await page.getByLabel("Nom de l'offre").fill('Promotion Audience E2E');
-  await page.getByLabel('Événement').selectOption({ label: 'Festival Makolo E2E' });
-  await page.getByLabel('Type de remise').selectOption('percent');
-  await page.getByLabel('Valeur de la remise').fill('15.00');
-  await page.getByLabel('Devise').fill('USD');
+  await page.locator('input[name="name"]').fill('Promotion Audience E2E');
+  await page.locator('select[name="event"]').selectOption({ label: 'Festival Makolo E2E' });
+  await page.locator('select[name="discount_type"]').selectOption('percent');
+  await page.locator('input[name="discount_value"]').fill('15.00');
+  await page.locator('input[name="currency"]').fill('USD');
   await page.locator('input[name="eligible_ticket_types"]').first().check();
-  await page.getByLabel('Audience réservée').selectOption({ label: 'Audience Marketing E2E' });
+  await page.locator('select[name="audience"]').selectOption({ label: 'Audience Marketing E2E' });
   await page.getByRole('button', { name: "Créer l’offre" }).click();
 
   await expect(page.getByRole('link', { name: 'Promotion Audience E2E' })).toBeVisible();
   await page.getByRole('link', { name: 'Promotion Audience E2E' }).click();
   await page.getByRole('link', { name: 'Modifier les règles' }).click();
-  await expect(page.getByLabel('Audience réservée')).toHaveValue(/.+/);
+  await expect(page.locator('select[name="audience"]')).toHaveValue(/.+/);
   await expect(page.locator('input[name="eligible_ticket_types"]').first()).toBeChecked();
 });
