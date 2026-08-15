@@ -83,6 +83,14 @@ test('participant goes from discovery to favorite, payment, QR, accepted scan th
   await expect(scanRows.filter({ hasText: 'Festival Makolo E2E' })).toHaveCount(2);
 
   await logout(page);
+  await login(page, 'finance@e2e.makolo.test');
+  await page.goto('/analytics/events/festival-makolo-e2e/');
+  await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
+  await expect(page.getByText('1 scan(s) accepté(s)', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Revenus nets observés' })).toBeVisible();
+  await expect(page.getByText('12.00 USD', { exact: true })).toBeVisible();
+
+  await logout(page);
   await login(page, 'participant@e2e.makolo.test');
   await page.goto(ticketUrl);
   await expect(page.getByText('Utilisé', { exact: true }).first()).toBeVisible();
