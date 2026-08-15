@@ -102,21 +102,52 @@ def commerce_summary(activity, occurrence=None):
     }
 
 
+def _payment_scope_filter(activity, occurrence=None):
+    canonical = Q(commerce_order__journey__activity=activity)
+    legacy = Q(commerce_order__isnull=True, order__event__activity=activity)
+    scope = canonical | legacy
+    if occurrence is None:
+        return scope
+    return (
+        Q(commerce_order__journey__occurrence=occurrence)
+        | Q(
+            commerce_order__isnull=True,
+            order__event__activity=activity,
+            order__event__start_at=occurrence.start_at,
+            order__event__end_at=occurrence.end_at,
+        )
+    )
+
+
+def _refund_scope_filter(activity, occurrence=None):
+    canonical = Q(payment__commerce_order__journey__activity=activity)
+    legacy = Q(
+        payment__commerce_order__isnull=True,
+        payment__order__event__activity=activity,
+    )
+    if occurrence is None:
+        return canonical | legacy
+    return (
+        Q(payment__commerce_order__journey__occurrence=occurrence)
+        | Q(
+            payment__commerce_order__isnull=True,
+            payment__order__event__activity=activity,
+            payment__order__event__start_at=occurrence.start_at,
+            payment__order__event__end_at=occurrence.end_at,
+        )
+    )
+
+
 def payment_summary(activity, occurrence=None):
-    # Canonical-first: bridged Event payments and Commerce-only payments share
-    # CommerceOrder. TicketOrder is never joined in parallel, preventing double counting.
-    payments = Payment.objects.filter(
-        commerce_order__isnull=False,
-        commerce_order__journey__activity=activity,
-    )
+    # Payment is provider truth. Prefer the CommerceOrder/ Journey relation, but
+    # retain an explicit Event fallback only while a historical Payment has not
+    # been bridged. The mutually exclusive commerce_order NULL predicate ensures
+    # one Payment row can never be counted twice.
+    payments = Payment.objects.filter(_payment_scope_filter(activity, occurrence)).distinct()
     refunds = Refund.objects.filter(
-        payment__commerce_order__isnull=False,
-        payment__commerce_order__journey__activity=activity,
+        _refund_scope_filter(activity, occurrence),
         status=RefundStatus.SUCCEEDED,
-    )
-    if occurrence is not None:
-        payments = payments.filter(commerce_order__journey__occurrence=occurrence)
-        refunds = refunds.filter(payment__commerce_order__journey__occurrence=occurrence)
+    ).distinct()
 
     gross_rows = (
         payments.filter(status__in=SUCCESSFUL_PAYMENT_STATUSES)
@@ -229,9 +260,9 @@ def space_summary(space):
     access_qs = Access.objects.filter(activity__space=space)
     order_qs = CommerceOrder.objects.filter(journey__activity__space=space)
     payment_qs = Payment.objects.filter(
-        commerce_order__isnull=False,
-        commerce_order__journey__activity__space=space,
-    )
+        Q(commerce_order__journey__activity__space=space)
+        | Q(commerce_order__isnull=True, order__event__organization=space)
+    ).distinct()
     commercial_rows = (
         order_qs.filter(status__in=CONFIRMED_COMMERCE_STATUSES, total__gt=0)
         .values("currency").annotate(total=Sum("total")).order_by("currency")
