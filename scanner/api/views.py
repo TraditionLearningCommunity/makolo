@@ -94,9 +94,18 @@ class ScannerAssignmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return get_assignments_visible_to(self.request.user)
 
+    def _can_manage_scope(self, *, activity=None, event=None):
+        if event is not None and user_can_manage_scanner_assignments(self.request.user, event):
+            return True
+        return bool(
+            activity is not None
+            and user_can_manage_activity_scanner_assignments(self.request.user, activity)
+        )
+
     def perform_create(self, serializer):
         activity = serializer.validated_data["activity"]
-        if not user_can_manage_activity_scanner_assignments(self.request.user, activity):
+        event = serializer.validated_data.get("event")
+        if not self._can_manage_scope(activity=activity, event=event):
             raise PermissionDenied("Vous ne pouvez pas affecter un agent à cette Activity.")
         assignment = serializer.save(assigned_by=self.request.user)
         try:
@@ -108,7 +117,8 @@ class ScannerAssignmentViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         current = self.get_object()
         activity = serializer.validated_data.get("activity", current.activity)
-        if activity is None or not user_can_manage_activity_scanner_assignments(self.request.user, activity):
+        event = serializer.validated_data.get("event", current.event)
+        if not self._can_manage_scope(activity=activity, event=event):
             raise PermissionDenied("Vous ne pouvez pas modifier cette affectation.")
         assignment = serializer.save()
         try:
@@ -117,11 +127,7 @@ class ScannerAssignmentViewSet(viewsets.ModelViewSet):
             raise ValidationError(exc.message_dict) from exc
 
     def perform_destroy(self, instance):
-        if instance.activity_id:
-            allowed = user_can_manage_activity_scanner_assignments(self.request.user, instance.activity)
-        else:
-            allowed = bool(instance.event_id and user_can_manage_scanner_assignments(self.request.user, instance.event))
-        if not allowed:
+        if not self._can_manage_scope(activity=instance.activity, event=instance.event):
             raise PermissionDenied("Vous ne pouvez pas supprimer cette affectation.")
         if instance.scan_logs.exists():
             instance.is_active = False
