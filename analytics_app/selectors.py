@@ -1,6 +1,7 @@
 from django.db.models import Q
 
 from accounts.api.permissions import user_has_role
+from activities.models import Activity
 from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 from events.models import Event
@@ -9,12 +10,19 @@ from organizations.models import Organization
 from .models import GrowthSpend
 
 
+def get_analytics_activities(user):
+    queryset = Activity.objects.select_related("space", "created_by").prefetch_related("occurrences")
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    space_ids = space_ids_with_permission(user, PermissionCode.ANALYTICS_VIEW)
+    if space_ids is None:
+        return queryset
+    return queryset.filter(space_id__in=space_ids)
+
+
 def get_analytics_events(user):
     queryset = Event.objects.select_related(
-        "organization",
-        "organizer",
-        "category",
-        "venue",
+        "organization", "organizer", "category", "venue", "activity",
     )
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
@@ -25,7 +33,7 @@ def get_analytics_events(user):
 
     filters = Q(organization_id__in=organization_ids)
     # Historical organization-less Event rows keep their organizer compatibility
-    # until the Activity/Occurrence migration removes that path.
+    # until the final Events cutover removes that path.
     if user_has_role(user, "organizer", legacy_flag="is_organizer"):
         filters |= Q(organization__isnull=True, organizer=user)
     return queryset.filter(filters).distinct()
@@ -43,19 +51,12 @@ def get_growth_organizations(user):
 
 def get_growth_spends(user):
     queryset = GrowthSpend.objects.select_related(
-        "organization",
-        "event",
-        "crm_campaign",
-        "partner_campaign",
-        "promotion",
-        "loyalty_program",
-        "created_by",
+        "organization", "event", "crm_campaign", "partner_campaign", "promotion",
+        "loyalty_program", "created_by",
     )
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
-    organization_ids = space_ids_with_permission(
-        user, PermissionCode.ANALYTICS_FINANCIALS_VIEW
-    )
+    organization_ids = space_ids_with_permission(user, PermissionCode.ANALYTICS_FINANCIALS_VIEW)
     if organization_ids is None:
         return queryset
     return queryset.filter(organization_id__in=organization_ids)
