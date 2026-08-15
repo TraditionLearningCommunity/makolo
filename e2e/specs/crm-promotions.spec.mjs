@@ -34,9 +34,12 @@ test('marketing creates an audience and targets an Event promotion to it', async
 
   await page.getByRole('button', { name: "Créer l’offre" }).click();
 
-  await expect(page.getByRole('link', { name: 'Promotion Audience E2E' })).toBeVisible();
-  await page.getByRole('link', { name: 'Promotion Audience E2E' }).click();
+  await expect(page).toHaveURL(/\/promotions\/org\/makolo-e2e-events\/$/);
+  const promotionHeading = page.getByRole('heading', { name: 'Promotion Audience E2E', exact: true });
+  await expect(promotionHeading).toBeVisible();
+  await promotionHeading.locator('xpath=ancestor::a[1]').click();
   await page.getByRole('link', { name: 'Modifier les règles' }).click();
   await expect(page.locator('select[name="audience"]')).toHaveValue(audienceId);
-  await expect(festivalTicket.locator('input[name="eligible_ticket_types"]')).toBeChecked();
+  const editedFestivalTicket = page.locator('label').filter({ hasText: 'Festival Makolo E2E — Pass standard' });
+  await expect(editedFestivalTicket.locator('input[name="eligible_ticket_types"]')).toBeChecked();
 });
