@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .audience_views import AudienceArchiveView, AudienceCreateView, AudienceDetailView, AudienceListView
 from .customer_views import (
     Contact360DetailView,
     Segment360CreateView,
@@ -31,6 +32,10 @@ app_name = "crm"
 urlpatterns = [
     path("", CRMHomeView.as_view(), name="dashboard"),
     path("org/<slug:slug>/", OrganizationCRMView.as_view(), name="organization"),
+    path("org/<slug:slug>/audiences/", AudienceListView.as_view(), name="audience-list"),
+    path("org/<slug:slug>/audiences/new/", AudienceCreateView.as_view(), name="audience-create"),
+    path("audiences/<uuid:pk>/", AudienceDetailView.as_view(), name="audience-detail"),
+    path("audiences/<uuid:pk>/archive/", AudienceArchiveView.as_view(), name="audience-archive"),
     path("org/<slug:slug>/tags/new/", CRMTagCreateView.as_view(), name="tag-create"),
     path("org/<slug:slug>/fields/new/", CRMCustomFieldCreateView.as_view(), name="custom-field-create"),
     path("org/<slug:slug>/templates/new/", CampaignTemplateCreateView.as_view(), name="template-create"),

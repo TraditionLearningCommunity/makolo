@@ -25,13 +25,8 @@ def _validate_window(*, starts_at, ends_at, now, label):
 
 
 def _customer_redemption_count(promotion, *, buyer=None, customer_email=""):
-    queryset = PromotionRedemption.objects.filter(
-        promotion=promotion,
-        status__in=ACTIVE_REDEMPTION_STATUSES,
-    )
-    if buyer is not None and getattr(buyer, "is_authenticated", False):
-        return queryset.filter(buyer=buyer).count()
-    return queryset.filter(customer_email__iexact=(customer_email or "").strip()).count()
+    from .canonical_services import customer_usage_count
+    return customer_usage_count(promotion, buyer=buyer, customer_email=customer_email)
 
 
 def quote_promotion(
@@ -45,12 +40,15 @@ def quote_promotion(
     currency,
     now=None,
 ):
-    """Valide et verrouille un code dans la transaction d'achat.
+    """Valide et verrouille un code dans la transaction d'achat Event.
 
     `selections` contient des tuples `(TicketType, quantité)`. Le verrou sur le
     code/promotion reste détenu jusqu'à la fin de `create_order`, ce qui rend les
-    quotas cohérents lorsque la base supporte les verrous de lignes.
+    quotas cohérents lorsque la base supporte les verrous de lignes. Les quotas
+    et l'éligibilité Audience sont partagés avec le checkout Commerce canonique.
     """
+    from .canonical_services import code_usage_count, promotion_usage_count, validate_audience_eligibility
+
     normalized_code = (code_value or "").strip().upper()
     if not normalized_code:
         return None
@@ -75,6 +73,7 @@ def quote_promotion(
 
     _validate_window(starts_at=promotion.starts_at, ends_at=promotion.ends_at, now=now, label="Cette offre")
     _validate_window(starts_at=code.starts_at, ends_at=code.ends_at, now=now, label="Ce code")
+    validate_audience_eligibility(promotion=promotion, profile=buyer)
 
     currency = (currency or "").upper()
     if promotion.currency and promotion.currency != currency:
@@ -85,22 +84,10 @@ def quote_promotion(
             f"Cette offre nécessite une commande d'au moins {promotion.min_order_amount} {currency}."
         )
 
-    if promotion.max_redemptions is not None:
-        used = PromotionRedemption.objects.filter(
-            promotion=promotion,
-            status__in=ACTIVE_REDEMPTION_STATUSES,
-        ).count()
-        if used >= promotion.max_redemptions:
-            raise ValidationError("Le quota de cette offre est épuisé.")
-
-    if code.max_redemptions is not None:
-        used = PromotionRedemption.objects.filter(
-            code=code,
-            status__in=ACTIVE_REDEMPTION_STATUSES,
-        ).count()
-        if used >= code.max_redemptions:
-            raise ValidationError("Le quota de ce code est épuisé.")
-
+    if promotion.max_redemptions is not None and promotion_usage_count(promotion) >= promotion.max_redemptions:
+        raise ValidationError("Le quota de cette offre est épuisé.")
+    if code.max_redemptions is not None and code_usage_count(code) >= code.max_redemptions:
+        raise ValidationError("Le quota de ce code est épuisé.")
     if _customer_redemption_count(
         promotion,
         buyer=buyer,
@@ -149,11 +136,7 @@ def create_redemption(*, order, quote):
         order=order,
         buyer=order.buyer,
         customer_email=order.customer_email,
-        status=(
-            RedemptionStatus.CONFIRMED
-            if order.status == "confirmed"
-            else RedemptionStatus.RESERVED
-        ),
+        status=(RedemptionStatus.CONFIRMED if order.status == "confirmed" else RedemptionStatus.RESERVED),
         subtotal_amount=quote["subtotal_amount"],
         eligible_amount=quote["eligible_amount"],
         discount_amount=quote["discount_amount"],
@@ -165,11 +148,7 @@ def create_redemption(*, order, quote):
 
 @transaction.atomic
 def confirm_redemption(*, order):
-    redemption = (
-        PromotionRedemption.objects.select_for_update()
-        .filter(order=order)
-        .first()
-    )
+    redemption = PromotionRedemption.objects.select_for_update().filter(order=order).first()
     if not redemption or redemption.status == RedemptionStatus.REVERSED:
         return redemption
     if order.status != "confirmed":
@@ -183,11 +162,7 @@ def confirm_redemption(*, order):
 
 @transaction.atomic
 def reverse_redemption(*, order):
-    redemption = (
-        PromotionRedemption.objects.select_for_update()
-        .filter(order=order)
-        .first()
-    )
+    redemption = PromotionRedemption.objects.select_for_update().filter(order=order).first()
     if not redemption or redemption.status == RedemptionStatus.REVERSED:
         return redemption
     redemption.status = RedemptionStatus.REVERSED

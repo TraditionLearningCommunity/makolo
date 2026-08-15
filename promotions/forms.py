@@ -1,10 +1,12 @@
 from django import forms
 from django.db.models import Q
 
+from crm.canonical_models import Audience, AudienceStatus
 from crm.models import CommunicationCampaign
 from events.models import Event
 from tickets.models import TicketType
 
+from .canonical_models import PromotionTargeting
 from .models import Promotion, PromotionCode
 
 
@@ -15,6 +17,13 @@ INPUT_CLASS = (
 
 
 class PromotionForm(forms.ModelForm):
+    audience = forms.ModelChoiceField(
+        queryset=Audience.objects.none(),
+        required=False,
+        label="Audience réservée",
+        help_text="Laisser vide pour une promotion publique. Appartenir à une Audience ne vaut pas consentement marketing.",
+    )
+
     class Meta:
         model = Promotion
         fields = [
@@ -48,7 +57,7 @@ class PromotionForm(forms.ModelForm):
             "max_discount_amount": "Plafond de remise",
             "min_order_amount": "Commande minimum",
             "currency": "Devise",
-            "eligible_ticket_types": "Billets éligibles",
+            "eligible_ticket_types": "Types de billet / Offers éligibles",
             "starts_at": "Début",
             "ends_at": "Fin",
             "max_redemptions": "Quota global",
@@ -59,10 +68,22 @@ class PromotionForm(forms.ModelForm):
     def __init__(self, *args, organization, **kwargs):
         super().__init__(*args, **kwargs)
         self.organization = organization
+        # Organization is intentionally not an editable form field, but Promotion.clean()
+        # needs the canonical Space while ModelForm performs its model validation.
+        # Without this assignment, a valid Event on create is compared against None.
+        self.instance.organization = organization
         self.fields["event"].queryset = Event.objects.filter(organization=organization).order_by("-start_at")
         self.fields["eligible_ticket_types"].queryset = TicketType.objects.filter(
             event__organization=organization
         ).select_related("event").order_by("event__start_at", "name")
+        self.fields["audience"].queryset = Audience.objects.filter(
+            organization=organization,
+            status=AudienceStatus.ACTIVE,
+        ).order_by("name")
+        if self.instance and self.instance.pk:
+            targeting = PromotionTargeting.objects.filter(promotion=self.instance).first()
+            if targeting and targeting.audience_id:
+                self.fields["audience"].initial = targeting.audience_id
         self.fields["starts_at"].input_formats = ["%Y-%m-%dT%H:%M"]
         self.fields["ends_at"].input_formats = ["%Y-%m-%dT%H:%M"]
         for field in self.fields.values():
@@ -72,14 +93,30 @@ class PromotionForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         event = cleaned.get("event")
+        audience = cleaned.get("audience")
         if event and event.organization_id != self.organization.pk:
             self.add_error("event", "Cet événement appartient à une autre organisation.")
+        if audience and audience.organization_id != self.organization.pk:
+            self.add_error("audience", "Cette Audience appartient à un autre Espace.")
         for ticket_type in cleaned.get("eligible_ticket_types") or []:
             if ticket_type.event.organization_id != self.organization.pk:
                 self.add_error("eligible_ticket_types", "Un billet appartient à une autre organisation.")
             if event and ticket_type.event_id != event.pk:
                 self.add_error("eligible_ticket_types", "Les billets doivent appartenir à l'événement choisi.")
         return cleaned
+
+    def _save_m2m(self):
+        super()._save_m2m()
+        if not self.instance.pk:
+            return
+        audience = self.cleaned_data.get("audience")
+        event = self.cleaned_data.get("event")
+        activity_id = getattr(event, "activity_id", None) if event else None
+        targeting, _created = PromotionTargeting.objects.get_or_create(promotion=self.instance)
+        targeting.activity_id = activity_id
+        targeting.audience = audience
+        targeting.full_clean()
+        targeting.save()
 
 
 class PromotionCodeForm(forms.ModelForm):
