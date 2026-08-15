@@ -8,6 +8,7 @@ from django.utils import timezone
 from activities.models import Activity, Occurrence
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
+from events.activity_bridge import sync_event_core
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import Organization
 from scanner.models import ScannerAssignment
@@ -104,6 +105,7 @@ class CanonicalOperationsScopeTests(TestCase):
             start_at=start,
             end_at=start + timedelta(hours=2),
         )
+        _activity, occurrence = sync_event_core(event)
         event.refresh_from_db()
         incident = create_incident(
             actor=self.owner,
@@ -115,4 +117,5 @@ class CanonicalOperationsScopeTests(TestCase):
         )
         self.assertEqual(incident.event_id, event.pk)
         self.assertEqual(incident.activity_id, event.activity_id)
+        self.assertEqual(incident.occurrence_id, occurrence.pk)
         self.assertEqual(incident.organization_id, self.space.pk)
