@@ -21,7 +21,10 @@ test('marketing creates an audience and targets an Event promotion to it', async
   await page.locator('select[name="discount_type"]').selectOption('percent');
   await page.locator('input[name="discount_value"]').fill('15.00');
   await page.locator('input[name="currency"]').fill('USD');
-  await page.locator('input[name="eligible_ticket_types"]').first().check();
+
+  const festivalTicket = page.locator('label').filter({ hasText: 'Festival Makolo E2E — Pass standard' });
+  await expect(festivalTicket).toHaveCount(1);
+  await festivalTicket.locator('input[name="eligible_ticket_types"]').check();
 
   const audienceOption = page.locator('select[name="audience"] option').filter({ hasText: 'Audience Marketing E2E' });
   await expect(audienceOption).toHaveCount(1);
@@ -35,5 +38,5 @@ test('marketing creates an audience and targets an Event promotion to it', async
   await page.getByRole('link', { name: 'Promotion Audience E2E' }).click();
   await page.getByRole('link', { name: 'Modifier les règles' }).click();
   await expect(page.locator('select[name="audience"]')).toHaveValue(audienceId);
-  await expect(page.locator('input[name="eligible_ticket_types"]').first()).toBeChecked();
+  await expect(festivalTicket.locator('input[name="eligible_ticket_types"]')).toBeChecked();
 });
