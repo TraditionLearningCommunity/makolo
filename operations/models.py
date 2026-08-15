@@ -151,12 +151,35 @@ class OperationsIncident(models.Model):
         if self.activity_id and self.organization_id and self.activity.space_id:
             if self.activity.space_id != self.organization_id:
                 errors["activity"] = "L’Activity doit appartenir à l’Espace de l’incident."
+
+        event_organization_id = self.event.organization_id if self.event_id else None
         if self.event_id and self.activity_id and self.event.activity_id:
             if self.event.activity_id != self.activity_id:
                 errors["event"] = "L’Event projette une autre Activity que l’incident."
-        if self.event_id and self.organization_id and self.event.organization_id:
-            if self.event.organization_id != self.organization_id:
+        if self.event_id and self.organization_id and event_organization_id:
+            if event_organization_id != self.organization_id:
                 errors["event"] = "L’événement doit appartenir à l’Espace de l’incident."
+
+        payment_event_id = None
+        payment_organization_id = None
+        if self.payment_id and self.payment.order_id:
+            payment_event_id = self.payment.order.event_id
+            payment_organization_id = self.payment.order.event.organization_id
+        scan_event_id = self.scan_log.event_id if self.scan_log_id else None
+        scan_organization_id = self.scan_log.event.organization_id if self.scan_log_id else None
+
+        if self.payment_id and self.event_id and payment_event_id and payment_event_id != self.event_id:
+            errors["payment"] = "Le paiement doit appartenir à l’événement de l’incident."
+        if self.scan_log_id and self.event_id and scan_event_id != self.event_id:
+            errors["scan_log"] = "Le scan doit appartenir à l’événement de l’incident."
+        if self.payment_id and self.organization_id and payment_organization_id:
+            if payment_organization_id != self.organization_id:
+                errors["payment"] = "Le paiement doit appartenir à l’Espace de l’incident."
+        if self.scan_log_id and self.organization_id and scan_organization_id:
+            if scan_organization_id != self.organization_id:
+                errors["scan_log"] = "Le scan doit appartenir à l’Espace de l’incident."
+        if self.payment_id and self.scan_log_id and payment_event_id and payment_event_id != scan_event_id:
+            errors["scan_log"] = "Le scan et le paiement liés doivent appartenir au même événement."
 
         payment_activity, payment_occurrence = self._payment_scope()
         if payment_activity is not None:
@@ -172,8 +195,6 @@ class OperationsIncident(models.Model):
             scan_activity_id = scan_event.activity_id
             if self.activity_id and scan_activity_id and scan_activity_id != self.activity_id:
                 errors["scan_log"] = "Le scan appartient à une autre Activity."
-            if self.organization_id and scan_event.organization_id and scan_event.organization_id != self.organization_id:
-                errors["scan_log"] = "Le scan appartient à un autre Espace."
         if errors:
             raise ValidationError(errors)
 
