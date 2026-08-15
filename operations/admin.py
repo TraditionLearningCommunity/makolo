@@ -6,15 +6,35 @@ from .models import ModerationCase, OperationsAuditLog, OperationsIncident, Work
 @admin.register(OperationsIncident)
 class OperationsIncidentAdmin(admin.ModelAdmin):
     list_display = (
-        "title", "category", "severity", "status", "organization", "activity",
-        "occurrence", "event", "assigned_to", "created_at",
+        "title",
+        "category",
+        "severity",
+        "status",
+        "organization",
+        "activity",
+        "occurrence",
+        "event",
+        "assigned_to",
+        "created_at",
     )
     list_filter = ("category", "severity", "status", "created_at")
     search_fields = (
-        "title", "description", "resolution", "organization__name", "activity__title", "event__title"
+        "title",
+        "description",
+        "resolution",
+        "organization__name",
+        "activity__title",
+        "event__title",
     )
     raw_id_fields = (
-        "organization", "activity", "occurrence", "event", "payment", "scan_log", "opened_by", "assigned_to"
+        "organization",
+        "activity",
+        "occurrence",
+        "event",
+        "payment",
+        "scan_log",
+        "opened_by",
+        "assigned_to",
     )
     readonly_fields = ("created_at", "updated_at", "acknowledged_at", "resolved_at")
     list_select_related = ("organization", "activity", "occurrence", "event", "assigned_to")
@@ -35,7 +55,15 @@ class OperationsAuditLogAdmin(admin.ModelAdmin):
     list_filter = ("target_type", "action", "created_at")
     search_fields = ("action", "target_type", "target_id", "summary")
     readonly_fields = (
-        "actor", "action", "target_type", "target_id", "summary", "before", "after", "metadata", "created_at",
+        "actor",
+        "action",
+        "target_type",
+        "target_id",
+        "summary",
+        "before",
+        "after",
+        "metadata",
+        "created_at",
     )
 
     def has_add_permission(self, request):
@@ -54,8 +82,16 @@ class WorkerHeartbeatAdmin(admin.ModelAdmin):
     list_filter = ("state", "worker_name")
     search_fields = ("worker_name", "instance_id", "last_error")
     readonly_fields = (
-        "worker_name", "instance_id", "state", "last_seen_at", "last_cycle_started_at",
-        "last_cycle_finished_at", "last_error", "metadata", "created_at", "updated_at",
+        "worker_name",
+        "instance_id",
+        "state",
+        "last_seen_at",
+        "last_cycle_started_at",
+        "last_cycle_finished_at",
+        "last_error",
+        "metadata",
+        "created_at",
+        "updated_at",
     )
 
     def has_add_permission(self, request):
