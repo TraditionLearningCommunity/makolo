@@ -26,6 +26,11 @@ async function useDark(page) {
 }
 
 async function stableScanner(page) {
+  await page.evaluate(() => {
+    document.documentElement.style.scrollBehavior = 'auto';
+    document.documentElement.style.overflowAnchor = 'none';
+    document.body.style.overflowAnchor = 'none';
+  });
   await expect(page.locator('#camera-state')).not.toContainText('Initialisation');
   await page.getByRole('button', { name: 'Arrêter' }).click();
   await expect(page.locator('#camera-state')).toHaveText('Caméra arrêtée');
