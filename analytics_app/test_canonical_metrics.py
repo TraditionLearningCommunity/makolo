@@ -176,6 +176,54 @@ class CanonicalAnalyticsTests(TestCase):
         self.assertEqual(capacity["available"], 5)
         self.assertEqual(occurrence_summary(self.occurrence)["capacity"]["available"], 5)
 
+    def test_legacy_event_payment_is_counted_once_before_and_after_commerce_bridge(self):
+        start = timezone.now() + timedelta(days=1)
+        event = Event.objects.create(
+            organizer=self.user,
+            organization=self.space,
+            title="Legacy payment analytics",
+            status=EventStatus.PUBLISHED,
+            visibility=EventVisibility.PUBLIC,
+            start_at=start,
+            end_at=start + timedelta(hours=3),
+        )
+        ticket_type = TicketType.objects.create(
+            event=event,
+            name="Paid pass",
+            price=Decimal("12.00"),
+            currency="USD",
+            quantity_total=10,
+        )
+        ticket_order = create_ticket_order(
+            buyer=self.user,
+            event=event,
+            customer_name=self.user.full_name or self.user.username,
+            customer_email=self.user.email,
+            selections=[(ticket_type, 1)],
+        )
+        event.refresh_from_db()
+        ticket_order.refresh_from_db()
+        payment = Payment.objects.create(
+            order=ticket_order,
+            commerce_order=None,
+            initiated_by=self.user,
+            provider=PaymentProvider.SANDBOX,
+            status=PaymentStatus.SUCCEEDED,
+            amount=Decimal("12.00"),
+            currency="USD",
+        )
+
+        legacy = activity_summary(event.activity)["payment"]
+        self.assertEqual(legacy["attempts"], 1)
+        self.assertEqual(legacy["collected"][0]["net"], Decimal("12.00"))
+
+        self.assertIsNotNone(ticket_order.commerce_order_id)
+        payment.commerce_order_id = ticket_order.commerce_order_id
+        payment.save(update_fields=["commerce_order", "updated_at"])
+        bridged = activity_summary(event.activity)["payment"]
+        self.assertEqual(bridged["attempts"], 1)
+        self.assertEqual(bridged["collected"][0]["net"], Decimal("12.00"))
+
     def test_analytics_domain_event_projection_is_idempotent(self):
         event = DomainEventOutbox.objects.create(
             event_type=DomainEventType.ACCESS_USED,
