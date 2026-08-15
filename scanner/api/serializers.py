@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 
 from rest_framework import serializers
 
+from accounts.api.permissions import user_has_role
 from activities.models import Activity, Occurrence
 from events.models import Event
 from scanner.models import EventAccessGate, ScanLog, ScannerAssignment
@@ -94,11 +95,19 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
         event = attrs.get("event", getattr(instance, "event", None))
         activity = attrs.get("activity", getattr(instance, "activity", None))
         occurrence = attrs.get("occurrence", getattr(instance, "occurrence", None))
+        agent = attrs.get("agent", getattr(instance, "agent", None))
         access_gate = attrs.get("access_gate", getattr(instance, "access_gate", None))
         valid_from = attrs.get("valid_from", getattr(instance, "valid_from", None))
         valid_until = attrs.get("valid_until", getattr(instance, "valid_until", None))
 
         if event is not None:
+            if agent is not None and not (
+                agent.is_staff
+                or user_has_role(agent, "scanner-agent", legacy_flag="is_scanner_agent")
+            ):
+                raise serializers.ValidationError(
+                    {"agent_id": "Cet utilisateur doit avoir le rôle scanner-agent."}
+                )
             if not event.activity_id:
                 raise serializers.ValidationError({"event_id": "Cet Event n’a pas de projection Activity canonique."})
             if activity is not None and activity.pk != event.activity_id:
@@ -122,8 +131,11 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
         if access_gate:
             if event is None or access_gate.event_id != event.pk:
                 raise serializers.ValidationError({"access_gate_id": "Cette porte appartient à un autre événement."})
-        if request and not user_can_manage_activity_scanner_assignments(request.user, activity):
-            raise serializers.ValidationError({"activity_id": "Vous ne pouvez gérer les affectations que dans cette Activity."})
+        if request:
+            if event is not None and user_can_manage_scanner_assignments(request.user, event):
+                return attrs
+            if not user_can_manage_activity_scanner_assignments(request.user, activity):
+                raise serializers.ValidationError({"activity_id": "Vous ne pouvez gérer les affectations que dans cette Activity."})
         return attrs
 
 
