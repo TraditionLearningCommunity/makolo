@@ -25,31 +25,63 @@ class GrowthSpend(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
-        "organizations.Organization", on_delete=models.CASCADE, related_name="growth_spends"
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="growth_spends",
     )
     event = models.ForeignKey(
-        "events.Event", on_delete=models.SET_NULL, related_name="growth_spends", null=True, blank=True
+        "events.Event",
+        on_delete=models.SET_NULL,
+        related_name="growth_spends",
+        null=True,
+        blank=True,
     )
-    channel = models.CharField(max_length=20, choices=GrowthChannel.choices, default=GrowthChannel.OTHER)
+    channel = models.CharField(
+        max_length=20,
+        choices=GrowthChannel.choices,
+        default=GrowthChannel.OTHER,
+    )
     crm_campaign = models.ForeignKey(
-        "crm.CommunicationCampaign", on_delete=models.SET_NULL, related_name="growth_spends", null=True, blank=True
+        "crm.CommunicationCampaign",
+        on_delete=models.SET_NULL,
+        related_name="growth_spends",
+        null=True,
+        blank=True,
     )
     partner_campaign = models.ForeignKey(
-        "partners.AffiliateCampaign", on_delete=models.SET_NULL, related_name="growth_spends", null=True, blank=True
+        "partners.AffiliateCampaign",
+        on_delete=models.SET_NULL,
+        related_name="growth_spends",
+        null=True,
+        blank=True,
     )
     promotion = models.ForeignKey(
-        "promotions.Promotion", on_delete=models.SET_NULL, related_name="growth_spends", null=True, blank=True
+        "promotions.Promotion",
+        on_delete=models.SET_NULL,
+        related_name="growth_spends",
+        null=True,
+        blank=True,
     )
     loyalty_program = models.ForeignKey(
-        "loyalty.LoyaltyProgram", on_delete=models.SET_NULL, related_name="growth_spends", null=True, blank=True
+        "loyalty.LoyaltyProgram",
+        on_delete=models.SET_NULL,
+        related_name="growth_spends",
+        null=True,
+        blank=True,
     )
     label = models.CharField(max_length=180)
-    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
     currency = models.CharField(max_length=3)
     incurred_at = models.DateField(default=timezone.localdate)
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_growth_spends"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_growth_spends",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -57,9 +89,18 @@ class GrowthSpend(models.Model):
     class Meta:
         ordering = ["-incurred_at", "-created_at"]
         indexes = [
-            models.Index(fields=["organization", "channel", "incurred_at"], name="growth_spend_org_channel_idx"),
-            models.Index(fields=["organization", "currency", "incurred_at"], name="growth_spend_org_currency_idx"),
-            models.Index(fields=["event", "currency"], name="growth_spend_event_curr_idx"),
+            models.Index(
+                fields=["organization", "channel", "incurred_at"],
+                name="growth_spend_org_channel_idx",
+            ),
+            models.Index(
+                fields=["organization", "currency", "incurred_at"],
+                name="growth_spend_org_currency_idx",
+            ),
+            models.Index(
+                fields=["event", "currency"],
+                name="growth_spend_event_curr_idx",
+            ),
         ]
 
     def clean(self):
@@ -92,6 +133,7 @@ class GrowthSpend(models.Model):
             source_event_id = getattr(obj, "event_id", None)
             if self.event_id and source_event_id and source_event_id != self.event_id:
                 errors[field] = "La source concerne un autre événement."
+
         if errors:
             raise ValidationError(errors)
 
