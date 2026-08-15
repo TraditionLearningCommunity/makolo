@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from analytics_app.models import GrowthChannel, GrowthSpend
+from analytics_app.domain_event_consumer import ANALYTICS_EVENT_TYPES, consume_analytics_event
+from analytics_app.models import AnalyticsFact, GrowthChannel, GrowthSpend
+from core.models import DomainEventOutbox
 
 from .common import SeedContext, backdate, money, upsert
 
@@ -41,3 +43,21 @@ def _seed_growth_spend(ctx: SeedContext) -> None:
                 "created_by": owner,
             })
             backdate(spend, created_at=ctx.as_of - timedelta(days=28+j*8+org_index), updated_at=ctx.as_of - timedelta(days=10))
+
+
+def _seed_analytics_fact(ctx: SeedContext) -> None:
+    """Project one already-existing canonical event for realistic model coverage.
+
+    The seed never fabricates an old outbox row and calls no notification or
+    automation consumer. It only materializes Analytics' own idempotent view.
+    """
+    if AnalyticsFact.objects.exists():
+        return
+    domain_event = (
+        DomainEventOutbox.objects.filter(event_type__in=ANALYTICS_EVENT_TYPES)
+        .order_by("occurred_at", "id")
+        .first()
+    )
+    if domain_event is not None:
+        consume_analytics_event(domain_event)
+        ctx.add("analytics_facts", AnalyticsFact.objects.count())

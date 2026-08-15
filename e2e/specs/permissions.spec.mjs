@@ -55,12 +55,14 @@ test('marketing sees CRM, Growth and Promotions while event creation remains for
 });
 
 
-test('assigned scanner agent can access its event without organizer privileges', async ({ page }) => {
+test('assigned scanner agent can access only its event without organizer privileges', async ({ page }) => {
   await login(page, 'scanner@e2e.makolo.test');
   await expect(page.getByRole('link', { name: 'Contrôle d’accès' }).first()).toBeVisible();
   const response = await page.goto('/scanner/event/festival-makolo-e2e/');
   expect(response.status()).toBe(200);
   await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
+  const isolated = await page.goto('/scanner/event/atelier-makolo-visuel/');
+  expect(isolated.status()).toBe(404);
   await expectForbidden(page, '/events/new/');
 });
 

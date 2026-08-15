@@ -26,6 +26,9 @@ class PermissionCode:
     ACTIVITY_REQUESTS_DECIDE = "activity.requests.decide"
     ACTIVITY_ACCESS_VIEW = "activity.access.view"
     ACTIVITY_ACCESS_MANAGE = "activity.access.manage"
+    ACTIVITY_ACCESS_SCAN = "activity.access.scan"
+    ACTIVITY_OPERATIONS_VIEW = "activity.operations.view"
+    ACTIVITY_OPERATIONS_MANAGE = "activity.operations.manage"
     ACTIVITY_COMMERCE_VIEW = "activity.commerce.view"
     ACTIVITY_COMMERCE_MANAGE = "activity.commerce.manage"
     ACTIVITY_CAPACITY_VIEW = "activity.capacity.view"
@@ -60,8 +63,10 @@ class SystemRoleCode:
     # Historical Python contract kept as the Space-scoped Activity portfolio role.
     ACTIVITY_MANAGER = "space-activity-manager"
     SPACE_ACTIVITY_MANAGER = ACTIVITY_MANAGER
-    # New local role introduced with AuthorityScope.ACTIVITY.
+    # Local Activity-scoped roles.
     ACTIVITY_LOCAL_MANAGER = "activity-manager"
+    ACTIVITY_SCANNER = "activity-scanner"
+    ACTIVITY_OPERATIONS_MANAGER = "activity-operations-manager"
     FINANCE = "finance"
     MARKETING = "marketing"
     ACCESS_MANAGER = "access-manager"
@@ -86,6 +91,9 @@ ACTIVITY_PERMISSION_CODES = {
     PermissionCode.ACTIVITY_REQUESTS_DECIDE,
     PermissionCode.ACTIVITY_ACCESS_VIEW,
     PermissionCode.ACTIVITY_ACCESS_MANAGE,
+    PermissionCode.ACTIVITY_ACCESS_SCAN,
+    PermissionCode.ACTIVITY_OPERATIONS_VIEW,
+    PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
     PermissionCode.ACTIVITY_COMMERCE_VIEW,
     PermissionCode.ACTIVITY_COMMERCE_MANAGE,
     PermissionCode.ACTIVITY_CAPACITY_VIEW,
@@ -113,7 +121,11 @@ STANDARD_GROUP_ROLE_CODES = {
     SystemRoleCode.GROUP_ADMIN,
     SystemRoleCode.GROUP_MODERATOR,
 }
-STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER}
+STANDARD_ACTIVITY_ROLE_CODES = {
+    SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+    SystemRoleCode.ACTIVITY_SCANNER,
+    SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+}
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
     "owner": SystemRoleCode.SPACE_OWNER,

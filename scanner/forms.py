@@ -1,6 +1,5 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 
 from events.selectors import get_manageable_events
 
@@ -49,6 +48,8 @@ class EventAccessGateForm(forms.ModelForm):
 class ScannerAssignmentForm(forms.ModelForm):
     class Meta:
         model = ScannerAssignment
+        # Events keeps its existing vocabulary. Activity/Occurrence are filled
+        # below as the canonical scope and are intentionally not exposed here.
         fields = [
             "event",
             "agent",
@@ -86,23 +87,18 @@ class ScannerAssignmentForm(forms.ModelForm):
 
         manageable_events = get_manageable_events(user) if user is not None else None
         if manageable_events is not None:
-            self.fields["event"].queryset = manageable_events.order_by("start_at", "title")
+            self.fields["event"].queryset = manageable_events.select_related("activity").order_by("start_at", "title")
             self.fields["access_gate"].queryset = EventAccessGate.objects.filter(
                 event__in=manageable_events
             ).select_related("event").order_by("event__start_at", "priority", "name")
         else:
             self.fields["access_gate"].queryset = EventAccessGate.objects.none()
 
+        # ScannerAssignment itself is the local delegation. Requiring a legacy
+        # global scanner-agent flag would make the new Activity scope unusable.
         User = get_user_model()
-        self.fields["agent"].queryset = (
-            User.objects.filter(is_active=True)
-            .filter(
-                Q(is_staff=True)
-                | Q(is_scanner_agent=True)
-                | Q(roles__code="scanner-agent", roles__is_active=True)
-            )
-            .distinct()
-            .order_by("first_name", "last_name", "username")
+        self.fields["agent"].queryset = User.objects.filter(is_active=True).order_by(
+            "first_name", "last_name", "username"
         )
 
     def clean(self):
@@ -111,4 +107,18 @@ class ScannerAssignmentForm(forms.ModelForm):
         access_gate = cleaned.get("access_gate")
         if event and access_gate and access_gate.event_id != event.pk:
             self.add_error("access_gate", "Cette porte appartient à un autre événement.")
+        if event:
+            if not event.activity_id:
+                self.add_error("event", "Cet événement n’a pas encore de projection Activity canonique.")
+                return cleaned
+            self.instance.activity_id = event.activity_id
+            occurrence = (
+                event.activity.occurrences.filter(start_at=event.start_at, end_at=event.end_at)
+                .order_by("id")
+                .first()
+            )
+            if occurrence is None:
+                self.add_error("event", "L’Occurrence canonique de cet événement est introuvable.")
+            else:
+                self.instance.occurrence = occurrence
         return cleaned

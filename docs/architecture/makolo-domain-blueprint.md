@@ -197,7 +197,6 @@ erDiagram
     ROLE ||--o{ MANDATE : grants
     ROLE ||--o{ ROLE_PERMISSION : contains
     PERMISSION ||--o{ ROLE_PERMISSION : included
-
     SPACE ||--o{ ACTIVITY : operates
     ACTIVITY ||--o{ OCCURRENCE : realizes
     OCCURRENCE }o--o{ PLACE : uses
@@ -744,3 +743,11 @@ Les bridges Event/Ticket et les moteurs historiques encore nécessaires restent 
 Les Promotions ciblent désormais Commerce par `PromotionTargeting` et `PromotionOffer`, avec une Audience optionnelle contrôlée au checkout. Les `TicketType` historiques restent une projection Events et leur bridge `ticket_type.offer` alimente les cibles Offer sans devenir la cible canonique. Les quotas historiques et canoniques sont comptés ensemble, tandis que `CommerceOrder`/`CommerceOrderItem` conservent les snapshots de prix et remise.
 
 `AudienceSegment`, `CRMWorkflow*`, `Promotion.event`, `eligible_ticket_types` et les redemptions TicketOrder restent des couches de compatibilité. Scanner/Operations et Analytics restent réservés à **8C**. Les détails sont documentés dans [`crm-promotions-audiences.md`](crm-promotions-audiences.md).
+
+### Note d'implémentation — 8C Scanner / Operations / Analytics
+
+**8C** fait converger le contrôle d'accès vers `Activity` / `Occurrence` et le moteur `AccessCredential → Access → AccessUse`. `ScannerAssignment` porte désormais ce scope canonique ; `Event`, `Ticket` et `ScanLog` restent des bridges de la verticale Events et ne décident plus de l'autorisation.
+
+Operations peut contextualiser un incident par Espace, Activity et Occurrence sans Event obligatoire. Analytics lit Journey, Access, CommerceOrder, Payment et Capacity comme sources canoniques, projette seulement les Domain Events utiles via `analytics.system`, sépare valeur commerciale et paiement réellement encaissé, conserve les devises distinctes et évite le double comptage des projections Event/Ticket bridgées.
+
+Le backend reste générique tandis que les dashboards et écrans Events conservent les termes « billets », « participants », « revenus » et « contrôle d'accès ». Les invariants et compatibilités de cette étape sont détaillés dans [`scanner-operations-analytics.md`](scanner-operations-analytics.md).

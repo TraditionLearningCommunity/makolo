@@ -11,6 +11,7 @@ from .forms import (
     OperationsIncidentUpdateForm,
     OrganizationReviewForm,
 )
+from .incident_services import create_incident, update_incident
 from .models import ModerationStatus
 from .permissions import user_can_access_operations
 from .product_overview import build_product_operations_overview
@@ -20,12 +21,7 @@ from .selectors import (
     get_operations_incidents,
     get_operations_organizations,
 )
-from .services import (
-    change_organization_verification,
-    create_incident,
-    moderate_event,
-    update_incident,
-)
+from .services import change_organization_verification, moderate_event
 
 
 class StaffOperationsMixin(LoginRequiredMixin, UserPassesTestMixin):

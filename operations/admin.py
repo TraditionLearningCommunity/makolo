@@ -5,11 +5,39 @@ from .models import ModerationCase, OperationsAuditLog, OperationsIncident, Work
 
 @admin.register(OperationsIncident)
 class OperationsIncidentAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "severity", "status", "organization", "event", "assigned_to", "created_at")
+    list_display = (
+        "title",
+        "category",
+        "severity",
+        "status",
+        "organization",
+        "activity",
+        "occurrence",
+        "event",
+        "assigned_to",
+        "created_at",
+    )
     list_filter = ("category", "severity", "status", "created_at")
-    search_fields = ("title", "description", "resolution", "organization__name", "event__title")
-    raw_id_fields = ("organization", "event", "payment", "scan_log", "opened_by", "assigned_to")
+    search_fields = (
+        "title",
+        "description",
+        "resolution",
+        "organization__name",
+        "activity__title",
+        "event__title",
+    )
+    raw_id_fields = (
+        "organization",
+        "activity",
+        "occurrence",
+        "event",
+        "payment",
+        "scan_log",
+        "opened_by",
+        "assigned_to",
+    )
     readonly_fields = ("created_at", "updated_at", "acknowledged_at", "resolved_at")
+    list_select_related = ("organization", "activity", "occurrence", "event", "assigned_to")
 
 
 @admin.register(ModerationCase)

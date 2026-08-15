@@ -22,6 +22,8 @@ class EventAccessGateAdmin(admin.ModelAdmin):
 @admin.register(ScannerAssignment)
 class ScannerAssignmentAdmin(admin.ModelAdmin):
     list_display = (
+        "activity",
+        "occurrence",
         "event",
         "agent",
         "access_gate",
@@ -30,16 +32,32 @@ class ScannerAssignmentAdmin(admin.ModelAdmin):
         "valid_from",
         "valid_until",
     )
-    list_filter = ("is_active", "event", "access_gate")
+    list_filter = ("is_active", "activity", "event", "access_gate")
     search_fields = (
+        "activity__title",
         "event__title",
         "agent__username",
         "agent__email",
         "access_gate__name",
         "label",
     )
-    autocomplete_fields = ("event", "agent", "assigned_by", "access_gate")
+    autocomplete_fields = (
+        "activity",
+        "occurrence",
+        "event",
+        "agent",
+        "assigned_by",
+        "access_gate",
+    )
     readonly_fields = ("created_at", "updated_at")
+    list_select_related = (
+        "activity",
+        "occurrence",
+        "event",
+        "agent",
+        "access_gate",
+        "assigned_by",
+    )
 
 
 @admin.register(ScanLog)

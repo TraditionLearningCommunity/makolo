@@ -149,3 +149,55 @@ class GrowthSpend(models.Model):
 
     def __str__(self):
         return f"{self.organization} — {self.label} — {self.amount} {self.currency}"
+
+
+class AnalyticsFact(models.Model):
+    """Small idempotent projection of useful canonical Domain Events.
+
+    Transactional dashboards remain sourced from canonical models. Facts exist
+    for historical/event analysis only and deliberately do not duplicate the
+    Domain Event payload or credential/person-sensitive data.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    domain_event = models.ForeignKey(
+        "core.DomainEventOutbox", on_delete=models.CASCADE, related_name="analytics_facts"
+    )
+    fact_type = models.CharField(max_length=100)
+    space = models.ForeignKey(
+        "organizations.Organization", on_delete=models.SET_NULL,
+        related_name="analytics_facts", null=True, blank=True,
+    )
+    activity = models.ForeignKey(
+        "activities.Activity", on_delete=models.SET_NULL,
+        related_name="analytics_facts", null=True, blank=True,
+    )
+    occurrence = models.ForeignKey(
+        "activities.Occurrence", on_delete=models.SET_NULL,
+        related_name="analytics_facts", null=True, blank=True,
+    )
+    profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name="analytics_facts", null=True, blank=True,
+    )
+    numeric_value = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=3, blank=True)
+    occurred_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["occurred_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["domain_event", "fact_type"], name="analytics_fact_event_type_unique"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["space", "occurred_at"], name="analytics_fact_space_time_idx"),
+            models.Index(fields=["activity", "occurred_at"], name="analytics_fact_act_time_idx"),
+            models.Index(fields=["occurrence", "occurred_at"], name="analytics_fact_occ_time_idx"),
+            models.Index(fields=["fact_type", "occurred_at"], name="analytics_fact_type_time_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.fact_type} — {self.occurred_at:%Y-%m-%d %H:%M:%S}"

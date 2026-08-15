@@ -3,9 +3,14 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from accounts.api.permissions import user_has_role
+from activities.models import Activity, Occurrence
+from events.activity_bridge import sync_event_core
 from events.models import Event
 from scanner.models import EventAccessGate, ScanLog, ScannerAssignment
-from scanner.permissions import user_can_manage_scanner_assignments
+from scanner.permissions import (
+    user_can_manage_activity_scanner_assignments,
+    user_can_manage_scanner_assignments,
+)
 
 
 User = get_user_model()
@@ -81,8 +86,24 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
     event = ScannerEventSerializer(read_only=True)
     event_id = serializers.PrimaryKeyRelatedField(
         source="event",
-        queryset=Event.objects.all(),
+        queryset=Event.objects.select_related("activity"),
         write_only=True,
+        required=False,
+        allow_null=True,
+    )
+    activity_id = serializers.PrimaryKeyRelatedField(
+        source="activity",
+        queryset=Activity.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+    occurrence_id = serializers.PrimaryKeyRelatedField(
+        source="occurrence",
+        queryset=Occurrence.objects.select_related("activity"),
+        write_only=True,
+        required=False,
+        allow_null=True,
     )
     agent = ScannerUserSerializer(read_only=True)
     agent_id = serializers.PrimaryKeyRelatedField(
@@ -107,6 +128,8 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
             "id",
             "event",
             "event_id",
+            "activity_id",
+            "occurrence_id",
             "agent",
             "agent_id",
             "access_gate",
@@ -128,44 +151,104 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-
-    def validate_agent_id(self, agent):
-        if not (
-            agent.is_staff
-            or user_has_role(
-                agent,
-                "scanner-agent",
-                legacy_flag="is_scanner_agent",
-            )
-        ):
-            raise serializers.ValidationError(
-                "Cet utilisateur doit avoir le rôle scanner-agent."
-            )
-        return agent
+        # Activity/Occurrence can be derived from the legacy Event bridge only
+        # after field parsing. Database constraints plus validate() enforce the
+        # same uniqueness without DRF requiring the derived fields too early.
+        validators = []
 
     def validate(self, attrs):
         request = self.context.get("request")
         instance = self.instance
         event = attrs.get("event", getattr(instance, "event", None))
+        activity = attrs.get("activity", getattr(instance, "activity", None))
+        occurrence = attrs.get("occurrence", getattr(instance, "occurrence", None))
+        agent = attrs.get("agent", getattr(instance, "agent", None))
         access_gate = attrs.get("access_gate", getattr(instance, "access_gate", None))
         valid_from = attrs.get("valid_from", getattr(instance, "valid_from", None))
         valid_until = attrs.get("valid_until", getattr(instance, "valid_until", None))
 
+        if event is not None:
+            if agent is not None and not (
+                agent.is_staff
+                or user_has_role(
+                    agent,
+                    "scanner-agent",
+                    legacy_flag="is_scanner_agent",
+                )
+            ):
+                raise serializers.ValidationError(
+                    {"agent_id": "Cet utilisateur doit avoir le rôle scanner-agent."}
+                )
+            bridged_occurrence = None
+            if not event.activity_id:
+                bridged_activity, bridged_occurrence = sync_event_core(event)
+                event.activity = bridged_activity
+            if activity is not None and activity.pk != event.activity_id:
+                raise serializers.ValidationError(
+                    {"activity_id": "Cette Activity ne correspond pas à l’Event."}
+                )
+            activity = event.activity
+            attrs["activity"] = activity
+            if occurrence is None:
+                occurrence = bridged_occurrence or (
+                    activity.occurrences.filter(
+                        start_at=event.start_at,
+                        end_at=event.end_at,
+                    )
+                    .order_by("id")
+                    .first()
+                )
+                if occurrence is not None:
+                    attrs["occurrence"] = occurrence
+
+        if activity is None:
+            raise serializers.ValidationError(
+                {"activity_id": "Une Activity est obligatoire."}
+            )
+        if occurrence is not None and occurrence.activity_id != activity.pk:
+            raise serializers.ValidationError(
+                {"occurrence_id": "Cette Occurrence appartient à une autre Activity."}
+            )
         if valid_from and valid_until and valid_until <= valid_from:
             raise serializers.ValidationError(
                 {"valid_until": "La fin doit être postérieure au début."}
             )
-        if event and access_gate and access_gate.event_id != event.pk:
-            raise serializers.ValidationError(
-                {"access_gate_id": "Cette porte appartient à un autre événement."}
+        if access_gate:
+            if event is None or access_gate.event_id != event.pk:
+                raise serializers.ValidationError(
+                    {"access_gate_id": "Cette porte appartient à un autre événement."}
+                )
+
+        if agent is not None:
+            duplicates = ScannerAssignment.objects.filter(
+                activity=activity,
+                agent=agent,
             )
-        if request and event and not user_can_manage_scanner_assignments(
-            request.user,
-            event,
-        ):
-            raise serializers.ValidationError(
-                {"event_id": "Vous ne pouvez gérer que vos propres événements."}
-            )
+            if instance is not None:
+                duplicates = duplicates.exclude(pk=instance.pk)
+            if occurrence is None:
+                duplicates = duplicates.filter(occurrence__isnull=True)
+            else:
+                duplicates = duplicates.filter(occurrence=occurrence)
+            if duplicates.exists():
+                field = "occurrence_id" if occurrence is not None else "activity_id"
+                raise serializers.ValidationError(
+                    {field: "Cet agent possède déjà une affectation dans ce scope Scanner."}
+                )
+
+        if request:
+            if event is not None and user_can_manage_scanner_assignments(
+                request.user,
+                event,
+            ):
+                return attrs
+            if not user_can_manage_activity_scanner_assignments(
+                request.user,
+                activity,
+            ):
+                raise serializers.ValidationError(
+                    {"activity_id": "Vous ne pouvez gérer les affectations que dans cette Activity."}
+                )
         return attrs
 
 
