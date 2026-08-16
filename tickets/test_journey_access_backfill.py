@@ -85,13 +85,16 @@ class JourneyAccessBackfillTests(TestCase):
         Ticket.objects.all().update(access=None)
         TicketOrder.objects.all().update(journey=None)
 
-        # This test exercises the historical Task 6 Journey/Access backfill on
-        # the current Task 9 schema. Offer and CapacityPool are now mandatory
-        # canonical owners for TicketType, so they must remain attached here;
-        # nulling them would construct a database state that Task 9 explicitly
-        # forbids rather than a valid pre-Task-6 Journey/Access fixture.
+        # Reconstruct the historical pre-Task-6 state this migration owns.
+        # Current runtime compatibility may already have produced Task-7
+        # Commerce/Capacity rows around those Journeys, so remove those
+        # dependants before deleting Journey. Offer and CapacityPool stay
+        # attached because Task 9 now makes them mandatory TicketType owners.
         AccessUse.objects.all().delete()
         Access.objects.all().delete()
+        CommerceOrderItem.objects.all().delete()
+        CapacityReservation.objects.all().delete()
+        CommerceOrder.objects.all().delete()
         Journey.objects.all().delete()
 
     def _run_backfill(self):
