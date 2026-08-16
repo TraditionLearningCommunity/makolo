@@ -105,16 +105,14 @@ def commerce_summary(activity, occurrence=None):
 def _payment_scope_filter(activity, occurrence=None):
     canonical = Q(commerce_order__journey__activity=activity)
     legacy = Q(commerce_order__isnull=True, order__event__activity=activity)
-    scope = canonical | legacy
     if occurrence is None:
-        return scope
+        return canonical | legacy
     return (
         Q(commerce_order__journey__occurrence=occurrence)
         | Q(
             commerce_order__isnull=True,
             order__event__activity=activity,
-            order__event__start_at=occurrence.start_at,
-            order__event__end_at=occurrence.end_at,
+            order__event__activity__occurrences=occurrence,
         )
     )
 
@@ -132,17 +130,14 @@ def _refund_scope_filter(activity, occurrence=None):
         | Q(
             payment__commerce_order__isnull=True,
             payment__order__event__activity=activity,
-            payment__order__event__start_at=occurrence.start_at,
-            payment__order__event__end_at=occurrence.end_at,
+            payment__order__event__activity__occurrences=occurrence,
         )
     )
 
 
 def payment_summary(activity, occurrence=None):
-    # Payment is provider truth. Prefer the CommerceOrder/ Journey relation, but
-    # retain an explicit Event fallback only while a historical Payment has not
-    # been bridged. The mutually exclusive commerce_order NULL predicate ensures
-    # one Payment row can never be counted twice.
+    # Payment is provider truth. Prefer CommerceOrder/Journey and retain only a
+    # mutually-exclusive fallback for historical Event payments not yet bridged.
     payments = Payment.objects.filter(_payment_scope_filter(activity, occurrence)).distinct()
     refunds = Refund.objects.filter(
         _refund_scope_filter(activity, occurrence),
@@ -261,7 +256,7 @@ def space_summary(space):
     order_qs = CommerceOrder.objects.filter(journey__activity__space=space)
     payment_qs = Payment.objects.filter(
         Q(commerce_order__journey__activity__space=space)
-        | Q(commerce_order__isnull=True, order__event__organization=space)
+        | Q(commerce_order__isnull=True, order__event__activity__space=space)
     ).distinct()
     commercial_rows = (
         order_qs.filter(status__in=CONFIRMED_COMMERCE_STATUSES, total__gt=0)
