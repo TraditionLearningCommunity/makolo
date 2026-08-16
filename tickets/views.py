@@ -40,6 +40,7 @@ from .services import (
     cancel_order,
     cancel_ticket_transfer,
     can_join_waitlist,
+    configure_ticket_type,
     create_ticket_transfer,
     decline_ticket_transfer,
     join_waitlist,
@@ -59,12 +60,13 @@ class MyTicketListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["incoming_transfer_count"] = get_ticket_transfers_visible_to(
-            self.request.user
-        ).filter(recipient=self.request.user, status=TransferStatus.PENDING).count()
-        context["active_waitlist_count"] = get_waitlist_entries_visible_to(
-            self.request.user
-        ).filter(status__in=[WaitlistStatus.WAITING, WaitlistStatus.OFFERED]).count()
+        context["incoming_transfer_count"] = get_ticket_transfers_visible_to(self.request.user).filter(
+            recipient=self.request.user,
+            status=TransferStatus.PENDING,
+        ).count()
+        context["active_waitlist_count"] = get_waitlist_entries_visible_to(self.request.user).filter(
+            status__in=[WaitlistStatus.WAITING, WaitlistStatus.OFFERED]
+        ).count()
         return context
 
 
@@ -79,12 +81,8 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["pending_transfer"] = self.object.transfers.filter(
-            status=TransferStatus.PENDING
-        ).select_related("recipient").first()
-        context["can_transfer"] = bool(
-            self.object.owner_id == self.request.user.pk and self.object.is_valid
-        )
+        context["pending_transfer"] = self.object.transfers.filter(status=TransferStatus.PENDING).select_related("recipient").first()
+        context["can_transfer"] = bool(self.object.owner_id == self.request.user.pk and self.object.is_valid)
         return context
 
 
@@ -93,12 +91,11 @@ class TicketQrView(LoginRequiredMixin, View):
 
     def get(self, request, pk):
         ticket = get_object_or_404(
-            Ticket.objects.select_related("event", "ticket_type", "owner"),
+            Ticket.objects.select_related("event__activity", "ticket_type", "owner", "access"),
             pk=pk,
         )
         if not user_can_access_ticket(request.user, ticket):
             raise PermissionDenied
-
         image = qrcode.make(ticket.qr_token)
         buffer = BytesIO()
         image.save(buffer, format="PNG")
@@ -116,13 +113,16 @@ class TicketTypeListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
     def handle_no_permission(self):
         if self.request.user.is_authenticated:
-            raise PermissionDenied("Un rôle organisateur est requis.")
+            raise PermissionDenied("Un mandat Activity permettant de gérer l’événement est requis.")
         return super().handle_no_permission()
 
     def get_queryset(self):
-        return TicketType.objects.select_related("event").filter(
-            event__in=get_manageable_events(self.request.user)
-        ).order_by("event__start_at", "price", "name")
+        return (
+            TicketType.objects.select_related("event__activity", "offer", "capacity_pool")
+            .filter(event__in=get_manageable_events(self.request.user))
+            .order_by("event__activity__occurrences__start_at", "offer__unit_price", "name")
+            .distinct()
+        )
 
 
 class TicketTypeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -140,11 +140,12 @@ class TicketTypeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        if not user_can_manage_event(self.request.user, form.cleaned_data["event"]):
+        event = form.cleaned_data["event"]
+        if not user_can_manage_event(self.request.user, event):
             raise PermissionDenied
-        form.instance.full_clean()
+        self.object = configure_ticket_type(actor=self.request.user, **form.cleaned_data)
         messages.success(self.request, "Type de billet créé.")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse("tickets:manage-types")
@@ -156,6 +157,9 @@ class TicketTypeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     template_name = "tickets/ticket_type_form.html"
     login_url = "core:login"
 
+    def get_queryset(self):
+        return TicketType.objects.select_related("event__activity", "offer", "capacity_pool")
+
     def test_func(self):
         return user_can_manage_event(self.request.user, self.get_object().event)
 
@@ -165,9 +169,14 @@ class TicketTypeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return kwargs
 
     def form_valid(self, form):
-        form.instance.full_clean()
+        self.object = configure_ticket_type(
+            actor=self.request.user,
+            event=form.cleaned_data.pop("event"),
+            ticket_type=self.object,
+            **form.cleaned_data,
+        )
         messages.success(self.request, "Type de billet mis à jour.")
-        return super().form_valid(form)
+        return redirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse("tickets:manage-types")
@@ -178,13 +187,14 @@ class EventTicketOrderView(LoginRequiredMixin, View):
     template_name = "tickets/order_form.html"
 
     def _event(self, request, slug):
-        return get_object_or_404(
-            get_events_visible_to(request.user, for_detail=True),
-            slug=slug,
-        )
+        return get_object_or_404(get_events_visible_to(request.user, for_detail=True), slug=slug)
 
     def _ticket_types(self, event):
-        return list(event.ticket_types.filter(is_active=True).order_by("price", "name"))
+        return list(
+            event.ticket_types.select_related("offer", "capacity_pool")
+            .filter(offer__status="active", capacity_pool__is_active=True, is_public=True)
+            .order_by("offer__unit_price", "name")
+        )
 
     def _context(self, request, event, ticket_types=None):
         ticket_types = ticket_types if ticket_types is not None else self._ticket_types(event)
@@ -226,14 +236,8 @@ class EventTicketOrderView(LoginRequiredMixin, View):
                 quantity = 0
             if quantity > 0:
                 selections.append((ticket_type, quantity))
-
-        customer_name = (
-            request.POST.get("customer_name")
-            or request.user.full_name
-            or request.user.username
-        )
+        customer_name = request.POST.get("customer_name") or request.user.full_name or request.user.username
         customer_email = request.POST.get("customer_email") or request.user.email
-
         try:
             order = create_order_with_promotion(
                 buyer=request.user,
@@ -247,33 +251,12 @@ class EventTicketOrderView(LoginRequiredMixin, View):
             attribute_order_from_campaign(order=order, request=request)
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
-            return render(
-                request,
-                self.template_name,
-                self._context(request, event, ticket_types),
-                status=400,
-            )
+            return render(request, self.template_name, self._context(request, event, ticket_types), status=400)
 
-        redemption = getattr(order, "promotion_redemption", None)
-        if order.status == "confirmed":
-            if redemption:
-                messages.success(
-                    request,
-                    f"Code {redemption.code.code} appliqué : billets émis avec {redemption.discount_amount} {redemption.currency} de remise.",
-                )
-            else:
-                messages.success(request, "Billets gratuits émis avec succès.")
+        if order.canonical_status == "confirmed":
+            messages.success(request, "Billets émis avec succès. Aucun paiement n’a été créé lorsque le total est gratuit.")
         else:
-            if redemption:
-                messages.success(
-                    request,
-                    f"Code {redemption.code.code} appliqué : {redemption.discount_amount} {redemption.currency} de remise. Finalisez le paiement avant expiration.",
-                )
-            else:
-                messages.success(
-                    request,
-                    "Commande réservée. Le paiement devra être confirmé avant expiration.",
-                )
+            messages.success(request, "Commande réservée. Le paiement devra être confirmé avant expiration.")
         return redirect("tickets:order-detail", pk=order.pk)
 
 
@@ -288,10 +271,7 @@ class TicketOrderDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["waitlist_entry"] = TicketWaitlistEntry.objects.filter(
-            offered_order=self.object,
-            user=self.request.user,
-        ).first()
+        context["waitlist_entry"] = TicketWaitlistEntry.objects.filter(offered_order=self.object, user=self.request.user).first()
         context["promotion_redemption"] = getattr(self.object, "promotion_redemption", None)
         context["public_promotion_codes"] = public_codes_for_event(self.object.event)[:8]
         return context
@@ -311,12 +291,7 @@ class TicketOrderPromotionApplyView(LoginRequiredMixin, View):
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            redemption = getattr(updated, "promotion_redemption", None)
-            if redemption:
-                messages.success(
-                    request,
-                    f"Code {redemption.code.code} appliqué : remise de {redemption.discount_amount} {redemption.currency}.",
-                )
+            messages.success(request, "Code promotionnel appliqué à la commande.")
         return redirect("tickets:order-detail", pk=order.pk)
 
 
@@ -352,23 +327,16 @@ class WaitlistJoinView(LoginRequiredMixin, View):
 
     def post(self, request, ticket_type_id):
         ticket_type = get_object_or_404(
-            TicketType.objects.select_related("event"),
+            TicketType.objects.select_related("event__activity", "offer", "capacity_pool"),
             pk=ticket_type_id,
         )
         quantity = request.POST.get("quantity", "1")
         try:
-            entry = join_waitlist(
-                user=request.user,
-                ticket_type=ticket_type,
-                quantity=quantity,
-            )
+            entry = join_waitlist(user=request.user, ticket_type=ticket_type, quantity=quantity)
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(
-                request,
-                f"Vous êtes sur la liste d’attente pour {entry.ticket_type.name}. Makolo vous préviendra automatiquement dès qu’une place sera réservée pour vous.",
-            )
+            messages.success(request, f"Vous êtes sur la liste d’attente pour {entry.ticket_type.name}. Makolo vous préviendra automatiquement dès qu’une place sera réservée pour vous.")
         return redirect("tickets:order-create", event_slug=ticket_type.event.slug)
 
 
@@ -396,8 +364,7 @@ class WaitlistAcceptView(LoginRequiredMixin, View):
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
             return redirect("tickets:waitlist-list")
-
-        if order.total_amount > 0:
+        if order.canonical_total > 0:
             messages.info(request, "Votre place est réservée. Finalisez le paiement avant l’expiration.")
         else:
             messages.success(request, "Offre acceptée : votre billet et son nouveau QR sont disponibles.")
@@ -419,7 +386,7 @@ class TicketTransferCreateView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, pk):
-        ticket = get_object_or_404(Ticket.objects.select_related("event", "owner"), pk=pk)
+        ticket = get_object_or_404(Ticket.objects.select_related("event__activity", "owner", "access"), pk=pk)
         try:
             transfer = create_ticket_transfer(
                 ticket=ticket,
@@ -429,10 +396,7 @@ class TicketTransferCreateView(LoginRequiredMixin, View):
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(
-                request,
-                f"Transfert sécurisé envoyé à {transfer.recipient_email}. Le destinataire doit l’accepter dans Makolo.",
-            )
+            messages.success(request, f"Transfert sécurisé envoyé à {transfer.recipient_email}. Le destinataire doit l’accepter dans Makolo.")
         return redirect("tickets:detail", pk=ticket.pk)
 
 
@@ -446,10 +410,7 @@ class TicketTransferAcceptView(LoginRequiredMixin, View):
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(
-                request,
-                "Transfert accepté. L’ancien QR code a été invalidé et votre nouveau QR est prêt.",
-            )
+            messages.success(request, "Transfert accepté. L’ancien QR code a été invalidé et votre nouveau QR est prêt.")
         return redirect("tickets:transfer-list")
 
 
