@@ -141,7 +141,7 @@ class TicketJourneyAccessBridgeTests(TestCase):
         new_credential = access.credentials.get(status=CredentialStatus.ACTIVE)
         self.assertGreater(new_credential.version, old_credential.version)
 
-    def test_cancellation_and_refund_invalidate_access(self):
+    def test_cancellation_invalidates_access_but_legacy_ticket_write_does_not(self):
         order = self._free_order()
         ticket = order.tickets.select_related("access").get()
         old_token = render_access_credential(
@@ -158,5 +158,8 @@ class TicketJourneyAccessBridgeTests(TestCase):
         second.status = TicketStatus.REFUNDED
         second.save(update_fields=["status", "updated_at"])
         second.access.refresh_from_db()
-        self.assertEqual(second.access.status, AccessStatus.REVOKED)
-        self.assertFalse(second.access.credentials.filter(status=CredentialStatus.ACTIVE).exists())
+        # Ticket is now only an Event projection. A direct legacy Ticket write
+        # must not overwrite the canonical Access decision; refund services own
+        # the real revocation flow and are covered in the payments tests.
+        self.assertEqual(second.access.status, AccessStatus.VALID)
+        self.assertTrue(second.access.credentials.filter(status=CredentialStatus.ACTIVE).exists())
