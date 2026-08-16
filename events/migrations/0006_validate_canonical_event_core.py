@@ -23,6 +23,7 @@ def validate_and_finish_event_core(apps, schema_editor):
         "published": "scheduled",
         "cancelled": "cancelled",
         "completed": "completed",
+        "archived": "completed",
     }
 
     for event in Event.objects.all().iterator():
@@ -59,7 +60,7 @@ def validate_and_finish_event_core(apps, schema_editor):
                 start_at=event.start_at,
                 end_at=event.end_at,
                 timezone=event.timezone,
-                status=occurrence_status[event.status],
+                status=occurrence_status.get(event.status, "draft"),
             )
 
         place_id = None
