@@ -228,17 +228,22 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
         if start_at is None:
             raise TypeError("Event.objects.create() exige start_at ou une Activity existante.")
 
-        activity = Activity.objects.create(
-            space=organization,
-            space_id=organization_id,
-            created_by=organizer,
-            created_by_id=organizer_id,
-            title=title,
-            short_description=short_description,
-            description=description,
-            status=status,
-            visibility=visibility,
-        )
+        activity_values = {
+            "title": title,
+            "short_description": short_description,
+            "description": description,
+            "status": status,
+            "visibility": visibility,
+        }
+        if organization is not None:
+            activity_values["space"] = organization
+        elif organization_id is not None:
+            activity_values["space_id"] = organization_id
+        if organizer is not None:
+            activity_values["created_by"] = organizer
+        elif organizer_id is not None:
+            activity_values["created_by_id"] = organizer_id
+        activity = Activity.objects.create(**activity_values)
         occurrence = Occurrence.objects.create(
             activity=activity,
             start_at=start_at,
