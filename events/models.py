@@ -194,6 +194,18 @@ class EventQuerySet(models.QuerySet):
             rewritten.append(f"-{mapped}" if descending else mapped)
         return super().order_by(*rewritten)
 
+    def select_for_update(self, nowait=False, skip_locked=False, of=(), no_key=False):
+        # Event queries often load Activity.space for presentation. Space is
+        # nullable on generic Activity, so PostgreSQL cannot FOR UPDATE the
+        # nullable side of that outer join. Lock only the vertical Event row
+        # unless a caller explicitly requests another lock scope.
+        return super().select_for_update(
+            nowait=nowait,
+            skip_locked=skip_locked,
+            of=of or ("self",),
+            no_key=no_key,
+        )
+
 
 class EventManager(models.Manager.from_queryset(EventQuerySet)):
     @transaction.atomic
