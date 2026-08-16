@@ -14,10 +14,14 @@ from .models import (
 
 
 def _notify_event_followers(event_id):
-    event = Event.objects.select_related("organization").filter(pk=event_id).first()
-    if not event or not event.organization_id or event.status != EventStatus.PUBLISHED:
+    event = (
+        Event.objects.select_related("activity__space")
+        .filter(pk=event_id)
+        .first()
+    )
+    if not event or not event.activity.space_id or event.status != EventStatus.PUBLISHED:
         return
-    organization = event.organization
+    organization = event.activity.space
     if organization.verification_status == OrganizationVerificationStatus.SUSPENDED:
         return
     follows = OrganizationFollow.objects.filter(
@@ -40,7 +44,7 @@ def _notify_event_followers(event_id):
 
 @receiver(post_save, sender=Event, dispatch_uid="organizations.notify_followers_new_event")
 def notify_followers_on_published_event(sender, instance, **kwargs):
-    if instance.status == EventStatus.PUBLISHED and instance.organization_id:
+    if instance.status == EventStatus.PUBLISHED and instance.activity.space_id:
         transaction.on_commit(lambda event_id=instance.pk: _notify_event_followers(event_id))
 
 
