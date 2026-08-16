@@ -19,43 +19,45 @@ from tickets.models import (
     TicketType,
     TicketWaitlistEntry,
 )
-from tickets.order_idempotency import (
-    create_idempotent_order_with_promotion,
-    get_idempotent_order,
-)
-from tickets.services import create_ticket_transfer, join_waitlist
+from tickets.order_idempotency import create_idempotent_order_with_promotion, get_idempotent_order
+from tickets.services import configure_ticket_type, create_ticket_transfer, join_waitlist
 
 
-class EventSummarySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Event
-        fields = ["id", "title", "slug", "start_at", "end_at", "status"]
-        read_only_fields = fields
+class EventSummarySerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    title = serializers.CharField(read_only=True)
+    slug = serializers.CharField(read_only=True)
+    start_at = serializers.DateTimeField(read_only=True)
+    end_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    status = serializers.CharField(read_only=True)
 
 
-class TicketTypeSerializer(serializers.ModelSerializer):
+class TicketTypeSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
     event = EventSummarySerializer(read_only=True)
-    event_id = serializers.PrimaryKeyRelatedField(
-        source="event",
-        queryset=Event.objects.all(),
-        write_only=True,
-    )
-    is_free = serializers.BooleanField(read_only=True)
+    event_id = serializers.PrimaryKeyRelatedField(source="event", queryset=Event.objects.all(), write_only=True)
+    name = serializers.CharField(max_length=140)
+    slug = serializers.CharField(read_only=True)
+    description = serializers.CharField(required=False, allow_blank=True)
+    price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+    currency = serializers.CharField(max_length=3, default="USD")
+    quantity_total = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    reserved_quantity = serializers.IntegerField(read_only=True)
+    issued_quantity = serializers.IntegerField(read_only=True)
     available_quantity = serializers.IntegerField(read_only=True, allow_null=True)
+    sales_start_at = serializers.DateTimeField(required=False, allow_null=True)
+    sales_end_at = serializers.DateTimeField(required=False, allow_null=True)
+    min_per_order = serializers.IntegerField(min_value=1, default=1)
+    max_per_order = serializers.IntegerField(min_value=1, default=10)
+    is_active = serializers.BooleanField(default=True)
+    is_public = serializers.BooleanField(default=True)
+    is_free = serializers.BooleanField(read_only=True)
     is_on_sale = serializers.BooleanField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
-    class Meta:
-        model = TicketType
-        fields = [
-            "id", "event", "event_id", "name", "slug", "description", "price", "currency",
-            "quantity_total", "reserved_quantity", "issued_quantity", "available_quantity",
-            "sales_start_at", "sales_end_at", "min_per_order", "max_per_order", "is_active",
-            "is_free", "is_on_sale", "created_at", "updated_at",
-        ]
-        read_only_fields = [
-            "id", "slug", "reserved_quantity", "issued_quantity", "available_quantity", "is_free",
-            "is_on_sale", "created_at", "updated_at",
-        ]
+    def validate_currency(self, value):
+        return (value or "USD").upper()
 
     def validate(self, attrs):
         instance = self.instance
@@ -63,7 +65,45 @@ class TicketTypeSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if event and request and not user_can_manage_event(request.user, event):
             raise serializers.ValidationError({"event_id": "Vous ne pouvez pas gérer les billets de cet événement."})
+        if instance is not None and event and instance.event_id != event.pk:
+            raise serializers.ValidationError({"event_id": "Un type de billet existant ne peut pas changer d’événement."})
+        minimum = attrs.get("min_per_order", getattr(instance, "min_per_order", 1))
+        maximum = attrs.get("max_per_order", getattr(instance, "max_per_order", 10))
+        if maximum < minimum:
+            raise serializers.ValidationError({"max_per_order": "Le maximum doit être supérieur ou égal au minimum."})
+        start = attrs.get("sales_start_at", getattr(instance, "sales_start_at", None))
+        end = attrs.get("sales_end_at", getattr(instance, "sales_end_at", None))
+        if start and end and end <= start:
+            raise serializers.ValidationError({"sales_end_at": "La fin des ventes doit être postérieure au début."})
         return attrs
+
+    def _values(self, validated_data):
+        instance = self.instance
+        defaults = {
+            "event": getattr(instance, "event", None),
+            "name": getattr(instance, "name", ""),
+            "description": getattr(instance, "description", ""),
+            "price": getattr(instance, "price", Decimal("0.00")),
+            "currency": getattr(instance, "currency", "USD"),
+            "quantity_total": getattr(instance, "quantity_total", None),
+            "sales_start_at": getattr(instance, "sales_start_at", None),
+            "sales_end_at": getattr(instance, "sales_end_at", None),
+            "min_per_order": getattr(instance, "min_per_order", 1),
+            "max_per_order": getattr(instance, "max_per_order", 10),
+            "is_active": getattr(instance, "is_active", True),
+            "is_public": getattr(instance, "is_public", True),
+        }
+        defaults.update(validated_data)
+        return defaults
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        return configure_ticket_type(actor=request.user, **self._values(validated_data))
+
+    def update(self, instance, validated_data):
+        request = self.context["request"]
+        values = self._values(validated_data)
+        return configure_ticket_type(actor=request.user, ticket_type=instance, **values)
 
 
 class TicketOrderItemSerializer(serializers.ModelSerializer):
@@ -83,6 +123,7 @@ class TicketSerializer(serializers.ModelSerializer):
     holder = serializers.SerializerMethodField()
     qr_token = serializers.CharField(read_only=True)
     is_valid = serializers.BooleanField(read_only=True)
+    status = serializers.CharField(source="display_status", read_only=True)
 
     class Meta:
         model = Ticket
@@ -94,8 +135,9 @@ class TicketSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_holder(self, obj):
+        access = obj.access if obj.access_id else None
         return {
-            "user_id": str(obj.owner_id) if obj.owner_id else None,
+            "user_id": str(access.beneficiary_id if access else obj.owner_id) if (access or obj.owner_id) else None,
             "name": obj.holder_name,
             "email": obj.holder_email,
         }
@@ -105,11 +147,19 @@ class TicketOrderSerializer(serializers.ModelSerializer):
     event = EventSummarySerializer(read_only=True)
     items = TicketOrderItemSerializer(many=True, read_only=True)
     tickets = TicketSerializer(many=True, read_only=True)
+    status = serializers.CharField(source="canonical_status", read_only=True)
+    total_amount = serializers.DecimalField(source="canonical_total", max_digits=12, decimal_places=2, read_only=True)
+    currency = serializers.CharField(source="canonical_currency", read_only=True)
     promotion_code = serializers.SerializerMethodField()
     subtotal_amount = serializers.SerializerMethodField()
     discount_amount = serializers.SerializerMethodField()
 
     def _redemption(self, obj):
+        if obj.commerce_order_id:
+            try:
+                return obj.commerce_order.promotion_redemption
+            except Exception:
+                pass
         try:
             return obj.promotion_redemption
         except Exception:
@@ -120,11 +170,15 @@ class TicketOrderSerializer(serializers.ModelSerializer):
         return redemption.code.code if redemption else None
 
     def get_subtotal_amount(self, obj):
+        if obj.commerce_order_id:
+            return format(obj.commerce_order.subtotal, ".2f")
         redemption = self._redemption(obj)
         amount = redemption.subtotal_amount if redemption else obj.total_amount
         return format(amount, ".2f")
 
     def get_discount_amount(self, obj):
+        if obj.commerce_order_id:
+            return format(obj.commerce_order.discount_total, ".2f")
         redemption = self._redemption(obj)
         amount = redemption.discount_amount if redemption else Decimal("0.00")
         return format(amount, ".2f")
@@ -142,7 +196,7 @@ class TicketOrderSerializer(serializers.ModelSerializer):
 class TicketSelectionSerializer(serializers.Serializer):
     ticket_type_id = serializers.PrimaryKeyRelatedField(
         source="ticket_type",
-        queryset=TicketType.objects.select_related("event").all(),
+        queryset=TicketType.objects.select_related("event__activity", "offer", "capacity_pool").all(),
     )
     quantity = serializers.IntegerField(min_value=1)
 
@@ -159,13 +213,7 @@ class TicketOrderCreateSerializer(serializers.Serializer):
 
     def _request_fingerprint(self, attrs):
         request = self.context["request"]
-        normalized_items = sorted(
-            (
-                str(item["ticket_type"].pk),
-                int(item["quantity"]),
-            )
-            for item in attrs["items"]
-        )
+        normalized_items = sorted((str(item["ticket_type"].pk), int(item["quantity"])) for item in attrs["items"])
         payload = {
             "buyer_id": str(request.user.pk),
             "event_id": str(attrs["event"].pk),
@@ -184,15 +232,10 @@ class TicketOrderCreateSerializer(serializers.Serializer):
         request = self.context["request"]
         fingerprint = self._request_fingerprint(attrs)
         attrs["_idempotency_fingerprint"] = fingerprint
-
         idempotency_key = attrs.get("idempotency_key")
         if idempotency_key:
             try:
-                existing = get_idempotent_order(
-                    idempotency_key=idempotency_key,
-                    buyer=request.user,
-                    fingerprint=fingerprint,
-                )
+                existing = get_idempotent_order(idempotency_key=idempotency_key, buyer=request.user, fingerprint=fingerprint)
             except DjangoValidationError as exc:
                 raise serializers.ValidationError({"idempotency_key": exc.messages}) from exc
             if existing:
@@ -201,13 +244,12 @@ class TicketOrderCreateSerializer(serializers.Serializer):
 
         if not get_events_available_for_ticket_purchase().filter(pk=event.pk).exists():
             raise serializers.ValidationError({"event_id": "Cet événement n’est pas accessible pour une commande."})
-
         seen = set()
         for item in attrs["items"]:
             ticket_type = item["ticket_type"]
             if ticket_type.event_id != event.pk:
                 raise serializers.ValidationError({"items": "Tous les types de billets doivent appartenir à l’événement."})
-            if not ticket_type.is_active:
+            if not ticket_type.is_active or not ticket_type.is_public:
                 raise serializers.ValidationError({"items": "Un type de billet sélectionné n’est pas disponible au public."})
             if ticket_type.pk in seen:
                 raise serializers.ValidationError({"items": "Un type de billet ne peut apparaître qu’une fois."})
@@ -232,7 +274,6 @@ class TicketOrderCreateSerializer(serializers.Serializer):
         existing = validated_data.pop("_existing_order", None)
         if existing:
             return existing
-
         idempotency_key = validated_data.pop("idempotency_key", None)
         fingerprint = validated_data.pop("_idempotency_fingerprint", "")
         referral_code = validated_data.pop("referral_code", "")
@@ -270,16 +311,12 @@ class TicketWaitlistSerializer(serializers.ModelSerializer):
 
 class TicketWaitlistCreateSerializer(serializers.Serializer):
     ticket_type_id = serializers.PrimaryKeyRelatedField(
-        source="ticket_type", queryset=TicketType.objects.select_related("event").all()
+        source="ticket_type", queryset=TicketType.objects.select_related("event__activity", "offer", "capacity_pool").all()
     )
     quantity = serializers.IntegerField(min_value=1, default=1)
 
     def create(self, validated_data):
-        return join_waitlist(
-            user=self.context["request"].user,
-            ticket_type=validated_data["ticket_type"],
-            quantity=validated_data["quantity"],
-        )
+        return join_waitlist(user=self.context["request"].user, ticket_type=validated_data["ticket_type"], quantity=validated_data["quantity"])
 
 
 class TicketTransferSerializer(serializers.ModelSerializer):
@@ -301,14 +338,8 @@ class TicketTransferSerializer(serializers.ModelSerializer):
 
 
 class TicketTransferCreateSerializer(serializers.Serializer):
-    ticket_id = serializers.PrimaryKeyRelatedField(
-        source="ticket", queryset=Ticket.objects.select_related("event", "owner").all()
-    )
+    ticket_id = serializers.PrimaryKeyRelatedField(source="ticket", queryset=Ticket.objects.select_related("event__activity", "owner", "access").all())
     recipient_email = serializers.EmailField()
 
     def create(self, validated_data):
-        return create_ticket_transfer(
-            ticket=validated_data["ticket"],
-            sender=self.context["request"].user,
-            recipient_email=validated_data["recipient_email"],
-        )
+        return create_ticket_transfer(ticket=validated_data["ticket"], sender=self.context["request"].user, recipient_email=validated_data["recipient_email"])
