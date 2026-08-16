@@ -8,6 +8,7 @@ from access.models import AccessStatus, AccessUseResult, CredentialStatus
 from access.services import render_access_credential, validate_access_credential
 from events.models import Event, EventStatus, EventVisibility
 from journeys.models import JourneyStatus, WorkflowKind
+from organizations.models import Organization
 
 from .models import TicketOrderStatus, TicketStatus, TicketType
 from .services import (
@@ -40,9 +41,14 @@ class TicketJourneyAccessBridgeTests(TestCase):
             password="Bridge-2026!",
             first_name="Recipient",
         )
+        self.space = Organization.objects.create(
+            name="Journey Access Bridge Space",
+            created_by=self.organizer,
+        )
         start = timezone.now() + timedelta(hours=1)
         self.event = Event.objects.create(
             organizer=self.organizer,
+            organization=self.space,
             title="Journey Access Bridge Event",
             status=EventStatus.PUBLISHED,
             visibility=EventVisibility.PUBLIC,
