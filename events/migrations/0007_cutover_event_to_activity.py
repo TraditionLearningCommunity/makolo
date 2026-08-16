@@ -5,6 +5,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("events", "0006_validate_canonical_event_core"),
+        # Scanner 8C still needs the historical Event start/end columns while
+        # backfilling Activity/Occurrence scope. Finish that deterministic
+        # bridge before Task 9 removes the legacy Event columns.
+        ("scanner", "0003_activity_occurrence_assignments"),
     ]
 
     operations = [
