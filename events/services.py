@@ -14,6 +14,7 @@ from activities.services import (
 )
 from authorization.constants import PermissionCode
 from authorization.services import can
+from capacity.models import CapacityPool
 from commerce.models import OfferStatus
 from commerce.services import update_offer
 
@@ -21,6 +22,7 @@ from .models import Event, EventStatus, VenueKind
 from .permissions import user_can_manage_event
 
 
+UNSET = object()
 CORE_ACTIVITY_FIELDS = {"title", "short_description", "description", "visibility"}
 CORE_OCCURRENCE_FIELDS = {"start_at", "end_at", "timezone"}
 EVENT_FIELDS = {
@@ -63,6 +65,30 @@ def _set_primary_place(*, event, occurrence):
     return None
 
 
+def _set_event_capacity(*, event, occurrence, total_quantity):
+    """Compatibility Event quota backed by one canonical CapacityPool."""
+    source_key = f"event:{event.pk}:capacity"
+    pool = CapacityPool.objects.select_for_update().filter(source_key=source_key).first()
+    if pool is None:
+        if total_quantity is None:
+            return None
+        pool = CapacityPool(
+            activity=event.activity,
+            occurrence=occurrence,
+            label="Capacité événement",
+            total_quantity=total_quantity,
+            source_key=source_key,
+        )
+        pool.save()
+        return pool
+    pool.activity = event.activity
+    pool.occurrence = occurrence
+    pool.total_quantity = total_quantity
+    pool.is_active = True
+    pool.save(update_fields=["activity", "occurrence", "total_quantity", "is_active", "updated_at"])
+    return pool
+
+
 def _clamp_offer_windows(event):
     """Apply Event-global registration bounds without replacing Offer policy."""
     for offer in event.activity.offers.select_for_update().all():
@@ -101,6 +127,7 @@ def create_event(
     registration_start_at=None,
     registration_end_at=None,
     metadata=None,
+    capacity=UNSET,
 ) -> Event:
     """Create an Event by composing canonical owners first."""
     _ensure_can_create(actor, organization)
@@ -132,6 +159,8 @@ def create_event(
     event.full_clean()
     event.save()
     _set_primary_place(event=event, occurrence=occurrence)
+    if capacity is not UNSET:
+        _set_event_capacity(event=event, occurrence=occurrence, total_quantity=capacity)
     return event
 
 
@@ -173,6 +202,8 @@ def update_event(*, event: Event, actor, organization=None, **fields) -> Event:
 
     if "venue" in fields:
         _set_primary_place(event=event, occurrence=occurrence)
+    if "capacity" in fields:
+        _set_event_capacity(event=event, occurrence=occurrence, total_quantity=fields["capacity"])
     if {"registration_start_at", "registration_end_at"} & fields.keys():
         _clamp_offer_windows(event)
     return event
