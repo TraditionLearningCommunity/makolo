@@ -1,10 +1,10 @@
-from accounts.api.permissions import user_has_role
 from authorization.constants import PermissionCode
 from authorization.services import can
 from organizations.models import OrganizationRole
 
 
 # Deprecated compatibility exports used by older tests/callers for vocabulary.
+# They are not consulted by Task 9 authorization decisions.
 ANALYTICS_ROLES = {
     OrganizationRole.OWNER,
     OrganizationRole.ADMIN,
@@ -25,21 +25,18 @@ GROWTH_ANALYTICS_ROLES = {
 def user_can_view_event_analytics(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if event.organization_id:
-        return can(user, PermissionCode.ANALYTICS_VIEW, event.organization)
-    return event.organizer_id == user.pk and user_has_role(
-        user, "organizer", legacy_flag="is_organizer"
-    )
+    if event.activity.space_id:
+        return can(user, PermissionCode.ANALYTICS_VIEW, event.activity.space)
+    # Historical personal Activity compatibility only; no Event role grants it.
+    return event.activity.created_by_id == user.pk
 
 
 def user_can_view_event_financials(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if event.organization_id:
-        return can(user, PermissionCode.ANALYTICS_FINANCIALS_VIEW, event.organization)
-    return event.organizer_id == user.pk and user_has_role(
-        user, "organizer", legacy_flag="is_organizer"
-    )
+    if event.activity.space_id:
+        return can(user, PermissionCode.ANALYTICS_FINANCIALS_VIEW, event.activity.space)
+    return event.activity.created_by_id == user.pk
 
 
 def user_can_view_growth_analytics(user, organization) -> bool:
