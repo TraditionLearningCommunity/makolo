@@ -12,7 +12,9 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from access.services import validate_access
 from events.models import Event, EventStatus, EventVisibility
+from organizations.models import Organization
 from tickets.models import TicketOrderStatus, TicketStatus, TicketType
 from tickets.services import create_order
 
@@ -31,7 +33,12 @@ User = get_user_model()
 
 def make_payment_event(organizer):
     start_at = timezone.now() + timedelta(days=3)
+    organization = Organization.objects.create(
+        name=f"Makolo Payments Test Org {organizer.pk}",
+        created_by=organizer,
+    )
     return Event.objects.create(
+        organization=organization,
         organizer=organizer,
         title="Makolo Payments Test",
         status=EventStatus.PUBLISHED,
@@ -190,9 +197,11 @@ class PaymentServiceTests(TestCase):
         payment = self.initiate()
         complete_sandbox_payment(payment=payment, actor=self.buyer)
         ticket = self.order.tickets.get()
-        ticket.status = TicketStatus.USED
-        ticket.used_at = timezone.now()
-        ticket.save(update_fields=["status", "used_at", "updated_at"])
+        validate_access(
+            access=ticket.access,
+            now=ticket.access.valid_from,
+            source="payments-test",
+        )
 
         with self.assertRaises(ValidationError):
             refund_payment(payment=payment, actor=self.organizer)
