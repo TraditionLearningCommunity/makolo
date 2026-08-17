@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import TemplateView
 
+from access.models import AccessStatus
 from discovery.models import EventBookmark
 from discovery.services import build_recommendations
 from events.models import Event, EventStatus
@@ -77,25 +78,34 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     login_url = "core:login"
 
     def _organization_events(self, user):
-        if user.is_staff:
-            return Event.objects.select_related(
-                "category", "venue", "organizer", "organization"
-            )
-        return (
-            Event.objects.select_related("category", "venue", "organizer", "organization")
-            .filter(
-                Q(organizer=user)
-                | Q(
-                    organization__memberships__user=user,
-                    organization__memberships__is_active=True,
-                )
-            )
-            .distinct()
+        queryset = Event.objects.select_related(
+            "activity",
+            "activity__created_by",
+            "activity__space",
+            "category",
+            "venue",
+            "venue__place",
         )
+        if user.is_staff:
+            return queryset
+        return queryset.filter(
+            Q(activity__created_by=user)
+            | Q(
+                activity__space__memberships__user=user,
+                activity__space__memberships__is_active=True,
+            )
+        ).distinct()
 
     def get_event_queryset(self):
         """Compatibility seam for dashboard authorization tests and callers."""
         return self._organization_events(self.request.user)
+
+    @staticmethod
+    def _valid_ticket_filter():
+        return Q(access__status=AccessStatus.VALID) | Q(
+            access__isnull=True,
+            status=TicketStatus.VALID,
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -122,15 +132,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             orders = get_orders_visible_to(user).filter(buyer=user)
             upcoming_tickets = tickets.filter(
                 order__status=TicketOrderStatus.CONFIRMED,
-                event__end_at__gte=now,
-            ).order_by("event__start_at")
+                access__occurrence__end_at__gte=now,
+            ).order_by("access__occurrence__start_at")
             bookmarks = EventBookmark.objects.filter(user=user).select_related(
-                "event", "event__organization"
+                "event",
+                "event__activity",
+                "event__activity__space",
             )
             context.update(
                 {
                     "tickets_count": tickets.count(),
-                    "valid_tickets_count": tickets.filter(status=TicketStatus.VALID).count(),
+                    "valid_tickets_count": tickets.filter(self._valid_ticket_filter()).count(),
                     "upcoming_tickets": upcoming_tickets[:4],
                     "recent_orders": orders.order_by("-created_at")[:5],
                     "bookmarks_count": bookmarks.count(),
@@ -148,11 +160,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context.update(
             {
                 "events_count": events.count(),
-                "published_events_count": events.filter(status=EventStatus.PUBLISHED).count(),
-                "upcoming_events_count": events.filter(start_at__gt=now).count(),
-                "upcoming_events": events.filter(start_at__gt=now).order_by("start_at")[:5],
+                "published_events_count": events.filter(activity__status=EventStatus.PUBLISHED).count(),
+                "upcoming_events_count": events.filter(activity__occurrences__start_at__gt=now).distinct().count(),
+                "upcoming_events": events.filter(
+                    activity__occurrences__start_at__gt=now
+                ).order_by("activity__occurrences__start_at").distinct()[:5],
                 "tickets_count": tickets.count(),
-                "valid_tickets_count": tickets.filter(status=TicketStatus.VALID).count(),
+                "valid_tickets_count": tickets.filter(self._valid_ticket_filter()).count(),
                 "pending_orders_count": orders.filter(status=TicketOrderStatus.PENDING).count(),
                 "confirmed_orders_count": orders.filter(status=TicketOrderStatus.CONFIRMED).count(),
                 "payments_count": payments.count(),
