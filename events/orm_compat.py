@@ -37,6 +37,7 @@ _MODEL_PATHS = {
         "sales_end_at": ("offer", "available_until"),
         "min_per_order": ("offer", "min_quantity"),
         "max_per_order": ("offer", "max_quantity"),
+        "is_active": ("capacity_pool", "is_active"),
     },
     Organization: {
         "events": ("activities", "event_vertical"),
