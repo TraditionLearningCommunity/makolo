@@ -1,0 +1,33 @@
+name: Temporary source export
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create workspace archive
+        run: |
+          tar \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=staticfiles \
+            --exclude='*.sqlite3' \
+            -czf /tmp/makolo-workspace.tgz .
+
+      - name: Upload workspace archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: makolo-workspace
+          path: /tmp/makolo-workspace.tgz
+          if-no-files-found: error
+          retention-days: 1
