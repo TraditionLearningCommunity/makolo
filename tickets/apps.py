@@ -6,5 +6,8 @@ class TicketsConfig(AppConfig):
     name = "tickets"
 
     def ready(self):
+        from .legacy_compat import install_ticket_type_legacy_compat
+
+        install_ticket_type_legacy_compat()
         from . import journey_access_bridge  # noqa: F401
         from . import commerce_capacity_bridge  # noqa: F401
