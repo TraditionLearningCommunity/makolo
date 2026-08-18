@@ -1,8 +1,19 @@
+from decimal import Decimal
+
 from events.activity_bridge import sync_event_core
 from events.models import VenueKind
 from geography.models import Place
 
 from .common import upsert
+
+
+_COORDINATE_QUANTUM = Decimal("0.000001")
+
+
+def _coordinate(value):
+    if value is None:
+        return None
+    return Decimal(value).quantize(_COORDINATE_QUANTUM)
 
 
 def _ensure_canonical_venue_place(event):
@@ -23,8 +34,8 @@ def _ensure_canonical_venue_place(event):
             "address_line": venue.address,
             "locality": venue.city,
             "country_code": country_code,
-            "latitude": venue.latitude,
-            "longitude": venue.longitude,
+            "latitude": _coordinate(venue.latitude),
+            "longitude": _coordinate(venue.longitude),
             "timezone": event.timezone or "",
             "is_active": venue.is_active,
             "created_by": event.organizer,
