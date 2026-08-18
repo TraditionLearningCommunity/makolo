@@ -126,9 +126,14 @@ def get_access_gates_visible_to(user):
     activity_ids = activity_ids_with_permission(user, PermissionCode.ACTIVITY_ACCESS_MANAGE)
     if space_ids is None or activity_ids is None:
         return queryset
+
+    from events.selectors import get_manageable_events
+
     contextual = _space_filter("event__", space_ids)
+    manageable_event_ids = get_manageable_events(user).values_list("pk", flat=True)
     return queryset.filter(
         contextual
+        | Q(event_id__in=manageable_event_ids)
         | Q(event__activity_id__in=activity_ids)
         | Q(event__activity__space__isnull=True, event__activity__created_by=user)
         | Q(assignments__agent=user, assignments__is_active=True)
