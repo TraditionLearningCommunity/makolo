@@ -74,10 +74,17 @@ def _rewrite_path(names, opts):
 def install_orm_path_compat():
     if getattr(Query, "_makolo_event_path_compat", False):
         return
-    original = Query.names_to_path
+    original_names_to_path = Query.names_to_path
+    original_add_select_related = Query.add_select_related
 
     def names_to_path(query, names, opts, *args, **kwargs):
-        return original(query, _rewrite_path(names, opts), opts, *args, **kwargs)
+        return original_names_to_path(query, _rewrite_path(names, opts), opts, *args, **kwargs)
+
+    def add_select_related(query, fields):
+        opts = query.model._meta
+        rewritten = ["__".join(_rewrite_path(field.split("__"), opts)) for field in fields]
+        return original_add_select_related(query, rewritten)
 
     Query.names_to_path = names_to_path
+    Query.add_select_related = add_select_related
     Query._makolo_event_path_compat = True
