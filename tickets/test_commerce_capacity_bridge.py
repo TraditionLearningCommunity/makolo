@@ -2,12 +2,14 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
+from access.models import CredentialStatus
 from capacity.models import CapacityReservationStatus
 from commerce.models import CommerceOrderStatus, PaymentMode
-from events.activity_bridge import sync_event_core
+from commerce.services import update_offer
 from events.models import Event, EventStatus
 from organizations.models import Organization
 
@@ -15,25 +17,24 @@ from .models import TicketOrderStatus, TicketType
 from .services import create_order
 
 
-class EventCommerceCapacityBridgeTests(TestCase):
+class EventCommerceCapacityVerticalTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
-            username="event-commerce-bridge",
-            email="event-commerce-bridge@example.com",
+            username="event-commerce-vertical",
+            email="event-commerce-vertical@example.com",
             password="Commerce-2026!",
         )
         self.space = Organization.objects.create(name="Event Commerce", created_by=self.user)
         self.event = Event.objects.create(
             organizer=self.user,
             organization=self.space,
-            title="Concert bridge",
+            title="Concert vertical",
             status=EventStatus.PUBLISHED,
             start_at=timezone.now() + timedelta(days=2),
             end_at=timezone.now() + timedelta(days=2, hours=2),
             registration_start_at=timezone.now() - timedelta(days=1),
             registration_end_at=timezone.now() + timedelta(days=1),
         )
-        sync_event_core(self.event)
 
     def ticket_type(self, *, name="Standard", price="25.00", quantity=4):
         return TicketType.objects.create(
@@ -47,26 +48,26 @@ class EventCommerceCapacityBridgeTests(TestCase):
             is_active=True,
         )
 
-    def test_ticket_type_creates_and_updates_offer_and_capacity(self):
+    def test_ticket_type_has_no_commercial_storage_and_reads_offer_capacity(self):
         ticket_type = self.ticket_type()
-        ticket_type.refresh_from_db()
-        self.assertIsNotNone(ticket_type.offer_id)
-        self.assertIsNotNone(ticket_type.capacity_pool_id)
-        self.assertEqual(ticket_type.offer.unit_price, Decimal("25.00"))
-        self.assertEqual(ticket_type.offer.payment_mode, PaymentMode.UPFRONT)
-        self.assertEqual(ticket_type.capacity_pool.total_quantity, 4)
+        for removed_field in (
+            "price", "currency", "quantity_total", "reserved_quantity", "issued_quantity",
+            "sales_start_at", "sales_end_at", "min_per_order", "max_per_order", "is_active",
+        ):
+            with self.assertRaises(FieldDoesNotExist):
+                TicketType._meta.get_field(removed_field)
 
-        ticket_type.price = Decimal("30.00")
-        ticket_type.quantity_total = 6
-        ticket_type.name = "Premium"
-        ticket_type.save()
+        update_offer(offer=ticket_type.offer, unit_price=Decimal("30.00"), currency="CDF")
         ticket_type.offer.refresh_from_db()
-        ticket_type.capacity_pool.refresh_from_db()
-        self.assertEqual(ticket_type.offer.unit_price, Decimal("30.00"))
-        self.assertEqual(ticket_type.offer.name, "Premium")
-        self.assertEqual(ticket_type.capacity_pool.total_quantity, 6)
+        self.assertEqual(ticket_type.price, Decimal("30.00"))
+        self.assertEqual(ticket_type.currency, "CDF")
 
-    def test_paid_event_order_creates_canonical_order_item_and_hold(self):
+        ticket_type.capacity_pool.total_quantity = 6
+        ticket_type.capacity_pool.save(update_fields=["total_quantity", "updated_at"])
+        self.assertEqual(ticket_type.quantity_total, 6)
+        self.assertEqual(ticket_type.available_quantity, 6)
+
+    def test_paid_event_order_creates_journey_commerce_and_capacity_hold(self):
         ticket_type = self.ticket_type()
         order = create_order(
             buyer=self.user,
@@ -81,17 +82,15 @@ class EventCommerceCapacityBridgeTests(TestCase):
         self.assertEqual(order.commerce_order.payee_space, self.space)
         self.assertEqual(order.commerce_order.total, Decimal("50.00"))
         self.assertEqual(order.commerce_order.payment_mode, PaymentMode.UPFRONT)
+        self.assertEqual(order.tickets.count(), 0)
+        self.assertEqual(order.payments.count(), 0)
 
-        legacy_item = order.items.get()
-        self.assertIsNotNone(legacy_item.commerce_item_id)
-        canonical_item = legacy_item.commerce_item
-        self.assertEqual(canonical_item.unit_price, Decimal("25.00"))
-        self.assertEqual(canonical_item.quantity, 2)
-        self.assertEqual(canonical_item.capacity_reservation.quantity, 2)
-        self.assertEqual(canonical_item.capacity_reservation.status, CapacityReservationStatus.HELD)
+        item = order.items.get()
+        self.assertIsNotNone(item.commerce_item_id)
+        self.assertEqual(item.commerce_item.capacity_reservation.status, CapacityReservationStatus.HELD)
         self.assertEqual(ticket_type.available_quantity, 2)
 
-    def test_free_event_confirms_capacity_and_issues_individual_access(self):
+    def test_free_event_commits_capacity_issues_access_qr_without_payment(self):
         ticket_type = self.ticket_type(name="Gratuit", price="0.00", quantity=1)
         order = create_order(
             buyer=self.user,
@@ -107,7 +106,28 @@ class EventCommerceCapacityBridgeTests(TestCase):
         reservation = order.items.get().commerce_item.capacity_reservation
         reservation.refresh_from_db()
         self.assertEqual(reservation.status, CapacityReservationStatus.COMMITTED)
-        ticket = order.tickets.get()
+
+        ticket = order.tickets.select_related("access").get()
         self.assertIsNotNone(ticket.access_id)
+        credential = ticket.access.credentials.get(status=CredentialStatus.ACTIVE)
+        self.assertIn(str(credential.public_id), ticket.qr_token)
         self.assertEqual(order.payments.count(), 0)
         self.assertEqual(ticket_type.available_quantity, 0)
+
+    def test_sold_out_is_decided_by_capacity_pool(self):
+        ticket_type = self.ticket_type(quantity=1)
+        create_order(
+            buyer=self.user,
+            event=self.event,
+            customer_name="Premier",
+            customer_email=self.user.email,
+            selections=[(ticket_type, 1)],
+        )
+        with self.assertRaises(ValidationError):
+            create_order(
+                buyer=self.user,
+                event=self.event,
+                customer_name="Deuxième",
+                customer_email=self.user.email,
+                selections=[(ticket_type, 1)],
+            )

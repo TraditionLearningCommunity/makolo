@@ -37,8 +37,13 @@ def _validate_window(starts_at, ends_at, *, now, label):
         raise ValidationError(f"{label} a expiré.")
 
 
+def _legacy_only(queryset):
+    """Exclude readonly projections backed by a canonical CommerceOrder."""
+    return queryset.filter(order__commerce_order__isnull=True)
+
+
 def _counts(queryset_legacy, queryset_commerce):
-    return queryset_legacy.count() + queryset_commerce.count()
+    return _legacy_only(queryset_legacy).count() + queryset_commerce.count()
 
 
 def promotion_usage_count(promotion):

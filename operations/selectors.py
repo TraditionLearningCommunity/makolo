@@ -50,7 +50,7 @@ def get_worker_heartbeats(user):
 def get_operations_organizations(user):
     queryset = Organization.objects.annotate(
         activity_count=Count("activities", distinct=True),
-        event_count=Count("events", distinct=True),
+        event_count=Count("activities__event_vertical", distinct=True),
         member_count=Count("memberships", distinct=True),
     ).order_by("verification_status", "-created_at")
     return _staff_queryset(user, queryset)
@@ -58,6 +58,6 @@ def get_operations_organizations(user):
 
 def get_operations_events(user):
     queryset = Event.objects.select_related(
-        "organization", "organizer", "category", "venue", "activity"
-    ).order_by("-created_at")
+        "activity", "activity__space", "activity__created_by", "category", "venue", "venue__place"
+    ).prefetch_related("activity__occurrences").order_by("-created_at")
     return _staff_queryset(user, queryset)

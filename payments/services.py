@@ -7,14 +7,16 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
+from access.models import AccessStatus
 from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
 from domain_events.contracts import DomainEventType
 from events.permissions import user_can_manage_event_finance
-from tickets.models import TicketOrder, TicketOrderStatus, TicketStatus
+from tickets.models import TicketOrder, TicketStatus
 from tickets.permissions import user_can_access_order
-from tickets.services import _confirm_locked_order, _lock_event_ticket_types, cancel_order
+from tickets.services import _confirm_locked_order, cancel_order
 
 from .commerce_bridge import sync_payment_commerce
 from .domain_events import emit_payment_domain_event
@@ -72,39 +74,47 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
 
     order = (
         TicketOrder.objects.select_for_update(of=("self",))
-        .select_related("event", "event__organizer", "event__organization", "buyer", "commerce_order")
+        .select_related(
+            "event__activity",
+            "event__activity__created_by",
+            "event__activity__space",
+            "buyer",
+            "commerce_order",
+        )
         .get(pk=order.pk)
     )
     if not _payment_actor_can_initiate(actor, order):
         raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette commande.")
-    if order.status != TicketOrderStatus.PENDING:
-        raise ValidationError("Seule une commande en attente peut être payée.")
     if order.is_expired:
         raise ValidationError("Cette commande a expiré.")
-    if order.total_amount <= 0:
-        raise ValidationError("Cette commande est gratuite et ne nécessite aucun paiement.")
-    if Payment.objects.filter(order=order, status=PaymentStatus.SUCCEEDED).exists():
-        raise ValidationError("Cette commande possède déjà un paiement réussi.")
-    _validate_provider(provider=provider, actor=actor, event=order.event)
 
     commerce_order = order.commerce_order
     if commerce_order is None:
         from tickets.commerce_capacity_bridge import sync_order_commerce
-
         commerce_order = sync_order_commerce(order)
+    if commerce_order is None:
+        raise ValidationError("Cette commande Event n’a pas de CommerceOrder canonique.")
+    if commerce_order.status != CommerceOrderStatus.PENDING:
+        raise ValidationError("Seule une commande en attente peut être payée.")
+    if commerce_order.total <= 0 or commerce_order.payment_mode == PaymentMode.NONE:
+        raise ValidationError("Cette commande est gratuite et ne nécessite aucun paiement.")
+    if Payment.objects.filter(commerce_order=commerce_order, status=PaymentStatus.SUCCEEDED).exists():
+        raise ValidationError("Cette commande possède déjà un paiement réussi.")
+    _validate_provider(provider=provider, actor=actor, event=order.event)
+
     payment = Payment(
         order=order,
         commerce_order=commerce_order,
         initiated_by=actor if getattr(actor, "is_authenticated", False) else None,
         provider=provider,
         method=method,
-        amount=order.total_amount,
-        currency=order.currency,
+        amount=commerce_order.total,
+        currency=commerce_order.currency,
         payer_name=(payer_name or order.customer_name).strip(),
         payer_email=(payer_email or order.customer_email).strip().lower(),
         payer_phone=payer_phone.strip(),
         idempotency_key=idempotency_key or None,
-        metadata={"source": "makolo"},
+        metadata={"source": "makolo-event-compat"},
     )
     payment.full_clean()
     try:
@@ -192,7 +202,7 @@ def initiate_commerce_payment(
 def complete_payment(*, payment: Payment, provider_reference: str, source: str = "provider") -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event", "order__event__organizer", "commerce_order")
+        .select_related("order__event__activity", "commerce_order")
         .get(pk=payment.pk)
     )
     if payment.status == PaymentStatus.SUCCEEDED:
@@ -203,17 +213,18 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
     if payment.order_id:
         order = (
             TicketOrder.objects.select_for_update(of=("self",))
-            .select_related("event", "event__organizer")
+            .select_related("event__activity", "commerce_order", "journey")
             .get(pk=payment.order_id)
         )
-        if order.status != TicketOrderStatus.PENDING:
+        if not order.commerce_order_id:
+            raise ValidationError("La commande Event n’a pas de CommerceOrder canonique.")
+        if order.commerce_order.status != CommerceOrderStatus.PENDING:
             raise ValidationError("La commande n’est plus en attente de paiement.")
         if order.is_expired:
             raise ValidationError("La commande a expiré avant la confirmation du paiement.")
-        if Payment.objects.filter(order=order, status=PaymentStatus.SUCCEEDED).exclude(pk=payment.pk).exists():
+        if Payment.objects.filter(commerce_order=order.commerce_order, status=PaymentStatus.SUCCEEDED).exclude(pk=payment.pk).exists():
             raise ValidationError("Un autre paiement a déjà confirmé cette commande.")
-        locked_types = _lock_event_ticket_types(order.event)
-        _confirm_locked_order(order, locked_types)
+        _confirm_locked_order(order)
     else:
         commerce_order = CommerceOrder.objects.select_for_update(of=("self",)).order_by().get(pk=payment.commerce_order_id)
         if commerce_order.status != CommerceOrderStatus.PENDING:
@@ -245,7 +256,7 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
 
 @transaction.atomic
 def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: str = "", provider_reference: str = "", source: str = "provider") -> Payment:
-    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event", "commerce_order").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event__activity", "commerce_order").get(pk=payment.pk)
     if payment.status == PaymentStatus.FAILED:
         return payment
     if payment.status in {PaymentStatus.SUCCEEDED, PaymentStatus.REFUNDED}:
@@ -269,7 +280,7 @@ def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: s
 def cancel_payment(*, payment: Payment, actor) -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event", "order__buyer", "commerce_order", "commerce_order__buyer")
+        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer")
         .get(pk=payment.pk)
     )
     if payment.order_id:
@@ -297,7 +308,7 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
         raise ValidationError("Le sandbox de paiement est désactivé.")
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event", "order__buyer", "commerce_order", "commerce_order__buyer")
+        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer")
         .get(pk=payment.pk)
     )
     if payment.provider != PaymentProvider.SANDBOX:
@@ -312,7 +323,7 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
 def complete_manual_payment(*, payment: Payment, actor, provider_reference: str = "") -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event", "commerce_order")
+        .select_related("order", "order__event__activity", "commerce_order")
         .get(pk=payment.pk)
     )
     if payment.provider != PaymentProvider.MANUAL:
@@ -333,7 +344,7 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
 
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event", "order__event__organizer", "commerce_order")
+        .select_related("order", "order__event__activity", "commerce_order")
         .get(pk=payment.pk)
     )
     if not _payment_actor_can_manage(actor, payment):
@@ -345,7 +356,9 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
         raise ValidationError("Ce paiement est déjà remboursé.")
     if payment.status != PaymentStatus.SUCCEEDED:
         raise ValidationError("Seul un paiement réussi peut être remboursé.")
-    if payment.order_id and payment.order.tickets.filter(status=TicketStatus.USED).exists():
+    if payment.order_id and payment.order.tickets.filter(
+        Q(access__status=AccessStatus.USED) | Q(access__isnull=True, status=TicketStatus.USED)
+    ).exists():
         raise ValidationError("Un paiement contenant un billet déjà utilisé ne peut pas être remboursé.")
 
     refund = Refund(
@@ -359,8 +372,8 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
     )
     refund.save()
     if payment.order_id:
-        # Event keeps its historical cancellation policy, including the decision
-        # about releasing committed capacity. Generic Commerce does not infer it.
+        # ticket_order remains an Event compatibility pointer for callbacks and
+        # refund UX; cancellation itself delegates to canonical owners.
         cancel_order(order=payment.order, actor=actor)
     now = timezone.now()
     refund.status = RefundStatus.SUCCEEDED
@@ -423,10 +436,7 @@ def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcom
     if not verify_sandbox_signature(raw_body, signature):
         raise PermissionDenied("Signature webhook invalide.")
 
-    existing_outcome = _existing_webhook_outcome(
-        event_id=event_id,
-        payload_hash=payload_hash,
-    )
+    existing_outcome = _existing_webhook_outcome(event_id=event_id, payload_hash=payload_hash)
     if existing_outcome:
         return existing_outcome
 
@@ -441,10 +451,7 @@ def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcom
                 payload=_safe_webhook_payload(payload),
             )
     except IntegrityError:
-        concurrent_outcome = _existing_webhook_outcome(
-            event_id=event_id,
-            payload_hash=payload_hash,
-        )
+        concurrent_outcome = _existing_webhook_outcome(event_id=event_id, payload_hash=payload_hash)
         if concurrent_outcome:
             return concurrent_outcome
         raise ValidationError("Impossible d’enregistrer le webhook de façon unique.")

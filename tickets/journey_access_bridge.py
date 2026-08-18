@@ -6,12 +6,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from access.legacy_bridge import sync_legacy_access_status, transfer_access_beneficiary
 from access.models import AccessStatus
 from access.services import issue_access
 from capacity.access_bridge import issue_access_from_capacity
-from events.activity_bridge import sync_event_core
-from journeys.legacy_bridge import sync_legacy_journey_status
 from journeys.models import JourneyStatus, WorkflowKind
 from journeys.services import create_journey
 
@@ -62,40 +59,35 @@ def _ticket_access_status(ticket):
 
 @transaction.atomic
 def sync_order_journey(order: TicketOrder):
+    """Create a Journey only for an identifiable legacy TicketOrder orphan.
+
+    Task 9 checkout creates Journey first. An existing Journey is authoritative
+    and is never transitioned from the TicketOrder projection.
+    """
     order = (
         TicketOrder.objects.select_for_update(of=("self",))
         .select_related("event__activity", "buyer", "journey")
         .order_by()
         .get(pk=order.pk)
     )
+    if order.journey_id:
+        return order.journey
+
     beneficiary = _order_beneficiary(order)
     if beneficiary is None:
+        # Historical guest compatibility: never invent a Profile.
         return None
-
-    activity, occurrence = sync_event_core(order.event)
-    target_status = _order_journey_status(order)
-    if order.journey_id:
-        journey = order.journey
-        if (
-            journey.activity_id != activity.pk
-            or journey.occurrence_id != occurrence.pk
-            or journey.beneficiary_id != beneficiary.pk
-        ):
-            raise ValueError("Le bridge TicketOrder pointe vers une Démarche incohérente.")
-        return sync_legacy_journey_status(
-            journey=journey,
-            status=target_status,
-            actor=None,
-            reason="ticket_order_bridge",
-        )
+    occurrence = order.event.primary_occurrence
+    if occurrence is None:
+        return None
 
     journey = create_journey(
         initiated_by=beneficiary,
         beneficiary=beneficiary,
-        activity=activity,
+        activity=order.event.activity,
         occurrence=occurrence,
         workflow=WorkflowKind.PURCHASE,
-        status=target_status,
+        status=_order_journey_status(order),
         expires_at=order.expires_at,
     )
     TicketOrder.objects.filter(pk=order.pk).update(journey=journey)
@@ -116,6 +108,11 @@ def _capacity_reservation_for_ticket(ticket):
 
 @transaction.atomic
 def sync_ticket_access(ticket: Ticket):
+    """Issue Access only for a legacy/new Ticket that does not have one yet.
+
+    Once linked, Access/AccessCredential/AccessUse are authoritative. Ticket
+    owner/status/code changes never overwrite an existing Access in Task 9.
+    """
     ticket = (
         Ticket.objects.select_for_update(of=("self",))
         .select_related(
@@ -131,33 +128,17 @@ def sync_ticket_access(ticket: Ticket):
         .order_by()
         .get(pk=ticket.pk)
     )
+    if ticket.access_id:
+        return ticket.access
+
     beneficiary = _ticket_beneficiary(ticket)
     if beneficiary is None:
         return None
-
     journey = ticket.order.journey or sync_order_journey(ticket.order)
-    activity, occurrence = sync_event_core(ticket.event)
+    occurrence = ticket.event.primary_occurrence
+    if occurrence is None:
+        return None
     target_status = _ticket_access_status(ticket)
-
-    if ticket.access_id:
-        access = ticket.access
-        if access.activity_id != activity.pk or access.occurrence_id != occurrence.pk:
-            raise ValueError("Le bridge Ticket pointe vers un Accès incohérent.")
-        if journey is not None and access.journey_id not in {None, journey.pk}:
-            raise ValueError("L’Accès du Ticket provient d’une autre Démarche.")
-        if access.beneficiary_id != beneficiary.pk:
-            access = transfer_access_beneficiary(
-                access=access,
-                beneficiary=beneficiary,
-                actor=None,
-                source="ticket_transfer",
-            )
-        access = sync_legacy_access_status(
-            access=access,
-            status=target_status,
-            source="ticket_bridge",
-        )
-        return access
 
     reservation = _capacity_reservation_for_ticket(ticket)
     if reservation is not None:
@@ -174,7 +155,7 @@ def sync_ticket_access(ticket: Ticket):
     else:
         access = issue_access(
             beneficiary=beneficiary,
-            activity=activity,
+            activity=ticket.event.activity,
             occurrence=occurrence,
             journey=journey,
             status=target_status,
@@ -192,19 +173,21 @@ def sync_ticket_access(ticket: Ticket):
 def sync_ticket_access_ids(ticket_ids):
     for ticket_id in ticket_ids:
         ticket = Ticket.objects.filter(pk=ticket_id).first()
-        if ticket is not None:
+        if ticket is not None and not ticket.access_id:
             sync_ticket_access(ticket)
 
 
 @receiver(post_save, sender=TicketOrder, dispatch_uid="tickets.sync_order_journey")
 def _ticket_order_saved(sender, instance, **kwargs):
-    journey = sync_order_journey(instance)
-    if journey is not None:
-        instance.journey = journey
+    if not instance.journey_id:
+        journey = sync_order_journey(instance)
+        if journey is not None:
+            instance.journey = journey
 
 
 @receiver(post_save, sender=Ticket, dispatch_uid="tickets.sync_ticket_access")
 def _ticket_saved(sender, instance, **kwargs):
-    access = sync_ticket_access(instance)
-    if access is not None:
-        instance.access = access
+    if not instance.access_id:
+        access = sync_ticket_access(instance)
+        if access is not None:
+            instance.access = access

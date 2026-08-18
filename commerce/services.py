@@ -200,19 +200,21 @@ def create_order(
 
     if len(currencies) != 1:
         raise ValidationError("Une commande ne peut pas mélanger plusieurs devises.")
-    if len(payment_modes) != 1:
-        raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement.")
     currency = currencies.pop()
-    payment_mode = payment_modes.pop()
+
+    chargeable_modes = payment_modes - {PaymentMode.NONE}
+    if len(chargeable_modes) > 1:
+        raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement.")
+    payment_mode = chargeable_modes.pop() if chargeable_modes else PaymentMode.NONE
 
     activity_space_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
         "activity__space_id", "activity_id", "occurrence_id"
     ).get()
-    if payee_space is None:
-        if activity_space_id is None:
-            raise ValidationError("Un bénéficiaire financier explicite est requis pour cette Activity.")
+    if payee_space is None and activity_space_id is not None:
         from organizations.models import Organization
         payee_space = Organization.objects.get(pk=activity_space_id)
+    if promotion_code and payee_space is None:
+        raise ValidationError("Une Promotion nécessite un Espace bénéficiaire explicite.")
 
     promotion_quote = None
     if promotion_code:

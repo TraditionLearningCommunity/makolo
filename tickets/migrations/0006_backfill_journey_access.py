@@ -73,7 +73,12 @@ def backfill_journey_access(apps, schema_editor):
         TicketOrder.objects.filter(pk=order.pk).update(journey_id=journey_id)
 
     for ticket in Ticket.objects.all().order_by("pk").iterator():
-        event = Event.objects.filter(pk=ticket.event_id).only("activity_id", "end_at").first()
+        # Load the Event using the registry supplied to the migration. In the
+        # historical state `end_at` is a stored field; after the Event cutover
+        # it is a compatibility projection backed by the primary Occurrence.
+        # Avoid restricting the query to a field that no longer exists on the
+        # current model so the backfill remains safely re-runnable in tests.
+        event = Event.objects.filter(pk=ticket.event_id).first()
         if event is None or event.activity_id is None:
             continue
         beneficiary_id = (

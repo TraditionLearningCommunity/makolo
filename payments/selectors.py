@@ -9,15 +9,16 @@ from .models import Payment, PaymentEvent, Refund
 def _space_filter(prefix: str, space_ids) -> Q:
     if not space_ids:
         return Q(pk__isnull=True)
-    return Q(**{f"{prefix}organization_id__in": space_ids})
+    return Q(**{f"{prefix}activity__space_id__in": space_ids})
 
 
 def get_payments_visible_to(user):
     queryset = Payment.objects.select_related(
         "order",
         "order__event",
-        "order__event__organizer",
-        "order__event__organization",
+        "order__event__activity",
+        "order__event__activity__created_by",
+        "order__event__activity__space",
         "order__buyer",
         "initiated_by",
     ).prefetch_related("refunds")
@@ -32,7 +33,7 @@ def get_payments_visible_to(user):
         Q(order__buyer=user)
         | Q(initiated_by=user)
         | contextual
-        | Q(order__event__organization__isnull=True, order__event__organizer=user)
+        | Q(order__event__activity__space__isnull=True, order__event__activity__created_by=user)
     ).distinct()
 
 
@@ -48,8 +49,9 @@ def get_payment_events_visible_to(user):
         "payment",
         "payment__order",
         "payment__order__event",
-        "payment__order__event__organizer",
-        "payment__order__event__organization",
+        "payment__order__event__activity",
+        "payment__order__event__activity__created_by",
+        "payment__order__event__activity__space",
     )
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
@@ -61,7 +63,7 @@ def get_payment_events_visible_to(user):
     return queryset.filter(
         contextual
         | Q(
-            payment__order__event__organization__isnull=True,
-            payment__order__event__organizer=user,
+            payment__order__event__activity__space__isnull=True,
+            payment__order__event__activity__created_by=user,
         )
     ).distinct()

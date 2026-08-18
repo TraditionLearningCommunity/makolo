@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -266,7 +267,11 @@ class ScannerAssignmentListView(LoginRequiredMixin, UserPassesTestMixin, ListVie
         queryset = get_assignments_visible_to(self.request.user)
         if self.request.user.is_staff:
             return queryset
-        return queryset.filter(event__in=get_manageable_events(self.request.user))
+        manageable_events = get_manageable_events(self.request.user)
+        return queryset.filter(
+            Q(event__in=manageable_events)
+            | Q(activity__event_vertical__in=manageable_events)
+        ).distinct()
 
 
 class ScannerAssignmentCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -308,13 +313,20 @@ class ScannerAssignmentUpdateView(LoginRequiredMixin, UserPassesTestMixin, Updat
         queryset = get_assignments_visible_to(self.request.user)
         if self.request.user.is_staff:
             return queryset
-        return queryset.filter(event__in=get_manageable_events(self.request.user))
+        manageable_events = get_manageable_events(self.request.user)
+        return queryset.filter(
+            Q(event__in=manageable_events)
+            | Q(activity__event_vertical__in=manageable_events)
+        ).distinct()
 
     def test_func(self):
         assignment = self.get_object()
-        return user_can_manage_scanner_assignments(
-            self.request.user,
-            assignment.event,
+        if assignment.activity_id:
+            event = getattr(assignment.activity, "event_vertical", None)
+            return bool(event and user_can_manage_scanner_assignments(self.request.user, event))
+        return bool(
+            assignment.event_id
+            and user_can_manage_scanner_assignments(self.request.user, assignment.event)
         )
 
     def get_form_kwargs(self):

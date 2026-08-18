@@ -11,22 +11,28 @@ from .models import EventAccessGate, ScanLog, ScannerAssignment
 def _space_filter(prefix: str, space_ids) -> Q:
     if not space_ids:
         return Q(pk__isnull=True)
-    return Q(**{f"{prefix}organization_id__in": space_ids})
+    return Q(**{f"{prefix}activity__space_id__in": space_ids})
 
 
 def _active_assignment_filter(user) -> Q:
     now = timezone.now()
-    return Q(scanner_assignments__agent=user, scanner_assignments__is_active=True) & (
-        Q(scanner_assignments__valid_from__isnull=True)
-        | Q(scanner_assignments__valid_from__lte=now)
-    ) & (
-        Q(scanner_assignments__valid_until__isnull=True)
-        | Q(scanner_assignments__valid_until__gt=now)
+    return (
+        Q(activity__scanner_assignments__agent=user, activity__scanner_assignments__is_active=True)
+        & (
+            Q(activity__scanner_assignments__valid_from__isnull=True)
+            | Q(activity__scanner_assignments__valid_from__lte=now)
+        )
+        & (
+            Q(activity__scanner_assignments__valid_until__isnull=True)
+            | Q(activity__scanner_assignments__valid_until__gt=now)
+        )
     )
 
 
 def get_scannable_events(user):
-    queryset = Event.objects.select_related("organizer", "organization", "venue", "activity").filter(
+    queryset = Event.objects.select_related(
+        "venue", "activity", "activity__created_by", "activity__space"
+    ).filter(
         status=EventStatus.PUBLISHED,
         end_at__gt=timezone.now(),
     )
@@ -41,7 +47,7 @@ def get_scannable_events(user):
     return queryset.filter(
         contextual
         | Q(activity_id__in=activity_ids)
-        | Q(organization__isnull=True, organizer=user)
+        | Q(activity__space__isnull=True, activity__created_by=user)
         | _active_assignment_filter(user)
     ).distinct()
 
@@ -49,8 +55,8 @@ def get_scannable_events(user):
 def get_scan_logs_visible_to(user):
     queryset = ScanLog.objects.select_related(
         "event",
-        "event__organization",
         "event__activity",
+        "event__activity__space",
         "ticket",
         "ticket__ticket_type",
         "scanner",
@@ -70,7 +76,7 @@ def get_scan_logs_visible_to(user):
     return queryset.filter(
         contextual
         | Q(event__activity_id__in=activity_ids)
-        | Q(event__organization__isnull=True, event__organizer=user)
+        | Q(event__activity__space__isnull=True, event__activity__created_by=user)
         | Q(scanner=user)
     ).distinct()
 
@@ -81,7 +87,7 @@ def get_assignments_visible_to(user):
         "activity__space",
         "occurrence",
         "event",
-        "event__organization",
+        "event__activity",
         "agent",
         "assigned_by",
         "access_gate",
@@ -96,7 +102,7 @@ def get_assignments_visible_to(user):
     return queryset.filter(
         Q(activity__space_id__in=space_ids)
         | Q(activity_id__in=activity_ids)
-        | Q(event__organization__isnull=True, event__organizer=user)
+        | Q(activity__space__isnull=True, activity__created_by=user)
         | Q(agent=user)
     ).distinct()
 
@@ -111,7 +117,7 @@ def get_current_assignments_visible_to(user):
 
 def get_access_gates_visible_to(user):
     queryset = EventAccessGate.objects.select_related(
-        "event", "event__organization", "event__activity", "created_by"
+        "event", "event__activity", "event__activity__space", "created_by"
     ).prefetch_related("assignments")
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
@@ -120,10 +126,15 @@ def get_access_gates_visible_to(user):
     activity_ids = activity_ids_with_permission(user, PermissionCode.ACTIVITY_ACCESS_MANAGE)
     if space_ids is None or activity_ids is None:
         return queryset
+
+    from events.selectors import get_manageable_events
+
     contextual = _space_filter("event__", space_ids)
+    manageable_event_ids = get_manageable_events(user).values_list("pk", flat=True)
     return queryset.filter(
         contextual
+        | Q(event_id__in=manageable_event_ids)
         | Q(event__activity_id__in=activity_ids)
-        | Q(event__organization__isnull=True, event__organizer=user)
+        | Q(event__activity__space__isnull=True, event__activity__created_by=user)
         | Q(assignments__agent=user, assignments__is_active=True)
     ).distinct()

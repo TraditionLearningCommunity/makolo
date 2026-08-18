@@ -1,6 +1,5 @@
 from django.db.models import Q
 
-from accounts.api.permissions import user_has_role
 from activities.models import Activity
 from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
@@ -22,20 +21,24 @@ def get_analytics_activities(user):
 
 def get_analytics_events(user):
     queryset = Event.objects.select_related(
-        "organization", "organizer", "category", "venue", "activity",
-    )
+        "activity",
+        "activity__space",
+        "activity__created_by",
+        "category",
+        "venue",
+        "venue__place",
+    ).prefetch_related("activity__occurrences")
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
 
-    organization_ids = space_ids_with_permission(user, PermissionCode.ANALYTICS_VIEW)
-    if organization_ids is None:
+    space_ids = space_ids_with_permission(user, PermissionCode.ANALYTICS_VIEW)
+    if space_ids is None:
         return queryset
 
-    filters = Q(organization_id__in=organization_ids)
-    # Historical organization-less Event rows keep their organizer compatibility
-    # until the final Events cutover removes that path.
-    if user_has_role(user, "organizer", legacy_flag="is_organizer"):
-        filters |= Q(organization__isnull=True, organizer=user)
+    filters = Q(activity__space_id__in=space_ids)
+    # Compatibility for historical personal Activities only. Authority still
+    # comes from the canonical Activity owner, never an Event role.
+    filters |= Q(activity__space__isnull=True, activity__created_by=user)
     return queryset.filter(filters).distinct()
 
 

@@ -54,7 +54,12 @@ class BookmarkListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return EventBookmark.objects.filter(user=self.request.user).select_related(
-            "event", "event__organization", "event__category", "event__venue"
+            "event",
+            "event__activity",
+            "event__activity__space",
+            "event__category",
+            "event__venue",
+            "event__venue__place",
         )
 
     def get_context_data(self, **kwargs):
@@ -87,18 +92,28 @@ class MyEventsView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         now = timezone.now()
         tickets = Ticket.objects.filter(owner=self.request.user).select_related(
-            "event", "ticket_type", "order", "event__organization", "event__venue"
+            "event",
+            "event__activity",
+            "event__activity__space",
+            "ticket_type",
+            "order",
+            "access",
+            "access__occurrence",
+            "event__venue",
+            "event__venue__place",
         )
         context["upcoming_tickets"] = tickets.filter(
             order__status=TicketOrderStatus.CONFIRMED,
-            event__end_at__gte=now,
-        ).order_by("event__start_at")
+            access__occurrence__end_at__gte=now,
+        ).order_by("access__occurrence__start_at")
         context["past_tickets"] = tickets.filter(
             order__status=TicketOrderStatus.CONFIRMED,
-            event__end_at__lt=now,
-        ).order_by("-event__end_at")[:30]
+            access__occurrence__end_at__lt=now,
+        ).order_by("-access__occurrence__end_at")[:30]
         context["bookmarks"] = EventBookmark.objects.filter(user=self.request.user).select_related(
-            "event", "event__organization"
+            "event",
+            "event__activity",
+            "event__activity__space",
         )[:12]
         context["followed_organizations"] = self.request.user.followed_organizations.select_related(
             "organization"

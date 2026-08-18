@@ -83,28 +83,18 @@ class JourneyAccessBackfillTests(TestCase):
 
     def _detach_runtime_bridge(self):
         Ticket.objects.all().update(access=None)
-
-        # Task 7 runtime bridges may already have created canonical Commerce and
-        # Capacity projections around these legacy Event rows. This fixture is
-        # intentionally simulating the pre-Task-6 database, so detach and remove
-        # those newer projections first. Production PROTECT constraints remain
-        # unchanged and continue to protect real historical records.
-        TicketOrderItem.objects.all().update(commerce_item=None)
-        TicketOrder.objects.all().update(commerce_order=None)
-        TicketType.objects.all().update(offer=None, capacity_pool=None)
-        CommerceOrderItem.objects.all().delete()
-        CommerceOrder.objects.all().delete()
-        CapacityReservation.objects.all().delete()
-        Offer.objects.all().delete()
-        CapacityPool.objects.all().delete()
-
         TicketOrder.objects.all().update(journey=None)
-        # Runtime fixtures can already have AccessUse rows through the canonical
-        # bridge. The historical-migration simulation must remove those audit
-        # rows before deleting Access because AccessUse intentionally PROTECTs
-        # its right in production.
+
+        # Reconstruct the historical pre-Task-6 state this migration owns.
+        # Current runtime compatibility may already have produced Task-7
+        # Commerce/Capacity rows around those Journeys, so remove those
+        # dependants before deleting Journey. Offer and CapacityPool stay
+        # attached because Task 9 now makes them mandatory TicketType owners.
         AccessUse.objects.all().delete()
         Access.objects.all().delete()
+        CommerceOrderItem.objects.all().delete()
+        CapacityReservation.objects.all().delete()
+        CommerceOrder.objects.all().delete()
         Journey.objects.all().delete()
 
     def _run_backfill(self):

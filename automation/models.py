@@ -34,7 +34,9 @@ class EventAutomationPolicy(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["event__start_at"]
+        # Event is now a vertical over a potentially multi-occurrence Activity;
+        # there is no single Event.start_at suitable for model-level ordering.
+        ordering = ["event_id"]
 
     def __str__(self):
         return f"Autopilot — {self.event.title}"

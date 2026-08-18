@@ -209,7 +209,7 @@ def build_product_operations_overview(user):
 
     org_queue = list(
         pending_orgs.annotate(
-            event_count=Count("events", distinct=True),
+            event_count=Count("activities__event_vertical", distinct=True),
             member_count=Count("memberships", distinct=True),
         )
         .order_by("created_at")

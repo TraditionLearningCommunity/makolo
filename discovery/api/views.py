@@ -37,7 +37,7 @@ class BookmarkListCreateAPIView(APIView):
 
     def get(self, request):
         bookmarks = EventBookmark.objects.filter(user=request.user).select_related(
-            "event", "event__organization", "event__category", "event__venue"
+            "event", "event__activity", "event__activity__space", "event__category", "event__venue"
         )[:100]
         return Response(
             [
