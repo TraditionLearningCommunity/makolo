@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from commerce.models import CommerceOrderStatus
 from events.permissions import user_can_manage_event
-from journeys.models import JourneyStatus
+from journeys.models import Journey, JourneyStatus
 from journeys.services import fulfill_journey
 
 from .models import TicketOrder, TicketOrderStatus
@@ -39,6 +39,26 @@ def _compat_is_expired(order):
             and now >= order.commerce_order.expires_at
         )
     return False
+
+
+def _fulfill_legacy_journey_if_needed(*, journey_id, actor):
+    """Fulfill once when another canonical consumer has not already done it."""
+    journey = Journey.objects.get(pk=journey_id)
+    if journey.status == JourneyStatus.FULFILLED:
+        return journey
+    if journey.status != JourneyStatus.CONFIRMED:
+        return journey
+    try:
+        return fulfill_journey(
+            journey=journey,
+            actor=actor,
+            reason="event_ticket_issued",
+        )
+    except ValidationError:
+        journey.refresh_from_db()
+        if journey.status == JourneyStatus.FULFILLED:
+            return journey
+        raise
 
 
 def install_ticket_order_legacy_compat():
@@ -74,13 +94,10 @@ def install_ticket_order_legacy_compat():
         order = services._project_commerce_order(order, commerce_order)
         services._issue_tickets_for_order(order)
         if order.journey_id:
-            order.journey.refresh_from_db()
-            if order.journey.status == JourneyStatus.CONFIRMED:
-                fulfill_journey(
-                    journey=order.journey,
-                    actor=actor,
-                    reason="event_ticket_issued",
-                )
+            _fulfill_legacy_journey_if_needed(
+                journey_id=order.journey_id,
+                actor=actor,
+            )
         return TicketOrder.objects.get(pk=order.pk)
 
     TicketOrder.is_expired = property(_compat_is_expired)
