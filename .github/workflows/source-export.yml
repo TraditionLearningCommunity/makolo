@@ -18,7 +18,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Package source workspace
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Package source workspace and Python runtime
         run: |
           tar \
             --exclude=.git \
@@ -26,11 +38,17 @@ jobs:
             --exclude=staticfiles \
             --exclude='*.sqlite3' \
             -czf /tmp/makolo-source.tar.gz .
+          python_prefix="$(python -c 'import sys; print(sys.prefix)')"
+          tar -czf /tmp/makolo-python310.tar.gz \
+            -C "$(dirname "$python_prefix")" \
+            "$(basename "$python_prefix")"
 
-      - name: Upload source workspace
+      - name: Upload validation workspace
         uses: actions/upload-artifact@v4
         with:
-          name: makolo-source-${{ github.sha }}
-          path: /tmp/makolo-source.tar.gz
+          name: makolo-validation-${{ github.sha }}
+          path: |
+            /tmp/makolo-source.tar.gz
+            /tmp/makolo-python310.tar.gz
           if-no-files-found: error
           retention-days: 1
