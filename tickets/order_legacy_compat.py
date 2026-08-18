@@ -67,6 +67,8 @@ def install_ticket_order_legacy_compat():
 
     from . import services
 
+    canonical_expire_order = services.expire_order
+
     @transaction.atomic
     def confirm_event_order(*, order: TicketOrder, actor) -> TicketOrder:
         """Historical Event-manager confirmation with explicit authority.
@@ -100,6 +102,29 @@ def install_ticket_order_legacy_compat():
             )
         return TicketOrder.objects.get(pk=order.pk)
 
+    @transaction.atomic
+    def expire_event_order(*, order: TicketOrder) -> TicketOrder:
+        """Propagate a legacy expiry timestamp before canonical expiration."""
+        order = (
+            TicketOrder.objects.select_for_update(of=("self",))
+            .select_related("commerce_order")
+            .get(pk=order.pk)
+        )
+        if not order.commerce_order_id or not order.expires_at:
+            return canonical_expire_order(order=order)
+        commerce_order = order.commerce_order
+        if (
+            commerce_order.status == CommerceOrderStatus.PENDING
+            and (
+                commerce_order.expires_at is None
+                or order.expires_at < commerce_order.expires_at
+            )
+        ):
+            commerce_order.expires_at = order.expires_at
+            commerce_order.save(update_fields=["expires_at", "updated_at"])
+        return canonical_expire_order(order=order)
+
     TicketOrder.is_expired = property(_compat_is_expired)
     services.confirm_order = confirm_event_order
+    services.expire_order = expire_event_order
     TicketOrder._order_legacy_compat_installed = True
