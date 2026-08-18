@@ -4,13 +4,21 @@ from authorization.constants import PermissionCode
 from authorization.services import can, effective_permission_codes
 
 
+def _has_legacy_organizer_role(user) -> bool:
+    roles = getattr(user, "roles", None)
+    return bool(
+        roles is not None
+        and roles.filter(code="organizer", is_active=True).exists()
+    )
+
+
 def user_can_manage_events(user) -> bool:
     """Return whether the profile may enter an Event creation surface.
 
-    Canonical mandates are authoritative. The historical ``is_organizer`` flag
-    remains a narrow compatibility entry point while existing profiles are
-    migrated; object-level operations still require authority on the Activity
-    or authorship of that Activity.
+    Canonical mandates are authoritative. Historical organizer markers remain
+    narrow compatibility entry points while existing profiles are migrated;
+    object-level operations still require authority on the Activity or
+    authorship of that Activity.
     """
     if not getattr(user, "is_authenticated", False):
         return False
@@ -22,7 +30,10 @@ def user_can_manage_events(user) -> bool:
         or PermissionCode.ACTIVITY_MANAGE in effective
     ):
         return True
-    return bool(getattr(user, "is_organizer", False))
+    return bool(
+        getattr(user, "is_organizer", False)
+        or _has_legacy_organizer_role(user)
+    )
 
 
 def _legacy_personal_creator(user, event) -> bool:
