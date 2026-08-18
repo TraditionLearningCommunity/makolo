@@ -64,9 +64,9 @@ def get_events_visible_to(user, *, for_detail: bool = False):
     if activity_ids is None:
         return queryset
     contextual_filter = Q(activity_id__in=activity_ids) if activity_ids else Q(pk__isnull=True)
-    # Historical personal Activities may predate mandatory Space ownership.
-    # Creator authority is a compatibility path only for those rows.
-    legacy_creator_filter = Q(activity__space__isnull=True, activity__created_by=user)
+    # The original Event author keeps compatibility authority after the cutover,
+    # including when the Activity is attached to an organization.
+    legacy_creator_filter = Q(activity__created_by=user)
     return queryset.filter(public_filter | contextual_filter | legacy_creator_filter).distinct()
 
 
@@ -78,5 +78,5 @@ def get_manageable_events(user):
     if activity_ids is None:
         return queryset
     contextual_filter = Q(activity_id__in=activity_ids) if activity_ids else Q(pk__isnull=True)
-    legacy_creator_filter = Q(activity__space__isnull=True, activity__created_by=user)
+    legacy_creator_filter = Q(activity__created_by=user)
     return queryset.filter(contextual_filter | legacy_creator_filter).distinct()
