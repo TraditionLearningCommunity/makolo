@@ -1,14 +1,17 @@
-"""Compatibility writes for TicketType after Offer/Capacity cutover.
+"""Compatibility projections for TicketType after Offer/Capacity cutover.
 
-The historical attributes remain Python projections only. This adapter sends
-all mutations to the canonical Offer and CapacityPool records.
+The historical attributes remain Python/ORM projections only. Every mutation
+is persisted in the canonical Offer and CapacityPool records.
 """
 
-from django.db import transaction
+from django.db import models, transaction
+from django.db.models import IntegerField, Q, Sum, Value
+from django.db.models.functions import Coalesce
 
+from capacity.models import CapacityReservationStatus
 from commerce.models import OfferStatus, PaymentMode
 
-from .models import TicketType
+from .models import TicketType, TicketTypeManager
 
 
 _OFFER_FIELDS = {
@@ -20,6 +23,40 @@ _OFFER_FIELDS = {
     "max_per_order": "max_quantity",
 }
 _LEGACY_FIELDS = frozenset((*_OFFER_FIELDS, "quantity_total", "is_active"))
+
+
+class TicketTypeCompatQuerySet(models.QuerySet):
+    """Expose held/committed quantities without restoring legacy columns."""
+
+    def _with_legacy_counts(self, fields):
+        annotations = {}
+        if "reserved_quantity" in fields:
+            annotations["reserved_quantity"] = Coalesce(
+                Sum(
+                    "capacity_pool__reservations__quantity",
+                    filter=Q(capacity_pool__reservations__status=CapacityReservationStatus.HELD),
+                ),
+                Value(0),
+                output_field=IntegerField(),
+            )
+        if "issued_quantity" in fields:
+            annotations["issued_quantity"] = Coalesce(
+                Sum(
+                    "capacity_pool__reservations__quantity",
+                    filter=Q(capacity_pool__reservations__status=CapacityReservationStatus.COMMITTED),
+                ),
+                Value(0),
+                output_field=IntegerField(),
+            )
+        return self.annotate(**annotations) if annotations else self
+
+    def values(self, *fields, **expressions):
+        queryset = self._with_legacy_counts(fields)
+        return models.QuerySet.values(queryset, *fields, **expressions)
+
+    def values_list(self, *fields, flat=False, named=False):
+        queryset = self._with_legacy_counts(fields)
+        return models.QuerySet.values_list(queryset, *fields, flat=flat, named=named)
 
 
 def _pending(instance):
@@ -92,6 +129,11 @@ def install_ticket_type_legacy_compat():
 
     original_init = TicketType.__init__
     original_save = TicketType.save
+
+    def get_queryset(manager):
+        return TicketTypeCompatQuerySet(manager.model, using=manager._db, hints=manager._hints)
+
+    TicketTypeManager.get_queryset = get_queryset
 
     for legacy, canonical in _OFFER_FIELDS.items():
         setattr(TicketType, legacy, _offer_property(legacy, canonical))
