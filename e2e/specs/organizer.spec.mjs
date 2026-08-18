@@ -19,7 +19,6 @@ test('owner creates a complete event, publishes it and configures ticketing', as
   await page.locator('[name="registration_start_at"]').fill('2029-12-01T00:00');
   await page.locator('[name="registration_end_at"]').fill('2030-08-20T17:00');
   await page.locator('[name="timezone"]').fill('Africa/Lubumbashi');
-  await page.locator('[name="capacity"]').fill('120');
   await page.getByRole('button', { name: /Créer le brouillon/i }).click();
 
   await expect(page.getByRole('heading', { name: 'Conférence Organisateur E2E', exact: true })).toBeVisible();
