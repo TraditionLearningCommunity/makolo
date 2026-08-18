@@ -4,7 +4,6 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from access.models import Access, AccessStatus, AccessUse, AccessUseResult
-from access.services import cancel_access, revoke_access
 
 from .models import Ticket, TicketStatus
 
@@ -43,14 +42,3 @@ def project_access_status(sender, instance, **kwargs):
         ticket.save(update_fields=["status", "cancelled_at", "updated_at"])
     else:
         ticket.save(update_fields=["status", "updated_at"])
-
-
-@receiver(post_save, sender=Ticket, dispatch_uid="tickets.project_legacy_ticket_status")
-def project_legacy_ticket_status(sender, instance, **kwargs):
-    """Honor an explicit legacy cancellation without making Ticket canonical."""
-    if not instance.access_id:
-        return
-    if instance.status == TicketStatus.CANCELLED and instance.access.status != AccessStatus.CANCELLED:
-        cancel_access(access=instance.access, actor=None)
-    elif instance.status == TicketStatus.REFUNDED and instance.access.status != AccessStatus.REVOKED:
-        revoke_access(access=instance.access, actor=None)
