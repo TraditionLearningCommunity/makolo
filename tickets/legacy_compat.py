@@ -5,7 +5,7 @@ is persisted in the canonical Offer and CapacityPool records.
 """
 
 from django.db import models, transaction
-from django.db.models import IntegerField, Q, Sum, Value
+from django.db.models import F, IntegerField, Q, Sum, Value
 from django.db.models.functions import Coalesce
 
 from capacity.models import CapacityReservationStatus
@@ -23,32 +23,52 @@ _OFFER_FIELDS = {
     "max_per_order": "max_quantity",
 }
 _LEGACY_FIELDS = frozenset((*_OFFER_FIELDS, "quantity_total", "is_active"))
+_RESERVATION_STATUSES = {
+    "reserved_quantity": CapacityReservationStatus.HELD,
+    "issued_quantity": CapacityReservationStatus.COMMITTED,
+}
+
+
+def _canonical_quantity_sum(status, *, default=None):
+    expression = Sum(
+        "capacity_pool__reservations__quantity",
+        filter=Q(capacity_pool__reservations__status=status),
+    )
+    if default is None:
+        return expression
+    return Coalesce(expression, Value(default), output_field=IntegerField())
 
 
 class TicketTypeCompatQuerySet(models.QuerySet):
     """Expose held/committed quantities without restoring legacy columns."""
 
     def _with_legacy_counts(self, fields):
-        annotations = {}
-        if "reserved_quantity" in fields:
-            annotations["reserved_quantity"] = Coalesce(
-                Sum(
-                    "capacity_pool__reservations__quantity",
-                    filter=Q(capacity_pool__reservations__status=CapacityReservationStatus.HELD),
-                ),
-                Value(0),
-                output_field=IntegerField(),
-            )
-        if "issued_quantity" in fields:
-            annotations["issued_quantity"] = Coalesce(
-                Sum(
-                    "capacity_pool__reservations__quantity",
-                    filter=Q(capacity_pool__reservations__status=CapacityReservationStatus.COMMITTED),
-                ),
-                Value(0),
-                output_field=IntegerField(),
-            )
+        annotations = {
+            field: _canonical_quantity_sum(status, default=0)
+            for field, status in _RESERVATION_STATUSES.items()
+            if field in fields
+        }
         return self.annotate(**annotations) if annotations else self
+
+    @staticmethod
+    def _rewrite_aggregate(expression):
+        if not isinstance(expression, Sum):
+            return expression
+        sources = expression.get_source_expressions()
+        source = sources[0] if sources else None
+        legacy_name = source.name if isinstance(source, F) else None
+        status = _RESERVATION_STATUSES.get(legacy_name)
+        if status is None:
+            return expression
+        return _canonical_quantity_sum(status)
+
+    def aggregate(self, *args, **kwargs):
+        rewritten_args = tuple(self._rewrite_aggregate(expression) for expression in args)
+        rewritten_kwargs = {
+            alias: self._rewrite_aggregate(expression)
+            for alias, expression in kwargs.items()
+        }
+        return super().aggregate(*rewritten_args, **rewritten_kwargs)
 
     def values(self, *fields, **expressions):
         queryset = self._with_legacy_counts(fields)
