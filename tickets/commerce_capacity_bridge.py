@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from capacity.models import CapacityReservationStatus
 from capacity.services import commit_capacity, expire_capacity, release_capacity, reserve_capacity
@@ -64,9 +66,16 @@ def _transition_legacy_reservation(reservation, order):
     if target == CapacityReservationStatus.EXPIRED:
         if reservation.status == CapacityReservationStatus.HELD:
             if reservation.expires_at is None:
-                reservation.expires_at = order.expires_at
+                # Historical/demo orders can carry an expiry older than the
+                # canonical reservation created during backfill. Keep the hold
+                # interval valid, then expire it immediately through Capacity.
+                minimum_expiry = reservation.created_at + timedelta(microseconds=1)
+                reservation.expires_at = max(order.expires_at or minimum_expiry, minimum_expiry)
                 reservation.save(update_fields=["expires_at", "updated_at"])
-            return expire_capacity(reservation=reservation, now=order.expires_at)
+            return expire_capacity(
+                reservation=reservation,
+                now=max(order.expires_at or timezone.now(), reservation.expires_at),
+            )
     return reservation
 
 
