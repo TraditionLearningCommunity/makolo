@@ -13,5 +13,6 @@ class TicketsConfig(AppConfig):
         install_ticket_order_legacy_compat()
         from . import journey_access_bridge  # noqa: F401
         from . import commerce_capacity_bridge  # noqa: F401
+        from . import event_capacity_bridge  # noqa: F401
         from . import commerce_projection_signals  # noqa: F401
         from . import access_projection_signals  # noqa: F401
