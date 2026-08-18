@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from access.models import AccessStatus, AccessUseResult
-from access.services import validate_access, validate_access_credential
+from access.services import resolve_access_credential, validate_access, validate_access_credential
 from events.models import Event, EventStatus
 from tickets.journey_access_bridge import sync_ticket_access
 from tickets.models import QR_SIGNING_SALT, Ticket, TicketStatus
@@ -203,6 +203,31 @@ def scan_ticket(
             client_reference=client_reference, gate=gate, metadata=metadata,
         )
     authority_check = _scanner_authority(event)
+
+    # During the cutover, a historical Ticket cancellation can predate its
+    # canonical Access projection. Reject that Event presentation before the
+    # Access service can consume it; Access remains the only mutable authority.
+    canonical_ticket = None
+    try:
+        credential = resolve_access_credential(token)
+    except ValidationError:
+        credential = None
+    if credential is not None:
+        canonical_ticket = Ticket.objects.select_related(
+            "ticket_type", "order", "owner", "access"
+        ).filter(access=credential.access).first()
+        if canonical_ticket is not None and canonical_ticket.status in {
+            TicketStatus.CANCELLED,
+            TicketStatus.REFUNDED,
+        }:
+            return _create_log(
+                event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
+                result=ScanResult.INVALID_STATUS,
+                message=f"Billet non valide ({canonical_ticket.get_status_display()}).",
+                token=token, ticket=canonical_ticket, client_reference=client_reference,
+                gate=gate, metadata=metadata,
+            )
+
     canonical = validate_access_credential(
         token,
         controller=actor,
@@ -212,8 +237,8 @@ def scan_ticket(
         source="scanner",
     )
     if canonical.result != AccessUseResult.INVALID_CREDENTIAL:
-        ticket = None
-        if canonical.access is not None:
+        ticket = canonical_ticket
+        if ticket is None and canonical.access is not None:
             ticket = Ticket.objects.select_related("ticket_type", "order", "owner", "access").filter(access=canonical.access).first()
         try:
             return _log_access_outcome(
@@ -255,6 +280,18 @@ def scan_ticket(
             result=ScanResult.WRONG_EVENT, message="Ce billet appartient à un autre événement.", token=token,
             ticket=ticket, client_reference=client_reference, gate=gate, metadata=metadata,
         )
+    if ticket.status == TicketStatus.USED:
+        return _create_log(
+            event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
+            result=ScanResult.DUPLICATE, message="Billet déjà utilisé.", token=token, ticket=ticket,
+            client_reference=client_reference, gate=gate, metadata=metadata,
+        )
+    if ticket.status != TicketStatus.VALID:
+        return _create_log(
+            event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
+            result=ScanResult.INVALID_STATUS, message=f"Billet non valide ({ticket.get_status_display()}).",
+            token=token, ticket=ticket, client_reference=client_reference, gate=gate, metadata=metadata,
+        )
 
     access = ticket.access or sync_ticket_access(ticket)
     if access is not None:
@@ -280,18 +317,6 @@ def scan_ticket(
 
     # Last-resort historical ticket with no Profile/Access. No new flow creates
     # this debt, but the controlled beta data remains usable.
-    if ticket.status == TicketStatus.USED:
-        return _create_log(
-            event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
-            result=ScanResult.DUPLICATE, message="Billet déjà utilisé.", token=token, ticket=ticket,
-            client_reference=client_reference, gate=gate, metadata=metadata,
-        )
-    if ticket.status != TicketStatus.VALID or not ticket.is_valid:
-        return _create_log(
-            event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
-            result=ScanResult.INVALID_STATUS, message=f"Billet non valide ({ticket.get_status_display()}).",
-            token=token, ticket=ticket, client_reference=client_reference, gate=gate, metadata=metadata,
-        )
     ticket.status = TicketStatus.USED
     ticket.used_at = timezone.now()
     ticket.save(update_fields=["status", "used_at", "updated_at"])
