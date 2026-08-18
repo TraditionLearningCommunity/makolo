@@ -76,12 +76,21 @@ def _capacity_property():
     return property(getter, setter, doc=original.__doc__)
 
 
+def _choice_display(choices, value):
+    try:
+        return choices(value).label
+    except (TypeError, ValueError):
+        return value or ""
+
+
 def _install_properties():
     for legacy, canonical in _ACTIVITY_FIELDS.items():
         setattr(Event, legacy, _property(legacy, canonical, "activity"))
     for legacy, canonical in _OCCURRENCE_FIELDS.items():
         setattr(Event, legacy, _property(legacy, canonical, "occurrence"))
     Event.capacity = _capacity_property()
+    Event.get_status_display = lambda instance: _choice_display(EventStatus, instance.status)
+    Event.get_visibility_display = lambda instance: _choice_display(EventVisibility, instance.visibility)
 
 
 def _install_init_and_save():
