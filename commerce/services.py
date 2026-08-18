@@ -200,10 +200,12 @@ def create_order(
 
     if len(currencies) != 1:
         raise ValidationError("Une commande ne peut pas mélanger plusieurs devises.")
-    if len(payment_modes) != 1:
-        raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement.")
     currency = currencies.pop()
-    payment_mode = payment_modes.pop()
+
+    chargeable_modes = payment_modes - {PaymentMode.NONE}
+    if len(chargeable_modes) > 1:
+        raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement.")
+    payment_mode = chargeable_modes.pop() if chargeable_modes else PaymentMode.NONE
 
     activity_space_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
         "activity__space_id", "activity_id", "occurrence_id"
