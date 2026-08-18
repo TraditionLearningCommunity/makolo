@@ -7,9 +7,10 @@ is persisted in the canonical Offer and CapacityPool records.
 from django.db import models, transaction
 from django.db.models import F, IntegerField, Q, Sum, Value
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
-from capacity.models import CapacityReservationStatus
-from commerce.models import OfferStatus, PaymentMode
+from capacity.models import CapacityPool, CapacityReservationStatus
+from commerce.models import Offer, OfferStatus, PaymentMode
 
 from .models import TicketType, TicketTypeManager
 
@@ -27,6 +28,7 @@ _RESERVATION_STATUSES = {
     "reserved_quantity": CapacityReservationStatus.HELD,
     "issued_quantity": CapacityReservationStatus.COMMITTED,
 }
+_UNSET = object()
 
 
 def _canonical_quantity_sum(status, *, default=None):
@@ -40,7 +42,7 @@ def _canonical_quantity_sum(status, *, default=None):
 
 
 class TicketTypeCompatQuerySet(models.QuerySet):
-    """Expose held/committed quantities without restoring legacy columns."""
+    """Expose legacy vocabulary through Offer and CapacityPool only."""
 
     def _with_legacy_counts(self, fields):
         annotations = {
@@ -61,6 +63,46 @@ class TicketTypeCompatQuerySet(models.QuerySet):
         if status is None:
             return expression
         return _canonical_quantity_sum(status)
+
+    @staticmethod
+    def _active_q():
+        return Q(offer__status=OfferStatus.ACTIVE, capacity_pool__is_active=True)
+
+    def filter(self, *args, **kwargs):
+        active = kwargs.pop("is_active", _UNSET)
+        queryset = super().filter(*args, **kwargs)
+        if active is _UNSET:
+            return queryset
+        return queryset.filter(self._active_q()) if bool(active) else queryset.exclude(self._active_q())
+
+    def exclude(self, *args, **kwargs):
+        active = kwargs.pop("is_active", _UNSET)
+        queryset = super().exclude(*args, **kwargs)
+        if active is _UNSET:
+            return queryset
+        return queryset.exclude(self._active_q()) if bool(active) else queryset.filter(self._active_q())
+
+    def update(self, **kwargs):
+        active = kwargs.pop("is_active", _UNSET)
+        if active is _UNSET:
+            return super().update(**kwargs)
+
+        links = list(self.values_list("offer_id", "capacity_pool_id"))
+        if not links:
+            return 0
+        updated = super().update(**kwargs) if kwargs else len(links)
+        changed_at = kwargs.get("updated_at") or timezone.now()
+        offer_ids = [offer_id for offer_id, _ in links]
+        pool_ids = [pool_id for _, pool_id in links]
+        Offer.objects.filter(pk__in=offer_ids).update(
+            status=OfferStatus.ACTIVE if bool(active) else OfferStatus.INACTIVE,
+            updated_at=changed_at,
+        )
+        CapacityPool.objects.filter(pk__in=pool_ids).update(
+            is_active=bool(active),
+            updated_at=changed_at,
+        )
+        return updated
 
     def aggregate(self, *args, **kwargs):
         rewritten_args = tuple(self._rewrite_aggregate(expression) for expression in args)
