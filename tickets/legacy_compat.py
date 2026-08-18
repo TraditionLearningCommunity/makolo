@@ -1,7 +1,9 @@
 """Compatibility projections for TicketType after Offer/Capacity cutover.
 
 The historical attributes remain Python/ORM projections only. Every mutation
-is persisted in the canonical Offer and CapacityPool records.
+is persisted in the canonical Offer and CapacityPool records. Historical
+writes to derived reservation counters are accepted as no-op hints: Capacity
+reservations remain the only source of truth.
 """
 
 from django.db import models, transaction
@@ -23,11 +25,12 @@ _OFFER_FIELDS = {
     "min_per_order": "min_quantity",
     "max_per_order": "max_quantity",
 }
-_LEGACY_FIELDS = frozenset((*_OFFER_FIELDS, "quantity_total", "is_active"))
 _RESERVATION_STATUSES = {
     "reserved_quantity": CapacityReservationStatus.HELD,
     "issued_quantity": CapacityReservationStatus.COMMITTED,
 }
+_COUNTER_FIELDS = frozenset(_RESERVATION_STATUSES)
+_LEGACY_FIELDS = frozenset((*_OFFER_FIELDS, *_COUNTER_FIELDS, "quantity_total", "is_active"))
 _UNSET = object()
 
 
@@ -83,9 +86,12 @@ class TicketTypeCompatQuerySet(models.QuerySet):
         return queryset.exclude(self._active_q()) if bool(active) else queryset.filter(self._active_q())
 
     def update(self, **kwargs):
+        counter_hints = {field: kwargs.pop(field) for field in tuple(kwargs) if field in _COUNTER_FIELDS}
         active = kwargs.pop("is_active", _UNSET)
         if active is _UNSET:
-            return super().update(**kwargs)
+            if kwargs:
+                return super().update(**kwargs)
+            return self.count() if counter_hints else 0
 
         links = list(self.values_list("offer_id", "capacity_pool_id"))
         if not links:
@@ -165,6 +171,19 @@ def _quantity_property():
     return property(getter, setter, doc=original.__doc__)
 
 
+def _counter_property(name):
+    original = getattr(TicketType, name)
+
+    def getter(instance):
+        return original.fget(instance)
+
+    def setter(instance, value):
+        # Compatibility only. Derived counters are never written back.
+        instance.__dict__.setdefault("_legacy_counter_hints", {})[name] = value
+
+    return property(getter, setter, doc=original.__doc__)
+
+
 def _active_property():
     original = TicketType.is_active
 
@@ -200,13 +219,17 @@ def install_ticket_type_legacy_compat():
     for legacy, canonical in _OFFER_FIELDS.items():
         setattr(TicketType, legacy, _offer_property(legacy, canonical))
     TicketType.quantity_total = _quantity_property()
+    for counter in _COUNTER_FIELDS:
+        setattr(TicketType, counter, _counter_property(counter))
     TicketType.is_active = _active_property()
 
     def compat_init(instance, *args, **kwargs):
         legacy_values = {name: kwargs.pop(name) for name in tuple(kwargs) if name in _LEGACY_FIELDS}
+        counter_hints = {name: legacy_values.pop(name) for name in tuple(legacy_values) if name in _COUNTER_FIELDS}
         original_init(instance, *args, **kwargs)
         instance.__dict__["_legacy_ticket_type_values"] = legacy_values
         instance.__dict__["_legacy_ticket_type_dirty"] = set(legacy_values)
+        instance.__dict__["_legacy_counter_hints"] = counter_hints
 
     @transaction.atomic
     def compat_save(instance, *args, **kwargs):
