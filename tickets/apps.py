@@ -12,3 +12,4 @@ class TicketsConfig(AppConfig):
         from . import journey_access_bridge  # noqa: F401
         from . import commerce_capacity_bridge  # noqa: F401
         from . import commerce_projection_signals  # noqa: F401
+        from . import access_projection_signals  # noqa: F401
