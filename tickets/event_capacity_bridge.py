@@ -9,7 +9,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from capacity.models import CapacityPool, CapacityReservationStatus
+from capacity.models import CapacityPool, CapacityReservation, CapacityReservationStatus
 from capacity.services import commit_capacity, expire_capacity, release_capacity, reserve_capacity
 from commerce.models import CommerceOrder, CommerceOrderStatus
 
@@ -54,12 +54,38 @@ def _transition_reservation(reservation, status):
         return release_capacity(reservation=reservation, allow_committed=True)
     if status == CommerceOrderStatus.EXPIRED:
         if reservation.status != CapacityReservationStatus.HELD:
-            return release_capacity(reservation=reservation, allow_committed=True)
+            return reservation
         now = timezone.now()
         if reservation.expires_at and reservation.expires_at <= now:
             return expire_capacity(reservation=reservation, now=now)
         return release_capacity(reservation=reservation, now=now)
     return reservation
+
+
+def _create_reservation(item, order, pool, status):
+    source_key = _reservation_source(item)
+    now = timezone.now()
+    if (
+        status == CommerceOrderStatus.PENDING
+        and order.expires_at is not None
+        and order.expires_at <= now
+    ):
+        return CapacityReservation.objects.create(
+            pool=pool,
+            journey=order.journey,
+            quantity=item.quantity,
+            status=CapacityReservationStatus.EXPIRED,
+            expires_at=order.expires_at,
+            expired_at=now,
+            source_key=source_key,
+        )
+    return reserve_capacity(
+        pool=pool,
+        journey=order.journey,
+        quantity=item.quantity,
+        expires_at=order.expires_at if status == CommerceOrderStatus.PENDING else None,
+        source_key=source_key,
+    )
 
 
 def sync_event_capacity_for_item(item, *, status=None):
@@ -83,13 +109,7 @@ def sync_event_capacity_for_item(item, *, status=None):
     if reservation is None:
         if status in _TERMINAL_RELEASE_STATUSES or status == CommerceOrderStatus.EXPIRED:
             return None
-        reservation = reserve_capacity(
-            pool=pool,
-            journey=order.journey,
-            quantity=item.quantity,
-            expires_at=order.expires_at if status == CommerceOrderStatus.PENDING else None,
-            source_key=_reservation_source(item),
-        )
+        reservation = _create_reservation(item, order, pool, status)
     return _transition_reservation(reservation, status)
 
 
