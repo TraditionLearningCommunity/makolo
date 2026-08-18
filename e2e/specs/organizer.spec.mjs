@@ -23,12 +23,12 @@ test('owner creates a complete event, publishes it and configures ticketing', as
 
   await expect(page.getByRole('heading', { name: 'Conférence Organisateur E2E', exact: true })).toBeVisible();
   await expect(page.getByText('Brouillon', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Gérer' }).click();
+  await page.getByRole('button', { name: 'Gérer', exact: true }).click();
   await page.getByRole('button', { name: 'Publier' }).click();
   await expect(page.getByText(/Événement publié/i)).toBeVisible();
   await expect(page.getByText('Publié', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Gérer' }).click();
+  await page.getByRole('button', { name: 'Gérer', exact: true }).click();
   await page.getByRole('link', { name: /Configurer la billetterie/i }).click();
   await page.getByRole('link', { name: 'Nouveau type' }).click();
   await page.getByLabel('Événement').selectOption({ label: 'Conférence Organisateur E2E' });
