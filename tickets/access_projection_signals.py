@@ -16,6 +16,19 @@ _ACCESS_TO_TICKET = {
 }
 
 
+_original_ticket_is_valid = Ticket.is_valid
+
+
+def _legacy_aware_ticket_is_valid(ticket):
+    """A terminal historical projection may only narrow canonical validity."""
+    if ticket.status != TicketStatus.VALID:
+        return False
+    return _original_ticket_is_valid.fget(ticket)
+
+
+Ticket.is_valid = property(_legacy_aware_ticket_is_valid)
+
+
 @receiver(post_save, sender=AccessUse, dispatch_uid="tickets.project_access_use")
 def project_access_use(sender, instance, **kwargs):
     if instance.result != AccessUseResult.ACCEPTED:
