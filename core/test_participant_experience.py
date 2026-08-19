@@ -10,6 +10,7 @@ from activities.models import Activity, ActivityStatus, Occurrence, OccurrencePl
 from commerce.models import PaymentMode
 from geography.models import Place
 from journeys.models import Journey, JourneyStatus, WorkflowKind
+from notifications.models import Notification
 
 from .participant_presentation import (
     access_status_label,
@@ -105,6 +106,42 @@ class ParticipantExperienceTests(TestCase):
         access = self.client.get(reverse("core:participant-access-detail", kwargs={"pk": self.access.pk}))
         self.assertContains(access, "Confirmation")
         self.assertContains(access, "data:image/png;base64")
+
+    def test_notifications_open_canonical_journey_and_access_details(self):
+        self.client.force_login(self.user)
+        journey_notification = Notification.objects.create(
+            recipient=self.user,
+            activity=self.activity,
+            journey=self.journey,
+            title="Paiement requis",
+            message="Action requise.",
+            action_url="/tickets/legacy-order/",
+        )
+        access_notification = Notification.objects.create(
+            recipient=self.user,
+            activity=self.activity,
+            journey=self.journey,
+            access=self.access,
+            title="Accès disponible",
+            message="Votre accès est disponible.",
+            action_url="/tickets/legacy-ticket/",
+        )
+
+        journey_response = self.client.get(
+            reverse("notifications:open", kwargs={"pk": journey_notification.pk})
+        )
+        access_response = self.client.get(
+            reverse("notifications:open", kwargs={"pk": access_notification.pk})
+        )
+
+        self.assertRedirects(
+            journey_response,
+            reverse("core:participant-journey-detail", kwargs={"pk": self.journey.pk}),
+        )
+        self.assertRedirects(
+            access_response,
+            reverse("core:participant-access-detail", kwargs={"pk": self.access.pk}),
+        )
 
     def test_ownership_hides_other_participant_objects(self):
         self.client.force_login(self.other)
