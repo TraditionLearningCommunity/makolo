@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from authorization.constants import PermissionCode
+from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.services import activity_ids_with_permission, effective_permission_codes, has_platform_authority
 from scanner.models import ScannerAssignment
@@ -84,6 +84,14 @@ def activity_ids_for_space(profile, space):
     return ids
 
 
+def _space_role_codes(profile, space):
+    return set(
+        _current_mandates(profile)
+        .filter(scope_type=AuthorityScope.SPACE, space=space)
+        .values_list("role__code", flat=True)
+    )
+
+
 def _has_activity_capability(profile, space, permission_code):
     permitted = activity_ids_with_permission(profile, permission_code)
     if permitted is None:
@@ -94,7 +102,7 @@ def _has_activity_capability(profile, space, permission_code):
     return Activity.objects.filter(space=space, pk__in=permitted).exists()
 
 
-def _module_allowed(profile, space, key, *, space_permissions, limited):
+def _module_allowed(profile, space, key, *, space_permissions, limited, space_role_codes):
     if key == "activities":
         return _has_activity_capability(profile, space, PermissionCode.ACTIVITY_VIEW)
     if key == "requests":
@@ -112,6 +120,8 @@ def _module_allowed(profile, space, key, *, space_permissions, limited):
     if key == "groups":
         return PermissionCode.SPACE_GROUPS_VIEW in space_permissions
     if key in {"crm", "audiences"}:
+        if SystemRoleCode.ACTIVITY_MANAGER in space_role_codes:
+            return False
         return PermissionCode.CRM_VIEW in space_permissions
     if key == "places":
         return PermissionCode.SPACE_PLACES_VIEW in space_permissions
@@ -147,6 +157,7 @@ class SpaceConsoleContext:
             return None
         limited = not has_space_authority(profile, space)
         permissions = frozenset(effective_permission_codes(profile, space=space))
+        role_codes = frozenset(_space_role_codes(profile, space))
         activity_ids = activity_ids_for_space(profile, space)
         if activity_ids is not None:
             activity_ids = frozenset(activity_ids)
@@ -154,7 +165,14 @@ class SpaceConsoleContext:
         for label, items in SPACE_NAVIGATION:
             visible = []
             for key, item_label, icon in items:
-                if _module_allowed(profile, space, key, space_permissions=permissions, limited=limited):
+                if _module_allowed(
+                    profile,
+                    space,
+                    key,
+                    space_permissions=permissions,
+                    limited=limited,
+                    space_role_codes=role_codes,
+                ):
                     visible.append({"key": key, "label": item_label, "icon": icon, "url": reverse(f"organizations:console-{key}", kwargs={"slug": space.slug})})
             if visible:
                 navigation.append({"label": label, "items": visible})
