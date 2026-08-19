@@ -32,8 +32,19 @@ Credential
 3. `Mes accès` lit `Access`, jamais `Ticket.objects...`.
 4. Les pages de détail sont filtrées par bénéficiaire : changer l’UUID vers celui d’un autre participant retourne 404.
 5. L’Event reste une verticale de vocabulaire. Une Activity non-Event avec Occurrence → Journey registration → Access doit fonctionner sans Event, Ticket ni TicketOrder.
-6. Les bridges historiques ne sont pas utilisés par la nouvelle surface participant ; ils restent uniquement pour leurs consommateurs Event historiques documentés dans `events-vertical.md`.
+6. Les bridges historiques ne sont pas utilisés par la nouvelle surface participant.
 7. Les actions métier continuent d’appeler les services propriétaires ; la surface participant ne mute jamais directement Journey, Access, Capacity ou Payment.
+
+## Compatibilité Event encore conservée
+
+Les modèles et routes historiques `Ticket` / `TicketOrder` ne sont pas réintroduits dans la nouvelle surface personnelle, mais ils ne sont pas supprimés dans cette tâche car des consommateurs actuels les utilisent encore :
+
+- la verticale Event utilise encore ses routes de choix de billet, waitlist et transfert ;
+- la billetterie professionnelle expose encore `tickets:list` aux rôles autorisés ;
+- le scanner Event garde un lien de présentation vers `Ticket` autour de l'`Access` canonique ;
+- les tests de continuation d’authentification exercent encore l’ancienne URL `/tickets/` comme destination `next=`.
+
+Ces bridges restent des projections Event : `Journey`, `CommerceOrder`, `Access` et `AccessCredential` demeurent les autorités canoniques. La navigation participant ne pointe plus vers `Mes billets` historique. Leur suppression pourra être faite quand les routes Event de waitlist/transfert et la billetterie professionnelle auront leurs surfaces dédiées sans dépendance aux wrappers `Ticket` / `TicketOrder`.
 
 ## Navigation
 
