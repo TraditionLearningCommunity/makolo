@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -18,6 +18,7 @@ from .participant_presentation import (
     access_status_label,
     journey_status_label,
     next_participant_action,
+    occurrence_timing,
     payment_mode_label,
     vocabulary_for,
 )
@@ -81,6 +82,13 @@ class ParticipantExperienceTests(TestCase):
         self.assertEqual(access_status_label(AccessStatus.TRANSFERRED), "Transféré")
         self.journey.status = JourneyStatus.PENDING_PAYMENT
         self.assertEqual(next_participant_action(self.journey), "Payer")
+
+    def test_occurrence_timing_uses_occurrence_timezone(self):
+        self.occurrence.start_at = datetime(2030, 1, 15, 17, 0, tzinfo=dt_timezone.utc)
+        self.occurrence.timezone = "Africa/Kinshasa"
+        timing = occurrence_timing(self.occurrence)
+        self.assertEqual(timing.time_label, "18:00")
+        self.assertEqual(timing.timezone_label, "Africa/Kinshasa")
 
     def test_payment_and_workflow_vocabulary_are_contextual(self):
         self.assertEqual(payment_mode_label(PaymentMode.NONE), "")
@@ -207,9 +215,11 @@ class ParticipantExperienceTests(TestCase):
         detail = self.client.get(reverse("core:participant-journey-detail", kwargs={"pk": self.journey.pk}))
         self.assertContains(detail, "Inscription")
         self.assertContains(detail, "Maison des initiatives")
+        self.assertContains(detail, "Africa/Kinshasa")
         access = self.client.get(reverse("core:participant-access-detail", kwargs={"pk": self.access.pk}))
         self.assertContains(access, "Confirmation")
         self.assertContains(access, "data:image/png;base64")
+        self.assertContains(access, "Africa/Kinshasa")
 
     def test_notifications_open_canonical_journey_and_access_details(self):
         self.client.force_login(self.user)
