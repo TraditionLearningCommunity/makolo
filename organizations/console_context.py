@@ -94,16 +94,15 @@ def _has_activity_capability(profile, space, permission_code):
     return Activity.objects.filter(space=space, pk__in=permitted).exists()
 
 
-def _module_allowed(profile, space, key, *, space_permissions, limited, activity_scope):
-    has_limited_activity = activity_scope is None or bool(activity_scope)
+def _module_allowed(profile, space, key, *, space_permissions, limited):
     if key == "activities":
-        return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or has_limited_activity
+        return _has_activity_capability(profile, space, PermissionCode.ACTIVITY_VIEW)
     if key == "requests":
-        return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_REQUESTS_VIEW)
+        return _has_activity_capability(profile, space, PermissionCode.ACTIVITY_REQUESTS_VIEW)
     if key == "access":
         return bool({PermissionCode.TICKETS_VIEW, PermissionCode.ACCESS_MANAGE} & space_permissions) or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_ACCESS_VIEW)
     if key == "offers":
-        return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_COMMERCE_VIEW)
+        return _has_activity_capability(profile, space, PermissionCode.ACTIVITY_COMMERCE_VIEW) or PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions
     if key == "orders":
         return PermissionCode.ORDERS_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_COMMERCE_VIEW)
     if key == "payments":
@@ -119,7 +118,7 @@ def _module_allowed(profile, space, key, *, space_permissions, limited, activity
     if key == "control":
         return PermissionCode.ACCESS_MANAGE in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_ACCESS_SCAN)
     if key == "operations":
-        return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_OPERATIONS_VIEW)
+        return _has_activity_capability(profile, space, PermissionCode.ACTIVITY_OPERATIONS_VIEW)
     if key == "analytics":
         return PermissionCode.ANALYTICS_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_VIEW)
     if key == "automation":
@@ -155,7 +154,7 @@ class SpaceConsoleContext:
         for label, items in SPACE_NAVIGATION:
             visible = []
             for key, item_label, icon in items:
-                if _module_allowed(profile, space, key, space_permissions=permissions, limited=limited, activity_scope=activity_ids):
+                if _module_allowed(profile, space, key, space_permissions=permissions, limited=limited):
                     visible.append({"key": key, "label": item_label, "icon": icon, "url": reverse(f"organizations:console-{key}", kwargs={"slug": space.slug})})
             if visible:
                 navigation.append({"label": label, "items": visible})
