@@ -11,7 +11,11 @@ async function expectForbidden(page, path) {
 
 test('participant sees personal navigation and server denies event management', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
-  await expect(page.getByRole('link', { name: 'Favoris', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Accueil', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Mes démarches', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Mes accès', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Notifications', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Profil', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Événements', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Operations Center' })).toHaveCount(0);
   await expectForbidden(page, '/events/new/');

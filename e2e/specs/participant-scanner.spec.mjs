@@ -68,7 +68,7 @@ test('participant goes from discovery to payment, canonical Access QR, accepted 
   const paidJourney = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' }).first();
   await expect(paidJourney).toBeVisible();
   await paidJourney.click();
-  await expect(page.getByText('Confirmée', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Terminée', { exact: true }).first()).toBeVisible();
 
   await page.goto('/me/accesses/');
   const paidAccess = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' }).first();
