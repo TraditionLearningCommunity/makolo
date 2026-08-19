@@ -1,0 +1,35 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ console_page_title }} · {{ space.name }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-8">
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <div class="min-w-0">
+        <p class="text-xs font-bold uppercase tracking-[.14em] text-indigo-500">Agir au nom de</p>
+        <div class="mt-2 flex items-center gap-3">
+          <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white"><i data-lucide="building-2"></i></div>
+          <div class="min-w-0">
+            <h1 class="truncate text-3xl font-black text-zinc-900 dark:text-white">{{ space.name }}</h1>
+            <p class="text-sm text-zinc-500">{{ space.get_verification_status_display }}{% if space.city %} · {{ space.city }}{% endif %}{% if space.country %}, {{ space.country }}{% endif %}</p>
+          </div>
+        </div>
+        {% if space_console.limited_to_activities %}<p class="mt-3 text-sm text-zinc-500">Votre Mandat est limité aux Activities qui vous sont attribuées dans cet Espace.</p>{% endif %}
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="{% url 'core:participant-home' %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-bold dark:border-zinc-700">Agir en mon nom</a>
+        <details class="relative">
+          <summary class="cursor-pointer rounded-2xl bg-indigo-600 px-4 py-2 font-bold text-white">Changer d’Espace</summary>
+          <div class="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-zinc-200 bg-white p-2 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+            <a href="{% url 'core:participant-home' %}" class="block rounded-xl px-3 py-2 text-sm font-bold hover:bg-zinc-50 dark:hover:bg-zinc-900">Agir en mon nom</a>
+            {% for item in space_console.switcher_items %}
+              <a href="{{ item.url }}" class="block rounded-xl px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"><span class="font-bold">{{ item.name }}</span>{% if item.limited %}<span class="block text-xs text-zinc-500">Accès Activity limité</span>{% endif %}</a>
+            {% endfor %}
+          </div>
+        </details>
+      </div>
+    </div>
+    <div class="mt-6 flex items-center gap-2 text-sm text-zinc-500"><a href="{% url 'organizations:console-overview' space.slug %}" class="font-bold text-indigo-500">{{ space.name }}</a><span>›</span><span>{{ console_page_title }}</span></div>
+  </section>
+  {% block console_content %}{% endblock %}
+</div>
+{% endblock %}
