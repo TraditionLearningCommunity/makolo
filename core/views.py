@@ -47,13 +47,13 @@ class RateLimitedLoginView(LoginView):
 
 
 def _authenticated_landing(user):
+    if user.is_staff:
+        return "operations", None
     capabilities = get_web_capabilities(user)
     if capabilities["has_organizer_tools"]:
         space = authorized_spaces(user).first()
         if space is not None:
             return "space", space
-    if user.is_staff:
-        return "operations", None
     return "personal", None
 
 
