@@ -47,7 +47,7 @@ test('participant experience works for a canonical non-Event registration', asyn
 test('visitor resumes paid Event after auth, then uses canonical Access QR and scan flow', async ({ page }, testInfo) => {
   await page.goto('/events/festival-makolo-e2e/');
   await page.getByRole('link', { name: /Obtenir des billets/i }).click();
-  await expect(page).toHaveURL(/\/login\/?next=.*festival-makolo-e2e/i);
+  await expect(page).toHaveURL(/\/login\/\?next=.*festival-makolo-e2e/i);
   await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
