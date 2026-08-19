@@ -2,17 +2,20 @@ import base64
 from io import BytesIO
 
 import qrcode
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404
-from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.views import View
 from django.views.generic import TemplateView
 
 from access.models import CredentialStatus, CredentialType
 from access.services import render_access_credential
 from commerce.models import PaymentMode
-from journeys.models import RequestStatus
+from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
 
+from .participant_actions import participant_accept_invitation, participant_decline_invitation
 from .participant_presentation import (
     access_status_label,
     journey_progress,
@@ -112,7 +115,11 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         rejected_request = next((r for r in journey.requests.all() if r.status == RequestStatus.REJECTED), None)
         order = card["order"]
         payment_url = None
-        if order and journey.status == "pending_payment" and order.payment_mode in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}:
+        if (
+            order
+            and journey.status == JourneyStatus.PENDING_PAYMENT
+            and order.payment_mode in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}
+        ):
             payment_url = reverse("payments:start", kwargs={"order_pk": order.pk})
         context.update(
             {
@@ -121,9 +128,41 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,
+                "can_respond_invitation": (
+                    journey.workflow == WorkflowKind.INVITATION
+                    and journey.status == JourneyStatus.SUBMITTED
+                ),
             }
         )
         return context
+
+
+class ParticipantInvitationAcceptView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk):
+        journey = get_object_or_404(participant_journeys(request.user), pk=pk)
+        try:
+            _, access = participant_accept_invitation(journey=journey, actor=request.user)
+        except ValidationError:
+            messages.error(request, "Cette invitation ne peut plus être acceptée.")
+            return redirect("core:participant-journey-detail", pk=journey.pk)
+        messages.success(request, "Invitation acceptée. Votre accès est disponible.")
+        return redirect("core:participant-access-detail", pk=access.pk)
+
+
+class ParticipantInvitationDeclineView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk):
+        journey = get_object_or_404(participant_journeys(request.user), pk=pk)
+        try:
+            participant_decline_invitation(journey=journey, actor=request.user)
+        except ValidationError:
+            messages.error(request, "Cette invitation ne peut plus être refusée.")
+        else:
+            messages.success(request, "Invitation refusée.")
+        return redirect("core:participant-journey-detail", pk=journey.pk)
 
 
 class ParticipantAccessListView(LoginRequiredMixin, TemplateView):

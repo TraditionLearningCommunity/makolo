@@ -5,6 +5,8 @@ from .participant_views import (
     ParticipantAccessDetailView,
     ParticipantAccessListView,
     ParticipantHomeView,
+    ParticipantInvitationAcceptView,
+    ParticipantInvitationDeclineView,
     ParticipantJourneyDetailView,
     ParticipantJourneyListView,
 )
@@ -26,6 +28,16 @@ urlpatterns = [
         "me/journeys/<uuid:pk>/",
         ParticipantJourneyDetailView.as_view(),
         name="participant-journey-detail",
+    ),
+    path(
+        "me/journeys/<uuid:pk>/invitation/accept/",
+        ParticipantInvitationAcceptView.as_view(),
+        name="participant-invitation-accept",
+    ),
+    path(
+        "me/journeys/<uuid:pk>/invitation/decline/",
+        ParticipantInvitationDeclineView.as_view(),
+        name="participant-invitation-decline",
     ),
     path("me/accesses/", ParticipantAccessListView.as_view(), name="participant-accesses"),
     path(

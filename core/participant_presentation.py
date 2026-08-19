@@ -95,7 +95,7 @@ def next_participant_action(journey):
         return "Attendre la validation"
     if journey.status == JourneyStatus.PENDING_PAYMENT:
         return "Payer"
-    if journey.workflow == WorkflowKind.INVITATION and journey.status in {JourneyStatus.SUBMITTED, JourneyStatus.APPROVED}:
+    if journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED:
         return "Répondre à l’invitation"
     if journey.workflow == WorkflowKind.RESERVATION and journey.status == JourneyStatus.CONFIRMED:
         return "Voir ma réservation"

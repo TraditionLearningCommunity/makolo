@@ -8,10 +8,11 @@ from django.utils import timezone
 
 from access.models import Access, AccessCredential, AccessStatus
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrencePlace, OccurrenceStatus
-from commerce.models import CommerceOrder, PaymentMode
+from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
 from geography.models import Place
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from notifications.models import Notification
+from payments.models import Payment
 
 from .participant_presentation import (
     access_status_label,
@@ -69,10 +70,11 @@ class ParticipantExperienceTests(TestCase):
         )
         AccessCredential.objects.create(access=self.access)
 
-    def test_non_event_activity_is_visible_without_ticket_models(self):
+    def test_non_event_activity_is_visible_without_ticket_models_or_payment(self):
         self.assertFalse(hasattr(self.activity, "event_vertical"))
         self.assertEqual(list(participant_journeys(self.user)), [self.journey])
         self.assertEqual(list(participant_accesses(self.user)), [self.access])
+        self.assertEqual(Payment.objects.count(), 0)
 
     def test_centralized_labels_and_next_action(self):
         self.assertEqual(journey_status_label(JourneyStatus.PENDING_APPROVAL), "En attente de validation")
@@ -125,6 +127,77 @@ class ParticipantExperienceTests(TestCase):
         self.assertContains(response, "Paiement en ligne requis")
         self.assertContains(response, "12,00 USD")
         self.assertContains(response, reverse("payments:start", kwargs={"order_pk": order.pk}))
+
+    def test_on_site_reservation_is_not_presented_as_unpaid_or_online_payment(self):
+        journey = Journey.objects.create(
+            initiated_by=self.user,
+            beneficiary=self.user,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.RESERVATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+        order = CommerceOrder.objects.create(
+            journey=journey,
+            buyer=self.user,
+            status=CommerceOrderStatus.CONFIRMED,
+            payment_mode=PaymentMode.ON_SITE,
+            currency="USD",
+            subtotal=Decimal("20.00"),
+            discount_total=Decimal("0.00"),
+            total=Decimal("20.00"),
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}))
+        self.assertContains(response, "À payer sur place")
+        self.assertNotContains(response, reverse("payments:start", kwargs={"order_pk": order.pk}))
+        self.assertEqual(Payment.objects.count(), 0)
+
+    def test_invitation_beneficiary_can_accept_once_and_receives_access(self):
+        invitation = Journey.objects.create(
+            initiated_by=self.other,
+            beneficiary=self.user,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.INVITATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        self.client.force_login(self.user)
+        detail = self.client.get(reverse("core:participant-journey-detail", kwargs={"pk": invitation.pk}))
+        self.assertContains(detail, "Répondre à l’invitation")
+        self.assertContains(detail, "Accepter l’invitation")
+
+        response = self.client.post(reverse("core:participant-invitation-accept", kwargs={"pk": invitation.pk}))
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, JourneyStatus.CONFIRMED)
+        access = Access.objects.get(journey=invitation, source_key="participant-invitation")
+        self.assertRedirects(response, reverse("core:participant-access-detail", kwargs={"pk": access.pk}))
+        self.assertTrue(access.credentials.filter(status="active").exists())
+
+        retry = self.client.post(reverse("core:participant-invitation-accept", kwargs={"pk": invitation.pk}))
+        self.assertRedirects(retry, reverse("core:participant-access-detail", kwargs={"pk": access.pk}))
+        self.assertEqual(Access.objects.filter(journey=invitation, source_key="participant-invitation").count(), 1)
+
+        self.client.force_login(self.other)
+        forbidden = self.client.post(reverse("core:participant-invitation-accept", kwargs={"pk": invitation.pk}))
+        self.assertEqual(forbidden.status_code, 404)
+
+    def test_invitation_beneficiary_can_decline_without_access(self):
+        invitation = Journey.objects.create(
+            initiated_by=self.other,
+            beneficiary=self.user,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.INVITATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("core:participant-invitation-decline", kwargs={"pk": invitation.pk}))
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, JourneyStatus.CANCELLED)
+        self.assertRedirects(response, reverse("core:participant-journey-detail", kwargs={"pk": invitation.pk}))
+        self.assertFalse(Access.objects.filter(journey=invitation).exists())
 
     def test_participant_pages_show_canonical_occurrence_place_and_access(self):
         self.client.force_login(self.user)
