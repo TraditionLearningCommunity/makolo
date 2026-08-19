@@ -8,60 +8,19 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Mandate, MandateStatus
-from authorization.services import can, effective_permission_codes, has_platform_authority
+from authorization.services import activity_ids_with_permission, effective_permission_codes, has_platform_authority
 from scanner.models import ScannerAssignment
 
 from .models import Organization
 
 
 SPACE_NAVIGATION = (
-    (
-        "Activité",
-        (
-            ("activities", "Activités", "calendar-days"),
-            ("requests", "Demandes", "calendar-search"),
-            ("access", "Accès", "badge-check"),
-        ),
-    ),
-    (
-        "Commercial",
-        (
-            ("offers", "Offres / Tarifs", "ticket"),
-            ("orders", "Commandes", "layout-dashboard"),
-            ("payments", "Paiements", "wallet-cards"),
-            ("promotions", "Promotions", "badge-percent"),
-        ),
-    ),
-    (
-        "Publics",
-        (
-            ("groups", "Groupes", "users-round"),
-            ("crm", "CRM", "contact-round"),
-            ("audiences", "Audiences", "users-round"),
-        ),
-    ),
-    (
-        "Exploitation",
-        (
-            ("places", "Lieux", "building-2"),
-            ("control", "Contrôle d’accès", "scan-line"),
-            ("operations", "Opérations", "shield-check"),
-        ),
-    ),
-    (
-        "Pilotage",
-        (
-            ("analytics", "Analyses", "chart-spline"),
-            ("automation", "Automatisations", "sparkles"),
-        ),
-    ),
-    (
-        "Espace",
-        (
-            ("team", "Équipe", "users-round"),
-            ("settings", "Paramètres", "building-2"),
-        ),
-    ),
+    ("Activité", (("activities", "Activités", "calendar-days"), ("requests", "Demandes", "calendar-search"), ("access", "Accès", "badge-check"))),
+    ("Commercial", (("offers", "Offres / Tarifs", "ticket"), ("orders", "Commandes", "layout-dashboard"), ("payments", "Paiements", "wallet-cards"), ("promotions", "Promotions", "badge-percent"))),
+    ("Publics", (("groups", "Groupes", "users-round"), ("crm", "CRM", "contact-round"), ("audiences", "Audiences", "users-round"))),
+    ("Exploitation", (("places", "Lieux", "building-2"), ("control", "Contrôle d’accès", "scan-line"), ("operations", "Opérations", "shield-check"))),
+    ("Pilotage", (("analytics", "Analyses", "chart-spline"), ("automation", "Automatisations", "sparkles"))),
+    ("Espace", (("team", "Équipe", "users-round"), ("settings", "Paramètres", "building-2"))),
 )
 
 
@@ -70,12 +29,7 @@ def _current_mandates(profile):
     if not getattr(profile, "is_authenticated", False):
         return Mandate.objects.none()
     return (
-        Mandate.objects.filter(
-            profile=profile,
-            status=MandateStatus.ACTIVE,
-            revoked_at__isnull=True,
-            role__is_active=True,
-        )
+        Mandate.objects.filter(profile=profile, status=MandateStatus.ACTIVE, revoked_at__isnull=True, role__is_active=True)
         .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
         .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
         .select_related("role", "space", "activity", "activity__space")
@@ -87,19 +41,9 @@ def authorized_space_ids(profile):
         return set()
     if getattr(profile, "is_superuser", False) or has_platform_authority(profile):
         return None
-
     mandates = _current_mandates(profile)
-    ids = set(
-        mandates.filter(scope_type=AuthorityScope.SPACE)
-        .exclude(space_id=None)
-        .values_list("space_id", flat=True)
-    )
-    ids.update(
-        mandates.filter(scope_type=AuthorityScope.ACTIVITY)
-        .exclude(activity__space_id=None)
-        .values_list("activity__space_id", flat=True)
-    )
-
+    ids = set(mandates.filter(scope_type=AuthorityScope.SPACE).exclude(space_id=None).values_list("space_id", flat=True))
+    ids.update(mandates.filter(scope_type=AuthorityScope.ACTIVITY).exclude(activity__space_id=None).values_list("activity__space_id", flat=True))
     now = timezone.now()
     ids.update(
         ScannerAssignment.objects.filter(agent=profile, is_active=True)
@@ -120,32 +64,19 @@ def authorized_spaces(profile):
 def has_space_authority(profile, space):
     if getattr(profile, "is_superuser", False) or has_platform_authority(profile):
         return True
-    return _current_mandates(profile).filter(
-        scope_type=AuthorityScope.SPACE,
-        space=space,
-    ).exists()
+    return _current_mandates(profile).filter(scope_type=AuthorityScope.SPACE, space=space).exists()
 
 
 def activity_ids_for_space(profile, space):
     if not getattr(profile, "is_authenticated", False):
         return set()
-    if getattr(profile, "is_superuser", False) or has_platform_authority(profile):
+    if getattr(profile, "is_superuser", False) or has_platform_authority(profile) or has_space_authority(profile, space):
         return None
-    if has_space_authority(profile, space):
-        return None
-
-    mandates = _current_mandates(profile).filter(
-        scope_type=AuthorityScope.ACTIVITY,
-        activity__space=space,
-    )
+    mandates = _current_mandates(profile).filter(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
     ids = set(mandates.values_list("activity_id", flat=True))
     now = timezone.now()
     ids.update(
-        ScannerAssignment.objects.filter(
-            agent=profile,
-            is_active=True,
-            activity__space=space,
-        )
+        ScannerAssignment.objects.filter(agent=profile, is_active=True, activity__space=space)
         .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
         .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
         .values_list("activity_id", flat=True)
@@ -154,18 +85,19 @@ def activity_ids_for_space(profile, space):
 
 
 def _has_activity_capability(profile, space, permission_code):
+    permitted = activity_ids_with_permission(profile, permission_code)
+    if permitted is None:
+        return True
+    if not permitted:
+        return False
     from activities.models import Activity
-
-    ids = activity_ids_for_space(profile, space)
-    queryset = Activity.objects.filter(space=space)
-    if ids is not None:
-        queryset = queryset.filter(pk__in=ids)
-    return any(can(profile, permission_code, activity=activity) for activity in queryset[:50])
+    return Activity.objects.filter(space=space, pk__in=permitted).exists()
 
 
-def _module_allowed(profile, space, key, *, space_permissions, limited):
+def _module_allowed(profile, space, key, *, space_permissions, limited, activity_scope):
+    has_limited_activity = activity_scope is None or bool(activity_scope)
     if key == "activities":
-        return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or bool(activity_ids_for_space(profile, space))
+        return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or has_limited_activity
     if key == "requests":
         return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_REQUESTS_VIEW)
     if key == "access":
@@ -214,50 +146,29 @@ class SpaceConsoleContext:
         allowed_ids = authorized_space_ids(profile)
         if allowed_ids is not None and space.pk not in allowed_ids:
             return None
-
         limited = not has_space_authority(profile, space)
         permissions = frozenset(effective_permission_codes(profile, space=space))
         activity_ids = activity_ids_for_space(profile, space)
         if activity_ids is not None:
             activity_ids = frozenset(activity_ids)
-
         navigation = []
         for label, items in SPACE_NAVIGATION:
             visible = []
             for key, item_label, icon in items:
-                if _module_allowed(profile, space, key, space_permissions=permissions, limited=limited):
-                    visible.append(
-                        {
-                            "key": key,
-                            "label": item_label,
-                            "icon": icon,
-                            "url": reverse(f"organizations:console-{key}", kwargs={"slug": space.slug}),
-                        }
-                    )
+                if _module_allowed(profile, space, key, space_permissions=permissions, limited=limited, activity_scope=activity_ids):
+                    visible.append({"key": key, "label": item_label, "icon": icon, "url": reverse(f"organizations:console-{key}", kwargs={"slug": space.slug})})
             if visible:
                 navigation.append({"label": label, "items": visible})
-
-        switcher = []
-        for candidate in authorized_spaces(profile):
-            candidate_limited = not has_space_authority(profile, candidate)
-            switcher.append(
-                {
-                    "name": candidate.name,
-                    "slug": candidate.slug,
-                    "limited": candidate_limited,
-                    "url": reverse("organizations:console-entry", kwargs={"slug": candidate.slug}),
-                }
-            )
-
-        return cls(
-            profile=profile,
-            space=space,
-            space_permissions=permissions,
-            limited_to_activities=limited,
-            activity_ids=activity_ids,
-            navigation_groups=tuple(navigation),
-            switcher_items=tuple(switcher),
+        switcher = tuple(
+            {
+                "name": candidate.name,
+                "slug": candidate.slug,
+                "limited": not has_space_authority(profile, candidate),
+                "url": reverse("organizations:console-entry", kwargs={"slug": candidate.slug}),
+            }
+            for candidate in authorized_spaces(profile)
         )
+        return cls(profile=profile, space=space, space_permissions=permissions, limited_to_activities=limited, activity_ids=activity_ids, navigation_groups=tuple(navigation), switcher_items=switcher)
 
     def can(self, permission_code):
         return permission_code in self.space_permissions
