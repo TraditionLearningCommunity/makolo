@@ -6,11 +6,14 @@ from django.apps import apps
 from django.conf import settings
 from django.core.management import BaseCommand, CommandError, call_command
 
+from access.services import issue_access
 from accounts.models import NotificationPreference, User, UserProfile
+from activities.models import Activity, ActivityStatus, Occurrence, OccurrencePlace, OccurrenceStatus
 from authorization.services import ensure_platform_admin_mandate
 from events.activity_bridge import sync_event_core
 from events.models import Event, EventCategory, EventStatus, EventVenue, EventVisibility, VenueKind
 from geography.models import Place
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from operations.models import IncidentCategory, IncidentSeverity, IncidentStatus, OperationsIncident
 from organizations.models import Organization, OrganizationMembership, OrganizationRole, OrganizationVerificationStatus
 from scanner.models import EventAccessGate, ScannerAssignment
@@ -112,6 +115,52 @@ class Command(BaseCommand):
         )
         create_order(buyer=users["visual"], event=visual_event, customer_name="Visual Participant", customer_email=users["visual"].email, selections=[(visual_type,1)])
 
+        participant_place = Place.objects.create(
+            name="Maison des initiatives E2E",
+            address_line="25 avenue Canonique",
+            locality="Lubumbashi",
+            country_code="CD",
+            timezone="Africa/Lubumbashi",
+            access_instructions="Présentez-vous à l’accueil dix minutes avant le début.",
+            created_by=users["owner"],
+        )
+        registration_activity = Activity.objects.create(
+            space=main_org,
+            created_by=users["owner"],
+            title="Inscription communautaire E2E",
+            short_description="Scénario participant sans Event, Ticket ni TicketOrder.",
+            status=ActivityStatus.PUBLISHED,
+        )
+        registration_occurrence = Occurrence.objects.create(
+            activity=registration_activity,
+            label="Session E2E",
+            start_at=self._dt(2030,9,20,14,0),
+            end_at=self._dt(2030,9,20,16,0),
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=registration_occurrence,
+            place=participant_place,
+            role="primary",
+        )
+        registration_journey = Journey.objects.create(
+            initiated_by=users["participant"],
+            beneficiary=users["participant"],
+            activity=registration_activity,
+            occurrence=registration_occurrence,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+        issue_access(
+            beneficiary=users["participant"],
+            activity=registration_activity,
+            occurrence=registration_occurrence,
+            journey=registration_journey,
+            issued_by=users["owner"],
+            source_key="e2e-registration",
+        )
+
         sold_out_event = Event.objects.create(
             organizer=users["owner"], organization=main_org, category=category, venue=venue,
             title="Capacité Makolo E2E", slug="capacite-makolo-e2e", short_description="Événement à une seule place pour valider le sold-out canonique.",
@@ -137,6 +186,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Password: {E2E_PASSWORD}")
         self.stdout.write(f"Paid event: {paid_event.slug}")
         self.stdout.write(f"Paid ticket type: {paid_type.pk}")
+        self.stdout.write(f"Canonical non-event activity: {registration_activity.pk}")
 
     def _user(self, email, username, **flags):
         user = User.objects.create_user(email=email, username=username, password=E2E_PASSWORD, first_name=username.replace("e2e-", "").replace("-", " ").title(), **flags)
