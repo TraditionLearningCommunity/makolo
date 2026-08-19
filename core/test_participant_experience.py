@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -7,7 +8,7 @@ from django.utils import timezone
 
 from access.models import Access, AccessCredential, AccessStatus
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrencePlace, OccurrenceStatus
-from commerce.models import PaymentMode
+from commerce.models import CommerceOrder, PaymentMode
 from geography.models import Place
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from notifications.models import Notification
@@ -19,7 +20,7 @@ from .participant_presentation import (
     payment_mode_label,
     vocabulary_for,
 )
-from .participant_selectors import participant_accesses, participant_journeys
+from .participant_selectors import participant_accesses, participant_journeys, participant_orders
 
 
 User = get_user_model()
@@ -94,6 +95,36 @@ class ParticipantExperienceTests(TestCase):
             vocabulary_for(activity=self.activity, workflow=WorkflowKind.INVITATION).access_noun,
             "Invitation",
         )
+
+    def test_pending_payment_uses_commerce_order_and_real_payment_endpoint(self):
+        journey = Journey.objects.create(
+            initiated_by=self.user,
+            beneficiary=self.user,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.PURCHASE,
+            status=JourneyStatus.PENDING_PAYMENT,
+        )
+        order = CommerceOrder.objects.create(
+            journey=journey,
+            buyer=self.user,
+            payment_mode=PaymentMode.UPFRONT,
+            currency="USD",
+            subtotal=Decimal("12.00"),
+            discount_total=Decimal("0.00"),
+            total=Decimal("12.00"),
+        )
+
+        self.assertEqual(list(participant_orders(self.user)), [order])
+        self.assertFalse(participant_orders(self.other).exists())
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("core:participant-journey-detail", kwargs={"pk": journey.pk})
+        )
+        self.assertContains(response, "Paiement en ligne requis")
+        self.assertContains(response, "12.00 USD")
+        self.assertContains(response, reverse("payments:start", kwargs={"order_pk": order.pk}))
 
     def test_participant_pages_show_canonical_occurrence_place_and_access(self):
         self.client.force_login(self.user)
