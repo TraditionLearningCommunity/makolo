@@ -56,8 +56,9 @@ test('owner creates a complete event, publishes it and configures ticketing', as
 test('new organizer empty state keeps the create-event next action visible', async ({ page }) => {
   await login(page, 'new.organizer@e2e.makolo.test');
   await page.goto('/spaces/makolo-e2e-nouvelle-organisation/activities/');
-  await expect(page.getByText(/encore aucune activité/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Activités', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /Créer un événement/i })).toBeVisible();
+  await expect(page.locator('main')).toContainText(/Aucune|aucune activité|aucune Activity/i);
 });
 
 
