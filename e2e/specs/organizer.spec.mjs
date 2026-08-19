@@ -19,17 +19,16 @@ test('owner creates a complete event, publishes it and configures ticketing', as
   await page.locator('[name="registration_start_at"]').fill('2029-12-01T00:00');
   await page.locator('[name="registration_end_at"]').fill('2030-08-20T17:00');
   await page.locator('[name="timezone"]').fill('Africa/Lubumbashi');
-  await page.locator('[name="capacity"]').fill('120');
   await page.getByRole('button', { name: /Créer le brouillon/i }).click();
 
   await expect(page.getByRole('heading', { name: 'Conférence Organisateur E2E', exact: true })).toBeVisible();
   await expect(page.getByText('Brouillon', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Gérer' }).click();
+  await page.getByRole('button', { name: 'Gérer', exact: true }).click();
   await page.getByRole('button', { name: 'Publier' }).click();
   await expect(page.getByText(/Événement publié/i)).toBeVisible();
   await expect(page.getByText('Publié', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Gérer' }).click();
+  await page.getByRole('button', { name: 'Gérer', exact: true }).click();
   await page.getByRole('link', { name: /Configurer la billetterie/i }).click();
   await page.getByRole('link', { name: 'Nouveau type' }).click();
   await page.getByLabel('Événement').selectOption({ label: 'Conférence Organisateur E2E' });
@@ -79,12 +78,11 @@ test('space owner creates a reusable place and another space owner is isolated',
   const placeHeading = page.getByRole('heading', { name: 'Agence Centre-ville', exact: true });
   await expect(placeHeading).toBeVisible();
   await expect(page.getByText(/Coordonnées/)).toBeVisible();
-  const card = placeHeading.locator('xpath=ancestor::article');
-  const editHref = await card.getByRole('link', { name: 'Modifier' }).getAttribute('href');
-  expect(editHref).toBeTruthy();
 
   await logout(page);
   await login(page, 'new.organizer@e2e.makolo.test');
-  const response = await page.goto(editHref);
+  const response = await page.goto('/organizations/makolo-e2e-events/places/');
   expect(response.status()).toBe(403);
+  await expect(page.getByText(/Erreur 403/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Cet espace n’est pas accessible/i })).toBeVisible();
 });

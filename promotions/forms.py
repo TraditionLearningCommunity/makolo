@@ -72,10 +72,12 @@ class PromotionForm(forms.ModelForm):
         # needs the canonical Space while ModelForm performs its model validation.
         # Without this assignment, a valid Event on create is compared against None.
         self.instance.organization = organization
-        self.fields["event"].queryset = Event.objects.filter(organization=organization).order_by("-start_at")
+        self.fields["event"].queryset = Event.objects.filter(
+            activity__space=organization
+        ).order_by("-start_at")
         self.fields["eligible_ticket_types"].queryset = TicketType.objects.filter(
-            event__organization=organization
-        ).select_related("event").order_by("event__start_at", "name")
+            event__activity__space=organization
+        ).select_related("event", "event__activity").order_by("event__start_at", "name")
         self.fields["audience"].queryset = Audience.objects.filter(
             organization=organization,
             status=AudienceStatus.ACTIVE,

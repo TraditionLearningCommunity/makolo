@@ -11,6 +11,7 @@ from rest_framework.test import APITestCase
 
 from accounts.models import Role
 from events.models import Event, EventStatus, EventVisibility
+from organizations.models import Organization
 from tickets.models import TicketStatus, TicketType
 from tickets.services import create_order
 
@@ -64,10 +65,15 @@ class ScannerFixtureMixin:
             first_name="Alice",
             last_name="Participant",
         )
+        self.space = Organization.objects.create(
+            name="Scanner Fixture Space",
+            created_by=self.organizer,
+        )
 
         start_at = timezone.now() + timedelta(hours=2)
         self.event = Event.objects.create(
             organizer=self.organizer,
+            organization=self.space,
             title="Makolo Access Day",
             status=EventStatus.PUBLISHED,
             visibility=EventVisibility.PUBLIC,
@@ -102,6 +108,7 @@ class ScannerFixtureMixin:
         start_at = timezone.now() + timedelta(hours=3)
         return Event.objects.create(
             organizer=self.organizer,
+            organization=self.space,
             title="Other Makolo Event",
             status=EventStatus.PUBLISHED,
             visibility=EventVisibility.PUBLIC,

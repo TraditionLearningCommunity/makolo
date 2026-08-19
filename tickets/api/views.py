@@ -46,7 +46,7 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
         event_slug = self.request.query_params.get("event")
         if event_slug:
             queryset = queryset.filter(event__slug=event_slug)
-        return queryset.order_by("event__start_at", "price", "name")
+        return queryset.order_by("event__activity__occurrences__start_at", "offer__unit_price", "name").distinct()
 
     def get_permissions(self):
         if self.action in {"list", "retrieve"}:
@@ -58,32 +58,22 @@ class TicketTypeViewSet(viewsets.ModelViewSet):
         return [permission() for permission in classes]
 
     def perform_create(self, serializer):
-        ticket_type = serializer.save()
-        if not user_can_manage_event(self.request.user, ticket_type.event):
-            ticket_type.delete()
-            raise DRFPermissionDenied(
-                "Vous ne pouvez pas gérer les billets de cet événement."
-            )
         try:
-            ticket_type.full_clean()
+            ticket_type = serializer.save()
         except DjangoValidationError as exc:
-            ticket_type.delete()
-            raise ValidationError(exc.message_dict) from exc
-        ticket_type.save()
+            raise ValidationError(getattr(exc, "message_dict", exc.messages)) from exc
+        if not user_can_manage_event(self.request.user, ticket_type.event):
+            raise DRFPermissionDenied("Vous ne pouvez pas gérer les billets de cet événement.")
 
     def perform_update(self, serializer):
-        ticket_type = serializer.save()
         try:
-            ticket_type.full_clean()
+            serializer.save()
         except DjangoValidationError as exc:
-            raise ValidationError(exc.message_dict) from exc
-        ticket_type.save()
+            raise ValidationError(getattr(exc, "message_dict", exc.messages)) from exc
 
     def perform_destroy(self, instance):
         if instance.reserved_quantity or instance.issued_quantity:
-            raise ValidationError(
-                "Un type de billet déjà réservé ou émis ne peut pas être supprimé."
-            )
+            raise ValidationError("Un type de billet déjà réservé ou émis ne peut pas être supprimé.")
         instance.delete()
 
 
@@ -109,7 +99,6 @@ class TicketOrderViewSet(viewsets.ModelViewSet):
             if hasattr(exc, "message_dict"):
                 raise ValidationError(exc.message_dict) from exc
             raise ValidationError(exc.messages) from exc
-
         replay = bool(getattr(order, "_idempotent_replay", False))
         return Response(
             TicketOrderSerializer(order, context={"request": request}).data,
@@ -125,9 +114,7 @@ class TicketOrderViewSet(viewsets.ModelViewSet):
         except PermissionDenied as exc:
             raise DRFPermissionDenied(str(exc)) from exc
         order.refresh_from_db()
-        return Response(
-            TicketOrderSerializer(order, context={"request": request}).data
-        )
+        return Response(TicketOrderSerializer(order, context={"request": request}).data)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
@@ -168,10 +155,7 @@ class TicketWaitlistViewSet(viewsets.ModelViewSet):
             raise ValidationError(exc.messages) from exc
         except PermissionDenied as exc:
             raise DRFPermissionDenied(str(exc)) from exc
-        return Response(
-            TicketWaitlistSerializer(entry, context={"request": request}).data,
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(TicketWaitlistSerializer(entry, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
     def leave(self, request, pk=None):
@@ -220,10 +204,7 @@ class TicketTransferViewSet(viewsets.ModelViewSet):
             raise ValidationError(exc.messages) from exc
         except PermissionDenied as exc:
             raise DRFPermissionDenied(str(exc)) from exc
-        return Response(
-            TicketTransferSerializer(transfer, context={"request": request}).data,
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(TicketTransferSerializer(transfer, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
     def _transition(self, request, service, actor_keyword):
         transfer = self.get_object()

@@ -617,7 +617,6 @@ Introduire workflows contrôlés, Journey/Request/Access/Credential/Use. Backfil
 **Dépend de** : Journey/Access et Activity/Occurrence.
 
 Séparer Offer, capacité/allocation et Order/OrderLine des concepts ticket. Rebrancher Payments sur la cible en préservant idempotence, refunds, devises et snapshots.
-
 ### 7. Généralisation des capacités transversales
 
 **Dépend de** : noyaux précédents stables.
@@ -751,3 +750,9 @@ Les Promotions ciblent désormais Commerce par `PromotionTargeting` et `Promotio
 Operations peut contextualiser un incident par Espace, Activity et Occurrence sans Event obligatoire. Analytics lit Journey, Access, CommerceOrder, Payment et Capacity comme sources canoniques, projette seulement les Domain Events utiles via `analytics.system`, sépare valeur commerciale et paiement réellement encaissé, conserve les devises distinctes et évite le double comptage des projections Event/Ticket bridgées.
 
 Le backend reste générique tandis que les dashboards et écrans Events conservent les termes « billets », « participants », « revenus » et « contrôle d'accès ». Les invariants et compatibilités de cette étape sont détaillés dans [`scanner-operations-analytics.md`](scanner-operations-analytics.md).
+
+### Note d'implémentation — Task 9 Events comme verticale
+
+L'étape « Events comme verticale » est désormais matérialisée par composition sur les propriétaires canoniques : `Event → Activity`, calendrier → `Occurrence`, lieu physique → `Place` via `OccurrencePlace`, type de billet → `Offer` / `CapacityPool`, commande → `Journey` / `CommerceOrder`, billet → `Access`, QR → `AccessCredential` et validation → `AccessUse`.
+
+`Event`, `EventVenue`, `TicketType`, `TicketOrder`, `TicketOrderItem`, `Ticket`, Waitlist et `ScanLog` ne portent plus les décisions génériques déjà possédées par ces bounded contexts ; ils restent configuration, vocabulaire, snapshots historiques ou bridges explicitement documentés de la verticale Events. Les nouveaux flux écrivent d'abord les propriétaires canoniques. Les détails de cutover et la dette de compatibilité restante sont documentés dans [`events-vertical.md`](events-vertical.md).

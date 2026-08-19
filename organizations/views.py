@@ -8,7 +8,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from authorization.constants import PermissionCode
 from authorization.services import can, primary_space_roles_for_profiles, space_ids_with_permission
-from events.models import EventStatus, EventVisibility
+from events.models import Event, EventStatus, EventVisibility
 
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
 from .models import (
@@ -91,10 +91,16 @@ class PublicOrganizationDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["events"] = self.object.events.filter(
-            status=EventStatus.PUBLISHED,
-            visibility=EventVisibility.PUBLIC,
-        ).select_related("venue", "category").order_by("start_at")[:24]
+        context["events"] = (
+            Event.objects.filter(
+                activity__space=self.object,
+                activity__status=EventStatus.PUBLISHED,
+                activity__visibility=EventVisibility.PUBLIC,
+            )
+            .select_related("activity", "venue", "category")
+            .order_by("activity__occurrences__start_at")
+            .distinct()[:24]
+        )
         context["is_verified"] = self.object.verification_status == OrganizationVerificationStatus.VERIFIED
         context["follower_count"] = self.object.followers.count()
         context["follow"] = None
@@ -181,7 +187,11 @@ class OrganizationDetailView(LoginRequiredMixin, DetailView):
         for membership in memberships:
             membership.responsibility_role = role_by_profile.get(membership.user_id)
         context["memberships"] = memberships
-        context["events"] = self.object.events.order_by("-created_at")[:20]
+        context["events"] = (
+            Event.objects.filter(activity__space=self.object)
+            .select_related("activity", "category", "venue")
+            .order_by("-created_at")[:20]
+        )
         context["can_manage"] = user_can_manage_organization(self.request.user, self.object)
         context["can_manage_team"] = user_can_manage_organization_team(self.request.user, self.object)
         context["can_manage_activity"] = can(

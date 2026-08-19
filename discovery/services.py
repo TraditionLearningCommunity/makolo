@@ -5,6 +5,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
+from commerce.models import OfferStatus
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import OrganizationFollow, OrganizationVerificationStatus
 from tickets.models import TicketOrder, TicketOrderStatus, TicketType
@@ -26,10 +27,14 @@ def _count_for_event(queryset):
 
 def _public_event_annotations():
     min_ticket_price = (
-        TicketType.objects.filter(event_id=OuterRef("pk"), is_active=True)
+        TicketType.objects.filter(
+            event_id=OuterRef("pk"),
+            offer__status=OfferStatus.ACTIVE,
+            capacity_pool__is_active=True,
+        )
         .order_by()
         .values("event_id")
-        .annotate(value=Min("price"))
+        .annotate(value=Min("offer__unit_price"))
         .values("value")[:1]
     )
     bookmark_count = _count_for_event(EventBookmark.objects.filter(event_id=OuterRef("pk")))
@@ -40,7 +45,7 @@ def _public_event_annotations():
         )
     )
     follower_count = (
-        OrganizationFollow.objects.filter(organization_id=OuterRef("organization_id"))
+        OrganizationFollow.objects.filter(organization_id=OuterRef("activity__space_id"))
         .order_by()
         .values("organization_id")
         .annotate(total=Count("pk"))
@@ -69,14 +74,21 @@ def _public_event_annotations():
 def public_discovery_events():
     now = timezone.now()
     return (
-        Event.objects.select_related("organization", "category", "venue")
+        Event.objects.select_related(
+            "activity",
+            "activity__space",
+            "category",
+            "venue",
+            "venue__place",
+        )
+        .prefetch_related("activity__occurrences")
         .filter(
-            status=EventStatus.PUBLISHED,
-            visibility=EventVisibility.PUBLIC,
-            end_at__gte=now,
+            activity__status=EventStatus.PUBLISHED,
+            activity__visibility=EventVisibility.PUBLIC,
+            activity__occurrences__end_at__gte=now,
         )
         .exclude(
-            organization__verification_status=OrganizationVerificationStatus.SUSPENDED
+            activity__space__verification_status=OrganizationVerificationStatus.SUSPENDED
         )
         .annotate(**_public_event_annotations())
     )
@@ -94,40 +106,62 @@ def search_discovery_events(params):
 
     if q:
         queryset = queryset.filter(
-            Q(title__icontains=q)
-            | Q(short_description__icontains=q)
-            | Q(description__icontains=q)
-            | Q(organization__name__icontains=q)
+            Q(activity__title__icontains=q)
+            | Q(activity__short_description__icontains=q)
+            | Q(activity__description__icontains=q)
+            | Q(activity__space__name__icontains=q)
             | Q(category__name__icontains=q)
             | Q(venue__name__icontains=q)
-            | Q(venue__city__icontains=q)
+            | Q(venue__place__locality__icontains=q)
         )
     if category:
         queryset = queryset.filter(Q(category__slug=category) | Q(category__name__iexact=category))
     if city:
-        queryset = queryset.filter(Q(venue__city__icontains=city) | Q(organization__city__icontains=city))
+        queryset = queryset.filter(
+            Q(venue__place__locality__icontains=city)
+            | Q(activity__space__city__icontains=city)
+        )
     if organizer:
         queryset = queryset.filter(
-            Q(organization__slug=organizer) | Q(organization__name__icontains=organizer)
+            Q(activity__space__slug=organizer)
+            | Q(activity__space__name__icontains=organizer)
         )
     if price == "free":
-        queryset = queryset.filter(ticket_types__is_active=True, ticket_types__price=0)
+        queryset = queryset.filter(
+            ticket_types__offer__status=OfferStatus.ACTIVE,
+            ticket_types__capacity_pool__is_active=True,
+            ticket_types__offer__unit_price=0,
+        )
     elif price == "paid":
-        queryset = queryset.filter(ticket_types__is_active=True, ticket_types__price__gt=0)
+        queryset = queryset.filter(
+            ticket_types__offer__status=OfferStatus.ACTIVE,
+            ticket_types__capacity_pool__is_active=True,
+            ticket_types__offer__unit_price__gt=0,
+        )
     if date_from:
-        queryset = queryset.filter(start_at__date__gte=date_from)
+        queryset = queryset.filter(activity__occurrences__start_at__date__gte=date_from)
     if date_to:
-        queryset = queryset.filter(start_at__date__lte=date_to)
+        queryset = queryset.filter(activity__occurrences__start_at__date__lte=date_to)
 
     ordering = (params.get("ordering") or "upcoming").strip().lower()
     if ordering == "newest":
-        queryset = queryset.order_by("-published_at", "-created_at", "start_at")
+        queryset = queryset.order_by(
+            "-published_at",
+            "-created_at",
+            "activity__occurrences__start_at",
+        )
     elif ordering == "popular":
         queryset = queryset.order_by(
-            "-confirmed_order_count", "-bookmark_count", "-follower_count", "start_at"
+            "-confirmed_order_count",
+            "-bookmark_count",
+            "-follower_count",
+            "activity__occurrences__start_at",
         )
     else:
-        queryset = queryset.order_by("start_at", "title")
+        queryset = queryset.order_by(
+            "activity__occurrences__start_at",
+            "activity__title",
+        )
     return queryset.distinct()
 
 
@@ -140,10 +174,12 @@ def _event_score(event, *, followed_org_ids, preferred_category_ids, preferred_c
     if event.category_id and event.category_id in preferred_category_ids:
         score += 30
         reasons.append(f"Parce que vous aimez les événements {event.category.name}")
-    event_city = (getattr(event.venue, "city", "") or getattr(event.organization, "city", "") or "").strip().lower()
+    venue_city = event.venue.effective_city if event.venue_id else ""
+    organization_city = event.organization.city if event.organization_id else ""
+    event_city = (venue_city or organization_city or "").strip().lower()
     if event_city and event_city in preferred_cities:
         score += 18
-        reasons.append(f"Près de vous à {getattr(event.venue, 'city', '') or event.organization.city}")
+        reasons.append(f"Près de vous à {venue_city or organization_city}")
     score += min(getattr(event, "confirmed_order_count", 0), 20) * 3
     score += min(getattr(event, "bookmark_count", 0), 20) * 2
     score += min(getattr(event, "follower_count", 0), 50)
@@ -165,7 +201,9 @@ def _profile_city(user):
 
 
 def build_recommendations(user, *, limit=12):
-    candidates = list(public_discovery_events().order_by("start_at")[:120])
+    candidates = list(
+        public_discovery_events().order_by("activity__occurrences__start_at")[:120]
+    )
     if not getattr(user, "is_authenticated", False):
         ranked = []
         for event in candidates:
@@ -199,8 +237,8 @@ def build_recommendations(user, *, limit=12):
         for value in TicketOrder.objects.filter(
             buyer=user,
             status=TicketOrderStatus.CONFIRMED,
-            event__venue__city__gt="",
-        ).values_list("event__venue__city", flat=True)
+            event__venue__place__locality__gt="",
+        ).values_list("event__venue__place__locality", flat=True)
         if value
     )
     city = _profile_city(user)
@@ -254,7 +292,7 @@ def build_trending(*, limit=10):
                 Value(0),
             ),
         )
-        .order_by("start_at")[:120]
+        .order_by("activity__occurrences__start_at")[:120]
     )
     rows = []
     now = timezone.now()
@@ -271,6 +309,8 @@ def build_trending(*, limit=10):
 
 
 def serialize_event(event, *, reason=None, score=None):
+    venue_city = event.venue.effective_city if event.venue_id else ""
+    organization_city = event.organization.city if event.organization_id else ""
     return {
         "id": str(event.pk),
         "slug": event.slug,
@@ -279,7 +319,7 @@ def serialize_event(event, *, reason=None, score=None):
         "start_at": event.start_at,
         "end_at": event.end_at,
         "category": event.category.name if event.category_id else None,
-        "city": (event.venue.city if event.venue_id else "") or (event.organization.city if event.organization_id else ""),
+        "city": venue_city or organization_city,
         "organization": (
             {"slug": event.organization.slug, "name": event.organization.name}
             if event.organization_id

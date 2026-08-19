@@ -8,10 +8,22 @@ from django.core.signing import BadSignature, Signer
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from access.legacy_bridge import transfer_access_beneficiary
 from access.models import AccessStatus, CredentialStatus
-from access.services import resolve_access_credential
+from access.services import cancel_access, resolve_access_credential
+from capacity.selectors import capacity_availability
+from commerce.models import CommerceOrderStatus, OfferStatus, PaymentMode
+from commerce.services import (
+    cancel_order as cancel_commerce_order,
+    confirm_order as confirm_commerce_order,
+    create_order as create_commerce_order,
+    expire_order as expire_commerce_order,
+    update_offer,
+)
 from events.models import Event, EventStatus
 from events.permissions import user_can_manage_event, user_can_manage_event_finance
+from journeys.models import JourneyStatus, WorkflowKind
+from journeys.services import cancel_journey, create_journey, fulfill_journey
 
 from .models import (
     QR_SIGNING_SALT,
@@ -44,41 +56,28 @@ def _lock_event_ticket_types(event: Event):
     return list(
         TicketType.objects.select_for_update(of=("self",))
         .filter(event=event)
-        .select_related("event")
+        .select_related("event__activity", "offer", "capacity_pool")
         .order_by("id")
     )
 
 
-def _event_committed_quantity(ticket_types) -> int:
-    return sum(t.reserved_quantity + t.issued_quantity for t in ticket_types)
-
-
-def _event_capacity_available(event: Event, ticket_types) -> int | None:
-    if event.capacity is None:
-        return None
-    return max(event.capacity - _event_committed_quantity(ticket_types), 0)
-
-
-def _available_for_ticket_type(ticket_type: TicketType, ticket_types) -> int | None:
-    type_available = ticket_type.available_quantity
-    capacity_available = _event_capacity_available(ticket_type.event, ticket_types)
-    if type_available is None:
-        return capacity_available
-    if capacity_available is None:
-        return type_available
-    return min(type_available, capacity_available)
+def _available_for_ticket_type(ticket_type: TicketType, ticket_types=None) -> int | None:
+    # CapacityPool is the only source of availability. The optional collection
+    # argument is retained for compatibility with callers from the legacy UI.
+    return capacity_availability(ticket_type.capacity_pool).available
 
 
 def _ticket_sales_window_open(ticket_type: TicketType, *, now=None) -> bool:
     now = now or timezone.now()
     event = ticket_type.event
-    if not ticket_type.is_active or event.status != EventStatus.PUBLISHED:
+    offer = ticket_type.offer
+    if event.status != EventStatus.PUBLISHED or not event.is_registration_open:
         return False
-    if not event.is_registration_open:
+    if not ticket_type.is_public or offer.status != OfferStatus.ACTIVE or not ticket_type.capacity_pool.is_active:
         return False
-    if ticket_type.sales_start_at and now < ticket_type.sales_start_at:
+    if offer.available_from and now < offer.available_from:
         return False
-    if ticket_type.sales_end_at and now > ticket_type.sales_end_at:
+    if offer.available_until and now >= offer.available_until:
         return False
     return True
 
@@ -88,9 +87,7 @@ def can_join_waitlist(user, ticket_type: TicketType) -> bool:
         return False
     if not _ticket_sales_window_open(ticket_type):
         return False
-    ticket_types = list(TicketType.objects.filter(event=ticket_type.event).order_by("id"))
-    current = next((item for item in ticket_types if item.pk == ticket_type.pk), ticket_type)
-    available = _available_for_ticket_type(current, ticket_types)
+    available = _available_for_ticket_type(ticket_type)
     if available is None or available > 0:
         return False
     return not TicketWaitlistEntry.objects.filter(
@@ -100,31 +97,178 @@ def can_join_waitlist(user, ticket_type: TicketType) -> bool:
     ).exists()
 
 
-def _issue_tickets_for_order(order: TicketOrder, ticket_types_by_id: dict) -> list[Ticket]:
+def _bounded_offer_window(event, *, available_from=None, available_until=None):
+    if event.registration_start_at and (
+        available_from is None or available_from < event.registration_start_at
+    ):
+        available_from = event.registration_start_at
+    if event.registration_end_at and (
+        available_until is None or available_until > event.registration_end_at
+    ):
+        available_until = event.registration_end_at
+    return available_from, available_until
+
+
+@transaction.atomic
+def configure_ticket_type(
+    *,
+    actor,
+    event,
+    ticket_type=None,
+    name,
+    description="",
+    price=Decimal("0.00"),
+    currency="USD",
+    quantity_total=None,
+    sales_start_at=None,
+    sales_end_at=None,
+    min_per_order=1,
+    max_per_order=10,
+    is_active=True,
+    is_public=True,
+):
+    """Configure Event ticket vocabulary while Offer/Capacity own the data."""
+    if not user_can_manage_event(actor, event):
+        raise PermissionDenied("Vous ne pouvez pas gérer les tarifs de cet événement.")
+    occurrence = event.primary_occurrence
+    if occurrence is None:
+        raise ValidationError("L’événement doit avoir une Occurrence avant de configurer un billet.")
+    price = Decimal(str(price or "0.00"))
+    currency = (currency or "USD").strip().upper()
+    sales_start_at, sales_end_at = _bounded_offer_window(
+        event,
+        available_from=sales_start_at,
+        available_until=sales_end_at,
+    )
+    if sales_start_at and sales_end_at and sales_end_at <= sales_start_at:
+        raise ValidationError("La fin des ventes doit être postérieure au début.")
+
+    from capacity.models import CapacityPool
+    from commerce.models import Offer
+
+    if ticket_type is None:
+        ticket_type_id = uuid.uuid4()
+        pool = CapacityPool.objects.create(
+            activity=event.activity,
+            occurrence=occurrence,
+            label=name,
+            total_quantity=quantity_total,
+            is_active=is_active,
+            source_key=f"ticket-type:{ticket_type_id}",
+        )
+        offer = Offer.objects.create(
+            activity=event.activity,
+            occurrence=occurrence,
+            capacity_pool=pool,
+            name=name,
+            description=description,
+            unit_price=price,
+            currency=currency,
+            payment_mode=PaymentMode.NONE if price == 0 else PaymentMode.UPFRONT,
+            available_from=sales_start_at,
+            available_until=sales_end_at,
+            min_quantity=min_per_order,
+            max_quantity=max_per_order,
+            status=OfferStatus.ACTIVE if is_active else OfferStatus.INACTIVE,
+            source_key=f"ticket-type:{ticket_type_id}",
+        )
+        ticket_type = TicketType(
+            id=ticket_type_id,
+            event=event,
+            offer=offer,
+            capacity_pool=pool,
+            name=name,
+            description=description,
+            is_public=is_public,
+        )
+        ticket_type.save()
+        return ticket_type
+
+    ticket_type = (
+        TicketType.objects.select_for_update(of=("self",))
+        .select_related("offer", "capacity_pool", "event__activity")
+        .order_by()
+        .get(pk=ticket_type.pk)
+    )
+    if ticket_type.event_id != event.pk:
+        raise ValidationError("Un type de billet existant ne peut pas changer d’événement.")
+
+    availability = capacity_availability(ticket_type.capacity_pool)
+    consumed = availability.held + availability.committed
+    if quantity_total is not None and quantity_total < consumed:
+        raise ValidationError("Le nouveau stock est inférieur à la capacité déjà retenue ou engagée.")
+    pool = ticket_type.capacity_pool
+    pool.label = name
+    pool.total_quantity = quantity_total
+    pool.is_active = is_active
+    pool.save(update_fields=["label", "total_quantity", "is_active", "updated_at"])
+
+    update_offer(
+        offer=ticket_type.offer,
+        occurrence=occurrence,
+        capacity_pool=pool,
+        name=name,
+        description=description,
+        unit_price=price,
+        currency=currency,
+        payment_mode=PaymentMode.NONE if price == 0 else PaymentMode.UPFRONT,
+        available_from=sales_start_at,
+        available_until=sales_end_at,
+        min_quantity=min_per_order,
+        max_quantity=max_per_order,
+        status=OfferStatus.ACTIVE if is_active else OfferStatus.INACTIVE,
+    )
+    ticket_type.name = name
+    ticket_type.description = description
+    ticket_type.is_public = is_public
+    ticket_type.save(update_fields=["name", "description", "is_public", "updated_at"])
+    return ticket_type
+
+
+def _issue_tickets_for_order(order: TicketOrder) -> list[Ticket]:
+    existing = list(order.tickets.select_related("access").order_by("created_at", "id"))
+    expected = sum(item.quantity for item in order.items.all())
+    if existing:
+        if len(existing) != expected:
+            raise ValidationError("La projection Ticket de la commande est incomplète.")
+        return existing
+
     tickets = []
     for item in order.items.select_related("ticket_type").all():
-        ticket_type = ticket_types_by_id[item.ticket_type_id]
-        if ticket_type.reserved_quantity < item.quantity:
-            raise ValidationError("Le stock réservé de la commande est incohérent.")
-
-        ticket_type.reserved_quantity -= item.quantity
-        ticket_type.issued_quantity += item.quantity
-        ticket_type.save(update_fields=["reserved_quantity", "issued_quantity", "updated_at"])
-
         for _ in range(item.quantity):
             tickets.append(
                 Ticket(
                     event=order.event,
-                    ticket_type=ticket_type,
+                    ticket_type=item.ticket_type,
                     order=order,
                     owner=order.buyer,
                     holder_name=order.customer_name,
                     holder_email=order.customer_email,
                 )
             )
-
     Ticket.objects.bulk_create(tickets)
-    return tickets
+    return list(order.tickets.select_related("access").order_by("created_at", "id"))
+
+
+def _project_commerce_order(order, commerce_order):
+    mapping = {
+        CommerceOrderStatus.PENDING: TicketOrderStatus.PENDING,
+        CommerceOrderStatus.CONFIRMED: TicketOrderStatus.CONFIRMED,
+        CommerceOrderStatus.CANCELLED: TicketOrderStatus.CANCELLED,
+        CommerceOrderStatus.EXPIRED: TicketOrderStatus.EXPIRED,
+        CommerceOrderStatus.REFUNDED: TicketOrderStatus.CANCELLED,
+        CommerceOrderStatus.DRAFT: TicketOrderStatus.PENDING,
+    }
+    TicketOrder.objects.filter(pk=order.pk).update(
+        status=mapping[commerce_order.status],
+        total_amount=commerce_order.total,
+        currency=commerce_order.currency,
+        expires_at=commerce_order.expires_at,
+        confirmed_at=commerce_order.confirmed_at,
+        cancelled_at=commerce_order.cancelled_at,
+        updated_at=timezone.now(),
+    )
+    return TicketOrder.objects.select_related("commerce_order", "journey", "event__activity").get(pk=order.pk)
 
 
 @transaction.atomic
@@ -136,89 +280,129 @@ def create_order(
     customer_email: str,
     selections: list[tuple[TicketType, int]],
     hold_minutes: int = 20,
+    promotion_code: str = "",
+    auto_confirm_free: bool = True,
 ) -> TicketOrder:
-    event = Event.objects.select_for_update().get(pk=event.pk)
+    """Canonical Event checkout: Journey -> Commerce -> Event projections."""
+    if not getattr(buyer, "is_authenticated", False):
+        raise ValidationError("Le nouveau checkout Event exige une identité Makolo.")
+    event = Event.objects.select_for_update().select_related("activity", "activity__space").get(pk=event.pk)
     _validate_event_sales(event)
-
+    occurrence = event.primary_occurrence
+    if occurrence is None:
+        raise ValidationError("Cet événement n’a pas d’Occurrence disponible.")
     if not selections:
         raise ValidationError("Sélectionnez au moins un type de billet.")
 
     locked_types = _lock_event_ticket_types(event)
     types_by_id = {ticket_type.pk: ticket_type for ticket_type in locked_types}
-
     normalized = []
-    total_quantity = 0
-    currencies = set()
-    total_amount = Decimal("0.00")
-
     for selected_type, raw_quantity in selections:
         ticket_type = types_by_id.get(selected_type.pk)
-        if not ticket_type:
+        if ticket_type is None:
             raise ValidationError("Un type de billet n’appartient pas à cet événement.")
-
-        quantity = int(raw_quantity)
+        try:
+            quantity = int(raw_quantity)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("Quantité invalide.") from exc
         if quantity < ticket_type.min_per_order or quantity > ticket_type.max_per_order:
             raise ValidationError(
-                f"{ticket_type.name}: quantité autorisée entre "
-                f"{ticket_type.min_per_order} et {ticket_type.max_per_order}."
+                f"{ticket_type.name}: quantité autorisée entre {ticket_type.min_per_order} et {ticket_type.max_per_order}."
             )
-        if not ticket_type.is_on_sale:
+        if not _ticket_sales_window_open(ticket_type):
             raise ValidationError(f"{ticket_type.name} n’est pas disponible à la vente.")
-        if ticket_type.available_quantity is not None and quantity > ticket_type.available_quantity:
+        available = _available_for_ticket_type(ticket_type)
+        if available is not None and quantity > available:
             raise ValidationError(f"Stock insuffisant pour {ticket_type.name}.")
-
         normalized.append((ticket_type, quantity))
-        total_quantity += quantity
-        currencies.add(ticket_type.currency)
-        total_amount += ticket_type.price * quantity
 
-    if len(currencies) != 1:
-        raise ValidationError("Une commande ne peut pas mélanger plusieurs devises.")
-
-    if event.capacity is not None:
-        committed = _event_committed_quantity(locked_types)
-        if committed + total_quantity > event.capacity:
-            raise ValidationError("La capacité restante de l’événement est insuffisante.")
-
-    currency = currencies.pop()
-    order = TicketOrder.objects.create(
-        event=event,
-        buyer=buyer if getattr(buyer, "is_authenticated", False) else None,
-        customer_name=customer_name.strip(),
-        customer_email=customer_email.strip().lower(),
-        total_amount=total_amount,
-        currency=currency,
-        expires_at=timezone.now() + timedelta(minutes=hold_minutes),
+    expires_at = timezone.now() + timedelta(minutes=hold_minutes)
+    journey = create_journey(
+        initiated_by=buyer,
+        beneficiary=buyer,
+        activity=event.activity,
+        occurrence=occurrence,
+        workflow=WorkflowKind.PURCHASE,
+        status=JourneyStatus.DRAFT,
+        expires_at=expires_at,
+    )
+    commerce_order = create_commerce_order(
+        journey=journey,
+        buyer=buyer,
+        selections=[
+            {"offer": ticket_type.offer, "quantity": quantity, "beneficiary": buyer}
+            for ticket_type, quantity in normalized
+        ],
+        payee_space=event.activity.space,
+        expires_at=expires_at,
+        source_key=f"event-checkout:{journey.pk}",
+        promotion_code=(promotion_code or "").strip() or None,
     )
 
+    order = TicketOrder.objects.create(
+        event=event,
+        buyer=buyer,
+        journey=journey,
+        commerce_order=commerce_order,
+        customer_name=customer_name.strip(),
+        customer_email=customer_email.strip().lower(),
+        status=TicketOrderStatus.PENDING,
+        total_amount=commerce_order.total,
+        currency=commerce_order.currency,
+        expires_at=commerce_order.expires_at,
+    )
+    commerce_items_by_offer = {
+        item.offer_id: item
+        for item in commerce_order.items.select_related("offer").order_by("created_at", "id")
+    }
     for ticket_type, quantity in normalized:
+        commerce_item = commerce_items_by_offer[ticket_type.offer_id]
         TicketOrderItem.objects.create(
             order=order,
             ticket_type=ticket_type,
+            commerce_item=commerce_item,
             quantity=quantity,
-            unit_price=ticket_type.price,
+            unit_price=commerce_item.unit_price,
         )
-        ticket_type.reserved_quantity += quantity
-        ticket_type.save(update_fields=["reserved_quantity", "updated_at"])
 
-    if total_amount == 0:
-        _confirm_locked_order(order, locked_types)
-
+    if commerce_order.total == Decimal("0.00") and auto_confirm_free:
+        commerce_order = confirm_commerce_order(order=commerce_order, actor=buyer)
+        order = _project_commerce_order(order, commerce_order)
+        _issue_tickets_for_order(order)
+        journey.refresh_from_db()
+        if journey.status == JourneyStatus.CONFIRMED:
+            fulfill_journey(journey=journey, actor=buyer, reason="event_ticket_issued")
+        return TicketOrder.objects.get(pk=order.pk)
     return order
 
 
-def _confirm_locked_order(order: TicketOrder, locked_types: list[TicketType]) -> TicketOrder:
+@transaction.atomic
+def _confirm_locked_order(order: TicketOrder, locked_types=None) -> TicketOrder:
+    """Compatibility entry used by Payment after provider verification."""
+    order = (
+        TicketOrder.objects.select_for_update(of=("self",))
+        .select_related("commerce_order", "journey", "event")
+        .get(pk=order.pk)
+    )
+    if order.status == TicketOrderStatus.CONFIRMED:
+        return order
     if order.status != TicketOrderStatus.PENDING:
         raise ValidationError("Seule une commande en attente peut être confirmée.")
     if order.is_expired:
         raise ValidationError("Cette commande a expiré.")
+    if not order.commerce_order_id:
+        raise ValidationError("Cette commande Event n’a pas de CommerceOrder canonique.")
 
-    types_by_id = {ticket_type.pk: ticket_type for ticket_type in locked_types}
-    _issue_tickets_for_order(order, types_by_id)
-    order.status = TicketOrderStatus.CONFIRMED
-    order.confirmed_at = timezone.now()
-    order.expires_at = None
-    order.save(update_fields=["status", "confirmed_at", "expires_at", "updated_at"])
+    commerce_order = confirm_commerce_order(
+        order=order.commerce_order,
+        payment_verified=order.commerce_order.total > 0,
+    )
+    order = _project_commerce_order(order, commerce_order)
+    _issue_tickets_for_order(order)
+    if order.journey_id:
+        order.journey.refresh_from_db()
+        if order.journey.status == JourneyStatus.CONFIRMED:
+            fulfill_journey(journey=order.journey, reason="event_ticket_issued")
 
     TicketWaitlistEntry.objects.filter(
         offered_order=order,
@@ -228,21 +412,28 @@ def _confirm_locked_order(order: TicketOrder, locked_types: list[TicketType]) ->
         converted_at=timezone.now(),
         updated_at=timezone.now(),
     )
-    return order
+    return TicketOrder.objects.get(pk=order.pk)
 
 
 @transaction.atomic
 def confirm_order(*, order: TicketOrder, actor) -> TicketOrder:
     order = (
         TicketOrder.objects.select_for_update(of=("self",))
-        .select_related("event", "event__organizer")
+        .select_related("event", "commerce_order", "journey")
         .get(pk=order.pk)
     )
     if not user_can_manage_event(actor, order.event):
         raise PermissionDenied("Vous ne pouvez pas confirmer cette commande.")
-
-    locked_types = _lock_event_ticket_types(order.event)
-    return _confirm_locked_order(order, locked_types)
+    if not order.commerce_order_id:
+        raise ValidationError("Cette commande n’a pas de CommerceOrder canonique.")
+    commerce_order = confirm_commerce_order(order=order.commerce_order, actor=actor)
+    order = _project_commerce_order(order, commerce_order)
+    _issue_tickets_for_order(order)
+    if order.journey_id:
+        order.journey.refresh_from_db()
+        if order.journey.status == JourneyStatus.CONFIRMED:
+            fulfill_journey(journey=order.journey, actor=actor, reason="event_ticket_issued")
+    return TicketOrder.objects.get(pk=order.pk)
 
 
 def _schedule_waitlist_promotion(ticket_type_ids):
@@ -257,106 +448,83 @@ def _schedule_waitlist_promotion(ticket_type_ids):
 def cancel_order(*, order: TicketOrder, actor) -> TicketOrder:
     order = (
         TicketOrder.objects.select_for_update(of=("self",))
-        .select_related("event", "event__organizer", "event__organization", "buyer")
+        .select_related("event", "event__activity", "buyer", "commerce_order", "journey")
         .get(pk=order.pk)
     )
-    can_manage = user_can_manage_event(actor, order.event) or user_can_manage_event_finance(
-        actor, order.event
-    )
+    can_manage = user_can_manage_event(actor, order.event) or user_can_manage_event_finance(actor, order.event)
     is_buyer = getattr(actor, "is_authenticated", False) and order.buyer_id == actor.pk
     if not (can_manage or is_buyer):
         raise PermissionDenied("Vous ne pouvez pas annuler cette commande.")
-
     if order.status in {TicketOrderStatus.CANCELLED, TicketOrderStatus.EXPIRED}:
         return order
-
     if order.status == TicketOrderStatus.CONFIRMED and not can_manage:
-        raise PermissionDenied(
-            "Une commande confirmée doit être annulée par l'équipe autorisée ou le support."
-        )
+        raise PermissionDenied("Une commande confirmée doit être annulée par l'équipe autorisée ou le support.")
+    if order.tickets.filter(access__status=AccessStatus.USED).exists():
+        raise ValidationError("Une commande contenant un billet déjà utilisé ne peut pas être annulée.")
+    if not order.commerce_order_id:
+        raise ValidationError("Cette commande n’a pas de CommerceOrder canonique.")
 
-    if order.status == TicketOrderStatus.CONFIRMED and order.tickets.filter(
-        status=TicketStatus.USED
-    ).exists():
-        raise ValidationError(
-            "Une commande contenant un billet déjà utilisé ne peut pas être annulée."
-        )
-
-    locked_types = _lock_event_ticket_types(order.event)
-    types_by_id = {ticket_type.pk: ticket_type for ticket_type in locked_types}
-    affected_type_ids = []
-
-    if order.status == TicketOrderStatus.PENDING:
-        for item in order.items.all():
-            ticket_type = types_by_id[item.ticket_type_id]
-            affected_type_ids.append(ticket_type.pk)
-            ticket_type.reserved_quantity = max(ticket_type.reserved_quantity - item.quantity, 0)
-            ticket_type.save(update_fields=["reserved_quantity", "updated_at"])
-        TicketWaitlistEntry.objects.filter(
-            offered_order=order,
-            status=WaitlistStatus.OFFERED,
-        ).update(
-            status=WaitlistStatus.CANCELLED,
-            cancelled_at=timezone.now(),
-            updated_at=timezone.now(),
-        )
-    elif order.status == TicketOrderStatus.CONFIRMED:
-        for item in order.items.all():
-            ticket_type = types_by_id[item.ticket_type_id]
-            affected_type_ids.append(ticket_type.pk)
-            ticket_type.issued_quantity = max(ticket_type.issued_quantity - item.quantity, 0)
-            ticket_type.save(update_fields=["issued_quantity", "updated_at"])
-        order.tickets.filter(status=TicketStatus.VALID).update(
-            status=TicketStatus.CANCELLED,
-            cancelled_at=timezone.now(),
-        )
-
-    order.status = TicketOrderStatus.CANCELLED
-    order.cancelled_at = timezone.now()
-    order.expires_at = None
-    order.save(update_fields=["status", "cancelled_at", "expires_at", "updated_at"])
+    affected_type_ids = list(order.items.values_list("ticket_type_id", flat=True))
+    commerce_order = cancel_commerce_order(
+        order=order.commerce_order,
+        actor=actor,
+        release_committed=can_manage,
+    )
+    for ticket in order.tickets.select_related("access"):
+        if ticket.access_id and ticket.access.status not in {
+            AccessStatus.CANCELLED,
+            AccessStatus.REVOKED,
+            AccessStatus.EXPIRED,
+        }:
+            cancel_access(access=ticket.access, actor=None)
+    if order.journey_id:
+        order.journey.refresh_from_db()
+        if order.journey.status not in {
+            JourneyStatus.FULFILLED,
+            JourneyStatus.CANCELLED,
+            JourneyStatus.EXPIRED,
+            JourneyStatus.REJECTED,
+        }:
+            cancel_journey(journey=order.journey, actor=actor, reason="event_order_cancelled")
+    order = _project_commerce_order(order, commerce_order)
+    Ticket.objects.filter(order=order).update(status=TicketStatus.CANCELLED, cancelled_at=timezone.now())
     _schedule_waitlist_promotion(affected_type_ids)
-    return order
+    return TicketOrder.objects.get(pk=order.pk)
 
 
 @transaction.atomic
 def expire_order(*, order: TicketOrder) -> TicketOrder:
-    order = TicketOrder.objects.select_for_update(of=("self",)).select_related("event").get(pk=order.pk)
+    order = (
+        TicketOrder.objects.select_for_update(of=("self",))
+        .select_related("commerce_order", "event")
+        .get(pk=order.pk)
+    )
     if order.status != TicketOrderStatus.PENDING or not order.is_expired:
         return order
-
-    locked_types = _lock_event_ticket_types(order.event)
-    types_by_id = {ticket_type.pk: ticket_type for ticket_type in locked_types}
-    affected_type_ids = []
-    for item in order.items.all():
-        ticket_type = types_by_id[item.ticket_type_id]
-        affected_type_ids.append(ticket_type.pk)
-        ticket_type.reserved_quantity = max(ticket_type.reserved_quantity - item.quantity, 0)
-        ticket_type.save(update_fields=["reserved_quantity", "updated_at"])
-
-    order.status = TicketOrderStatus.EXPIRED
-    order.save(update_fields=["status", "updated_at"])
+    if not order.commerce_order_id:
+        raise ValidationError("Cette commande n’a pas de CommerceOrder canonique.")
+    affected_type_ids = list(order.items.values_list("ticket_type_id", flat=True))
+    commerce_order = expire_commerce_order(order=order.commerce_order, now=timezone.now())
+    order = _project_commerce_order(order, commerce_order)
     TicketWaitlistEntry.objects.filter(
         offered_order=order,
         status=WaitlistStatus.OFFERED,
     ).update(status=WaitlistStatus.EXPIRED, updated_at=timezone.now())
     _schedule_waitlist_promotion(affected_type_ids)
-    return order
+    return TicketOrder.objects.get(pk=order.pk)
 
 
 @transaction.atomic
 def join_waitlist(*, user, ticket_type: TicketType, quantity: int = 1) -> TicketWaitlistEntry:
     if not getattr(user, "is_authenticated", False):
         raise PermissionDenied("Connectez-vous pour rejoindre la liste d’attente.")
-
-    event = Event.objects.select_for_update().get(pk=ticket_type.event_id)
-    locked_types = _lock_event_ticket_types(event)
-    ticket_type = next((item for item in locked_types if item.pk == ticket_type.pk), None)
-    if not ticket_type:
-        raise ValidationError("Type de billet introuvable pour cet événement.")
+    ticket_type = (
+        TicketType.objects.select_for_update(of=("self",))
+        .select_related("event__activity", "offer", "capacity_pool")
+        .get(pk=ticket_type.pk)
+    )
     if not _ticket_sales_window_open(ticket_type):
         raise ValidationError("La liste d’attente n’est pas ouverte pour ce billet.")
-
     try:
         quantity = int(quantity)
     except (TypeError, ValueError) as exc:
@@ -365,11 +533,9 @@ def join_waitlist(*, user, ticket_type: TicketType, quantity: int = 1) -> Ticket
         raise ValidationError(
             f"Quantité autorisée entre {ticket_type.min_per_order} et {ticket_type.max_per_order}."
         )
-
-    available = _available_for_ticket_type(ticket_type, locked_types)
+    available = _available_for_ticket_type(ticket_type)
     if available is None or available > 0:
         raise ValidationError("Des billets sont encore disponibles : réservez-les directement.")
-
     existing = TicketWaitlistEntry.objects.filter(
         ticket_type=ticket_type,
         user=user,
@@ -377,12 +543,7 @@ def join_waitlist(*, user, ticket_type: TicketType, quantity: int = 1) -> Ticket
     ).first()
     if existing:
         return existing
-
-    entry = TicketWaitlistEntry(
-        ticket_type=ticket_type,
-        user=user,
-        requested_quantity=quantity,
-    )
+    entry = TicketWaitlistEntry(ticket_type=ticket_type, user=user, requested_quantity=quantity)
     entry.full_clean()
     try:
         entry.save()
@@ -399,39 +560,30 @@ def _waitlist_offer_expiry(ticket_type: TicketType, *, now, hold_minutes: int):
     candidates = [now + timedelta(minutes=hold_minutes), ticket_type.event.end_at]
     if ticket_type.event.registration_end_at:
         candidates.append(ticket_type.event.registration_end_at)
-    if ticket_type.sales_end_at:
-        candidates.append(ticket_type.sales_end_at)
+    if ticket_type.offer.available_until:
+        candidates.append(ticket_type.offer.available_until)
     return min(candidates)
 
 
 def _notify_waitlist_offer_on_commit(entry_id):
     from notifications.services import notify_waitlist_offer
-
     transaction.on_commit(lambda: notify_waitlist_offer(entry_id))
 
 
 @transaction.atomic
-def promote_waitlist_for_ticket_type(
-    ticket_type_id,
-    *,
-    now=None,
-    hold_minutes: int = WAITLIST_OFFER_MINUTES,
-) -> int:
+def promote_waitlist_for_ticket_type(ticket_type_id, *, now=None, hold_minutes: int = WAITLIST_OFFER_MINUTES) -> int:
     now = now or timezone.now()
-    initial = TicketType.objects.select_related("event").filter(pk=ticket_type_id).first()
-    if not initial:
-        return 0
-
-    event = Event.objects.select_for_update().get(pk=initial.event_id)
-    locked_types = _lock_event_ticket_types(event)
-    ticket_type = next((item for item in locked_types if item.pk == initial.pk), None)
+    ticket_type = (
+        TicketType.objects.select_for_update(of=("self",))
+        .select_related("event__activity", "offer", "capacity_pool")
+        .filter(pk=ticket_type_id)
+        .first()
+    )
     if not ticket_type or not _ticket_sales_window_open(ticket_type, now=now):
         return 0
-
-    available = _available_for_ticket_type(ticket_type, locked_types)
+    available = _available_for_ticket_type(ticket_type)
     if available is None or available <= 0:
         return 0
-
     entries = list(
         TicketWaitlistEntry.objects.select_for_update(of=("self",))
         .select_related("user")
@@ -442,43 +594,23 @@ def promote_waitlist_for_ticket_type(
     for entry in entries:
         if entry.requested_quantity > available:
             break
-
         expires_at = _waitlist_offer_expiry(ticket_type, now=now, hold_minutes=hold_minutes)
         if expires_at <= now:
             break
-
-        customer_name = entry.user.full_name or entry.user.username
-        order = TicketOrder.objects.create(
-            event=event,
+        order = create_order(
             buyer=entry.user,
-            customer_name=customer_name,
+            event=ticket_type.event,
+            customer_name=entry.user.full_name or entry.user.username,
             customer_email=(entry.user.email or "").strip().lower(),
-            total_amount=ticket_type.price * entry.requested_quantity,
-            currency=ticket_type.currency,
-            expires_at=expires_at,
+            selections=[(ticket_type, entry.requested_quantity)],
+            hold_minutes=max(1, int((expires_at - now).total_seconds() // 60)),
+            auto_confirm_free=False,
         )
-        TicketOrderItem.objects.create(
-            order=order,
-            ticket_type=ticket_type,
-            quantity=entry.requested_quantity,
-            unit_price=ticket_type.price,
-        )
-        ticket_type.reserved_quantity += entry.requested_quantity
-        ticket_type.save(update_fields=["reserved_quantity", "updated_at"])
-
         entry.status = WaitlistStatus.OFFERED
         entry.offered_order = order
         entry.offered_at = now
         entry.offer_expires_at = expires_at
-        entry.save(
-            update_fields=[
-                "status",
-                "offered_order",
-                "offered_at",
-                "offer_expires_at",
-                "updated_at",
-            ]
-        )
+        entry.save(update_fields=["status", "offered_order", "offered_at", "offer_expires_at", "updated_at"])
         _notify_waitlist_offer_on_commit(entry.pk)
         promoted += 1
         available -= entry.requested_quantity
@@ -492,40 +624,40 @@ def promote_open_waitlists(*, now=None) -> int:
     ticket_type_ids = list(
         TicketWaitlistEntry.objects.filter(
             status=WaitlistStatus.WAITING,
-            ticket_type__event__status=EventStatus.PUBLISHED,
-        )
-        .values_list("ticket_type_id", flat=True)
-        .distinct()
+            ticket_type__event__activity__status=EventStatus.PUBLISHED,
+        ).values_list("ticket_type_id", flat=True).distinct()
     )
-    return sum(
-        promote_waitlist_for_ticket_type(ticket_type_id, now=now)
-        for ticket_type_id in ticket_type_ids
-    )
+    return sum(promote_waitlist_for_ticket_type(ticket_type_id, now=now) for ticket_type_id in ticket_type_ids)
 
 
 @transaction.atomic
 def accept_waitlist_offer(*, entry: TicketWaitlistEntry, user) -> TicketOrder:
     entry = (
         TicketWaitlistEntry.objects.select_for_update(of=("self",))
-        .select_related("offered_order__event", "ticket_type", "user")
+        .select_related("offered_order__commerce_order", "ticket_type", "user")
         .get(pk=entry.pk)
     )
     if entry.user_id != getattr(user, "pk", None):
         raise PermissionDenied("Cette offre de liste d’attente ne vous appartient pas.")
     if entry.status != WaitlistStatus.OFFERED or not entry.offered_order_id:
         raise ValidationError("Cette offre n’est plus disponible.")
-
-    order = TicketOrder.objects.select_for_update().get(pk=entry.offered_order_id)
+    order = TicketOrder.objects.select_for_update().select_related("commerce_order").get(pk=entry.offered_order_id)
     if order.is_expired or (entry.offer_expires_at and timezone.now() >= entry.offer_expires_at):
         expire_order(order=order)
         raise ValidationError("Cette offre a expiré.")
-
-    if order.total_amount > 0:
+    if order.canonical_total > 0:
         return order
-
-    locked_types = _lock_event_ticket_types(order.event)
-    _confirm_locked_order(order, locked_types)
-    return order
+    commerce_order = confirm_commerce_order(order=order.commerce_order, actor=user)
+    order = _project_commerce_order(order, commerce_order)
+    _issue_tickets_for_order(order)
+    if order.journey_id:
+        order.journey.refresh_from_db()
+        if order.journey.status == JourneyStatus.CONFIRMED:
+            fulfill_journey(journey=order.journey, actor=user, reason="waitlist_ticket_issued")
+    entry.status = WaitlistStatus.CONVERTED
+    entry.converted_at = timezone.now()
+    entry.save(update_fields=["status", "converted_at", "updated_at"])
+    return TicketOrder.objects.get(pk=order.pk)
 
 
 @transaction.atomic
@@ -539,12 +671,10 @@ def leave_waitlist(*, entry: TicketWaitlistEntry, user) -> TicketWaitlistEntry:
         raise PermissionDenied("Cette entrée de liste d’attente ne vous appartient pas.")
     if entry.status not in {WaitlistStatus.WAITING, WaitlistStatus.OFFERED}:
         return entry
-
     if entry.status == WaitlistStatus.OFFERED and entry.offered_order_id:
         order = TicketOrder.objects.select_for_update().get(pk=entry.offered_order_id)
         if order.status == TicketOrderStatus.PENDING:
             cancel_order(order=order, actor=user)
-
     entry.status = WaitlistStatus.CANCELLED
     entry.cancelled_at = timezone.now()
     entry.save(update_fields=["status", "cancelled_at", "updated_at"])
@@ -553,53 +683,39 @@ def leave_waitlist(*, entry: TicketWaitlistEntry, user) -> TicketWaitlistEntry:
 
 def _notify_transfer_created_on_commit(transfer_id):
     from notifications.services import notify_ticket_transfer_created
-
     transaction.on_commit(lambda: notify_ticket_transfer_created(transfer_id))
 
 
 def _notify_transfer_accepted_on_commit(transfer_id):
     from notifications.services import notify_ticket_transfer_accepted
-
     transaction.on_commit(lambda: notify_ticket_transfer_accepted(transfer_id))
 
 
 @transaction.atomic
-def create_ticket_transfer(
-    *,
-    ticket: Ticket,
-    sender,
-    recipient_email: str,
-    expiry_hours: int = TRANSFER_EXPIRY_HOURS,
-) -> TicketTransfer:
+def create_ticket_transfer(*, ticket: Ticket, sender, recipient_email: str, expiry_hours: int = TRANSFER_EXPIRY_HOURS) -> TicketTransfer:
     ticket = (
         Ticket.objects.select_for_update(of=("self",))
-        .select_related("event", "owner", "ticket_type")
+        .select_related("event", "owner", "ticket_type", "access")
         .get(pk=ticket.pk)
     )
     if ticket.owner_id != getattr(sender, "pk", None):
         raise PermissionDenied("Seul le propriétaire actuel peut transférer ce billet.")
-    if ticket.status != TicketStatus.VALID or not ticket.is_valid:
-        raise ValidationError("Seul un billet valide et non utilisé peut être transféré.")
-
+    if not ticket.access_id or ticket.access.status != AccessStatus.VALID or not ticket.is_valid:
+        raise ValidationError("Seul un billet canonique valide et non utilisé peut être transféré.")
     recipient_email = (recipient_email or "").strip().lower()
     if not recipient_email:
         raise ValidationError("L’adresse e-mail du destinataire est obligatoire.")
     recipient = User.objects.filter(email__iexact=recipient_email, is_active=True).first()
     if not recipient:
-        raise ValidationError(
-            "Le destinataire doit déjà disposer d’un compte Makolo actif avec cette adresse e-mail."
-        )
+        raise ValidationError("Le destinataire doit déjà disposer d’un compte Makolo actif avec cette adresse e-mail.")
     if recipient.pk == sender.pk:
         raise ValidationError("Vous ne pouvez pas transférer un billet à vous-même.")
-
     if TicketTransfer.objects.filter(ticket=ticket, status=TransferStatus.PENDING).exists():
         raise ValidationError("Un transfert est déjà en attente pour ce billet.")
-
     now = timezone.now()
     expires_at = min(now + timedelta(hours=expiry_hours), ticket.event.end_at)
     if expires_at <= now:
         raise ValidationError("L’événement est trop proche ou déjà terminé pour ce transfert.")
-
     transfer = TicketTransfer(
         ticket=ticket,
         sender=sender,
@@ -620,33 +736,38 @@ def create_ticket_transfer(
 def accept_ticket_transfer(*, transfer: TicketTransfer, recipient) -> TicketTransfer:
     transfer = (
         TicketTransfer.objects.select_for_update(of=("self",))
-        .select_related("ticket__event", "ticket__owner", "sender", "recipient")
+        .select_related("ticket__event", "ticket__owner", "ticket__access", "sender", "recipient")
         .get(pk=transfer.pk)
     )
     if transfer.recipient_id != getattr(recipient, "pk", None):
         raise PermissionDenied("Ce transfert ne vous est pas destiné.")
     if transfer.status != TransferStatus.PENDING:
         raise ValidationError("Ce transfert n’est plus en attente.")
-
     now = timezone.now()
     if now >= transfer.expires_at:
         transfer.status = TransferStatus.EXPIRED
         transfer.expired_at = now
         transfer.save(update_fields=["status", "expired_at", "updated_at"])
         raise ValidationError("Ce transfert a expiré.")
-
-    ticket = Ticket.objects.select_for_update(of=("self",)).select_related("event", "owner").get(pk=transfer.ticket_id)
+    ticket = Ticket.objects.select_for_update(of=("self",)).select_related("access", "owner").get(pk=transfer.ticket_id)
     if ticket.owner_id != transfer.sender_id:
         raise ValidationError("Le propriétaire du billet a changé depuis la création du transfert.")
-    if ticket.status != TicketStatus.VALID or not ticket.is_valid:
+    if not ticket.access_id or ticket.access.status != AccessStatus.VALID or not ticket.is_valid:
         raise ValidationError("Le billet n’est plus transférable.")
 
-    ticket.code = uuid.uuid4()
-    ticket.owner = recipient
-    ticket.holder_name = recipient.full_name or recipient.username
-    ticket.holder_email = (recipient.email or transfer.recipient_email).strip().lower()
-    ticket.save(update_fields=["code", "owner", "holder_name", "holder_email", "updated_at"])
-
+    transfer_access_beneficiary(
+        access=ticket.access,
+        beneficiary=recipient,
+        actor=None,
+        source="ticket_transfer",
+    )
+    # Ticket holder fields are presentation only; QR rotation happened in Access.
+    Ticket.objects.filter(pk=ticket.pk).update(
+        owner=recipient,
+        holder_name=recipient.full_name or recipient.username,
+        holder_email=(recipient.email or transfer.recipient_email).strip().lower(),
+        updated_at=now,
+    )
     transfer.status = TransferStatus.ACCEPTED
     transfer.accepted_at = now
     transfer.save(update_fields=["status", "accepted_at", "updated_at"])
@@ -683,10 +804,7 @@ def cancel_ticket_transfer(*, transfer: TicketTransfer, sender) -> TicketTransfe
 def expire_due_ticket_transfers(*, now=None) -> int:
     now = now or timezone.now()
     transfer_ids = list(
-        TicketTransfer.objects.filter(
-            status=TransferStatus.PENDING,
-            expires_at__lte=now,
-        ).values_list("pk", flat=True)
+        TicketTransfer.objects.filter(status=TransferStatus.PENDING, expires_at__lte=now).values_list("pk", flat=True)
     )
     count = 0
     for transfer_id in transfer_ids:
@@ -706,7 +824,6 @@ def _validate_canonical_ticket_qr(token: str) -> Ticket | None:
         credential = resolve_access_credential(token)
     except ValidationError:
         return None
-
     access = credential.access
     now = timezone.now()
     if credential.status != CredentialStatus.ACTIVE:
@@ -717,12 +834,7 @@ def _validate_canonical_ticket_qr(token: str) -> Ticket | None:
         raise ValidationError("Ce billet n’est pas encore valide.")
     if access.valid_until and now >= access.valid_until:
         raise ValidationError("Ce billet a expiré.")
-
-    ticket = (
-        Ticket.objects.select_related("event", "ticket_type", "order", "access")
-        .filter(access=access)
-        .first()
-    )
+    ticket = Ticket.objects.select_related("event", "ticket_type", "order", "access").filter(access=access).first()
     if ticket is None:
         raise ValidationError("Billet introuvable.")
     if not ticket.is_valid:
@@ -734,17 +846,17 @@ def validate_qr_token(token: str) -> Ticket:
     canonical = _validate_canonical_ticket_qr(token)
     if canonical is not None:
         return canonical
-
+    # Explicit historical fallback only. New Tickets always have AccessCredential.
     try:
         raw_code = Signer(salt=QR_SIGNING_SALT).unsign(token)
     except BadSignature as exc:
         raise ValidationError("QR code invalide.") from exc
-
     try:
-        ticket = Ticket.objects.select_related("event", "ticket_type", "order").get(code=raw_code)
+        ticket = Ticket.objects.select_related("event", "ticket_type", "order", "access").get(code=raw_code)
     except (Ticket.DoesNotExist, ValueError) as exc:
         raise ValidationError("Billet introuvable.") from exc
-
+    if ticket.access_id:
+        raise ValidationError("Un billet canonique doit être présenté avec son credential Access.")
     if not ticket.is_valid:
         raise ValidationError("Ce billet n’est pas valide.")
     return ticket

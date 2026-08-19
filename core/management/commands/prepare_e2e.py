@@ -14,8 +14,7 @@ from geography.models import Place
 from operations.models import IncidentCategory, IncidentSeverity, IncidentStatus, OperationsIncident
 from organizations.models import Organization, OrganizationMembership, OrganizationRole, OrganizationVerificationStatus
 from scanner.models import EventAccessGate, ScannerAssignment
-from tickets.models import TicketType
-from tickets.services import create_order
+from tickets.services import configure_ticket_type, create_order
 
 E2E_PASSWORD = "Makolo-E2E-2026!"
 TZ = ZoneInfo("Africa/Lubumbashi")
@@ -92,7 +91,11 @@ class Command(BaseCommand):
             timezone="Africa/Lubumbashi", capacity=200, published_at=self._dt(2026,1,1,0,0), metadata={"source":"makolo-e2e"},
         )
         sync_event_core(paid_event)
-        paid_type = TicketType.objects.create(event=paid_event, name="Pass standard E2E", description="Billet payant du scénario de bout en bout.", price="12.00", currency="USD", quantity_total=100, min_per_order=1, max_per_order=4, is_active=True, is_public=True)
+        paid_type = configure_ticket_type(
+            actor=users["owner"], event=paid_event, name="Pass standard E2E",
+            description="Billet payant du scénario de bout en bout.", price="12.00", currency="USD",
+            quantity_total=100, min_per_order=1, max_per_order=4, is_active=True, is_public=True,
+        )
 
         visual_event = Event.objects.create(
             organizer=users["owner"], organization=main_org, category=category, venue=venue,
@@ -103,7 +106,10 @@ class Command(BaseCommand):
             timezone="Africa/Lubumbashi", capacity=80, published_at=self._dt(2026,1,1,0,0), metadata={"source":"makolo-e2e"},
         )
         sync_event_core(visual_event)
-        visual_type = TicketType.objects.create(event=visual_event, name="Invitation E2E", price="0.00", currency="USD", quantity_total=40, min_per_order=1, max_per_order=2, is_active=True, is_public=True)
+        visual_type = configure_ticket_type(
+            actor=users["owner"], event=visual_event, name="Invitation E2E", price="0.00", currency="USD",
+            quantity_total=40, min_per_order=1, max_per_order=2, is_active=True, is_public=True,
+        )
         create_order(buyer=users["visual"], event=visual_event, customer_name="Visual Participant", customer_email=users["visual"].email, selections=[(visual_type,1)])
 
         sold_out_event = Event.objects.create(
@@ -116,7 +122,11 @@ class Command(BaseCommand):
             timezone="Africa/Lubumbashi", capacity=1, published_at=self._dt(2026,1,1,0,0), metadata={"source":"makolo-e2e","purpose":"capacity"},
         )
         sync_event_core(sold_out_event)
-        TicketType.objects.create(event=sold_out_event, name="Place unique E2E", description="Une seule place gratuite.", price="0.00", currency="USD", quantity_total=1, min_per_order=1, max_per_order=1, is_active=True, is_public=True)
+        configure_ticket_type(
+            actor=users["owner"], event=sold_out_event, name="Place unique E2E",
+            description="Une seule place gratuite.", price="0.00", currency="USD",
+            quantity_total=1, min_per_order=1, max_per_order=1, is_active=True, is_public=True,
+        )
 
         gate = EventAccessGate.objects.create(event=paid_event, name="Entrée E2E", description="Porte du scénario QR end-to-end.", priority=1, created_by=users["owner"])
         ScannerAssignment.objects.create(event=paid_event, agent=users["scanner"], assigned_by=users["owner"], access_gate=gate, label="Contrôle E2E", is_active=True)

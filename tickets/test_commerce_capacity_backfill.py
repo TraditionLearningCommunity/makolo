@@ -78,12 +78,12 @@ class CommerceCapacityBackfillTests(TestCase):
         Payment.objects.filter(pk=self.payment.pk).update(commerce_order=None)
         TicketOrderItem.objects.filter(pk=self.item.pk).update(commerce_item=None)
         TicketOrder.objects.filter(pk=self.order.pk).update(commerce_order=None)
-        TicketType.objects.filter(pk=self.ticket_type.pk).update(offer=None, capacity_pool=None)
         CommerceOrderItem.objects.all().delete()
         CapacityReservation.objects.all().delete()
         CommerceOrder.objects.all().delete()
-        Offer.objects.all().delete()
-        CapacityPool.objects.all().delete()
+        # Task 9 makes TicketType.offer/capacity_pool mandatory canonical links.
+        # This backfill test only detaches the order-side runtime projections;
+        # simulating a NULL TicketType link is no longer a valid post-cutover state.
 
     def _run_backfill(self):
         backfill_tickets.backfill_commerce_capacity(apps, None)
@@ -94,8 +94,8 @@ class CommerceCapacityBackfillTests(TestCase):
         journey_id = self.order.journey_id
         self._detach_runtime_commerce()
 
-        # The current TicketType price must not rewrite the historical line price.
-        TicketType.objects.filter(pk=self.ticket_type.pk).update(price=Decimal("99.00"))
+        # The current canonical Offer price must not rewrite the historical line price.
+        Offer.objects.filter(pk=self.ticket_type.offer_id).update(unit_price=Decimal("99.00"))
         self._run_backfill()
 
         ticket_type = TicketType.objects.select_related("offer", "capacity_pool").get(pk=self.ticket_type.pk)

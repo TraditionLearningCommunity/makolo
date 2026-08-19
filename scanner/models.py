@@ -64,7 +64,9 @@ class EventAccessGate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["event__start_at", "priority", "name"]
+        # An Event may gain several Occurrences; a gate therefore has no single
+        # generic Event date to order by. Event scoping + priority is stable.
+        ordering = ["event_id", "priority", "name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["event", "slug"],
