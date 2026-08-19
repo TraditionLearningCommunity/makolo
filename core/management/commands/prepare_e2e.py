@@ -21,6 +21,7 @@ from journeys.models import WorkflowKind
 from journeys.services import confirm_journey, create_journey, submit_journey
 from operations.models import IncidentCategory, IncidentSeverity, IncidentStatus, OperationsIncident
 from organizations.models import Organization, OrganizationMembership, OrganizationRole, OrganizationVerificationStatus
+from organizations.services import create_organization
 from scanner.models import EventAccessGate, ScannerAssignment
 from tickets.services import configure_ticket_type, create_order
 
@@ -82,8 +83,13 @@ class Command(BaseCommand):
         finance_org = Organization.objects.create(name="Makolo E2E Finance", public_profile=False, verification_status=OrganizationVerificationStatus.VERIFIED, created_by=users["owner"])
         self._membership(finance_org, users["owner"], OrganizationRole.OWNER)
         self._membership(finance_org, users["multi"], OrganizationRole.FINANCE)
-        empty_org = Organization.objects.create(name="Makolo E2E Nouvelle Organisation", description="Organisation sans événement pour tester les états vides.", public_profile=True, verification_status=OrganizationVerificationStatus.VERIFIED, created_by=users["new_organizer"])
-        self._membership(empty_org, users["new_organizer"], OrganizationRole.OWNER)
+        empty_org = create_organization(
+    creator=users["new_organizer"],
+    name="Makolo E2E Nouvelle Organisation",
+    description="Espace sans activité pour tester les états vides.",
+    public_profile=True,
+    verification_status=OrganizationVerificationStatus.VERIFIED,
+)
         sole_org = Organization.objects.create(name="Makolo E2E Propriétaire Unique", public_profile=False, verification_status=OrganizationVerificationStatus.VERIFIED, created_by=users["sole_owner"])
         self._membership(sole_org, users["sole_owner"], OrganizationRole.OWNER)
 
