@@ -5,8 +5,10 @@ from django.utils import timezone
 
 from access.models import Access, AccessStatus, AccessUse
 from activities.models import Activity, Occurrence
-from analytics_app.models import AnalyticsFact
 from automation.models import AutomationExecution, AutomationRule, DomainAutomationExecutionStatus
+from authorization.constants import PermissionCode
+from authorization.models import AuthorityScope, Mandate, MandateStatus
+from authorization.services import activity_ids_with_permission
 from capacity.models import CapacityPool
 from capacity.selectors import capacity_availability
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer
@@ -18,9 +20,9 @@ from operations.models import IncidentStatus, OperationsIncident
 from payments.models import Payment, PaymentStatus
 from promotions.models import Promotion
 
-from authorization.constants import PermissionCode
-from authorization.models import AuthorityScope, Mandate, MandateStatus
-from authorization.services import can
+
+def _visible_modules(context):
+    return {item["key"] for group in context.navigation_groups for item in group["items"]}
 
 
 def _activity_queryset(context):
@@ -61,14 +63,7 @@ def upcoming_occurrences(context, *, limit=8):
 def requests_for_console(context):
     return (
         JourneyRequest.objects.filter(journey__activity__in=_activity_queryset(context))
-        .select_related(
-            "journey",
-            "journey__activity",
-            "journey__occurrence",
-            "journey__beneficiary",
-            "requester",
-            "decided_by",
-        )
+        .select_related("journey", "journey__activity", "journey__occurrence", "journey__beneficiary", "requester", "decided_by")
         .order_by("-submitted_at", "id")
     )
 
@@ -102,7 +97,6 @@ def capacity_for_console(context):
     pools = list(
         CapacityPool.objects.filter(activity__in=_activity_queryset(context))
         .select_related("activity", "occurrence")
-        .prefetch_related("reservations")
         .order_by("activity__title", "occurrence__start_at", "label", "id")
     )
     for pool in pools:
@@ -114,44 +108,24 @@ def orders_for_console(context):
     queryset = CommerceOrder.objects.filter(payee_space=context.space)
     if context.activity_ids is not None:
         queryset = queryset.filter(journey__activity_id__in=context.activity_ids)
-    return (
-        queryset.select_related("buyer", "journey", "journey__activity", "journey__occurrence")
-        .prefetch_related("payments")
-        .order_by("-created_at", "id")
-    )
+    return queryset.select_related("buyer", "journey", "journey__activity", "journey__occurrence").prefetch_related("payments").order_by("-created_at", "id")
 
 
 def payments_for_console(context):
     queryset = Payment.objects.filter(commerce_order__payee_space=context.space, commerce_order__isnull=False)
     if context.activity_ids is not None:
         queryset = queryset.filter(commerce_order__journey__activity_id__in=context.activity_ids)
-    return (
-        queryset.select_related(
-            "commerce_order",
-            "commerce_order__journey",
-            "commerce_order__journey__activity",
-        )
-        .order_by("-created_at", "id")
-    )
+    return queryset.select_related("commerce_order", "commerce_order__journey", "commerce_order__journey__activity").order_by("-created_at", "id")
 
 
 def team_for_console(context):
-    memberships = list(
-        context.space.teams.filter(is_default=True, is_active=True)
-        .prefetch_related("memberships__user")
-        .first().memberships.select_related("user").order_by("user__email")
-    ) if context.space.teams.filter(is_default=True, is_active=True).exists() else []
-
+    team = context.space.teams.filter(is_default=True, is_active=True).first()
+    if team is None:
+        return []
+    memberships = list(team.memberships.select_related("user").order_by("user__email"))
     profile_ids = [membership.user_id for membership in memberships]
     mandates = (
-        Mandate.objects.filter(
-            profile_id__in=profile_ids,
-            scope_type=AuthorityScope.SPACE,
-            space=context.space,
-            status=MandateStatus.ACTIVE,
-            revoked_at__isnull=True,
-            role__is_active=True,
-        )
+        Mandate.objects.filter(profile_id__in=profile_ids, scope_type=AuthorityScope.SPACE, space=context.space, status=MandateStatus.ACTIVE, revoked_at__isnull=True, role__is_active=True)
         .select_related("role", "profile")
         .order_by("role__name")
     )
@@ -164,19 +138,11 @@ def team_for_console(context):
 
 
 def groups_for_console(context):
-    return (
-        Group.objects.filter(space=context.space)
-        .annotate(member_count=Count("memberships", filter=Q(memberships__status="active")))
-        .order_by("name")
-    )
+    return Group.objects.filter(space=context.space).annotate(member_count=Count("memberships", filter=Q(memberships__status="active"))).order_by("name")
 
 
 def places_for_console(context):
-    return (
-        SpacePlace.objects.filter(organization=context.space, is_active=True)
-        .select_related("place")
-        .order_by("position", "role", "place__name")
-    )
+    return SpacePlace.objects.filter(organization=context.space, is_active=True).select_related("place").order_by("position", "role", "place__name")
 
 
 def contacts_for_console(context):
@@ -206,80 +172,65 @@ def automation_rules_for_console(context):
 
 
 def analytics_summary(context):
+    visible = _visible_modules(context)
     activities = _activity_queryset(context)
-    journeys = Journey.objects.filter(activity__in=activities)
-    accesses = Access.objects.filter(activity__in=activities)
-    orders = orders_for_console(context)
-    summary = {
-        "activities": activities.count(),
-        "journeys": journeys.count(),
-        "accesses": accesses.count(),
-        "used_accesses": accesses.filter(status=AccessStatus.USED).count(),
-        "orders": orders.count(),
-    }
-    if context.can_view_finance:
+    summary = {}
+    if "activities" in visible:
+        summary["activities"] = activities.count()
+    if "requests" in visible:
+        summary["journeys"] = Journey.objects.filter(activity__in=activities).count()
+    if "access" in visible:
+        accesses = Access.objects.filter(activity__in=activities)
+        summary["accesses"] = accesses.count()
+        summary["used_accesses"] = accesses.filter(status=AccessStatus.USED).count()
+    if "orders" in visible:
+        summary["orders"] = orders_for_console(context).count()
+    if "payments" in visible and context.can_view_finance:
         payments = payments_for_console(context)
         summary.update(
             {
                 "payments": payments.count(),
                 "payments_succeeded": payments.filter(status=PaymentStatus.SUCCEEDED).count(),
-                "revenue_by_currency": list(
-                    payments.filter(status=PaymentStatus.SUCCEEDED)
-                    .values("currency")
-                    .annotate(total=Sum("amount"))
-                    .order_by("currency")
-                ),
+                "revenue_by_currency": list(payments.filter(status=PaymentStatus.SUCCEEDED).values("currency").annotate(total=Sum("amount")).order_by("currency")),
             }
         )
     return summary
 
 
 def overview_for_console(context):
-    requests = requests_for_console(context).filter(status=RequestStatus.PENDING)
-    incidents = incidents_for_console(context).exclude(status__in={IncidentStatus.RESOLVED, IncidentStatus.DISMISSED})
-    action_items = {
-        "requests": requests.count(),
-        "incidents": incidents.count(),
-    }
-
-    if PermissionCode.ORDERS_VIEW in context.space_permissions:
-        action_items["orders"] = orders_for_console(context).filter(status=CommerceOrderStatus.PENDING).count()
-    if context.can_view_finance:
-        action_items["payments"] = payments_for_console(context).filter(
-            status__in={PaymentStatus.PENDING, PaymentStatus.FAILED}
-        ).count()
-
-    failed_automations = 0
-    if context.can_manage_space or _has_manageable_activity(context):
-        failed_automations = AutomationExecution.objects.filter(
-            rule__space=context.space,
-            status=DomainAutomationExecutionStatus.FAILED,
-        ).count()
-        action_items["automations"] = failed_automations
-
+    visible = _visible_modules(context)
+    action_items = {}
+    pending_requests = JourneyRequest.objects.none()
+    open_incidents = OperationsIncident.objects.none()
     critical_capacity = []
-    if PermissionCode.SPACE_ACTIVITIES_VIEW in context.space_permissions or context.activity_ids:
+
+    if "requests" in visible:
+        pending_requests = requests_for_console(context).filter(status=RequestStatus.PENDING)
+        action_items["requests"] = pending_requests.count()
+    if "operations" in visible:
+        open_incidents = incidents_for_console(context).exclude(status__in={IncidentStatus.RESOLVED, IncidentStatus.DISMISSED})
+        action_items["incidents"] = open_incidents.count()
+    if "orders" in visible:
+        action_items["orders"] = orders_for_console(context).filter(status=CommerceOrderStatus.PENDING).count()
+    if "payments" in visible and context.can_view_finance:
+        action_items["payments"] = payments_for_console(context).filter(status__in={PaymentStatus.PENDING, PaymentStatus.FAILED}).count()
+    if "automation" in visible:
+        action_items["automations"] = AutomationExecution.objects.filter(rule__space=context.space, status=DomainAutomationExecutionStatus.FAILED).count()
+    if "offers" in visible:
         for pool in capacity_for_console(context):
             availability = pool.console_availability
             if availability.unlimited or availability.total in {None, 0}:
                 continue
-            ratio = availability.available / availability.total
-            if ratio <= 0.15:
+            if availability.available / availability.total <= 0.15:
                 critical_capacity.append(pool)
         action_items["capacity"] = len(critical_capacity)
 
+    occurrences = upcoming_occurrences(context, limit=6) if "activities" in visible else []
     return {
         "action_items": action_items,
-        "pending_requests": requests[:5],
-        "open_incidents": incidents[:5],
+        "pending_requests": pending_requests[:5],
+        "open_incidents": open_incidents[:5],
         "critical_capacity": critical_capacity[:5],
-        "upcoming_occurrences": upcoming_occurrences(context, limit=6),
+        "upcoming_occurrences": occurrences,
         "analytics": analytics_summary(context),
     }
-
-
-def _has_manageable_activity(context):
-    for activity in _activity_queryset(context)[:50]:
-        if can(context.profile, PermissionCode.ACTIVITY_MANAGE, activity=activity):
-            return True
-    return False
