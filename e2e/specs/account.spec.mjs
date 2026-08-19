@@ -39,7 +39,8 @@ test('login rejects a bad password and preserves next on success', async ({ page
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL('/tickets/');
-  await expect(page.getByRole('heading', { name: /Mes billets|Billetterie/i })).toBeVisible();
+  await expect(page.locator('#main-content')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Mes accès', exact: true }).first()).toBeVisible();
 });
 
 

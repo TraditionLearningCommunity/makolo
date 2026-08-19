@@ -2,17 +2,12 @@
 {% block title %}Lieu | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
-  <a href="{% url 'organizations:places' organization.slug %}" class="text-sm font-bold text-indigo-500">Retour aux Lieux</a>
+  <a href="{% url 'organizations:console-places' organization.slug %}" class="text-sm font-bold text-indigo-500">← {{ organization.name }} · Lieux</a>
   <h1 class="text-3xl font-black">{% if creating %}Ajouter un lieu{% else %}Modifier la relation du Lieu{% endif %}</h1>
   <form method="post" class="space-y-6 rounded-3xl border border-zinc-200 bg-white p-7 dark:border-zinc-800 dark:bg-zinc-950">
     {% csrf_token %}
-    {% if creating %}
-      {% for field in place_form %}<div><label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-bold">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="text-sm text-red-500">{{ error }}</p>{% endfor %}</div>{% endfor %}
-    {% endif %}
-    <div class="border-t border-zinc-200 pt-5 dark:border-zinc-800">
-      <h2 class="mb-4 text-xl font-black">Relation avec l’Espace</h2>
-      <div class="space-y-4">{% for field in relation_form %}<div><label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-bold">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="text-sm text-red-500">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
-    </div>
+    {% if creating %}{% for field in place_form %}<div><label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-bold">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="text-sm text-red-500">{{ error }}</p>{% endfor %}</div>{% endfor %}{% endif %}
+    <div class="border-t border-zinc-200 pt-5 dark:border-zinc-800"><h2 class="mb-4 text-xl font-black">Relation avec l’Espace</h2><div class="space-y-4">{% for field in relation_form %}<div><label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-bold">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<p class="text-sm text-red-500">{{ error }}</p>{% endfor %}</div>{% endfor %}</div></div>
     <button class="w-full rounded-2xl bg-indigo-600 px-5 py-3 font-black text-white">{% if creating %}Ajouter le lieu{% else %}Enregistrer la relation{% endif %}</button>
   </form>
 </div>

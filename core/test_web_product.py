@@ -6,8 +6,10 @@ from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from authorization.constants import SystemRoleCode
+from authorization.services import ensure_platform_admin_mandate, grant_space_role
 from events.models import Event, EventStatus, EventVisibility
-from organizations.models import Organization, OrganizationMembership, OrganizationRole
+from organizations.models import Organization
 
 from .error_views import error_500
 
@@ -43,18 +45,9 @@ class RoleAwareWebProductTests(TestCase):
             name="Role UX Organization",
             created_by=self.event_manager,
         )
-        OrganizationMembership.objects.create(
-            organization=self.organization,
-            user=self.event_manager,
-            role=OrganizationRole.EVENT_MANAGER,
-            is_active=True,
-        )
-        OrganizationMembership.objects.create(
-            organization=self.organization,
-            user=self.finance_member,
-            role=OrganizationRole.FINANCE,
-            is_active=True,
-        )
+        grant_space_role(profile=self.event_manager, space=self.organization, role=SystemRoleCode.ACTIVITY_MANAGER)
+        grant_space_role(profile=self.finance_member, space=self.organization, role=SystemRoleCode.FINANCE)
+        ensure_platform_admin_mandate(profile=self.staff, source="test-fixture")
         start_at = timezone.now() + timedelta(days=5)
         self.event = Event.objects.create(
             organizer=self.event_manager,
@@ -76,51 +69,38 @@ class RoleAwareWebProductTests(TestCase):
         self.assertContains(response, "Mes accès")
         self.assertContains(response, "Notifications")
         self.assertContains(response, "Profil")
-        self.assertNotContains(response, "Mes organisations")
-        self.assertNotContains(response, "CRM & audiences")
-        self.assertNotContains(response, "Operations Center")
+        self.assertNotContains(response, "CRM")
         self.assertNotContains(response, "Contrôle d’accès")
 
-    def test_event_manager_sees_domain_tools_granted_to_event_managers(self):
+    def test_activity_manager_lands_in_space_console_with_activity_tools(self):
         self.client.force_login(self.event_manager)
-        response = self.client.get(reverse("core:dashboard"))
+        response = self.client.get(reverse("organizations:console-overview", kwargs={"slug": self.organization.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["dashboard_mode"], "organizer")
-        self.assertContains(response, "Mes organisations")
-        self.assertContains(response, "Billetterie")
-        self.assertContains(response, "CRM & audiences")
-        self.assertContains(response, "Growth")
-        self.assertContains(response, "Promotions")
-        self.assertContains(response, "Analytics")
-        self.assertContains(response, "Espace organisation")
-        self.assertContains(response, "Mon espace")
-        self.assertNotContains(response, "Paiements réussis")
-        self.assertNotContains(response, "Fidélité")
-        self.assertEqual(response.context["events_count"], 1)
+        self.assertContains(response, "Activités")
+        self.assertContains(response, "Demandes")
+        self.assertContains(response, "Accès")
+        self.assertContains(response, "Commandes")
+        self.assertContains(response, "Analyses")
+        self.assertNotContains(response, ">Paiements<")
+        self.assertNotContains(response, ">CRM<")
 
-    def test_finance_member_sees_finance_capability_without_crm(self):
+    def test_finance_member_sees_finance_without_crm_or_activity_management(self):
         self.client.force_login(self.finance_member)
-        response = self.client.get(reverse("core:dashboard"))
+        response = self.client.get(reverse("organizations:console-overview", kwargs={"slug": self.organization.slug}))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["dashboard_mode"], "organizer")
-        self.assertTrue(response.context["web_capabilities"]["can_manage_finance"])
+        self.assertContains(response, "Commandes")
         self.assertContains(response, "Paiements")
-        self.assertContains(response, "Growth")
-        self.assertContains(response, "Promotions")
-        self.assertContains(response, "Fidélité")
-        self.assertContains(response, "Analytics")
-        self.assertNotContains(response, "CRM & audiences")
+        self.assertContains(response, "Analyses")
+        self.assertNotContains(response, ">CRM<")
+        self.assertNotContains(response, ">Activités<")
+        self.assertNotContains(response, ">Équipe<")
 
-    def test_staff_sees_operations_shortcut(self):
+    def test_staff_lands_in_operations(self):
         self.client.force_login(self.staff)
         response = self.client.get(reverse("core:dashboard"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["dashboard_mode"], "staff")
-        self.assertContains(response, "Operations Center")
-        self.assertContains(response, "Pilotage plateforme")
+        self.assertRedirects(response, reverse("operations:dashboard"), fetch_redirect_response=False)
 
     def test_participant_is_still_refused_server_side_on_event_create(self):
         self.client.force_login(self.participant)

@@ -6,65 +6,39 @@
         <div class="flex min-w-0 items-center gap-3">
             <button type="button" @click="sidebarOpen=true" class="mk-icon-btn mk-mobile-nav-trigger lg:hidden" aria-label="Ouvrir la navigation"><i data-lucide="menu" class="h-5 w-5"></i></button>
             <div class="min-w-0">
-                <p class="truncate text-[10px] font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Makolo</p>
+                <p class="truncate text-[10px] font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">{% if space_console %}Agir au nom de {{ space.name }}{% else %}Makolo{% endif %}</p>
                 <h2 class="truncate text-[16px] font-bold tracking-[-.025em] sm:text-[18px]" style="color:var(--mk-text)">
-                    {% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-home' %}Mon espace
-                    {% elif request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-journey-detail' %}Mes démarches
-                    {% elif request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-access-detail' %}Mes accès
+                    {% if space_console %}{{ console_page_title }}
+                    {% elif request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-home' %}Mon espace
+                    {% elif request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-journeys' %}Mes démarches
+                    {% elif request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-journey-detail' %}Mes démarches
+                    {% elif request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-accesses' %}Mes accès
+                    {% elif request.resolver_match.namespace == 'core' and request.resolver_match.url_name == 'participant-access-detail' %}Mes accès
                     {% elif request.resolver_match.namespace == 'account' %}Mon compte
-                    {% elif request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'for-you' %}Pour vous
-                    {% elif request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'bookmarks' %}Favoris
-                    {% elif request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'my-events' %}Mes événements
                     {% elif request.resolver_match.namespace == 'discovery' %}Découvrir
-                    {% elif request.resolver_match.namespace == 'events' or request.resolver_match.namespace == 'automation' %}Événements
-                    {% elif request.resolver_match.namespace == 'tickets' %}Billetterie
-                    {% elif request.resolver_match.namespace == 'payments' %}Paiements
-                    {% elif request.resolver_match.namespace == 'scanner' %}Contrôle d’accès
-                    {% elif request.resolver_match.namespace == 'organizations' %}Organisations
-                    {% elif request.resolver_match.namespace == 'crm' %}CRM & audiences
-                    {% elif request.resolver_match.namespace == 'growth' %}Growth
-                    {% elif request.resolver_match.namespace == 'promotions' %}Promotions
-                    {% elif request.resolver_match.namespace == 'loyalty' %}Fidélité
-                    {% elif request.resolver_match.namespace == 'partners' %}Partenaires
-                    {% elif request.resolver_match.namespace == 'analytics' %}Analytics
+                    {% elif request.resolver_match.namespace == 'organizations' %}Espaces
                     {% elif request.resolver_match.namespace == 'operations' %}Operations Center
-                    {% else %}Vue d’ensemble{% endif %}
+                    {% else %}Makolo{% endif %}
                 </h2>
             </div>
         </div>
 
         <div class="flex items-center gap-2">
-            <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary hidden md:inline-flex" title="Rechercher un événement"><i data-lucide="search" class="h-4 w-4"></i><span>Rechercher</span></a>
+            <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary hidden md:inline-flex" title="Rechercher"><i data-lucide="search" class="h-4 w-4"></i><span>Rechercher</span></a>
 
-            {% if request.user.is_authenticated %}
-            <a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative">
-                <i data-lucide="bell" class="h-5 w-5"></i>
-                {% if unread_notifications %}<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white ring-2 ring-white dark:ring-[#090b10]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}
-            </a>
-            {% endif %}
+            {% if request.user.is_authenticated %}<a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative"><i data-lucide="bell" class="h-5 w-5"></i>{% if unread_notifications %}<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white ring-2 ring-white dark:ring-[#090b10]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}</a>{% endif %}
 
-            <button type="button" @click="toggleTheme" class="mk-icon-btn" aria-label="Changer le thème">
-                <i x-show="dark" data-lucide="moon" class="h-5 w-5"></i>
-                <i x-show="!dark" x-cloak data-lucide="sun" class="h-5 w-5"></i>
-            </button>
+            <button type="button" @click="toggleTheme" class="mk-icon-btn" aria-label="Changer le thème"><i x-show="dark" data-lucide="moon" class="h-5 w-5"></i><i x-show="!dark" x-cloak data-lucide="sun" class="h-5 w-5"></i></button>
 
             {% if request.user.is_authenticated %}
             <div class="relative" x-data="{open:false}" @click.outside="open=false" @keydown.escape.window="open=false">
-                <button type="button" @click="open=!open" aria-label="Menu utilisateur" aria-haspopup="menu" class="flex h-[44px] items-center gap-2 rounded-[14px] border px-2 pr-3 shadow-sm transition hover:-translate-y-px" style="background:var(--mk-surface-solid);border-color:var(--mk-border)">
-                    {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="" class="h-8 w-8 rounded-[10px] object-cover">{% else %}<span class="grid h-8 w-8 place-items-center rounded-[10px] bg-indigo-600 text-[11px] font-extrabold text-white">{{ request.user.username|first|upper }}</span>{% endif %}
-                    <span class="hidden max-w-32 truncate text-xs font-bold sm:block" style="color:var(--mk-text)">{% if request.user.first_name %}{{ request.user.first_name|title }}{% else %}{{ request.user.username|title }}{% endif %}</span>
-                    <i data-lucide="chevron-down" class="hidden h-3.5 w-3.5 sm:block" style="color:var(--mk-subtle)"></i>
-                </button>
+                <button type="button" @click="open=!open" aria-label="Menu utilisateur" aria-haspopup="menu" class="flex h-[44px] items-center gap-2 rounded-[14px] border px-2 pr-3 shadow-sm transition hover:-translate-y-px" style="background:var(--mk-surface-solid);border-color:var(--mk-border)">{% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="" class="h-8 w-8 rounded-[10px] object-cover">{% else %}<span class="grid h-8 w-8 place-items-center rounded-[10px] bg-indigo-600 text-[11px] font-extrabold text-white">{{ request.user.username|first|upper }}</span>{% endif %}<span class="hidden max-w-32 truncate text-xs font-bold sm:block" style="color:var(--mk-text)">{% if request.user.first_name %}{{ request.user.first_name|title }}{% else %}{{ request.user.username|title }}{% endif %}</span><i data-lucide="chevron-down" class="hidden h-3.5 w-3.5 sm:block" style="color:var(--mk-subtle)"></i></button>
                 <div x-cloak x-show="open" x-transition.origin.top.right role="menu" class="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border p-2 shadow-2xl" style="background:var(--mk-surface-solid);border-color:var(--mk-border);box-shadow:var(--mk-shadow-float)">
-                    <div class="px-3 py-2.5">
-                        <p class="truncate text-sm font-bold" style="color:var(--mk-text)">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
-                        <p class="mt-1 truncate text-[11px]" style="color:var(--mk-subtle)">{{ request.user.email }}</p>
-                    </div>
+                    <div class="px-3 py-2.5"><p class="truncate text-sm font-bold" style="color:var(--mk-text)">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p><p class="mt-1 truncate text-[11px]" style="color:var(--mk-subtle)">{{ request.user.email }}</p></div>
                     <div class="my-1 border-t" style="border-color:var(--mk-border)"></div>
+                    <a href="{% url 'core:participant-home' %}" class="mk-nav-item" role="menuitem"><i data-lucide="home"></i><span>Agir en mon nom</span></a>
+                    {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-nav-item" role="menuitem"><i data-lucide="building-2"></i><span>Mes Espaces</span></a>{% endif %}
                     <a href="{% url 'account:profile' %}" class="mk-nav-item" role="menuitem"><i data-lucide="user-round"></i><span>Mon profil</span></a>
-                    <a href="{% url 'core:participant-accesses' %}" class="mk-nav-item" role="menuitem"><i data-lucide="ticket-check"></i><span>Mes accès</span></a>
-                    <a href="{% url 'discovery:for-you' %}" class="mk-nav-item" role="menuitem"><i data-lucide="sparkles"></i><span>Pour vous</span></a>
-                    {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-nav-item" role="menuitem"><i data-lucide="building-2"></i><span>Mes organisations</span></a>{% endif %}
                     <a href="{% url 'notifications:list' %}" class="mk-nav-item" role="menuitem"><i data-lucide="bell"></i><span>Notifications</span></a>
                     <form method="post" action="{% url 'core:logout' %}" class="mt-1">{% csrf_token %}<button class="mk-nav-item w-full text-left" type="submit" role="menuitem"><i data-lucide="log-out"></i><span>Se déconnecter</span></button></form>
                 </div>
