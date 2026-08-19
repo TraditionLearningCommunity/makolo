@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -8,6 +10,7 @@ from access.services import issue_access, render_access_credential
 from activities.models import Activity, Occurrence
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
+from events.models import Event
 from groups.models import Group, GroupMembership
 from organizations.console_context import SpaceConsoleContext, authorized_spaces
 from organizations.models import Organization, Team, TeamMembership
@@ -41,8 +44,8 @@ class SpaceConsoleAuthorityTests(TestCase):
         self.other_activity = Activity.objects.create(space=self.space_b, created_by=self.creator, title="Activité CAA")
         self.occurrence = Occurrence.objects.create(
             activity=self.activity_a,
-            start_at=timezone.now() + timezone.timedelta(days=2),
-            end_at=timezone.now() + timezone.timedelta(days=2, hours=2),
+            start_at=timezone.now() + timedelta(days=2),
+            end_at=timezone.now() + timedelta(days=2, hours=2),
             timezone="Africa/Kinshasa",
         )
 
@@ -103,7 +106,7 @@ class SpaceConsoleAuthorityTests(TestCase):
         self.assertEqual(self.client.get(reverse("organizations:console-settings", kwargs={"slug": self.space_a.slug})).status_code, 403)
 
     def test_non_event_activity_is_visible_and_openable(self):
-        self.assertFalse(hasattr(self.activity_a, "event_vertical"))
+        self.assertFalse(Event.objects.filter(activity=self.activity_a).exists())
         self.client.force_login(self.owner)
         listing = self.client.get(reverse("organizations:console-activities", kwargs={"slug": self.space_a.slug}))
         self.assertContains(listing, "Atelier canonique")
