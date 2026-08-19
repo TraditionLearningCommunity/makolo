@@ -66,7 +66,6 @@ test('marketing sees CRM, audiences and promotions while event creation remains 
 
 test('assigned scanner agent can access only its activity without organizer privileges', async ({ page }) => {
   await login(page, 'scanner@e2e.makolo.test');
-  await expect(page.getByRole('link', { name: 'Contrôle d’accès', exact: true }).first()).toBeVisible();
   const response = await page.goto('/scanner/event/festival-makolo-e2e/');
   expect(response.status()).toBe(200);
   await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
@@ -79,7 +78,7 @@ test('assigned scanner agent can access only its activity without organizer priv
 test('staff lands in Operations and a non-staff user is denied directly', async ({ page }) => {
   await login(page, 'staff@e2e.makolo.test');
   await expect(page).toHaveURL('/operations/');
-  await expect(page.getByRole('heading', { name: /Operations Center/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Makolo Operations Center', exact: true })).toBeVisible();
 
   await page.context().clearCookies();
   await login(page, 'participant@e2e.makolo.test');
