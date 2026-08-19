@@ -19,8 +19,16 @@ User = get_user_model()
 
 class ParticipantExperienceTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="participant@example.test", password="secret-test-password")
-        self.other = User.objects.create_user(username="other@example.test", password="secret-test-password")
+        self.user = User.objects.create_user(
+            username="participant-test",
+            email="participant@example.test",
+            password="secret-test-password",
+        )
+        self.other = User.objects.create_user(
+            username="other-test",
+            email="other@example.test",
+            password="secret-test-password",
+        )
         self.activity = Activity.objects.create(
             title="Atelier communautaire",
             created_by=self.user,
