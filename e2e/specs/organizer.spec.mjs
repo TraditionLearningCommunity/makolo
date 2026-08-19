@@ -4,7 +4,7 @@ import { login, logout } from '../helpers/auth.mjs';
 
 test('owner creates a complete event, publishes it and configures ticketing', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
-  await page.getByRole('link', { name: /Créer un événement/i }).click();
+  await page.goto('/events/new/');
   await expect(page.getByRole('heading', { name: 'Créer un événement', exact: true })).toBeVisible();
 
   await page.locator('[name="organization"]').selectOption({ label: 'Makolo E2E Events' });
@@ -45,23 +45,25 @@ test('owner creates a complete event, publishes it and configures ticketing', as
 
   await page.goto('/events/');
   await expect(page.getByText('Conférence Organisateur E2E').first()).toBeVisible();
-  await page.goto('/dashboard/');
-  await expect(page.getByText(/Espace organisation/i)).toBeVisible();
-  await expect(page.getByText(/Billets vendus|Commandes/i).first()).toBeVisible();
+  await page.goto('/spaces/makolo-e2e-events/overview/');
+  await expect(page.getByText('Agir au nom de', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Makolo E2E Events', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Activités', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Commandes', exact: true }).first()).toBeVisible();
 });
 
 
 test('new organizer empty state keeps the create-event next action visible', async ({ page }) => {
   await login(page, 'new.organizer@e2e.makolo.test');
-  await expect(page.getByText(/Aucun événement à venir/i)).toBeVisible();
+  await page.goto('/spaces/makolo-e2e-nouvelle-organisation/activities/');
+  await expect(page.getByText(/encore aucune activité/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /Créer un événement/i })).toBeVisible();
 });
 
 
 test('space owner creates a reusable place and another space owner is isolated', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
-  await page.goto('/organizations/makolo-e2e-events/');
-  await page.getByRole('link', { name: 'Lieux' }).click();
+  await page.goto('/spaces/makolo-e2e-events/places/');
   await page.getByRole('link', { name: 'Ajouter un lieu' }).click();
   await page.getByLabel('Nom du lieu').fill('Agence Centre-ville');
   await page.getByLabel('Adresse').fill('12 avenue des Tests');
@@ -75,14 +77,13 @@ test('space owner creates a reusable place and another space owner is isolated',
   await page.getByLabel('Lieu principal pour ce rôle').check();
   await page.getByRole('button', { name: 'Ajouter le lieu' }).click();
 
-  const placeHeading = page.getByRole('heading', { name: 'Agence Centre-ville', exact: true });
-  await expect(placeHeading).toBeVisible();
-  await expect(page.getByText(/Coordonnées/)).toBeVisible();
+  await expect(page.getByText(/Lieu ajouté à l’Espace/i)).toBeVisible();
+  await expect(page.getByText('Agence Centre-ville', { exact: true })).toBeVisible();
+  await expect(page.getByText(/12 avenue des Tests/)).toBeVisible();
 
   await logout(page);
   await login(page, 'new.organizer@e2e.makolo.test');
-  const response = await page.goto('/organizations/makolo-e2e-events/places/');
+  const response = await page.goto('/spaces/makolo-e2e-events/places/');
   expect(response.status()).toBe(403);
   await expect(page.getByText(/Erreur 403/i)).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Cet espace n’est pas accessible/i })).toBeVisible();
 });
