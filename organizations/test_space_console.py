@@ -42,10 +42,11 @@ class SpaceConsoleAuthorityTests(TestCase):
         self.activity_a = Activity.objects.create(space=self.space_a, created_by=self.creator, title="Atelier canonique")
         self.activity_b = Activity.objects.create(space=self.space_a, created_by=self.creator, title="Deuxième activité")
         self.other_activity = Activity.objects.create(space=self.space_b, created_by=self.creator, title="Activité CAA")
+        now = timezone.now()
         self.occurrence = Occurrence.objects.create(
             activity=self.activity_a,
-            start_at=timezone.now() + timedelta(days=2),
-            end_at=timezone.now() + timedelta(days=2, hours=2),
+            start_at=now - timedelta(minutes=5),
+            end_at=now + timedelta(hours=2),
             timezone="Africa/Kinshasa",
         )
 
