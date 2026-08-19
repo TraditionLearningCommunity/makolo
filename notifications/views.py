@@ -6,6 +6,7 @@ from django.views import View
 from django.views.generic import ListView
 
 from accounts.models import NotificationPreference
+from core.participant_selectors import participant_accesses, participant_journeys
 
 from .forms import NotificationPreferenceForm
 from .selectors import get_notifications_for_user
@@ -38,6 +39,33 @@ class NotificationOpenView(LoginRequiredMixin, View):
     def get(self, request, pk):
         notification = get_object_or_404(get_notifications_for_user(request.user), pk=pk)
         notification.mark_read()
+
+        if notification.access_id:
+            access = participant_accesses(request.user).filter(pk=notification.access_id).first()
+            if access:
+                return redirect("core:participant-access-detail", pk=access.pk)
+        if notification.journey_id:
+            journey = participant_journeys(request.user).filter(pk=notification.journey_id).first()
+            if journey:
+                return redirect("core:participant-journey-detail", pk=journey.pk)
+        if notification.activity_id:
+            journey = (
+                participant_journeys(request.user)
+                .filter(activity_id=notification.activity_id)
+                .order_by("-created_at")
+                .first()
+            )
+            if journey:
+                return redirect("core:participant-journey-detail", pk=journey.pk)
+            access = (
+                participant_accesses(request.user)
+                .filter(activity_id=notification.activity_id)
+                .order_by("-created_at")
+                .first()
+            )
+            if access:
+                return redirect("core:participant-access-detail", pk=access.pk)
+
         if notification.action_url.startswith("/") and not notification.action_url.startswith("//"):
             return redirect(notification.action_url)
         return redirect("notifications:list")
