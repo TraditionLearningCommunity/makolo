@@ -21,6 +21,7 @@ from .participant_presentation import (
     journey_progress,
     journey_status_label,
     next_participant_action,
+    occurrence_timing,
     payment_mode_label,
     vocabulary_for,
 )
@@ -32,7 +33,6 @@ from .participant_selectors import (
     participant_active_journeys,
     participant_history_journeys,
     participant_journeys,
-    participant_orders,
     participant_upcoming_accesses,
     participant_upcoming_occurrences,
 )
@@ -55,6 +55,7 @@ def _journey_card(journey):
         "next_action": next_participant_action(journey),
         "vocabulary": vocabulary_for(activity=journey.activity, workflow=journey.workflow),
         "place": _primary_place(journey.occurrence),
+        "timing": occurrence_timing(journey.occurrence),
         "order": order,
         "access": access,
         "payment_label": payment_mode_label(order.payment_mode) if order else "",
@@ -67,6 +68,7 @@ def _access_card(access):
         "status_label": access_status_label(access.status),
         "vocabulary": vocabulary_for(activity=access.activity, workflow=getattr(access.journey, "workflow", None)),
         "place": _primary_place(access.occurrence),
+        "timing": occurrence_timing(access.occurrence),
     }
 
 
