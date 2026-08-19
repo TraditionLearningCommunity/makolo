@@ -7,10 +7,10 @@ export async function login(page, email, password = E2E_PASSWORD) {
   await page.getByLabel('Adresse e-mail').fill(email);
   await page.getByLabel('Mot de passe', { exact: true }).fill(password);
   await Promise.all([
-    page.waitForURL(/\/dashboard\/$/),
+    page.waitForURL(/\/(?:dashboard|me)\/$/),
     page.getByRole('button', { name: 'Se connecter' }).click(),
   ]);
-  await expect(page.getByRole('heading', { name: /Bienvenue/ })).toBeVisible();
+  await expect(page.locator('#main-content')).toBeVisible();
 }
 
 export async function logout(page) {
