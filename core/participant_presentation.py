@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo
+
+from django.utils.formats import date_format
 
 from access.models import AccessStatus, CredentialStatus
 from commerce.models import PaymentMode
@@ -53,6 +56,14 @@ class ParticipantVocabulary:
     access_detail_label: str
 
 
+@dataclass(frozen=True)
+class OccurrenceTiming:
+    date_label: str
+    time_label: str
+    compact_label: str
+    timezone_label: str
+
+
 def _is_event(activity):
     try:
         return activity.event_vertical is not None
@@ -70,6 +81,22 @@ def vocabulary_for(*, activity, workflow=None):
     if _is_event(activity):
         return ParticipantVocabulary("Événement", "Voir ma démarche", "Billet", "Voir mon billet")
     return ParticipantVocabulary("Démarche", "Voir ma démarche", "Accès", "Voir mon accès")
+
+
+def occurrence_timing(occurrence):
+    if occurrence is None:
+        return None
+    zone = ZoneInfo(occurrence.timezone)
+    local_start = occurrence.start_at.astimezone(zone)
+    date_label = date_format(local_start, "l d F Y")
+    time_label = local_start.strftime("%H:%M")
+    compact_label = f"{date_format(local_start, 'D d M')} · {time_label}"
+    return OccurrenceTiming(
+        date_label=date_label,
+        time_label=time_label,
+        compact_label=compact_label,
+        timezone_label=occurrence.timezone,
+    )
 
 
 def journey_status_label(status):
@@ -111,16 +138,13 @@ def next_participant_action(journey):
 
 
 def journey_progress(journey):
-    steps = []
     submitted = journey.status not in {JourneyStatus.DRAFT}
     confirmed = journey.status in {JourneyStatus.CONFIRMED, JourneyStatus.FULFILLED}
     has_access = bool(journey.accesses.all())
     if journey.workflow == WorkflowKind.REGISTRATION:
-        steps = [("Inscription envoyée", submitted), ("Inscription confirmée", confirmed), ("Accès disponible", has_access)]
-    elif journey.workflow == WorkflowKind.RESERVATION:
-        steps = [("Réservation envoyée", submitted), ("Réservation confirmée", confirmed), ("Accès disponible", has_access)]
-    elif journey.workflow == WorkflowKind.INVITATION:
-        steps = [("Invitation reçue", True), ("Invitation acceptée", confirmed), ("Accès disponible", has_access)]
-    else:
-        steps = [("Démarche envoyée", submitted), ("Confirmation reçue", confirmed), ("Accès disponible", has_access)]
-    return steps
+        return [("Inscription envoyée", submitted), ("Inscription confirmée", confirmed), ("Accès disponible", has_access)]
+    if journey.workflow == WorkflowKind.RESERVATION:
+        return [("Réservation envoyée", submitted), ("Réservation confirmée", confirmed), ("Accès disponible", has_access)]
+    if journey.workflow == WorkflowKind.INVITATION:
+        return [("Invitation reçue", True), ("Invitation acceptée", confirmed), ("Accès disponible", has_access)]
+    return [("Démarche envoyée", submitted), ("Confirmation reçue", confirmed), ("Accès disponible", has_access)]
