@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/makolo.mjs';
-import { login, logout } from '../helpers/auth.mjs';
+import { E2E_PASSWORD, login, logout } from '../helpers/auth.mjs';
 
 
 async function createPaidOrder(page) {
@@ -44,18 +44,15 @@ test('participant experience works for a canonical non-Event registration', asyn
 });
 
 
-test('participant goes from discovery to payment, canonical Access QR, accepted scan then duplicate refusal', async ({ page }, testInfo) => {
-  await login(page, 'participant@e2e.makolo.test');
-  await expect(page.getByRole('heading', { name: /Que dois-je faire maintenant/i })).toBeVisible();
-
-  await page.goto('/discover/for-you/');
-  await expect(page.getByRole('heading').filter({ hasText: /Pour vous|Sélection/i }).first()).toBeVisible();
-  await page.goto('/discover/');
-  await page.getByRole('link', { name: 'Festival Makolo E2E' }).first().click();
-  await page.getByRole('button', { name: /Enregistrer/i }).click();
-  await expect(page.getByRole('button', { name: /Enregistré/i })).toBeVisible();
-
+test('visitor resumes paid Event after auth, then uses canonical Access QR and scan flow', async ({ page }, testInfo) => {
+  await page.goto('/events/festival-makolo-e2e/');
   await page.getByRole('link', { name: /Obtenir des billets/i }).click();
+  await expect(page).toHaveURL(/\/login\/?next=.*festival-makolo-e2e/i);
+  await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
+  await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/tickets\/buy\/festival-makolo-e2e\/$/);
+
   await page.getByLabel('Quantité').fill('1');
   await page.getByRole('button', { name: /Créer la commande/i }).click();
   await completeSandboxPayment(page);
@@ -65,9 +62,9 @@ test('participant goes from discovery to payment, canonical Access QR, accepted 
   await expect(page.getByRole('heading', { name: 'Vos billets sont disponibles', exact: true })).toHaveCount(1);
 
   await page.goto('/me/journeys/');
-  const paidJourney = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' }).first();
-  await expect(paidJourney).toBeVisible();
-  await paidJourney.click();
+  const paidJourneys = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' });
+  await expect(paidJourneys).toHaveCount(1);
+  await paidJourneys.first().click();
   await expect(page.getByText('Terminée', { exact: true }).first()).toBeVisible();
 
   await page.goto('/me/accesses/');
