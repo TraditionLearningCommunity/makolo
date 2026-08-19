@@ -7,10 +7,17 @@ from django.utils import timezone
 
 from access.models import Access, AccessCredential, AccessStatus
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrencePlace, OccurrenceStatus
+from commerce.models import PaymentMode
 from geography.models import Place
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
-from .participant_presentation import access_status_label, journey_status_label, next_participant_action
+from .participant_presentation import (
+    access_status_label,
+    journey_status_label,
+    next_participant_action,
+    payment_mode_label,
+    vocabulary_for,
+)
 from .participant_selectors import participant_accesses, participant_journeys
 
 
@@ -70,6 +77,22 @@ class ParticipantExperienceTests(TestCase):
         self.assertEqual(access_status_label(AccessStatus.TRANSFERRED), "Transféré")
         self.journey.status = JourneyStatus.PENDING_PAYMENT
         self.assertEqual(next_participant_action(self.journey), "Payer")
+
+    def test_payment_and_workflow_vocabulary_are_contextual(self):
+        self.assertEqual(payment_mode_label(PaymentMode.NONE), "")
+        self.assertEqual(payment_mode_label(PaymentMode.ON_SITE), "À payer sur place")
+        self.assertEqual(
+            vocabulary_for(activity=self.activity, workflow=WorkflowKind.REGISTRATION).access_noun,
+            "Confirmation",
+        )
+        self.assertEqual(
+            vocabulary_for(activity=self.activity, workflow=WorkflowKind.RESERVATION).access_noun,
+            "Réservation",
+        )
+        self.assertEqual(
+            vocabulary_for(activity=self.activity, workflow=WorkflowKind.INVITATION).access_noun,
+            "Invitation",
+        )
 
     def test_participant_pages_show_canonical_occurrence_place_and_access(self):
         self.client.force_login(self.user)
