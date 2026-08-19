@@ -48,31 +48,33 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('core/management/commands/prepare_e2e.py')
           text = path.read_text()
           import_line = 'from organizations.models import Organization, OrganizationMembership, OrganizationRole, OrganizationVerificationStatus\n'
-          replacement_import = import_line + 'from organizations.services import create_organization\n'
-          if 'from organizations.services import create_organization\n' not in text:
+          canonical_import = 'from organizations.services import create_organization\n'
+          if canonical_import not in text:
               if import_line not in text:
                   raise SystemExit('Expected organizations import not found')
-              text = text.replace(import_line, replacement_import, 1)
+              text = text.replace(import_line, import_line + canonical_import, 1)
 
-          old = '''        empty_org = Organization.objects.create(name="Makolo E2E Nouvelle Organisation", description="Organisation sans événement pour tester les états vides.", public_profile=True, verification_status=OrganizationVerificationStatus.VERIFIED, created_by=users["new_organizer"])
-          self._membership(empty_org, users["new_organizer"], OrganizationRole.OWNER)
-          '''
-          new = '''        empty_org = create_organization(
+          replacement = '''        empty_org = create_organization(
               creator=users["new_organizer"],
               name="Makolo E2E Nouvelle Organisation",
               description="Espace sans activité pour tester les états vides.",
               public_profile=True,
               verification_status=OrganizationVerificationStatus.VERIFIED,
+          )'''
+
+          pattern = re.compile(
+              r'^\s*empty_org = Organization\.objects\.create\(name="Makolo E2E Nouvelle Organisation"[^\n]*\)\n'
+              r'^\s*self\._membership\(empty_org, users\["new_organizer"\], OrganizationRole\.OWNER\)',
+              re.MULTILINE,
           )
-          '''
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise SystemExit('Expected empty Space fixture block not found')
+          text, count = pattern.subn(replacement, text, count=1)
+          if count == 0 and replacement not in text:
+              raise SystemExit('Expected empty Space fixture lines not found')
           path.write_text(text)
           PY
 
