@@ -1,18 +1,12 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
-from django.db.models import Q
 from django.shortcuts import redirect
-from django.utils import timezone
+from django.views import View
 from django.views.generic import TemplateView
 
-from access.models import AccessStatus
-from events.models import Event, EventStatus
 from events.selectors import get_public_discoverable_events
+from organizations.console_context import authorized_spaces
 from organizations.models import Organization, OrganizationVerificationStatus
-from payments.models import PaymentStatus
-from payments.selectors import get_payments_visible_to
-from tickets.models import TicketOrderStatus, TicketStatus
-from tickets.selectors import get_orders_visible_to, get_tickets_visible_to
 
 from .capabilities import get_web_capabilities
 from .web_throttling import (
@@ -52,15 +46,28 @@ class RateLimitedLoginView(LoginView):
         return super().post(request, *args, **kwargs)
 
 
+def _authenticated_landing(user):
+    capabilities = get_web_capabilities(user)
+    if capabilities["has_organizer_tools"]:
+        space = authorized_spaces(user).first()
+        if space is not None:
+            return "space", space
+    if user.is_staff:
+        return "operations", None
+    return "personal", None
+
+
 class PublicHomeView(TemplateView):
     template_name = "core/public_home.html"
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            capabilities = get_web_capabilities(request.user)
-            if not request.user.is_staff and not capabilities["has_organizer_tools"]:
-                return redirect("core:participant-home")
-            return redirect("core:dashboard")
+            target, space = _authenticated_landing(request.user)
+            if target == "space":
+                return redirect("organizations:console-entry", slug=space.slug)
+            if target == "operations":
+                return redirect("operations:dashboard")
+            return redirect("core:participant-home")
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -74,80 +81,15 @@ class PublicHomeView(TemplateView):
         return context
 
 
-class DashboardView(LoginRequiredMixin, TemplateView):
-    """Professional dashboard; plain participants use the canonical personal space."""
+class DashboardView(LoginRequiredMixin, View):
+    """Compatibility URL that now routes to the single professional Space Console."""
 
-    template_name = "base/dashboard.html"
     login_url = "core:login"
 
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            capabilities = get_web_capabilities(request.user)
-            if not request.user.is_staff and not capabilities["has_organizer_tools"]:
-                return redirect("core:participant-home")
-        return super().dispatch(request, *args, **kwargs)
-
-    def _organization_events(self, user):
-        queryset = Event.objects.select_related(
-            "activity",
-            "activity__created_by",
-            "activity__space",
-            "category",
-            "venue",
-            "venue__place",
-        )
-        if user.is_staff:
-            return queryset
-        return queryset.filter(
-            Q(activity__created_by=user)
-            | Q(
-                activity__space__memberships__user=user,
-                activity__space__memberships__is_active=True,
-            )
-        ).distinct()
-
-    def get_event_queryset(self):
-        """Compatibility seam for dashboard authorization tests and callers."""
-        return self._organization_events(self.request.user)
-
-    @staticmethod
-    def _valid_ticket_filter():
-        return Q(access__status=AccessStatus.VALID) | Q(
-            access__isnull=True,
-            status=TicketStatus.VALID,
-        )
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        user = self.request.user
-        capabilities = get_web_capabilities(user)
-        now = timezone.now()
-        dashboard_mode = "staff" if user.is_staff else "organizer"
-
-        events = self.get_event_queryset()
-        tickets = get_tickets_visible_to(user)
-        orders = get_orders_visible_to(user)
-        payments = get_payments_visible_to(user)
-
-        context.update(
-            {
-                "dashboard_mode": dashboard_mode,
-                "web_capabilities": capabilities,
-                "events_count": events.count(),
-                "published_events_count": events.filter(activity__status=EventStatus.PUBLISHED).count(),
-                "upcoming_events_count": events.filter(activity__occurrences__start_at__gt=now).distinct().count(),
-                "upcoming_events": events.filter(
-                    activity__occurrences__start_at__gt=now
-                ).order_by("activity__occurrences__start_at").distinct()[:5],
-                "tickets_count": tickets.count(),
-                "valid_tickets_count": tickets.filter(self._valid_ticket_filter()).count(),
-                "pending_orders_count": orders.filter(status=TicketOrderStatus.PENDING).count(),
-                "confirmed_orders_count": orders.filter(status=TicketOrderStatus.CONFIRMED).count(),
-                "payments_count": payments.count(),
-                "pending_payments_count": payments.filter(status=PaymentStatus.PENDING).count(),
-                "succeeded_payments_count": payments.filter(status=PaymentStatus.SUCCEEDED).count(),
-                "refunded_payments_count": payments.filter(status=PaymentStatus.REFUNDED).count(),
-                "can_create_event": capabilities["can_manage_events"],
-            }
-        )
-        return context
+    def get(self, request, *args, **kwargs):
+        target, space = _authenticated_landing(request.user)
+        if target == "space":
+            return redirect("organizations:console-entry", slug=space.slug)
+        if target == "operations":
+            return redirect("operations:dashboard")
+        return redirect("core:participant-home")
