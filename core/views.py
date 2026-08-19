@@ -57,6 +57,9 @@ class PublicHomeView(TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
+            capabilities = get_web_capabilities(request.user)
+            if not request.user.is_staff and not capabilities["has_organizer_tools"]:
+                return redirect("core:participant-home")
             return redirect("core:dashboard")
         return super().dispatch(request, *args, **kwargs)
 
