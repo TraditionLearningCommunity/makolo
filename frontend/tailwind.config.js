@@ -7,6 +7,9 @@ module.exports = {
     './frontend/src/**/*.js',
     './static/js/**/*.js',
   ],
+  // Keep the committed production bundle stable while participant surfaces
+  // replace the historical dashboard that used these responsive utilities.
+  safelist: ['py-11', 'sm:grid-cols-[70px_1fr_auto]', 'xl:col-span-4'],
   theme: {
     extend: {
       fontFamily: {
