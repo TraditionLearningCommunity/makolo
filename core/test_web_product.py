@@ -66,14 +66,16 @@ class RoleAwareWebProductTests(TestCase):
             end_at=start_at + timedelta(hours=3),
         )
 
-    def test_participant_navigation_hides_organizer_and_staff_tools(self):
+    def test_participant_navigation_is_personal_and_hides_professional_tools(self):
         self.client.force_login(self.participant)
-        response = self.client.get(reverse("core:dashboard"))
+        response = self.client.get(reverse("core:participant-home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["dashboard_mode"], "participant")
-        self.assertContains(response, "Découvrir")
-        self.assertContains(response, "Mes billets")
+        self.assertContains(response, "Accueil")
+        self.assertContains(response, "Mes démarches")
+        self.assertContains(response, "Mes accès")
+        self.assertContains(response, "Notifications")
+        self.assertContains(response, "Profil")
         self.assertNotContains(response, "Mes organisations")
         self.assertNotContains(response, "CRM & audiences")
         self.assertNotContains(response, "Operations Center")
@@ -92,6 +94,7 @@ class RoleAwareWebProductTests(TestCase):
         self.assertContains(response, "Promotions")
         self.assertContains(response, "Analytics")
         self.assertContains(response, "Espace organisation")
+        self.assertContains(response, "Mon espace")
         self.assertNotContains(response, "Paiements réussis")
         self.assertNotContains(response, "Fidélité")
         self.assertEqual(response.context["events_count"], 1)

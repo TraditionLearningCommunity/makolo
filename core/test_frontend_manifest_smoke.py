@@ -69,10 +69,11 @@ class ProductionManifestPageSmokeTests(TestCase):
         self.assert_page_renders(reverse("core:login"))
         self.assert_page_renders(reverse("discovery:home"))
 
-    def test_participant_dashboard_profile_and_tickets_render(self):
-        self.assert_page_renders(reverse("core:dashboard"), user=self.participant)
+    def test_participant_personal_pages_render(self):
+        self.assert_page_renders(reverse("core:participant-home"), user=self.participant)
+        self.assert_page_renders(reverse("core:participant-journeys"), user=self.participant)
+        self.assert_page_renders(reverse("core:participant-accesses"), user=self.participant)
         self.assert_page_renders(reverse("account:profile"), user=self.participant)
-        self.assert_page_renders(reverse("tickets:list"), user=self.participant)
 
     def test_organizer_dashboard_renders(self):
         self.assert_page_renders(reverse("core:dashboard"), user=self.organizer)

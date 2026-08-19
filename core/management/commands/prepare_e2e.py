@@ -1,16 +1,24 @@
 import importlib
 from datetime import datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from django.apps import apps
 from django.conf import settings
 from django.core.management import BaseCommand, CommandError, call_command
 
+from access.services import issue_access
 from accounts.models import NotificationPreference, User, UserProfile
+from activities.models import Activity, ActivityStatus, Occurrence, OccurrencePlace, OccurrenceStatus
 from authorization.services import ensure_platform_admin_mandate
+from commerce.models import OfferStatus, PaymentMode
+from commerce.services import confirm_order as confirm_commerce_order
+from commerce.services import create_offer, create_order as create_commerce_order
 from events.activity_bridge import sync_event_core
 from events.models import Event, EventCategory, EventStatus, EventVenue, EventVisibility, VenueKind
 from geography.models import Place
+from journeys.models import WorkflowKind
+from journeys.services import confirm_journey, create_journey, submit_journey
 from operations.models import IncidentCategory, IncidentSeverity, IncidentStatus, OperationsIncident
 from organizations.models import Organization, OrganizationMembership, OrganizationRole, OrganizationVerificationStatus
 from scanner.models import EventAccessGate, ScannerAssignment
@@ -43,6 +51,8 @@ class Command(BaseCommand):
             key: self._user(email, username, **flags)
             for key, email, username, flags in [
                 ("participant", "participant@e2e.makolo.test", "e2e-participant", {}),
+                ("reservation", "reservation.participant@e2e.makolo.test", "e2e-reservation", {}),
+                ("invitee", "invitee.participant@e2e.makolo.test", "e2e-invitee", {}),
                 ("empty", "empty.participant@e2e.makolo.test", "e2e-empty", {}),
                 ("visual", "visual.participant@e2e.makolo.test", "e2e-visual", {}),
                 ("profile", "profile.user@e2e.makolo.test", "e2e-profile", {}),
@@ -112,6 +122,95 @@ class Command(BaseCommand):
         )
         create_order(buyer=users["visual"], event=visual_event, customer_name="Visual Participant", customer_email=users["visual"].email, selections=[(visual_type,1)])
 
+        participant_place = Place.objects.create(
+            name="Maison des initiatives E2E",
+            address_line="25 avenue Canonique",
+            locality="Lubumbashi",
+            country_code="CD",
+            timezone="Africa/Lubumbashi",
+            access_instructions="Présentez-vous à l’accueil dix minutes avant le début.",
+            created_by=users["owner"],
+        )
+        registration_activity = Activity.objects.create(
+            space=main_org,
+            created_by=users["owner"],
+            title="Inscription communautaire E2E",
+            short_description="Scénario participant sans Event, Ticket ni TicketOrder.",
+            status=ActivityStatus.PUBLISHED,
+        )
+        registration_occurrence = Occurrence.objects.create(
+            activity=registration_activity,
+            label="Session E2E",
+            start_at=self._dt(2030,9,20,14,0),
+            end_at=self._dt(2030,9,20,16,0),
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        OccurrencePlace.objects.create(occurrence=registration_occurrence, place=participant_place, role="primary")
+        registration_journey = create_journey(
+            initiated_by=users["participant"], beneficiary=users["participant"],
+            activity=registration_activity, occurrence=registration_occurrence,
+            workflow=WorkflowKind.REGISTRATION,
+        )
+        submit_journey(journey=registration_journey, actor=users["participant"])
+        confirm_journey(journey=registration_journey, actor=users["owner"], reason="e2e_free_registration")
+        issue_access(
+            beneficiary=users["participant"], activity=registration_activity,
+            occurrence=registration_occurrence, journey=registration_journey,
+            issued_by=users["owner"], source_key="e2e-registration",
+        )
+
+        reservation_activity = Activity.objects.create(
+            space=main_org, created_by=users["owner"], title="Réservation sur place E2E",
+            short_description="Réservation canonique avec paiement prévu sur place.", status=ActivityStatus.PUBLISHED,
+        )
+        reservation_occurrence = Occurrence.objects.create(
+            activity=reservation_activity, label="Créneau réservation E2E",
+            start_at=self._dt(2030,10,5,11,0), end_at=self._dt(2030,10,5,12,0),
+            timezone="Africa/Lubumbashi", status=OccurrenceStatus.SCHEDULED,
+        )
+        OccurrencePlace.objects.create(occurrence=reservation_occurrence, place=participant_place, role="primary")
+        reservation_journey = create_journey(
+            initiated_by=users["reservation"], beneficiary=users["reservation"],
+            activity=reservation_activity, occurrence=reservation_occurrence,
+            workflow=WorkflowKind.RESERVATION,
+        )
+        submit_journey(journey=reservation_journey, actor=users["reservation"])
+        reservation_offer = create_offer(
+            activity=reservation_activity, occurrence=reservation_occurrence,
+            name="Réservation E2E", unit_price=Decimal("20.00"), currency="USD",
+            payment_mode=PaymentMode.ON_SITE, status=OfferStatus.ACTIVE,
+            source_key="e2e-reservation-on-site",
+        )
+        reservation_order = create_commerce_order(
+            journey=reservation_journey, buyer=users["reservation"],
+            selections=[{"offer": reservation_offer, "quantity": 1}],
+            source_key="e2e-reservation-order",
+        )
+        confirm_commerce_order(order=reservation_order)
+        issue_access(
+            beneficiary=users["reservation"], activity=reservation_activity,
+            occurrence=reservation_occurrence, journey=reservation_journey,
+            issued_by=users["owner"], source_key="e2e-reservation",
+        )
+
+        invitation_activity = Activity.objects.create(
+            space=main_org, created_by=users["owner"], title="Invitation communautaire E2E",
+            short_description="Invitation canonique actionnable par son bénéficiaire.", status=ActivityStatus.PUBLISHED,
+        )
+        invitation_occurrence = Occurrence.objects.create(
+            activity=invitation_activity, label="Rencontre invitation E2E",
+            start_at=self._dt(2030,10,12,17,0), end_at=self._dt(2030,10,12,19,0),
+            timezone="Africa/Lubumbashi", status=OccurrenceStatus.SCHEDULED,
+        )
+        OccurrencePlace.objects.create(occurrence=invitation_occurrence, place=participant_place, role="primary")
+        invitation_journey = create_journey(
+            initiated_by=users["owner"], beneficiary=users["invitee"],
+            activity=invitation_activity, occurrence=invitation_occurrence,
+            workflow=WorkflowKind.INVITATION,
+        )
+        submit_journey(journey=invitation_journey, actor=users["owner"])
+
         sold_out_event = Event.objects.create(
             organizer=users["owner"], organization=main_org, category=category, venue=venue,
             title="Capacité Makolo E2E", slug="capacite-makolo-e2e", short_description="Événement à une seule place pour valider le sold-out canonique.",
@@ -137,6 +236,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Password: {E2E_PASSWORD}")
         self.stdout.write(f"Paid event: {paid_event.slug}")
         self.stdout.write(f"Paid ticket type: {paid_type.pk}")
+        self.stdout.write(f"Canonical non-event activity: {registration_activity.pk}")
+        self.stdout.write(f"On-site reservation activity: {reservation_activity.pk}")
+        self.stdout.write(f"Pending invitation activity: {invitation_activity.pk}")
 
     def _user(self, email, username, **flags):
         user = User.objects.create_user(email=email, username=username, password=E2E_PASSWORD, first_name=username.replace("e2e-", "").replace("-", " ").title(), **flags)

@@ -39,11 +39,11 @@ class DashboardTests(TestCase):
         self.assertContains(response, "Événement public")
         self.assertContains(response, "Créer un compte")
 
-    def test_authenticated_home_redirects_to_dashboard(self):
+    def test_authenticated_participant_home_redirects_to_personal_space(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("core:home"))
 
-        self.assertRedirects(response, reverse("core:dashboard"))
+        self.assertRedirects(response, reverse("core:participant-home"))
 
     def test_dashboard_requires_authentication(self):
         response = self.client.get(reverse("core:dashboard"))
@@ -51,16 +51,14 @@ class DashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("core:login"), response.url)
 
-    def test_participant_dashboard_is_personal_not_organizer_metrics(self):
+    def test_participant_dashboard_redirects_to_canonical_personal_space(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("core:dashboard"))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["dashboard_mode"], "participant")
-        self.assertNotIn("events_count", response.context)
-        self.assertNotIn("users_count", response.context)
-        self.assertNotIn("verified_users_count", response.context)
-        self.assertContains(response, "Espace participant")
-        self.assertContains(response, "Mes prochains événements")
-        self.assertNotContains(response, "Paiements réussis")
-        self.assertNotContains(response, "CRM & audiences")
+        self.assertRedirects(response, reverse("core:participant-home"))
+        personal = self.client.get(reverse("core:participant-home"))
+        self.assertContains(personal, "Que dois-je faire maintenant ?")
+        self.assertContains(personal, "Mes démarches")
+        self.assertContains(personal, "Mes accès")
+        self.assertNotContains(personal, "Paiements réussis")
+        self.assertNotContains(personal, "CRM & audiences")

@@ -29,7 +29,7 @@ class FrontendSecurityHeaderTests(TestCase):
         self.assertEqual(response.headers["Referrer-Policy"], "same-origin")
         self.assertEqual(response.headers["X-Frame-Options"], "DENY")
 
-    def test_authenticated_shell_keeps_same_policy(self):
+    def test_authenticated_participant_shell_keeps_same_policy(self):
         user = User.objects.create_user(
             username="frontend-security-user",
             email="frontend-security@example.com",
@@ -37,8 +37,10 @@ class FrontendSecurityHeaderTests(TestCase):
         )
         self.client.force_login(user)
 
-        response = self.client.get(reverse("core:dashboard"))
+        dashboard = self.client.get(reverse("core:dashboard"))
+        self.assertRedirects(dashboard, reverse("core:participant-home"))
 
+        response = self.client.get(reverse("core:participant-home"))
         self.assertEqual(response.status_code, 200)
         self.assertIn("script-src 'self'", response.headers["Content-Security-Policy"])
         self.assertIn("camera=(self)", response.headers["Permissions-Policy"])

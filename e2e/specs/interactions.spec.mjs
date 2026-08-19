@@ -43,7 +43,7 @@ test('keyboard supports Tab, Shift+Tab, Enter, Space and Escape on the app shell
   await expect(page.locator('#main-content')).toBeFocused();
 
   const themeButton = page.getByRole('button', { name: 'Changer le thème' });
-  const notifications = page.getByRole('link', { name: 'Notifications' }).first();
+  const notifications = page.locator('header').getByRole('link', { name: 'Notifications' });
   await themeButton.focus();
   await page.keyboard.press('Shift+Tab');
   await expect(notifications).toBeFocused();
