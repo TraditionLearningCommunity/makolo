@@ -92,6 +92,20 @@ def _space_role_codes(profile, space):
     )
 
 
+def _has_space_permission_outside_activity_manager(profile, space, permission_code):
+    return (
+        _current_mandates(profile)
+        .filter(
+            scope_type=AuthorityScope.SPACE,
+            space=space,
+            role__role_permissions__permission__code=permission_code,
+            role__role_permissions__permission__is_active=True,
+        )
+        .exclude(role__code=SystemRoleCode.ACTIVITY_MANAGER)
+        .exists()
+    )
+
+
 def _has_activity_capability(profile, space, permission_code):
     permitted = activity_ids_with_permission(profile, permission_code)
     if permitted is None:
@@ -120,9 +134,11 @@ def _module_allowed(profile, space, key, *, space_permissions, limited, space_ro
     if key == "groups":
         return PermissionCode.SPACE_GROUPS_VIEW in space_permissions
     if key in {"crm", "audiences"}:
-        if SystemRoleCode.ACTIVITY_MANAGER in space_role_codes:
+        if PermissionCode.CRM_VIEW not in space_permissions:
             return False
-        return PermissionCode.CRM_VIEW in space_permissions
+        if SystemRoleCode.ACTIVITY_MANAGER not in space_role_codes:
+            return True
+        return _has_space_permission_outside_activity_manager(profile, space, PermissionCode.CRM_VIEW)
     if key == "places":
         return PermissionCode.SPACE_PLACES_VIEW in space_permissions
     if key == "control":
