@@ -22,7 +22,8 @@ test('registration shows validation and creates a usable account', async ({ page
   await page.getByLabel('Adresse e-mail').fill('signup.user@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL('/dashboard/');
+  await expect(page).toHaveURL('/me/');
+  await expect(page.getByRole('heading', { name: /Que dois-je faire maintenant/i })).toBeVisible();
 });
 
 
@@ -60,7 +61,7 @@ test('forgot password follows the real generated email link and token is one-use
   await page.getByLabel('Adresse e-mail').fill('reset.user@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(newPassword);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL('/dashboard/');
+  await expect(page).toHaveURL('/me/');
 
   await page.goto(resetLink);
   await page.locator('[name="new_password"]').fill('Another-Makolo-E2E-2026!');
