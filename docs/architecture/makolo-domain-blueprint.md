@@ -297,7 +297,6 @@ Ils sont la norme pour :
 ### Modèles abstraits
 
 Les modèles abstraits sont réservés aux préoccupations structurelles : UUID, timestamps, audit basique, champs de statut communs lorsque la sémantique est réellement identique.
-
 Ne pas créer une classe abstraite « BookableThing » ou « GenericProcess » qui masque des cycles de vie différents.
 
 ### Héritage vs composition
@@ -597,7 +596,6 @@ Créer Group/GroupMembership et permissions de gestion. Ne pas les confondre ave
 ### 3. Géographie
 
 **Dépend de** : hébergement DB cible pour la phase PostGIS ; peut commencer par le modèle conceptuel/migration des données avant activation géospatiale complète.
-
 Introduire Place/Zone, provider de géocodage abstrait et migration d'EventVenue. Ne pas rendre le déploiement bêta actuel dépendant d'un service public externe.
 
 ### 4. Activité / Occurrence
@@ -756,3 +754,7 @@ Le backend reste générique tandis que les dashboards et écrans Events conserv
 L'étape « Events comme verticale » est désormais matérialisée par composition sur les propriétaires canoniques : `Event → Activity`, calendrier → `Occurrence`, lieu physique → `Place` via `OccurrencePlace`, type de billet → `Offer` / `CapacityPool`, commande → `Journey` / `CommerceOrder`, billet → `Access`, QR → `AccessCredential` et validation → `AccessUse`.
 
 `Event`, `EventVenue`, `TicketType`, `TicketOrder`, `TicketOrderItem`, `Ticket`, Waitlist et `ScanLog` ne portent plus les décisions génériques déjà possédées par ces bounded contexts ; ils restent configuration, vocabulaire, snapshots historiques ou bridges explicitement documentés de la verticale Events. Les nouveaux flux écrivent d'abord les propriétaires canoniques. Les détails de cutover et la dette de compatibilité restante sont documentés dans [`events-vertical.md`](events-vertical.md).
+
+### Note d'implémentation — Task 10 Participant Experience
+
+La surface participant est désormais canonical-first : `Occurrence` fournit le quand/où, `Journey` est présenté comme la démarche et porte la prochaine action de présentation, Commerce/Payment n'apparaît que lorsque le workflow l'exige, et `Access`/`AccessCredential` fournit le droit et son QR contextualisé. L'accueil personnel, Mes démarches et Mes accès fonctionnent sans dépendance obligatoire à Event, Ticket ou TicketOrder ; Event reste uniquement une verticale de vocabulaire. Les détails et compatibilités encore consommées sont documentés dans [`participant-experience.md`](participant-experience.md).
