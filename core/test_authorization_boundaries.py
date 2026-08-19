@@ -2,10 +2,10 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase
+from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
-from core.views import DashboardView
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import Organization, OrganizationMembership, OrganizationRole
 from payments.models import Payment, PaymentMethod, PaymentProvider
@@ -165,11 +165,11 @@ class OrganizationCapabilityBoundaryTests(TestCase):
         self.assertFalse(get_scannable_events(self.marketing).filter(pk=self.event.pk).exists())
         self.assertFalse(get_payments_visible_to(self.access_manager).filter(pk=self.payment.pk).exists())
 
-    def test_dashboard_uses_organization_managed_events_not_only_legacy_organizer(self):
-        request = RequestFactory().get("/")
-        request.user = self.event_manager
-        view = DashboardView()
-        view.request = request
-        queryset = view.get_event_queryset()
-        self.assertTrue(queryset.filter(pk=self.event.pk).exists())
-        self.assertTrue(queryset.filter(pk=self.draft_event.pk).exists())
+    def test_legacy_dashboard_redirects_professional_to_space_console(self):
+        self.client.force_login(self.event_manager)
+        response = self.client.get(reverse("core:dashboard"))
+        self.assertRedirects(
+            response,
+            reverse("organizations:console-entry", kwargs={"slug": self.organization.slug}),
+            fetch_redirect_response=False,
+        )
