@@ -123,7 +123,7 @@ class ParticipantExperienceTests(TestCase):
             reverse("core:participant-journey-detail", kwargs={"pk": journey.pk})
         )
         self.assertContains(response, "Paiement en ligne requis")
-        self.assertContains(response, "12.00 USD")
+        self.assertContains(response, "12,00 USD")
         self.assertContains(response, reverse("payments:start", kwargs={"order_pk": order.pk}))
 
     def test_participant_pages_show_canonical_occurrence_place_and_access(self):
