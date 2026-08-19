@@ -1,0 +1,32 @@
+name: Space Console frontend diagnostic
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node 24.18.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci
+      - name: Build production frontend
+        run: npm run build
+      - name: Upload generated frontend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: space-console-generated-static-dist
+          path: static/dist
+          retention-days: 1
