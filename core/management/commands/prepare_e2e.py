@@ -17,8 +17,8 @@ from commerce.services import create_offer, create_order as create_commerce_orde
 from events.activity_bridge import sync_event_core
 from events.models import Event, EventCategory, EventStatus, EventVenue, EventVisibility, VenueKind
 from geography.models import Place
-from journeys.models import Journey, JourneyStatus, WorkflowKind
-from journeys.services import create_journey, submit_journey
+from journeys.models import WorkflowKind
+from journeys.services import confirm_journey, create_journey, submit_journey
 from operations.models import IncidentCategory, IncidentSeverity, IncidentStatus, OperationsIncident
 from organizations.models import Organization, OrganizationMembership, OrganizationRole, OrganizationVerificationStatus
 from scanner.models import EventAccessGate, ScannerAssignment
@@ -147,11 +147,13 @@ class Command(BaseCommand):
             status=OccurrenceStatus.SCHEDULED,
         )
         OccurrencePlace.objects.create(occurrence=registration_occurrence, place=participant_place, role="primary")
-        registration_journey = Journey.objects.create(
+        registration_journey = create_journey(
             initiated_by=users["participant"], beneficiary=users["participant"],
             activity=registration_activity, occurrence=registration_occurrence,
-            workflow=WorkflowKind.REGISTRATION, status=JourneyStatus.CONFIRMED,
+            workflow=WorkflowKind.REGISTRATION,
         )
+        submit_journey(journey=registration_journey, actor=users["participant"])
+        confirm_journey(journey=registration_journey, actor=users["owner"], reason="e2e_free_registration")
         issue_access(
             beneficiary=users["participant"], activity=registration_activity,
             occurrence=registration_occurrence, journey=registration_journey,
