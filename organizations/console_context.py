@@ -124,7 +124,7 @@ def _module_allowed(profile, space, key, *, space_permissions, limited):
     if key == "automation":
         return PermissionCode.SPACE_MANAGE in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_MANAGE)
     if key == "team":
-        return not limited and PermissionCode.SPACE_VIEW in space_permissions
+        return not limited and PermissionCode.SPACE_TEAM_MANAGE in space_permissions
     if key == "settings":
         return not limited and PermissionCode.SPACE_MANAGE in space_permissions
     return False
