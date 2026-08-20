@@ -758,3 +758,7 @@ L'étape « Events comme verticale » est désormais matérialisée par composit
 ### Note d'implémentation — Task 10 Participant Experience
 
 La surface participant est désormais canonical-first : `Occurrence` fournit le quand/où, `Journey` est présenté comme la démarche et porte la prochaine action de présentation, Commerce/Payment n'apparaît que lorsque le workflow l'exige, et `Access`/`AccessCredential` fournit le droit et son QR contextualisé. L'accueil personnel, Mes démarches et Mes accès fonctionnent sans dépendance obligatoire à Event, Ticket ou TicketOrder ; Event reste uniquement une verticale de vocabulaire. Les détails et compatibilités encore consommées sont documentés dans [`participant-experience.md`](participant-experience.md).
+
+### Note d'implémentation — Task 12 Transport MVP
+
+**Task 12 — Transport MVP** est désormais matérialisée par `transport` comme verticale composée sur le cœur canonique. Les responsabilités, invariants et non-goals sont documentés dans [`transport-mvp.md`](transport-mvp.md).
