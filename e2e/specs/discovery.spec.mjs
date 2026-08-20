@@ -43,7 +43,7 @@ test('MapLibre renders discovery points and selecting a point highlights its res
   const first = await page.locator('#discovery-map-data').evaluate(node => JSON.parse(node.textContent)[0]);
   await marker.click();
   await expect(page.locator(`[data-discovery-result="${first.occurrence_id}"]`)).toHaveClass(/ring-2/);
-  await expect(map.getByRole('link', { name: first.cta_label })).toBeVisible();
+  await expect(page.getByRole('link', { name: first.cta_label }).last()).toBeVisible();
 });
 
 
