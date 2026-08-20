@@ -29,7 +29,7 @@
             {% if payment.status == 'pending' and payment.provider == 'sandbox' %}<form method="post" action="{% url 'payments:sandbox-complete' payment.pk %}">{% csrf_token %}<button class="rounded-2xl bg-emerald-600 px-5 py-3 font-bold text-white hover:bg-emerald-500">Simuler un paiement réussi</button></form>{% endif %}
             {% if payment.status == 'pending' and payment.provider == 'manual' and can_manage_payment %}<form method="post" action="{% url 'payments:manual-complete' payment.pk %}" class="flex flex-wrap gap-2">{% csrf_token %}<input name="provider_reference" placeholder="Référence externe (optionnelle)" class="rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700"><button class="rounded-2xl bg-emerald-600 px-5 py-3 font-bold text-white">Confirmer le paiement manuel</button></form>{% endif %}
             {% if payment.status == 'pending' or payment.status == 'processing' %}<form method="post" action="{% url 'payments:cancel' payment.pk %}">{% csrf_token %}<button class="rounded-2xl border border-zinc-300 px-5 py-3 font-bold dark:border-zinc-700">Annuler cette tentative</button></form>{% endif %}
-            {% if payment.status == 'succeeded' and payment.commerce_order %}<a href="{% url 'core:participant-accesses' %}" class="rounded-2xl bg-[#5232DB] px-5 py-3 font-bold text-white">Voir mon billet / mes accès</a>{% endif %}
+            {% if payment.status == 'succeeded' and payment.commerce_order %}<a href="{% url 'core:participant-accesses' %}" class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Voir mon billet / mes accès</a>{% endif %}
         </div>
     </div>
 
