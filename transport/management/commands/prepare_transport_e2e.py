@@ -1,7 +1,9 @@
+import importlib
 from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+from django.apps import apps
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
@@ -31,6 +33,14 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not getattr(settings, "IS_E2E", False):
             raise CommandError("prepare_transport_e2e est réservé à DJANGO_ENV=e2e.")
+
+        # prepare_e2e flushes the database and replays only the older authority
+        # seed steps. Replay the canonical Scanner/Operations authority seed
+        # before granting the occurrence-scoped Scanner mandate.
+        scanner_authority_seed = importlib.import_module(
+            "authorization.migrations.0010_scanner_operations_permissions"
+        )
+        scanner_authority_seed.seed_permissions(apps, None)
 
         owner = User.objects.get(username="e2e-owner")
         manager = User.objects.get(username="e2e-event-manager")
