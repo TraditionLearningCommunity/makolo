@@ -28,7 +28,7 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and board
   await expect(promoCard).toHaveCount(1);
   await promoCard.getByRole('link', { name: 'Acheter le billet' }).click();
 
-  await expect(page).toHaveURL(/\/login\/?next=.*\/transport\/departures\//);
+  await expect(page).toHaveURL(/\/login\/\?next=\/transport\/departures\/[^/]+\/book\/[^/]+\/$/);
   await page.getByLabel('Adresse e-mail').fill(PARTICIPANT);
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
