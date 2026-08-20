@@ -21,8 +21,12 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and board
   await searchTransport(page);
   await expect(page.getByText(money('15'))).toBeVisible();
   await page.locator('a').filter({ hasText: '08:00' }).first().click();
-  const promo = page.locator('div').filter({ hasText: 'Promo web E2E' }).filter({ hasText: money('15') }).last();
-  await promo.getByRole('link', { name: 'Acheter le billet' }).click();
+  const promoCard = page
+    .locator('div.rounded-3xl')
+    .filter({ has: page.getByText('Promo web E2E', { exact: true }) })
+    .filter({ hasText: money('15') });
+  await expect(promoCard).toHaveCount(1);
+  await promoCard.getByRole('link', { name: 'Acheter le billet' }).click();
 
   await expect(page).toHaveURL(/\/login\/?next=.*\/transport\/departures\//);
   await page.getByLabel('Adresse e-mail').fill(PARTICIPANT);
