@@ -3,10 +3,13 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from access.models import AccessStatus
 from activities.models import Activity, Occurrence
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
 from capacity.access_bridge import issue_access_from_capacity
 from capacity.models import CapacityPool, CapacityReservationStatus
 from commerce.models import CommerceOrderStatus, Offer, OfferStatus, PaymentMode
@@ -17,6 +20,8 @@ from journeys.services import create_journey, request_approval, submit_journey
 from organizations.models import Organization
 
 from .models import PaymentMethod, PaymentProvider, PaymentStatus
+from .permissions import user_can_manage_payment
+from .selectors import get_payments_visible_to
 from .services import complete_payment, initiate_commerce_payment
 
 
@@ -29,6 +34,12 @@ class GenericCommercePaymentTests(TestCase):
             password="Payments-2026!",
         )
         space = Organization.objects.create(name="Generic Commerce Space", created_by=user)
+        finance = get_user_model().objects.create_user(
+            username="generic-commerce-finance",
+            email="generic-commerce-finance@example.com",
+            password="Payments-2026!",
+        )
+        grant_space_role(profile=finance, space=space, role=SystemRoleCode.FINANCE)
         activity = Activity.objects.create(space=space, created_by=user, title="Formation sur validation")
         occurrence = Occurrence.objects.create(
             activity=activity,
@@ -86,6 +97,14 @@ class GenericCommercePaymentTests(TestCase):
         self.assertIsNone(payment.order_id)
         self.assertEqual(payment.commerce_order_id, order.pk)
         self.assertEqual(payment.amount, Decimal("30.00"))
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("payments:detail", kwargs={"pk": payment.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, payment.reference)
+
+        self.assertTrue(get_payments_visible_to(finance).filter(pk=payment.pk).exists())
+        self.assertTrue(user_can_manage_payment(finance, payment))
 
         payment = complete_payment(
             payment=payment,
