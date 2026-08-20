@@ -43,7 +43,10 @@ async function stableScanner(page) {
 }
 
 async function stableDiscoveryMap(page) {
-  await expect(page.locator('#discovery-map canvas')).toBeVisible();
+  const mapContainer = page.locator('#discovery-map');
+  await expect(mapContainer).toBeVisible();
+  await mapContainer.scrollIntoViewIfNeeded();
+  await expect(mapContainer.locator('canvas')).toBeVisible();
   await page.waitForFunction(() => {
     const map = window.__makoloDiscoveryMap;
     if (!map?.getSource('discovery-results')) return false;
@@ -51,6 +54,8 @@ async function stableDiscoveryMap(page) {
     const layers = ['discovery-clusters', 'discovery-points'].filter((id) => map.getLayer(id));
     return layers.length > 0 && map.queryRenderedFeatures({ layers }).length > 0;
   });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 
 async function assertDesktopShellStable(page) {
