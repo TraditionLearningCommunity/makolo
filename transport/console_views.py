@@ -3,20 +3,27 @@ from zoneinfo import ZoneInfo
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views import View
 from django.views.generic import TemplateView
 
-from authorization.constants import PermissionCode
-from authorization.services import can
+from capacity.models import CapacityReservationStatus
 from commerce.models import PaymentMode
 from geography.models import SpacePlace
 from organizations.console_views import SpaceConsoleMixin
 
-from .models import TransportRoute, TransportService, Vehicle
-from .selectors import departures_for_route, routes_for_space, upcoming_departures, vehicles_for_space
+from .models import TransportDeparture, TransportRoute, TransportService, Vehicle
+from .selectors import (
+    departure_capacity_snapshot,
+    departure_manifest,
+    departures_for_route,
+    routes_for_space,
+    upcoming_departures,
+    vehicles_for_space,
+)
 from .services import (
     configure_transport_fare,
     create_transport_departure,
@@ -34,6 +41,13 @@ def _aware_local(value, timezone_name):
     if timezone.is_naive(parsed):
         parsed = parsed.replace(tzinfo=ZoneInfo(timezone_name))
     return parsed
+
+
+def _scoped_departures(console, space):
+    queryset = TransportDeparture.objects.filter(occurrence__activity__space=space)
+    if console.activity_ids is not None:
+        queryset = queryset.filter(occurrence__activity_id__in=console.activity_ids)
+    return queryset
 
 
 class TransportConsoleView(SpaceConsoleMixin, TemplateView):
@@ -65,6 +79,84 @@ class TransportConsoleView(SpaceConsoleMixin, TemplateView):
                     place__is_active=True,
                 ).select_related("place"),
                 "can_manage_transport": self.space_console.can_manage_activities,
+            }
+        )
+        return context
+
+
+class TransportConsoleRouteDetailView(SpaceConsoleMixin, TemplateView):
+    template_name = "transport/console_route_detail.html"
+    module_key = "activities"
+    page_title = "Route Transport"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        routes = routes_for_space(self.space)
+        if self.space_console.activity_ids is not None:
+            allowed_route_ids = _scoped_departures(self.space_console, self.space).values_list(
+                "occurrence__activity__transport_service__route_id", flat=True
+            )
+            routes = routes.filter(pk__in=allowed_route_ids)
+        route = get_object_or_404(routes, pk=self.kwargs["route_id"])
+        services = route.services.select_related("activity").filter(activity__space=self.space)
+        if self.space_console.activity_ids is not None:
+            services = services.filter(activity_id__in=self.space_console.activity_ids)
+        context.update(
+            {
+                "route": route,
+                "stops": route.stops.select_related("place").order_by("position", "id"),
+                "services": services,
+                "future_departures": departures_for_route(route).filter(
+                    occurrence__activity_id__in=services.values_list("activity_id", flat=True)
+                ),
+            }
+        )
+        return context
+
+
+class TransportConsoleDepartureDetailView(SpaceConsoleMixin, TemplateView):
+    template_name = "transport/console_departure_detail.html"
+    module_key = "activities"
+    page_title = "Départ Transport"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        departure = get_object_or_404(
+            _scoped_departures(self.space_console, self.space).select_related(
+                "occurrence__activity__transport_service__route",
+                "vehicle",
+                "passenger_capacity_pool",
+            ).prefetch_related(
+                "occurrence__activity__transport_service__route__stops__place",
+                "occurrence__offers",
+            ),
+            pk=self.kwargs["departure_id"],
+        )
+        pool = departure.passenger_capacity_pool
+        now = timezone.now()
+        reservation_counts = pool.reservations.aggregate(
+            held=Sum(
+                "quantity",
+                filter=Q(status=CapacityReservationStatus.HELD)
+                & (Q(expires_at__isnull=True) | Q(expires_at__gt=now)),
+            ),
+            committed=Sum(
+                "quantity",
+                filter=Q(status=CapacityReservationStatus.COMMITTED),
+            ),
+        )
+        manifest = departure_manifest(departure)
+        context.update(
+            {
+                "departure": departure,
+                "route": departure.occurrence.activity.transport_service.route,
+                "capacity": departure_capacity_snapshot(departure),
+                "held_count": reservation_counts["held"] or 0,
+                "committed_count": reservation_counts["committed"] or 0,
+                "manifest": manifest,
+                "traveler_count": len(manifest),
+                "boarded_count": sum(1 for row in manifest if row["boarded"]),
+                "not_boarded_count": sum(1 for row in manifest if not row["boarded"]),
             }
         )
         return context
