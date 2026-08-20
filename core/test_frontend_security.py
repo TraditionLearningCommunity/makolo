@@ -24,7 +24,7 @@ class FrontendSecurityHeaderTests(TestCase):
     def test_browser_security_headers_are_present(self):
         response = self.client.get(reverse("core:home"))
 
-        self.assertEqual(response.headers["Permissions-Policy"], "camera=(self), microphone=(), geolocation=()")
+        self.assertEqual(response.headers["Permissions-Policy"], "camera=(self), microphone=(), geolocation=(self)")
         self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
         self.assertEqual(response.headers["Referrer-Policy"], "same-origin")
         self.assertEqual(response.headers["X-Frame-Options"], "DENY")
@@ -44,3 +44,4 @@ class FrontendSecurityHeaderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("script-src 'self'", response.headers["Content-Security-Policy"])
         self.assertIn("camera=(self)", response.headers["Permissions-Policy"])
+        self.assertIn("geolocation=(self)", response.headers["Permissions-Policy"])

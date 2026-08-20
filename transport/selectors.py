@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.db.models import OuterRef, Prefetch, Q, Subquery, Sum
 from django.utils import timezone
@@ -42,6 +43,7 @@ def upcoming_departures(*, space=None, now=None):
         occurrence__start_at__gt=now,
         occurrence__status="scheduled",
         occurrence__activity__status="published",
+        occurrence__activity__visibility="public",
         occurrence__activity__transport_service__route__active=True,
     )
     return qs.filter(occurrence__activity__space=space) if space else qs
@@ -53,9 +55,18 @@ def departures_for_route(route, *, now=None):
     )
 
 
+def _origin_timezone(origin):
+    if origin.timezone:
+        try:
+            return ZoneInfo(origin.timezone)
+        except ZoneInfoNotFoundError:
+            pass
+    return timezone.get_current_timezone()
+
+
 def search_departures(*, origin, destination, date):
-    local_zone = timezone.get_current_timezone()
-    start = timezone.make_aware(datetime.combine(date, time.min), local_zone)
+    local_zone = _origin_timezone(origin)
+    start = datetime.combine(date, time.min, tzinfo=local_zone)
     end = start + timedelta(days=1)
     last_place = (
         TransportRouteStop.objects.filter(

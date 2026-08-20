@@ -75,6 +75,8 @@ async function assertDesktopShellStable(page) {
 
 test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_e2e'], { stdio: 'inherit' });
+  execFileSync('python', ['manage.py', 'prepare_transport_e2e'], { stdio: 'inherit' });
+  execFileSync('python', ['manage.py', 'prepare_discovery_e2e'], { stdio: 'inherit' });
 });
 
 

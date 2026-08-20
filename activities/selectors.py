@@ -3,7 +3,7 @@ from django.utils import timezone
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission
 
-from .models import Activity, Occurrence
+from .models import Activity, Occurrence, OccurrencePlaceRole
 
 
 def activities_for_space(space):
@@ -32,3 +32,18 @@ def occurrence_with_places(pk):
         .prefetch_related("place_links__place")
         .get(pk=pk)
     )
+
+
+def primary_place_for_occurrence(occurrence):
+    """Return the canonical primary Place for one Occurrence, if any."""
+    cached = getattr(occurrence, "_prefetched_objects_cache", {}).get("place_links")
+    if cached is not None:
+        link = next((row for row in cached if row.role == OccurrencePlaceRole.PRIMARY), None)
+        return link.place if link else None
+    link = (
+        occurrence.place_links.select_related("place")
+        .filter(role=OccurrencePlaceRole.PRIMARY)
+        .order_by("position", "id")
+        .first()
+    )
+    return link.place if link else None

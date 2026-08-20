@@ -6,8 +6,14 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from access.services import issue_access
-from activities.models import ActivityStatus, ActivityVisibility, OccurrenceStatus
+from activities.models import (
+    ActivityStatus,
+    ActivityVisibility,
+    OccurrencePlaceRole,
+    OccurrenceStatus,
+)
 from activities.services import (
+    attach_occurrence_place,
     cancel_occurrence,
     create_activity,
     create_occurrence,
@@ -132,6 +138,14 @@ def create_transport_departure(
         status=OccurrenceStatus.DRAFT,
         label="Départ",
     )
+    origin = service.route.origin
+    if origin is not None:
+        attach_occurrence_place(
+            occurrence=occurrence,
+            place=origin,
+            role=OccurrencePlaceRole.PRIMARY,
+            position=0,
+        )
     pool = CapacityPool.objects.create(
         activity=service.activity,
         occurrence=occurrence,

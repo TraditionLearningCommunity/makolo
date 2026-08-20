@@ -3,7 +3,15 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
-from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
+from activities.models import (
+    Activity,
+    ActivityStatus,
+    ActivityVisibility,
+    Occurrence,
+    OccurrencePlace,
+    OccurrencePlaceRole,
+    OccurrenceStatus,
+)
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from capacity.models import CapacityPool
@@ -49,6 +57,8 @@ def seed_transport(ctx: SeedContext) -> None:
             "address_line": "Centre-ville, Lubumbashi",
             "locality": "Lubumbashi",
             "country_code": "CD",
+            "latitude": Decimal("-11.664700"),
+            "longitude": Decimal("27.479400"),
             "timezone": "Africa/Lubumbashi",
             "is_active": True,
             "created_by": owner,
@@ -62,6 +72,8 @@ def seed_transport(ctx: SeedContext) -> None:
             "address_line": "Centre-ville, Kolwezi",
             "locality": "Kolwezi",
             "country_code": "CD",
+            "latitude": Decimal("-10.716700"),
+            "longitude": Decimal("25.466700"),
             "timezone": "Africa/Lubumbashi",
             "is_active": True,
             "created_by": owner,
@@ -154,6 +166,11 @@ def seed_transport(ctx: SeedContext) -> None:
                 "timezone": "Africa/Lubumbashi",
                 "status": OccurrenceStatus.SCHEDULED,
             },
+        )
+        OccurrencePlace.objects.update_or_create(
+            occurrence=occurrence,
+            role=OccurrencePlaceRole.PRIMARY,
+            defaults={"place": lubumbashi, "position": 0},
         )
         pool = upsert(
             CapacityPool,

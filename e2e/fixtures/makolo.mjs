@@ -1,10 +1,18 @@
+import { readFileSync } from 'node:fs';
 import { test as base, expect } from '@playwright/test';
 
 const EXPECTED_DOCUMENT_STATUS_CONSOLE = /^Failed to load resource: the server responded with a status of (403 \(Forbidden\)|404 \(Not Found\))$/;
+const TILE_PNG = readFileSync(new URL('../../static/brand/apple-touch-icon.png', import.meta.url));
 
 export const test = base.extend({
   page: async ({ page }, use) => {
     const browserErrors = [];
+
+    await page.route('https://tile.openstreetmap.org/**', route => route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: TILE_PNG,
+    }));
 
     await page.addInitScript(() => {
       window.__makoloCspViolations = [];
@@ -21,9 +29,6 @@ export const test = base.extend({
     page.on('console', message => {
       if (message.type() !== 'error') return;
       const text = message.text();
-      // Chromium logs top-level 403/404 document responses as console errors even
-      // though no JavaScript failed. Static 404s are still blocked below, and the
-      // link crawler asserts internal GET targets separately.
       if (EXPECTED_DOCUMENT_STATUS_CONSOLE.test(text)) return;
       browserErrors.push(`console.error: ${text}`);
     });
@@ -35,9 +40,10 @@ export const test = base.extend({
       }
     });
     page.on('requestfailed', request => {
-      if (/\/static\//.test(request.url())) {
-        browserErrors.push(`failed static request: ${request.url()} ${request.failure()?.errorText || ''}`);
-      }
+      if (!/\/static\//.test(request.url())) return;
+      const errorText = request.failure()?.errorText || '';
+      if (/NS_BINDING_ABORTED|net::ERR_ABORTED/.test(errorText)) return;
+      browserErrors.push(`failed static request: ${request.url()} ${errorText}`);
     });
 
     await use(page);

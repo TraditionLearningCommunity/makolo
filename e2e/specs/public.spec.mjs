@@ -18,7 +18,7 @@ test('visitor discovers an event and its public organizer @firefox', async ({ pa
   await page.goBack();
   await expect(page.getByRole('heading', { name: 'Festival Makolo E2E', exact: true })).toBeVisible();
   await page.getByRole('link', { name: /Retour à la découverte/i }).click();
-  await expect(page.getByRole('heading', { name: /Trouvez l’événement/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Qu’est-ce que vous pouvez faire/i })).toBeVisible();
 });
 
 
