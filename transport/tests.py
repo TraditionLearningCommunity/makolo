@@ -31,7 +31,11 @@ class TransportCompositionTests(TestCase):
             email="traveler@example.test",
             password="test-pass-123",
         )
-        self.space = Organization.objects.create(name="Mulykap", slug="mulykap")
+        self.space = Organization.objects.create(
+            name="Mulykap",
+            slug="mulykap",
+            created_by=self.user,
+        )
         self.origin = Place.objects.create(
             name="Agence Lubumbashi",
             locality="Lubumbashi",
