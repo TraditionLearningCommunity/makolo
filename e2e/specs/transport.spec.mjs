@@ -8,8 +8,8 @@ const SCANNER = 'scanner@e2e.makolo.test';
 
 async function searchTransport(page, date = '2031-06-15') {
   await page.goto('/transport/');
-  await page.locator('select[name="origin"]').selectOption({ label: /Lubumbashi/ });
-  await page.locator('select[name="destination"]').selectOption({ label: /Kolwezi/ });
+  await page.locator('select[name="origin"]').selectOption({ label: 'Lubumbashi · Agence Mulykap Lubumbashi E2E' });
+  await page.locator('select[name="destination"]').selectOption({ label: 'Kolwezi · Agence Mulykap Kolwezi E2E' });
   await page.locator('input[name="date"]').fill(date);
   await page.getByRole('button', { name: 'Rechercher' }).click();
   await expect(page.getByRole('heading', { name: /Lubumbashi.*Kolwezi/ })).toBeVisible();
@@ -70,20 +70,21 @@ test('Transport manager can create and publish a departure from Space Console', 
   await login(page, MANAGER);
   await page.goto('/spaces/mulykap-transport-e2e/transport/');
   await expect(page.getByRole('heading', { name: 'Routes, Départs et Véhicules' })).toBeVisible();
-  await expect(page.getByText('Autocar E2E 52')).toBeVisible();
+  const vehiclesSection = page.getByRole('heading', { name: 'Véhicules', exact: true }).locator('..');
+  await expect(vehiclesSection.getByText('Autocar E2E 52', { exact: true })).toBeVisible();
 
   const vehicleForm = page.locator('form[action$="/transport/vehicles/new/"]');
   await vehicleForm.locator('input[name="label"]').fill('Minibus Manager E2E');
   await vehicleForm.locator('input[name="passenger_capacity"]').fill('12');
   await vehicleForm.getByRole('button', { name: 'Ajouter' }).click();
-  await expect(page.getByText('Minibus Manager E2E')).toBeVisible();
+  await expect(vehiclesSection.getByText('Minibus Manager E2E', { exact: true })).toBeVisible();
 
   const departureForm = page.locator('form[action$="/transport/departures/new/"]');
-  await departureForm.locator('select[name="route"]').selectOption({ label: /Lubumbashi → Kolwezi E2E/ });
+  await departureForm.locator('select[name="route"]').selectOption({ label: 'Lubumbashi → Kolwezi E2E' });
   await departureForm.locator('input[name="title"]').fill('Trajet Manager E2E');
   await departureForm.locator('input[name="start_at"]').fill('2031-06-20T09:00');
   await departureForm.locator('input[name="end_at"]').fill('2031-06-20T13:00');
-  await departureForm.locator('select[name="vehicle"]').selectOption({ label: /Minibus Manager E2E/ });
+  await departureForm.locator('select[name="vehicle"]').selectOption({ label: 'Minibus Manager E2E · 12 places' });
   await departureForm.locator('input[name="capacity"]').fill('12');
   await departureForm.locator('input[name="fare_name"]').fill('Standard Manager E2E');
   await departureForm.locator('input[name="unit_price"]').fill('18');
