@@ -46,14 +46,14 @@ async function stableDiscoveryMap(page) {
   const mapContainer = page.locator('#discovery-map');
   await expect(mapContainer).toBeVisible();
   await mapContainer.scrollIntoViewIfNeeded();
-  await expect(mapContainer.locator('canvas')).toBeVisible();
-  await page.waitForFunction(() => {
-    const map = window.__makoloDiscoveryMap;
-    if (!map?.getSource('discovery-results')) return false;
-    if (document.querySelector('.discovery-map-marker')) return true;
-    const layers = ['discovery-clusters', 'discovery-points'].filter((id) => map.getLayer(id));
-    return layers.length > 0 && map.queryRenderedFeatures({ layers }).length > 0;
+  await page.waitForFunction(() => window.__makoloDiscoveryMap?.getSource('discovery-results'));
+  await page.evaluate(() => {
+    window.__makoloDiscoveryMap.resize();
+    window.__makoloDiscoveryMap.triggerRepaint();
   });
+  await expect(mapContainer.locator('canvas')).toBeVisible();
+  await page.waitForFunction(() => window.__makoloDiscoveryMap?.isSourceLoaded('discovery-results'));
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
