@@ -42,6 +42,7 @@ async function stableScanner(page) {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 
+// The E2E fixture intercepts map tiles, so this waits for a deterministic MapLibre render.
 async function stableDiscoveryMap(page) {
   const mapContainer = page.locator('#discovery-map');
   await expect(mapContainer).toBeVisible();
