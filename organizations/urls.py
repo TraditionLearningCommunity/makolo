@@ -7,7 +7,7 @@ from transport.console_views import (
     TransportConsoleView,
 )
 
-from .console_scanner import SpaceActivityScannerView
+from .console_scanner import SpaceActivityScannerAPIView, SpaceActivityScannerView
 from .console_views import (
     SpaceAccessRevokeView,
     SpaceConsoleAccessView,
@@ -73,6 +73,7 @@ urlpatterns = [
     path("<slug:slug>/places/", SpaceConsolePlacesView.as_view(), name="console-places"),
     path("<slug:slug>/control/", SpaceConsoleControlView.as_view(), name="console-control"),
     path("<slug:slug>/control/<uuid:activity_id>/", SpaceActivityScannerView.as_view(), name="console-control-activity"),
+    path("<slug:slug>/control/<uuid:activity_id>/scan/", SpaceActivityScannerAPIView.as_view(), name="console-control-activity-scan"),
     path("<slug:slug>/operations/", SpaceConsoleOperationsView.as_view(), name="console-operations"),
     path("<slug:slug>/analytics/", SpaceConsoleAnalyticsView.as_view(), name="console-analytics"),
     path("<slug:slug>/automation/", SpaceConsoleAutomationView.as_view(), name="console-automation"),
