@@ -42,6 +42,17 @@ async function stableScanner(page) {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 
+async function stableDiscoveryMap(page) {
+  await expect(page.locator('#discovery-map canvas')).toBeVisible();
+  await page.waitForFunction(() => {
+    const map = window.__makoloDiscoveryMap;
+    if (!map?.getSource('discovery-results')) return false;
+    if (document.querySelector('.discovery-map-marker')) return true;
+    const layers = ['discovery-clusters', 'discovery-points'].filter((id) => map.getLayer(id));
+    return layers.length > 0 && map.queryRenderedFeatures({ layers }).length > 0;
+  });
+}
+
 async function assertDesktopShellStable(page) {
   await expect(page.locator('aside.mk-sidebar').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ouvrir la navigation' })).toBeHidden();
@@ -84,6 +95,7 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
   await useLight(page);
   await shot(page, 'home-light-desktop.png');
   await page.goto('/discover/');
+  await stableDiscoveryMap(page);
   await shot(page, 'discovery-light-desktop.png');
 
   await login(page, 'visual.participant@e2e.makolo.test');
@@ -120,6 +132,7 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
   await useDark(page);
   await shot(page, 'participant-dashboard-dark-desktop.png');
   await page.goto('/discover/');
+  await stableDiscoveryMap(page);
   await shot(page, 'discovery-dark-desktop.png');
 
   await page.context().clearCookies();
