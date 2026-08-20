@@ -1,0 +1,37 @@
+name: Task 13 sync build
+
+on:
+  push:
+    branches:
+      - feat/spatiotemporal-discovery
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/spatiotemporal-discovery
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Build committed frontend assets
+        run: |
+          npm ci
+          npm run build
+      - name: Commit synchronized assets and remove helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/task13-sync-build.yml
+          git add package-lock.json static/dist
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: sync Task 13 discovery map assets"
+          git push origin HEAD:feat/spatiotemporal-discovery
