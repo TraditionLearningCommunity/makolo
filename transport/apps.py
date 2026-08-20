@@ -5,3 +5,6 @@ class TransportConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "transport"
     verbose_name = "Transport"
+
+    def ready(self):
+        from . import domain_event_consumer  # noqa: F401

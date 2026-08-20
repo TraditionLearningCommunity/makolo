@@ -18,7 +18,7 @@ SEED_TAG = "makolo-demo-2024-2027"
 PROJECT_APPS = {
     "accounts", "authorization", "organizations", "events", "tickets", "scanner", "payments",
     "notifications", "automation", "partners", "crm", "promotions", "loyalty",
-    "analytics_app", "operations", "discovery", "growth",
+    "analytics_app", "operations", "discovery", "growth", "transport",
 }
 
 SCALE = {

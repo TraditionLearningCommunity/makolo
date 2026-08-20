@@ -45,6 +45,7 @@ def run_seed(*, scale: str = "large", as_of: str = "2026-08-10", demo_password: 
     from demo_seed.events_commerce import seed_events_and_commerce
     from demo_seed.operations import seed_operations_and_edge_cases
     from demo_seed.partners_loyalty import seed_partners_loyalty_and_analytics
+    from demo_seed.transport import seed_transport
 
     ctx = SeedContext(as_of=_parse_as_of(as_of), scale=scale, demo_password=demo_password)
     with _suspend_loyalty_seed_signals(), transaction.atomic():
@@ -55,6 +56,9 @@ def run_seed(*, scale: str = "large", as_of: str = "2026-08-10", demo_password: 
         seed_engagement(ctx)
         seed_partners_loyalty_and_analytics(ctx)
         seed_operations_and_edge_cases(ctx)
+        # Transport is seeded last on purpose: no Event seed step can attach an
+        # artificial Event to the Mulykap Transport Activity.
+        seed_transport(ctx)
         coverage = assert_model_coverage()
     return {
         "as_of": ctx.as_of.isoformat(),

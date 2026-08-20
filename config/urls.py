@@ -39,6 +39,7 @@ urlpatterns = [
     path("autopilot/", include("automation.urls")),
     path("discover/", include("discovery.urls")),
     path("growth/", include("growth.urls")),
+    path("transport/", include("transport.urls")),
     path("events/", include("events.urls")),
     path("tickets/", include("tickets.urls")),
     path("scanner/", include("scanner.urls")),
@@ -56,9 +57,7 @@ urlpatterns = [
 if getattr(settings, "IS_E2E", False):
     from core.e2e_views import synthetic_server_error
 
-    urlpatterns.append(
-        path("__e2e__/error/500/", synthetic_server_error, name="e2e-error-500")
-    )
+    urlpatterns.append(path("__e2e__/error/500/", synthetic_server_error, name="e2e-error-500"))
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
