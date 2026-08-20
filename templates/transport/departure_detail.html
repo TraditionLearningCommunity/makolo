@@ -1,0 +1,21 @@
+{% extends 'base/public.html' %}
+{% block title %}{{ route.name }} · Départ | Makolo{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-5xl space-y-6 px-4 py-10 sm:px-6 lg:px-8">
+  <a href="{% url 'transport:search' %}" class="text-sm font-bold text-indigo-600">← Retour à Voyager</a>
+  <div class="rounded-[2rem] border border-zinc-200 bg-white p-7 dark:border-zinc-800 dark:bg-zinc-950">
+    <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+      <div><p class="text-xs font-bold uppercase tracking-[.16em] text-indigo-600">{{ occurrence.activity.space.name }}</p><h1 class="mt-2 text-4xl font-black">{{ route.origin.locality|default:route.origin.name }} → {{ route.destination.locality|default:route.destination.name }}</h1><p class="mt-3 text-zinc-500">Départ {{ occurrence.start_at|date:"l d F Y à H:i" }}{% if occurrence.end_at %} · arrivée estimée {{ occurrence.end_at|date:"H:i" }}{% endif %}</p></div>
+      {% if occurrence.status == 'cancelled' %}<span class="rounded-full bg-red-100 px-4 py-2 font-bold text-red-700">Départ annulé</span>{% elif capacity.sold_out %}<span class="rounded-full bg-red-100 px-4 py-2 font-bold text-red-700">Complet</span>{% else %}<span class="rounded-full bg-emerald-100 px-4 py-2 font-bold text-emerald-700">{% if capacity.remaining != None %}{{ capacity.remaining }} places disponibles{% else %}Disponible{% endif %}</span>{% endif %}
+    </div>
+    <div class="mt-7 grid gap-4 md:grid-cols-2">
+      <div class="rounded-2xl bg-zinc-50 p-5 dark:bg-zinc-900"><p class="text-xs uppercase tracking-wider text-zinc-500">Embarquement</p><p class="mt-2 font-black">{{ route.origin.name }}</p><p class="text-sm text-zinc-500">{{ route.origin.address_line }}{% if route.origin.locality %} · {{ route.origin.locality }}{% endif %}</p>{% if departure.boarding_instructions %}<p class="mt-3 text-sm">{{ departure.boarding_instructions }}</p>{% endif %}</div>
+      <div class="rounded-2xl bg-zinc-50 p-5 dark:bg-zinc-900"><p class="text-xs uppercase tracking-wider text-zinc-500">Arrivée</p><p class="mt-2 font-black">{{ route.destination.name }}</p><p class="text-sm text-zinc-500">{{ route.destination.address_line }}{% if route.destination.locality %} · {{ route.destination.locality }}{% endif %}</p></div>
+    </div>
+  </div>
+
+  {% if stops|length > 2 %}<section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-black">Itinéraire</h2><ol class="mt-4 space-y-3">{% for stop in stops %}<li class="flex gap-3"><span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white">{{ stop.position }}</span><div><p class="font-bold">{{ stop.place.name }}</p><p class="text-sm text-zinc-500">{{ stop.place.locality }}</p></div></li>{% endfor %}</ol></section>{% endif %}
+
+  <section><h2 class="text-2xl font-black">Tarifs</h2><div class="mt-4 grid gap-4 md:grid-cols-2">{% for offer in offers %}<div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><div class="flex items-start justify-between gap-3"><div><p class="text-lg font-black">{{ offer.name }}</p>{% if offer.payment_mode == 'on_site' %}<p class="mt-1 text-sm text-zinc-500">À payer sur place</p>{% elif offer.payment_mode == 'none' %}<p class="mt-1 text-sm text-zinc-500">Gratuit</p>{% else %}<p class="mt-1 text-sm text-zinc-500">Paiement en ligne</p>{% endif %}</div><p class="text-2xl font-black">{{ offer.unit_price }} {{ offer.currency }}</p></div>{% if not capacity.sold_out and occurrence.status == 'scheduled' %}<a href="{% url 'transport:book' departure.pk offer.pk %}" class="mt-5 inline-flex w-full justify-center rounded-2xl bg-indigo-600 px-5 py-3 font-black text-white">{% if offer.payment_mode == 'upfront' %}Acheter le billet{% elif offer.payment_mode == 'on_site' %}Réserver{% else %}Réserver gratuitement{% endif %}</a>{% endif %}</div>{% empty %}<p class="text-zinc-500">Aucun tarif disponible.</p>{% endfor %}</div></section>
+</section>
+{% endblock %}

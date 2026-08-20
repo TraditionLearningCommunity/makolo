@@ -71,7 +71,20 @@ def _is_event(activity):
         return False
 
 
+def _is_transport(activity):
+    try:
+        return activity.transport_service is not None
+    except Exception:
+        return False
+
+
 def vocabulary_for(*, activity, workflow=None):
+    if _is_transport(activity):
+        if workflow == WorkflowKind.RESERVATION:
+            return ParticipantVocabulary("Réservation", "Voir ma réservation", "Billet", "Voir mon billet")
+        if workflow == WorkflowKind.PURCHASE:
+            return ParticipantVocabulary("Achat de billet", "Voir mon voyage", "Billet", "Voir mon billet")
+        return ParticipantVocabulary("Voyage", "Voir mon voyage", "Billet", "Voir mon billet")
     if workflow == WorkflowKind.INVITATION:
         return ParticipantVocabulary("Invitation", "Voir mon invitation", "Invitation", "Voir mon invitation")
     if workflow == WorkflowKind.RESERVATION:
@@ -125,7 +138,7 @@ def next_participant_action(journey):
     if journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED:
         return "Répondre à l’invitation"
     if journey.workflow == WorkflowKind.RESERVATION and journey.status == JourneyStatus.CONFIRMED:
-        return "Voir ma réservation"
+        return "Voir mon billet" if _is_transport(journey.activity) else "Voir ma réservation"
     if journey.status in {JourneyStatus.CONFIRMED, JourneyStatus.FULFILLED} and journey.accesses.all():
         return vocabulary_for(activity=journey.activity, workflow=journey.workflow).access_detail_label
     if journey.status == JourneyStatus.REJECTED:
@@ -141,6 +154,8 @@ def journey_progress(journey):
     submitted = journey.status not in {JourneyStatus.DRAFT}
     confirmed = journey.status in {JourneyStatus.CONFIRMED, JourneyStatus.FULFILLED}
     has_access = bool(journey.accesses.all())
+    if _is_transport(journey.activity):
+        return [("Voyage choisi", submitted), ("Réservation confirmée", confirmed), ("Billet disponible", has_access)]
     if journey.workflow == WorkflowKind.REGISTRATION:
         return [("Inscription envoyée", submitted), ("Inscription confirmée", confirmed), ("Accès disponible", has_access)]
     if journey.workflow == WorkflowKind.RESERVATION:

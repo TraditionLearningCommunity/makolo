@@ -11,12 +11,9 @@
             <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Paiement</p>
                 <h1 class="mt-2 text-3xl font-black">{{ payment.reference }}</h1>
-                <a href="{% url 'tickets:order-detail' payment.order.pk %}" class="mt-2 inline-block text-sm text-indigo-600 dark:text-indigo-400">Commande {{ payment.order.reference }}</a>
+                {% if payment.order %}<a href="{% url 'tickets:order-detail' payment.order.pk %}" class="mt-2 inline-block text-sm text-indigo-600 dark:text-indigo-400">Commande {{ payment.order.reference }}</a>{% elif payment.commerce_order %}<a href="{% url 'core:participant-journey-detail' payment.commerce_order.journey.pk %}" class="mt-2 inline-block text-sm text-indigo-600 dark:text-indigo-400">Voir mon voyage / ma démarche</a>{% endif %}
             </div>
-            <div class="text-right">
-                <p class="text-2xl font-black">{{ payment.amount }} {{ payment.currency }}</p>
-                <span class="mt-2 inline-flex rounded-full bg-zinc-100 px-4 py-2 text-sm font-bold dark:bg-zinc-800">{{ payment.get_status_display }}</span>
-            </div>
+            <div class="text-right"><p class="text-2xl font-black">{{ payment.amount }} {{ payment.currency }}</p><span class="mt-2 inline-flex rounded-full bg-zinc-100 px-4 py-2 text-sm font-bold dark:bg-zinc-800">{{ payment.get_status_display }}</span></div>
         </div>
 
         <div class="mt-8 grid gap-5 md:grid-cols-2">
@@ -29,41 +26,15 @@
         {% if payment.failure_message %}<div class="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{{ payment.failure_message }}</div>{% endif %}
 
         <div class="mt-7 flex flex-wrap gap-3">
-            {% if payment.status == 'pending' and payment.provider == 'sandbox' %}
-            <form method="post" action="{% url 'payments:sandbox-complete' payment.pk %}">{% csrf_token %}<button class="rounded-2xl bg-emerald-600 px-5 py-3 font-bold text-white hover:bg-emerald-500">Simuler un paiement réussi</button></form>
-            {% endif %}
-
-            {% if payment.status == 'pending' and payment.provider == 'manual' and can_manage_payment %}
-            <form method="post" action="{% url 'payments:manual-complete' payment.pk %}" class="flex flex-wrap gap-2">{% csrf_token %}<input name="provider_reference" placeholder="Référence externe (optionnelle)" class="rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700"><button class="rounded-2xl bg-emerald-600 px-5 py-3 font-bold text-white">Confirmer le paiement manuel</button></form>
-            {% endif %}
-
-            {% if payment.status == 'pending' or payment.status == 'processing' %}
-            <form method="post" action="{% url 'payments:cancel' payment.pk %}">{% csrf_token %}<button class="rounded-2xl border border-zinc-300 px-5 py-3 font-bold dark:border-zinc-700">Annuler cette tentative</button></form>
-            {% endif %}
+            {% if payment.status == 'pending' and payment.provider == 'sandbox' %}<form method="post" action="{% url 'payments:sandbox-complete' payment.pk %}">{% csrf_token %}<button class="rounded-2xl bg-emerald-600 px-5 py-3 font-bold text-white hover:bg-emerald-500">Simuler un paiement réussi</button></form>{% endif %}
+            {% if payment.status == 'pending' and payment.provider == 'manual' and can_manage_payment %}<form method="post" action="{% url 'payments:manual-complete' payment.pk %}" class="flex flex-wrap gap-2">{% csrf_token %}<input name="provider_reference" placeholder="Référence externe (optionnelle)" class="rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700"><button class="rounded-2xl bg-emerald-600 px-5 py-3 font-bold text-white">Confirmer le paiement manuel</button></form>{% endif %}
+            {% if payment.status == 'pending' or payment.status == 'processing' %}<form method="post" action="{% url 'payments:cancel' payment.pk %}">{% csrf_token %}<button class="rounded-2xl border border-zinc-300 px-5 py-3 font-bold dark:border-zinc-700">Annuler cette tentative</button></form>{% endif %}
+            {% if payment.status == 'succeeded' and payment.commerce_order %}<a href="{% url 'core:participant-accesses' %}" class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Voir mon billet / mes accès</a>{% endif %}
         </div>
     </div>
 
-    {% if payment.status == 'succeeded' and can_manage_payment %}
-    <section class="rounded-3xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900 dark:bg-amber-950/30">
-        <h2 class="text-xl font-black">Remboursement complet</h2>
-        <p class="mt-2 text-sm text-amber-800 dark:text-amber-200">Le remboursement annule la commande et tous les billets encore valides. Un billet déjà scanné bloque cette opération.</p>
-        <form method="post" action="{% url 'payments:refund' payment.pk %}" class="mt-4 space-y-3">{% csrf_token %}
-            <input type="hidden" name="idempotency_key" value="refund-{{ payment.pk }}">
-            <textarea name="reason" rows="3" placeholder="Motif du remboursement" class="w-full rounded-2xl border border-amber-300 bg-transparent p-3 dark:border-amber-800"></textarea>
-            <button class="rounded-2xl bg-amber-600 px-5 py-3 font-bold text-white">Rembourser {{ payment.amount }} {{ payment.currency }}</button>
-        </form>
-    </section>
-    {% endif %}
+    {% if payment.status == 'succeeded' and can_manage_payment and payment.order %}<section class="rounded-3xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900 dark:bg-amber-950/30"><h2 class="text-xl font-black">Remboursement complet</h2><p class="mt-2 text-sm text-amber-800 dark:text-amber-200">Le remboursement annule la commande et tous les billets encore valides. Un billet déjà scanné bloque cette opération.</p><form method="post" action="{% url 'payments:refund' payment.pk %}" class="mt-4 space-y-3">{% csrf_token %}<input type="hidden" name="idempotency_key" value="refund-{{ payment.pk }}"><textarea name="reason" rows="3" placeholder="Motif du remboursement" class="w-full rounded-2xl border border-amber-300 bg-transparent p-3 dark:border-amber-800"></textarea><button class="rounded-2xl bg-amber-600 px-5 py-3 font-bold text-white">Rembourser {{ payment.amount }} {{ payment.currency }}</button></form></section>{% endif %}
 
-    {% if payment.refunds.all %}
-    <section>
-        <h2 class="text-2xl font-black">Remboursements</h2>
-        <div class="mt-4 space-y-3">
-            {% for refund in payment.refunds.all %}
-            <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><div class="flex justify-between gap-4"><div><p class="font-black">{{ refund.reference }}</p><p class="mt-1 text-sm text-zinc-500">{{ refund.reason|default:"Sans motif" }}</p></div><div class="text-right"><p class="font-bold">{{ refund.amount }} {{ refund.currency }}</p><p class="text-xs text-zinc-500">{{ refund.get_status_display }}</p></div></div></div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
+    {% if payment.refunds.all %}<section><h2 class="text-2xl font-black">Remboursements</h2><div class="mt-4 space-y-3">{% for refund in payment.refunds.all %}<div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><div class="flex justify-between gap-4"><div><p class="font-black">{{ refund.reference }}</p><p class="mt-1 text-sm text-zinc-500">{{ refund.reason|default:"Sans motif" }}</p></div><div class="text-right"><p class="font-bold">{{ refund.amount }} {{ refund.currency }}</p><p class="text-xs text-zinc-500">{{ refund.get_status_display }}</p></div></div></div>{% endfor %}</div></section>{% endif %}
 </div>
 {% endblock %}
