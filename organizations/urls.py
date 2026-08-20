@@ -4,6 +4,8 @@ from transport.console_views import (
     TransportConsoleCreateDepartureView,
     TransportConsoleCreateRouteView,
     TransportConsoleCreateVehicleView,
+    TransportConsoleDepartureDetailView,
+    TransportConsoleRouteDetailView,
     TransportConsoleView,
 )
 
@@ -56,8 +58,10 @@ urlpatterns = [
     path("<slug:slug>/activities/<uuid:activity_id>/", SpaceConsoleActivityDetailView.as_view(), name="console-activity-detail"),
     path("<slug:slug>/transport/", TransportConsoleView.as_view(), name="console-transport"),
     path("<slug:slug>/transport/routes/new/", TransportConsoleCreateRouteView.as_view(), name="console-transport-route-create"),
+    path("<slug:slug>/transport/routes/<uuid:route_id>/", TransportConsoleRouteDetailView.as_view(), name="console-transport-route-detail"),
     path("<slug:slug>/transport/vehicles/new/", TransportConsoleCreateVehicleView.as_view(), name="console-transport-vehicle-create"),
     path("<slug:slug>/transport/departures/new/", TransportConsoleCreateDepartureView.as_view(), name="console-transport-departure-create"),
+    path("<slug:slug>/transport/departures/<uuid:departure_id>/", TransportConsoleDepartureDetailView.as_view(), name="console-transport-departure-detail"),
     path("<slug:slug>/requests/", SpaceConsoleRequestsView.as_view(), name="console-requests"),
     path("<slug:slug>/requests/<uuid:request_id>/approve/", SpaceRequestApproveView.as_view(), name="console-request-approve"),
     path("<slug:slug>/requests/<uuid:request_id>/reject/", SpaceRequestRejectView.as_view(), name="console-request-reject"),
