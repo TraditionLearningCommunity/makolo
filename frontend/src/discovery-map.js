@@ -79,6 +79,13 @@ function supportsWebGL2() {
   }
 }
 
+function coordinatesFor(item) {
+  const longitude = Number(item?.place?.longitude);
+  const latitude = Number(item?.place?.latitude);
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return [longitude, latitude];
+}
+
 function showFeaturePopup(map, feature, coordinates) {
   const content = document.createElement('div');
   const title = document.createElement('strong');
@@ -121,17 +128,25 @@ function buildMap() {
     showMapFallback();
     return;
   }
-  const features = items.map((item) => ({
-    type: 'Feature',
-    geometry: { type: 'Point', coordinates: [item.place.longitude, item.place.latitude] },
-    properties: {
-      occurrence_id: item.occurrence_id,
-      title: item.title,
-      vertical: item.vertical,
-      url: item.url,
-      cta_label: item.cta_label,
-    },
-  }));
+  const features = items.flatMap((item) => {
+    const coordinates = coordinatesFor(item);
+    if (!coordinates) return [];
+    return [{
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates },
+      properties: {
+        occurrence_id: item.occurrence_id,
+        title: item.title,
+        vertical: item.vertical,
+        url: item.url,
+        cta_label: item.cta_label,
+      },
+    }];
+  });
+  if (!features.length) {
+    showMapFallback();
+    return;
+  }
   try {
     const map = new maplibregl.Map({
       container,
@@ -199,7 +214,8 @@ function buildMap() {
       node.addEventListener('click', (event) => {
         if (event.target.closest('a,button')) return;
         const item = items.find((row) => row.occurrence_id === node.dataset.discoveryResult);
-        if (item) selectResult(item.occurrence_id, map, [item.place.longitude, item.place.latitude]);
+        const coordinates = item ? coordinatesFor(item) : null;
+        if (item && coordinates) selectResult(item.occurrence_id, map, coordinates);
       });
     });
   } catch (_error) {
