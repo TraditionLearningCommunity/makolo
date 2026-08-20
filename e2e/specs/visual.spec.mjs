@@ -52,7 +52,6 @@ async function stableDiscoveryMap(page) {
     window.__makoloDiscoveryMap.triggerRepaint();
   });
   await expect(mapContainer.locator('canvas')).toBeVisible();
-  await page.waitForFunction(() => window.__makoloDiscoveryMap?.isSourceLoaded('discovery-results'));
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
