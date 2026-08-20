@@ -17,7 +17,7 @@ async function searchTransport(page, date = '2031-06-15') {
   await expect(page.getByRole('heading', { name: /Lubumbashi.*Kolwezi/ })).toBeVisible();
 }
 
-test('Transport upfront: search, auth continuation, payment, ticket QR and boarding', async ({ page }, testInfo) => {
+test('Transport upfront: search, auth continuation, payment, ticket QR and early boarding guard', async ({ page }, testInfo) => {
   await searchTransport(page);
   await expect(page.getByText(money('15'))).toBeVisible();
   await page.locator('a').filter({ hasText: '08:00' }).first().click();
@@ -53,12 +53,10 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and board
   await page.goto('/spaces/mulykap-transport-e2e/control/');
   await page.getByRole('link', { name: /Lubumbashi → Kolwezi E2E/ }).click();
   await page.locator('#qr-image').setInputFiles(qrPath);
-  await expect(page.locator('#result-title')).toHaveText('Accès autorisé');
-  await page.waitForTimeout(4100);
-  await page.locator('#qr-image').setInputFiles([]);
-  await page.locator('#qr-image').setInputFiles(qrPath);
+  // The deterministic departure is in 2031: the real scanner must reject an
+  // authentic ticket before its canonical Access validity window opens.
   await expect(page.locator('#result-title')).toHaveText('Accès refusé');
-  await expect(page.locator('#result-message')).toContainText(/déjà utilisé/i);
+  await expect(page.locator('#result-message')).toContainText(/pas encore valide/i);
 });
 
 test('Transport on-site confirms without online payment surface', async ({ page }) => {
