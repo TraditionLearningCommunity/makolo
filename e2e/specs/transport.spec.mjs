@@ -6,6 +6,8 @@ const RESERVATION = 'reservation.participant@e2e.makolo.test';
 const MANAGER = 'event.manager@e2e.makolo.test';
 const SCANNER = 'scanner@e2e.makolo.test';
 
+const money = (amount) => new RegExp(`${amount}[,.]00\\s+USD`);
+
 async function searchTransport(page, date = '2031-06-15') {
   await page.goto('/transport/');
   await page.locator('select[name="origin"]').selectOption({ label: 'Lubumbashi · Agence Mulykap Lubumbashi E2E' });
@@ -17,9 +19,9 @@ async function searchTransport(page, date = '2031-06-15') {
 
 test('Transport upfront: search, auth continuation, payment, ticket QR and boarding', async ({ page }, testInfo) => {
   await searchTransport(page);
-  await expect(page.getByText('15.00 USD')).toBeVisible();
+  await expect(page.getByText(money('15'))).toBeVisible();
   await page.locator('a').filter({ hasText: '08:00' }).first().click();
-  const promo = page.locator('div').filter({ hasText: 'Promo web E2E' }).filter({ hasText: '15.00 USD' }).last();
+  const promo = page.locator('div').filter({ hasText: 'Promo web E2E' }).filter({ hasText: money('15') }).last();
   await promo.getByRole('link', { name: 'Acheter le billet' }).click();
 
   await expect(page).toHaveURL(/\/login\/?next=.*\/transport\/departures\//);
@@ -36,7 +38,7 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and board
   await page.getByRole('link', { name: 'Voir mon billet / mes accès' }).click();
   await expect(page.getByText('Lubumbashi → Kolwezi E2E')).toBeVisible();
   await page.getByRole('link', { name: /Voir mon billet|Lubumbashi → Kolwezi E2E/ }).first().click();
-  await expect(page.getByText('Billet')).toBeVisible();
+  await expect(page.getByText('Billet', { exact: true })).toBeVisible();
   const qr = page.getByRole('img', { name: /QR de votre billet/i });
   await expect(qr).toBeVisible();
   const qrPath = testInfo.outputPath('transport-ticket.png');
@@ -62,7 +64,7 @@ test('Transport on-site confirms without online payment surface', async ({ page 
   await expect(page.getByText('À payer sur place')).toBeVisible();
   await page.getByRole('link', { name: 'Réserver' }).click();
   await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
-  await expect(page.getByText('Billet')).toBeVisible();
+  await expect(page.getByText('Billet', { exact: true })).toBeVisible();
   await expect(page).not.toHaveURL(/\/payments\//);
 });
 
@@ -73,6 +75,7 @@ test('Transport manager can create and publish a departure from Space Console', 
   const vehiclesSection = page.getByRole('heading', { name: 'Véhicules', exact: true }).locator('..');
   await expect(vehiclesSection.getByText('Autocar E2E 52', { exact: true })).toBeVisible();
 
+  await page.locator('summary').filter({ hasText: 'Ajouter un Véhicule' }).click();
   const vehicleForm = page.locator('form[action$="/transport/vehicles/new/"]');
   await vehicleForm.locator('input[name="label"]').fill('Minibus Manager E2E');
   await vehicleForm.locator('input[name="passenger_capacity"]').fill('12');
@@ -94,14 +97,15 @@ test('Transport manager can create and publish a departure from Space Console', 
 
   await searchTransport(page, '2031-06-20');
   await expect(page.getByText('09:00')).toBeVisible();
-  await expect(page.getByText('18.00 USD')).toBeVisible();
+  await expect(page.getByText(money('18'))).toBeVisible();
 });
 
 test('Transport traveler flow remains usable on mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await searchTransport(page);
-  await expect(page.getByText('Mulykap Transport E2E')).toBeVisible();
-  await page.locator('a').filter({ hasText: '08:00' }).first().click();
+  const morningResult = page.locator('a').filter({ hasText: '08:00' }).first();
+  await expect(morningResult.getByText('Mulykap Transport E2E', { exact: true })).toBeVisible();
+  await morningResult.click();
   await expect(page.getByRole('heading', { name: /Lubumbashi.*Kolwezi/ })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Acheter le billet' }).first()).toBeVisible();
 });
