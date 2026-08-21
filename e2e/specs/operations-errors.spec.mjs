@@ -7,7 +7,7 @@ import { login } from '../helpers/auth.mjs';
 test('Operations distinguishes demo history from a real live incident', async ({ page }) => {
   await login(page, 'staff@e2e.makolo.test');
   await page.goto('/operations/');
-  await expect(page.getByRole('heading', { name: 'Makolo Operations Center' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Opérations Makolo' })).toBeVisible();
   await expect(page.getByText('Données de démonstration détectées')).toBeVisible();
   await expect(page.getByText('Incident réel E2E visible')).toBeVisible();
   await expect(page.getByText('Incident démo E2E à ignorer')).toHaveCount(0);
