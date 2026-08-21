@@ -326,7 +326,7 @@ class MobileMVPAPIContractTests(TestCase):
         self.assertEqual(notifications.status_code, 200)
         rows = self._results(notifications)
         titles = {row["title"] for row in rows}
-        self.assertIn("Vos billets sont disponibles", titles)
+        self.assertIn("Billet disponible", titles)
         self.assertIn("Paiement confirmé", titles)
         self.assertTrue(any(row.get("navigation") for row in rows))
 
@@ -472,7 +472,7 @@ class MobileMVPAPIContractTests(TestCase):
         self.assertEqual(len(data["tickets"]), 1)
         self.assertTrue(data["tickets"][0]["qr_token"])
         self.assertFalse(Payment.objects.filter(order_id=data["id"]).exists())
-        self.assertTrue(Notification.objects.filter(recipient=participant, title="Vos billets sont disponibles").exists())
+        self.assertTrue(Notification.objects.filter(recipient=participant, title="Billet disponible").exists())
 
     def test_promotion_can_reduce_paid_order_to_zero_without_payment(self):
         participant, client, _ = self._register_and_login("promo-zero")
