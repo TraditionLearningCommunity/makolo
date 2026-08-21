@@ -113,7 +113,9 @@ class SpaceConsoleAuthorityTests(TestCase):
         self.assertContains(listing, "Atelier canonique")
         detail = self.client.get(reverse("organizations:console-activity-detail", kwargs={"slug": self.space_a.slug, "activity_id": self.activity_a.pk}))
         self.assertEqual(detail.status_code, 200)
-        self.assertContains(detail, "Occurrences")
+        self.assertContains(detail, "Dates et créneaux")
+        self.assertNotContains(detail, ">Activity<")
+        self.assertNotContains(detail, "Occurrences")
 
     def test_team_membership_without_mandate_grants_no_console_authority(self):
         self.assertFalse(authorized_spaces(self.team_only).exists())
