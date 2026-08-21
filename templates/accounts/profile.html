@@ -77,7 +77,7 @@
         <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mon profil</button></div>
     </form>
 
-    <form id="appearance" method="post" class="mk-panel scroll-mt-24 p-5 sm:p-6 lg:p-7">
+    <form id="appearance" method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
         {% csrf_token %}
         <input type="hidden" name="section" value="appearance">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
