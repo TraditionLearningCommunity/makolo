@@ -1,14 +1,14 @@
 {% extends 'base/app.html' %}
 
-{% block title %}Operations Center — Makolo{% endblock %}
+{% block title %}Opérations — Makolo{% endblock %}
 
 {% block content %}
 <div class="mx-auto max-w-7xl space-y-6">
     <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-rose-800 dark:text-rose-300">Staff plateforme uniquement</p>
-            <h1 class="mt-2 text-3xl font-black">Makolo Operations Center</h1>
-            <p class="mt-2 max-w-3xl text-zinc-500 dark:text-zinc-400">Supervision de la modération, des incidents, des paiements, de l'accès, des notifications et des workers. Les signaux sont déterministes et n'exposent pas les payloads de paiement ni les QR bruts.</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-rose-800 dark:text-rose-300">Staff Makolo</p>
+            <h1 class="mt-2 text-3xl font-black">Opérations Makolo</h1>
+            <p class="mt-2 max-w-3xl text-zinc-500 dark:text-zinc-400">Surveillez la modération, les incidents, paiements, accès, notifications et workers. Les données de paiement sensibles et les QR bruts ne sont pas affichés.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{% url 'operations:organizations' %}" class="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-zinc-700">Organisations</a>
@@ -21,7 +21,7 @@
     <div class="rounded-3xl border p-5 {% if operations.health == 'critical' %}border-rose-500 bg-rose-50 dark:bg-rose-950/20{% elif operations.health == 'degraded' %}border-amber-500 bg-amber-50 dark:bg-amber-950/20{% else %}border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20{% endif %}">
         <div class="flex items-center justify-between gap-4">
             <div><p class="text-sm uppercase tracking-wider text-zinc-500">État plateforme</p><p class="mt-1 text-2xl font-black">{{ operations.health|upper }}</p></div>
-            <p class="text-sm text-zinc-500">Généré {{ operations.generated_at|date:'d/m/Y H:i:s' }}</p>
+            <p class="text-sm text-zinc-500">Mis à jour {{ operations.generated_at|date:'d/m/Y H:i:s' }}</p>
         </div>
     </div>
 
@@ -83,7 +83,7 @@
         </section>
 
         <section class="rounded-3xl bg-white p-6 shadow-sm dark:bg-zinc-950">
-            <h2 class="text-xl font-black">Journal Operations</h2>
+            <h2 class="text-xl font-black">Journal des opérations</h2>
             <div class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800">
                 {% for row in operations.recent_audit %}<div class="py-3"><p class="font-semibold">{{ row.summary }}</p><p class="text-xs text-zinc-500">{{ row.action }} · {{ row.created_at|date:'d/m/Y H:i:s' }}</p></div>{% empty %}<p class="py-4 text-zinc-500">Aucune action auditée.</p>{% endfor %}
             </div>
