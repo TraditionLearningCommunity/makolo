@@ -57,7 +57,7 @@ def _parse_as_of(raw: str) -> datetime:
         parsed = datetime.strptime(raw, "%Y-%m-%d")
     except ValueError as exc:
         raise ValueError("--as-of doit utiliser le format YYYY-MM-DD.") from exc
-    return parsed.replace(hour=12, tzinfo=TZ)
+    return parsed.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=TZ)
 
 
 def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
