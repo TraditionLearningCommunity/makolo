@@ -2,10 +2,17 @@ import { test, expect } from '../fixtures/makolo.mjs';
 import { login } from '../helpers/auth.mjs';
 
 
-async function forceLight(page) {
-  await page.evaluate(() => localStorage.setItem('theme', 'light'));
-  await page.reload();
-  await expect(page.locator('html')).not.toHaveClass(/dark/);
+async function setAppearance(page, value) {
+  const labels = { system: 'Système', light: 'Clair', dark: 'Sombre' };
+  await page.goto('/account/profile/#appearance');
+  await page.getByLabel(labels[value], { exact: true }).check();
+  await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme-preference', value);
+  if (value === 'dark') {
+    await expect(page.locator('html')).toHaveClass(/dark/);
+  } else {
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+  }
 }
 
 
@@ -27,30 +34,32 @@ test('scanner explains denied camera permission while keeping image and manual f
   await login(page, 'scanner@e2e.makolo.test');
   await page.goto('/scanner/event/festival-makolo-e2e/');
   await expect(page.locator('#camera-state')).toContainText(/refusé|indisponible/i);
-  await expect(page.getByText('Lire une image QR')).toBeVisible();
-  await expect(page.getByLabel('Saisie manuelle du jeton QR')).toBeVisible();
+  await expect(page.getByText('Lire un QR depuis une image')).toBeVisible();
+  await expect(page.getByLabel('Code du billet')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Démarrer la caméra' })).toBeEnabled();
 });
 
 
-test('keyboard supports Tab, Shift+Tab, Enter, Space and Escape on the app shell', async ({ page }) => {
+test('keyboard supports Tab, Shift+Tab, Enter and Escape on the app shell', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
-  await forceLight(page);
+  await setAppearance(page, 'light');
+  await page.goto('/me/');
   await page.keyboard.press('Home');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Aller au contenu principal' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#main-content')).toBeFocused();
 
-  const themeButton = page.getByRole('button', { name: 'Changer le thème' });
+  const appearanceLink = page.getByRole('link', { name: 'Apparence' });
   const notifications = page.locator('header').getByRole('link', { name: 'Notifications' });
-  await themeButton.focus();
+  await appearanceLink.focus();
   await page.keyboard.press('Shift+Tab');
   await expect(notifications).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(themeButton).toBeFocused();
-  await page.keyboard.press('Space');
-  await expect(page.locator('html')).toHaveClass(/dark/);
+  await expect(appearanceLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/account\/profile\/#appearance$/);
+  await expect(page.getByText('Apparence', { exact: true }).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Menu utilisateur' }).focus();
   await page.keyboard.press('Enter');
@@ -72,15 +81,13 @@ test('mobile navigation opens, closes with Escape and does not overflow @mobile'
 });
 
 
-test('theme choice persists and representative surfaces remain readable @mobile', async ({ page }) => {
+test('account appearance persists and representative surfaces remain readable @mobile', async ({ page }) => {
   await login(page, 'visual.participant@e2e.makolo.test');
-  await forceLight(page);
-  await page.getByRole('button', { name: 'Changer le thème' }).click();
-  await expect(page.locator('html')).toHaveClass(/dark/);
+  await setAppearance(page, 'dark');
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.goto('/discover/');
-  await expect(page.getByRole('heading', { name: /Qu’est-ce que vous pouvez faire/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Trouver une activité' })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
