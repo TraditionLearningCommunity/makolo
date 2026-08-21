@@ -55,7 +55,7 @@ class ProductLanguageTests(SimpleTestCase):
 
     def test_payment_modes_are_user_facing(self):
         self.assertEqual(payment_mode_label(PaymentMode.NONE), "")
-        self.assertEqual(payment_mode_label(PaymentMode.UPFRONT), "Paiement en ligne")
-        self.assertEqual(payment_mode_label(PaymentMode.AFTER_APPROVAL), "Paiement après validation")
+        self.assertEqual(payment_mode_label(PaymentMode.UPFRONT), "Paiement en ligne requis")
+        self.assertEqual(payment_mode_label(PaymentMode.AFTER_APPROVAL), "Paiement requis après validation")
         self.assertEqual(payment_mode_label(PaymentMode.ON_SITE), "À payer sur place")
         self.assertEqual(payment_mode_label(PaymentMode.LATER), "Paiement ultérieur")
