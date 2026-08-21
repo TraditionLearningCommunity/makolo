@@ -14,7 +14,13 @@ export async function login(page, email, password = E2E_PASSWORD) {
 }
 
 export async function logout(page) {
+  const menu = page.getByRole('menu');
+  await page.waitForFunction(() => {
+    const node = document.querySelector('[role="menu"]');
+    return Boolean(node && !node.hasAttribute('x-cloak'));
+  });
   await page.getByRole('button', { name: 'Menu utilisateur' }).click();
-  await page.getByRole('menuitem', { name: 'Se déconnecter' }).click();
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'Se déconnecter' }).click();
   await page.waitForURL('/');
 }

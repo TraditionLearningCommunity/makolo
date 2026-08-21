@@ -158,7 +158,7 @@ jobs:
       - name: Apply migrations on PostgreSQL
         run: python manage.py migrate --noinput
 
-      - name: Run contextual authority, Groups, geography and Activities PostgreSQL tests
+      - name: Run contextual authority, Groups, geography, Activities and Discovery PostgreSQL tests
         run: >-
           python manage.py test
           authorization.tests
@@ -170,6 +170,7 @@ jobs:
           groups.test_account_continuity
           geography.tests
           activities.tests
+          discovery.tests
           events.test_activity_bridge
 
       - name: Run Journey, Request and Access PostgreSQL tests

@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -101,6 +101,26 @@ await build({
   format: 'iife',
 });
 
+await build({
+  ...common,
+  entryPoints: [path.join(source, 'discovery-map.js')],
+  outfile: path.join(dist, 'discovery-map.js'),
+  bundle: true,
+  format: 'iife',
+});
+
+await build({
+  ...common,
+  entryPoints: [path.join(source, 'discovery-geolocation.js')],
+  outfile: path.join(dist, 'discovery-geolocation.js'),
+  bundle: true,
+  format: 'iife',
+});
+
+await copyFile(
+  path.join(root, 'node_modules', 'maplibre-gl', 'dist', 'maplibre-gl.css'),
+  path.join(dist, 'maplibre-gl.css'),
+);
 await vendorScript('qr-scanner.umd.min.js', 'qr-scanner.umd.min.js');
 await vendorScript('qr-scanner-worker.min.js', 'qr-scanner-worker.min.js');
 

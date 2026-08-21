@@ -1,5 +1,9 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.paginator import Paginator
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views import View
@@ -8,7 +12,28 @@ from django.views.generic import ListView, TemplateView
 from tickets.models import Ticket, TicketOrderStatus
 
 from .models import EventBookmark
-from .services import build_recommendations, build_trending, public_discovery_events, search_discovery_events
+from .presentation import build_discovery_item, presenter_for
+from .search import get_public_occurrence, search_occurrences
+from .services import build_recommendations, build_trending, public_discovery_events
+
+
+DISCOVERY_PAGE_SIZE = 24
+DISCOVERY_FILTER_KEYS = (
+    "q",
+    "place",
+    "city",
+    "when",
+    "vertical",
+    "price",
+    "radius_km",
+    "lat",
+    "lon",
+    "date",
+    "date_from",
+    "date_to",
+    "ordering",
+    "timezone",
+)
 
 
 class DiscoveryHomeView(TemplateView):
@@ -16,16 +41,53 @@ class DiscoveryHomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["events"] = search_discovery_events(self.request.GET)[:40]
-        context["trending"] = build_trending(limit=8)
-        context["recommendations"] = build_recommendations(self.request.user, limit=8)
-        context["filters"] = self.request.GET
-        if self.request.user.is_authenticated:
-            context["bookmarked_ids"] = set(
-                EventBookmark.objects.filter(user=self.request.user).values_list("event_id", flat=True)
-            )
-        else:
-            context["bookmarked_ids"] = set()
+        errors = []
+        try:
+            result = search_occurrences(self.request.GET)
+        except ValidationError as exc:
+            result = None
+            errors = list(exc.messages)
+        items = result.items if result else []
+        page_obj = Paginator(items, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
+        filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
+        context.update(
+            {
+                "items": page_obj.object_list,
+                "page_obj": page_obj,
+                "filters": filters,
+                "search_errors": errors,
+                "search_timezone": result.timezone_name if result else settings.TIME_ZONE,
+                "result_count": result.total if result else 0,
+                "map_items": [
+                    payload
+                    for item in page_obj.object_list
+                    if (payload := item.to_map_dict()) is not None
+                ],
+                "map_config": {
+                    "tile_url": settings.MAP_TILE_URL,
+                    "attribution": settings.MAP_TILE_ATTRIBUTION,
+                    "max_zoom": settings.MAP_TILE_MAX_ZOOM,
+                },
+            }
+        )
+        return context
+
+
+class DiscoveryActivityDetailView(TemplateView):
+    template_name = "discovery/activity_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            occurrence = get_public_occurrence(kwargs["occurrence_id"])
+        except ObjectDoesNotExist as exc:
+            raise Http404 from exc
+        presenter = presenter_for(occurrence)
+        if presenter.key != "other":
+            raise Http404
+        context["item"] = build_discovery_item(occurrence)
+        context["occurrence"] = occurrence
         return context
 
 

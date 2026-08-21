@@ -1,12 +1,20 @@
 from django.urls import path
 
-from .views import BookmarkListView, BookmarkToggleView, DiscoveryHomeView, ForYouView, MyEventsView
+from .views import (
+    BookmarkListView,
+    BookmarkToggleView,
+    DiscoveryActivityDetailView,
+    DiscoveryHomeView,
+    ForYouView,
+    MyEventsView,
+)
 
 
 app_name = "discovery"
 
 urlpatterns = [
     path("", DiscoveryHomeView.as_view(), name="home"),
+    path("activities/<uuid:occurrence_id>/", DiscoveryActivityDetailView.as_view(), name="activity-detail"),
     path("for-you/", ForYouView.as_view(), name="for-you"),
     path("bookmarks/", BookmarkListView.as_view(), name="bookmarks"),
     path("bookmarks/<uuid:event_id>/toggle/", BookmarkToggleView.as_view(), name="bookmark-toggle"),

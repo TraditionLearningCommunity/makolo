@@ -80,7 +80,7 @@ test('theme choice persists and representative surfaces remain readable @mobile'
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.goto('/discover/');
-  await expect(page.getByRole('heading', { name: /Trouvez l’événement/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Qu’est-ce que vous pouvez faire/i })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });

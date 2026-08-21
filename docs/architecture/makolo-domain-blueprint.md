@@ -762,3 +762,7 @@ La surface participant est désormais canonical-first : `Occurrence` fournit le 
 ### Note d'implémentation — Task 12 Transport MVP
 
 **Task 12 — Transport MVP** est désormais matérialisée par `transport` comme verticale composée sur le cœur canonique. Les responsabilités, invariants et non-goals sont documentés dans [`transport-mvp.md`](transport-mvp.md).
+
+### Note d'implémentation — Task 13 Spatio-temporal Discovery
+
+La Discovery publique est désormais construite sur `Activity + Occurrence + Geography` : Activity porte le « quoi », Occurrence le « quand », `OccurrencePlace → Place` le « où », et un presenter léger fournit le vocabulaire et le CTA de la verticale. Event et Transport partagent ainsi le même moteur sans rendre Event obligatoire ; les règles de timezone, nearby bounding-box/Haversine, Offer/Capacity et rendu MapLibre sont documentées dans [`spatiotemporal-discovery.md`](spatiotemporal-discovery.md).

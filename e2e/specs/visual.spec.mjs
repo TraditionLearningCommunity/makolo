@@ -42,6 +42,22 @@ async function stableScanner(page) {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 
+// The E2E fixture intercepts map tiles, so this waits for a deterministic MapLibre render.
+async function stableDiscoveryMap(page) {
+  const mapContainer = page.locator('#discovery-map');
+  await expect(mapContainer).toBeVisible();
+  await mapContainer.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => window.__makoloDiscoveryMap?.getSource('discovery-results'));
+  await page.evaluate(() => {
+    window.__makoloDiscoveryMap.resize();
+    window.__makoloDiscoveryMap.triggerRepaint();
+  });
+  await expect(mapContainer.locator('canvas')).toBeVisible();
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+}
+
 async function assertDesktopShellStable(page) {
   await expect(page.locator('aside.mk-sidebar').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ouvrir la navigation' })).toBeHidden();
@@ -75,6 +91,8 @@ async function assertDesktopShellStable(page) {
 
 test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_e2e'], { stdio: 'inherit' });
+  execFileSync('python', ['manage.py', 'prepare_transport_e2e'], { stdio: 'inherit' });
+  execFileSync('python', ['manage.py', 'prepare_discovery_e2e'], { stdio: 'inherit' });
 });
 
 
@@ -82,6 +100,7 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
   await useLight(page);
   await shot(page, 'home-light-desktop.png');
   await page.goto('/discover/');
+  await stableDiscoveryMap(page);
   await shot(page, 'discovery-light-desktop.png');
 
   await login(page, 'visual.participant@e2e.makolo.test');
@@ -118,6 +137,7 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
   await useDark(page);
   await shot(page, 'participant-dashboard-dark-desktop.png');
   await page.goto('/discover/');
+  await stableDiscoveryMap(page);
   await shot(page, 'discovery-dark-desktop.png');
 
   await page.context().clearCookies();
