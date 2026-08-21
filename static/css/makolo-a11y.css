@@ -62,3 +62,16 @@ input[type="file"].sr-only {
   white-space: nowrap !important;
   border-width: 0 !important;
 }
+
+/* Motion communicates state, but should never be mandatory. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
