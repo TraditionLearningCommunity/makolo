@@ -58,15 +58,20 @@ class DiscoverySearchUxTests(TestCase):
             is_public=False,
         )
         self._activity("Atelier public", self.public_place, 1)
-        self._activity("Réunion interne", self.private_place, 2)
+        self._activity(
+            "Réunion interne",
+            self.private_place,
+            2,
+            visibility=ActivityVisibility.PRIVATE,
+        )
 
-    def _activity(self, title, place, day_offset):
+    def _activity(self, title, place, day_offset, *, visibility=ActivityVisibility.PUBLIC):
         activity = Activity.objects.create(
             space=self.space,
             created_by=self.owner,
             title=title,
             status=ActivityStatus.PUBLISHED,
-            visibility=ActivityVisibility.PUBLIC,
+            visibility=visibility,
         )
         start_at = timezone.now() + timedelta(days=day_offset)
         occurrence = Occurrence.objects.create(
