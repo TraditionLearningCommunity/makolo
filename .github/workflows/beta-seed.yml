@@ -1,0 +1,69 @@
+name: Beta seed validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-sqlite-beta-seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-beta-seed-only-secret-not-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DB_PATH: /tmp/makolo-beta-seed.sqlite3
+      MAKOLO_DEMO_PASSWORD: ci-beta-seed-password-not-production
+      BETA_AS_OF: "2026-08-21"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Build fresh SQLite beta database
+        run: |
+          rm -f "$DJANGO_DB_PATH"
+          python manage.py migrate --noinput
+          python manage.py migrate --check
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+
+      - name: Verify idempotence for identical parameters
+        shell: bash
+        run: |
+          set -euo pipefail
+          snapshot() {
+            python manage.py shell -c 'import json; from access.models import Access; from activities.models import Activity,Occurrence; from capacity.models import CapacityPool; from commerce.models import CommerceOrder,Offer; from journeys.models import Journey; from notifications.models import Notification; from payments.models import Payment; from transport.models import TransportDeparture; print(json.dumps({"activities":Activity.objects.count(),"occurrences":Occurrence.objects.count(),"offers":Offer.objects.count(),"capacity_pools":CapacityPool.objects.count(),"journeys":Journey.objects.count(),"orders":CommerceOrder.objects.count(),"payments":Payment.objects.count(),"accesses":Access.objects.count(),"departures":TransportDeparture.objects.count(),"notifications":Notification.objects.count()},sort_keys=True))' | tail -n 1
+          }
+          before="$(snapshot)"
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+          after="$(snapshot)"
+          test "$before" = "$after"
+
+      - name: Verify SQLite integrity
+        run: |
+          integrity="$(sqlite3 "$DJANGO_DB_PATH" 'PRAGMA integrity_check;')"
+          printf '%s\n' "$integrity"
+          test "$integrity" = "ok"

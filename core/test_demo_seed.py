@@ -1,76 +1,50 @@
-from django.apps import apps
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from accounts.models import User
-from events.models import Event, EventStatus
-from operations.models import OperationsIncident
-from payments.models import Payment, Refund
-from scanner.models import ScanLog
-from tickets.models import TicketOrder, TicketTransfer, TicketWaitlistEntry
-
-from demo_seed.common import PROJECT_APPS
+from demo_seed.beta import BETA_PERSONAS
+from demo_seed.beta_validation import assert_beta_scenario_coverage
+from seed_makolo_demo import _parse_as_of
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
 class MakoloDemoSeedTests(TestCase):
-    def _counts(self):
-        return {
-            model._meta.label: model.objects.count()
-            for model in apps.get_models()
-            if model._meta.app_label in PROJECT_APPS
-            and not model._meta.proxy
-            and not model._meta.auto_created
-        }
+    as_of = "2026-08-21"
+    password = "Test-Demo-Password-2026!"
 
-    def test_seed_covers_every_business_model_and_core_scenarios(self):
+    def test_beta_seed_uses_semantic_personas_and_scenario_contract(self):
         call_command(
             "seed_makolo_demo",
-            scale="small",
-            as_of="2026-08-10",
-            demo_password="Test-Demo-Password-2026!",
+            scale="beta",
+            as_of=self.as_of,
+            demo_password=self.password,
             verbosity=0,
         )
 
-        counts = self._counts()
-        missing = [label for label, count in counts.items() if count == 0]
-        self.assertEqual(missing, [], msg=f"Modèles non couverts: {missing}")
+        report = assert_beta_scenario_coverage(as_of=_parse_as_of(self.as_of))
+        self.assertEqual(report["personas"], len(BETA_PERSONAS))
+        self.assertGreaterEqual(report["future_event_occurrences"], 5)
+        self.assertGreaterEqual(report["future_transport_occurrences"], 5)
 
-        self.assertTrue(Event.objects.filter(start_at__year=2024).exists())
-        self.assertTrue(Event.objects.filter(start_at__year=2027).exists())
-        self.assertTrue(Event.objects.filter(status=EventStatus.COMPLETED).exists())
-        self.assertTrue(Event.objects.filter(status=EventStatus.PUBLISHED).exists())
-        self.assertTrue(Event.objects.filter(status=EventStatus.DRAFT).exists())
-        self.assertTrue(Event.objects.filter(status=EventStatus.CANCELLED).exists())
+        admin = User.objects.get(email=BETA_PERSONAS["staff"])
+        participant = User.objects.get(email=BETA_PERSONAS["participant"])
+        self.assertTrue(admin.is_staff)
+        self.assertTrue(admin.is_superuser)
+        self.assertTrue(admin.check_password(self.password))
+        self.assertTrue(participant.check_password(self.password))
 
-        self.assertGreater(TicketOrder.objects.count(), 50)
-        self.assertGreater(Payment.objects.count(), 20)
-        self.assertTrue(Refund.objects.exists())
-        self.assertTrue(TicketWaitlistEntry.objects.exists())
-        self.assertTrue(TicketTransfer.objects.exists())
-        self.assertTrue(ScanLog.objects.filter(result="accepted").exists())
-        self.assertTrue(ScanLog.objects.filter(result="duplicate").exists())
-        self.assertTrue(ScanLog.objects.filter(result="invalid_token").exists())
-        self.assertTrue(OperationsIncident.objects.exists())
-
-        demo_admin = User.objects.get(email="demo.user001@makolo.test")
-        self.assertTrue(demo_admin.is_superuser)
-        self.assertTrue(demo_admin.check_password("Test-Demo-Password-2026!"))
-
-    def test_seed_is_idempotent_for_same_scale(self):
-        kwargs = {
-            "scale": "small",
-            "as_of": "2026-08-10",
-            "demo_password": "Test-Demo-Password-2026!",
-            "verbosity": 0,
-        }
-        call_command("seed_makolo_demo", **kwargs)
-        before = self._counts()
-        call_command("seed_makolo_demo", **kwargs)
-        after = self._counts()
-        drift = {
-            label: (before.get(label, 0), after.get(label, 0))
-            for label in sorted(set(before) | set(after))
-            if before.get(label, 0) != after.get(label, 0)
-        }
-        self.assertEqual(drift, {}, msg=f"Le second seed a modifié les volumes: {drift}")
+    def test_beta_persona_addresses_are_stable_and_fictitious(self):
+        self.assertEqual(
+            set(BETA_PERSONAS.values()),
+            {
+                "beta.admin@makolo.test",
+                "beta.spaceadmin@makolo.test",
+                "beta.eventmanager@makolo.test",
+                "beta.transport@makolo.test",
+                "beta.finance@makolo.test",
+                "beta.scanner@makolo.test",
+                "beta.participant@makolo.test",
+                "beta.marketing@makolo.test",
+            },
+        )
+        self.assertTrue(all(email.endswith(".test") for email in BETA_PERSONAS.values()))
