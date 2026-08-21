@@ -3,10 +3,10 @@ from zoneinfo import ZoneInfo
 
 from django.utils.formats import date_format
 
-from access.models import AccessStatus, CredentialStatus
+from access.models import CredentialStatus
 from journeys.models import JourneyStatus, WorkflowKind
 
-from .product_language import payment_mode_label, vocabulary_for
+from .product_language import access_status_label, payment_mode_label, vocabulary_for
 
 
 JOURNEY_STATUS_LABELS = {
@@ -20,16 +20,6 @@ JOURNEY_STATUS_LABELS = {
     JourneyStatus.REJECTED: "Refusée",
     JourneyStatus.CANCELLED: "Annulée",
     JourneyStatus.EXPIRED: "Expirée",
-}
-
-ACCESS_STATUS_LABELS = {
-    AccessStatus.PENDING: "En attente",
-    AccessStatus.VALID: "Valide",
-    AccessStatus.USED: "Utilisé",
-    AccessStatus.CANCELLED: "Annulé",
-    AccessStatus.REVOKED: "Révoqué",
-    AccessStatus.EXPIRED: "Expiré",
-    AccessStatus.TRANSFERRED: "Transféré",
 }
 
 WORKFLOW_LABELS = {
@@ -67,10 +57,6 @@ def occurrence_timing(occurrence):
 
 def journey_status_label(status):
     return JOURNEY_STATUS_LABELS.get(status, status)
-
-
-def access_status_label(status):
-    return ACCESS_STATUS_LABELS.get(status, status)
 
 
 def active_credential(access):
