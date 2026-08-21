@@ -1,7 +1,7 @@
 {% load notification_tags core_navigation %}
 {% unread_notifications_count request.user as unread_notifications %}
 {% web_capabilities request.user as caps %}
-<header class="mk-topbar sticky top-0 z-40 h-[72px]" x-data="themeManager">
+<header class="mk-topbar sticky top-0 z-40 h-[72px]">
     <div class="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <div class="flex min-w-0 items-center gap-3">
             <button type="button" @click="sidebarOpen=true" class="mk-icon-btn mk-mobile-nav-trigger lg:hidden" aria-label="Ouvrir la navigation"><i data-lucide="menu" class="h-5 w-5"></i></button>
@@ -28,7 +28,7 @@
 
             {% if request.user.is_authenticated %}<a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative"><i data-lucide="bell" class="h-5 w-5"></i>{% if unread_notifications %}<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white ring-2 ring-white dark:ring-[#090b10]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}</a>{% endif %}
 
-            <button type="button" @click="toggleTheme" class="mk-icon-btn" aria-label="Changer le thème"><i x-show="dark" data-lucide="moon" class="h-5 w-5"></i><i x-show="!dark" x-cloak data-lucide="sun" class="h-5 w-5"></i></button>
+            {% if request.user.is_authenticated %}<a href="{% url 'account:profile' %}#appearance" class="mk-icon-btn" aria-label="Apparence" title="Apparence"><i data-lucide="moon" class="hidden h-5 w-5 dark:block"></i><i data-lucide="sun" class="h-5 w-5 dark:hidden"></i></a>{% endif %}
 
             {% if request.user.is_authenticated %}
             <div class="relative" x-data="{open:false}" @click.outside="open=false" @keydown.escape.window="open=false">
