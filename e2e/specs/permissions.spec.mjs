@@ -22,12 +22,12 @@ test('participant sees personal navigation and server denies event management', 
 });
 
 
-test('activity manager sees canonical activity and access tools but not finance or CRM', async ({ page }) => {
+test('activity manager sees canonical activity and access tools but not Contacts', async ({ page }) => {
   await login(page, 'event.manager@e2e.makolo.test');
   await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/overview\/$/);
   await expect(page.getByRole('link', { name: 'Activités', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Contrôle d’accès', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'CRM', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Contacts', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Audiences', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Paiements', exact: true })).toHaveCount(0);
 
@@ -41,11 +41,11 @@ test('activity manager sees canonical activity and access tools but not finance 
 });
 
 
-test('finance sees payments and analyses without activity creation or CRM', async ({ page }) => {
+test('finance sees payments and analyses without activity creation or Contacts', async ({ page }) => {
   await login(page, 'finance@e2e.makolo.test');
   await expect(page.getByRole('link', { name: 'Paiements', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Analyses', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'CRM', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Contacts', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Audiences', exact: true })).toHaveCount(0);
   const response = await page.goto('/payments/');
   expect(response.status()).toBe(200);
@@ -53,9 +53,9 @@ test('finance sees payments and analyses without activity creation or CRM', asyn
 });
 
 
-test('marketing sees CRM, audiences and promotions while event creation remains forbidden', async ({ page }) => {
+test('marketing sees Contacts, audiences and promotions while event creation remains forbidden', async ({ page }) => {
   await login(page, 'marketing@e2e.makolo.test');
-  await expect(page.getByRole('link', { name: 'CRM', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Contacts', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Audiences', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Promotions', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Analyses', exact: true }).first()).toBeVisible();
@@ -96,5 +96,5 @@ test('multi-role user keeps authority contextual to the selected Space', async (
   await page.goto('/spaces/makolo-e2e-finance/overview/');
   await expect(page.getByRole('heading', { name: 'Makolo E2E Finance', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Paiements', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'CRM', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Contacts', exact: true })).toHaveCount(0);
 });
