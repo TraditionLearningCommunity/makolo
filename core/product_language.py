@@ -146,8 +146,8 @@ def vocabulary_for(*, activity=None, workflow=None):
 def payment_mode_label(mode):
     return {
         PaymentMode.NONE: "",
-        PaymentMode.UPFRONT: "Paiement en ligne",
-        PaymentMode.AFTER_APPROVAL: "Paiement après validation",
+        PaymentMode.UPFRONT: "Paiement en ligne requis",
+        PaymentMode.AFTER_APPROVAL: "Paiement requis après validation",
         PaymentMode.ON_SITE: "À payer sur place",
         PaymentMode.LATER: "Paiement ultérieur",
     }.get(mode, mode)
