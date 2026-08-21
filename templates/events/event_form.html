@@ -32,7 +32,7 @@
 
         <div class="mt-8 flex justify-end gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             <a href="{% url 'events:list' %}" class="rounded-2xl px-5 py-3 font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">Annuler</a>
-            <button type="submit" class="rounded-2xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-500">{% if object %}Enregistrer{% else %}Créer le brouillon{% endif %}</button>
+            <button type="submit" class="rounded-2xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-500">{% if object %}Enregistrer les modifications{% else %}Créer le brouillon{% endif %}</button>
         </div>
     </form>
 </div>
