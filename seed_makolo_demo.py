@@ -34,16 +34,20 @@ TZ = ZoneInfo("Africa/Lubumbashi")
 def _suspend_loyalty_seed_signals():
     """The seed builds deterministic snapshots and must not react to its own writes."""
     from django.db.models.signals import post_save
-    from loyalty.models import LoyaltyTransaction, PointsTransaction
-    from loyalty.signals import mirror_legacy_points_transaction, sync_legacy_loyalty_transaction
+    from loyalty.signals import sync_checkin_points, sync_order_points
+    from tickets.models import Ticket, TicketOrder
 
-    post_save.disconnect(sync_legacy_loyalty_transaction, sender=LoyaltyTransaction)
-    post_save.disconnect(mirror_legacy_points_transaction, sender=PointsTransaction)
+    bindings = [
+        (sync_order_points, TicketOrder, "loyalty.sync_order_points"),
+        (sync_checkin_points, Ticket, "loyalty.sync_checkin_points"),
+    ]
+    for _receiver, sender, dispatch_uid in bindings:
+        post_save.disconnect(sender=sender, dispatch_uid=dispatch_uid)
     try:
         yield
     finally:
-        post_save.connect(sync_legacy_loyalty_transaction, sender=LoyaltyTransaction)
-        post_save.connect(mirror_legacy_points_transaction, sender=PointsTransaction)
+        for receiver, sender, dispatch_uid in bindings:
+            post_save.connect(receiver, sender=sender, dispatch_uid=dispatch_uid)
 
 
 def _parse_as_of(raw: str) -> datetime:
