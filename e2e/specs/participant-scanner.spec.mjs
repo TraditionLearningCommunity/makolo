@@ -59,7 +59,7 @@ test('visitor resumes paid Event after auth, then uses canonical Access QR and s
 
   await page.goto('/notifications/');
   await expect(page.getByRole('heading', { name: 'Paiement confirmé', exact: true })).toHaveCount(1);
-  await expect(page.getByRole('heading', { name: 'Vos billets sont disponibles', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Billet disponible', exact: true })).toHaveCount(1);
 
   await page.goto('/me/journeys/');
   const paidJourneys = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' });
