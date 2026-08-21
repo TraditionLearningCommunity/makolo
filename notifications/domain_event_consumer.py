@@ -187,7 +187,7 @@ def _notify_access_issued(domain_event):
     template_key = "access.issued"
     create_notification(
         recipient=access.beneficiary,
-        kind=NotificationKind.SYSTEM,
+        kind=NotificationKind.TICKETS_ISSUED if vocabulary.access_noun == "Billet" else NotificationKind.SYSTEM,
         category=_category_for(access.activity),
         title=title,
         message=message,
