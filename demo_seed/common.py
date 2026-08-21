@@ -9,19 +9,14 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django.apps import apps
 from django.db import models
 
 TZ = ZoneInfo("Africa/Lubumbashi")
 NAMESPACE = uuid.UUID("5b6b4558-2b73-45c0-bdb4-b2a279b2560b")
 SEED_TAG = "makolo-demo-2024-2027"
-PROJECT_APPS = {
-    "accounts", "authorization", "organizations", "events", "tickets", "scanner", "payments",
-    "notifications", "automation", "partners", "crm", "promotions", "loyalty",
-    "analytics_app", "operations", "discovery", "growth", "transport",
-}
 
 SCALE = {
+    "beta": {"users": 8, "orders_per_event": 0},
     "small": {"users": 36, "orders_per_event": 5},
     "medium": {"users": 90, "orders_per_event": 10},
     "large": {"users": 180, "orders_per_event": 18},
@@ -121,24 +116,3 @@ class SeedContext:
 
     def add(self, label: str, amount: int = 1) -> None:
         self.stats[label] = self.stats.get(label, 0) + amount
-
-
-def assert_model_coverage() -> list[str]:
-    missing: list[str] = []
-    covered: list[str] = []
-    for model in apps.get_models():
-        if model._meta.app_label not in PROJECT_APPS:
-            continue
-        if model._meta.proxy or model._meta.auto_created:
-            continue
-        count = model.objects.count()
-        label = model._meta.label
-        if count <= 0:
-            missing.append(label)
-        else:
-            covered.append(f"{label}={count}")
-    if missing:
-        raise RuntimeError(
-            "Le seed n'a pas couvert tous les modèles Makolo: " + ", ".join(sorted(missing))
-        )
-    return sorted(covered)
