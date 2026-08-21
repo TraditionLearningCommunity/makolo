@@ -6,12 +6,11 @@ from django.utils import timezone
 from access.models import Access
 from activities.models import Activity, Occurrence
 from commerce.models import PaymentMode
+from core.product_language import occurrence_change_copy, vocabulary_for
 from domain_events.contracts import DomainEventType
 from domain_events.registry import register_consumer
-from events.models import Event
 from journeys.models import Journey, JourneyRequest, WorkflowKind
 from payments.models import Payment
-from tickets.models import Ticket
 
 from .domain_event_selectors import occurrence_recipients
 from .models import NotificationCategory, NotificationKind
@@ -32,26 +31,33 @@ SYSTEM_EVENT_TYPES = {
 }
 
 
-def _legacy_event(activity):
-    return Event.objects.filter(activity_id=activity.pk).first()
-
-
-def _event_action(event):
-    return reverse("events:detail", kwargs={"slug": event.slug}) if event else ""
-
-
 def _domain_dedup(event, recipient, template_key):
     return f"domain:{event.pk}:{recipient.pk}:{template_key}"[:255]
 
 
+def _category_for(activity):
+    return (
+        NotificationCategory.EVENT
+        if vocabulary_for(activity=activity).vertical == "event"
+        else NotificationCategory.SYSTEM
+    )
+
+
+def _journey_action(journey):
+    return reverse("core:participant-journey-detail", kwargs={"pk": journey.pk})
+
+
+def _access_action(access):
+    return reverse("core:participant-access-detail", kwargs={"pk": access.pk})
+
+
 def _journey_confirmation_copy(journey, commerce_order=None):
-    activity = journey.activity
-    event = _legacy_event(activity)
-    subject = event.title if event else activity.title
+    subject = journey.activity.title
+    vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     if commerce_order and commerce_order.payment_mode == PaymentMode.ON_SITE:
         return (
-            "Réservation confirmée",
-            f"Votre réservation pour « {subject} » est confirmée. Le paiement est prévu sur place.",
+            f"{vocabulary.journey_noun} confirmée",
+            f"Votre {vocabulary.journey_noun.lower()} pour « {subject} » est confirmée. Le paiement est prévu sur place.",
         )
     if journey.workflow == WorkflowKind.REGISTRATION:
         return "Inscription confirmée", f"Votre inscription à « {subject} » est confirmée."
@@ -59,23 +65,18 @@ def _journey_confirmation_copy(journey, commerce_order=None):
         return "Invitation confirmée", f"Votre invitation pour « {subject} » est confirmée."
     if journey.workflow == WorkflowKind.RESERVATION:
         return "Réservation confirmée", f"Votre réservation pour « {subject} » est confirmée."
+    if journey.workflow == WorkflowKind.PURCHASE:
+        return "Achat confirmé", f"Votre achat pour « {subject} » est confirmé."
     return "Confirmation Makolo", f"Votre démarche pour « {subject} » est confirmée."
 
 
 def _notify_journey_confirmed(domain_event):
-    journey_id = domain_event.payload.get("journey_id")
     journey = (
         Journey.objects.select_related("beneficiary", "activity")
-        .filter(pk=journey_id)
+        .filter(pk=domain_event.payload.get("journey_id"))
         .first()
     )
     if not journey or not journey.beneficiary_id:
-        return
-    legacy_event = _legacy_event(journey.activity)
-    legacy_ticket_order = getattr(journey, "ticket_order", None)
-    if legacy_event and legacy_ticket_order is not None:
-        # The Event projection presents the resulting Access as Ticket; access.issued
-        # creates the historical bundled ticket notification once the rights exist.
         return
     commerce_order = journey.commerce_orders.order_by("-created_at").first()
     title, message = _journey_confirmation_copy(journey, commerce_order)
@@ -83,10 +84,10 @@ def _notify_journey_confirmed(domain_event):
     create_notification(
         recipient=journey.beneficiary,
         kind=NotificationKind.SYSTEM,
-        category=NotificationCategory.EVENT if legacy_event else NotificationCategory.SYSTEM,
+        category=_category_for(journey.activity),
         title=title,
         message=message,
-        action_url=_event_action(legacy_event),
+        action_url=_journey_action(journey),
         dedup_key=f"journey-confirmed:{journey.pk}:{journey.beneficiary_id}",
         metadata={"journey_id": str(journey.pk), "activity_id": str(journey.activity_id)},
         domain_event=domain_event,
@@ -105,21 +106,16 @@ def _notify_payment_required(domain_event):
     )
     if not journey or not journey.beneficiary_id:
         return
-    event = _legacy_event(journey.activity)
-    subject = event.title if event else journey.activity.title
+    subject = journey.activity.title
     order = journey.commerce_orders.order_by("-created_at").first()
-    action_url = ""
-    legacy_order = getattr(journey, "ticket_order", None)
-    if legacy_order is not None:
-        action_url = reverse("tickets:order-detail", kwargs={"pk": legacy_order.pk})
     template_key = "journey.payment.required"
     create_notification(
         recipient=journey.beneficiary,
         kind=NotificationKind.SYSTEM,
         category=NotificationCategory.PAYMENT,
         title="Paiement requis",
-        message=f"Votre demande pour « {subject} » est approuvée. Un paiement est requis pour finaliser la confirmation.",
-        action_url=action_url,
+        message=f"Votre demande pour « {subject} » est approuvée. Vous pouvez maintenant effectuer le paiement.",
+        action_url=_journey_action(journey),
         dedup_key=_domain_dedup(domain_event, journey.beneficiary, template_key),
         metadata={"journey_id": str(journey.pk), "activity_id": str(journey.activity_id)},
         domain_event=domain_event,
@@ -138,16 +134,15 @@ def _notify_request_approved(domain_event):
     )
     if not request or not request.requester_id:
         return
-    event = _legacy_event(request.journey.activity)
-    subject = event.title if event else request.journey.activity.title
+    subject = request.journey.activity.title
     template_key = "journey.request.approved"
     create_notification(
         recipient=request.requester,
         kind=NotificationKind.SYSTEM,
-        category=NotificationCategory.EVENT if event else NotificationCategory.SYSTEM,
+        category=_category_for(request.journey.activity),
         title="Demande approuvée",
         message=f"Votre demande pour « {subject} » a été approuvée.",
-        action_url=_event_action(event),
+        action_url=_journey_action(request.journey),
         dedup_key=_domain_dedup(domain_event, request.requester, template_key),
         metadata={"request_id": str(request.pk), "journey_id": str(request.journey_id)},
         domain_event=domain_event,
@@ -165,53 +160,38 @@ def _notify_access_issued(domain_event):
     )
     if not access or not access.beneficiary_id:
         return
-    ticket = Ticket.objects.select_related("order", "event").filter(access=access).first()
-    if ticket:
-        order = ticket.order
-        quantity = order.tickets.count()
-        template_key = "access.issued.ticket"
-        create_notification(
-            recipient=access.beneficiary,
-            kind=NotificationKind.TICKETS_ISSUED,
-            category=NotificationCategory.TICKET,
-            title="Vos billets sont disponibles",
-            message=(
-                f"Votre commande {order.reference} pour « {ticket.event.title} » est confirmée. "
-                f"{quantity} billet(s) sont maintenant disponibles avec leur QR code."
-            ),
-            action_url=reverse("tickets:order-detail", kwargs={"pk": order.pk}),
-            dedup_key=f"order-confirmed:{order.pk}",
-            metadata={"order_id": str(order.pk), "event_id": str(ticket.event_id), "access_id": str(access.pk)},
-            domain_event=domain_event,
-            activity=access.activity,
-            journey=access.journey,
-            access=access,
-            commerce_order=getattr(order, "commerce_order", None),
-            template_key=template_key,
-        )
-        return
 
-    event = _legacy_event(access.activity)
-    if access.journey_id:
-        title, message = _journey_confirmation_copy(
-            access.journey,
-            access.journey.commerce_orders.order_by("-created_at").first(),
-        )
-        dedup_key = f"journey-confirmed:{access.journey_id}:{access.beneficiary_id}"
-        template_key = "access.issued"
+    workflow = access.journey.workflow if access.journey_id else None
+    vocabulary = vocabulary_for(activity=access.activity, workflow=workflow)
+    subject = access.activity.title
+    if vocabulary.vertical == "transport":
+        title = "Billet de voyage disponible"
+        message = f"Votre billet de voyage pour « {subject} » est disponible."
+    elif vocabulary.access_noun == "Billet":
+        title = "Billet disponible"
+        message = f"Votre billet pour « {subject} » est disponible."
+    elif vocabulary.access_noun == "Invitation":
+        title = "Invitation disponible"
+        message = f"Votre invitation pour « {subject} » est disponible."
+    elif vocabulary.access_noun == "Confirmation":
+        title = "Inscription confirmée"
+        message = f"Votre inscription à « {subject} » est confirmée."
     else:
-        subject = event.title if event else access.activity.title
-        title = "Accès disponible"
-        message = f"Votre accès pour « {subject} » est disponible."
+        title = f"{vocabulary.access_noun} disponible"
+        message = f"Votre {vocabulary.access_noun.lower()} pour « {subject} » est disponible."
+
+    if access.journey_id and vocabulary.access_noun in {"Confirmation", "Invitation"}:
+        dedup_key = f"journey-confirmed:{access.journey_id}:{access.beneficiary_id}"
+    else:
         dedup_key = f"access-issued:{access.pk}:{access.beneficiary_id}"
-        template_key = "access.issued"
+    template_key = "access.issued"
     create_notification(
         recipient=access.beneficiary,
         kind=NotificationKind.SYSTEM,
-        category=NotificationCategory.EVENT if event else NotificationCategory.SYSTEM,
+        category=_category_for(access.activity),
         title=title,
         message=message,
-        action_url=_event_action(event),
+        action_url=_access_action(access),
         dedup_key=dedup_key,
         metadata={"access_id": str(access.pk), "activity_id": str(access.activity_id)},
         domain_event=domain_event,
@@ -236,16 +216,13 @@ def _payment_recipient(payment):
 
 def _payment_context(payment):
     if payment.order_id:
-        event = payment.order.event
-        activity = event.activity
+        activity = payment.order.event.activity
         journey = payment.order.journey
-        commerce_order = payment.commerce_order
-        return event, activity, journey, commerce_order
+        return activity, journey, payment.commerce_order
     commerce_order = payment.commerce_order
     journey = commerce_order.journey if commerce_order else None
     activity = journey.activity if journey else None
-    event = _legacy_event(activity) if activity else None
-    return event, activity, journey, commerce_order
+    return activity, journey, commerce_order
 
 
 def _notify_payment(domain_event):
@@ -266,26 +243,22 @@ def _notify_payment(domain_event):
     recipient = _payment_recipient(payment)
     if recipient is None:
         return
-    legacy_event, activity, journey, commerce_order = _payment_context(payment)
-    subject = legacy_event.title if legacy_event else (activity.title if activity else "votre démarche")
+    activity, journey, commerce_order = _payment_context(payment)
+    subject = activity.title if activity else "votre démarche"
     if domain_event.event_type == DomainEventType.PAYMENT_SUCCEEDED:
         kind = NotificationKind.PAYMENT_SUCCEEDED
         title = "Paiement confirmé"
         message = f"Le paiement {payment.reference} de {payment.amount} {payment.currency} pour « {subject} » a été confirmé."
-        if legacy_event:
-            message += " Vos billets sont disponibles."
         template_key = "payment.succeeded"
     elif domain_event.event_type == DomainEventType.PAYMENT_FAILED:
         kind = NotificationKind.PAYMENT_FAILED
-        title = "Paiement non abouti"
-        message = f"Le paiement {payment.reference} pour « {subject} » n’a pas abouti. Vous pouvez réessayer tant que votre démarche reste valide."
+        title = "Paiement non confirmé"
+        message = f"Le paiement pour « {subject} » n’a pas pu être confirmé."
         template_key = "payment.failed"
     else:
         kind = NotificationKind.PAYMENT_REFUNDED
         title = "Paiement remboursé"
         message = f"Le paiement {payment.reference} de {payment.amount} {payment.currency} a été remboursé."
-        if legacy_event:
-            message += " Les billets associés à cette commande ont été annulés."
         template_key = "payment.refunded"
     action_url = reverse("payments:detail", kwargs={"pk": payment.pk}) if payment.order_id else ""
     create_notification(
@@ -313,25 +286,23 @@ def _notify_occurrence(domain_event):
     )
     if not occurrence:
         return
-    event = _legacy_event(occurrence.activity)
-    subject = event.title if event else occurrence.activity.title
-    if domain_event.event_type == DomainEventType.OCCURRENCE_RESCHEDULED:
-        title = "Horaire modifié"
-        starts = timezone.localtime(occurrence.start_at).strftime("%d/%m/%Y à %H:%M")
-        message = f"L’horaire de « {subject} » a été modifié. Nouveau début : {starts}."
-        template_key = "occurrence.rescheduled"
-    else:
-        title = "Activité annulée"
-        message = f"« {subject} » a été annulé(e)."
+    cancelled = domain_event.event_type == DomainEventType.OCCURRENCE_CANCELLED
+    title, base_message = occurrence_change_copy(activity=occurrence.activity, cancelled=cancelled)
+    if cancelled:
+        message = base_message
         template_key = "occurrence.cancelled"
+    else:
+        starts = timezone.localtime(occurrence.start_at).strftime("%d/%m/%Y à %H:%M")
+        message = f"{base_message} Nouvelle date : {starts}."
+        template_key = "occurrence.rescheduled"
     for recipient in occurrence_recipients(occurrence):
         create_notification(
             recipient=recipient,
             kind=NotificationKind.SYSTEM,
-            category=NotificationCategory.EVENT if event else NotificationCategory.SYSTEM,
+            category=_category_for(occurrence.activity),
             title=title,
             message=message,
-            action_url=_event_action(event),
+            action_url="",
             dedup_key=_domain_dedup(domain_event, recipient, template_key),
             metadata={"occurrence_id": str(occurrence.pk), "activity_id": str(occurrence.activity_id)},
             domain_event=domain_event,
