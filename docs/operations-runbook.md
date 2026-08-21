@@ -567,3 +567,132 @@ Cette passe ne met pas en place :
 - PostgreSQL sur le PythonAnywhere actuel.
 
 Risques restant volontairement ouverts : plafond de concurrence SQLite, rate limiting web local-cache non distribué, médias sur filesystem local, dépendance à l'offre PythonAnywhere pour Always-on/scheduling, backend e-mail réel à choisir, sauvegarde off-host à opérer, migration PostgreSQL future à planifier.
+
+## 25. Reseed bêta canonique exceptionnel
+
+Cette procédure est **distincte du déploiement normal** de la section 4. Elle sert uniquement lorsqu'un opérateur autorisé décide de reconstruire explicitement la base de démonstration/bêta. Elle ne doit jamais être appelée depuis le WSGI, un scheduler, Autopilot ou un script de release.
+
+Avant toute opération, récupérer la configuration réelle depuis PythonAnywhere : URL publique/`MAKOLO_PUBLIC_BASE_URL`, fichier WSGI de l'onglet Web, chemin `DJANGO_DB_PATH`, SHA actuellement déployé, état du worktree, mode Autopilot réellement actif et espace disque. Ne pas supposer qu'un ancien hostname ou chemin est encore correct.
+
+### 25.1 Préparer la fenêtre
+
+1. Choisir une courte fenêtre sans écritures de testeurs.
+2. Stopper temporairement **l'unique** mode Autopilot actif (Always-on ou Scheduled Task).
+3. Noter le SHA et l'état Git avant déploiement :
+
+```bash
+cd /home/makolo/makolo
+git rev-parse HEAD
+git status --short
+```
+
+Si le worktree contient des modifications locales inconnues, les identifier avant de poursuivre ; ne pas les écraser aveuglément.
+
+4. Charger l'environnement puis produire le backup technique de rollback :
+
+```bash
+source /home/makolo/.virtualenvs/makolo/bin/activate
+set -a; source .env; set +a
+python manage.py backup_database
+```
+
+Noter le chemin affiché sans publier de secret. Vérifier également le quota :
+
+```bash
+du -sh db.sqlite3 media logs backups staticfiles 2>/dev/null
+df -h .
+```
+
+### 25.2 Charger exactement le `main` validé
+
+Le reseed live doit être fait uniquement après merge et CI verte sur `main` :
+
+```bash
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+git rev-parse HEAD
+python -m pip install -r requirements.txt
+python -m pip check
+python manage.py check
+```
+
+Le SHA retourné doit être exactement celui du `main` validé. Aucun patch manuel du code sur PythonAnywhere n'est autorisé.
+
+### 25.3 Construire une DB candidate à côté de la DB active
+
+Vérifier d'abord le vrai `DJANGO_DB_PATH`. Pour le layout SQLite habituel, construire une candidate séparée :
+
+```bash
+BETA_NEXT_DB=/home/makolo/makolo/db.beta-next.sqlite3
+rm -f "$BETA_NEXT_DB"
+DJANGO_DB_PATH="$BETA_NEXT_DB" python manage.py migrate --noinput
+```
+
+Choisir `AS_OF` comme la date réelle du reseed en `Africa/Lubumbashi`. Saisir le mot de passe sans le placer dans l'historique :
+
+```bash
+read -s -p "Mot de passe bêta: " MAKOLO_DEMO_PASSWORD; echo
+export MAKOLO_DEMO_PASSWORD
+DJANGO_DB_PATH="$BETA_NEXT_DB" python manage.py seed_makolo_demo --scale beta --as-of "$AS_OF"
+DJANGO_DB_PATH="$BETA_NEXT_DB" python manage.py validate_makolo_demo --as-of "$AS_OF"
+unset MAKOLO_DEMO_PASSWORD
+```
+
+Puis valider la candidate :
+
+```bash
+DJANGO_DB_PATH="$BETA_NEXT_DB" python manage.py check
+DJANGO_DB_PATH="$BETA_NEXT_DB" python manage.py showmigrations --plan
+sqlite3 "$BETA_NEXT_DB" 'PRAGMA integrity_check;'
+```
+
+Le résultat du contrôle SQLite doit être exactement `ok`. Si migration, seed, validation ou intégrité échoue, **ne pas toucher à la DB active** : corriger dans Git puis recommencer avec une candidate fraîche.
+
+### 25.4 Préparer les statiques et effectuer le swap contrôlé
+
+Avec les settings live :
+
+```bash
+python manage.py collectstatic --noinput
+```
+
+Pendant que Web et Autopilot ne produisent aucune écriture, conserver le backup et l'ancienne DB, puis remplacer de façon contrôlée le fichier réellement référencé par `DJANGO_DB_PATH` avec la candidate validée. Ne pas utiliser une copie artisanale de l'ancienne DB comme nouveau seed.
+
+Après remplacement, utiliser immédiatement **PythonAnywhere > Web > Reload** afin qu'aucun worker Web ne conserve une connexion vers l'ancien inode SQLite.
+
+### 25.5 Validation live avant réouverture
+
+Après Reload :
+
+```bash
+git rev-parse HEAD
+python manage.py check --deploy
+python manage.py showmigrations --plan
+```
+
+Puis vérifier sur l'URL HTTPS réelle :
+
+- `/api/v1/health/` = 200 ;
+- `/api/v1/readiness/` = 200 ;
+- landing, login, Discovery Event + Transport, carte/liste ;
+- Event gratuit sans paiement fictif ;
+- Event payant sandbox ;
+- Transport, dont un cas `À payer sur place` si exposé ;
+- Participant : démarches, à venir, accès/billets, notifications ;
+- Space Console avec les personas autorisés ;
+- frontières Event manager / Finance / Scanner ;
+- scan du credential dédié : accepté puis duplicate/déjà utilisé selon le contrat courant ;
+- statiques, MapLibre/tuiles/attribution et logs autour du déploiement.
+
+Le guide `docs/beta-testing.md` donne la matrice persona-based. Ne jamais inclure mot de passe, cookie/session, token QR ou secret dans le rapport de smoke test.
+
+### 25.6 Réactiver exactement un Autopilot
+
+Une fois les smoke tests initiaux réussis, réactiver le mode qui était réellement choisi pour cet environnement : **Always-on worker ou Scheduled hourly, jamais les deux**. Vérifier ensuite une exécution/heartbeat récente et l'absence d'erreur immédiate ou de queue anormale.
+
+Si aucun scheduler horaire/persistant correct n'est disponible, documenter explicitement la dégradation plutôt que créer un hack.
+
+### 25.7 Rollback
+
+Conserver dans le rapport opérateur : ancien SHA, nouveau SHA, backup pré-déploiement et état média pertinent. Si la candidate ou le code live présente un blocage, revenir au SHA connu bon selon la section 21 et restaurer la DB sauvegardée uniquement si nécessaire pour rétablir le service. La vieille DB reste un mécanisme de rollback opérationnel, jamais une source de vérité fonctionnelle à réintroduire dans le seed canonique.
