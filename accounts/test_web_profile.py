@@ -80,7 +80,8 @@ class AccountProfileWebTests(TestCase):
         self.assertContains(response, 'autocomplete="tel"')
         self.assertContains(response, 'autocomplete="address-level2"')
 
-    def test_appearance_preference_is_persisted_on_account_and_rendered_early(self):
+    def test_appearance_preference_uses_existing_profile_theme_and_renders_early(self):
+        profile = UserProfile.objects.create(user=self.user, theme="system")
         self.client.force_login(self.user)
         response = self.client.post(
             reverse("account:profile"),
@@ -89,25 +90,26 @@ class AccountProfileWebTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, f"{reverse('account:profile')}#appearance")
 
+        profile.refresh_from_db()
+        self.assertEqual(profile.theme, "dark")
         self.user.refresh_from_db()
-        self.assertEqual(self.user.preferences["appearance"], "dark")
+        self.assertNotIn("appearance", self.user.preferences)
 
         response = self.client.get(reverse("account:profile"))
         self.assertContains(response, 'data-theme-preference="dark"')
         self.assertContains(response, 'id="appearance-dark"')
         self.assertContains(response, 'value="dark" checked')
 
-    def test_invalid_appearance_is_rejected_without_overwriting_preference(self):
-        self.user.preferences = {"appearance": "light"}
-        self.user.save(update_fields=["preferences", "updated_at"])
+    def test_invalid_appearance_is_rejected_without_overwriting_profile_theme(self):
+        profile = UserProfile.objects.create(user=self.user, theme="light")
         self.client.force_login(self.user)
         response = self.client.post(
             reverse("account:profile"),
             {"section": "appearance", "appearance": "sepia"},
         )
         self.assertEqual(response.status_code, 400)
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.preferences["appearance"], "light")
+        profile.refresh_from_db()
+        self.assertEqual(profile.theme, "light")
         self.assertContains(response, "Sélectionnez un choix valide", status_code=400)
 
     def test_notification_preferences_are_editable_without_overwriting_hidden_channels(self):
