@@ -103,8 +103,20 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
     _require(sold_out_event, "Event complet non dérivé de Capacity", errors)
     _require(sold_out_transport, "Transport complet non dérivé de Capacity", errors)
 
-    _require(ScannerAssignment.objects.filter(event__isnull=False, is_active=True).exists(), "scope scanner Event absent", errors)
-    _require(ScannerAssignment.objects.filter(event__isnull=True, activity__transport_service__isnull=False, is_active=True).exists(), "scope scanner Transport canonique absent", errors)
+    scanner = personas.get(BETA_PERSONAS["scanner"])
+    event_scanner_assignment = ScannerAssignment.objects.filter(
+        agent=scanner,
+        event__isnull=False,
+        is_active=True,
+    ).select_related("activity").first() if scanner is not None else None
+    transport_scanner_assignment = ScannerAssignment.objects.filter(
+        agent=scanner,
+        event__isnull=True,
+        activity__transport_service__isnull=False,
+        is_active=True,
+    ).select_related("activity").first() if scanner is not None else None
+    _require(event_scanner_assignment is not None, "scope scanner Event absent", errors)
+    _require(transport_scanner_assignment is not None, "scope scanner Transport canonique absent", errors)
     _require(Access.objects.filter(source_key="beta:scanner-smoke-event", status=AccessStatus.VALID).exists(), "Access scanner Event dédié absent", errors)
     _require(Access.objects.filter(source_key="beta:scanner-smoke-transport", status=AccessStatus.VALID).exists(), "Access scanner Transport dédié absent", errors)
 
@@ -114,7 +126,6 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
     _require(Ticket.objects.count() == 0, "Ticket legacy peuplé par le profil bêta", errors)
 
     finance = personas.get(BETA_PERSONAS["finance"])
-    scanner = personas.get(BETA_PERSONAS["scanner"])
     event_manager = personas.get(BETA_PERSONAS["event_manager"])
     event_space = paid_event_offer.activity.space if paid_event_offer is not None else None
     if finance and event_space:
@@ -123,9 +134,11 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
         _require(not can(finance, PermissionCode.ACCESS_MANAGE, space=event_space), "persona Finance reçoit Scanner/Access par erreur", errors)
     if event_manager and paid_event_offer is not None:
         _require(can(event_manager, PermissionCode.ACTIVITY_MANAGE, activity=paid_event_offer.activity), "Event manager sans autorité Activity", errors)
-    if scanner and paid_event_offer is not None:
-        _require(can(scanner, PermissionCode.ACTIVITY_ACCESS_SCAN, activity=paid_event_offer.activity), "scanner sans autorité de contrôle", errors)
-        _require(not can(scanner, PermissionCode.FINANCE_VIEW, space=paid_event_offer.activity.space), "scanner reçoit Finance par erreur", errors)
+    if scanner and event_scanner_assignment is not None:
+        _require(can(scanner, PermissionCode.ACTIVITY_ACCESS_SCAN, activity=event_scanner_assignment.activity), "scanner sans autorité de contrôle Event", errors)
+        _require(not can(scanner, PermissionCode.FINANCE_VIEW, space=event_scanner_assignment.activity.space), "scanner reçoit Finance par erreur", errors)
+    if scanner and transport_scanner_assignment is not None:
+        _require(can(scanner, PermissionCode.ACTIVITY_ACCESS_SCAN, activity=transport_scanner_assignment.activity), "scanner sans autorité de contrôle Transport", errors)
 
     if errors:
         raise BetaScenarioValidationError("Validation bêta échouée: " + "; ".join(errors))
