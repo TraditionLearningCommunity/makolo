@@ -29,7 +29,7 @@
 
         {% if caps.is_staff and not space_console %}
             <p class="mk-nav-group-label">Plateforme</p>
-            <a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' %}is-active{% endif %}"><i data-lucide="shield-check"></i><span>Operations Center</span></a>
+            <a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' %}is-active{% endif %}"><i data-lucide="shield-check"></i><span>Opérations</span></a>
         {% endif %}
     {% else %}
         <p class="mk-nav-group-label">Makolo</p>
