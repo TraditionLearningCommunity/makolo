@@ -214,20 +214,18 @@ class AppearancePreferencesForm(forms.Form):
         widget=forms.RadioSelect,
     )
 
-    def __init__(self, *args, user, **kwargs):
-        self.user = user
+    def __init__(self, *args, profile, **kwargs):
+        self.profile = profile
         if not args and "data" not in kwargs and "initial" not in kwargs:
-            current = (user.preferences or {}).get("appearance", "system")
             valid = {value for value, _label in self.APPEARANCE_CHOICES}
-            kwargs["initial"] = {"appearance": current if current in valid else "system"}
+            current = profile.theme if profile.theme in valid else "system"
+            kwargs["initial"] = {"appearance": current}
         super().__init__(*args, **kwargs)
 
     def save(self):
-        preferences = dict(self.user.preferences or {})
-        preferences["appearance"] = self.cleaned_data["appearance"]
-        self.user.preferences = preferences
-        self.user.save(update_fields=["preferences", "updated_at"])
-        return self.user
+        self.profile.theme = self.cleaned_data["appearance"]
+        self.profile.save(update_fields=["theme", "updated_at"])
+        return self.profile
 
 
 class NotificationPreferencesForm(forms.ModelForm):
