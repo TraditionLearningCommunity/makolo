@@ -27,7 +27,7 @@ from .common import SeedContext, backdate, choose, stable_token, upsert
 
 def _seed_notifications(ctx: SeedContext) -> None:
     kinds = [
-        (NotificationKind.TICKETS_ISSUED, NotificationCategory.TICKET, "Vos billets sont disponibles"),
+        (NotificationKind.TICKETS_ISSUED, NotificationCategory.TICKET, "Billet disponible"),
         (NotificationKind.PAYMENT_SUCCEEDED, NotificationCategory.PAYMENT, "Paiement confirmé"),
         (NotificationKind.EVENT_REMINDER, NotificationCategory.EVENT, "Votre événement approche"),
         (NotificationKind.SYSTEM, NotificationCategory.SYSTEM, "Nouveautés Makolo"),
@@ -46,7 +46,7 @@ def _seed_notifications(ctx: SeedContext) -> None:
                     "Retrouvez les informations et actions utiles directement dans votre espace.",
                     "Merci de faire partie de la communauté Makolo.",
                 ], i+j),
-                "action_url": "/tickets/" if category == NotificationCategory.TICKET else "/",
+                "action_url": "/me/accesses/" if category == NotificationCategory.TICKET else "/",
                 "dedup_key": f"demo-notif-{i}-{j}",
                 "metadata": {"seed": "makolo-demo", "target": category},
                 "read_at": created + timedelta(hours=4) if (i+j) % 3 else None,
