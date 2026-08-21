@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures/makolo.mjs';
 
 test('discovery finds Event and Transport by place and date @firefox', async ({ page }) => {
   await page.goto('/discover/?place=Lubumbashi&when=tomorrow');
-  await expect(page.getByRole('heading', { name: /Qu’est-ce que vous pouvez faire/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Trouver une activité' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Discovery Event E2E' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Lubumbashi → Kolwezi E2E' })).toBeVisible();
   await expect(page.getByText('Discovery Unlisted E2E')).toHaveCount(0);
