@@ -22,6 +22,7 @@ from .forms import (
     AccountDeleteForm,
     AccountProfileForm,
     AccountRegistrationForm,
+    AppearancePreferencesForm,
     NotificationPreferencesForm,
     PasswordForgotForm,
     PasswordResetWebForm,
@@ -147,10 +148,19 @@ class AccountProfileView(LoginRequiredMixin, View):
         preferences, _ = NotificationPreference.objects.get_or_create(user=request.user)
         return profile, preferences
 
-    def _context(self, request, profile_form, preferences_form):
+    def _context(
+        self,
+        request,
+        profile_form,
+        preferences_form,
+        appearance_form=None,
+    ):
+        if appearance_form is None:
+            appearance_form = AppearancePreferencesForm(user=request.user)
         return {
             "profile_form": profile_form,
             "preferences_form": preferences_form,
+            "appearance_form": appearance_form,
             "deletion_blockers": get_account_deletion_blockers(request.user),
         }
 
@@ -169,8 +179,17 @@ class AccountProfileView(LoginRequiredMixin, View):
     def post(self, request):
         profile, preferences = self._objects(request)
         section = request.POST.get("section", "profile")
+        appearance_form = None
 
-        if section == "notifications":
+        if section == "appearance":
+            appearance_form = AppearancePreferencesForm(request.POST, user=request.user)
+            profile_form = AccountProfileForm(instance=request.user, profile=profile)
+            preferences_form = NotificationPreferencesForm(instance=preferences)
+            if appearance_form.is_valid():
+                appearance_form.save()
+                messages.success(request, "Apparence mise à jour.")
+                return redirect(f"{reverse('account:profile')}#appearance")
+        elif section == "notifications":
             preferences_form = NotificationPreferencesForm(request.POST, instance=preferences)
             profile_form = AccountProfileForm(instance=request.user, profile=profile)
             if preferences_form.is_valid():
@@ -193,7 +212,7 @@ class AccountProfileView(LoginRequiredMixin, View):
         return render(
             request,
             self.template_name,
-            self._context(request, profile_form, preferences_form),
+            self._context(request, profile_form, preferences_form, appearance_form),
             status=400,
         )
 
