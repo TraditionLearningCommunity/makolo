@@ -32,7 +32,7 @@ test('login rejects a bad password and preserves next on success', async ({ page
   await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill('wrong-password');
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByText(/Identifiants incorrects/i)).toBeVisible();
+  await expect(page.getByText(/Adresse e-mail ou mot de passe incorrect/i)).toBeVisible();
 
   // The login form does not echo credentials after failure; re-enter both fields.
   await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
@@ -72,7 +72,7 @@ test('forgot password follows the real generated email link and token is one-use
 });
 
 
-test('profile edits persist after reload', async ({ page }) => {
+test('profile edits and appearance persist after reload', async ({ page }) => {
   await login(page, 'profile.user@e2e.makolo.test');
   await page.goto('/account/profile/');
   await page.getByLabel('Prénom', { exact: true }).fill('Grace');
@@ -87,8 +87,47 @@ test('profile edits persist after reload', async ({ page }) => {
   await expect(page.getByLabel('Ville', { exact: true })).toHaveValue('Lubumbashi');
   await expect(page.getByLabel('Profession', { exact: true })).toHaveValue('Ingénieure événementielle');
   await expect(page.getByLabel('Présentation', { exact: true })).toHaveValue('Profil modifié par le parcours Playwright.');
-  await expect(page.getByLabel('SMS', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Notifications push', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('SMS', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Notifications push', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('E-mails', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sécurité du compte', { exact: true }).first()).toBeVisible();
+
+  await page.getByLabel('Sombre', { exact: true }).check();
+  await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
+  await expect(page.getByText('Apparence mise à jour.')).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Sombre', { exact: true })).toBeChecked();
+  await expect(page.locator('html')).toHaveAttribute('data-theme-preference', 'dark');
+  await expect(page.locator('html')).toHaveClass(/dark/);
+});
+
+
+test('theme bootstrap tolerates unavailable browser storage', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    const blocked = () => { throw new DOMException('Storage blocked', 'SecurityError'); };
+    Storage.prototype.getItem = blocked;
+    Storage.prototype.setItem = blocked;
+    Storage.prototype.removeItem = blocked;
+  });
+  await page.goto('/login/');
+  await expect(page.getByRole('heading', { name: 'Bon retour.' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme-preference', 'system');
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('theme bootstrap ignores an invalid cached value', async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function getItem(key) {
+      if (key === 'theme') return 'sepia';
+      return originalGetItem.call(this, key);
+    };
+  });
+  await page.goto('/login/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme-preference', 'system');
 });
 
 
