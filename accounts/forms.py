@@ -150,6 +150,19 @@ class AccountProfileForm(forms.ModelForm):
         "public_profile",
         "searchable",
     )
+    autocomplete_fields = {
+        "first_name": "given-name",
+        "last_name": "family-name",
+        "phone": "tel",
+        "birth_date": "bday",
+        "company_name": "organization",
+        "organization_name": "organization",
+        "profession": "organization-title",
+        "country": "country-name",
+        "city": "address-level2",
+        "address": "street-address",
+        "website": "url",
+    }
 
     def __init__(self, *args, profile=None, **kwargs):
         self.profile = profile
@@ -165,8 +178,9 @@ class AccountProfileForm(forms.ModelForm):
                 widget.attrs.setdefault("class", CHECKBOX_CLASS)
             else:
                 widget.attrs.setdefault("class", INPUT_CLASS)
-                if not isinstance(widget, forms.FileInput):
-                    widget.attrs.setdefault("autocomplete", "off")
+                autocomplete = self.autocomplete_fields.get(field_name)
+                if autocomplete and not isinstance(widget, forms.FileInput):
+                    widget.attrs.setdefault("autocomplete", autocomplete)
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get("avatar")
@@ -187,13 +201,40 @@ class AccountProfileForm(forms.ModelForm):
         return user
 
 
+class AppearancePreferencesForm(forms.Form):
+    APPEARANCE_CHOICES = (
+        ("system", "Système"),
+        ("light", "Clair"),
+        ("dark", "Sombre"),
+    )
+
+    appearance = forms.ChoiceField(
+        label="Thème",
+        choices=APPEARANCE_CHOICES,
+        widget=forms.RadioSelect,
+    )
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        if not args and "data" not in kwargs and "initial" not in kwargs:
+            current = (user.preferences or {}).get("appearance", "system")
+            valid = {value for value, _label in self.APPEARANCE_CHOICES}
+            kwargs["initial"] = {"appearance": current if current in valid else "system"}
+        super().__init__(*args, **kwargs)
+
+    def save(self):
+        preferences = dict(self.user.preferences or {})
+        preferences["appearance"] = self.cleaned_data["appearance"]
+        self.user.preferences = preferences
+        self.user.save(update_fields=["preferences", "updated_at"])
+        return self.user
+
+
 class NotificationPreferencesForm(forms.ModelForm):
     class Meta:
         model = NotificationPreference
         fields = [
             "email_notifications",
-            "sms_notifications",
-            "push_notifications",
             "marketing_notifications",
             "security_notifications",
             "event_notifications",
@@ -203,11 +244,9 @@ class NotificationPreferencesForm(forms.ModelForm):
         ]
         labels = {
             "email_notifications": "E-mails",
-            "sms_notifications": "SMS",
-            "push_notifications": "Notifications push",
             "marketing_notifications": "Actualités et offres Makolo",
             "security_notifications": "Sécurité du compte",
-            "event_notifications": "Rappels liés aux événements",
+            "event_notifications": "Rappels liés à mes activités",
             "quiet_hours_enabled": "Activer les heures calmes",
             "quiet_hours_start": "Début des heures calmes",
             "quiet_hours_end": "Fin des heures calmes",
