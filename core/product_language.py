@@ -2,8 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from access.models import AccessStatus
 from commerce.models import PaymentMode
 from journeys.models import WorkflowKind
+
+
+ACCESS_STATUS_LABELS = {
+    AccessStatus.PENDING: "En attente",
+    AccessStatus.VALID: "Valide",
+    AccessStatus.USED: "Utilisé",
+    AccessStatus.CANCELLED: "Annulé",
+    AccessStatus.REVOKED: "Révoqué",
+    AccessStatus.EXPIRED: "Expiré",
+    AccessStatus.TRANSFERRED: "Transféré",
+}
 
 
 @dataclass(frozen=True)
@@ -21,8 +33,6 @@ class ProductVocabulary:
     operator_label: str
     primary_action: str
 
-    # Participant templates historically used these concise names. They remain
-    # presentation aliases only; the canonical wording is defined above.
     @property
     def noun(self):
         return self.journey_noun
@@ -141,6 +151,10 @@ def vocabulary_for(*, activity=None, workflow=None):
     if vertical == "event":
         return _event_vocabulary(workflow)
     return _generic_vocabulary(workflow)
+
+
+def access_status_label(status):
+    return ACCESS_STATUS_LABELS.get(status, status)
 
 
 def payment_mode_label(mode):
