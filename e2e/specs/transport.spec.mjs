@@ -56,7 +56,7 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and early
   // The deterministic departure is in 2031: the real scanner must reject an
   // authentic ticket before its canonical Access validity window opens.
   await expect(page.locator('#result-title')).toHaveText('Accès refusé');
-  await expect(page.locator('#result-message')).toContainText(/pas encore valide/i);
+  await expect(page.locator('#result-message')).toContainText(/pas encore valable/i);
 });
 
 test('Transport on-site confirms without online payment surface', async ({ page }) => {

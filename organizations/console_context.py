@@ -17,8 +17,8 @@ from .models import Organization
 SPACE_NAVIGATION = (
     ("Activité", (("activities", "Activités", "calendar-days"), ("requests", "Demandes", "calendar-search"), ("access", "Accès", "badge-check"))),
     ("Transport", (("transport", "Routes · Départs · Véhicules", "bus-front"),)),
-    ("Commercial", (("offers", "Offres / Tarifs", "ticket"), ("orders", "Commandes", "layout-dashboard"), ("payments", "Paiements", "wallet-cards"), ("promotions", "Promotions", "badge-percent"))),
-    ("Publics", (("groups", "Groupes", "users-round"), ("crm", "CRM", "contact-round"), ("audiences", "Audiences", "users-round"))),
+    ("Commercial", (("offers", "Tarifs", "ticket"), ("orders", "Commandes", "layout-dashboard"), ("payments", "Paiements", "wallet-cards"), ("promotions", "Promotions", "badge-percent"))),
+    ("Publics", (("groups", "Groupes", "users-round"), ("crm", "Contacts", "contact-round"), ("audiences", "Audiences", "users-round"))),
     ("Exploitation", (("places", "Lieux", "building-2"), ("control", "Contrôle d’accès", "scan-line"), ("operations", "Opérations", "shield-check"))),
     ("Pilotage", (("analytics", "Analyses", "chart-spline"), ("automation", "Automatisations", "sparkles"))),
     ("Espace", (("team", "Équipe", "users-round"), ("settings", "Paramètres", "building-2"))),

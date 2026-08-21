@@ -257,7 +257,9 @@ class NotificationIntegrationTests(TestCase):
             recipient=self.buyer,
             kind=NotificationKind.TICKETS_ISSUED,
         )
-        self.assertEqual(notification.metadata["order_id"], str(order.pk))
+        self.assertIsNotNone(notification.access_id)
+        self.assertEqual(notification.access.activity_id, event.activity_id)
+        self.assertEqual(notification.metadata["access_id"], str(notification.access_id))
 
     def test_paid_payment_success_creates_payment_notification(self):
         event, ticket_type, order = make_order(self.organizer, self.buyer, price="15.00")

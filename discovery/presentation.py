@@ -11,6 +11,8 @@ from django.utils import timezone
 from activities.models import OccurrencePlaceRole
 from capacity.models import CapacityReservationStatus
 from commerce.models import OfferStatus
+from core.product_language import vocabulary_for
+from journeys.models import WorkflowKind
 
 
 @dataclass(frozen=True)
@@ -172,6 +174,13 @@ def active_offers(occurrence, *, now=None):
     return rows
 
 
+def _format_amount(amount):
+    normalized = amount.normalize()
+    if normalized == normalized.to_integral():
+        return str(normalized.quantize(Decimal("1")))
+    return format(normalized, "f")
+
+
 def price_presentation(occurrence, *, now=None):
     offers = active_offers(occurrence, now=now)
     if not offers:
@@ -184,7 +193,7 @@ def price_presentation(occurrence, *, now=None):
         False,
         cheapest.unit_price,
         cheapest.currency,
-        f"À partir de {cheapest.unit_price:.2f} {cheapest.currency}",
+        f"À partir de {_format_amount(cheapest.unit_price)} {cheapest.currency}",
     )
 
 
@@ -207,7 +216,6 @@ def availability_presentation(occurrence, *, now=None):
 
 class BasePresenter:
     key = "other"
-    label = "Activité"
 
     def matches(self, occurrence) -> bool:
         return True
@@ -219,7 +227,7 @@ class BasePresenter:
         return reverse("discovery:activity-detail", args=[occurrence.pk])
 
     def cta(self, occurrence, *, price, availability) -> str:
-        return "Voir l’activité"
+        return vocabulary_for(activity=occurrence.activity).primary_action
 
     def image_url(self, occurrence) -> str | None:
         return None
@@ -230,7 +238,6 @@ class BasePresenter:
 
 class EventPresenter(BasePresenter):
     key = "event"
-    label = "Événement"
 
     def matches(self, occurrence) -> bool:
         try:
@@ -245,11 +252,10 @@ class EventPresenter(BasePresenter):
         return reverse("events:detail", args=[self._event(occurrence).slug])
 
     def cta(self, occurrence, *, price, availability) -> str:
-        if availability.state == "sold_out":
+        if availability.state == "sold_out" or price.minimum is None:
             return "Voir l’événement"
-        if price.minimum is None:
-            return "Voir l’événement"
-        return "S’inscrire" if price.is_free else "Acheter un billet"
+        workflow = WorkflowKind.REGISTRATION if price.is_free else WorkflowKind.PURCHASE
+        return vocabulary_for(activity=occurrence.activity, workflow=workflow).primary_action
 
     def image_url(self, occurrence) -> str | None:
         image = self._event(occurrence).cover_image
@@ -262,7 +268,6 @@ class EventPresenter(BasePresenter):
 
 class TransportPresenter(BasePresenter):
     key = "transport"
-    label = "Transport"
 
     def matches(self, occurrence) -> bool:
         try:
@@ -289,7 +294,9 @@ class TransportPresenter(BasePresenter):
         return reverse("transport:departure-detail", args=[self._departure(occurrence).pk])
 
     def cta(self, occurrence, *, price, availability) -> str:
-        return "Voir le départ" if availability.state == "sold_out" else "Réserver"
+        if availability.state == "sold_out":
+            return "Voir le départ"
+        return vocabulary_for(activity=occurrence.activity, workflow=WorkflowKind.RESERVATION).primary_action
 
     def eyebrow(self, occurrence) -> str | None:
         try:
@@ -317,6 +324,7 @@ def presenter_for(occurrence):
 def build_discovery_item(occurrence, *, distance_m=None, now=None) -> DiscoveryItem:
     now = now or timezone.now()
     presenter = presenter_for(occurrence)
+    vocabulary = vocabulary_for(activity=occurrence.activity)
     place = presenter.primary_place(occurrence)
     price = price_presentation(occurrence, now=now)
     availability = availability_presentation(occurrence, now=now)
@@ -335,7 +343,7 @@ def build_discovery_item(occurrence, *, distance_m=None, now=None) -> DiscoveryI
         activity_id=str(occurrence.activity_id),
         occurrence_id=str(occurrence.pk),
         vertical=presenter.key,
-        vertical_label=presenter.label,
+        vertical_label=vocabulary.activity_noun,
         title=occurrence.activity.title,
         summary=occurrence.activity.short_description or occurrence.activity.description[:220],
         space_name=occurrence.activity.space.name if occurrence.activity.space_id else "",
