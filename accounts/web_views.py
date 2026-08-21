@@ -151,12 +151,13 @@ class AccountProfileView(LoginRequiredMixin, View):
     def _context(
         self,
         request,
+        profile,
         profile_form,
         preferences_form,
         appearance_form=None,
     ):
         if appearance_form is None:
-            appearance_form = AppearancePreferencesForm(user=request.user)
+            appearance_form = AppearancePreferencesForm(profile=profile)
         return {
             "profile_form": profile_form,
             "preferences_form": preferences_form,
@@ -171,6 +172,7 @@ class AccountProfileView(LoginRequiredMixin, View):
             self.template_name,
             self._context(
                 request,
+                profile,
                 AccountProfileForm(instance=request.user, profile=profile),
                 NotificationPreferencesForm(instance=preferences),
             ),
@@ -182,7 +184,7 @@ class AccountProfileView(LoginRequiredMixin, View):
         appearance_form = None
 
         if section == "appearance":
-            appearance_form = AppearancePreferencesForm(request.POST, user=request.user)
+            appearance_form = AppearancePreferencesForm(request.POST, profile=profile)
             profile_form = AccountProfileForm(instance=request.user, profile=profile)
             preferences_form = NotificationPreferencesForm(instance=preferences)
             if appearance_form.is_valid():
@@ -212,7 +214,13 @@ class AccountProfileView(LoginRequiredMixin, View):
         return render(
             request,
             self.template_name,
-            self._context(request, profile_form, preferences_form, appearance_form),
+            self._context(
+                request,
+                profile,
+                profile_form,
+                preferences_form,
+                appearance_form,
+            ),
             status=400,
         )
 
