@@ -80,9 +80,9 @@ def next_participant_action(journey):
     if journey.status == JourneyStatus.REJECTED:
         return "Demande refusée"
     if journey.status == JourneyStatus.EXPIRED:
-        return f"{vocabulary.journey_noun} expirée"
+        return "Démarche expirée"
     if journey.status == JourneyStatus.CANCELLED:
-        return f"{vocabulary.journey_noun} annulée"
+        return "Démarche annulée"
     return vocabulary.journey_detail_label
 
 
