@@ -40,6 +40,6 @@ test('scanner and Operations remain reachable at phone width @mobile', async ({ 
   await page.context().clearCookies();
   await login(page, 'staff@e2e.makolo.test');
   await page.goto('/operations/');
-  await expect(page.getByRole('heading', { name: 'Opérations Makolo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Makolo Operations Center' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
