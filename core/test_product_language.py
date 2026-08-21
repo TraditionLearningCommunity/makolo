@@ -2,10 +2,11 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
+from access.models import AccessStatus
 from commerce.models import PaymentMode
 from journeys.models import WorkflowKind
 
-from .product_language import payment_mode_label, vocabulary_for, vertical_for
+from .product_language import access_status_label, payment_mode_label, vocabulary_for, vertical_for
 
 
 class ProductLanguageTests(SimpleTestCase):
@@ -52,6 +53,12 @@ class ProductLanguageTests(SimpleTestCase):
         self.assertEqual(vocabulary.access_noun, "Billet")
         self.assertEqual(vocabulary.participant_noun, "Voyageur")
         self.assertEqual(vocabulary.primary_action, "Réserver")
+
+    def test_access_statuses_are_user_facing(self):
+        self.assertEqual(access_status_label(AccessStatus.VALID), "Valide")
+        self.assertEqual(access_status_label(AccessStatus.USED), "Utilisé")
+        self.assertEqual(access_status_label(AccessStatus.REVOKED), "Révoqué")
+        self.assertEqual(access_status_label(AccessStatus.EXPIRED), "Expiré")
 
     def test_payment_modes_are_user_facing(self):
         self.assertEqual(payment_mode_label(PaymentMode.NONE), "")
