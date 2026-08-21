@@ -7,12 +7,12 @@
         <div>
             <a href="{% url 'organizations:console-control' space.slug %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Contrôle d’accès</a>
             <h2 class="mt-2 text-3xl font-black text-zinc-900 dark:text-white">{{ activity.title }}</h2>
-            {% if scanner_assignment %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Départ affecté : {{ scanner_assignment.occurrence.start_at|date:"d/m/Y H:i" }}</p>{% else %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Contrôle Activity / Occurrence canonique.</p>{% endif %}
+            {% if scanner_assignment %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Départ affecté : {{ scanner_assignment.occurrence.start_at|date:"d/m/Y H:i" }}</p>{% else %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Contrôlez les billets et accès valables pour cette activité.</p>{% endif %}
         </div>
     </div>
 
     <div class="rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border);background:var(--mk-brand-softer)">
-        <div class="flex items-start gap-3"><i data-lucide="scan-qr-code" class="mt-0.5 h-5 w-5 shrink-0" style="color:var(--mk-brand)"></i><div><p class="font-bold">Scanner Makolo</p><p class="mt-1" style="color:var(--mk-muted)">Le QR est un AccessCredential canonique. Pour une affectation à un départ précis, le contrôle vérifie automatiquement l’Occurrence attendue.</p></div></div>
+        <div class="flex items-start gap-3"><i data-lucide="scan-qr-code" class="mt-0.5 h-5 w-5 shrink-0" style="color:var(--mk-brand)"></i><div><p class="font-bold">Scanner Makolo</p><p class="mt-1" style="color:var(--mk-muted)">Présentez le QR au contrôle. Lorsqu’un départ précis est affecté, Makolo vérifie automatiquement que le billet est valable pour ce départ.</p></div></div>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-5">
