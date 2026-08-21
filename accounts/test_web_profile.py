@@ -27,7 +27,9 @@ class AccountProfileWebTests(TestCase):
         response = self.client.get(reverse("account:profile"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mon profil")
+        self.assertContains(response, "Apparence")
         self.assertContains(response, self.user.email)
+        self.assertContains(response, "js/theme-preference.js")
         self.assertTrue(UserProfile.objects.filter(user=self.user).exists())
         self.assertTrue(NotificationPreference.objects.filter(user=self.user).exists())
 
@@ -70,7 +72,50 @@ class AccountProfileWebTests(TestCase):
         self.assertTrue(profile.public_profile)
         self.assertTrue(profile.profile_completed)
 
-    def test_notification_preferences_are_editable_from_profile(self):
+    def test_profile_fields_use_browser_autocomplete_where_meaningful(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("account:profile"))
+        self.assertContains(response, 'autocomplete="given-name"')
+        self.assertContains(response, 'autocomplete="family-name"')
+        self.assertContains(response, 'autocomplete="tel"')
+        self.assertContains(response, 'autocomplete="address-level2"')
+
+    def test_appearance_preference_is_persisted_on_account_and_rendered_early(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("account:profile"),
+            {"section": "appearance", "appearance": "dark"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"{reverse('account:profile')}#appearance")
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.preferences["appearance"], "dark")
+
+        response = self.client.get(reverse("account:profile"))
+        self.assertContains(response, 'data-theme-preference="dark"')
+        self.assertContains(response, 'id="appearance-dark"')
+        self.assertContains(response, 'value="dark" checked')
+
+    def test_invalid_appearance_is_rejected_without_overwriting_preference(self):
+        self.user.preferences = {"appearance": "light"}
+        self.user.save(update_fields=["preferences", "updated_at"])
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("account:profile"),
+            {"section": "appearance", "appearance": "sepia"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.preferences["appearance"], "light")
+        self.assertContains(response, "Sélectionnez un choix valide", status_code=400)
+
+    def test_notification_preferences_are_editable_without_overwriting_hidden_channels(self):
+        preference = NotificationPreference.objects.create(
+            user=self.user,
+            sms_notifications=False,
+            push_notifications=False,
+        )
         self.client.force_login(self.user)
         response = self.client.post(
             reverse("account:profile"),
@@ -85,9 +130,10 @@ class AccountProfileWebTests(TestCase):
             },
         )
         self.assertRedirects(response, reverse("account:profile"))
-        preference = NotificationPreference.objects.get(user=self.user)
+        preference.refresh_from_db()
         self.assertTrue(preference.email_notifications)
         self.assertFalse(preference.sms_notifications)
+        self.assertFalse(preference.push_notifications)
         self.assertTrue(preference.quiet_hours_enabled)
         self.assertEqual(preference.quiet_hours_start.strftime("%H:%M"), "22:00")
 
