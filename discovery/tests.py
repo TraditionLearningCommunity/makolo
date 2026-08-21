@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
@@ -86,6 +87,9 @@ class CanonicalDiscoveryTests(TestCase):
             is_public=True,
         )
         self.now = datetime(2026, 8, 20, 10, 0, tzinfo=LUB)
+        now_patcher = patch("discovery.search.timezone.now", return_value=self.now)
+        now_patcher.start()
+        self.addCleanup(now_patcher.stop)
 
     def _occurrence(
         self,
