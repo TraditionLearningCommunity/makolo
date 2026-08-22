@@ -1,9 +1,13 @@
-from django.db.models import Q
+from collections import defaultdict
+from dataclasses import dataclass, field
+
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 from access.models import Access, AccessStatus
 from commerce.models import CommerceOrder
 from journeys.models import Journey, JourneyStatus
+from payments.models import Payment
 
 
 ACTIVE_JOURNEY_STATUSES = {
@@ -37,6 +41,97 @@ HISTORY_ACCESS_STATUSES = {
 
 def _authenticated(profile):
     return bool(getattr(profile, "is_authenticated", False))
+
+
+@dataclass
+class ParticipantStateContext:
+    """Read-only participant data grouped once for Activity/Occurrence presentation."""
+
+    profile: object | None = None
+    accesses_by_activity: dict = field(default_factory=dict)
+    journeys_by_activity: dict = field(default_factory=dict)
+
+    @property
+    def authenticated(self):
+        return _authenticated(self.profile)
+
+    def accesses_for(self, activity, occurrence=None):
+        rows = self.accesses_by_activity.get(activity.pk, ())
+        if occurrence is None:
+            return list(rows)
+        return [
+            access
+            for access in rows
+            if access.occurrence_id in {None, occurrence.pk}
+        ]
+
+    def journeys_for(self, activity, occurrence=None):
+        rows = self.journeys_by_activity.get(activity.pk, ())
+        if occurrence is None:
+            return list(rows)
+        return [
+            journey
+            for journey in rows
+            if journey.occurrence_id in {None, occurrence.pk}
+        ]
+
+
+def participant_state_context(profile, occurrences):
+    """Load all personal state for a set of occurrences with a fixed query count.
+
+    Anonymous callers deliberately execute no participant queries. The context is
+    beneficiary-scoped: professional permissions never turn third-party Journey,
+    Commerce, Capacity or Access data into personal state.
+    """
+
+    context = ParticipantStateContext(profile=profile)
+    if not _authenticated(profile):
+        return context
+
+    occurrences = list(occurrences)
+    if not occurrences:
+        return context
+    activity_ids = {occurrence.activity_id for occurrence in occurrences}
+    occurrence_ids = {occurrence.pk for occurrence in occurrences}
+    occurrence_scope = Q(occurrence__isnull=True) | Q(occurrence_id__in=occurrence_ids)
+
+    accesses = list(
+        Access.objects.filter(
+            beneficiary=profile,
+            activity_id__in=activity_ids,
+        )
+        .filter(occurrence_scope)
+        .select_related("activity", "occurrence", "journey")
+        .order_by("-created_at", "id")
+    )
+
+    orders = CommerceOrder.objects.select_related("buyer").prefetch_related(
+        Prefetch("payments", queryset=Payment.objects.order_by("-created_at", "id"))
+    ).order_by("-created_at", "id")
+    journeys = list(
+        Journey.objects.filter(
+            beneficiary=profile,
+            activity_id__in=activity_ids,
+        )
+        .filter(occurrence_scope)
+        .select_related("activity", "occurrence", "beneficiary")
+        .prefetch_related(
+            "requests",
+            "capacity_reservations__pool",
+            Prefetch("commerce_orders", queryset=orders),
+        )
+        .order_by("-created_at", "id")
+    )
+
+    accesses_by_activity = defaultdict(list)
+    for access in accesses:
+        accesses_by_activity[access.activity_id].append(access)
+    journeys_by_activity = defaultdict(list)
+    for journey in journeys:
+        journeys_by_activity[journey.activity_id].append(journey)
+    context.accesses_by_activity = dict(accesses_by_activity)
+    context.journeys_by_activity = dict(journeys_by_activity)
+    return context
 
 
 def participant_journeys(profile):
