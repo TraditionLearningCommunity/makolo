@@ -77,6 +77,12 @@ class DiscoveryItem:
         return payload
 
     def to_map_dict(self) -> dict[str, Any] | None:
+        """Return only the established public map contract.
+
+        Participant state intentionally stays out of MapLibre/API payloads. The
+        personalized state belongs to the authenticated list/detail presentation
+        and must not broaden the public discovery data surface.
+        """
         if self.place is None or self.place.latitude is None or self.place.longitude is None:
             return None
         return {
@@ -100,16 +106,10 @@ class DiscoveryItem:
                 "label": self.price.label,
             },
             "availability": {
-                "state": self.participant.availability,
-                "label": self.participant.availability_label,
-            },
-            "participant": {
-                "state": self.participant.participant_state,
-                "label": self.participant.label,
-                "secondary_label": self.participant.secondary_label,
+                "state": self.availability.state,
+                "label": self.availability.label,
             },
             "cta_label": self.cta_label,
-            "cta_url": self.cta_url,
             "url": self.url,
         }
 
