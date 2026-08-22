@@ -72,6 +72,33 @@ def update_activity_common(*, activity: Activity, **fields) -> Activity:
 
 
 @transaction.atomic
+def reopen_completed_activity(*, activity: Activity) -> Activity:
+    """Restore a prematurely completed Activity without replaying publication."""
+    if activity.status != ActivityStatus.COMPLETED:
+        raise ValidationError("Seule une activité terminée peut être réouverte.")
+    previous_status = activity.status
+    transition_revision = activity.updated_at.isoformat() if activity.updated_at else "unknown"
+    activity.status = ActivityStatus.PUBLISHED
+    activity.full_clean()
+    activity.save(update_fields=["status", "updated_at"])
+    emit_domain_event(
+        event_type=DomainEventType.ACTIVITY_REOPENED,
+        source_type="activity",
+        source_id=activity.pk,
+        idempotency_key=f"activity:{activity.pk}:reopened:{transition_revision}"[:255],
+        space_id=activity.space_id,
+        activity_id=activity.pk,
+        payload={
+            "activity_id": str(activity.pk),
+            "space_id": str(activity.space_id) if activity.space_id else None,
+            "previous_status": previous_status,
+            "status": activity.status,
+        },
+    )
+    return activity
+
+
+@transaction.atomic
 def create_occurrence(*, activity, start_at, timezone, end_at=None, label="", status=OccurrenceStatus.DRAFT) -> Occurrence:
     occurrence = Occurrence(
         activity=activity,
@@ -159,6 +186,34 @@ def set_occurrence_status(*, occurrence: Occurrence, status: str) -> Occurrence:
                 "status": status,
             },
         )
+    return occurrence
+
+
+@transaction.atomic
+def reopen_completed_occurrence(*, occurrence: Occurrence) -> Occurrence:
+    """Restore a prematurely completed Occurrence to its scheduled state."""
+    if occurrence.status != OccurrenceStatus.COMPLETED:
+        raise ValidationError("Seule une date terminée peut être réouverte.")
+    previous_status = occurrence.status
+    transition_revision = occurrence.updated_at.isoformat() if occurrence.updated_at else "unknown"
+    occurrence.status = OccurrenceStatus.SCHEDULED
+    occurrence.full_clean()
+    occurrence.save(update_fields=["status", "updated_at"])
+    space_id, activity_id = _occurrence_scope(occurrence)
+    emit_domain_event(
+        event_type=DomainEventType.OCCURRENCE_REOPENED,
+        source_type="occurrence",
+        source_id=occurrence.pk,
+        idempotency_key=f"occurrence:{occurrence.pk}:reopened:{transition_revision}"[:255],
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "occurrence_id": str(occurrence.pk),
+            "activity_id": str(activity_id),
+            "previous_status": previous_status,
+            "status": occurrence.status,
+        },
+    )
     return occurrence
 
 
