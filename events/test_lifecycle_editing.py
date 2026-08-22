@@ -38,15 +38,14 @@ class CompletedEventEditingTests(TestCase):
             city="Lubumbashi",
         )
 
-    def _published_event(self, *, start_at=None, end_at=None):
-        start_at = start_at or timezone.now() + timedelta(days=7)
-        end_at = end_at or start_at + timedelta(hours=4)
+    def _published_event(self):
+        start_at = timezone.now() + timedelta(days=7)
         event = create_event(
             actor=self.owner,
             organization=self.space,
             title="Événement cycle de vie",
             start_at=start_at,
-            end_at=end_at,
+            end_at=start_at + timedelta(hours=4),
             timezone="Africa/Lubumbashi",
             short_description="Description courte",
             description="Description initiale",
@@ -171,19 +170,22 @@ class CompletedEventEditingTests(TestCase):
         self.assertFalse(OperationsAuditLog.objects.filter(action="event.reopened").exists())
 
     def test_past_completed_event_cannot_be_reopened(self):
-        start_at = timezone.now() - timedelta(days=2)
-        event = self._published_event(
-            start_at=start_at,
-            end_at=start_at + timedelta(hours=4),
+        event = self._prematurely_completed_event()
+        occurrence = event.primary_occurrence
+        past_start = timezone.now() - timedelta(days=2)
+        event.activity.occurrences.filter(pk=occurrence.pk).update(
+            start_at=past_start,
+            end_at=past_start + timedelta(hours=4),
         )
-        complete_event(event=event, actor=self.owner)
+        occurrence.refresh_from_db()
 
         with self.assertRaises(ValidationError):
             reopen_event(event=event, actor=self.owner)
 
         event.refresh_from_db()
+        occurrence.refresh_from_db()
         self.assertEqual(event.status, EventStatus.COMPLETED)
-        self.assertEqual(event.primary_occurrence.status, OccurrenceStatus.COMPLETED)
+        self.assertEqual(occurrence.status, OccurrenceStatus.COMPLETED)
 
     def test_reopen_action_is_only_offered_for_future_completed_event(self):
         event = self._prematurely_completed_event()
