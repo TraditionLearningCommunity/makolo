@@ -13,9 +13,9 @@
     </div>
 
     {% if object and object.status == 'completed' %}
-    <div class="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-sm text-indigo-950 dark:border-indigo-900/70 dark:bg-indigo-950/30 dark:text-indigo-100">
-        <p class="font-bold">Cet événement est terminé.</p>
-        <p class="mt-1 leading-6">Vous pouvez encore corriger son titre, sa description, sa catégorie, son image ou sa visibilité. Sa date, son lieu et ses inscriptions restent verrouillés afin de préserver l’historique. Si vous l’avez terminé par erreur alors qu’il n’est pas encore fini, revenez à sa fiche et choisissez « Réouvrir ».</p>
+    <div class="mk-panel" style="padding:1.25rem;background:var(--mk-brand-soft);color:var(--mk-text)">
+        <p style="font-weight:700">Cet événement est terminé.</p>
+        <p style="margin-top:.25rem;line-height:1.5rem">Vous pouvez encore corriger son titre, sa description, sa catégorie, son image ou sa visibilité. Sa date, son lieu et ses inscriptions restent verrouillés afin de préserver l’historique. Si vous l’avez terminé par erreur alors qu’il n’est pas encore fini, revenez à sa fiche et choisissez « Réouvrir ».</p>
     </div>
     {% endif %}
 
