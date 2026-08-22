@@ -4,7 +4,18 @@ from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 from organizations.models import Organization
 
-from .models import EventCategory, EventVenue, EventVisibility
+from .models import EventCategory, EventStatus, EventVenue, EventVisibility
+
+
+COMPLETED_EVENT_LOCKED_FORM_FIELDS = (
+    "organization",
+    "venue",
+    "start_at",
+    "end_at",
+    "registration_start_at",
+    "registration_end_at",
+    "timezone",
+)
 
 
 class EventForm(forms.Form):
@@ -54,6 +65,13 @@ class EventForm(forms.Form):
                     "timezone": instance.timezone,
                 }
             )
+            if instance.status == EventStatus.COMPLETED:
+                # A completed event remains editable for editorial corrections,
+                # but its historical schedule, place and registration window are
+                # no longer mutable through the regular edit form. Reopening is
+                # an explicit lifecycle transition handled separately.
+                for field_name in COMPLETED_EVENT_LOCKED_FORM_FIELDS:
+                    self.fields.pop(field_name, None)
 
         base_class = (
             "w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 "

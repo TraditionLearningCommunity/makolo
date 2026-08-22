@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
@@ -11,10 +12,10 @@ from organizations.models import OrganizationMembership
 from organizations.services import ensure_personal_organization
 
 from .forms import EventForm
-from .models import Event
+from .models import Event, EventStatus
 from .permissions import user_can_manage_event, user_can_manage_events
 from .selectors import get_events_visible_to, get_manageable_events
-from .services import cancel_event, complete_event, create_event, publish_event, update_event
+from .services import cancel_event, complete_event, create_event, publish_event, reopen_event, update_event
 
 
 class EventListView(ListView):
@@ -86,7 +87,14 @@ class EventDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["can_manage_event"] = user_can_manage_event(self.request.user, self.object)
+        can_manage_event = user_can_manage_event(self.request.user, self.object)
+        context["can_manage_event"] = can_manage_event
+        context["can_reopen_event"] = bool(
+            can_manage_event
+            and self.object.status == EventStatus.COMPLETED
+            and self.object.end_at
+            and self.object.end_at > timezone.now()
+        )
         context["is_bookmarked"] = False
         context["can_submit_feedback"] = False
         if self.request.user.is_authenticated:
@@ -120,11 +128,12 @@ class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return kwargs
 
     def form_valid(self, form):
+        values = dict(form.cleaned_data)
         self.object = update_event(
             event=self.object,
             actor=self.request.user,
-            organization=form.cleaned_data.pop("organization"),
-            **form.cleaned_data,
+            organization=values.pop("organization", None),
+            **values,
         )
         messages.success(self.request, "Événement mis à jour.")
         return redirect(self.get_success_url())
@@ -162,3 +171,8 @@ class EventCancelView(EventTransitionView):
 class EventCompleteView(EventTransitionView):
     service = staticmethod(complete_event)
     success_message = "Événement marqué comme terminé."
+
+
+class EventReopenView(EventTransitionView):
+    service = staticmethod(reopen_event)
+    success_message = "Événement réouvert."

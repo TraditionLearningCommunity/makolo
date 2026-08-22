@@ -12,6 +12,13 @@
         <a href="{% if object %}{% url 'events:detail' object.slug %}{% else %}{% url 'events:list' %}{% endif %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Retour</a>
     </div>
 
+    {% if object and object.status == 'completed' %}
+    <div class="mk-panel" style="padding:1.25rem;background:var(--mk-brand-soft);color:var(--mk-text)">
+        <p style="font-weight:700">Cet événement est terminé.</p>
+        <p style="margin-top:.25rem;line-height:1.5rem">Vous pouvez encore corriger son titre, sa description, sa catégorie, son image ou sa visibilité. Sa date, son lieu et ses inscriptions restent verrouillés afin de préserver l’historique. Si vous l’avez terminé par erreur alors qu’il n’est pas encore fini, revenez à sa fiche et choisissez « Réouvrir ».</p>
+    </div>
+    {% endif %}
+
     <form method="post" enctype="multipart/form-data" class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 md:p-8">
         {% csrf_token %}
 

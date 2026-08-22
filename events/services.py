@@ -8,6 +8,8 @@ from activities.services import (
     complete_occurrence,
     create_activity,
     create_occurrence,
+    reopen_completed_activity,
+    reopen_completed_occurrence,
     reschedule_occurrence,
     set_occurrence_status,
     update_activity_common,
@@ -32,6 +34,15 @@ EVENT_FIELDS = {
     "registration_start_at",
     "registration_end_at",
     "metadata",
+}
+COMPLETED_EVENT_LOCKED_FIELDS = {
+    "venue",
+    "start_at",
+    "end_at",
+    "timezone",
+    "registration_start_at",
+    "registration_end_at",
+    "capacity",
 }
 
 
@@ -171,7 +182,19 @@ def update_event(*, event: Event, actor, organization=None, **fields) -> Event:
     activity = event.activity
     occurrence = event.primary_occurrence
     if occurrence is None:
-        raise ValidationError("Cet événement ne possède pas d’Occurrence principale.")
+        raise ValidationError("Cet événement ne possède pas de date principale.")
+
+    if event.status == EventStatus.COMPLETED:
+        locked = COMPLETED_EVENT_LOCKED_FIELDS & fields.keys()
+        if locked:
+            raise ValidationError(
+                "La date, le lieu, les inscriptions et la capacité d’un événement terminé restent verrouillés. "
+                "Réouvrez l’événement seulement si sa clôture était une erreur."
+            )
+        if organization is not None and organization.pk != activity.space_id:
+            raise ValidationError(
+                "Un événement terminé ne peut pas être déplacé vers un autre Espace."
+            )
 
     activity_values = {name: fields[name] for name in CORE_ACTIVITY_FIELDS if name in fields}
     if organization is not None and organization.pk != activity.space_id:
@@ -253,4 +276,50 @@ def complete_event(*, event: Event, actor) -> Event:
     if occurrence is not None:
         complete_occurrence(occurrence=occurrence)
     event.save(update_fields=["updated_at"])
+    return event
+
+
+@transaction.atomic
+def reopen_event(*, event: Event, actor) -> Event:
+    """Undo an erroneous early completion without creating a new session."""
+    _ensure_can_manage(actor, event)
+    event = Event.objects.select_for_update().select_related("activity").get(pk=event.pk)
+    occurrence = event.primary_occurrence
+    if event.status != EventStatus.COMPLETED:
+        raise ValidationError("Seul un événement terminé peut être réouvert.")
+    if occurrence is None or occurrence.status != OccurrenceStatus.COMPLETED:
+        raise ValidationError("La date de cet événement n’est pas dans un état réouvrable.")
+    if occurrence.end_at is None or occurrence.end_at <= timezone.now():
+        raise ValidationError(
+            "Cette date est réellement passée. Créez une nouvelle date ou session au lieu de réouvrir l’historique."
+        )
+
+    before = {
+        "status": event.status,
+        "occurrence_status": occurrence.status,
+    }
+    reopen_completed_activity(activity=event.activity)
+    reopen_completed_occurrence(occurrence=occurrence)
+    event.save(update_fields=["updated_at"])
+
+    # OperationsAuditLog is the existing explicit audit ledger. Import lazily
+    # to avoid coupling the Event module's import graph to Operations views.
+    from operations.services import audit_action
+
+    audit_action(
+        actor=actor,
+        action="event.reopened",
+        target_type="event",
+        target_id=event.pk,
+        summary=f"Réouverture de {event.title} après une clôture prématurée.",
+        before=before,
+        after={
+            "status": event.status,
+            "occurrence_status": occurrence.status,
+        },
+        metadata={
+            "activity_id": str(event.activity_id),
+            "occurrence_id": str(occurrence.pk),
+        },
+    )
     return event

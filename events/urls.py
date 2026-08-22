@@ -7,6 +7,7 @@ from .views import (
     EventDetailView,
     EventListView,
     EventPublishView,
+    EventReopenView,
     EventUpdateView,
 )
 
@@ -20,4 +21,5 @@ urlpatterns = [
     path("<slug:slug>/publish/", EventPublishView.as_view(), name="publish"),
     path("<slug:slug>/cancel/", EventCancelView.as_view(), name="cancel"),
     path("<slug:slug>/complete/", EventCompleteView.as_view(), name="complete"),
+    path("<slug:slug>/reopen/", EventReopenView.as_view(), name="reopen"),
 ]
