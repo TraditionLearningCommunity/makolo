@@ -11,6 +11,7 @@ from django.utils import timezone
 from activities.models import OccurrencePlaceRole
 from capacity.models import CapacityReservationStatus
 from commerce.models import OfferStatus
+from core.participant_presentation import ParticipantActivityState, resolve_participant_activity_state
 from core.product_language import vocabulary_for
 from journeys.models import WorkflowKind
 
@@ -56,7 +57,9 @@ class DiscoveryItem:
     distance_km: float | None
     price: DiscoveryPrice
     availability: DiscoveryAvailability
-    cta_label: str
+    participant: ParticipantActivityState
+    cta_label: str | None
+    cta_url: str | None
     url: str
     image_url: str | None = None
     eyebrow: str | None = None
@@ -68,9 +71,18 @@ class DiscoveryItem:
             payload[key] = value.isoformat() if value else None
         if payload["price"]["minimum"] is not None:
             payload["price"]["minimum"] = str(payload["price"]["minimum"])
+        expires_at = payload["participant"].get("expires_at")
+        if expires_at:
+            payload["participant"]["expires_at"] = expires_at.isoformat()
         return payload
 
     def to_map_dict(self) -> dict[str, Any] | None:
+        """Return only the established public map contract.
+
+        Participant state intentionally stays out of MapLibre/API payloads. The
+        personalized state belongs to the authenticated list/detail presentation
+        and must not broaden the public discovery data surface.
+        """
         if self.place is None or self.place.latitude is None or self.place.longitude is None:
             return None
         return {
@@ -321,7 +333,14 @@ def presenter_for(occurrence):
     return DEFAULT_PRESENTER
 
 
-def build_discovery_item(occurrence, *, distance_m=None, now=None) -> DiscoveryItem:
+def build_discovery_item(
+    occurrence,
+    *,
+    distance_m=None,
+    now=None,
+    profile=None,
+    participant_context=None,
+) -> DiscoveryItem:
     now = now or timezone.now()
     presenter = presenter_for(occurrence)
     vocabulary = vocabulary_for(activity=occurrence.activity)
@@ -339,6 +358,20 @@ def build_discovery_item(occurrence, *, distance_m=None, now=None) -> DiscoveryI
             latitude=float(place.latitude) if place.latitude is not None else None,
             longitude=float(place.longitude) if place.longitude is not None else None,
         )
+    detail_url = presenter.url(occurrence)
+    public_cta = presenter.cta(occurrence, price=price, availability=availability)
+    participant = resolve_participant_activity_state(
+        profile=profile,
+        activity=occurrence.activity,
+        occurrence=occurrence,
+        context=participant_context,
+        availability_state=availability.state,
+        availability_label=availability.label,
+        acquisition_label=public_cta,
+        acquisition_url=detail_url,
+        detail_url=detail_url,
+        now=now,
+    )
     return DiscoveryItem(
         activity_id=str(occurrence.activity_id),
         occurrence_id=str(occurrence.pk),
@@ -355,8 +388,10 @@ def build_discovery_item(occurrence, *, distance_m=None, now=None) -> DiscoveryI
         distance_km=round(float(distance_m) / 1000, 1) if distance_m is not None else None,
         price=price,
         availability=availability,
-        cta_label=presenter.cta(occurrence, price=price, availability=availability),
-        url=presenter.url(occurrence),
+        participant=participant,
+        cta_label=participant.primary_action,
+        cta_url=participant.primary_url,
+        url=detail_url,
         image_url=presenter.image_url(occurrence),
         eyebrow=presenter.eyebrow(occurrence),
     )

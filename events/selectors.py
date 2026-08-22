@@ -64,10 +64,17 @@ def get_events_visible_to(user, *, for_detail: bool = False):
     if activity_ids is None:
         return queryset
     contextual_filter = Q(activity_id__in=activity_ids) if activity_ids else Q(pk__isnull=True)
-    # The original Event author keeps compatibility authority after the cutover,
-    # including when the Activity is attached to an organization.
     legacy_creator_filter = Q(activity__created_by=user)
-    return queryset.filter(public_filter | contextual_filter | legacy_creator_filter).distinct()
+    participant_filter = Q(pk__isnull=True)
+    if for_detail:
+        participant_filter = Q(activity__journeys__beneficiary=user) | Q(
+            activity__access_rights__beneficiary=user
+        )
+    # Participant history can remain reachable after completion/cancellation;
+    # this does not grant management authority and remains scoped to self.
+    return queryset.filter(
+        public_filter | contextual_filter | legacy_creator_filter | participant_filter
+    ).distinct()
 
 
 def get_manageable_events(user):

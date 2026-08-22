@@ -5,7 +5,7 @@ import { E2E_PASSWORD, login, logout } from '../helpers/auth.mjs';
 async function createPaidOrder(page) {
   await page.goto('/discover/');
   await page.getByRole('link', { name: 'Festival Makolo E2E' }).first().click();
-  await page.getByRole('link', { name: /Obtenir des billets/i }).click();
+  await page.getByRole('link', { name: /Acheter le billet|Obtenir des billets/i }).click();
   await page.getByLabel('Quantité').fill('1');
   await page.getByRole('button', { name: /Créer la commande/i }).click();
   await expect(page.getByText('Pass standard E2E')).toBeVisible();
@@ -44,9 +44,9 @@ test('participant experience works for a canonical non-Event registration', asyn
 });
 
 
-test('visitor resumes paid Event after auth, then uses canonical Access QR and scan flow', async ({ page }, testInfo) => {
+test('visitor resumes paid Event after auth, then Discovery exposes canonical Access and scan history', async ({ page }, testInfo) => {
   await page.goto('/events/festival-makolo-e2e/');
-  await page.getByRole('link', { name: /Obtenir des billets/i }).click();
+  await page.getByRole('link', { name: /Acheter le billet|Obtenir des billets/i }).click();
   await expect(page).toHaveURL(/\/login\/\?next=.*festival-makolo-e2e/i);
   await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
@@ -56,6 +56,17 @@ test('visitor resumes paid Event after auth, then uses canonical Access QR and s
   await page.getByLabel('Quantité').fill('1');
   await page.getByRole('button', { name: /Créer la commande/i }).click();
   await completeSandboxPayment(page);
+
+  await page.goto('/discover/?q=Festival+Makolo+E2E');
+  const discoveryCard = page.locator('article').filter({ hasText: 'Festival Makolo E2E' });
+  await expect(discoveryCard).toContainText('Vous avez accès');
+  await expect(discoveryCard.getByRole('link', { name: /Acheter le billet/i })).toHaveCount(0);
+  const discoveryAccess = discoveryCard.getByRole('link', { name: /Voir mon billet|Voir mon accès/i });
+  await expect(discoveryAccess).toBeVisible();
+  await discoveryAccess.click();
+  await expect(page).toHaveURL(/\/me\/accesses\//);
+  await expect(page.getByText('Valide', { exact: true }).first()).toBeVisible();
+  const accessUrl = page.url();
 
   await page.goto('/notifications/');
   await expect(page.getByRole('heading', { name: 'Paiement confirmé', exact: true })).toHaveCount(1);
@@ -67,13 +78,7 @@ test('visitor resumes paid Event after auth, then uses canonical Access QR and s
   await paidJourneys.first().click();
   await expect(page.getByText('Terminée', { exact: true }).first()).toBeVisible();
 
-  await page.goto('/me/accesses/');
-  const paidAccess = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' }).first();
-  await expect(paidAccess).toContainText('Billet');
-  await paidAccess.click();
-  const accessUrl = page.url();
-  await expect(page.getByText('Valide', { exact: true }).first()).toBeVisible();
-
+  await page.goto(accessUrl);
   const qrPath = testInfo.outputPath('purchased-access-qr.png');
   await page.getByRole('img', { name: /QR de votre billet/i }).screenshot({ path: qrPath });
 
@@ -111,7 +116,12 @@ test('visitor resumes paid Event after auth, then uses canonical Access QR and s
 
   await logout(page);
   await login(page, 'participant@e2e.makolo.test');
-  await page.goto(accessUrl);
+  await page.goto('/discover/?q=Festival+Makolo+E2E');
+  const usedCard = page.locator('article').filter({ hasText: 'Festival Makolo E2E' });
+  await expect(usedCard).toContainText('Accès utilisé');
+  await expect(usedCard.getByRole('link', { name: /Acheter le billet/i })).toHaveCount(0);
+  await usedCard.getByRole('link', { name: /Voir mon billet|Voir mon accès/i }).click();
+  await expect(page).toHaveURL(accessUrl);
   await expect(page.getByText('Utilisé', { exact: true }).first()).toBeVisible();
 });
 
@@ -143,7 +153,7 @@ test('sandbox payment can be cancelled and retried without losing the order', as
 test('a free Event consumes its last canonical place and becomes sold out', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
   await page.goto('/events/capacite-makolo-e2e/');
-  await page.getByRole('link', { name: /Obtenir des billets/i }).click();
+  await page.getByRole('link', { name: /S’inscrire|Obtenir des billets/i }).click();
   const orderFormUrl = page.url();
   await expect(page.getByText(/1 restant\(s\)/i)).toBeVisible();
   await page.getByLabel('Quantité').fill('1');

@@ -122,7 +122,7 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
             and journey.status == JourneyStatus.PENDING_PAYMENT
             and order.payment_mode in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}
         ):
-            payment_url = reverse("payments:start", kwargs={"order_pk": order.pk})
+            payment_url = reverse("payments:commerce-start", kwargs={"order_pk": order.pk})
         context.update(
             {
                 **card,
