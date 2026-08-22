@@ -7,13 +7,15 @@
             <div class="flex flex-wrap items-center gap-2">
                 <span class="mk-badge {% if event.status == 'published' %}mk-badge-brand{% endif %}">{{ event.get_status_display }}</span>
                 <span class="mk-badge">{{ event.get_visibility_display }}</span>
+                {% if participant_presentation %}<span class="mk-badge {% if participant_presentation.availability == 'cancelled' %}mk-badge-danger{% elif participant_presentation.availability == 'sold_out' %}mk-badge-danger{% elif participant_presentation.availability == 'available' or participant_presentation.availability == 'unlimited' %}mk-badge-success{% endif %}">{{ participant_presentation.availability_label }}</span>{% endif %}
+                {% if participant_presentation.label %}<span class="mk-badge {% if participant_presentation.visual_variant == 'success' %}mk-badge-success{% elif participant_presentation.visual_variant == 'danger' %}mk-badge-danger{% elif participant_presentation.visual_variant == 'brand' %}mk-badge-brand{% endif %}">{{ participant_presentation.label }}{% if participant_presentation.secondary_label %} · {{ participant_presentation.secondary_label }}{% endif %}</span>{% endif %}
                 {% if event.organization %}<a href="{% url 'organizer_public:detail' event.organization.slug %}" class="mk-badge transition hover:border-indigo-400/30 hover:text-indigo-600 dark:hover:text-indigo-400"><i data-lucide="building-2" class="h-3 w-3"></i>{{ event.organization.name }}</a>{% endif %}
             </div>
             <h1 class="mk-page-title mt-4">{{ event.title }}</h1>
             {% if event.short_description %}<p class="mk-page-copy mt-5 text-[15px] sm:text-base">{{ event.short_description }}</p>{% endif %}
         </div>
         <div class="flex flex-wrap items-center gap-2 xl:justify-end">
-            {% if event.status == 'published' %}<a href="{% url 'tickets:order-create' event.slug %}" class="mk-btn mk-btn-primary"><i data-lucide="ticket" class="h-4 w-4"></i>Obtenir des billets</a>{% endif %}
+            {% if participant_presentation.primary_action and participant_presentation.primary_url %}<a href="{{ participant_presentation.primary_url }}" class="mk-btn mk-btn-primary"><i data-lucide="ticket" class="h-4 w-4"></i>{{ participant_presentation.primary_action }}</a>{% endif %}
             {% if request.user.is_authenticated and event.status == 'published' %}<form method="post" action="{% url 'discovery:bookmark-toggle' event.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="mk-btn mk-btn-secondary"><i data-lucide="heart" class="h-4 w-4 {% if is_bookmarked %}fill-current text-rose-500{% endif %}"></i>{% if is_bookmarked %}Enregistré{% else %}Enregistrer{% endif %}</button></form>{% endif %}
             {% if can_submit_feedback %}<a href="{% url 'growth:feedback-submit' event.slug %}" class="mk-btn mk-btn-secondary"><i data-lucide="message-square-heart" class="h-4 w-4"></i>{% if existing_feedback %}Modifier mon feedback{% else %}Donner mon feedback{% endif %}</a>{% endif %}
             {% if can_manage_event %}
