@@ -45,7 +45,7 @@
     <section class="mk-panel p-5 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="shield-check" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Sécurité du compte</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Connexion : {{ request.user.email }}</p></div></div>
-            <div class="flex flex-wrap gap-2"><a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary">Changer le mot de passe</a><a href="{% url 'account:delete' %}" class="mk-btn mk-btn-ghost text-rose-600 dark:text-rose-300">Supprimer le compte</a></div>
+            <div class="flex flex-wrap gap-2"><a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary">Changer le mot de passe</a><a href="{% url 'account:delete' %}" class="mk-btn mk-btn-ghost" style="color:var(--mk-danger)">Supprimer le compte</a></div>
         </div>
         {% if deletion_blockers %}<div class="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/[.07] p-4 text-sm"><p class="font-bold">Suppression indisponible</p><p class="mt-1 leading-6" style="color:var(--mk-muted)">Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif.</p></div>{% endif %}
     </section>
@@ -87,10 +87,13 @@
         {% with current=appearance_form.appearance.value %}
         <div class="mt-6 grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Apparence">
             {% for value, label in appearance_form.fields.appearance.choices %}
-            <label for="appearance-{{ value }}" class="flex cursor-pointer items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
-                <input id="appearance-{{ value }}" type="radio" name="appearance" value="{{ value }}" {% if current == value %}checked{% endif %}>
-                <span><span class="block text-sm font-bold">{{ label }}</span><span class="mt-1 block text-xs" style="color:var(--mk-muted)">{% if value == 'system' %}Suit le réglage de l’appareil.{% elif value == 'light' %}Toujours en thème clair.{% else %}Toujours en thème sombre.{% endif %}</span></span>
-            </label>
+            <div class="flex items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
+                <input id="appearance-{{ value }}" type="radio" name="appearance" value="{{ value }}" aria-describedby="appearance-{{ value }}-help" {% if current == value %}checked{% endif %}>
+                <div class="min-w-0 flex-1">
+                    <label for="appearance-{{ value }}" class="flex cursor-pointer items-center text-sm font-bold" style="min-height:44px">{{ label }}</label>
+                    <p id="appearance-{{ value }}-help" class="text-xs" style="color:var(--mk-muted)">{% if value == 'system' %}Suit le réglage de l’appareil.{% elif value == 'light' %}Toujours en thème clair.{% else %}Toujours en thème sombre.{% endif %}</p>
+                </div>
+            </div>
             {% endfor %}
         </div>
         {% endwith %}
