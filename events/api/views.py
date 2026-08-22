@@ -10,7 +10,7 @@ from automation.services import ensure_policy
 from events.models import EventCategory, EventStatus, EventVenue
 from events.permissions import IsEventOrganizer, IsEventOwnerOrAdmin
 from events.selectors import get_events_visible_to
-from events.services import cancel_event, complete_event, create_event, publish_event, update_event
+from events.services import cancel_event, complete_event, create_event, publish_event, reopen_event, update_event
 from organizations.services import ensure_personal_organization
 
 from .serializers import (
@@ -43,7 +43,7 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return get_events_visible_to(
             self.request.user,
-            for_detail=self.action in {"retrieve", "partial_update", "destroy", "publish", "cancel", "complete"},
+            for_detail=self.action in {"retrieve", "partial_update", "destroy", "publish", "cancel", "complete", "reopen"},
         )
 
     def get_serializer_class(self):
@@ -110,3 +110,7 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def complete(self, request, slug=None):
         return self._transition(request, complete_event)
+
+    @action(detail=True, methods=["post"])
+    def reopen(self, request, slug=None):
+        return self._transition(request, reopen_event)
