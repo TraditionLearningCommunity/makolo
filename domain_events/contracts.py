@@ -3,8 +3,10 @@
 
 class DomainEventType:
     ACTIVITY_PUBLISHED = "activity.published"
+    ACTIVITY_REOPENED = "activity.reopened"
     OCCURRENCE_RESCHEDULED = "occurrence.rescheduled"
     OCCURRENCE_CANCELLED = "occurrence.cancelled"
+    OCCURRENCE_REOPENED = "occurrence.reopened"
 
     JOURNEY_SUBMITTED = "journey.submitted"
     JOURNEY_PENDING_APPROVAL = "journey.pending_approval"
