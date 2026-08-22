@@ -1,0 +1,72 @@
+name: UX snapshot refresh
+
+on:
+  push:
+    branches:
+      - ux/refine-product-experience
+    paths:
+      - .github/workflows/ux-snapshot-refresh.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  refresh-reviewed-baselines:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout UX branch
+        uses: actions/checkout@v4
+        with:
+          ref: ux/refine-product-experience
+          fetch-depth: 0
+
+      - name: Download inspected E2E diagnostics
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-e2e-diagnostics
+          path: artifact
+          github-token: ${{ github.token }}
+          repository: TraditionLearningCommunity/makolo
+          run-id: 32551968853
+
+      - name: Verify and install reviewed baselines
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          home_desktop="$(find artifact -type f -name 'home-light-desktop-actual.png' -print -quit)"
+          discovery_dark="$(find artifact -type f -name 'discovery-dark-desktop-actual.png' -print -quit)"
+          home_mobile="$(find artifact -type f -name 'home-light-mobile-actual.png' -print -quit)"
+
+          test -n "$home_desktop" && test -f "$home_desktop"
+          test -n "$discovery_dark" && test -f "$discovery_dark"
+          test -n "$home_mobile" && test -f "$home_mobile"
+
+          printf '%s  %s\n' '7e2108f40ac52fd1f4488710aa5e1086e6c6c876be3324f1caea300fcf68f88f' "$home_desktop" | sha256sum -c -
+          printf '%s  %s\n' 'd4ec2b5476af5fafcc4440442c39f27f77b50574f58176f3944ceb6c3cf25989' "$discovery_dark" | sha256sum -c -
+          printf '%s  %s\n' 'd8fa17371781d2e015e9d17a51c6e7a8faa0ce257137a9559464bab83a2b76b9' "$home_mobile" | sha256sum -c -
+
+          install -m 0644 "$home_desktop" 'e2e/specs/visual.spec.mjs-snapshots/home-light-desktop-chromium-desktop-linux.png'
+          install -m 0644 "$discovery_dark" 'e2e/specs/visual.spec.mjs-snapshots/discovery-dark-desktop-chromium-desktop-linux.png'
+          install -m 0644 "$home_mobile" 'e2e/specs/visual.spec.mjs-snapshots/home-light-mobile-chromium-mobile-linux.png'
+
+          rm '.github/workflows/ux-snapshot-refresh.yml'
+
+          expected="$(printf '%s\n' \
+            '.github/workflows/ux-snapshot-refresh.yml' \
+            'e2e/specs/visual.spec.mjs-snapshots/discovery-dark-desktop-chromium-desktop-linux.png' \
+            'e2e/specs/visual.spec.mjs-snapshots/home-light-desktop-chromium-desktop-linux.png' \
+            'e2e/specs/visual.spec.mjs-snapshots/home-light-mobile-chromium-mobile-linux.png' | sort)"
+          changed="$(git status --porcelain | sed 's/^...//' | sort)"
+          test "$changed" = "$expected"
+
+      - name: Commit reviewed baselines and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test: refresh reviewed UX visual baselines'
+          git push origin HEAD:ux/refine-product-experience
