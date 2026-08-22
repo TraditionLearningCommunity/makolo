@@ -18,6 +18,7 @@ from activities.models import (
 )
 from capacity.models import CapacityPool
 from commerce.models import Offer
+from core.participant_selectors import participant_state_context
 from geography.models import Place, SpacePlace
 from geography.selectors import nearby_places
 from geography.value_objects import GeoPoint
@@ -242,7 +243,7 @@ def _text_rank(item, text):
     return 4
 
 
-def search_occurrences(params, *, now=None):
+def search_occurrences(params, *, profile=None, now=None):
     now = now or timezone.now()
     text = (params.get("q") or "").strip()
     place_text = (params.get("place") or params.get("city") or "").strip()
@@ -266,11 +267,20 @@ def search_occurrences(params, *, now=None):
         queryset = queryset.filter(place_links__place_id__in=nearby.keys())
 
     occurrences = list(queryset.distinct()[:MAX_CANDIDATES])
+    participant_context = participant_state_context(profile, occurrences)
     items = []
     for occurrence in occurrences:
         place = primary_place_for(occurrence)
         distance_m = (nearby or {}).get(place.pk) if nearby is not None and place is not None else None
-        items.append(build_discovery_item(occurrence, distance_m=distance_m, now=now))
+        items.append(
+            build_discovery_item(
+                occurrence,
+                distance_m=distance_m,
+                now=now,
+                profile=profile,
+                participant_context=participant_context,
+            )
+        )
 
     price_filter = (params.get("price") or "").strip().lower()
     if price_filter == "free":
