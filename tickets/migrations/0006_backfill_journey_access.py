@@ -73,12 +73,7 @@ def backfill_journey_access(apps, schema_editor):
         TicketOrder.objects.filter(pk=order.pk).update(journey_id=journey_id)
 
     for ticket in Ticket.objects.all().order_by("pk").iterator():
-        # Load the Event using the registry supplied to the migration. In the
-        # historical state `end_at` is a stored field; after the Event cutover
-        # it is a compatibility projection backed by the primary Occurrence.
-        # Avoid restricting the query to a field that no longer exists on the
-        # current model so the backfill remains safely re-runnable in tests.
-        event = Event.objects.filter(pk=ticket.event_id).first()
+        event = Event.objects.filter(pk=ticket.event_id).only("activity_id").first()
         if event is None or event.activity_id is None:
             continue
         beneficiary_id = (
@@ -88,12 +83,12 @@ def backfill_journey_access(apps, schema_editor):
         )
         if beneficiary_id is None:
             continue
-        occurrence_id = (
+        occurrence = (
             Occurrence.objects.filter(activity_id=event.activity_id)
             .order_by("start_at", "pk")
-            .values_list("pk", flat=True)
             .first()
         )
+        occurrence_id = occurrence.pk if occurrence is not None else None
         journey_id = TicketOrder.objects.filter(pk=ticket.order_id).values_list("journey_id", flat=True).first()
         access_status = ticket_status_map.get(ticket.status)
         if access_status is None:
@@ -111,7 +106,7 @@ def backfill_journey_access(apps, schema_editor):
                 "single_use": True,
                 "source_key": f"ticket:{ticket.pk}",
                 "valid_from": None,
-                "valid_until": event.end_at,
+                "valid_until": occurrence.end_at if occurrence is not None else None,
             },
         )
         Ticket.objects.filter(pk=ticket.pk).update(access_id=access_id)
