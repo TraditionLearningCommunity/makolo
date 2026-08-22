@@ -6,7 +6,15 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrencePlace, OccurrencePlaceRole
+from activities.models import (
+    Activity,
+    ActivityStatus,
+    ActivityVisibility,
+    Occurrence,
+    OccurrencePlace,
+    OccurrencePlaceRole,
+    OccurrenceStatus,
+)
 from geography.models import Place, SpacePlace, SpacePlaceRole
 from organizations.models import Organization
 
@@ -79,6 +87,7 @@ class DiscoverySearchUxTests(TestCase):
             start_at=start_at,
             end_at=start_at + timedelta(hours=2),
             timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
         )
         OccurrencePlace.objects.create(
             occurrence=occurrence,
