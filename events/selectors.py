@@ -67,7 +67,9 @@ def get_events_visible_to(user, *, for_detail: bool = False):
     legacy_creator_filter = Q(activity__created_by=user)
     participant_filter = Q(pk__isnull=True)
     if for_detail:
-        participant_filter = Q(activity__journeys__beneficiary=user) | Q(activity__accesses__beneficiary=user)
+        participant_filter = Q(activity__journeys__beneficiary=user) | Q(
+            activity__access_rights__beneficiary=user
+        )
     # Participant history can remain reachable after completion/cancellation;
     # this does not grant management authority and remains scoped to self.
     return queryset.filter(
