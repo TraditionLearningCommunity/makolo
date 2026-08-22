@@ -61,10 +61,14 @@ test('keyboard supports Tab, Shift+Tab, Enter and Escape on the app shell', asyn
   await expect(page).toHaveURL(/\/account\/profile\/#appearance$/);
   await expect(page.getByText('Apparence', { exact: true }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Menu utilisateur' }).focus();
+  const userMenuButton = page.getByRole('button', { name: 'Menu utilisateur' });
+  await expect(userMenuButton).toHaveAttribute('aria-expanded', 'false');
+  await userMenuButton.focus();
   await page.keyboard.press('Enter');
+  await expect(userMenuButton).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByRole('menu')).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(userMenuButton).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('menu')).toBeHidden();
 });
 
