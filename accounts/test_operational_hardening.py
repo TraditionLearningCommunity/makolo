@@ -64,13 +64,19 @@ class PasswordResetOperationalTests(TestCase):
         self.assertNotIn("TOKEN:", body)
         self.assertNotIn("UID:", body)
 
-    @patch("accounts.services.mail.send_mail", side_effect=RuntimeError("password=secret token=abc"))
+    @patch(
+        "accounts.services.mail.send_mail",
+        side_effect=RuntimeError(
+            "password=MAKOLO_PASSWORD_SECRET_MARKER token=MAKOLO_RESET_TOKEN_SECRET_MARKER"
+        ),
+    )
     def test_reset_email_backend_failure_does_not_expose_secrets_or_break_request(self, _send):
         with self.assertLogs("makolo", level="ERROR") as captured:
             request_password_reset(email=self.user.email)
         logged = "\n".join(captured.output)
-        self.assertNotIn("secret", logged)
-        self.assertNotIn("abc", logged)
+        self.assertIn("Password reset email delivery failed user_id=", logged)
+        self.assertNotIn("MAKOLO_PASSWORD_SECRET_MARKER", logged)
+        self.assertNotIn("MAKOLO_RESET_TOKEN_SECRET_MARKER", logged)
         self.assertNotIn(self.user.email, logged)
 
     @patch("accounts.web_views.request_password_reset")
