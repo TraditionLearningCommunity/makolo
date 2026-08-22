@@ -1,7 +1,7 @@
 {% load notification_tags core_navigation %}
 {% unread_notifications_count request.user as unread_notifications %}
 {% web_capabilities request.user as caps %}
-<header class="mk-topbar sticky top-0 z-40 h-[72px]" x-data="themeManager">
+<header class="mk-topbar sticky top-0 z-40 h-[72px]">
     <div class="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <div class="flex min-w-0 items-center gap-3">
             <button type="button" @click="sidebarOpen=true" class="mk-icon-btn mk-mobile-nav-trigger lg:hidden" aria-label="Ouvrir la navigation"><i data-lucide="menu" class="h-5 w-5"></i></button>
@@ -17,7 +17,7 @@
                     {% elif request.resolver_match.namespace == 'account' %}Mon compte
                     {% elif request.resolver_match.namespace == 'discovery' %}Découvrir
                     {% elif request.resolver_match.namespace == 'organizations' %}Espaces
-                    {% elif request.resolver_match.namespace == 'operations' %}Operations Center
+                    {% elif request.resolver_match.namespace == 'operations' %}Opérations
                     {% else %}Makolo{% endif %}
                 </h2>
             </div>
@@ -28,11 +28,11 @@
 
             {% if request.user.is_authenticated %}<a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative"><i data-lucide="bell" class="h-5 w-5"></i>{% if unread_notifications %}<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white ring-2 ring-white dark:ring-[#090b10]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}</a>{% endif %}
 
-            <button type="button" @click="toggleTheme" class="mk-icon-btn" aria-label="Changer le thème"><i x-show="dark" data-lucide="moon" class="h-5 w-5"></i><i x-show="!dark" x-cloak data-lucide="sun" class="h-5 w-5"></i></button>
+            {% if request.user.is_authenticated %}<a href="{% url 'account:profile' %}#appearance" class="mk-icon-btn" aria-label="Apparence" title="Apparence"><i data-lucide="moon" class="hidden h-5 w-5"></i><i data-lucide="sun" class="h-5 w-5"></i></a>{% endif %}
 
             {% if request.user.is_authenticated %}
             <div class="relative" x-data="{open:false}" @click.outside="open=false" @keydown.escape.window="open=false">
-                <button type="button" @click="open=!open" aria-label="Menu utilisateur" aria-haspopup="menu" class="flex h-[44px] items-center gap-2 rounded-[14px] border px-2 pr-3 shadow-sm transition hover:-translate-y-px" style="background:var(--mk-surface-solid);border-color:var(--mk-border)">{% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="" class="h-8 w-8 rounded-[10px] object-cover">{% else %}<span class="grid h-8 w-8 place-items-center rounded-[10px] bg-indigo-600 text-[11px] font-extrabold text-white">{{ request.user.username|first|upper }}</span>{% endif %}<span class="hidden max-w-32 truncate text-xs font-bold sm:block" style="color:var(--mk-text)">{% if request.user.first_name %}{{ request.user.first_name|title }}{% else %}{{ request.user.username|title }}{% endif %}</span><i data-lucide="chevron-down" class="hidden h-3.5 w-3.5 sm:block" style="color:var(--mk-subtle)"></i></button>
+                <button type="button" @click="open=!open" aria-label="Menu utilisateur" aria-haspopup="menu" :aria-expanded="open ? 'true' : 'false'" class="flex h-[44px] items-center gap-2 rounded-[14px] border px-2 pr-3 shadow-sm transition hover:-translate-y-px" style="background:var(--mk-surface-solid);border-color:var(--mk-border)">{% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="" class="h-8 w-8 rounded-[10px] object-cover">{% else %}<span class="grid h-8 w-8 place-items-center rounded-[10px] bg-indigo-600 text-[11px] font-extrabold text-white">{{ request.user.username|first|upper }}</span>{% endif %}<span class="hidden max-w-32 truncate text-xs font-bold sm:block" style="color:var(--mk-text)">{% if request.user.first_name %}{{ request.user.first_name|title }}{% else %}{{ request.user.username|title }}{% endif %}</span><i data-lucide="chevron-down" class="hidden h-3.5 w-3.5 sm:block" style="color:var(--mk-subtle)"></i></button>
                 <div x-cloak x-show="open" x-transition.origin.top.right role="menu" class="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border p-2 shadow-2xl" style="background:var(--mk-surface-solid);border-color:var(--mk-border);box-shadow:var(--mk-shadow-float)">
                     <div class="px-3 py-2.5"><p class="truncate text-sm font-bold" style="color:var(--mk-text)">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p><p class="mt-1 truncate text-[11px]" style="color:var(--mk-subtle)">{{ request.user.email }}</p></div>
                     <div class="my-1 border-t" style="border-color:var(--mk-border)"></div>

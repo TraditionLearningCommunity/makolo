@@ -18,6 +18,7 @@ from .services import build_recommendations, build_trending, public_discovery_ev
 
 
 DISCOVERY_PAGE_SIZE = 24
+DISCOVERY_PLACE_SUGGESTION_LIMIT = 10
 DISCOVERY_FILTER_KEYS = (
     "q",
     "place",
@@ -34,6 +35,26 @@ DISCOVERY_FILTER_KEYS = (
     "ordering",
     "timezone",
 )
+
+
+def _place_suggestions(items, *, limit=DISCOVERY_PLACE_SUGGESTION_LIMIT):
+    """Return a small, de-duplicated list from already-public search items."""
+    suggestions = []
+    seen = set()
+    for item in items:
+        place = item.place
+        if place is None:
+            continue
+        for candidate in (place.locality, place.name):
+            value = (candidate or "").strip()
+            key = value.casefold()
+            if not value or key in seen:
+                continue
+            suggestions.append(value)
+            seen.add(key)
+            if len(suggestions) >= limit:
+                return suggestions
+    return suggestions
 
 
 class DiscoveryHomeView(TemplateView):
@@ -59,6 +80,7 @@ class DiscoveryHomeView(TemplateView):
                 "search_errors": errors,
                 "search_timezone": result.timezone_name if result else settings.TIME_ZONE,
                 "result_count": result.total if result else 0,
+                "place_suggestions": _place_suggestions(items),
                 "map_items": [
                     payload
                     for item in page_obj.object_list

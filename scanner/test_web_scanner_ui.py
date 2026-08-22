@@ -40,8 +40,9 @@ class ScannerWebUiTests(TestCase):
         self.assertContains(response, "dist/scanner.js")
         self.assertNotContains(response, "cdn.jsdelivr.net")
         self.assertContains(response, "Démarrer la caméra")
-        self.assertContains(response, "Lire une image QR")
-        self.assertContains(response, "Saisie manuelle du jeton QR")
+        self.assertContains(response, "Lire un QR depuis une image")
+        self.assertContains(response, "Code du billet")
+        self.assertContains(response, "Vérifier le billet")
         self.assertContains(response, "data-scan-url")
 
         scanner_source = (Path(settings.BASE_DIR) / "frontend" / "src" / "scanner.js").read_text(encoding="utf-8")

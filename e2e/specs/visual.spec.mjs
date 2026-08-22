@@ -12,17 +12,24 @@ const shot = async (page, name, options = {}) => {
   });
 };
 
-async function useLight(page) {
+async function usePublicLight(page) {
   await page.goto('/');
   await page.evaluate(() => localStorage.setItem('theme', 'light'));
   await page.reload();
   await expect(page.locator('html')).not.toHaveClass(/dark/);
 }
 
-async function useDark(page) {
-  await page.evaluate(() => localStorage.setItem('theme', 'dark'));
-  await page.reload();
-  await expect(page.locator('html')).toHaveClass(/dark/);
+async function setAccountAppearance(page, value) {
+  const labels = { light: 'Clair', dark: 'Sombre' };
+  await page.goto('/account/profile/#appearance');
+  await page.getByLabel(labels[value], { exact: true }).check();
+  await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme-preference', value);
+  if (value === 'dark') {
+    await expect(page.locator('html')).toHaveClass(/dark/);
+  } else {
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+  }
 }
 
 async function stableScanner(page) {
@@ -97,13 +104,15 @@ test.beforeAll(() => {
 
 
 test('representative light desktop surfaces @visual', async ({ page }) => {
-  await useLight(page);
+  await usePublicLight(page);
   await shot(page, 'home-light-desktop.png');
   await page.goto('/discover/');
   await stableDiscoveryMap(page);
   await shot(page, 'discovery-light-desktop.png');
 
   await login(page, 'visual.participant@e2e.makolo.test');
+  await setAccountAppearance(page, 'light');
+  await page.goto('/me/');
   await shot(page, 'participant-dashboard-light-desktop.png');
   await page.goto('/tickets/');
   await page.getByRole('link', { name: /Invitation E2E/i }).first().click();
@@ -113,10 +122,14 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
 
   await page.context().clearCookies();
   await login(page, 'new.organizer@e2e.makolo.test');
+  const organizerLandingUrl = page.url();
+  await setAccountAppearance(page, 'light');
+  await page.goto(organizerLandingUrl);
   await shot(page, 'organizer-dashboard-light-desktop.png');
 
   await page.context().clearCookies();
   await login(page, 'scanner@e2e.makolo.test');
+  await setAccountAppearance(page, 'light');
   await page.goto('/scanner/event/festival-makolo-e2e/');
   await stableScanner(page);
   await assertDesktopShellStable(page);
@@ -124,17 +137,18 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
 
   await page.context().clearCookies();
   await login(page, 'staff@e2e.makolo.test');
+  await setAccountAppearance(page, 'light');
   await page.goto('/operations/');
   await shot(page, 'operations-light-desktop.png', {
-    mask: [page.getByText(/^Généré /)],
+    mask: [page.getByText(/^Mis à jour /)],
   });
 });
 
 
 test('representative dark desktop surfaces @visual', async ({ page }) => {
-  await useLight(page);
   await login(page, 'visual.participant@e2e.makolo.test');
-  await useDark(page);
+  await setAccountAppearance(page, 'dark');
+  await page.goto('/me/');
   await shot(page, 'participant-dashboard-dark-desktop.png');
   await page.goto('/discover/');
   await stableDiscoveryMap(page);
@@ -142,6 +156,7 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
 
   await page.context().clearCookies();
   await login(page, 'scanner@e2e.makolo.test');
+  await setAccountAppearance(page, 'dark');
   await page.goto('/scanner/event/festival-makolo-e2e/');
   await stableScanner(page);
   await assertDesktopShellStable(page);
@@ -150,16 +165,19 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
 
 
 test('representative mobile surfaces @visual @mobile @mobile-only', async ({ page }) => {
-  await useLight(page);
+  await usePublicLight(page);
   await shot(page, 'home-light-mobile.png');
   await page.goto('/discover/');
   await shot(page, 'discovery-light-mobile.png');
 
   await login(page, 'visual.participant@e2e.makolo.test');
+  await setAccountAppearance(page, 'light');
+  await page.goto('/me/');
   await shot(page, 'participant-dashboard-light-mobile.png');
 
   await page.context().clearCookies();
   await login(page, 'scanner@e2e.makolo.test');
+  await setAccountAppearance(page, 'light');
   await page.goto('/scanner/event/festival-makolo-e2e/');
   await stableScanner(page);
   await shot(page, 'scanner-light-mobile.png');

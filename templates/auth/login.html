@@ -4,14 +4,14 @@
 <div>
     <div class="mb-7">
         <a href="{% url 'core:home' %}" class="mb-4 inline-flex items-center gap-2 text-xs font-semibold" style="color:var(--mk-muted)"><i data-lucide="arrow-left" class="h-3.5 w-3.5"></i>Retour à Makolo</a>
-        <span class="mk-kicker">Accès sécurisé</span>
-        <h2 class="mt-4 text-3xl font-[750] tracking-[-.045em]" style="color:var(--mk-text)">Bon retour sur Makolo.</h2>
-        <p class="mt-3 text-sm leading-6" style="color:var(--mk-muted)">Connectez-vous pour retrouver vos événements, billets et espaces d’organisation.</p>
+        <span class="mk-kicker">Connexion</span>
+        <h2 class="mt-4 text-3xl font-[750] tracking-[-.045em]" style="color:var(--mk-text)">Bon retour.</h2>
+        <p class="mt-3 text-sm leading-6" style="color:var(--mk-muted)">Retrouvez vos démarches, billets et Espaces.</p>
     </div>
 
     {% if form.errors %}
     <div class="mb-5 flex gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/[.07] p-4 text-sm text-rose-600 dark:text-rose-300">
-        <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0"></i><p>Identifiants incorrects. Vérifiez votre adresse e-mail et votre mot de passe.</p>
+        <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0"></i><p>Adresse e-mail ou mot de passe incorrect.</p>
     </div>
     {% endif %}
 
@@ -20,7 +20,7 @@
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
         <div>
             <label for="id_username" class="mb-2 block text-xs">Adresse e-mail</label>
-            <div class="relative"><i data-lucide="mail" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="id_username" name="username" type="email" autocomplete="email" required autofocus placeholder="vous@exemple.com" class="!pl-10"></div>
+            <div class="relative"><i data-lucide="mail" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="id_username" name="username" type="email" autocomplete="username" required autofocus placeholder="vous@exemple.com" class="!pl-10"></div>
         </div>
         <div>
             <div class="mb-2 flex items-center justify-between gap-3"><label for="id_password" class="block text-xs">Mot de passe</label><a href="{% url 'account:password-forgot' %}" class="text-xs font-semibold" style="color:var(--mk-brand)">Mot de passe oublié ?</a></div>

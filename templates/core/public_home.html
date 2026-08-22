@@ -1,31 +1,31 @@
 {% extends 'base/public.html' %}
-{% block title %}Makolo — Découvrez et vivez vos événements{% endblock %}
+{% block title %}Makolo — Trouver une activité{% endblock %}
 {% block content %}
 <section class="border-b" style="border-color:var(--mk-border)">
     <div class="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:px-8 lg:py-24">
         <div class="max-w-3xl">
-            <span class="mk-kicker">Découvrir · Participer · Organiser</span>
-            <h1 class="mt-5 font-heading text-4xl font-extrabold leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl">Les événements qui font bouger votre communauté.</h1>
-            <p class="mt-6 max-w-2xl text-base leading-7 sm:text-lg" style="color:var(--mk-muted)">Makolo réunit découverte, billetterie, accès et outils d’organisation dans une expérience simple pour les participants comme pour les équipes événementielles.</p>
+            <span class="mk-kicker">Trouver · Participer · Voyager</span>
+            <h1 class="mt-5 font-heading text-4xl font-extrabold leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl">Trouvez quoi faire. Réservez quand il le faut.</h1>
+            <p class="mt-6 max-w-2xl text-base leading-7 sm:text-lg" style="color:var(--mk-muted)">Événements, trajets et activités autour de vous. Vos démarches et billets restent au même endroit.</p>
             <form action="{% url 'discovery:home' %}" method="get" class="mt-8 flex max-w-2xl flex-col gap-2 sm:flex-row">
-                <label for="home-search" class="sr-only">Rechercher un événement</label>
-                <div class="relative min-w-0 flex-1"><i data-lucide="search" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="home-search" name="q" type="search" class="w-full !pl-11" placeholder="Concert, conférence, formation…"></div>
-                <button class="mk-btn mk-btn-primary justify-center" type="submit">Explorer Makolo<i data-lucide="arrow-right" class="h-4 w-4"></i></button>
+                <label for="home-search" class="sr-only">Rechercher une activité</label>
+                <div class="relative min-w-0 flex-1"><i data-lucide="search" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="home-search" name="q" type="search" class="w-full !pl-11" placeholder="Événement, trajet, atelier…"></div>
+                <button class="mk-btn mk-btn-primary justify-center" type="submit">Rechercher<i data-lucide="arrow-right" class="h-4 w-4"></i></button>
             </form>
-            <div class="mt-5 flex flex-wrap gap-2 text-sm"><a class="mk-btn mk-btn-secondary" href="{% url 'account:register' %}">Créer mon compte</a><a class="mk-btn mk-btn-ghost" href="{% url 'organizer_public:list' %}">Voir les organisateurs</a></div>
+            <div class="mt-5 flex flex-wrap gap-2 text-sm"><a class="mk-btn mk-btn-secondary" href="{% url 'account:register' %}">Créer un compte</a><a class="mk-btn mk-btn-ghost" href="{% url 'organizer_public:list' %}">Voir les organisateurs</a></div>
         </div>
         <div class="mk-panel overflow-hidden p-6 sm:p-8">
             <div class="grid gap-3 sm:grid-cols-2">
-                <div class="rounded-2xl p-5" style="background:var(--mk-brand-soft)"><i data-lucide="compass" class="h-5 w-5" style="color:var(--mk-brand)"></i><p class="mt-8 text-sm font-extrabold">Trouvez votre prochaine sortie</p><p class="mt-2 text-xs leading-5" style="color:var(--mk-muted)">Explorez les événements publics et gardez vos favoris.</p></div>
-                <div class="rounded-2xl p-5" style="background:var(--mk-pulse-soft)"><i data-lucide="ticket-check" class="h-5 w-5" style="color:var(--mk-pulse-strong)"></i><p class="mt-8 text-sm font-extrabold">Billets dans un seul espace</p><p class="mt-2 text-xs leading-5" style="color:var(--mk-muted)">Retrouvez commandes, billets et informations utiles.</p></div>
-                <div class="rounded-2xl border p-5 sm:col-span-2" style="border-color:var(--mk-border)"><div class="flex items-start gap-3"><i data-lucide="users-round" class="mt-0.5 h-5 w-5" style="color:var(--mk-brand)"></i><div><p class="text-sm font-extrabold">Vous organisez ?</p><p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">Makolo adapte ensuite votre espace aux responsabilités réellement accordées dans votre organisation.</p></div></div></div>
+                <div class="rounded-2xl p-5" style="background:var(--mk-brand-soft)"><i data-lucide="compass" class="h-5 w-5" style="color:var(--mk-brand)"></i><p class="mt-8 text-sm font-extrabold">Trouver une activité</p><p class="mt-2 text-xs leading-5" style="color:var(--mk-muted)">Cherchez par lieu, date, type ou prix.</p></div>
+                <div class="rounded-2xl p-5" style="background:var(--mk-pulse-soft)"><i data-lucide="ticket-check" class="h-5 w-5" style="color:var(--mk-pulse-strong)"></i><p class="mt-8 text-sm font-extrabold">Retrouver ses billets</p><p class="mt-2 text-xs leading-5" style="color:var(--mk-muted)">Démarches, réservations et accès restent accessibles depuis votre compte.</p></div>
+                <div class="rounded-2xl border p-5 sm:col-span-2" style="border-color:var(--mk-border)"><div class="flex items-start gap-3"><i data-lucide="users-round" class="mt-0.5 h-5 w-5" style="color:var(--mk-brand)"></i><div><p class="text-sm font-extrabold">Vous organisez ?</p><p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">Gérez les activités, tarifs, accès et opérations autorisés dans votre Espace.</p></div></div></div>
             </div>
         </div>
     </div>
 </section>
 
 <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><span class="mk-kicker">À venir</span><h2 class="mt-3 text-2xl font-extrabold tracking-[-.035em] sm:text-3xl">Événements publics</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Une sélection des prochains rendez-vous disponibles sur Makolo.</p></div><a class="mk-btn mk-btn-secondary" href="{% url 'discovery:home' %}">Tout découvrir<i data-lucide="arrow-right" class="h-4 w-4"></i></a></div>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><span class="mk-kicker">À venir</span><h2 class="mt-3 text-2xl font-extrabold tracking-[-.035em] sm:text-3xl">Événements publics</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Quelques événements bientôt disponibles.</p></div><a class="mk-btn mk-btn-secondary" href="{% url 'discovery:home' %}">Tout découvrir<i data-lucide="arrow-right" class="h-4 w-4"></i></a></div>
     <div class="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {% for event in featured_events %}
         <a href="{% url 'events:detail' event.slug %}" class="mk-panel group block p-5 transition hover:-translate-y-0.5">
@@ -34,7 +34,7 @@
             <p class="mt-2 text-xs leading-5" style="color:var(--mk-muted)">{{ event.start_at|date:'D d M · H:i' }}{% if event.venue %} · {{ event.venue.name }}{% endif %}</p>
             {% if event.organization %}<p class="mt-4 text-xs font-semibold" style="color:var(--mk-subtle)">{{ event.organization.name }}</p>{% endif %}
         </a>
-        {% empty %}<div class="mk-panel p-8 md:col-span-2 xl:col-span-3"><p class="font-semibold">Aucun événement public à venir pour le moment.</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Revenez bientôt ou utilisez la découverte pour explorer le catalogue.</p></div>{% endfor %}
+        {% empty %}<div class="mk-panel p-8 md:col-span-2 xl:col-span-3"><p class="font-semibold">Aucun événement à venir</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Consultez Découvrir pour voir les autres activités et trajets disponibles.</p></div>{% endfor %}
     </div>
 </section>
 
@@ -42,7 +42,7 @@
     <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div class="flex items-end justify-between gap-4"><div><span class="mk-kicker">Communautés</span><h2 class="mt-3 text-2xl font-extrabold tracking-[-.035em]">Organisateurs publics</h2></div><a class="mk-btn mk-btn-ghost" href="{% url 'organizer_public:list' %}">Voir tous</a></div>
         <div class="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {% for organization in public_organizations %}<a href="{% url 'organizer_public:detail' organization.slug %}" class="mk-panel flex items-center gap-4 p-4"><div class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl font-extrabold" style="background:var(--mk-brand-soft);color:var(--mk-brand)">{{ organization.name|first|upper }}</div><div class="min-w-0"><p class="truncate text-sm font-extrabold">{{ organization.name }}</p><p class="mt-1 truncate text-xs" style="color:var(--mk-muted)">{% if organization.city %}{{ organization.city }}{% if organization.country %}, {{ organization.country }}{% endif %}{% else %}Organisateur Makolo{% endif %}</p></div><i data-lucide="chevron-right" class="ml-auto h-4 w-4" style="color:var(--mk-subtle)"></i></a>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Les profils organisateurs publics apparaîtront ici.</p>{% endfor %}
+            {% for organization in public_organizations %}<a href="{% url 'organizer_public:detail' organization.slug %}" class="mk-panel flex items-center gap-4 p-4"><div class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl font-extrabold" style="background:var(--mk-brand-soft);color:var(--mk-brand)">{{ organization.name|first|upper }}</div><div class="min-w-0"><p class="truncate text-sm font-extrabold">{{ organization.name }}</p><p class="mt-1 truncate text-xs" style="color:var(--mk-muted)">{% if organization.city %}{{ organization.city }}{% if organization.country %}, {{ organization.country }}{% endif %}{% else %}Organisateur Makolo{% endif %}</p></div><i data-lucide="chevron-right" class="ml-auto h-4 w-4" style="color:var(--mk-subtle)"></i></a>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun profil public pour le moment.</p>{% endfor %}
         </div>
     </div>
 </section>

@@ -1,13 +1,13 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="fr" class="h-full">
+<html lang="fr" class="h-full"{% if request.user.is_authenticated %} data-theme-preference="{{ request.user.profile.theme|default:'system' }}"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2B176E">
     <title>{% block title %}Makolo{% endblock %}</title>
     {% include 'partials/brand_head.html' %}
-    <script src="{% static 'dist/theme-init.js' %}"></script>
+    <script src="{% static 'js/theme-preference.js' %}"></script>
     <link rel="stylesheet" href="{% static 'dist/makolo.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}">
@@ -23,19 +23,19 @@
         <section class="mk-auth-visual hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
             <div class="relative z-10 flex items-center gap-3">
                 <img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-auth" width="44" height="30">
-                <div><p class="mk-brand-wordmark text-sm text-white">Makolo</p><p class="text-[10px] uppercase tracking-[.14em] text-white/50">Plateforme événementielle</p></div>
+                <div><p class="mk-brand-wordmark text-sm text-white">Makolo</p><p class="text-[10px] uppercase tracking-[.14em] text-white/50">Activités · Voyages · Communautés</p></div>
             </div>
-            <div class="relative z-10 max-w-xl"><p class="text-xs font-bold uppercase tracking-[.16em]" style="color:#FFB09D">Mouvement · Rencontre · Confiance</p><h1 class="mt-5 font-heading text-5xl font-extrabold leading-[.98] tracking-[-.055em] xl:text-6xl">Organiser. Vendre. Accueillir. Faire revenir.</h1><p class="mt-6 max-w-lg text-base leading-7 text-white/65">Makolo rassemble l’opérationnel, l’audience et l’expérience participant dans un espace pensé pour les événements réels.</p></div>
-            <div class="relative z-10 grid grid-cols-3 gap-3 text-xs text-white/60"><div class="rounded-2xl border border-white/10 bg-white/[.045] p-4"><i data-lucide="ticket-check" class="mb-3 h-4 w-4" style="color:#FFB09D"></i><p class="font-semibold text-white/90">Billetterie</p><p class="mt-1">Simple et traçable</p></div><div class="rounded-2xl border border-white/10 bg-white/[.045] p-4"><i data-lucide="scan-line" class="mb-3 h-4 w-4" style="color:#FFB09D"></i><p class="font-semibold text-white/90">Accès</p><p class="mt-1">Rapide et sécurisé</p></div><div class="rounded-2xl border border-white/10 bg-white/[.045] p-4"><i data-lucide="chart-spline" class="mb-3 h-4 w-4" style="color:#FFB09D"></i><p class="font-semibold text-white/90">Growth</p><p class="mt-1">Mesurable de bout en bout</p></div></div>
+            <div class="relative z-10 max-w-xl"><p class="text-xs font-bold uppercase tracking-[.16em]" style="color:#FFB09D">Trouver · Participer · Organiser</p><h1 class="mt-5 font-heading text-5xl font-extrabold leading-[.98] tracking-[-.055em] xl:text-6xl">Participer. Voyager. Organiser.</h1><p class="mt-6 max-w-lg text-base leading-7 text-white/65">Retrouvez vos démarches, billets et Espaces dans un même produit.</p></div>
+            <div class="relative z-10 grid grid-cols-3 gap-3 text-xs text-white/60"><div class="rounded-2xl border border-white/10 bg-white/[.045] p-4"><i data-lucide="ticket-check" class="mb-3 h-4 w-4" style="color:#FFB09D"></i><p class="font-semibold text-white/90">Démarches</p><p class="mt-1">Inscription ou réservation</p></div><div class="rounded-2xl border border-white/10 bg-white/[.045] p-4"><i data-lucide="scan-line" class="mb-3 h-4 w-4" style="color:#FFB09D"></i><p class="font-semibold text-white/90">Billets</p><p class="mt-1">Prêts au contrôle</p></div><div class="rounded-2xl border border-white/10 bg-white/[.045] p-4"><i data-lucide="chart-spline" class="mb-3 h-4 w-4" style="color:#FFB09D"></i><p class="font-semibold text-white/90">Suivi</p><p class="mt-1">Actions et opérations</p></div></div>
         </section>
         <section class="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
             <div class="w-full max-w-[460px]">
                 <div class="mb-8 flex items-center gap-3 lg:hidden">
                     <img src="{% static 'brand/makolo-mark-gradient.svg' %}" alt="" class="mk-brand-symbol" width="44" height="30">
-                    <div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Plateforme événementielle</p></div>
+                    <div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Activités · Voyages · Communautés</p></div>
                 </div>
                 <div class="mk-auth-card p-6 sm:p-8">{% block content %}{% endblock %}</div>
-                <p class="mt-6 text-center text-[11px]" style="color:var(--mk-subtle)">Makolo · Expériences qui mettent les gens en mouvement</p>
+                <p class="mt-6 text-center text-[11px]" style="color:var(--mk-subtle)">Makolo · Vivre, participer, voyager</p>
             </div>
         </section>
     </main>

@@ -84,7 +84,7 @@ test('visitor resumes paid Event after auth, then uses canonical Access QR and s
   await expect(eventCard).toBeVisible();
   await eventCard.getByRole('link', { name: 'Scanner' }).click();
   await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' })).toBeVisible();
-  await expect(page.getByText(/Saisie manuelle du jeton QR/i)).toBeVisible();
+  await expect(page.getByLabel('Code du billet')).toBeVisible();
   await page.locator('#qr-image').setInputFiles(qrPath);
   await expect(page.getByRole('heading', { name: 'Accès autorisé' })).toBeVisible();
 

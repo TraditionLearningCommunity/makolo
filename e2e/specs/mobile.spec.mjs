@@ -24,6 +24,7 @@ test('participant home and Access QR stay usable on mobile @mobile', async ({ pa
   await page.goto('/account/profile/');
   await expect(page.getByRole('heading', { name: 'Mon profil' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Enregistrer mon profil/i })).toBeVisible();
+  await expect(page.getByText('Apparence', { exact: true }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -31,8 +32,9 @@ test('participant home and Access QR stay usable on mobile @mobile', async ({ pa
 test('scanner and Operations remain reachable at phone width @mobile', async ({ page }) => {
   await login(page, 'scanner@e2e.makolo.test');
   await page.goto('/scanner/event/festival-makolo-e2e/');
-  await expect(page.getByText('Lire une image QR')).toBeVisible();
-  await expect(page.getByLabel('Saisie manuelle du jeton QR')).toBeVisible();
+  await expect(page.getByText('Lire un QR depuis une image')).toBeVisible();
+  await expect(page.getByLabel('Code du billet')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Vérifier le billet' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.context().clearCookies();
