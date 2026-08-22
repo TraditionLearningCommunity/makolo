@@ -1,9 +1,19 @@
-from django.db import migrations, models
+import uuid
+
 import django.db.models.deletion
+from django.db import migrations, models
+
+
+EVENT_ACTIVITY_NAMESPACE = uuid.UUID("c72bc780-36d3-4ee0-8f8d-e0a0a173086c")
+
+
+def stable_event_projection_id(kind, event_id):
+    return uuid.uuid5(EVENT_ACTIVITY_NAMESPACE, f"event:{event_id}:{kind}")
 
 
 def backfill_incident_scope(apps, schema_editor):
     OperationsIncident = apps.get_model("operations", "OperationsIncident")
+    Activity = apps.get_model("activities", "Activity")
     Occurrence = apps.get_model("activities", "Occurrence")
 
     incidents = OperationsIncident.objects.exclude(event_id=None).select_related("event")
@@ -12,19 +22,28 @@ def backfill_incident_scope(apps, schema_editor):
         activity_id = getattr(event, "activity_id", None)
         if not activity_id:
             continue
+
+        # events.0005 creates one deterministic canonical Occurrence per legacy
+        # Event. Do not read Event.start_at/end_at here: events.0007 removes
+        # those historical columns before this migration can run on some
+        # existing databases (for example the PythonAnywhere beta database).
         occurrence = (
             Occurrence.objects.filter(
+                pk=stable_event_projection_id("occurrence", event.pk),
                 activity_id=activity_id,
-                start_at=event.start_at,
-                end_at=event.end_at,
             )
             .order_by("id")
             .first()
         )
+
         incident.activity_id = activity_id
         incident.occurrence_id = occurrence.pk if occurrence else None
         if not incident.organization_id:
-            incident.organization_id = getattr(event, "organization_id", None)
+            incident.organization_id = (
+                Activity.objects.filter(pk=activity_id)
+                .values_list("space_id", flat=True)
+                .first()
+            )
         incident.save(update_fields=["activity_id", "occurrence_id", "organization_id"])
 
 
