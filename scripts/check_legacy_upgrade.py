@@ -24,6 +24,7 @@ import django  # noqa: E402
 
 django.setup()
 
+from django.apps import apps  # noqa: E402
 from django.conf import settings  # noqa: E402
 from django.db import connection  # noqa: E402
 from django.db.migrations.executor import MigrationExecutor  # noqa: E402
@@ -62,7 +63,6 @@ def main() -> int:
         ("promotions", "Promotion"),
         ("operations", "OperationsIncident"),
     )
-    apps = django.apps.apps
     for app_label, model_name in model_counts:
         try:
             model = apps.get_model(app_label, model_name)
