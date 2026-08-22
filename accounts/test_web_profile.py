@@ -98,7 +98,7 @@ class AccountProfileWebTests(TestCase):
         response = self.client.get(reverse("account:profile"))
         self.assertContains(response, 'data-theme-preference="dark"')
         self.assertContains(response, 'id="appearance-dark"')
-        self.assertContains(response, 'value="dark" checked')
+        self.assertContains(response, 'aria-describedby="appearance-dark-help" checked')
 
     def test_invalid_appearance_is_rejected_without_overwriting_profile_theme(self):
         profile = UserProfile.objects.create(user=self.user, theme="light")
