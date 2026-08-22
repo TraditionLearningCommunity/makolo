@@ -91,7 +91,7 @@ class EventViewSet(viewsets.ModelViewSet):
         event = self.get_object()
         self.check_object_permissions(request, event)
         try:
-            service(event=event, actor=request.user)
+            event = service(event=event, actor=request.user)
         except DjangoValidationError as exc:
             raise ValidationError(exc.messages) from exc
         return Response(
