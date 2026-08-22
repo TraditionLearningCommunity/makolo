@@ -59,6 +59,25 @@ class CompletedEventEditingTests(TestCase):
         complete_event(event=event, actor=self.owner)
         return event
 
+    def test_published_event_edit_page_keeps_normal_schedule_fields(self):
+        event = self._published_event()
+        self.client.force_login(self.owner)
+
+        response = self.client.get(reverse("events:edit", kwargs={"slug": event.slug}))
+
+        self.assertEqual(response.status_code, 200)
+        fields = response.context["form"].fields
+        for field_name in {
+            "organization",
+            "venue",
+            "start_at",
+            "end_at",
+            "registration_start_at",
+            "registration_end_at",
+            "timezone",
+        }:
+            self.assertIn(field_name, fields)
+
     def test_completed_event_edit_page_opens_and_only_exposes_editorial_fields(self):
         event = self._prematurely_completed_event()
         self.client.force_login(self.owner)
