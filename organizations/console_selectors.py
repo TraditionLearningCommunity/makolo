@@ -42,6 +42,14 @@ def activities_for_console(context):
     )
 
 
+def activities_manageable_for_access(context):
+    queryset = Activity.objects.filter(space=context.space)
+    allowed = activity_ids_with_permission(context.profile, PermissionCode.ACTIVITY_ACCESS_MANAGE)
+    if allowed is not None:
+        queryset = queryset.filter(pk__in=allowed)
+    return queryset.order_by("title", "id")
+
+
 def activity_for_console(context, activity_id):
     return (
         activities_for_console(context)
@@ -71,7 +79,7 @@ def requests_for_console(context):
 def accesses_for_console(context):
     return (
         Access.objects.filter(activity__in=_activity_queryset(context))
-        .select_related("beneficiary", "activity", "occurrence", "journey")
+        .select_related("beneficiary", "activity", "occurrence", "journey", "issued_by")
         .prefetch_related("uses")
         .order_by("-created_at", "id")
     )
