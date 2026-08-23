@@ -23,8 +23,16 @@ User = get_user_model()
 
 class ParticipantActivityStateTests(TestCase):
     def setUp(self):
-        self.profile = User.objects.create_user(username="state-profile", password="test-pass")
-        self.other = User.objects.create_user(username="state-other", password="test-pass")
+        self.profile = User.objects.create_user(
+            username="state-profile",
+            email="state-profile@task17.test",
+            password="test-pass",
+        )
+        self.other = User.objects.create_user(
+            username="state-other",
+            email="state-other@task17.test",
+            password="test-pass",
+        )
         self.now = timezone.now()
         self.activity = Activity.objects.create(
             title="Activité canonique",
