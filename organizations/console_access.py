@@ -3,6 +3,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect
 from django.views.generic import FormView
 
+from activities.models import ActivityStatus
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission
 
@@ -14,11 +15,23 @@ from .console_views import SpaceConsoleMixin
 from .forms import ManualAccessGrantForm
 
 
+_TERMINAL_ACTIVITY_STATUSES = {
+    ActivityStatus.CANCELLED,
+    ActivityStatus.COMPLETED,
+    ActivityStatus.ARCHIVED,
+}
+
+
+def _grantable_activities(context):
+    return activities_manageable_for_access(context).exclude(
+        status__in=_TERMINAL_ACTIVITY_STATUSES
+    )
+
+
 class SpaceConsoleAccessView(BaseSpaceConsoleAccessView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        manageable = activities_manageable_for_access(self.space_console)
-        context["can_grant_access"] = manageable.exists()
+        context["can_grant_access"] = _grantable_activities(self.space_console).exists()
 
         allowed_ids = activity_ids_with_permission(
             self.request.user,
@@ -40,7 +53,7 @@ class SpaceConsoleGrantAccessView(SpaceConsoleMixin, FormView):
     page_title = "Accorder un accès"
 
     def _ensure_manageable_activity(self):
-        if not activities_manageable_for_access(self.space_console).exists():
+        if not _grantable_activities(self.space_console).exists():
             raise PermissionDenied(
                 "Vous ne pouvez accorder d’accès à aucune activité de cet Espace."
             )
