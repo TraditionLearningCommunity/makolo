@@ -1,2 +1,57 @@
 {% extends 'organizations/console/base.html' %}
-{% block console_content %}<section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="text-2xl font-black">Équipe</h2><p class="mt-1 text-sm text-zinc-500">Être membre de l’Équipe n’accorde aucune autorité : les responsabilités viennent des Mandats.</p></div>{% if can_manage_team %}<a href="{% url 'organizations:team-member-create' space.slug %}" class="rounded-2xl bg-indigo-600 px-4 py-2 font-bold text-white">Ajouter un membre</a>{% endif %}</div><div class="mt-6 space-y-3">{% for membership in memberships %}<article class="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p class="font-bold">{{ membership.user.full_name|default:membership.user.username }}</p><p class="text-sm text-zinc-500">{{ membership.user.email }} · {{ membership.get_status_display }}</p><div class="mt-3 flex flex-wrap gap-2">{% for mandate in membership.console_mandates %}<span class="rounded-2xl bg-zinc-50 px-3 py-2 text-sm font-bold dark:bg-zinc-900">{{ mandate.role.name }}</span>{% empty %}<span class="text-sm font-bold text-zinc-500">Membre sans Mandat actif</span>{% endfor %}</div></div>{% if can_manage_team %}<form method="post" action="{% url 'organizations:member-deactivate' space.slug membership.pk %}">{% csrf_token %}<button class="rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Retirer</button></form>{% endif %}</div></article>{% empty %}<div class="rounded-2xl bg-zinc-50 p-6 dark:bg-zinc-900"><p class="font-bold">Vous êtes actuellement le seul membre de l’équipe.</p></div>{% endfor %}</div></section>{% endblock %}
+{% block console_content %}
+<section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="text-2xl font-black">Équipe</h2>
+      <p class="mt-1 text-sm text-zinc-500">Faire partie de l’équipe et avoir le droit d’agir sont deux choses différentes. Les responsabilités indiquent ce que chaque membre peut faire.</p>
+    </div>
+    {% if can_manage_team %}<a href="{% url 'organizations:team-member-create' space.slug %}" class="rounded-2xl bg-indigo-600 px-4 py-2 font-bold text-white">Ajouter un membre</a>{% endif %}
+  </div>
+  <div class="mt-6 space-y-3">
+    {% for membership in memberships %}
+      <article class="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="min-w-0 flex-1">
+            <p class="font-bold">{{ membership.user.full_name|default:membership.user.username }}</p>
+            <p class="break-all text-sm text-zinc-500">{{ membership.user.email }} · {{ membership.get_status_display }}</p>
+            <div class="mt-4 space-y-3">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-zinc-500">Responsabilité dans l’Espace</p>
+                {% if membership.console_standard_space_mandate %}
+                  <p class="mt-1 font-bold">{{ membership.console_standard_space_mandate.role.name }}</p>
+                {% else %}
+                  <p class="mt-1 text-sm font-bold text-zinc-500">Aucune responsabilité attribuée</p>
+                {% endif %}
+                {% if membership.console_custom_space_mandates %}
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    {% for mandate in membership.console_custom_space_mandates %}<span class="rounded-2xl bg-zinc-50 px-3 py-2 text-sm font-bold dark:bg-zinc-900">{{ mandate.role.name }}</span>{% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-zinc-500">Responsabilités par activité</p>
+                {% if membership.console_activity_mandates %}
+                  <ul class="mt-2 space-y-1 text-sm">
+                    {% for mandate in membership.console_activity_mandates %}<li><span class="font-bold">{{ mandate.activity.title }}</span> — {{ mandate.role.name }}</li>{% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="mt-1 text-sm text-zinc-500">Aucune responsabilité ciblée sur une activité.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% if can_manage_team and membership.is_active %}
+            <div class="flex flex-col gap-2 sm:flex-row lg:flex-col">
+              <a href="{% url 'organizations:member-responsibilities' space.slug membership.pk %}" class="rounded-2xl bg-indigo-600 px-4 py-2 text-center text-sm font-bold text-white">Gérer les responsabilités</a>
+              <form method="post" action="{% url 'organizations:member-deactivate' space.slug membership.pk %}" data-confirm-message="Retirer cette personne de l’équipe retirera aussi ses responsabilités dans cet Espace et ses activités.">{% csrf_token %}<button class="w-full rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Retirer de l’équipe</button></form>
+            </div>
+          {% endif %}
+        </div>
+      </article>
+    {% empty %}
+      <div class="rounded-2xl bg-zinc-50 p-6 dark:bg-zinc-900"><p class="font-bold">Aucun membre dans cette équipe.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
