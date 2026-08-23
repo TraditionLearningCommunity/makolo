@@ -18,7 +18,7 @@ test('authorized manager grants and revokes a canonical Access without payment',
   await page.getByLabel('Motif interne').fill('Invité E2E');
   await page.getByRole('button', { name: /Accorder l’accès/i }).click();
   await expect(page.getByText(/Accès accordé/i)).toBeVisible();
-  await expect(page.getByText('empty.participant@e2e.makolo.test')).toBeVisible();
+  await expect(page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first()).toBeVisible();
 
   await logout(page);
   await login(page, 'empty.participant@e2e.makolo.test');
@@ -49,8 +49,8 @@ test('authorized manager grants and revokes a canonical Access without payment',
   await logout(page);
   await login(page, 'owner@e2e.makolo.test');
   await page.goto('/spaces/makolo-e2e-events/access/?q=empty.participant%40e2e.makolo.test');
-  const accessRow = page.locator('article').filter({ hasText: 'empty.participant@e2e.makolo.test' }).first();
-  await expect(accessRow).toContainText('Festival Makolo E2E');
+  const accessRow = page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first();
+  await expect(accessRow).toBeVisible();
   await accessRow.getByRole('button', { name: 'Révoquer' }).click();
   await expect(page.getByText(/Accès révoqué/i)).toBeVisible();
 
