@@ -70,6 +70,7 @@ class TeamResponsibilityTests(TestCase):
         custom.permissions.add(permission)
         grant_space_role(profile=self.member, space=self.space, role=custom, granted_by=self.owner)
         grant_space_role(profile=self.member, space=self.other_space, role=SystemRoleCode.ACCESS_MANAGER, granted_by=self.owner)
+        self.membership.refresh_from_db()
         joined_at = self.membership.joined_at
 
         update_member_space_responsibility(
