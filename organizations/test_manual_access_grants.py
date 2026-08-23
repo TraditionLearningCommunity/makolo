@@ -12,7 +12,7 @@ from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, Permission, Role, RolePermission
 from authorization.services import grant_activity_role, grant_space_role
 
-from .models import Organization, TeamMembership
+from .models import Organization, Team, TeamMembership
 
 
 User = get_user_model()
@@ -131,7 +131,12 @@ class ManualAccessGrantConsoleTests(TestCase):
             activity=self.activity_a,
         )
 
-        default_team = self.space.teams.get(is_default=True)
+        default_team = Team.objects.create(
+            organization=self.space,
+            name="Équipe test sans mandat",
+            is_default=True,
+            is_active=True,
+        )
         TeamMembership.objects.create(
             team=default_team,
             user=self.team_only,
