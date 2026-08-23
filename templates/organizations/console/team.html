@@ -44,7 +44,7 @@
           {% if can_manage_team and membership.is_active %}
             <div class="flex flex-col gap-2 sm:flex-row lg:flex-col">
               <a href="{% url 'organizations:member-responsibilities' space.slug membership.pk %}" class="rounded-2xl bg-indigo-600 px-4 py-2 text-center text-sm font-bold text-white">Gérer les responsabilités</a>
-              <form method="post" action="{% url 'organizations:member-deactivate' space.slug membership.pk %}">{% csrf_token %}<button data-confirm-message="Retirer cette personne de l’équipe retirera aussi ses responsabilités dans cet Espace et ses activités." class="w-full rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Retirer de l’équipe</button></form>
+              <form method="post" action="{% url 'organizations:member-deactivate' space.slug membership.pk %}" data-confirm-message="Retirer cette personne de l’équipe retirera aussi ses responsabilités dans cet Espace et ses activités.">{% csrf_token %}<button class="w-full rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Retirer de l’équipe</button></form>
             </div>
           {% endif %}
         </div>
