@@ -37,26 +37,34 @@ def _lock_beneficiary(beneficiary):
     return manager.select_for_update().order_by().get(pk=beneficiary.pk)
 
 
-def _applicable_admission_pools(*, activity, occurrence):
-    """Return finite non-commercial pools that govern admission for this scope.
+def _finite_admission_pools(activity):
+    """Non-commercial finite pools that govern physical admission.
 
-    Offer-backed pools describe inventory for a commercial selection and are not
-    consumed by a manual Access grant because no Offer is being bought. A generic
-    non-Offer pool (including the Event-wide pool) represents an admission quota
-    that a directly granted right must still respect.
+    Offer-backed pools describe inventory for a commercial selection. A direct
+    grant does not choose or buy an Offer, so consuming those pools would invent a
+    commercial action. Generic non-Offer pools, including Event-wide capacity,
+    are admission quotas and must still be respected.
     """
 
-    queryset = CapacityPool.objects.filter(
+    return CapacityPool.objects.filter(
         activity=activity,
         is_active=True,
         total_quantity__isnull=False,
         offers__isnull=True,
-    )
+    ).distinct()
+
+
+def _applicable_admission_pools(*, activity, occurrence):
+    queryset = _finite_admission_pools(activity)
     if occurrence is None:
+        if queryset.filter(occurrence__isnull=False).exists():
+            raise ValidationError(
+                "Sélectionnez une session : cette activité possède une capacité limitée par session."
+            )
         queryset = queryset.filter(occurrence__isnull=True)
     else:
         queryset = queryset.filter(Q(occurrence__isnull=True) | Q(occurrence=occurrence))
-    return list(queryset.distinct().order_by("pk"))
+    return list(queryset.order_by("pk"))
 
 
 def _validate_grant_scope(*, actor, beneficiary, activity, occurrence, now):
@@ -108,8 +116,9 @@ def _consume_admission_capacity(*, actor, beneficiary, activity, occurrence, poo
         workflow=WorkflowKind.REGISTRATION,
         status=JourneyStatus.FULFILLED,
     )
-    # create_journey accepts a terminal initial state for imports/operator flows;
-    # keep its business timestamp coherent without fabricating intermediate steps.
+    # CapacityReservation requires a real Journey. This operator-initiated,
+    # already-fulfilled process exists only when a physical admission quota must
+    # be consumed; it is not a purchase and creates no CommerceOrder or Payment.
     journey.fulfilled_at = now
     journey.save(update_fields=["fulfilled_at", "updated_at"])
 
@@ -125,7 +134,7 @@ def _consume_admission_capacity(*, actor, beneficiary, activity, occurrence, poo
 
 
 @transaction.atomic
-def grant_access_manually(*, actor, beneficiary, activity, occurrence=None) -> Access:
+def grant_access_manually(*, actor, beneficiary, activity, occurrence=None, reason="") -> Access:
     """Grant a canonical Access directly, with human authority and no commerce.
 
     This orchestration is deliberately separate from issue_access(): system flows
@@ -174,4 +183,5 @@ def grant_access_manually(*, actor, beneficiary, activity, occurrence=None) -> A
         issued_by=actor,
         status=AccessStatus.VALID,
         create_credential=True,
+        audit_reason=(reason or "").strip()[:240],
     )
