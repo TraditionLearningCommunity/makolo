@@ -32,7 +32,7 @@
       {% for mandate in activity_mandates %}
         <div class="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
           <div><p class="font-bold">{{ mandate.activity.title }}</p><p class="text-sm text-zinc-500">{{ mandate.role.name }}</p></div>
-          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="activity-revoke"><input type="hidden" name="mandate_id" value="{{ mandate.pk }}"><button data-confirm-message="Retirer cette responsabilité ? La personne restera membre de l’équipe." class="rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Retirer cette responsabilité</button></form>
+          <form method="post" data-confirm-message="Retirer cette responsabilité ? La personne restera membre de l’équipe.">{% csrf_token %}<input type="hidden" name="action" value="activity-revoke"><input type="hidden" name="mandate_id" value="{{ mandate.pk }}"><button class="rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Retirer cette responsabilité</button></form>
         </div>
       {% empty %}<p class="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-500 dark:bg-zinc-900">Aucune responsabilité ciblée sur une activité.</p>{% endfor %}
     </div>
