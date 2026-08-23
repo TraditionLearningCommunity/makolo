@@ -326,11 +326,15 @@ def resolve_participant_activity_state(
                         state="payment_pending",
                         workflow=journey.workflow,
                     )
-                    payment_url = (
-                        reverse("payments:detail", kwargs={"pk": active_payment.pk})
-                        if active_payment
-                        else reverse("payments:commerce-start", kwargs={"order_pk": order.pk})
-                    )
+                    if availability in {"cancelled", "completed"}:
+                        action = vocabulary_for(activity=activity, workflow=journey.workflow).journey_detail_label
+                        payment_url = reverse("core:participant-journey-detail", kwargs={"pk": journey.pk})
+                    else:
+                        payment_url = (
+                            reverse("payments:detail", kwargs={"pk": active_payment.pk})
+                            if active_payment
+                            else reverse("payments:commerce-start", kwargs={"order_pk": order.pk})
+                        )
                     return _state(
                         availability=availability,
                         availability_label=global_label,
