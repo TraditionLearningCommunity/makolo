@@ -9,7 +9,7 @@ test('owner manages Space and Activity responsibilities without conflating membe
   const financeMember = page.locator('article').filter({ hasText: 'finance@e2e.makolo.test' });
   await expect(financeMember).toBeVisible();
   await financeMember.getByRole('link', { name: 'Gérer les responsabilités' }).click();
-  await expect(page.getByRole('heading', { name: /Responsabilités de/i })).toBeVisible();
+  await expect(page.locator('#main-content').getByRole('heading', { name: /Responsabilités de/i })).toBeVisible();
 
   await page.getByLabel("Responsabilité dans l'Espace").selectOption({ label: 'Marketing' });
   await page.getByRole('button', { name: 'Enregistrer' }).click();
