@@ -36,14 +36,8 @@ from .console_views import (
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
-from .team_views import OrganizationMemberDeactivateView, SpaceConsoleMemberResponsibilitiesView
-from .views import (
-    FollowingListView,
-    OrganizationCreateView,
-    OrganizationListView,
-    OrganizationMemberCreateView,
-    OrganizationUpdateView,
-)
+from .team_views import OrganizationMemberCreateView, OrganizationMemberDeactivateView, SpaceConsoleMemberResponsibilitiesView
+from .views import FollowingListView, OrganizationCreateView, OrganizationListView, OrganizationUpdateView
 
 app_name = "organizations"
 
