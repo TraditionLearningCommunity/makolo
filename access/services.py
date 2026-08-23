@@ -542,7 +542,6 @@ def validate_access_credential(
         authority_check=authority_check,
         expected_activity=expected_activity,
         expected_occurrence=expected_occurrence,
-        expected_type=expected_type if False else None,
         source=source,
         now=now,
     )
