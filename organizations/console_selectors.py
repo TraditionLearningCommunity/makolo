@@ -6,8 +6,9 @@ from django.utils import timezone
 from access.models import Access, AccessStatus, AccessUse
 from activities.models import Activity, Occurrence
 from automation.models import AutomationExecution, AutomationRule, DomainAutomationExecutionStatus
-from authorization.constants import PermissionCode
-from authorization.models import AuthorityScope, Mandate, MandateStatus
+from authorization.constants import PermissionCode, STANDARD_SPACE_ROLE_CODES
+from authorization.models import AuthorityScope
+from authorization.selectors import current_mandates
 from authorization.services import activity_ids_with_permission
 from capacity.models import CapacityPool
 from capacity.selectors import capacity_availability
@@ -132,16 +133,33 @@ def team_for_console(context):
         return []
     memberships = list(team.memberships.select_related("user").order_by("user__email"))
     profile_ids = [membership.user_id for membership in memberships]
-    mandates = (
-        Mandate.objects.filter(profile_id__in=profile_ids, scope_type=AuthorityScope.SPACE, space=context.space, status=MandateStatus.ACTIVE, revoked_at__isnull=True, role__is_active=True)
-        .select_related("role", "profile")
-        .order_by("role__name")
+    mandates = list(
+        current_mandates()
+        .filter(profile_id__in=profile_ids)
+        .filter(
+            Q(scope_type=AuthorityScope.SPACE, space=context.space)
+            | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=context.space)
+        )
+        .select_related("role", "activity", "profile")
+        .order_by("profile__email", "activity__title", "role__name", "pk")
     )
-    roles_by_profile = {}
+    mandates_by_profile = {}
     for mandate in mandates:
-        roles_by_profile.setdefault(mandate.profile_id, []).append(mandate)
+        mandates_by_profile.setdefault(mandate.profile_id, []).append(mandate)
     for membership in memberships:
-        membership.console_mandates = roles_by_profile.get(membership.user_id, [])
+        member_mandates = mandates_by_profile.get(membership.user_id, [])
+        space_mandates = [m for m in member_mandates if m.scope_type == AuthorityScope.SPACE]
+        membership.console_mandates = space_mandates
+        membership.console_standard_space_mandate = next(
+            (
+                m
+                for m in space_mandates
+                if m.role.is_system and m.role.code in STANDARD_SPACE_ROLE_CODES
+            ),
+            None,
+        )
+        membership.console_custom_space_mandates = [m for m in space_mandates if not m.role.is_system]
+        membership.console_activity_mandates = [m for m in member_mandates if m.scope_type == AuthorityScope.ACTIVITY]
     return memberships
 
 
