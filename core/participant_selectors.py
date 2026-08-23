@@ -177,7 +177,14 @@ def participant_accesses(profile):
         return Access.objects.none()
     return (
         Access.objects.filter(beneficiary=profile)
-        .select_related("activity", "activity__event_vertical", "occurrence", "journey")
+        .select_related(
+            "activity",
+            "activity__event_vertical",
+            "activity__space",
+            "occurrence",
+            "journey",
+            "issued_by",
+        )
         .prefetch_related("occurrence__place_links__place", "credentials")
     )
 
