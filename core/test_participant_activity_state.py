@@ -156,6 +156,66 @@ class ParticipantActivityStateTests(TestCase):
             reverse("payments:commerce-start", kwargs={"order_pk": order.pk}),
         )
 
+    def test_closed_activity_lifecycle_keeps_pending_payment_as_history_only(self):
+        cases = (
+            (ActivityStatus.CANCELLED, OccurrenceStatus.CANCELLED, "cancelled"),
+            (ActivityStatus.COMPLETED, OccurrenceStatus.COMPLETED, "completed"),
+        )
+        for index, (activity_status, occurrence_status, expected_availability) in enumerate(cases):
+            with self.subTest(activity_status=activity_status):
+                activity = Activity.objects.create(
+                    title=f"Activité fermée {index}",
+                    created_by=self.other,
+                    status=activity_status,
+                )
+                occurrence = Occurrence.objects.create(
+                    activity=activity,
+                    start_at=self.now + timedelta(days=3 + index),
+                    end_at=self.now + timedelta(days=3 + index, hours=1),
+                    status=occurrence_status,
+                )
+                journey = Journey.objects.create(
+                    initiated_by=self.profile,
+                    beneficiary=self.profile,
+                    activity=activity,
+                    occurrence=occurrence,
+                    workflow=WorkflowKind.PURCHASE,
+                    status=JourneyStatus.PENDING_PAYMENT,
+                )
+                order = CommerceOrder.objects.create(
+                    journey=journey,
+                    buyer=self.profile,
+                    payment_mode=PaymentMode.UPFRONT,
+                    currency="USD",
+                    subtotal=Decimal("12.00"),
+                    discount_total=Decimal("0.00"),
+                    total=Decimal("12.00"),
+                    expires_at=self.now + timedelta(hours=1),
+                )
+                context = participant_state_context(self.profile, [occurrence])
+                state = resolve_participant_activity_state(
+                    profile=self.profile,
+                    activity=activity,
+                    occurrence=occurrence,
+                    context=context,
+                    acquisition_label="S’inscrire",
+                    acquisition_url="/bad-acquisition/",
+                    detail_url="/detail/",
+                    now=self.now,
+                )
+                self.assertEqual(state.availability, expected_availability)
+                self.assertEqual(state.participant_state, "payment_pending")
+                self.assertEqual(state.label, "Paiement en attente")
+                self.assertEqual(
+                    state.primary_url,
+                    reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
+                )
+                self.assertNotEqual(
+                    state.primary_url,
+                    reverse("payments:commerce-start", kwargs={"order_pk": order.pk}),
+                )
+                self.assertNotEqual(state.primary_action, "Reprendre le paiement")
+
     def test_access_states_are_historical_and_never_fall_back_to_acquisition(self):
         cases = (
             (AccessStatus.VALID, "access_valid", "Vous avez accès"),
