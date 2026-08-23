@@ -36,12 +36,12 @@ from .console_views import (
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
+from .team_views import OrganizationMemberDeactivateView, SpaceConsoleMemberResponsibilitiesView
 from .views import (
     FollowingListView,
     OrganizationCreateView,
     OrganizationListView,
     OrganizationMemberCreateView,
-    OrganizationMemberDeactivateView,
     OrganizationUpdateView,
 )
 
@@ -83,9 +83,10 @@ urlpatterns = [
     path("<slug:slug>/analytics/", SpaceConsoleAnalyticsView.as_view(), name="console-analytics"),
     path("<slug:slug>/automation/", SpaceConsoleAutomationView.as_view(), name="console-automation"),
     path("<slug:slug>/team/", SpaceConsoleTeamView.as_view(), name="console-team"),
+    path("<slug:slug>/team/add/", OrganizationMemberCreateView.as_view(), name="team-member-create"),
+    path("<slug:slug>/team/<uuid:membership_id>/responsibilities/", SpaceConsoleMemberResponsibilitiesView.as_view(), name="member-responsibilities"),
+    path("<slug:slug>/team/<uuid:pk>/deactivate/", OrganizationMemberDeactivateView.as_view(), name="member-deactivate"),
     path("<slug:slug>/settings/", SpaceConsoleSettingsView.as_view(), name="console-settings"),
     path("<slug:slug>/settings/edit/", OrganizationUpdateView.as_view(), name="edit"),
-    path("<slug:slug>/team/add/", OrganizationMemberCreateView.as_view(), name="team-member-create"),
-    path("<slug:slug>/team/<uuid:pk>/deactivate/", OrganizationMemberDeactivateView.as_view(), name="member-deactivate"),
     path("", include("geography.urls")),
 ]
