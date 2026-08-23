@@ -242,26 +242,14 @@ def add_or_update_member(*, organization, actor, user, role: str) -> TeamMembers
 
 @transaction.atomic
 def deactivate_member(*, membership, actor) -> TeamMembership:
-    membership = (
-        TeamMembership.objects.select_for_update()
-        .select_related("team__organization", "user")
-        .get(pk=membership.pk)
-    )
-    organization = membership.team.organization
-    if not user_can_manage_organization_team(actor, organization):
-        raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
+    """Compatibility entrypoint for a complete departure from a Space team.
 
-    # revoke_all_space_mandates enforces the only special rule needed here:
-    # an Espace can never be left without a current owner. A co-owner may leave
-    # once another active owner exists.
-    revoke_all_space_mandates(profile=membership.user, space=organization, actor=actor)
-    membership.status = TeamMembershipStatus.INACTIVE
-    membership.save(update_fields=["status", "updated_at"])
-    OrganizationMembership.objects.filter(
-        organization=organization,
-        user=membership.user,
-    ).update(is_active=False)
-    return membership
+    Delegate to the Task 19 orchestration so legacy/internal callers receive
+    the same ownership checks and Activity-Mandate cleanup as the Space Console.
+    """
+    from .team_responsibilities import remove_member_from_space
+
+    return remove_member_from_space(membership=membership, actor=actor)
 
 
 def find_user_for_team(*, email: str):
