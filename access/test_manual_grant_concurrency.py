@@ -10,8 +10,8 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
-from authorization.constants import SystemRoleCode
-from authorization.services import grant_space_role
+from authorization.constants import PermissionCode
+from authorization.models import AuthorityScope, Mandate, Permission, Role, RolePermission
 from organizations.models import Organization
 
 from .manual_grants import grant_access_manually
@@ -54,10 +54,31 @@ class ManualAccessGrantConcurrencyTests(TransactionTestCase):
             end_at=timezone.now() + timedelta(days=2, hours=1),
             status=OccurrenceStatus.SCHEDULED,
         )
-        grant_space_role(
+
+        permission, _ = Permission.objects.get_or_create(
+            code=PermissionCode.ACTIVITY_ACCESS_MANAGE,
+            defaults={
+                "name": "Gérer les accès d’une activité",
+                "description": "Permission canonique utilisée par le test concurrent.",
+                "domain": "access",
+                "scope_type": AuthorityScope.ACTIVITY,
+                "is_system": True,
+                "is_active": True,
+            },
+        )
+        role = Role.objects.create(
+            code="task18-concurrency-access-manager",
+            name="Task 18 concurrency access manager",
+            scope_type=AuthorityScope.ACTIVITY,
+            is_system=True,
+            is_active=True,
+        )
+        RolePermission.objects.create(role=role, permission=permission)
+        Mandate.objects.create(
             profile=self.actor,
-            space=self.space,
-            role=SystemRoleCode.SPACE_OWNER,
+            role=role,
+            scope_type=AuthorityScope.ACTIVITY,
+            activity=self.activity,
         )
 
     def _grant(self, barrier):
