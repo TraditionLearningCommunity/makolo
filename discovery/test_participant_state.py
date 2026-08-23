@@ -23,9 +23,21 @@ User = get_user_model()
 
 class DiscoveryParticipantStateTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="discovery-state-owner", password="test-pass")
-        self.profile = User.objects.create_user(username="discovery-state-profile", password="test-pass")
-        self.other = User.objects.create_user(username="discovery-state-other", password="test-pass")
+        self.owner = User.objects.create_user(
+            username="discovery-state-owner",
+            email="discovery-state-owner@task17.test",
+            password="test-pass",
+        )
+        self.profile = User.objects.create_user(
+            username="discovery-state-profile",
+            email="discovery-state-profile@task17.test",
+            password="test-pass",
+        )
+        self.other = User.objects.create_user(
+            username="discovery-state-other",
+            email="discovery-state-other@task17.test",
+            password="test-pass",
+        )
         self.now = timezone.now()
         self.activity = Activity.objects.create(
             title="Forum canonique participant",
