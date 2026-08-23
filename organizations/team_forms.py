@@ -1,12 +1,22 @@
 from django import forms
 
 from activities.models import Activity
-from authorization.constants import STANDARD_ACTIVITY_ROLE_CODES, STANDARD_SPACE_ROLE_CODES, SystemRoleCode
+from authorization.constants import PermissionCode, STANDARD_ACTIVITY_ROLE_CODES, STANDARD_SPACE_ROLE_CODES, SystemRoleCode
 from authorization.models import AuthorityScope, Role
 from authorization.services import can
-from authorization.constants import PermissionCode
 
-from .forms import INPUT_CLASS
+from .forms import INPUT_CLASS, OrganizationMemberForm
+
+
+class TeamMemberCreateForm(OrganizationMemberForm):
+    """Existing add-member form with ownership choices filtered for the actor."""
+
+    def __init__(self, *args, actor, space, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not can(actor, PermissionCode.SPACE_OWNERSHIP_MANAGE, space):
+            self.fields["role"].choices = [
+                choice for choice in self.fields["role"].choices if choice[0] != SystemRoleCode.SPACE_OWNER
+            ]
 
 
 class MemberSpaceResponsibilityForm(forms.Form):
@@ -35,6 +45,8 @@ class MemberSpaceResponsibilityForm(forms.Form):
         self.fields["role"].widget.attrs["class"] = INPUT_CLASS
         if current_role_code:
             self.fields["role"].initial = current_role_code
+        if current_role_code == SystemRoleCode.SPACE_OWNER and not can_manage_ownership:
+            self.fields["role"].disabled = True
 
 
 class MemberActivityResponsibilityForm(forms.Form):
