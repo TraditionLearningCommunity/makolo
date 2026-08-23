@@ -42,7 +42,9 @@ class MemberSpaceResponsibilityForm(forms.Form):
                 continue
             choices.append((role.code, role.name))
         self.fields["role"].choices = choices
-        self.fields["role"].widget.attrs["class"] = INPUT_CLASS
+        self.fields["role"].widget.attrs.update(
+            {"class": INPUT_CLASS, "id": "id_space_responsibility_role"}
+        )
         if current_role_code:
             self.fields["role"].initial = current_role_code
         if current_role_code == SystemRoleCode.SPACE_OWNER and not can_manage_ownership:
@@ -70,5 +72,9 @@ class MemberActivityResponsibilityForm(forms.Form):
             code__in=STANDARD_ACTIVITY_ROLE_CODES,
         ).order_by("name", "code")
         self.fields["role"].choices = [(role.code, role.name) for role in roles]
-        for field in self.fields.values():
-            field.widget.attrs["class"] = INPUT_CLASS
+        self.fields["activity"].widget.attrs.update(
+            {"class": INPUT_CLASS, "id": "id_activity_responsibility_activity"}
+        )
+        self.fields["role"].widget.attrs.update(
+            {"class": INPUT_CLASS, "id": "id_activity_responsibility_role"}
+        )
