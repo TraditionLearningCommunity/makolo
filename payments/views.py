@@ -6,13 +6,15 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import DetailView, ListView
 
+from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
 from tickets.models import TicketOrderStatus
 from tickets.selectors import get_orders_visible_to
 
-from .forms import ManualPaymentCompleteForm, PaymentStartForm, RefundForm
+from .forms import CommercePaymentStartForm, ManualPaymentCompleteForm, PaymentStartForm, RefundForm
 from .models import PaymentProvider, PaymentStatus
 from .permissions import user_can_manage_payment
 from .selectors import get_payments_visible_to
@@ -20,6 +22,7 @@ from .services import (
     cancel_payment,
     complete_manual_payment,
     complete_sandbox_payment,
+    initiate_commerce_payment,
     initiate_payment,
     refund_payment,
 )
@@ -112,6 +115,76 @@ class PaymentStartView(LoginRequiredMixin, View):
         )
 
 
+class CommercePaymentStartView(LoginRequiredMixin, View):
+    template_name = "payments/commerce_payment_start.html"
+    login_url = "core:login"
+
+    def _order(self, request, order_pk):
+        queryset = CommerceOrder.objects.select_related("buyer", "journey", "journey__activity")
+        if not request.user.is_staff:
+            queryset = queryset.filter(buyer=request.user)
+        return get_object_or_404(queryset, pk=order_pk)
+
+    def _ensure_payable(self, order):
+        if order.status != CommerceOrderStatus.PENDING:
+            raise Http404("Cette commande n’est plus en attente de paiement.")
+        if order.expires_at and order.expires_at <= timezone.now():
+            raise Http404("Cette commande a expiré.")
+        if order.total <= 0 or order.payment_mode not in {
+            PaymentMode.UPFRONT,
+            PaymentMode.AFTER_APPROVAL,
+            PaymentMode.LATER,
+        }:
+            raise Http404("Cette commande ne nécessite pas de paiement en ligne.")
+
+    def get(self, request, order_pk):
+        order = self._order(request, order_pk)
+        self._ensure_payable(order)
+        active_payment = order.payments.filter(
+            status__in={PaymentStatus.PENDING, PaymentStatus.PROCESSING}
+        ).order_by("-created_at").first()
+        if active_payment:
+            return redirect("payments:detail", pk=active_payment.pk)
+        form = CommercePaymentStartForm(order=order, user=request.user)
+        return render(
+            request,
+            self.template_name,
+            {"order": order, "form": form, "idempotency_key": uuid.uuid4().hex},
+        )
+
+    def post(self, request, order_pk):
+        order = self._order(request, order_pk)
+        self._ensure_payable(order)
+        form = CommercePaymentStartForm(request.POST, order=order, user=request.user)
+        if form.is_valid():
+            try:
+                payment = initiate_commerce_payment(
+                    commerce_order=order,
+                    actor=request.user,
+                    provider=form.cleaned_data["provider"],
+                    method=form.cleaned_data["method"],
+                    payer_name=form.cleaned_data.get("payer_name", ""),
+                    payer_email=form.cleaned_data.get("payer_email", ""),
+                    payer_phone=form.cleaned_data.get("payer_phone", ""),
+                    idempotency_key=request.POST.get("idempotency_key") or None,
+                )
+            except (PermissionDenied, ValidationError) as exc:
+                messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+            else:
+                messages.success(request, "Paiement initialisé.")
+                return redirect("payments:detail", pk=payment.pk)
+        return render(
+            request,
+            self.template_name,
+            {
+                "order": order,
+                "form": form,
+                "idempotency_key": request.POST.get("idempotency_key") or uuid.uuid4().hex,
+            },
+            status=400,
+        )
+
+
 class SandboxPaymentCompleteView(LoginRequiredMixin, View):
     login_url = "core:login"
 
@@ -122,7 +195,7 @@ class SandboxPaymentCompleteView(LoginRequiredMixin, View):
         except (PermissionDenied, ValidationError) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(request, "Paiement sandbox confirmé et billets émis.")
+            messages.success(request, "Paiement sandbox confirmé et accès émis lorsque le parcours le prévoit.")
         return redirect("payments:detail", pk=payment.pk)
 
 
@@ -144,7 +217,7 @@ class ManualPaymentCompleteView(LoginRequiredMixin, View):
         except (PermissionDenied, ValidationError) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(request, "Paiement manuel confirmé et billets émis.")
+            messages.success(request, "Paiement manuel confirmé.")
         return redirect("payments:detail", pk=payment.pk)
 
 
@@ -181,5 +254,5 @@ class PaymentRefundView(LoginRequiredMixin, View):
         except (PermissionDenied, ValidationError) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(request, "Paiement remboursé et billets annulés.")
+            messages.success(request, "Paiement remboursé et droits associés annulés selon le parcours.")
         return redirect("payments:detail", pk=payment.pk)

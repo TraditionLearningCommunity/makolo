@@ -132,9 +132,11 @@ class ParticipantExperienceTests(TestCase):
         response = self.client.get(
             reverse("core:participant-journey-detail", kwargs={"pk": journey.pk})
         )
+        payment_url = reverse("payments:commerce-start", kwargs={"order_pk": order.pk})
         self.assertContains(response, "Paiement en ligne requis")
         self.assertContains(response, "12,00 USD")
-        self.assertContains(response, reverse("payments:start", kwargs={"order_pk": order.pk}))
+        self.assertContains(response, payment_url)
+        self.assertEqual(self.client.get(payment_url).status_code, 200)
 
     def test_on_site_reservation_is_not_presented_as_unpaid_or_online_payment(self):
         journey = Journey.objects.create(
@@ -159,7 +161,7 @@ class ParticipantExperienceTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}))
         self.assertContains(response, "À payer sur place")
-        self.assertNotContains(response, reverse("payments:start", kwargs={"order_pk": order.pk}))
+        self.assertNotContains(response, reverse("payments:commerce-start", kwargs={"order_pk": order.pk}))
         self.assertEqual(Payment.objects.count(), 0)
 
     def test_invitation_beneficiary_can_accept_once_and_receives_access(self):

@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
+from core.participant_selectors import participant_state_context
 from tickets.models import Ticket, TicketOrderStatus
 
 from .models import EventBookmark
@@ -64,7 +65,7 @@ class DiscoveryHomeView(TemplateView):
         context = super().get_context_data(**kwargs)
         errors = []
         try:
-            result = search_occurrences(self.request.GET)
+            result = search_occurrences(self.request.GET, profile=self.request.user)
         except ValidationError as exc:
             result = None
             errors = list(exc.messages)
@@ -108,7 +109,12 @@ class DiscoveryActivityDetailView(TemplateView):
         presenter = presenter_for(occurrence)
         if presenter.key != "other":
             raise Http404
-        context["item"] = build_discovery_item(occurrence)
+        participant_context = participant_state_context(self.request.user, [occurrence])
+        context["item"] = build_discovery_item(
+            occurrence,
+            profile=self.request.user,
+            participant_context=participant_context,
+        )
         context["occurrence"] = occurrence
         return context
 

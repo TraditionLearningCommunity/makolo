@@ -157,6 +157,59 @@ def access_status_label(status):
     return ACCESS_STATUS_LABELS.get(status, status)
 
 
+def participant_state_copy(*, activity, state, workflow=None):
+    """Return user-facing participant-state copy without deciding domain truth."""
+
+    vocabulary = vocabulary_for(activity=activity, workflow=workflow)
+    if state == "access_valid":
+        label = "Votre billet est prêt" if vocabulary.vertical == "transport" else "Vous avez accès"
+        return label, vocabulary.access_detail_label
+    if state == "access_used":
+        return ("Billet utilisé" if vocabulary.vertical == "transport" else "Accès utilisé"), vocabulary.access_detail_label
+    if state == "access_revoked":
+        return "Accès révoqué", vocabulary.access_detail_label
+    if state == "access_cancelled":
+        return "Accès annulé", vocabulary.access_detail_label
+    if state == "access_expired":
+        return "Accès expiré", vocabulary.access_detail_label
+    if state == "access_pending":
+        return "Accès en préparation", vocabulary.access_detail_label
+    if state == "request_pending":
+        return "Demande envoyée", vocabulary.journey_detail_label
+    if state == "capacity_held":
+        return "Place retenue temporairement", vocabulary.journey_detail_label
+    if state == "payment_pending":
+        return "Paiement en attente", "Reprendre le paiement"
+    if state == "order_pending":
+        return "Commande en cours", vocabulary.journey_detail_label
+    if state == "order_confirmed":
+        return "Commande confirmée", vocabulary.journey_detail_label
+    if state == "order_cancelled":
+        return "Commande annulée", vocabulary.journey_detail_label
+    if state == "order_expired":
+        return "Commande expirée", vocabulary.journey_detail_label
+    if state == "journey_pending":
+        return "Démarche en cours", vocabulary.journey_detail_label
+    return "", ""
+
+
+def activity_state_label(*, activity, state):
+    vocabulary = vocabulary_for(activity=activity)
+    if state == "cancelled":
+        return "Départ annulé" if vocabulary.vertical == "transport" else (
+            "Événement annulé" if vocabulary.vertical == "event" else "Activité annulée"
+        )
+    if state == "completed":
+        return "Départ terminé" if vocabulary.vertical == "transport" else (
+            "Événement terminé" if vocabulary.vertical == "event" else "Activité terminée"
+        )
+    if state == "sold_out":
+        return "Complet"
+    if state == "closed":
+        return "Indisponible"
+    return "Disponible"
+
+
 def payment_mode_label(mode):
     return {
         PaymentMode.NONE: "",

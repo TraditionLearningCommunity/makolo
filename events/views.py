@@ -8,6 +8,9 @@ from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from automation.services import ensure_policy
+from core.participant_presentation import resolve_participant_activity_state
+from core.participant_selectors import participant_state_context
+from discovery.presentation import availability_presentation, presenter_for, price_presentation
 from organizations.models import OrganizationMembership
 from organizations.services import ensure_personal_organization
 
@@ -97,6 +100,37 @@ class EventDetailView(DetailView):
         )
         context["is_bookmarked"] = False
         context["can_submit_feedback"] = False
+
+        occurrence = self.object.primary_occurrence
+        context["participant_presentation"] = None
+        if occurrence is not None:
+            now = timezone.now()
+            availability = availability_presentation(occurrence, now=now)
+            price = price_presentation(occurrence, now=now)
+            presenter = presenter_for(occurrence)
+            public_cta = presenter.cta(occurrence, price=price, availability=availability)
+            acquisition_url = None
+            if (
+                self.object.status == EventStatus.PUBLISHED
+                and self.object.is_registration_open
+                and availability.state != "sold_out"
+                and public_cta != "Voir l’événement"
+            ):
+                acquisition_url = reverse("tickets:order-create", kwargs={"event_slug": self.object.slug})
+            participant_context = participant_state_context(self.request.user, [occurrence])
+            context["participant_presentation"] = resolve_participant_activity_state(
+                profile=self.request.user,
+                activity=self.object.activity,
+                occurrence=occurrence,
+                context=participant_context,
+                availability_state=availability.state,
+                availability_label=availability.label,
+                acquisition_label=public_cta if acquisition_url else None,
+                acquisition_url=acquisition_url,
+                detail_url=reverse("events:detail", kwargs={"slug": self.object.slug}),
+                now=now,
+            )
+
         if self.request.user.is_authenticated:
             from discovery.models import EventBookmark
             from growth.models import EventFeedback
