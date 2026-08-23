@@ -22,7 +22,7 @@ from authorization.services import (
 )
 
 from .models import Organization, OrganizationMembership, TeamMembership, TeamMembershipStatus
-from .services import _sync_legacy_membership
+from .services import _legacy_role_code, _sync_legacy_membership
 
 
 def _lock_space(space):
@@ -66,6 +66,39 @@ def _require_ownership_management(*, actor, space):
         raise PermissionDenied("Seul un propriétaire habilité peut modifier la propriété de cet Espace.")
 
 
+def _sync_legacy_space_role(*, membership, space, role_code, actor):
+    """Update the compatibility projection without replaying it into TeamMembership.
+
+    Existing OrganizationMembership writes emit a compatibility post-save signal
+    that projects legacy ``joined_at`` back into TeamMembership. A responsibility
+    edit must not change membership history, so an existing projection is updated
+    directly. If a historical row is missing, the canonical bridge creates it and
+    the original TeamMembership join timestamp is restored afterwards.
+    """
+
+    legacy_role = _legacy_role_code(role_code)
+    updated = OrganizationMembership.objects.filter(
+        organization=space,
+        user=membership.user,
+    ).update(
+        role=legacy_role,
+        is_active=True,
+        invited_by=actor,
+    )
+    if updated:
+        return
+
+    joined_at = membership.joined_at
+    _sync_legacy_membership(
+        organization=space,
+        user=membership.user,
+        canonical_role_code=role_code,
+        invited_by=actor,
+        active=True,
+    )
+    TeamMembership.objects.filter(pk=membership.pk).update(joined_at=joined_at)
+
+
 @transaction.atomic
 def update_member_space_responsibility(*, membership, actor, role_code):
     """Replace one member's standard Space responsibility without touching membership history."""
@@ -90,12 +123,11 @@ def update_member_space_responsibility(*, membership, actor, role_code):
         granted_by=actor,
         source="team-responsibility",
     )
-    _sync_legacy_membership(
-        organization=space,
-        user=membership.user,
-        canonical_role_code=target_role.code,
-        invited_by=actor,
-        active=True,
+    _sync_legacy_space_role(
+        membership=membership,
+        space=space,
+        role_code=target_role.code,
+        actor=actor,
     )
     return mandate
 
