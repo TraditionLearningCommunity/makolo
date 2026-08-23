@@ -101,5 +101,5 @@ test('critical discovery smoke also runs on Firefox @firefox-only @firefox', asy
   await page.goto('/discover/');
   await expect(page.getByText('Festival Makolo E2E').first()).toBeVisible();
   await page.getByRole('link', { name: 'Festival Makolo E2E' }).first().click();
-  await expect(page.getByRole('link', { name: /Obtenir des billets/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Acheter le billet/i })).toBeVisible();
 });
