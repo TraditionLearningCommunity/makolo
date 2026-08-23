@@ -165,13 +165,16 @@ jobs:
           authorization.test_group_scope
           authorization.test_activity_scope
           organizations.tests
+          organizations.test_manual_access_grants
           groups.tests
           groups.test_identity_security
           groups.test_account_continuity
           geography.tests
           activities.tests
           discovery.tests
+          discovery.test_manual_access_grants
           events.test_activity_bridge
+          core.test_manual_access_attribution
 
       - name: Run Journey, Request and Access PostgreSQL tests
         run: >-
@@ -180,6 +183,8 @@ jobs:
           journeys.tests
           access.tests
           access.test_concurrency
+          access.test_manual_grants
+          access.test_manual_grant_concurrency
           tickets.test_journey_access_backfill
           tickets.test_journey_access_bridge
           scanner.test_access_bridge
@@ -203,6 +208,7 @@ jobs:
           core.test_domain_events
           core.test_domain_event_concurrency
           notifications.test_domain_events
+          notifications.test_manual_access_grants
           automation.test_domain_events
           automation.test_domain_event_concurrency
 
