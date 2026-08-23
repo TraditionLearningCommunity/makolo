@@ -10,7 +10,9 @@ from .models import Access, AccessCredential, AccessStatus, CredentialStatus
 def accesses_for_profile(profile):
     if not getattr(profile, "is_authenticated", False):
         return Access.objects.none()
-    return Access.objects.filter(beneficiary=profile).select_related("activity", "occurrence", "journey")
+    return Access.objects.filter(beneficiary=profile).select_related(
+        "activity", "activity__space", "occurrence", "journey", "issued_by"
+    )
 
 
 def valid_accesses(profile=None, *, at=None):
@@ -18,7 +20,7 @@ def valid_accesses(profile=None, *, at=None):
     queryset = Access.objects.filter(status=AccessStatus.VALID).filter(
         Q(valid_from__isnull=True) | Q(valid_from__lte=at),
         Q(valid_until__isnull=True) | Q(valid_until__gt=at),
-    ).select_related("activity", "occurrence", "journey", "beneficiary")
+    ).select_related("activity", "activity__space", "occurrence", "journey", "beneficiary", "issued_by")
     if profile is not None:
         if not getattr(profile, "is_authenticated", False):
             return queryset.none()
@@ -27,7 +29,9 @@ def valid_accesses(profile=None, *, at=None):
 
 
 def accesses_for_activity_manager(profile, *, activity=None, occurrence=None):
-    queryset = Access.objects.select_related("activity", "occurrence", "journey", "beneficiary")
+    queryset = Access.objects.select_related(
+        "activity", "activity__space", "occurrence", "journey", "beneficiary", "issued_by"
+    )
     allowed = activity_ids_with_permission(profile, PermissionCode.ACTIVITY_ACCESS_VIEW)
     if allowed is not None:
         queryset = queryset.filter(activity_id__in=allowed)
@@ -53,4 +57,6 @@ def active_credential_for_access(access):
 def access_from_ticket(ticket):
     if not getattr(ticket, "access_id", None):
         return None
-    return Access.objects.select_related("activity", "occurrence", "journey", "beneficiary").filter(pk=ticket.access_id).first()
+    return Access.objects.select_related(
+        "activity", "activity__space", "occurrence", "journey", "beneficiary", "issued_by"
+    ).filter(pk=ticket.access_id).first()

@@ -1,0 +1,35 @@
+{% extends 'organizations/console/base.html' %}
+{% block console_content %}
+<div class="mx-auto max-w-2xl">
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <div>
+      <p class="text-sm font-bold text-indigo-600">Accès</p>
+      <h2 class="mt-1 text-2xl font-black">Accorder un accès</h2>
+      <p class="mt-2 text-sm text-zinc-500">Accordez directement un droit à un compte Makolo existant. Aucun achat ni paiement n’est créé.</p>
+    </div>
+
+    <form method="post" class="mt-6 space-y-5" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div role="alert" class="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      {% for field in form %}
+        <div>
+          <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<p id="{{ field.id_for_label }}_help" class="mt-1 text-xs text-zinc-500">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<div role="alert" class="mt-1 text-sm font-semibold text-red-700 dark:text-red-300">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endfor %}
+
+      <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
+        <a href="{% url 'organizations:console-access' space.slug %}" class="rounded-2xl border border-zinc-300 px-4 py-3 text-center font-bold dark:border-zinc-700">Annuler</a>
+        <button type="submit" class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Accorder l’accès</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

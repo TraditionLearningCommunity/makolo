@@ -47,7 +47,7 @@ def _string_id(value):
     return str(value) if value else None
 
 
-def _emit_access_event(access, *, event_type, previous_status=None, use=None):
+def _emit_access_event(access, *, event_type, previous_status=None, use=None, audit_reason=""):
     suffix = event_type.rsplit(".", 1)[-1]
     if use is not None:
         suffix = f"{suffix}:{use.pk}"
@@ -58,11 +58,14 @@ def _emit_access_event(access, *, event_type, previous_status=None, use=None):
         "occurrence_id": _string_id(access.occurrence_id),
         "journey_id": _string_id(access.journey_id),
         "beneficiary_id": _string_id(access.beneficiary_id),
+        "issued_by_id": _string_id(access.issued_by_id),
         "previous_status": previous_status,
         "status": access.status,
     }
     if use is not None:
         payload["access_use_id"] = str(use.pk)
+    if audit_reason:
+        payload["reason"] = (audit_reason or "").strip()[:240]
     return emit_domain_event(
         event_type=event_type,
         source_type="access",
@@ -142,6 +145,7 @@ def issue_access(
     single_use=True,
     source_key="",
     create_credential=True,
+    audit_reason="",
 ) -> Access:
     if beneficiary is None:
         raise ValidationError("Un Accès appartient toujours à un bénéficiaire individuel.")
@@ -216,7 +220,11 @@ def issue_access(
         raise
     if create_credential and access.status in {AccessStatus.PENDING, AccessStatus.VALID}:
         _create_credential(access)
-    _emit_access_event(access, event_type=DomainEventType.ACCESS_ISSUED)
+    _emit_access_event(
+        access,
+        event_type=DomainEventType.ACCESS_ISSUED,
+        audit_reason=audit_reason,
+    )
     return access
 
 
