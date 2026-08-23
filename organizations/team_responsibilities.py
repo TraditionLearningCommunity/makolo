@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.utils import timezone
 
 from activities.models import Activity
 from authorization.constants import (
@@ -188,11 +187,8 @@ def remove_member_from_space(*, membership, actor):
         )
         .order_by()
     )
-    now = timezone.now()
     for activity_mandate in activity_mandates:
-        activity_mandate.status = MandateStatus.REVOKED
-        activity_mandate.revoked_at = now
-        activity_mandate.save(update_fields=["status", "revoked_at", "updated_at"])
+        revoke_mandate(mandate=activity_mandate, actor=actor)
 
     membership.status = TeamMembershipStatus.INACTIVE
     membership.save(update_fields=["status", "updated_at"])
