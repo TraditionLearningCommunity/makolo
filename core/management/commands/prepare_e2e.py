@@ -47,6 +47,12 @@ class Command(BaseCommand):
         activity_permission_seed.migrate_activity_permissions(apps, None)
         activity_role_seed = importlib.import_module("authorization.migrations.0007_activity_roles")
         activity_role_seed.migrate_activity_roles(apps, None)
+        journey_access_seed = importlib.import_module("authorization.migrations.0008_journey_access_permissions")
+        journey_access_seed.seed_journey_access_permissions(apps, None)
+        commerce_capacity_seed = importlib.import_module("authorization.migrations.0009_commerce_capacity_permissions")
+        commerce_capacity_seed.seed_commerce_capacity_permissions(apps, None)
+        scanner_operations_seed = importlib.import_module("authorization.migrations.0010_scanner_operations_permissions")
+        scanner_operations_seed.seed_permissions(apps, None)
 
         users = {
             key: self._user(email, username, **flags)
