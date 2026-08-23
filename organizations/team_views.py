@@ -5,7 +5,7 @@ import uuid
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Prefetch, Q
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -15,8 +15,10 @@ from authorization.selectors import current_mandates
 from authorization.services import can
 
 from .console_views import SpaceConsoleMixin
-from .models import TeamMembership, TeamMembershipStatus
-from .team_forms import MemberActivityResponsibilityForm, MemberSpaceResponsibilityForm
+from .models import Organization, TeamMembership, TeamMembershipStatus
+from .permissions import user_can_manage_organization_team
+from .services import add_or_update_member, find_user_for_team
+from .team_forms import MemberActivityResponsibilityForm, MemberSpaceResponsibilityForm, TeamMemberCreateForm
 from .team_responsibilities import (
     grant_member_activity_responsibility,
     remove_member_from_space,
@@ -32,6 +34,53 @@ def _role_catalog(*, scope_type, codes):
         .prefetch_related(Prefetch("role_permissions", queryset=permission_links, to_attr="console_permission_links"))
         .order_by("name", "code")
     )
+
+
+class OrganizationMemberCreateView(View):
+    """Existing add-member flow with ownership choices constrained by actor authority."""
+
+    def _space(self, slug):
+        return get_object_or_404(Organization, slug=slug)
+
+    def get(self, request, slug):
+        if not request.user.is_authenticated:
+            raise PermissionDenied("Vous devez être connecté.")
+        space = self._space(slug)
+        if not user_can_manage_organization_team(request.user, space):
+            raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
+        return render(
+            request,
+            "organizations/member_form.html",
+            {"organization": space, "space": space, "form": TeamMemberCreateForm(actor=request.user, space=space)},
+        )
+
+    def post(self, request, slug):
+        if not request.user.is_authenticated:
+            raise PermissionDenied("Vous devez être connecté.")
+        space = self._space(slug)
+        if not user_can_manage_organization_team(request.user, space):
+            raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
+        form = TeamMemberCreateForm(request.POST, actor=request.user, space=space)
+        if form.is_valid():
+            try:
+                user = find_user_for_team(email=form.cleaned_data["email"])
+                add_or_update_member(
+                    organization=space,
+                    actor=request.user,
+                    user=user,
+                    role=form.cleaned_data["role"],
+                )
+            except (ValidationError, PermissionDenied) as exc:
+                form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
+            else:
+                messages.success(request, "Membre et responsabilité ajoutés.")
+                return redirect("organizations:console-team", slug=space.slug)
+        return render(
+            request,
+            "organizations/member_form.html",
+            {"organization": space, "space": space, "form": form},
+            status=400,
+        )
 
 
 class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
