@@ -6,7 +6,9 @@ test('authorized manager grants and revokes a canonical Access without payment',
   await login(page, 'owner@e2e.makolo.test');
   await page.goto('/spaces/makolo-e2e-events/access/');
   await page.getByRole('link', { name: 'Accorder un accès' }).click();
-  await expect(page.getByRole('heading', { name: 'Accorder un accès', exact: true })).toBeVisible();
+  await expect(
+    page.locator('#main-content').getByRole('heading', { name: 'Accorder un accès', exact: true }),
+  ).toBeVisible();
 
   await page.getByLabel('Adresse e-mail du bénéficiaire').fill('empty.participant@e2e.makolo.test');
   await page.getByLabel('Activité').selectOption({ label: 'Festival Makolo E2E' });
