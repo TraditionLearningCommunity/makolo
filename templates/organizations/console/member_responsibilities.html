@@ -1,0 +1,61 @@
+{% extends 'organizations/console/base.html' %}
+{% block console_content %}
+<div class="space-y-6">
+  <div>
+    <a href="{% url 'organizations:console-team' space.slug %}" class="font-bold text-indigo-500">← Équipe</a>
+    <h2 class="mt-3 text-3xl font-black">Responsabilités de {{ membership.user.full_name|default:membership.user.username }}</h2>
+    <p class="mt-1 break-all text-sm text-zinc-500">{{ membership.user.email }} · {{ membership.get_status_display }}</p>
+  </div>
+
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <h3 class="text-xl font-black">Dans l’Espace</h3>
+    <p class="mt-1 text-sm text-zinc-500">Cette responsabilité s’applique à l’ensemble de l’Espace selon les capacités prévues par le rôle.</p>
+    {% if custom_space_mandates %}
+      <div class="mt-4 rounded-2xl bg-zinc-50 p-4 dark:bg-zinc-900">
+        <p class="text-sm font-bold">Responsabilités personnalisées existantes</p>
+        <div class="mt-2 flex flex-wrap gap-2">{% for mandate in custom_space_mandates %}<span class="rounded-2xl border border-zinc-200 px-3 py-2 text-sm font-bold dark:border-zinc-700">{{ mandate.role.name }}</span>{% endfor %}</div>
+        <p class="mt-2 text-xs text-zinc-500">Elles sont conservées lors d’un changement de responsabilité standard.</p>
+      </div>
+    {% endif %}
+    <form method="post" class="mt-5 space-y-4">
+      {% csrf_token %}<input type="hidden" name="action" value="space-role">
+      {% if space_form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ space_form.non_field_errors }}</div>{% endif %}
+      <div><label for="{{ space_form.role.id_for_label }}" class="mb-2 block font-bold">{{ space_form.role.label }}</label>{{ space_form.role }}{% if space_form.role.help_text %}<p class="mt-1 text-sm text-zinc-500">{{ space_form.role.help_text }}</p>{% endif %}{% if space_form.role.errors %}<p class="mt-1 text-sm text-red-500">{{ space_form.role.errors|striptags }}</p>{% endif %}</div>
+      {% if can_edit_space_role %}<button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Enregistrer</button>{% else %}<p class="rounded-2xl bg-zinc-50 p-4 text-sm font-bold text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">La propriété ne peut être modifiée que par une personne disposant de l’autorité de propriété.</p>{% endif %}
+    </form>
+  </section>
+
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <h3 class="text-xl font-black">Sur certaines activités</h3>
+    <p class="mt-1 text-sm text-zinc-500">Ces responsabilités restent limitées à l’activité indiquée.</p>
+    <div class="mt-5 space-y-3">
+      {% for mandate in activity_mandates %}
+        <div class="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+          <div><p class="font-bold">{{ mandate.activity.title }}</p><p class="text-sm text-zinc-500">{{ mandate.role.name }}</p></div>
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="activity-revoke"><input type="hidden" name="mandate_id" value="{{ mandate.pk }}"><button data-confirm-message="Retirer cette responsabilité ? La personne restera membre de l’équipe." class="rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Retirer cette responsabilité</button></form>
+        </div>
+      {% empty %}<p class="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-500 dark:bg-zinc-900">Aucune responsabilité ciblée sur une activité.</p>{% endfor %}
+    </div>
+
+    <form method="post" class="mt-6 space-y-4 rounded-2xl bg-zinc-50 p-5 dark:bg-zinc-900">
+      {% csrf_token %}<input type="hidden" name="action" value="activity-add">
+      <h4 class="font-black">Ajouter une responsabilité sur une activité</h4>
+      {% if activity_form.non_field_errors %}<div class="rounded-2xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{{ activity_form.non_field_errors }}</div>{% endif %}
+      {% for field in activity_form %}<div><label for="{{ field.id_for_label }}" class="mb-2 block font-bold">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="mt-1 text-sm text-zinc-500">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<p class="mt-1 text-sm text-red-500">{{ field.errors|striptags }}</p>{% endif %}</div>{% endfor %}
+      <button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Ajouter</button>
+    </form>
+  </section>
+
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <h3 class="text-xl font-black">Ce que ces responsabilités permettent</h3>
+    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+      {% for role in space_role_catalog %}
+        <article class="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><p class="font-black">{{ role.name }}</p>{% if role.description %}<p class="mt-1 text-sm text-zinc-500">{{ role.description }}</p>{% endif %}<ul class="mt-3 space-y-1 text-sm">{% for link in role.console_permission_links|slice:':5' %}<li>• {{ link.permission.name }}</li>{% endfor %}</ul></article>
+      {% endfor %}
+      {% for role in activity_role_catalog %}
+        <article class="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><p class="font-black">{{ role.name }}</p>{% if role.description %}<p class="mt-1 text-sm text-zinc-500">{{ role.description }}</p>{% endif %}<ul class="mt-3 space-y-1 text-sm">{% for link in role.console_permission_links|slice:':5' %}<li>• {{ link.permission.name }}</li>{% endfor %}</ul></article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
