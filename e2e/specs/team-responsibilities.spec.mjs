@@ -33,8 +33,8 @@ test('owner manages Space and Activity responsibilities without conflating membe
   await page.goto('/spaces/makolo-e2e-events/team/');
   await page.locator('article').filter({ hasText: 'finance@e2e.makolo.test' }).getByRole('link', { name: 'Gérer les responsabilités' }).click();
   const responsibilityRow = page.locator('div').filter({ hasText: 'Festival Makolo E2E' }).filter({ hasText: "Responsable de l’activité" }).first();
+  page.once('dialog', dialog => dialog.accept());
   await responsibilityRow.getByRole('button', { name: 'Retirer cette responsabilité' }).click();
-  await page.getByRole('button', { name: /Confirmer|OK/i }).click().catch(() => {});
   await expect(page.getByText(/Responsabilité sur l'activité retirée/i)).toBeVisible();
 
   await page.getByLabel("Responsabilité dans l'Espace").selectOption({ label: 'Finance' });
