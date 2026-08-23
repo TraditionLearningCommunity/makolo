@@ -9,10 +9,10 @@ from transport.console_views import (
     TransportConsoleView,
 )
 
+from .console_access import SpaceConsoleAccessView, SpaceConsoleGrantAccessView
 from .console_scanner import SpaceActivityScannerAPIView, SpaceActivityScannerView
 from .console_views import (
     SpaceAccessRevokeView,
-    SpaceConsoleAccessView,
     SpaceConsoleActivitiesView,
     SpaceConsoleActivityDetailView,
     SpaceConsoleAnalyticsView,
@@ -66,6 +66,7 @@ urlpatterns = [
     path("<slug:slug>/requests/<uuid:request_id>/approve/", SpaceRequestApproveView.as_view(), name="console-request-approve"),
     path("<slug:slug>/requests/<uuid:request_id>/reject/", SpaceRequestRejectView.as_view(), name="console-request-reject"),
     path("<slug:slug>/access/", SpaceConsoleAccessView.as_view(), name="console-access"),
+    path("<slug:slug>/access/grant/", SpaceConsoleGrantAccessView.as_view(), name="console-access-grant"),
     path("<slug:slug>/access/<uuid:access_id>/revoke/", SpaceAccessRevokeView.as_view(), name="console-access-revoke"),
     path("<slug:slug>/offers/", SpaceConsoleOffersView.as_view(), name="console-offers"),
     path("<slug:slug>/orders/", SpaceConsoleOrdersView.as_view(), name="console-orders"),
