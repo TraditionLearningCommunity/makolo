@@ -135,9 +135,13 @@ class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
                 actor=self.request.user,
                 space=self.space,
                 current_role_code=current_role_code,
+                auto_id="id_space_%s",
             )
         if activity_form is None:
-            activity_form = MemberActivityResponsibilityForm(space=self.space)
+            activity_form = MemberActivityResponsibilityForm(
+                space=self.space,
+                auto_id="id_activity_%s",
+            )
         context = super().get_context_data()
         context.update(
             {
@@ -173,6 +177,7 @@ class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
                 actor=request.user,
                 space=self.space,
                 current_role_code=current_role_code,
+                auto_id="id_space_%s",
             )
             if form.is_valid():
                 try:
@@ -189,7 +194,11 @@ class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
             return self.render_to_response(self._context(space_form=form), status=400)
 
         if action == "activity-add":
-            form = MemberActivityResponsibilityForm(request.POST, space=self.space)
+            form = MemberActivityResponsibilityForm(
+                request.POST,
+                space=self.space,
+                auto_id="id_activity_%s",
+            )
             if form.is_valid():
                 try:
                     grant_member_activity_responsibility(
