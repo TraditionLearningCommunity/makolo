@@ -26,7 +26,7 @@
         <div class="flex items-center gap-2">
             {% if request.user.is_authenticated %}<a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative"><i data-lucide="bell" class="h-5 w-5"></i>{% if unread_notifications %}<span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white ring-2 ring-white dark:ring-[#090b10]">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}</a>{% endif %}
 
-            {% if request.user.is_authenticated %}<a href="{% url 'account:profile' %}#appearance" class="mk-icon-btn" aria-label="Apparence" title="Apparence"><i data-lucide="monitor-cog" class="h-5 w-5"></i></a>{% endif %}
+            {% if request.user.is_authenticated %}<a href="{% url 'account:profile' %}#appearance" class="mk-icon-btn" aria-label="Apparence" title="Apparence"><i data-lucide="settings-2" class="h-5 w-5"></i></a>{% endif %}
 
             {% if request.user.is_authenticated %}
             <div class="relative" x-data="{open:false}" @click.outside="open=false" @keydown.escape.window="open=false">
