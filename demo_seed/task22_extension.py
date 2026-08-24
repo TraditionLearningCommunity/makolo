@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from access.models import AccessUse, AccessUseResult
+from access.models import Access, AccessUse, AccessUseResult
 from access.services import issue_access, validate_access
 from accounts.models import NotificationPreference, User
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role, replace_standard_space_role
-from journeys.models import Journey
 from organizations.models import Organization, TeamMembership, TeamMembershipStatus
 from transport.models import TransportDeparture
 
@@ -75,28 +74,14 @@ def _team_member(space: Organization, user: User, inviter: User) -> None:
 
 
 def _exercise_transport_access(users: dict[str, User]) -> None:
-    journey = (
-        Journey.objects.select_related("activity", "occurrence", "beneficiary")
-        .filter(source_key="beta-transport-online")
+    seeded_access = (
+        Access.objects.select_related("journey__activity", "journey__occurrence", "journey__beneficiary")
+        .filter(source_key="beta:transport-online")
         .first()
     )
-    if journey is None:
-        # Historical beta Journey rows use deterministic primary keys rather
-        # than a public source_key. Fall back to the stable participant/vertical
-        # relation without introducing a second business truth.
-        journey = (
-            Journey.objects.select_related("activity", "occurrence", "beneficiary")
-            .filter(
-                beneficiary__email="beta.participant@makolo.test",
-                activity__transport_service__isnull=False,
-                workflow="reservation",
-                status="confirmed",
-            )
-            .order_by("occurrence__start_at")
-            .first()
-        )
+    journey = seeded_access.journey if seeded_access is not None else None
     if journey is None or journey.occurrence is None:
-        raise RuntimeError("Journey Transport canonique utilisable absent")
+        raise RuntimeError("Journey Transport canonique beta:transport-online absent")
 
     access = issue_access(
         beneficiary=journey.beneficiary,
@@ -191,11 +176,12 @@ def seed_task22_extension(ctx: SeedContext) -> None:
     # no Mandate and therefore no authority over the Espace.
     _team_member(event_space, team_only, owner)
 
-    users = {
-        "owner": owner,
-        "scanner": User.objects.get(email="beta.scanner@makolo.test"),
-    }
-    _exercise_transport_access(users)
+    _exercise_transport_access(
+        {
+            "owner": owner,
+            "scanner": User.objects.get(email="beta.scanner@makolo.test"),
+        }
+    )
     ctx.add("task22_personas", 4)
     ctx.add("task22_team_only_members", 1)
     ctx.add("task22_non_event_access_uses", 1)
