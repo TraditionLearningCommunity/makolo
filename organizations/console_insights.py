@@ -26,6 +26,39 @@ from .console_selectors import (
 )
 
 
+AUTOMATION_TRIGGER_LABELS = {
+    "activity.published": "une activité est publiée",
+    "activity.reopened": "une activité est rouverte",
+    "occurrence.rescheduled": "un départ ou créneau est replanifié",
+    "occurrence.cancelled": "un départ ou créneau est annulé",
+    "occurrence.reopened": "un départ ou créneau est rouvert",
+    "journey.submitted": "une démarche est envoyée",
+    "journey.pending_approval": "une démarche attend une validation",
+    "journey.approved": "une démarche est approuvée",
+    "journey.rejected": "une démarche est refusée",
+    "journey.pending_payment": "une démarche attend un paiement",
+    "journey.confirmed": "une démarche est confirmée",
+    "journey.fulfilled": "une démarche est réalisée",
+    "journey.cancelled": "une démarche est annulée",
+    "journey.expired": "une démarche expire",
+    "request.created": "une demande est créée",
+    "request.approved": "une demande est approuvée",
+    "request.rejected": "une demande est refusée",
+    "commerce.order.created": "une commande est créée",
+    "commerce.order.confirmed": "une commande est confirmée",
+    "commerce.order.cancelled": "une commande est annulée",
+    "commerce.order.expired": "une commande expire",
+    "payment.succeeded": "un paiement réussit",
+    "payment.failed": "un paiement échoue",
+    "payment.refunded": "un paiement est remboursé",
+    "access.issued": "un accès est délivré",
+    "access.used": "un accès est utilisé",
+    "access.revoked": "un accès est révoqué",
+    "access.expired": "un accès expire",
+    "access.transferred": "un accès est transféré",
+}
+
+
 def _visible_modules(context):
     return {item["key"] for group in context.navigation_groups for item in group["items"]}
 
@@ -182,15 +215,19 @@ def operations_insights(context):
     if "automation" in visible:
         executions = AutomationExecution.objects.filter(rule__space=context.space)
         if context.activity_ids is not None:
-            executions = executions.filter(Q(rule__activity_id__in=context.activity_ids) | Q(rule__activity__isnull=True))
+            executions = executions.filter(rule__activity_id__in=context.activity_ids)
         result["failed_automations"] = executions.filter(status=DomainAutomationExecutionStatus.FAILED).count()
     return result
 
 
 def automation_rules_insights(context):
-    """Attach a safe, presentation-only latest execution to visible rules."""
-    rules = list(automation_rules_for_console(context))
+    """Attach safe presentation data to rules visible in the caller's exact scope."""
+    queryset = automation_rules_for_console(context)
+    if context.activity_ids is not None:
+        queryset = queryset.filter(activity_id__in=context.activity_ids)
+    rules = list(queryset)
     for rule in rules:
         executions = list(rule.executions.all())
         rule.console_last_execution = max(executions, key=lambda item: item.created_at) if executions else None
+        rule.console_trigger_label = AUTOMATION_TRIGGER_LABELS.get(rule.trigger_event_type, rule.trigger_event_type)
     return rules
