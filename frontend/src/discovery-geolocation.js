@@ -10,13 +10,14 @@ if (button) {
     if (status) status.textContent = 'Localisation en cours…';
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        document.getElementById('discover-lat').value = position.coords.latitude.toFixed(6);
-        document.getElementById('discover-lon').value = position.coords.longitude.toFixed(6);
+        document.getElementById('discover-lat').value = position.coords.latitude.toFixed(4);
+        document.getElementById('discover-lon').value = position.coords.longitude.toFixed(4);
+        if (status) status.textContent = 'Position utilisée pour cette recherche.';
         document.getElementById('discovery-search-form').requestSubmit();
       },
       () => {
         button.disabled = false;
-        if (status) status.textContent = 'Localisation refusée. Vous pouvez saisir un lieu.';
+        if (status) status.textContent = 'Impossible de vous localiser. Saisissez une ville ou un lieu.';
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
     );
