@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import TestCase
 from django.urls import reverse
 
 
-class DiscoveryProductUxTests(SimpleTestCase):
+class DiscoveryProductUxTests(TestCase):
     def test_discovery_uses_human_timezone_copy_and_external_ux_asset(self):
         response = self.client.get(reverse("discovery:home"))
 
