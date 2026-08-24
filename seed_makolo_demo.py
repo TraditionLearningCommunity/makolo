@@ -25,6 +25,7 @@ from demo_seed.engagement import seed_engagement
 from demo_seed.events_commerce import seed_events_and_commerce
 from demo_seed.operations import seed_operations_and_edge_cases
 from demo_seed.partners_loyalty import seed_partners_loyalty_and_analytics
+from demo_seed.task22_extension import T22_PERSONAS, seed_task22_extension
 from demo_seed.transport import seed_transport
 
 TZ = ZoneInfo("Africa/Lubumbashi")
@@ -71,6 +72,7 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
     with _suspend_loyalty_seed_signals(), transaction.atomic():
         if scale == "beta":
             seed_beta(ctx)
+            seed_task22_extension(ctx)
             validation = assert_beta_scenario_coverage(as_of=ctx.as_of)
         else:
             # Historical volume profiles remain useful for development load, but
@@ -90,7 +92,7 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
         "as_of": ctx.as_of.date().isoformat(),
         "stats": dict(sorted(ctx.stats.items())),
         "validation": validation or {},
-        "login_examples": list(BETA_PERSONAS.values()) if scale == "beta" else [
+        "login_examples": list(BETA_PERSONAS.values()) + list(T22_PERSONAS.values()) if scale == "beta" else [
             "demo.user001@makolo.test",
             "demo.user011@makolo.test",
             "demo.user026@makolo.test",
