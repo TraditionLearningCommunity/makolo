@@ -4,7 +4,7 @@
     {% if request.user.is_authenticated %}
         {% if space_console %}
             <p class="mk-nav-group-label">Contexte</p>
-            <a href="{% url 'core:participant-home' %}" class="mk-nav-item"><i data-lucide="user-round"></i><span>Agir en mon nom</span></a>
+            <a href="{% url 'core:participant-home' %}" class="mk-nav-item"><i data-lucide="user-round"></i><span>Retour à mon espace personnel</span></a>
             <a href="{% url 'organizations:console-overview' space.slug %}" class="mk-nav-item {% if console_module_key == 'overview' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>{{ space.name }}</span></a>
 
             {% for group in space_console.navigation_groups %}
@@ -14,7 +14,7 @@
                 {% endfor %}
             {% endfor %}
         {% else %}
-            <p class="mk-nav-group-label">Personnel</p>
+            <p class="mk-nav-group-label">Pour moi</p>
             <a href="{% url 'core:participant-home' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-home' %}is-active{% endif %}"><i data-lucide="home"></i><span>Accueil</span></a>
             <a href="{% url 'core:participant-journeys' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.url_name == 'participant-journey-detail' %}is-active{% endif %}"><i data-lucide="calendar-search"></i><span>Mes démarches</span></a>
             <a href="{% url 'core:participant-accesses' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.url_name == 'participant-access-detail' %}is-active{% endif %}"><i data-lucide="badge-check"></i><span>Mes accès</span></a>
@@ -22,8 +22,8 @@
             <a href="{% url 'account:profile' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'account' %}is-active{% endif %}"><i data-lucide="user-round"></i><span>Profil</span></a>
 
             {% if caps.has_organizer_tools %}
-                <p class="mk-nav-group-label">Espaces professionnels</p>
-                <a href="{% url 'organizations:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>Mes Espaces</span></a>
+                <p class="mk-nav-group-label">Mes Espaces</p>
+                <a href="{% url 'organizations:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>Gérer mes Espaces</span></a>
             {% endif %}
         {% endif %}
 
@@ -35,7 +35,7 @@
         <p class="mk-nav-group-label">Makolo</p>
         <a href="{% url 'core:home' %}" class="mk-nav-item"><i data-lucide="home"></i><span>Accueil</span></a>
         <a href="{% url 'discovery:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' %}is-active{% endif %}"><i data-lucide="compass"></i><span>Découvrir</span></a>
-        <a href="{% url 'organizer_public:list' %}" class="mk-nav-item"><i data-lucide="building-2"></i><span>Espaces</span></a>
+        <a href="{% url 'organizer_public:list' %}" class="mk-nav-item"><i data-lucide="building-2"></i><span>Organisateurs</span></a>
         <a href="{% url 'core:login' %}" class="mk-nav-item"><i data-lucide="log-in"></i><span>Se connecter</span></a>
         <a href="{% url 'account:register' %}" class="mk-nav-item"><i data-lucide="user-plus"></i><span>Créer un compte</span></a>
     {% endif %}
