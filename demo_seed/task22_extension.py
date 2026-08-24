@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from access.models import Access, AccessStatus, AccessUse, AccessUseResult
+from access.models import AccessUse, AccessUseResult
+from access.services import issue_access, validate_access
 from accounts.models import NotificationPreference, User
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role, replace_standard_space_role
+from journeys.models import Journey
 from organizations.models import Organization, TeamMembership, TeamMembershipStatus
 from transport.models import TransportDeparture
 
@@ -72,27 +74,55 @@ def _team_member(space: Organization, user: User, inviter: User) -> None:
     )
 
 
-def _mark_transport_access_used(ctx: SeedContext) -> None:
-    access = Access.objects.select_related("occurrence").filter(source_key="beta:transport-online").first()
-    if access is None:
-        raise RuntimeError("Access Transport canonique beta:transport-online absent")
-    credential = access.credentials.order_by("issued_at", "pk").first()
+def _exercise_transport_access(users: dict[str, User]) -> None:
+    journey = (
+        Journey.objects.select_related("activity", "occurrence", "beneficiary")
+        .filter(source_key="beta-transport-online")
+        .first()
+    )
+    if journey is None:
+        # Historical beta Journey rows use deterministic primary keys rather
+        # than a public source_key. Fall back to the stable participant/vertical
+        # relation without introducing a second business truth.
+        journey = (
+            Journey.objects.select_related("activity", "occurrence", "beneficiary")
+            .filter(
+                beneficiary__email="beta.participant@makolo.test",
+                activity__transport_service__isnull=False,
+                workflow="reservation",
+                status="confirmed",
+            )
+            .order_by("occurrence__start_at")
+            .first()
+        )
+    if journey is None or journey.occurrence is None:
+        raise RuntimeError("Journey Transport canonique utilisable absent")
+
+    access = issue_access(
+        beneficiary=journey.beneficiary,
+        activity=journey.activity,
+        occurrence=journey.occurrence,
+        journey=journey,
+        issued_by=users["owner"],
+        source_key="task22-access-use-proof",
+        audit_reason="Preuve bêta T22 hors Event",
+    )
+    if AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).exists():
+        return
+    credential = access.credentials.filter(status="active").order_by("issued_at", "pk").first()
     if credential is None:
         raise RuntimeError("Credential Transport canonique absent")
-    access.status = AccessStatus.USED
-    access.save(update_fields=["status", "updated_at"])
-    upsert(
-        AccessUse,
-        "task22-transport-used",
-        defaults={
-            "access": access,
-            "credential": credential,
-            "occurrence": access.occurrence,
-            "result": AccessUseResult.ACCEPTED,
-            "source": "makolo-beta-task22",
-            "used_at": access.occurrence.start_at,
-        },
+    outcome = validate_access(
+        access=access,
+        credential=credential,
+        controller=users["scanner"],
+        expected_activity=journey.activity,
+        expected_occurrence=journey.occurrence,
+        source="makolo-beta-task22",
+        now=journey.occurrence.start_at,
     )
+    if not outcome.accepted:
+        raise RuntimeError(f"Contrôle Access Transport T22 refusé: {outcome.result}")
 
 
 def seed_task22_extension(ctx: SeedContext) -> None:
@@ -161,7 +191,11 @@ def seed_task22_extension(ctx: SeedContext) -> None:
     # no Mandate and therefore no authority over the Espace.
     _team_member(event_space, team_only, owner)
 
-    _mark_transport_access_used(ctx)
+    users = {
+        "owner": owner,
+        "scanner": User.objects.get(email="beta.scanner@makolo.test"),
+    }
+    _exercise_transport_access(users)
     ctx.add("task22_personas", 4)
     ctx.add("task22_team_only_members", 1)
     ctx.add("task22_non_event_access_uses", 1)
