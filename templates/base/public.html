@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}">
     <script defer src="{% static 'dist/makolo.js' %}"></script>
+    <script defer src="{% static 'js/theme-local.js' %}"></script>
 </head>
 <body class="min-h-screen" style="background:var(--mk-page);color:var(--mk-text)">
     <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
@@ -40,6 +41,6 @@
         </div>
     </header>
     <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
-    <footer class="border-t py-8" style="border-color:var(--mk-border)"><div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-xs sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8" style="color:var(--mk-muted)"><p>Makolo · Avance, tout est déjà prêt.</p><div class="flex flex-wrap gap-x-4 gap-y-2"><a href="{% url 'discovery:home' %}">Découvrir</a><a href="{% url 'transport:search' %}">Voyager</a><a href="{% url 'organizer_public:list' %}">Organisateurs</a><a href="{% url 'core:login' %}">Se connecter</a></div></div></footer>
+    <footer class="border-t py-8" style="border-color:var(--mk-border)"><div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-xs sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8" style="color:var(--mk-muted)"><p>Makolo · Avance, tout est déjà prêt.</p><div class="flex flex-wrap items-center gap-x-4 gap-y-2"><a href="{% url 'discovery:home' %}">Découvrir</a><a href="{% url 'transport:search' %}">Voyager</a><a href="{% url 'organizer_public:list' %}">Organisateurs</a><a href="{% url 'core:login' %}">Se connecter</a><label for="public-theme-preference" class="sr-only">Apparence</label><select id="public-theme-preference" aria-label="Apparence" class="!w-auto !py-1 !text-xs"><option value="system">Système</option><option value="light">Clair</option><option value="dark">Sombre</option></select></div></div></footer>
 </body>
 </html>
