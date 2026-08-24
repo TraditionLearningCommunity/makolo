@@ -1,0 +1,75 @@
+name: Task 20 organizer snapshot refresh
+
+on:
+  push:
+    branches:
+      - fix/task-20-product-ux-cleanup
+    paths:
+      - .github/workflows/task20-refresh-organizer-snapshot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-organizer-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DJANGO_ENV: e2e
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: makolo-e2e-only-secret-key-never-production-2026
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost
+      DJANGO_DB_PATH: /tmp/makolo-e2e.sqlite3
+      DJANGO_EMAIL_FILE_PATH: /tmp/makolo-e2e-emails
+      MAKOLO_PUBLIC_BASE_URL: http://127.0.0.1:8000
+      PAYMENTS_SANDBOX_ENABLED: "True"
+      PAYMENTS_WEBHOOK_SECRET: makolo-e2e-webhook-secret
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
+
+    steps:
+      - name: Checkout Task 20 branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/task-20-product-ux-cleanup
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Set up Node 24.18.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          npm ci
+          npm run build
+
+      - name: Install Chromium
+        run: |
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          npx playwright install --with-deps chromium
+
+      - name: Prepare deterministic E2E environment
+        run: bash scripts/prepare-e2e.sh
+
+      - name: Refresh only the organizer baseline
+        run: |
+          rm e2e/specs/visual.spec.mjs-snapshots/organizer-dashboard-light-desktop-chromium-desktop-linux.png
+          E2E_SKIP_PREP=1 bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --project=chromium-desktop --grep "representative light desktop surfaces" --update-snapshots=missing
+
+      - name: Commit refreshed baseline and remove one-off workflow
+        run: |
+          git add e2e/specs/visual.spec.mjs-snapshots/organizer-dashboard-light-desktop-chromium-desktop-linux.png
+          git rm .github/workflows/task20-refresh-organizer-snapshot.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: refresh Task 20 organizer visual baseline"
+          git push origin HEAD:fix/task-20-product-ux-cleanup
