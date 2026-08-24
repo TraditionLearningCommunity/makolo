@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from authorization.services import ensure_platform_admin_mandate
 from organizations.services import create_organization
 
 
@@ -34,6 +35,19 @@ class Task20LandingNavigationTests(TestCase):
 
         self.assertRedirects(response, reverse("organizations:list"))
 
+    def test_django_staff_without_platform_authority_stays_personal(self):
+        user = User.objects.create_user(
+            username="task20-django-staff",
+            email="task20-django-staff@example.test",
+            password="StrongPass2026!",
+            is_staff=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("core:home"))
+
+        self.assertRedirects(response, reverse("core:participant-home"))
+
     def test_staff_lands_in_platform_operations(self):
         user = User.objects.create_user(
             username="task20-staff",
@@ -41,6 +55,7 @@ class Task20LandingNavigationTests(TestCase):
             password="StrongPass2026!",
             is_staff=True,
         )
+        ensure_platform_admin_mandate(profile=user, source="task20-navigation-test")
         self.client.force_login(user)
 
         response = self.client.get(reverse("core:home"))

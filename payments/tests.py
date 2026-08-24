@@ -9,6 +9,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import localize
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -339,4 +340,9 @@ class PaymentWebTests(TestCase):
         response = self.client.get(reverse("payments:start", args=[self.order.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.order.reference)
-        self.assertContains(response, "Sandbox Makolo")
+        self.assertNotContains(response, "Sandbox Makolo")
+        self.assertContains(response, "Mode de paiement")
+        self.assertContains(
+            response,
+            f"Payer {localize(self.order.total_amount)} {self.order.currency}",
+        )

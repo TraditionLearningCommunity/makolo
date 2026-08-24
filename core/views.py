@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
 
+from authorization.services import has_platform_authority
 from events.selectors import get_public_discoverable_events
 from organizations.models import Organization, OrganizationVerificationStatus
 
@@ -46,7 +47,7 @@ class RateLimitedLoginView(LoginView):
 
 
 def _authenticated_landing(user):
-    if user.is_staff:
+    if has_platform_authority(user):
         return "operations"
     capabilities = get_web_capabilities(user)
     if capabilities["has_organizer_tools"]:
