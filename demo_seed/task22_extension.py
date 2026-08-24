@@ -3,8 +3,8 @@ from __future__ import annotations
 from access.models import Access, AccessUse, AccessUseResult
 from access.services import issue_access, validate_access
 from accounts.models import NotificationPreference, User
-from authorization.constants import SystemRoleCode
-from authorization.services import grant_activity_role, grant_space_role, replace_standard_space_role
+from authorization.constants import PermissionCode, SystemRoleCode
+from authorization.services import can, grant_activity_role, grant_space_role, replace_standard_space_role
 from organizations.models import Organization, TeamMembership, TeamMembershipStatus
 from transport.models import TransportDeparture
 
@@ -101,6 +101,11 @@ def _exercise_transport_access(users: dict[str, User]) -> None:
         access=access,
         credential=credential,
         controller=users["scanner"],
+        authority_check=lambda controller, checked_access: can(
+            controller,
+            PermissionCode.ACTIVITY_ACCESS_SCAN,
+            activity=checked_access.activity,
+        ),
         expected_activity=journey.activity,
         expected_occurrence=journey.occurrence,
         source="makolo-beta-task22",
