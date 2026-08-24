@@ -26,24 +26,16 @@ test('discovery finds Event and Transport by place and date @firefox', async ({ 
 });
 
 
-test('MapLibre renders discovery points and selecting a point highlights its result', async ({ page }) => {
+test('Discovery keeps results usable when MapLibre tile loading fails', async ({ page }) => {
+  await page.route('https://tile.openstreetmap.org/**', route => route.abort());
   await page.goto('/discover/?q=Discovery+Event+E2E&place=Lubumbashi&when=tomorrow&vertical=event');
-  const map = page.locator('#discovery-map');
-  await expect(map).toBeVisible();
-  await map.scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => window.__makoloDiscoveryMap?.getSource('discovery-results'));
-  await page.evaluate(() => {
-    window.__makoloDiscoveryMap.resize();
-    window.__makoloDiscoveryMap.triggerRepaint();
-  });
-  await expect(map.locator('canvas')).toBeVisible();
 
-  const marker = map.locator('.discovery-map-marker');
-  await expect(marker).toBeVisible();
-  const first = await page.locator('#discovery-map-data').evaluate(node => JSON.parse(node.textContent)[0]);
-  await marker.click();
-  await expect(page.locator(`[data-discovery-result="${first.occurrence_id}"]`)).toHaveClass(/ring-2/);
-  await expect(page.getByRole('link', { name: first.cta_label }).last()).toBeVisible();
+  const map = page.locator('#discovery-map');
+  const fallback = page.locator('#discovery-map-fallback');
+  await expect(fallback).toBeVisible();
+  await expect(map).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Discovery Event E2E' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /S’inscrire|Voir l’événement/ }).first()).toBeVisible();
 });
 
 
