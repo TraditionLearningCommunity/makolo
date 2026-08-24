@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
@@ -9,8 +10,7 @@ from django.utils import timezone
 from access.models import AccessStatus
 from activities.models import Occurrence
 from automation.models import AutomationExecution, DomainAutomationExecutionStatus
-from commerce.models import CommerceOrderStatus
-from journeys.models import JourneyRequest, RequestStatus
+from journeys.models import Journey, RequestStatus
 from operations.models import IncidentStatus
 from payments.models import PaymentStatus
 
@@ -70,9 +70,8 @@ def analytics_insights(context):
         result["occurrences"] = Occurrence.objects.filter(activity_id__in=ids).count()
 
     if "requests" in visible:
-        requests = requests_for_console(context)
-        result["requests"] = requests.count()
-        result["journeys"] = requests.values("journey_id").distinct().count()
+        result["journeys"] = Journey.objects.filter(activity_id__in=ids).count()
+        result["requests"] = requests_for_console(context).count()
 
     if "access" in visible:
         accesses = accesses_for_console(context)
@@ -170,7 +169,9 @@ def operations_insights(context):
         accesses = accesses_for_console(context)
         result["valid_accesses"] = accesses.filter(status=AccessStatus.VALID).count()
         result["used_accesses"] = accesses.filter(status=AccessStatus.USED).count()
-        result["recent_scans"] = access_uses_for_console(context).filter(used_at__gte=timezone.now() - timezone.timedelta(hours=24)).count()
+        result["recent_scans"] = access_uses_for_console(context).filter(
+            used_at__gte=timezone.now() - timedelta(hours=24)
+        ).count()
     if "offers" in visible:
         for pool in capacity_for_console(context):
             availability = pool.console_availability
