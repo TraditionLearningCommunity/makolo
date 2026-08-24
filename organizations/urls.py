@@ -11,23 +11,25 @@ from transport.console_views import (
 
 from .console_access import SpaceConsoleAccessView, SpaceConsoleGrantAccessView
 from .console_scanner import SpaceActivityScannerAPIView, SpaceActivityScannerView
+from .console_t21_views import (
+    SpaceConsoleAnalyticsView,
+    SpaceConsoleAutomationView,
+    SpaceConsoleOperationsView,
+    SpaceConsolePaymentsView,
+)
 from .console_views import (
     SpaceAccessRevokeView,
     SpaceConsoleActivitiesView,
     SpaceConsoleActivityDetailView,
-    SpaceConsoleAnalyticsView,
     SpaceConsoleAudiencesView,
-    SpaceConsoleAutomationView,
     SpaceConsoleControlView,
     SpaceConsoleCreateEventView,
     SpaceConsoleCRMView,
     SpaceConsoleEntryView,
     SpaceConsoleGroupsView,
     SpaceConsoleOffersView,
-    SpaceConsoleOperationsView,
     SpaceConsoleOrdersView,
     SpaceConsoleOverviewView,
-    SpaceConsolePaymentsView,
     SpaceConsolePlacesView,
     SpaceConsolePromotionsView,
     SpaceConsoleSettingsView,
