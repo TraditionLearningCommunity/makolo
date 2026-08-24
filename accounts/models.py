@@ -1,10 +1,12 @@
-from django.db import models
+import re
+import uuid
+
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.fields import GenericRelation
+from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import RegexValidator
-from django.conf import settings
-import uuid
 
 
 # =========================================================
@@ -17,6 +19,20 @@ def user_avatar_path(instance, filename):
 
 def verification_document_path(instance, filename):
     return f"accounts/users/{instance.user.id}/verification/{filename}"
+
+
+def validate_phone_number(value):
+    """Accept common phone formatting while requiring a plausible digit count."""
+    if value in (None, ""):
+        return
+    value = str(value).strip()
+    if not re.fullmatch(r"\+?[0-9().\s-]+", value):
+        raise ValidationError(
+            "Saisissez un numéro de téléphone avec des chiffres et, si nécessaire, +, espaces, parenthèses, points ou tirets."
+        )
+    digit_count = len(re.sub(r"\D", "", value))
+    if digit_count < 7 or digit_count > 15:
+        raise ValidationError("Saisissez un numéro de téléphone contenant entre 7 et 15 chiffres.")
 
 
 # =========================================================
@@ -140,14 +156,9 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
         unique=True
     )
 
-    phone_validator = RegexValidator(
-        regex=r'^\+?[\d\s\-]{7,20}$',
-        message="Invalid phone number."
-    )
-
     phone = models.CharField(
         max_length=30,
-        validators=[phone_validator],
+        validators=[validate_phone_number],
         blank=True,
         null=True
     )
@@ -396,7 +407,7 @@ class UserProfile(UUIDModel, TimeStampedModel):
 
     theme = models.CharField(
         max_length=50,
-        default="dark"
+        default="system"
     )
 
     profile_completed = models.BooleanField(
