@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from django.utils import timezone
-
 from access.models import Access, AccessUse, AccessUseResult
 from access.services import issue_access, validate_access
 from accounts.models import NotificationPreference, User
-from activities.models import Occurrence
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import Mandate, MandateStatus
 from authorization.services import can, grant_activity_role, grant_space_role, replace_standard_space_role
@@ -78,13 +75,12 @@ def _team_member(space: Organization, user: User, inviter: User) -> None:
 
 
 def _exercise_transport_access(users: dict[str, User]) -> None:
-    """Exercise AccessUse outside Event on a still-future seeded Occurrence.
+    """Exercise AccessUse outside Event without depending on wall-clock time.
 
-    The fixed beta as-of can make the commercial weekend Journey historical by
-    the day CI runs. The commercial Journey remains the proof for
-    Journey/Capacity/Commerce/Payment/Access; this smoke deliberately scans a
-    future Occurrence of the same Transport Activity so Access lifecycle rules
-    are exercised without freezing runtime time.
+    The commercial Transport Journey already proves the full canonical chain.
+    This dedicated control Access reuses its Activity/Occurrence and deliberately
+    has no runtime validity window, so a fixed CI --as-of remains deterministic
+    even after the seeded occurrence becomes historical.
     """
     existing = Access.objects.filter(source_key="task22-access-use-proof").first()
     if existing is not None and AccessUse.objects.filter(
@@ -94,30 +90,20 @@ def _exercise_transport_access(users: dict[str, User]) -> None:
         return
 
     seeded_access = (
-        Access.objects.select_related("activity", "beneficiary")
+        Access.objects.select_related("activity", "occurrence", "beneficiary")
         .filter(source_key="beta:transport-online")
         .first()
     )
-    if seeded_access is None:
+    if seeded_access is None or seeded_access.occurrence is None:
         raise RuntimeError("Access Transport canonique beta:transport-online absent")
-
-    occurrence = (
-        Occurrence.objects.filter(
-            activity=seeded_access.activity,
-            status="scheduled",
-            start_at__gt=timezone.now(),
-        )
-        .order_by("start_at", "pk")
-        .first()
-    )
-    if occurrence is None:
-        raise RuntimeError("Occurrence Transport future absente pour le smoke T22")
 
     access = existing or issue_access(
         beneficiary=seeded_access.beneficiary,
         activity=seeded_access.activity,
-        occurrence=occurrence,
+        occurrence=seeded_access.occurrence,
         issued_by=users["owner"],
+        valid_from=None,
+        valid_until=None,
         source_key="task22-access-use-proof",
         audit_reason="Preuve bêta T22 hors Event",
     )
@@ -134,9 +120,9 @@ def _exercise_transport_access(users: dict[str, User]) -> None:
             activity=checked_access.activity,
         ),
         expected_activity=seeded_access.activity,
-        expected_occurrence=occurrence,
+        expected_occurrence=seeded_access.occurrence,
         source="makolo-beta-task22",
-        now=occurrence.start_at,
+        now=seeded_access.occurrence.start_at,
     )
     if not outcome.accepted:
         raise RuntimeError(f"Contrôle Access Transport T22 refusé: {outcome.result}")
