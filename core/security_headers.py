@@ -17,4 +17,8 @@ class FrontendSecurityHeadersMiddleware:
             "Permissions-Policy",
             settings.MAKOLO_PERMISSIONS_POLICY,
         )
+        # Discovery tiles may be served cross-origin. Send only the Makolo
+        # origin on HTTPS cross-origin requests: enough for providers that
+        # require a Referer, without leaking paths or query strings.
+        response["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response

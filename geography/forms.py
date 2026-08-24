@@ -22,15 +22,16 @@ class PlaceForm(forms.ModelForm):
             "access_instructions": "Instructions d’accès",
         }
         help_texts = {
-            "country_code": "Code pays ISO alpha-2, par exemple CD ou KE.",
-            "latitude": "Facultatif. Latitude WGS84 entre -90 et 90.",
-            "longitude": "Facultatif. Longitude WGS84 entre -180 et 180.",
-            "timezone": "Facultatif. Nom IANA, par exemple Africa/Lubumbashi.",
+            "country_code": "Code pays à 2 lettres, par exemple CD ou KE.",
+            "latitude": "Facultatif. À renseigner avec la longitude uniquement si les coordonnées sont fiables.",
+            "longitude": "Facultatif. À renseigner avec la latitude uniquement si les coordonnées sont fiables.",
+            "timezone": "Facultatif. Utilisez un fuseau reconnu, par exemple Africa/Lubumbashi.",
         }
         widgets = {
             "access_instructions": forms.Textarea(attrs={"rows": 3}),
             "latitude": forms.NumberInput(attrs={"step": "0.000001"}),
             "longitude": forms.NumberInput(attrs={"step": "0.000001"}),
+            "timezone": forms.TextInput(attrs={"placeholder": "Ex. Africa/Lubumbashi"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -44,8 +45,8 @@ class SpacePlaceForm(forms.ModelForm):
         model = SpacePlace
         fields = ["role", "public_label", "is_primary", "is_public", "is_active", "position"]
         labels = {
-            "role": "Rôle du lieu", "public_label": "Libellé public", "is_primary": "Lieu principal pour ce rôle",
-            "is_public": "Visible publiquement", "is_active": "Relation active", "position": "Ordre d’affichage",
+            "role": "Rôle du lieu", "public_label": "Nom affiché au public", "is_primary": "Lieu principal pour ce rôle",
+            "is_public": "Visible par le public", "is_active": "Disponible dans cet Espace", "position": "Ordre d’affichage",
         }
 
     def __init__(self, *args, **kwargs):

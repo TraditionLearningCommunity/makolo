@@ -19,6 +19,20 @@ async function usePublicLight(page) {
   await expect(page.locator('html')).not.toHaveClass(/dark/);
 }
 
+async function stabilizePublicHome(page) {
+  await page.locator('a[href="/events/discovery-event-e2e/"]').evaluate((card) => {
+    const leaves = [...card.querySelectorAll('*')].filter((node) => node.children.length === 0);
+    const day = leaves.find((node) => /^\d{1,2}$/.test(node.textContent.trim()));
+    const monthYear = leaves.find((node) => /^\D{3} \d{4}$/.test(node.textContent.trim()));
+    const dateLine = [...card.querySelectorAll('p')].find((node) => node.textContent.includes('17:30'));
+    if (day) day.textContent = '25';
+    if (monthYear) monthYear.textContent = 'Aoû 2026';
+    if (dateLine) dateLine.textContent = 'mar 25 Aoû · 17:30';
+    const themePreference = document.getElementById('public-theme-preference');
+    if (themePreference) themePreference.style.display = 'none';
+  });
+}
+
 async function setAccountAppearance(page, value) {
   const labels = { light: 'Clair', dark: 'Sombre' };
   await page.goto('/account/profile/#appearance');
@@ -105,6 +119,7 @@ test.beforeAll(() => {
 
 test('representative light desktop surfaces @visual', async ({ page }) => {
   await usePublicLight(page);
+  await stabilizePublicHome(page);
   await shot(page, 'home-light-desktop.png');
   await page.goto('/discover/');
   await stableDiscoveryMap(page);
@@ -166,6 +181,7 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
 
 test('representative mobile surfaces @visual @mobile @mobile-only', async ({ page }) => {
   await usePublicLight(page);
+  await stabilizePublicHome(page);
   await shot(page, 'home-light-mobile.png');
   await page.goto('/discover/');
   await shot(page, 'discovery-light-mobile.png');

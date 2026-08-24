@@ -13,15 +13,11 @@
     }
   }
 
-  function cachePreference(value) {
+  function clearStoredPreference() {
     try {
-      if (value === 'system') {
-        window.localStorage.removeItem('theme');
-      } else {
-        window.localStorage.setItem('theme', value);
-      }
+      window.localStorage.removeItem('theme');
     } catch (_error) {
-      // Browser storage is an optional cache, never the account source of truth.
+      // Browser storage is optional and must never override account preferences.
     }
   }
 
@@ -30,7 +26,9 @@
     ? (valid.has(serverPreference) ? serverPreference : 'system')
     : (storedPreference || 'system');
 
-  if (hasServerPreference) cachePreference(preference);
+  // Authenticated preferences belong to the account and must not leak into
+  // the anonymous session after logout or into the next account.
+  if (hasServerPreference) clearStoredPreference();
 
   const media = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')

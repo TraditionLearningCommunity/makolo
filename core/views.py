@@ -4,8 +4,8 @@ from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
 
+from authorization.services import has_platform_authority
 from events.selectors import get_public_discoverable_events
-from organizations.console_context import authorized_spaces
 from organizations.models import Organization, OrganizationVerificationStatus
 
 from .capabilities import get_web_capabilities
@@ -47,14 +47,12 @@ class RateLimitedLoginView(LoginView):
 
 
 def _authenticated_landing(user):
-    if user.is_staff:
-        return "operations", None
+    if has_platform_authority(user):
+        return "operations"
     capabilities = get_web_capabilities(user)
     if capabilities["has_organizer_tools"]:
-        space = authorized_spaces(user).first()
-        if space is not None:
-            return "space", space
-    return "personal", None
+        return "spaces"
+    return "personal"
 
 
 class PublicHomeView(TemplateView):
@@ -62,9 +60,9 @@ class PublicHomeView(TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            target, space = _authenticated_landing(request.user)
-            if target == "space":
-                return redirect("organizations:console-entry", slug=space.slug)
+            target = _authenticated_landing(request.user)
+            if target == "spaces":
+                return redirect("organizations:list")
             if target == "operations":
                 return redirect("operations:dashboard")
             return redirect("core:participant-home")
@@ -82,14 +80,14 @@ class PublicHomeView(TemplateView):
 
 
 class DashboardView(LoginRequiredMixin, View):
-    """Compatibility URL that now routes to the single professional Space Console."""
+    """Compatibility URL that routes users to the relevant Makolo context."""
 
     login_url = "core:login"
 
     def get(self, request, *args, **kwargs):
-        target, space = _authenticated_landing(request.user)
-        if target == "space":
-            return redirect("organizations:console-entry", slug=space.slug)
+        target = _authenticated_landing(request.user)
+        if target == "spaces":
+            return redirect("organizations:list")
         if target == "operations":
             return redirect("operations:dashboard")
         return redirect("core:participant-home")

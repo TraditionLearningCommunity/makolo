@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}{{ event.title }} | Makolo{% endblock %}
 {% block content %}
 <div class="space-y-6 lg:space-y-8">
@@ -38,7 +39,7 @@
     {% if event.cover_image %}
     <div class="mk-panel overflow-hidden"><img src="{{ event.cover_image.url }}" alt="Couverture de {{ event.title }}" class="max-h-[580px] w-full object-cover"></div>
     {% else %}
-    <div class="relative h-52 overflow-hidden rounded-[28px] border sm:h-64" style="border-color:var(--mk-border);background:radial-gradient(circle at 78% 20%,rgba(99,102,241,.18),transparent 35%),linear-gradient(145deg,var(--mk-surface-solid),var(--mk-surface-muted))"><div class="absolute bottom-6 left-6 grid h-14 w-14 place-items-center rounded-2xl border" style="background:var(--mk-surface-solid);border-color:var(--mk-border);color:var(--mk-brand)"><i data-lucide="calendar-days" class="h-6 w-6"></i></div></div>
+    <div class="relative h-32 overflow-hidden rounded-[24px] border sm:h-36" style="border-color:rgba(82,50,219,.28);background:radial-gradient(circle at 84% 15%,rgba(255,112,77,.38),transparent 31%),linear-gradient(135deg,#2B176E,#5232DB)"><div class="absolute inset-0 flex items-center justify-between gap-5 px-6 sm:px-8"><div><p class="text-[10px] font-bold uppercase tracking-[.16em] text-white/70">Makolo</p><p class="mt-2 max-w-xl text-sm font-semibold text-white/90 sm:text-base">{{ event.title }}</p></div><img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="h-12 w-auto shrink-0 opacity-80 sm:h-16" aria-hidden="true"></div></div>
     {% endif %}
 
     <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">

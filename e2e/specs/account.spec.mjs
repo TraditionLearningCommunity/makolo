@@ -10,16 +10,16 @@ test('registration shows validation and creates a usable account', async ({ page
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByLabel('Confirmer le mot de passe').fill('Different-E2E-2026!');
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
-  await expect(page.getByText(/mots de passe/i)).toBeVisible();
+  await expect(page.getByText('Les mots de passe ne correspondent pas.')).toBeVisible();
 
   // Password fields are intentionally cleared by Django after an invalid POST.
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByLabel('Confirmer le mot de passe').fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
-  await expect(page).toHaveURL('/login/');
+  await expect(page).toHaveURL(/\/login\/\?email=signup\.user%40e2e\.makolo\.test$/);
+  await expect(page.getByLabel('Adresse e-mail')).toHaveValue('signup.user@e2e.makolo.test');
   await expect(page.getByText(/Compte créé/i)).toBeVisible();
 
-  await page.getByLabel('Adresse e-mail').fill('signup.user@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL('/me/');
@@ -56,7 +56,7 @@ test('forgot password follows the real generated email link and token is one-use
   const newPassword = 'Makolo-New-E2E-2026!';
   await page.getByLabel('Nouveau mot de passe', { exact: true }).fill(newPassword);
   await page.getByLabel('Confirmer le nouveau mot de passe', { exact: true }).fill(newPassword);
-  await page.getByRole('button', { name: /Réinitialiser|Enregistrer/i }).click();
+  await page.getByRole('button').filter({ hasText: /Réinitialiser|Enregistrer/ }).click();
   await expect(page).toHaveURL('/login/');
 
   await page.getByLabel('Adresse e-mail').fill('reset.user@e2e.makolo.test');

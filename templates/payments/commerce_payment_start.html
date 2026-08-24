@@ -6,7 +6,7 @@
 <div class="mx-auto max-w-3xl space-y-6">
     <a href="{% url 'core:participant-journey-detail' order.journey.pk %}" class="mk-btn mk-btn-ghost"><i data-lucide="arrow-left" class="h-4 w-4"></i>Retour à ma démarche</a>
 
-    <section class="mk-panel p-6 sm:p-8">
+    <section class="mk-panel p-5 sm:p-8">
         <span class="mk-kicker">Paiement</span>
         <h1 class="mk-page-title mt-3">Régler {{ order.reference }}</h1>
         <p class="mk-page-copy mt-3">Montant à régler : <strong>{{ order.total }} {{ order.currency }}</strong>.</p>
@@ -17,10 +17,11 @@
 
             {% if form.non_field_errors %}<div class="rounded-2xl border p-4 text-sm" style="border-color:var(--mk-danger);color:var(--mk-danger)">{{ form.non_field_errors }}</div>{% endif %}
 
+            {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
             <div class="grid gap-5 md:grid-cols-2">
-                {% for field in form %}
+                {% for field in form.visible_fields %}
                 <div class="{% if field.name == 'payer_phone' %}md:col-span-2{% endif %}">
-                    <label class="mb-2 block text-sm font-bold">{{ field.label }}</label>
+                    <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
                     {{ field }}
                     {% if field.errors %}<p class="mt-2 text-sm" style="color:var(--mk-danger)">{{ field.errors|join:", " }}</p>{% endif %}
                 </div>
@@ -28,13 +29,13 @@
             </div>
 
             {% if not form.provider.field.choices %}
-            <div class="rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border);background:var(--mk-surface-muted)">Aucun fournisseur de paiement n’est actuellement disponible pour ce compte.</div>
+            <div class="rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border);background:var(--mk-surface-muted)">Le paiement n’est pas disponible pour cette commande pour le moment.</div>
             {% else %}
-            <button class="mk-btn mk-btn-primary"><i data-lucide="credit-card" class="h-4 w-4"></i>Initialiser le paiement</button>
+            <button class="mk-btn mk-btn-primary"><i data-lucide="credit-card" class="h-4 w-4"></i>Payer {{ order.total }} {{ order.currency }}</button>
             {% endif %}
         </form>
     </section>
 
-    <p class="text-xs leading-5" style="color:var(--mk-subtle)">Le fournisseur Sandbox Makolo sert uniquement aux tests de développement. Aucun numéro de carte ni secret bancaire n’est demandé ou stocké par Makolo.</p>
+    <p class="text-xs leading-5" style="color:var(--mk-subtle)">Le mode de test Makolo sert uniquement au développement. Aucun numéro de carte ni secret bancaire n’est demandé ou stocké par Makolo.</p>
 </div>
 {% endblock %}

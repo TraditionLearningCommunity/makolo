@@ -89,9 +89,10 @@ class AccountRegistrationView(FormView):
         messages.success(self.request, "Compte créé. Vous pouvez maintenant vous connecter.")
         next_url = _safe_next_url(self.request, self.request.POST.get("next"))
         login_url = reverse("core:login")
+        query = {"email": form.cleaned_data["email"]}
         if next_url:
-            login_url = f"{login_url}?{urlencode({'next': next_url})}"
-        return redirect(login_url)
+            query["next"] = next_url
+        return redirect(f"{login_url}?{urlencode(query)}")
 
 
 class PasswordForgotView(FormView):

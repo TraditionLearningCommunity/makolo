@@ -16,6 +16,16 @@
         <div>
             <label for="{{ field.id_for_label }}" class="mb-2 block text-xs font-semibold">{{ field.label }}</label>
             {{ field }}
+            {% if field.name == 'password' %}
+            <div class="mt-2 rounded-xl border px-3 py-2 text-[11px] leading-5" style="border-color:var(--mk-border);color:var(--mk-muted)">
+                <p class="font-semibold" style="color:var(--mk-text)">Pour protéger votre compte :</p>
+                <ul class="mt-1 list-disc space-y-0.5 pl-4">
+                    <li>utilisez au moins 8 caractères ;</li>
+                    <li>évitez un mot de passe trop proche de vos informations personnelles ;</li>
+                    <li>évitez les mots de passe courants et les mots de passe entièrement numériques.</li>
+                </ul>
+            </div>
+            {% endif %}
             {% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-300">{{ error }}</p>{% endfor %}
         </div>
         {% endfor %}

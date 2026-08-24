@@ -26,7 +26,7 @@ class FrontendSecurityHeaderTests(TestCase):
 
         self.assertEqual(response.headers["Permissions-Policy"], "camera=(self), microphone=(), geolocation=(self)")
         self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
-        self.assertEqual(response.headers["Referrer-Policy"], "same-origin")
+        self.assertEqual(response.headers["Referrer-Policy"], "strict-origin-when-cross-origin")
         self.assertEqual(response.headers["X-Frame-Options"], "DENY")
 
     def test_authenticated_participant_shell_keeps_same_policy(self):
@@ -45,3 +45,4 @@ class FrontendSecurityHeaderTests(TestCase):
         self.assertIn("script-src 'self'", response.headers["Content-Security-Policy"])
         self.assertIn("camera=(self)", response.headers["Permissions-Policy"])
         self.assertIn("geolocation=(self)", response.headers["Permissions-Policy"])
+        self.assertEqual(response.headers["Referrer-Policy"], "strict-origin-when-cross-origin")
