@@ -49,6 +49,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+          python -m pip check
           npm ci
           npm run build
 
@@ -60,15 +61,47 @@ jobs:
       - name: Prepare deterministic E2E environment
         run: bash scripts/prepare-e2e.sh
 
-      - name: Refresh only the organizer baseline
+      - name: Capture the Task 20 organizer baseline
         run: |
-          rm e2e/specs/visual.spec.mjs-snapshots/organizer-dashboard-light-desktop-chromium-desktop-linux.png
-          E2E_SKIP_PREP=1 bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --project=chromium-desktop --grep "representative light desktop surfaces" --update-snapshots=missing
+          cat > e2e/specs/task20-refresh-organizer.spec.mjs <<'EOF'
+          import { test, expect } from '../fixtures/makolo.mjs';
+          import { login } from '../helpers/auth.mjs';
 
-      - name: Commit refreshed baseline and remove one-off workflow
+          async function setAccountAppearance(page, value) {
+            const labels = { light: 'Clair', dark: 'Sombre' };
+            await page.goto('/account/profile/#appearance');
+            await page.getByLabel(labels[value], { exact: true }).check();
+            await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
+            await expect(page.locator('html')).toHaveAttribute('data-theme-preference', value);
+            await expect(page.locator('html')).not.toHaveClass(/dark/);
+          }
+
+          test('capture Task 20 organizer landing baseline', async ({ page }) => {
+            await login(page, 'new.organizer@e2e.makolo.test');
+            const organizerLandingUrl = page.url();
+            await setAccountAppearance(page, 'light');
+            await page.goto(organizerLandingUrl);
+            await expect(page.getByRole('heading', { name: 'Mes Espaces', exact: true })).toBeVisible();
+            await expect(page.getByText('Makolo E2E Nouvelle Organisation', { exact: true })).toBeVisible();
+            await page.evaluate(() => document.fonts.ready);
+            await page.screenshot({
+              path: 'e2e/specs/visual.spec.mjs-snapshots/organizer-dashboard-light-desktop-chromium-desktop-linux.png',
+              fullPage: true,
+              animations: 'disabled',
+              caret: 'hide',
+            });
+          });
+          EOF
+          E2E_SKIP_PREP=1 bash scripts/run-e2e.sh e2e/specs/task20-refresh-organizer.spec.mjs --project=chromium-desktop
+          rm e2e/specs/task20-refresh-organizer.spec.mjs
+
+      - name: Commit only the refreshed baseline
         run: |
-          git add e2e/specs/visual.spec.mjs-snapshots/organizer-dashboard-light-desktop-chromium-desktop-linux.png
-          git rm .github/workflows/task20-refresh-organizer-snapshot.yml
+          BASELINE='e2e/specs/visual.spec.mjs-snapshots/organizer-dashboard-light-desktop-chromium-desktop-linux.png'
+          git add "$BASELINE"
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 1
+          test "$(git diff --cached --name-only)" = "$BASELINE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "test: refresh Task 20 organizer visual baseline"
