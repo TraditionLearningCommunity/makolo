@@ -1,4 +1,4 @@
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -36,7 +36,10 @@ class WebAccountJourneyTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("core:login"))
+        parsed = urlparse(response.url)
+        self.assertEqual(parsed.path, reverse("core:login"))
+        self.assertEqual(parse_qs(parsed.query).get("email"), ["new.member@example.com"])
+        self.assertNotIn("password", parse_qs(parsed.query))
         user = User.objects.get(email="new.member@example.com")
         self.assertTrue(user.check_password(self.password))
         self.assertTrue(UserProfile.objects.filter(user=user).exists())
