@@ -27,7 +27,11 @@ test('discovery finds Event and Transport by place and date @firefox', async ({ 
 
 
 test('Discovery keeps results usable when MapLibre tile loading fails', async ({ page }) => {
-  await page.route('https://tile.openstreetmap.org/**', route => route.abort());
+  await page.route('https://tile.openstreetmap.org/**', route => route.fulfill({
+    status: 200,
+    contentType: 'image/png',
+    body: 'not-a-valid-png',
+  }));
   await page.goto('/discover/?q=Discovery+Event+E2E&place=Lubumbashi&when=tomorrow&vertical=event');
 
   const map = page.locator('#discovery-map');

@@ -72,6 +72,7 @@ test('space owner creates a reusable place and another space owner is isolated',
   await page.getByLabel('Ville / localité').fill('Lubumbashi');
   await page.getByLabel('Province / région').fill('Haut-Katanga');
   await page.getByLabel('Pays').fill('CD');
+  await page.getByText('Informations avancées', { exact: true }).click();
   await page.getByLabel('Latitude').fill('-11.664000');
   await page.getByLabel('Longitude').fill('27.479000');
   await page.getByLabel('Fuseau horaire').fill('Africa/Lubumbashi');

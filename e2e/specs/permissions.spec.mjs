@@ -9,6 +9,13 @@ async function expectForbidden(page, path) {
 }
 
 
+async function selectSpace(page, name, slug) {
+  await expect(page).toHaveURL(/\/spaces\/$/);
+  await page.getByRole('link', { name: new RegExp(name) }).click();
+  await expect(page).toHaveURL(new RegExp(`/spaces/${slug}/overview/$`));
+}
+
+
 test('participant sees personal navigation and server denies event management', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
   await expect(page.getByRole('link', { name: 'Accueil', exact: true }).first()).toBeVisible();
@@ -24,7 +31,7 @@ test('participant sees personal navigation and server denies event management', 
 
 test('activity manager sees canonical activity and access tools but not Contacts', async ({ page }) => {
   await login(page, 'event.manager@e2e.makolo.test');
-  await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/overview\/$/);
+  await selectSpace(page, 'Makolo E2E Events', 'makolo-e2e-events');
   await expect(page.getByRole('link', { name: 'Activités', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Contrôle d’accès', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Contacts', exact: true })).toHaveCount(0);
@@ -43,6 +50,7 @@ test('activity manager sees canonical activity and access tools but not Contacts
 
 test('finance sees payments and analyses without activity creation or Contacts', async ({ page }) => {
   await login(page, 'finance@e2e.makolo.test');
+  await selectSpace(page, 'Makolo E2E Events', 'makolo-e2e-events');
   await expect(page.getByRole('link', { name: 'Paiements', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Analyses', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Contacts', exact: true })).toHaveCount(0);
@@ -55,6 +63,7 @@ test('finance sees payments and analyses without activity creation or Contacts',
 
 test('marketing sees Contacts, audiences and promotions while event creation remains forbidden', async ({ page }) => {
   await login(page, 'marketing@e2e.makolo.test');
+  await selectSpace(page, 'Makolo E2E Events', 'makolo-e2e-events');
   await expect(page.getByRole('link', { name: 'Contacts', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Audiences', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Promotions', exact: true }).first()).toBeVisible();
@@ -88,7 +97,7 @@ test('staff lands in Operations and a non-staff user is denied directly', async 
 
 test('multi-role user keeps authority contextual to the selected Space', async ({ page }) => {
   await login(page, 'multi.role@e2e.makolo.test');
-  await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/overview\/$/);
+  await selectSpace(page, 'Makolo E2E Events', 'makolo-e2e-events');
   await expect(page.getByRole('heading', { name: 'Makolo E2E Events', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Activités', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Paiements', exact: true })).toHaveCount(0);
