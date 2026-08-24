@@ -6,20 +6,27 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
+from activities.models import Activity
+from automation.models import AutomationRule
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import Mandate, MandateStatus
-from authorization.services import can, get_system_role, revoke_mandate
+from authorization.services import can, get_system_role, grant_activity_role, revoke_mandate
+from commerce.models import CommerceOrder, PaymentMode
+from domain_events.contracts import DomainEventType
 from events.models import Event, EventStatus, EventVisibility
 from events.permissions import (
     user_can_manage_event,
     user_can_manage_event_access,
     user_can_manage_event_finance,
 )
-from payments.models import PaymentProvider, PaymentStatus
+from journeys.models import Journey, WorkflowKind
+from payments.models import Payment, PaymentProvider, PaymentStatus
 from payments.services import complete_manual_payment, initiate_payment, refund_payment
 from tickets.models import TicketOrderStatus, TicketType
 from tickets.services import create_order
 
+from .console_context import SpaceConsoleContext
+from .console_insights import analytics_insights, automation_rules_insights, payments_insights
 from .models import (
     OrganizationMembership,
     OrganizationRole,
@@ -190,3 +197,117 @@ class OrganizationPermissionTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(payment.status, PaymentStatus.REFUNDED)
         self.assertEqual(order.status, TicketOrderStatus.CANCELLED)
+
+
+class SpaceConsoleTask21Tests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="t21-owner", email="t21-owner@makolo.test", password="StrongPass2026!")
+        self.finance = User.objects.create_user(username="t21-finance", email="t21-finance@makolo.test", password="StrongPass2026!")
+        self.marketing = User.objects.create_user(username="t21-marketing", email="t21-marketing@makolo.test", password="StrongPass2026!")
+        self.local = User.objects.create_user(username="t21-local", email="t21-local@makolo.test", password="StrongPass2026!")
+        self.buyer = User.objects.create_user(username="t21-buyer", email="t21-buyer@makolo.test", password="StrongPass2026!")
+        self.space = create_organization(creator=self.owner, name="T21 Space")
+        add_or_update_member(organization=self.space, actor=self.owner, user=self.finance, role=SystemRoleCode.FINANCE)
+        add_or_update_member(organization=self.space, actor=self.owner, user=self.marketing, role=SystemRoleCode.MARKETING)
+        self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="Atelier sans Event")
+        self.other_activity = Activity.objects.create(space=self.space, created_by=self.owner, title="Autre activité")
+        grant_activity_role(profile=self.local, activity=self.activity, role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER)
+
+    def _payment(self, *, currency, amount, status):
+        journey = Journey.objects.create(
+            initiated_by=self.buyer,
+            beneficiary=self.buyer,
+            activity=self.activity,
+            workflow=WorkflowKind.PURCHASE,
+        )
+        order = CommerceOrder.objects.create(
+            journey=journey,
+            buyer=self.buyer,
+            payee_space=self.space,
+            currency=currency,
+            payment_mode=PaymentMode.UPFRONT,
+            subtotal=amount,
+            total=amount,
+        )
+        return Payment.objects.create(
+            commerce_order=order,
+            initiated_by=self.buyer,
+            provider=PaymentProvider.MANUAL,
+            method="cash",
+            status=status,
+            amount=amount,
+            currency=currency,
+            payer_name="Demo Buyer",
+            payer_email=self.buyer.email,
+        )
+
+    def test_analytics_keeps_non_event_activity_and_zero_access_denominator(self):
+        context = SpaceConsoleContext.build(self.owner, self.space)
+        data = analytics_insights(context)
+        self.assertEqual(data["activities"], 2)
+        self.assertEqual(data["accesses"], 0)
+        self.assertIsNone(data["access_conversion"])
+        self.assertFalse(Event.objects.filter(activity=self.activity).exists())
+
+    def test_analytics_and_payments_never_mix_currencies(self):
+        self._payment(currency="USD", amount=Decimal("100.00"), status=PaymentStatus.SUCCEEDED)
+        self._payment(currency="CDF", amount=Decimal("200.00"), status=PaymentStatus.SUCCEEDED)
+        self._payment(currency="USD", amount=Decimal("25.00"), status=PaymentStatus.PENDING)
+        context = SpaceConsoleContext.build(self.owner, self.space)
+        analytics = analytics_insights(context)
+        self.assertEqual(
+            [(row["currency"], row["total"]) for row in analytics["revenue_by_currency"]],
+            [("CDF", Decimal("200.00")), ("USD", Decimal("100.00"))],
+        )
+        payments = {row["currency"]: row for row in payments_insights(context)}
+        self.assertEqual(payments["USD"]["received"], Decimal("100.00"))
+        self.assertEqual(payments["USD"]["pending"], Decimal("25.00"))
+        self.assertEqual(payments["CDF"]["received"], Decimal("200.00"))
+
+    def test_payment_status_mapping_and_standard_ui_hide_provider_details(self):
+        self._payment(currency="USD", amount=Decimal("10.00"), status=PaymentStatus.PROCESSING)
+        self._payment(currency="USD", amount=Decimal("20.00"), status=PaymentStatus.FAILED)
+        self._payment(currency="USD", amount=Decimal("30.00"), status=PaymentStatus.CANCELLED)
+        self._payment(currency="USD", amount=Decimal("40.00"), status=PaymentStatus.REFUNDED)
+        context = SpaceConsoleContext.build(self.finance, self.space)
+        row = payments_insights(context)[0]
+        self.assertEqual(row["pending"], Decimal("10.00"))
+        self.assertEqual(row["failed"], Decimal("50.00"))
+        self.assertEqual(row["refunded"], Decimal("40.00"))
+        self.client.force_login(self.finance)
+        response = self.client.get(f"/spaces/{self.space.slug}/payments/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Provider :")
+        self.assertNotContains(response, "checkout token")
+        self.assertContains(response, "Encaissé")
+        self.assertContains(response, "Échoué / annulé")
+
+    def test_marketing_cannot_open_payments_or_receive_financial_analytics(self):
+        self._payment(currency="USD", amount=Decimal("75.00"), status=PaymentStatus.SUCCEEDED)
+        self.client.force_login(self.marketing)
+        self.assertEqual(self.client.get(f"/spaces/{self.space.slug}/payments/").status_code, 403)
+        analytics_response = self.client.get(f"/spaces/{self.space.slug}/analytics/")
+        self.assertEqual(analytics_response.status_code, 200)
+        self.assertNotContains(analytics_response, "Paiements encaissés")
+        self.assertNotContains(analytics_response, "75.00 USD")
+
+    def test_activity_local_automation_scope_excludes_space_and_other_activity_rules(self):
+        common = {
+            "space": self.space,
+            "trigger_event_type": DomainEventType.ACCESS_ISSUED,
+            "action_config": {"title": "Accès", "message": "Accès délivré"},
+            "created_by": self.owner,
+        }
+        matching = AutomationRule.objects.create(name="Règle locale", activity=self.activity, **common)
+        AutomationRule.objects.create(name="Règle autre activité", activity=self.other_activity, **common)
+        AutomationRule.objects.create(name="Règle tout espace", activity=None, **common)
+        context = SpaceConsoleContext.build(self.local, self.space)
+        rules = automation_rules_insights(context)
+        self.assertEqual([rule.pk for rule in rules], [matching.pk])
+        self.assertEqual(rules[0].console_trigger_label, "un accès est délivré")
+
+    def test_activity_local_analytics_is_limited_to_authorized_activity(self):
+        context = SpaceConsoleContext.build(self.local, self.space)
+        data = analytics_insights(context)
+        self.assertEqual(data["activities"], 1)
+        self.assertEqual(context.activity_ids, frozenset({self.activity.pk}))
