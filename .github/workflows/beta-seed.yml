@@ -41,6 +41,12 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip check
 
+      - name: Check migrations before fresh seed
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --plan
+
       - name: Build fresh SQLite beta database
         run: |
           rm -f "$DJANGO_DB_PATH"
@@ -54,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           snapshot() {
-            python manage.py shell -c 'import json; from access.models import Access; from activities.models import Activity,Occurrence; from capacity.models import CapacityPool; from commerce.models import CommerceOrder,Offer; from journeys.models import Journey; from notifications.models import Notification; from payments.models import Payment; from transport.models import TransportDeparture; print(json.dumps({"activities":Activity.objects.count(),"occurrences":Occurrence.objects.count(),"offers":Offer.objects.count(),"capacity_pools":CapacityPool.objects.count(),"journeys":Journey.objects.count(),"orders":CommerceOrder.objects.count(),"payments":Payment.objects.count(),"accesses":Access.objects.count(),"departures":TransportDeparture.objects.count(),"notifications":Notification.objects.count()},sort_keys=True))' | tail -n 1
+            python manage.py shell -c 'import json; from access.models import Access,AccessUse; from activities.models import Activity,Occurrence; from authorization.models import Mandate; from capacity.models import CapacityPool; from commerce.models import CommerceOrder,Offer; from journeys.models import Journey; from notifications.models import Notification; from organizations.models import TeamMembership; from payments.models import Payment; from transport.models import TransportDeparture; print(json.dumps({"activities":Activity.objects.count(),"occurrences":Occurrence.objects.count(),"offers":Offer.objects.count(),"capacity_pools":CapacityPool.objects.count(),"journeys":Journey.objects.count(),"orders":CommerceOrder.objects.count(),"payments":Payment.objects.count(),"accesses":Access.objects.count(),"access_uses":AccessUse.objects.count(),"departures":TransportDeparture.objects.count(),"notifications":Notification.objects.count(),"mandates":Mandate.objects.count(),"team_memberships":TeamMembership.objects.count()},sort_keys=True))' | tail -n 1
           }
           before="$(snapshot)"
           python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
@@ -67,3 +73,78 @@ jobs:
           integrity="$(sqlite3 "$DJANGO_DB_PATH" 'PRAGMA integrity_check;')"
           printf '%s\n' "$integrity"
           test "$integrity" = "ok"
+
+  fresh-postgresql-beta-seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_beta_seed_ci
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: makolo-beta-seed-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_beta_seed_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-beta-postgresql-only-secret-not-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_beta_seed_ci
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: makolo-beta-seed-ci-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+      MAKOLO_DEMO_PASSWORD: ci-beta-seed-password-not-production
+      BETA_AS_OF: "2026-08-21"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Check fresh PostgreSQL migration plan
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --plan
+
+      - name: Migrate seed and validate fresh PostgreSQL beta database
+        run: |
+          python manage.py migrate --noinput
+          python manage.py migrate --check
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+
+      - name: Verify PostgreSQL seed idempotence
+        shell: bash
+        run: |
+          set -euo pipefail
+          snapshot() {
+            python manage.py shell -c 'import json; from access.models import Access,AccessUse; from activities.models import Activity,Occurrence; from authorization.models import Mandate; from capacity.models import CapacityPool; from commerce.models import CommerceOrder,Offer; from journeys.models import Journey; from notifications.models import Notification; from organizations.models import TeamMembership; from payments.models import Payment; from transport.models import TransportDeparture; print(json.dumps({"activities":Activity.objects.count(),"occurrences":Occurrence.objects.count(),"offers":Offer.objects.count(),"capacity_pools":CapacityPool.objects.count(),"journeys":Journey.objects.count(),"orders":CommerceOrder.objects.count(),"payments":Payment.objects.count(),"accesses":Access.objects.count(),"access_uses":AccessUse.objects.count(),"departures":TransportDeparture.objects.count(),"notifications":Notification.objects.count(),"mandates":Mandate.objects.count(),"team_memberships":TeamMembership.objects.count()},sort_keys=True))' | tail -n 1
+          }
+          before="$(snapshot)"
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+          after="$(snapshot)"
+          test "$before" = "$after"
