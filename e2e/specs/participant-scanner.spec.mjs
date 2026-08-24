@@ -12,12 +12,18 @@ async function createPaidOrder(page) {
 }
 
 
-async function completeSandboxPayment(page) {
-  await page.getByRole('link', { name: /Payer maintenant/i }).click();
-  await page.locator('[name="provider"]').selectOption('sandbox');
+async function submitSandboxPayment(page) {
+  const provider = page.locator('[name="provider"]');
+  await expect(provider).toHaveValue('sandbox');
   const method = page.locator('[name="method"]');
   if (await method.locator('option').count() > 1) await method.selectOption({ index: 1 });
-  await page.getByRole('button', { name: /Initialiser le paiement/i }).click();
+  await page.getByRole('button', { name: /^Payer\b/i }).click();
+}
+
+
+async function completeSandboxPayment(page) {
+  await page.getByRole('link', { name: /Payer maintenant/i }).click();
+  await submitSandboxPayment(page);
   await expect(page.getByText(/Sandbox/i)).toBeVisible();
   await page.getByRole('button', { name: /Simuler un paiement réussi/i }).click();
   await expect(page.getByText(/Paiement sandbox confirmé/i)).toBeVisible();
@@ -132,20 +138,14 @@ test('sandbox payment can be cancelled and retried without losing the order', as
   const orderUrl = page.url();
 
   await page.getByRole('link', { name: /Payer maintenant/i }).click();
-  await page.locator('[name="provider"]').selectOption('sandbox');
-  const method = page.locator('[name="method"]');
-  if (await method.locator('option').count() > 1) await method.selectOption({ index: 1 });
-  await page.getByRole('button', { name: /Initialiser le paiement/i }).click();
+  await submitSandboxPayment(page);
   await page.getByRole('button', { name: /Annuler cette tentative/i }).click();
   await expect(page.getByText(/Paiement annulé/i)).toBeVisible();
 
   await page.goto(orderUrl);
   await expect(page.getByRole('link', { name: /Payer maintenant/i })).toBeVisible();
   await page.getByRole('link', { name: /Payer maintenant/i }).click();
-  await page.locator('[name="provider"]').selectOption('sandbox');
-  const retryMethod = page.locator('[name="method"]');
-  if (await retryMethod.locator('option').count() > 1) await retryMethod.selectOption({ index: 1 });
-  await page.getByRole('button', { name: /Initialiser le paiement/i }).click();
+  await submitSandboxPayment(page);
   await expect(page.getByRole('button', { name: /Simuler un paiement réussi/i })).toBeVisible();
 });
 
