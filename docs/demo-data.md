@@ -33,18 +33,22 @@ Le profil `beta` contient de l'historique utile ainsi que des Occurrences autour
 
 Tous les comptes utilisent le mot de passe temporaire fourni séparément lors du reseed.
 
-| Persona | Email | Contexte principal |
+| Persona | Email | Autorité démontrée |
 | --- | --- | --- |
-| Makolo staff/admin | `beta.admin@makolo.test` | plateforme / opérations |
-| Space admin | `beta.spaceadmin@makolo.test` | administration d'Espace |
-| Event manager | `beta.eventmanager@makolo.test` | activités Événement |
-| Transport operator | `beta.transport@makolo.test` | trajets et départs |
-| Finance | `beta.finance@makolo.test` | commandes et paiements |
-| Scanner | `beta.scanner@makolo.test` | contrôle d'accès limité |
-| Participant | `beta.participant@makolo.test` | Discovery, démarches, billets |
-| Marketing | `beta.marketing@makolo.test` | contacts, audiences, promotions |
+| Makolo staff/admin | `beta.admin@makolo.test` | plateforme / Operations globale, sans Mandate Espace artificiel |
+| Owner | `beta.owner@makolo.test` | propriété et administration complètes des Espaces bêta |
+| Space admin | `beta.spaceadmin@makolo.test` | administration Espace sans `space.ownership.manage` |
+| Event manager | `beta.eventmanager@makolo.test` | portefeuille d'activités de l'Espace Event |
+| Transport operator | `beta.transport@makolo.test` | portefeuille d'activités de l'Espace Transport |
+| Finance | `beta.finance@makolo.test` | commandes, paiements et analyses financières, sans CRM/Access/ownership |
+| Marketing | `beta.marketing@makolo.test` | contacts, audiences et promotions, sans finances/Access/ownership |
+| Access Manager | `beta.access@makolo.test` | gestion Access Espace, sans Finance/ownership |
+| Activity-local manager | `beta.activitylocal@makolo.test` | Mandate limité à une Activity Transport |
+| Scanner | `beta.scanner@makolo.test` | contrôle d'accès limité à des Activities assignées |
+| Team-only | `beta.teamonly@makolo.test` | membre d'équipe sans Mandate, donc sans autorité métier |
+| Participant | `beta.participant@makolo.test` | Discovery, démarches et accès personnels |
 
-L'autorité professionnelle est seedée via `Mandate` / `Role` / `Permission` / scope. Elle ne dépend pas d'anciens flags d'organisation et tous les comptes ne sont pas superusers.
+L'autorité professionnelle est seedée via `Mandate` / `Role` / `Permission` / scope. `TeamMembership` représente uniquement l'appartenance opérationnelle : elle ne donne aucun droit à elle seule. Le compte staff plateforme reste distinct des responsabilités Espace.
 
 ## Scénarios Event
 
@@ -52,18 +56,20 @@ Le seed fournit notamment :
 
 - un Événement gratuit avec `Offer` à zéro, capacité et inscription, sans `Payment` fictif ;
 - un Événement public payant avec `Offer`, `CapacityPool`, `Journey`, `CommerceOrder`, paiement sandbox confirmé et `Access` ;
-- un scénario invitation ;
+- un scénario invitation avec `JourneyRequest` ;
 - un Événement réellement complet via la capacité canonique ;
 - un Événement public sans commerce ;
 - quelques cas privé, non répertorié, annulé et historique sans polluer Discovery.
 
 Event reste une verticale composée : le temps vient d'`Occurrence`, le prix d'`Offer`, la capacité de `CapacityPool`, le commerce de `CommerceOrder`/`Payment` et le billet d'`Access`.
 
-## Scénarios Transport
+## Scénarios Transport / Activity sans Event
 
-Transport est seedé indépendamment d'Events. Le profil contient des trajets cohérents Lubumbashi ↔ Kolwezi, plusieurs départs sur l'horizon bêta, des Places avec coordonnées plausibles, des offres actives, de la capacité disponible et complète, un paiement en ligne et un paiement sur place.
+Transport est seedé indépendamment d'Events. Ses `TransportService` composent de vraies `Activity` qui n'ont aucun `Event` associé. Le profil contient des trajets cohérents Lubumbashi ↔ Kolwezi, plusieurs départs sur l'horizon bêta, des Places avec coordonnées plausibles, des offres actives, de la capacité disponible et complète, un paiement en ligne et un paiement sur place.
 
-Le paiement sur place reste une `CommerceOrder` en mode `on_site`; aucun faux `Payment` encaissé n'est créé pour la remplir.
+Le parcours de preuve T22 réutilise directement le noyau canonique : `Activity → Occurrence → Journey → Capacity → CommerceOrder → Payment → Access → AccessUse`. Le contrôle de l'Access Transport passe par le service canonique de validation et par la permission Activity de scan ; aucun Ticket parallèle n'est créé.
+
+Le paiement sur place reste une `CommerceOrder` en mode `on_site`; aucun faux `Payment` encaissé n'est créé pour la remplir. Le scénario Transport ne crée pas de `JourneyRequest` artificielle lorsque le workflow de réservation n'en a pas besoin.
 
 ## Participant
 
@@ -71,7 +77,7 @@ Le paiement sur place reste une `CommerceOrder` en mode `on_site`; aucun faux `P
 
 ## Space Console
 
-Les données bêta alimentent les surfaces utiles de la Console : activités, demandes, accès, tarifs, commandes, paiements, groupes, contacts, audience, promotions, lieux, contrôle d'accès, opérations, analyses, automation et équipe. Les personas Finance, Scanner, Event manager et Marketing ont volontairement des frontières d'autorisation différentes.
+Les données bêta alimentent les surfaces utiles de la Console : activités, demandes, accès, tarifs, commandes, paiements, groupes, contacts, audience, promotions, lieux, contrôle d'accès, opérations, analyses, automation et équipe. Les personas Owner, Admin, Finance, Marketing, Access Manager et Activity-local ont volontairement des frontières d'autorisation différentes.
 
 ## Discovery
 
@@ -79,7 +85,7 @@ Les données publiques couvrent Event et Transport, plusieurs jours et localité
 
 ## Scanner
 
-Deux `Access` dédiés au smoke test sont produits, un pour Event et un pour Transport. Les credentials proviennent du chemin canonique `AccessCredential`; aucun token QR brut n'est versionné dans Git. Les données historiques comprennent aussi un `AccessUse` déjà utilisé.
+Deux `Access` dédiés au smoke test historique sont produits, un pour Event et un pour Transport. T22 ajoute une preuve d'usage canonique hors Event en émettant un Access supplémentaire idempotent sur le Journey Transport puis en le contrôlant via `validate_access`. Les credentials proviennent du chemin canonique `AccessCredential`; aucun token QR brut n'est versionné dans Git.
 
 ## Validation
 
@@ -89,9 +95,14 @@ La commande read-only suivante vérifie le contrat de scénarios bêta :
 python manage.py validate_makolo_demo --as-of YYYY-MM-DD
 ```
 
-Elle contrôle notamment personas, horizon Event/Transport, gratuit/payant/on-site, capacité complète, Participant, scanner, permissions essentielles, absence de dépendance Transport→Event et absence de deliveries externes en attente.
+Elle contrôle notamment la matrice de personas et de Permissions, l'horizon Event/Transport, le gratuit/payant/on-site, la capacité complète, le Participant, le scanner, `TeamMembership != autorité`, l'isolation Activity-local, l'absence de dépendance Transport→Event, les flux canoniques hors Event et l'absence de deliveries externes en attente.
 
-La CI vérifie aussi le chemin base SQLite fraîche → migrations → seed `beta` → validation → second seed identique → validation → `PRAGMA integrity_check`.
+La CI prouve deux chemins indépendants sur bases fraîches :
+
+- SQLite fraîche → `check` → `makemigrations --check --dry-run` → `migrate --plan` → migrations → seed → validation → second seed identique → validation → `PRAGMA integrity_check` ;
+- PostgreSQL 16 fraîche → `check` → `makemigrations --check --dry-run` → `migrate --plan` → migrations → seed → validation → second seed identique → validation.
+
+Les snapshots d'idempotence incluent notamment Activities, Occurrences, Capacity, Journeys, CommerceOrders, Payments, Access, AccessUse, Mandates et TeamMemberships.
 
 ## Idempotence, atomicité et side effects
 
