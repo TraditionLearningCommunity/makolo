@@ -17,11 +17,11 @@
             <div class="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_auto]">
                 <div>
                     <label for="discover-query" class="mb-2 block text-xs font-bold" style="color:var(--mk-muted)">Rechercher</label>
-                    <div class="relative"><i data-lucide="search" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-query" name="q" value="{{ filters.q|default:'' }}" maxlength="120" placeholder="Activité, trajet, thème…" class="!min-h-[50px] !pl-11" autocomplete="off"></div>
+                    <div class="relative"><i data-lucide="search" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-query" name="q" value="{{ filters.q|default:'' }}" maxlength="120" placeholder="Activité, trajet, thème…" class="!min-h-[50px] !pl-12" autocomplete="off"></div>
                 </div>
                 <div>
                     <label for="discover-place" class="mb-2 block text-xs font-bold" style="color:var(--mk-muted)">Lieu</label>
-                    <div class="relative"><i data-lucide="map-pin" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-place" name="place" value="{{ filters.place|default:filters.city|default:'' }}" maxlength="120" placeholder="Ville ou lieu" class="!min-h-[50px] !pl-11" list="discovery-place-suggestions" autocomplete="off"></div>
+                    <div class="relative"><i data-lucide="map-pin" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-place" name="place" value="{{ filters.place|default:filters.city|default:'' }}" maxlength="120" placeholder="Ville ou lieu" class="!min-h-[50px] !pl-12" list="discovery-place-suggestions" autocomplete="off"></div>
                     <datalist id="discovery-place-suggestions">{% for suggestion in place_suggestions %}<option value="{{ suggestion }}">{% endfor %}</datalist>
                 </div>
                 <div>
@@ -47,7 +47,7 @@
 
     {% if search_errors %}<section class="mk-panel border-l-4 p-4" role="alert"><p class="font-bold">Recherche à corriger</p>{% for error in search_errors %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ error }}</p>{% endfor %}</section>{% endif %}
 
-    <section class="flex flex-wrap items-end justify-between gap-3"><div><span class="mk-kicker">Résultats</span><h2 class="mt-2 text-2xl font-extrabold tracking-[-.04em]" aria-live="polite">{{ result_count }} disponibilité{{ result_count|pluralize }}</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Dates interprétées dans {{ search_timezone }}.</p></div>{% if map_items %}<div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-btn mk-btn-secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-btn mk-btn-ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>{% endif %}</section>
+    <section class="flex flex-wrap items-end justify-between gap-3"><div><span class="mk-kicker">Résultats</span><h2 class="mt-2 text-2xl font-extrabold tracking-[-.04em]" aria-live="polite">{{ result_count }} disponibilité{{ result_count|pluralize }}</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Les horaires sont affichés dans l’heure locale des activités.</p></div>{% if map_items %}<div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-btn mk-btn-secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-btn mk-btn-ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>{% endif %}</section>
 
     <div class="grid gap-5 {% if map_items %}lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]{% endif %}">
         <section id="discovery-list-panel" aria-label="Résultats de découverte" class="space-y-3">
@@ -70,4 +70,4 @@
 {{ map_items|json_script:"discovery-map-data" }}
 {{ map_config|json_script:"discovery-map-config" }}
 {% endblock %}
-{% block extra_js %}{% if map_items %}<script defer src="{% static 'dist/discovery-map.js' %}"></script>{% else %}<script defer src="{% static 'dist/discovery-geolocation.js' %}"></script>{% endif %}{% endblock %}
+{% block extra_js %}{% if map_items %}<script defer src="{% static 'dist/discovery-map.js' %}"></script>{% else %}<script defer src="{% static 'dist/discovery-geolocation.js' %}"></script>{% endif %}<script defer src="{% static 'js/discovery-ux.js' %}"></script>{% endblock %}
