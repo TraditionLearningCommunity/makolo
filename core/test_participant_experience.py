@@ -43,6 +43,7 @@ class ParticipantExperienceTests(TestCase):
         self.activity = Activity.objects.create(
             title="Atelier communautaire",
             created_by=self.user,
+            owner_profile=self.user,
             status=ActivityStatus.PUBLISHED,
         )
         self.occurrence = Occurrence.objects.create(
