@@ -97,10 +97,10 @@ class RoleAwareWebProductTests(TestCase):
         self.assertNotContains(response, ">Activités<")
         self.assertNotContains(response, ">Équipe<")
 
-    def test_staff_lands_in_operations(self):
+    def test_staff_lands_in_personal_context_before_operations(self):
         self.client.force_login(self.staff)
         response = self.client.get(reverse("core:dashboard"))
-        self.assertRedirects(response, reverse("operations:dashboard"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("core:participant-home"), fetch_redirect_response=False)
 
     def test_participant_can_open_personal_event_creation_without_space_authority(self):
         self.client.force_login(self.participant)
