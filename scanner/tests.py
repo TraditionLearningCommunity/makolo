@@ -10,6 +10,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import Role
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import Organization
 from tickets.models import TicketStatus, TicketType
@@ -68,6 +70,11 @@ class ScannerFixtureMixin:
         self.space = Organization.objects.create(
             name="Scanner Fixture Space",
             created_by=self.organizer,
+        )
+        grant_space_role(
+            profile=self.organizer,
+            space=self.space,
+            role=SystemRoleCode.SPACE_OWNER,
         )
 
         start_at = timezone.now() + timedelta(hours=2)
