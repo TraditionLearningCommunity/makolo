@@ -91,9 +91,11 @@ test('assigned scanner agent can access only its assigned activity without Space
 });
 
 
-test('staff lands in Operations and a non-staff user is denied directly', async ({ page }) => {
+test('staff keeps the personal landing and can enter Operations while a non-staff user is denied', async ({ page }) => {
   await login(page, 'staff@e2e.makolo.test');
-  await expect(page).toHaveURL('/operations/');
+  await expect(page).toHaveURL('/me/');
+  let response = await page.goto('/operations/');
+  expect(response.status()).toBe(200);
   await expect(page.getByRole('heading', { name: 'Makolo Operations Center', exact: true })).toBeVisible();
 
   await page.context().clearCookies();
