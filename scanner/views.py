@@ -100,6 +100,7 @@ class ScannerWebScanView(LoginRequiredMixin, View):
         payload = {
             "accepted": outcome.accepted,
             "result": outcome.result,
+            "access_result": outcome.log.metadata.get("access_result") or outcome.result,
             "message": outcome.message,
             "scan_id": str(outcome.log.pk),
             "scanned_at": outcome.log.scanned_at.isoformat(),
@@ -144,7 +145,6 @@ class LiveAccessSnapshotView(LoginRequiredMixin, View):
     def get(self, request, slug):
         event = get_object_or_404(get_scannable_events(request.user), slug=slug)
         snapshot = event_access_snapshot(event)
-        # DjangoJSONEncoder used by JsonResponse handles datetimes/Decimals.
         return JsonResponse(snapshot)
 
 
