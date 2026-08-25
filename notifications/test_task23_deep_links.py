@@ -27,7 +27,11 @@ class NotificationDeepLinkTests(TestCase):
             email="task23-notification-other@example.com",
             password="Task23-2026!",
         )
-        self.activity = Activity.objects.create(created_by=self.user, title="Task 23 deep link")
+        self.activity = Activity.objects.create(
+            owner_profile=self.user,
+            created_by=self.user,
+            title="Task 23 deep link",
+        )
         self.journey = Journey.objects.create(
             initiated_by=self.user,
             beneficiary=self.user,
