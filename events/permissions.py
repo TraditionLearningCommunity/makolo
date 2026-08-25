@@ -1,59 +1,33 @@
 from rest_framework.permissions import BasePermission
 
 from authorization.constants import PermissionCode
-from authorization.services import can, effective_permission_codes
-
-
-def _has_legacy_organizer_role(user) -> bool:
-    roles = getattr(user, "roles", None)
-    return bool(
-        roles is not None
-        and roles.filter(code="organizer", is_active=True).exists()
-    )
+from authorization.services import can
 
 
 def user_can_manage_events(user) -> bool:
-    """Return whether the profile may enter an Event creation surface.
+    """Any authenticated Profile may create a personal Event.
 
-    Canonical mandates are authoritative. Historical organizer markers remain
-    narrow compatibility entry points while existing profiles are migrated;
-    object-level operations still require authority on the Activity or
-    authorship of that Activity.
+    The selected operator is revalidated by the creation service. Global
+    organizer flags are no longer an authority gate for entering this surface.
     """
-    if not getattr(user, "is_authenticated", False):
-        return False
-    if getattr(user, "is_staff", False):
-        return True
-    effective = effective_permission_codes(user)
-    if (
-        PermissionCode.SPACE_ACTIVITIES_MANAGE in effective
-        or PermissionCode.ACTIVITY_MANAGE in effective
-    ):
-        return True
-    return bool(
-        getattr(user, "is_organizer", False)
-        or _has_legacy_organizer_role(user)
-    )
+    return bool(getattr(user, "is_authenticated", False))
 
 
-def _legacy_personal_creator(user, event) -> bool:
-    """Preserve the original Event creator's authority after the cutover.
-
-    Before Event became an Activity vertical, ``Event.organizer`` carried this
-    responsibility even when an organization was attached. The canonical
-    equivalent is ``Activity.created_by``; no generic value is copied back to
-    Event.
-    """
+def _legacy_unresolved_creator(user, event) -> bool:
+    """Narrow compatibility for pre-T24 Activities with unresolved ownership."""
+    activity = event.activity
     return bool(
         getattr(user, "is_authenticated", False)
-        and event.activity.created_by_id == user.pk
+        and activity.space_id is None
+        and getattr(activity, "owner_profile_id", None) is None
+        and activity.created_by_id == user.pk
     )
 
 
 def user_can_manage_event(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if getattr(user, "is_staff", False) or _legacy_personal_creator(user, event):
+    if _legacy_unresolved_creator(user, event):
         return True
     return can(user, PermissionCode.ACTIVITY_MANAGE, activity=event.activity)
 
@@ -61,8 +35,6 @@ def user_can_manage_event(user, event) -> bool:
 def user_can_manage_event_finance(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if getattr(user, "is_staff", False) or _legacy_personal_creator(user, event):
-        return True
     space = event.activity.space
     return bool(space is not None and can(user, PermissionCode.FINANCE_MANAGE, space))
 
@@ -70,10 +42,10 @@ def user_can_manage_event_finance(user, event) -> bool:
 def user_can_manage_event_access(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if getattr(user, "is_staff", False) or _legacy_personal_creator(user, event):
-        return True
     space = event.activity.space
-    return bool(space is not None and can(user, PermissionCode.ACCESS_MANAGE, space))
+    if space is not None:
+        return can(user, PermissionCode.ACCESS_MANAGE, space)
+    return can(user, PermissionCode.ACTIVITY_ACCESS_SCAN, activity=event.activity)
 
 
 class IsEventOrganizer(BasePermission):
