@@ -39,9 +39,8 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and early
   await expect(page.getByRole('heading', { name: /PAY-/ })).toBeVisible();
   await page.getByRole('button', { name: 'Simuler un paiement réussi' }).click();
   await expect(page.getByText('Réussi')).toBeVisible();
-  await page.getByRole('link', { name: 'Voir mon billet / mes accès' }).click();
+  await page.getByRole('link', { name: 'Voir cet accès' }).click();
   await expect(page.getByText('Lubumbashi → Kolwezi E2E')).toBeVisible();
-  await page.getByRole('link', { name: /Voir mon billet|Lubumbashi → Kolwezi E2E/ }).first().click();
   await expect(page.getByText('Billet', { exact: true })).toBeVisible();
   const qr = page.getByRole('img', { name: /QR de votre billet/i });
   await expect(qr).toBeVisible();
@@ -53,9 +52,9 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and early
   await page.goto('/spaces/mulykap-transport-e2e/control/');
   await page.getByRole('link', { name: /Lubumbashi → Kolwezi E2E/ }).click();
   await page.locator('#qr-image').setInputFiles(qrPath);
-  // The deterministic departure is in 2031: the real scanner must reject an
-  // authentic ticket before its canonical Access validity window opens.
-  await expect(page.locator('#result-title')).toHaveText('Accès refusé');
+  // The deterministic departure is in 2031: the real scanner must recognize
+  // the authentic ticket while clearly explaining that control is not open yet.
+  await expect(page.locator('#result-title')).toHaveText('Contrôle pas encore ouvert');
   await expect(page.locator('#result-message')).toContainText(/pas encore valable/i);
 });
 
