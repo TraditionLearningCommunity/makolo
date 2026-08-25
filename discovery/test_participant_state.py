@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from access.models import Access, AccessStatus
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
+from activities.services import create_activity
 from capacity.models import CapacityPool, CapacityReservation, CapacityReservationStatus
 from commerce.models import CommerceOrder, Offer, OfferStatus, PaymentMode
 from events.models import Event
@@ -220,7 +221,7 @@ class DiscoveryParticipantStateTests(TestCase):
         self.assertNotContains(response, "Acheter le billet")
 
     def test_professional_and_participant_states_coexist(self):
-        professional_activity = Activity.objects.create(
+        professional_activity = create_activity(
             title="Événement double identité",
             created_by=self.profile,
             owner_profile=self.profile,
