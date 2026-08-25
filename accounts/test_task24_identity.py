@@ -82,7 +82,7 @@ class Task24RememberedAccountTests(TestCase):
         self._login(self.sarah)
         self.client.post(reverse("core:logout"))
         self._login(self.christophe)
-        previous_session = self.client.cookies["sessionid"].value
+        previous_session = self.client.session.session_key
 
         response = self.client.post(reverse("account:switch-account", args=[self.sarah.pk]))
         self.assertEqual(response.status_code, 302)
@@ -96,7 +96,7 @@ class Task24RememberedAccountTests(TestCase):
 
         accepted = self._login(self.sarah)
         self.assertRedirects(accepted, reverse("core:participant-home"))
-        self.assertNotEqual(self.client.cookies["sessionid"].value, previous_session)
+        self.assertNotEqual(self.client.session.session_key, previous_session)
 
     def test_unrelated_browser_cannot_enumerate_copied_device_cookie(self):
         self._login(self.sarah)
