@@ -379,7 +379,7 @@ def build_discovery_item(
         vertical_label=vocabulary.activity_noun,
         title=occurrence.activity.title,
         summary=occurrence.activity.short_description or occurrence.activity.description[:220],
-        space_name=occurrence.activity.space.name if occurrence.activity.space_id else "",
+        space_name=occurrence.activity.operator_display_name,
         start_at=occurrence.start_at,
         end_at=occurrence.end_at,
         timezone=occurrence.timezone,
