@@ -23,7 +23,7 @@ La migration doit réutiliser les capacités existantes, préserver les frontiè
 
 | Concept | Définition canonique | Usage interface |
 |---|---|---|
-| **Profil** | Personne physique disposant d'un compte Makolo. L'identité est globale ; ses responsabilités ne le sont pas. | « Profil », « compte », nom de la personne selon l'écran. Ne jamais qualifier globalement un Profil de participant ou organisateur. |
+| **Profil** | Personne physique disposant d'un compte Makolo. L'identité est globale ; ses responsabilités ne le sont pas. Un Profil peut opérer directement une Activité personnelle sans créer d'Espace artificiel. | « Profil », « compte », nom de la personne selon l'écran. Ne jamais qualifier globalement un Profil de participant ou organisateur. |
 | **Espace** | Identité collective opérée dans Makolo : entreprise, association, institution, marque, collectif, école, organisation publique, etc. Un Espace n'a pas de mot de passe. | « Espace » dans les surfaces génériques ; nom et vocabulaire métier de l'organisation ailleurs. Ne pas employer « Page » comme concept canonique. |
 | **Équipe** | Ensemble de Profils qui travaillent pour un Espace ou une Activité. L'Équipe organise la collaboration ; l'autorité effective est exprimée par des Mandats. | « Équipe », « collaborateurs », « agents » selon le contexte. |
 | **Groupe** | Ensemble de Profils réunis pour appartenance, ciblage ou éligibilité, sans autorité implicite : Promotion 2026, VIP, employés, famille, presse, etc. | « Groupe », « promotion », « liste VIP », « employés » selon le métier. |
@@ -32,7 +32,7 @@ La migration doit réutiliser les capacités existantes, préserver les frontiè
 | **Mandat** | Attribution d'un Rôle à un Profil dans une portée déterminée, éventuellement limitée dans le temps. Formule : `Profil + Rôle + Portée = Mandat`. | Présenté comme responsabilité/accès/role dans un Espace ou une Activité. |
 | **Confiance** | Domaine des mécanismes d'identité, sécurité, preuve et assurance utilisés par Makolo. | « Sécurité », « confiance », « vérification » selon l'écran. |
 | **Vérification** | Processus/constat contrôlé confirmant une information : Profil, Espace, autorité d'un administrateur, information de paiement, etc. | « Vérifié par Makolo » lorsque la portée est explicite. Ne pas promettre une certification générale de qualité. |
-| **Activité** | Chose organisée, proposée ou opérée : concert, conférence, mariage, trajet, formation, séance ou autre service. Porte l'identité durable et les règles communes, pas toutes les données spécifiques d'une verticale. | Toujours contextualiser lorsque possible : concert, trajet, conférence, cérémonie… |
+| **Activité** | Chose organisée, proposée ou opérée : concert, conférence, mariage, trajet, formation, séance ou autre service. Porte l'identité durable et les règles communes, pas toutes les données spécifiques d'une verticale. Son opérateur logique est exactement un Profil ou un Espace. | Toujours contextualiser lorsque possible : concert, trajet, conférence, cérémonie… |
 | **Occurrence** | Réalisation concrète d'une Activité dans le temps et éventuellement dans un Lieu. | Départ, séance, session, cérémonie, créneau… Le mot « occurrence » peut rester interne. |
 | **Démarche** | Processus utilisateur orchestré par Makolo : achat, commande, réservation, inscription, invitation, demande de participation ou combinaison d'étapes. | Utiliser réservation, inscription, commande, invitation, demande… |
 | **Demande** | Objet décisionnel dans une Démarche lorsqu'une validation humaine ou automatique est nécessaire. | Demande d'inscription, de réservation, de participation… |
@@ -54,21 +54,21 @@ Exemple : une `Access` issue d'une `Journey` liée à une `Occurrence` de transp
 
 **Responsabilité** : identité personnelle Makolo, authentification, préférences personnelles et sécurité du compte.
 
-**Possède** : identité de connexion, informations personnelles, préférences, appareils/sessions, liens vers vérifications personnelles.
+**Possède** : identité de connexion, informations personnelles, préférences, appareils/sessions, liens vers vérifications personnelles et, lorsque la personne agit en son nom, Activities personnelles dont il est l'opérateur logique.
 
 **Ne possède pas** : un rôle métier global « organisateur », « finance » ou « scanner ». Les flags historiques de ce type sont des compatibilités à retirer progressivement.
 
 **Cycle essentiel** : création → vérifications éventuelles → actif/verrouillé/désactivé → anonymisation/suppression selon les règles futures.
 
-**Relations** : Équipes, Groupes, Mandats, Démarches, Accès, Vérifications.
+**Relations** : Équipes, Groupes, Mandats, Activités personnelles, Démarches, Accès, Vérifications.
 
 ### Espace
 
-**Responsabilité** : identité collective, propriétaire logique des activités et des capacités métier d'une entité collective.
+**Responsabilité** : identité collective et opérateur logique des activités/capacités métier d'une entité collective lorsqu'elle agit dans Makolo.
 
-**Possède** : identité publique, paramètres, équipes, activités, groupes internes, configuration métier, vérifications propres à l'entité.
+**Possède** : identité publique, paramètres, équipes, activités qu'il opère, groupes internes, configuration métier, vérifications propres à l'entité.
 
-**Ne possède pas** : des identifiants d'authentification humains ; un Espace n'est jamais un `User` déguisé.
+**Ne possède pas** : des identifiants d'authentification humains ; un Espace n'est jamais un `User` déguisé et ne doit pas être fabriqué pour représenter le contexte personnel d'un Profil.
 
 **Cycle essentiel** : création → configuration → vérification éventuelle → actif → suspendu/archivé.
 
@@ -131,9 +131,9 @@ Les preuves, décisions de revue, reviewer, dates et portée de la vérification
 
 **Responsabilité** : identité durable et règles communes de ce qui est proposé/opéré.
 
-**Possède** : Espace opérateur, titre/description, visibilité, catégorie/taxonomie transversale, état, règles communes, éventuellement zones de pertinence.
+**Possède** : un opérateur logique explicite — **Profil ou Espace, jamais les deux** — ainsi que titre/description, visibilité, catégorie/taxonomie transversale, état, règles communes et éventuellement zones de pertinence. La provenance `created_by` reste distincte : elle indique quel Profil humain a créé l'objet, y compris lorsqu'il agit au nom d'un Espace.
 
-**Ne possède pas** : les champs spécifiques de toutes les verticales, ni nécessairement une date unique, un lieu unique, une origine/destination ou une tarification.
+**Ne possède pas** : les champs spécifiques de toutes les verticales, ni nécessairement une date unique, un lieu unique, une origine/destination ou une tarification. La propriété logique n'accorde pas directement une Permission : l'autorité d'administration reste exprimée par les Mandats.
 
 Les données événementielles ou transport sont ajoutées par **composition** dans les verticales spécialisées.
 
@@ -197,7 +197,8 @@ erDiagram
     ROLE ||--o{ MANDATE : grants
     ROLE ||--o{ ROLE_PERMISSION : contains
     PERMISSION ||--o{ ROLE_PERMISSION : included
-    SPACE ||--o{ ACTIVITY : operates
+    PROFILE ||--o{ ACTIVITY : operates_personally
+    SPACE ||--o{ ACTIVITY : operates_collectively
     ACTIVITY ||--o{ OCCURRENCE : realizes
     OCCURRENCE }o--o{ PLACE : uses
     ACTIVITY }o--o{ ZONE : relevant_in
@@ -221,7 +222,7 @@ erDiagram
 - **Profil ↔ Groupe** : M:N via `GroupMembership`, afin de conserver source, validité et état.
 - **Profil ↔ Mandat** : 1:N ; plusieurs responsabilités peuvent coexister sur des portées différentes.
 - **Mandat ↔ Rôle** : N:1 ; **Rôle ↔ Permission** : M:N via un modèle `RolePermission` explicite.
-- **Espace ↔ Activité** : recommandation principale 1:N pour l'opérateur/propriétaire principal. Une collaboration multi-Espaces future doit passer par un modèle de relation distinct, pas rendre immédiatement l'ownership ambigu.
+- **Profil/Espace ↔ Activité** : une Activity possède exactement un opérateur logique principal : `owner_profile` **XOR** `space`. Le Profil est utilisé lorsque la personne agit en son nom ; l'Espace lorsqu'elle agit pour une identité collective. Une collaboration multi-Espaces future doit passer par un modèle de relation distinct sans rendre cet ownership ambigu. `created_by` reste une relation de provenance vers le Profil humain et ne remplace jamais cette propriété métier.
 - **Activité ↔ Occurrence** : 1:N.
 - **Occurrence ↔ Lieu** : M:N via un modèle intermédiaire lorsque plusieurs rôles de lieux sont nécessaires ; sinon une FK explicite suffit pour un rôle unique d'une verticale.
 - **Activité/Occurrence ↔ Zone** : via modèles intermédiaires lorsque la relation porte un sens (découverte, desserte, éligibilité, restriction).
@@ -267,7 +268,9 @@ Renommer une table/modèle mature n'apporte pas à lui seul la nouvelle architec
 
 ### ForeignKey
 
-Utiliser une `ForeignKey` lorsqu'une entité appartient naturellement à une autre ou lorsqu'une relation N:1 possède une sémantique stable : Occurrence → Activity, Activity → Space opérateur, Access → Profile bénéficiaire.
+Utiliser une `ForeignKey` lorsqu'une entité appartient naturellement à une autre ou lorsqu'une relation N:1 possède une sémantique stable : Occurrence → Activity, Activity → Space opérateur **ou** Activity → Profile opérateur personnel, Access → Profile bénéficiaire.
+
+Pour l'ownership Activity, deux FKs explicites et une contrainte XOR sont préférables à `ContentType`, `GenericForeignKey` ou un propriétaire polymorphe opaque. `created_by` est une FK séparée de provenance/audit.
 
 `PROTECT`, `SET_NULL` ou `CASCADE` doivent refléter la rétention métier, pas une convention globale. Les droits, paiements, décisions et audits historiques doivent généralement survivre à la suppression logique de leur contexte.
 
@@ -345,7 +348,11 @@ Lie `Role` + `Permission`, avec éventuellement une valeur système/personnalis�
 
 ### ActivityOwnership / collaboration
 
-Pour la première migration, `Activity.space` doit rester une FK vers l'Espace opérateur principal. Si les co-organisations deviennent un besoin réel, ajouter un modèle `ActivitySpaceRole`/équivalent avec un rôle explicite (co-organisateur, sponsor opérateur, partenaire), sans rendre l'ownership principal M2M.
+L'ownership principal d'une Activity est explicite : `Activity.space` pour un opérateur collectif **ou** `Activity.owner_profile` pour un opérateur personnel, avec contrainte XOR pour les nouvelles lignes. `Activity.created_by` reste indépendant et conserve le Profil humain à l'origine de la création. Les données historiques antérieures dont l'ownership n'est pas déterminable automatiquement peuvent rester temporairement non résolues pendant une migration additive plutôt que d'être attribuées arbitrairement.
+
+Si les co-organisations deviennent un besoin réel, ajouter un modèle `ActivitySpaceRole`/équivalent avec un rôle explicite (co-organisateur, sponsor opérateur, partenaire), sans rendre l'ownership principal M2M.
+
+La propriété personnelle n'est pas une permission implicite. La création d'une Activity personnelle doit attribuer transactionnellement le Mandat Activity approprié au Profil propriétaire ; la délégation à d'autres Profils continue ensuite à passer par des Mandats Activity.
 
 ### GroupEligibility
 
@@ -379,6 +386,8 @@ Le système actuel sépare déjà correctement `is_staff` des rôles d'organisat
 3. **Permissions Activité** : publication, configuration, billetterie/offres, validation de demandes, accès et opérations d'une Activité précise.
 4. **Permissions Groupe** : gestion de membres/éligibilité d'un Groupe précis. Appartenir au Groupe ne donne aucun de ces droits.
 5. **Mandats** : seule attribution métier canonique des rôles contextuels.
+
+L'ownership `Activity.owner_profile` ou `Activity.space` ne constitue pas un raccourci autour de `can()`. Lorsqu'un Profil crée personnellement une Activity, son autorité locale est matérialisée par un Mandat Activity ; un manager délégué reçoit de même un Mandat Activity. TeamMembership ou GroupMembership seules ne donnent aucune capacité de gestion.
 
 ### Rôles standards
 
@@ -698,71 +707,4 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 14. **Les états métier changent par transitions contrôlées et services, pas par combinaisons de booléens.**
 15. **Les selectors, permissions et services restent des frontières de sécurité.** Généraliser le domaine ne doit jamais élargir accidentellement l'accès aux PII, paiements, CRM ou journaux d'accès.
 16. **Les données historiques financières et d'accès conservent leurs snapshots et leur audit.**
-17. **La géolocalisation est minimisée.** Une position ponctuelle de découverte n'est pas un historique de déplacements.
-18. **Ne pas conserver un modèle historique uniquement par peur de casser la bêta.** La migration doit être progressive et testée, mais la compatibilité est un pont, pas la cible.
-
----
-
-## Lecture avec l'architecture existante
-
-Tant que les migrations ci-dessus ne sont pas réalisées, [`authorization-boundaries.md`](authorization-boundaries.md) reste la référence opérationnelle des permissions actuellement exécutées par le code. Le présent blueprint définit **où ces frontières doivent converger**, pas une autorisation déjà disponible dans le runtime.
-
-Les prochaines PR de refactoring doivent citer la section et l'étape de migration qu'elles mettent en œuvre, et préciser les adaptateurs de compatibilité conservés ou supprimés.
-
-### Note d'implémentation — Démarche / Demande / Accès
-
-L'étape 5 est désormais matérialisée par les bounded contexts `journeys` et `access` : `Journey`, `JourneyRequest`, `JourneyTransition`, `Access`, `AccessCredential` et `AccessUse` existent avec workflows/transitions contrôlés, émission individuelle, credential QR signé et rotatable, validation transactionnelle single-use et permissions Activity-scoped.
-
-`TicketOrder.journey` et `Ticket.access` constituent les bridges explicites de migration. `TicketOrder`, `Ticket`, `TicketType`, `Payment`, `ScannerAssignment` et l'UX Event restent conservés par compatibilité ; les QR Ticket historiques utilisent un resolver legacy contrôlé, tandis que toute nouvelle représentation canonique invalide l'ancien bearer. La décision de scan converge vers `Access` et produit `AccessUse` sans supprimer `ScanLog`.
-
-La prochaine étape structurante reste **Commerce / capacité / paiement**. Le détail des invariants, mappings de backfill et compatibilités de cette implémentation est documenté dans [`journey-request-access.md`](journey-request-access.md).
-
-### Note d'implémentation — Commerce / capacité / paiement
-
-L'étape 6 est désormais matérialisée par deux bounded contexts séparés : `capacity` porte `CapacityPool` et `CapacityReservation`, tandis que `commerce` porte `Offer`, `CommerceOrder`, `CommerceOrderItem` et les `PaymentMode` contrôlés. La capacité reste indépendante du commerce et du paiement : une Journey gratuite peut réserver puis engager une place et produire un Access sans CommerceOrder ni Payment.
-
-Les bridges explicites sont `TicketType → Offer/CapacityPool`, `TicketOrder → CommerceOrder`, `TicketOrderItem → CommerceOrderItem/CapacityReservation` et `Payment → CommerceOrder`. `Payment` reste la source de vérité provider et peut désormais référencer une CommerceOrder sans TicketOrder ; Journey reste propriétaire du workflow et Access du droit. Les modèles Ticket historiques, Promotions et Waitlist restent conservés comme compatibilités de la verticale Events.
-
-Le verrouillage de capacité est transactionnel sur `CapacityPool` et la disponibilité est dérivée des réservations `held` non expirées et `committed`, sans compteur canonique concurrent. Les détails des invariants, backfills, modes `none/upfront/after_approval/on_site/later` et limites volontaires sont documentés dans [`commerce-capacity.md`](commerce-capacity.md).
-
-### Note d'implémentation — 8A Domain Events / Notifications / Automation
-
-La généralisation des capacités transversales est désormais découpée en étapes maîtrisables. **8A** introduit un contrat de Domain Events stables `<domain>.<fact>`, une outbox transactionnelle persistée dans `core`, un processor batché/retryable et des traces de consommation idempotentes. Les transitions canoniques de Journey/Request, Activity/Occurrence, Access, Commerce et Payment produisent leurs faits depuis leurs services ; le contrat ne dépend pas de la verticale historique `events.Event`.
-
-`notifications` consomme ces faits comme **consumer système** et conserve le vocabulaire contextuel Event/registration/invitation ainsi que les préférences existantes. `automation` peut désormais déclencher des règles configurables par `event_type`, avec portée Espace/Activity, conditions whitelistées et exécutions idempotentes ; Autopilot reste le scheduler des travaux temporels et peut traiter l'outbox sans devenir propriétaire des workflows.
-
-Les bridges Event/Ticket et les moteurs historiques encore nécessaires restent des compatibilités. La généralisation **CRM + Promotions / audiences commerciales** est reportée à **8B** ; **Scanner/Operations + Analytics** à **8C**. Les détails du contrat, du retry et de la séparation consumers système/règles configurables sont documentés dans [`domain-events-automation.md`](domain-events-automation.md).
-
-### Note d'implémentation — 8B CRM / Audiences / Promotions
-
-**8B** matérialise la relation CRM `Espace ↔ Profil` avec une unicité par Espace/Profil et des `CRMInteraction` dérivées des Domain Events via le consumer système `crm.system`. `Audience`/`AudienceMember` matérialisent une population statique, issue d'une sélection de Profils, d'un Groupe courant ou d'un `GroupSnapshot` ; **Groupe ≠ Audience** et **Audience ≠ consentement marketing**.
-
-Les Promotions ciblent désormais Commerce par `PromotionTargeting` et `PromotionOffer`, avec une Audience optionnelle contrôlée au checkout. Les `TicketType` historiques restent une projection Events et leur bridge `ticket_type.offer` alimente les cibles Offer sans devenir la cible canonique. Les quotas historiques et canoniques sont comptés ensemble, tandis que `CommerceOrder`/`CommerceOrderItem` conservent les snapshots de prix et remise.
-
-`AudienceSegment`, `CRMWorkflow*`, `Promotion.event`, `eligible_ticket_types` et les redemptions TicketOrder restent des couches de compatibilité. Scanner/Operations et Analytics restent réservés à **8C**. Les détails sont documentés dans [`crm-promotions-audiences.md`](crm-promotions-audiences.md).
-
-### Note d'implémentation — 8C Scanner / Operations / Analytics
-
-**8C** fait converger le contrôle d'accès vers `Activity` / `Occurrence` et le moteur `AccessCredential → Access → AccessUse`. `ScannerAssignment` porte désormais ce scope canonique ; `Event`, `Ticket` et `ScanLog` restent des bridges de la verticale Events et ne décident plus de l'autorisation.
-
-Operations peut contextualiser un incident par Espace, Activity et Occurrence sans Event obligatoire. Analytics lit Journey, Access, CommerceOrder, Payment et Capacity comme sources canoniques, projette seulement les Domain Events utiles via `analytics.system`, sépare valeur commerciale et paiement réellement encaissé, conserve les devises distinctes et évite le double comptage des projections Event/Ticket bridgées.
-
-Le backend reste générique tandis que les dashboards et écrans Events conservent les termes « billets », « participants », « revenus » et « contrôle d'accès ». Les invariants et compatibilités de cette étape sont détaillés dans [`scanner-operations-analytics.md`](scanner-operations-analytics.md).
-
-### Note d'implémentation — Task 9 Events comme verticale
-
-L'étape « Events comme verticale » est désormais matérialisée par composition sur les propriétaires canoniques : `Event → Activity`, calendrier → `Occurrence`, lieu physique → `Place` via `OccurrencePlace`, type de billet → `Offer` / `CapacityPool`, commande → `Journey` / `CommerceOrder`, billet → `Access`, QR → `AccessCredential` et validation → `AccessUse`.
-
-`Event`, `EventVenue`, `TicketType`, `TicketOrder`, `TicketOrderItem`, `Ticket`, Waitlist et `ScanLog` ne portent plus les décisions génériques déjà possédées par ces bounded contexts ; ils restent configuration, vocabulaire, snapshots historiques ou bridges explicitement documentés de la verticale Events. Les nouveaux flux écrivent d'abord les propriétaires canoniques. Les détails de cutover et la dette de compatibilité restante sont documentés dans [`events-vertical.md`](events-vertical.md).
-
-### Note d'implémentation — Task 10 Participant Experience
-
-La surface participant est désormais canonical-first : `Occurrence` fournit le quand/où, `Journey` est présenté comme la démarche et porte la prochaine action de présentation, Commerce/Payment n'apparaît que lorsque le workflow l'exige, et `Access`/`AccessCredential` fournit le droit et son QR contextualisé. L'accueil personnel, Mes démarches et Mes accès fonctionnent sans dépendance obligatoire à Event, Ticket ou TicketOrder ; Event reste uniquement une verticale de vocabulaire. Les détails et compatibilités encore consommées sont documentés dans [`participant-experience.md`](participant-experience.md).
-
-### Note d'implémentation — Task 12 Transport MVP
-
-**Task 12 — Transport MVP** est désormais matérialisée par `transport` comme verticale composée sur le cœur canonique. Les responsabilités, invariants et non-goals sont documentés dans [`transport-mvp.md`](transport-mvp.md).
-
-### Note d'implémentation — Task 13 Spatio-temporal Discovery
-
-La Discovery publique est désormais construite sur `Activity + Occurrence + Geography` : Activity porte le « quoi », Occurrence le « quand », `OccurrencePlace → Place` le « où », et un presenter léger fournit le vocabulaire et le CTA de la verticale. Event et Transport partagent ainsi le même moteur sans rendre Event obligatoire ; les règles de timezone, nearby bounding-box/Haversine, Offer/Capacity et rendu MapLibre sont documentées dans [`spatiotemporal-discovery.md`](spatiotemporal-discovery.md).
+17. **Une nouvelle Activity possède exactement un opérateur logique : un Profil ou un Espace.** `created_by` conserve la provenance du Profil humain et ne constitue pas l'autorité ; celle-ci reste portée par les Mandats.
