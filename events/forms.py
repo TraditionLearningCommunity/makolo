@@ -21,7 +21,13 @@ COMPLETED_EVENT_LOCKED_FORM_FIELDS = (
 class EventForm(forms.Form):
     """Event vocabulary over Activity/Occurrence/Event composition."""
 
-    organization = forms.ModelChoiceField(queryset=Organization.objects.none(), label="Organisation organisatrice")
+    organization = forms.ModelChoiceField(
+        queryset=Organization.objects.none(),
+        required=False,
+        empty_label="Moi-même",
+        label="Organiser en tant que",
+        help_text="Votre Profil organise personnellement l’événement, ou choisissez un Espace que vous êtes autorisé à représenter.",
+    )
     title = forms.CharField(max_length=220, label="Titre")
     category = forms.ModelChoiceField(queryset=EventCategory.objects.filter(is_active=True), required=False, label="Catégorie")
     venue = forms.ModelChoiceField(queryset=EventVenue.objects.filter(is_active=True), required=False, label="Lieu")
@@ -39,14 +45,9 @@ class EventForm(forms.Form):
         self.instance = instance
         super().__init__(*args, **kwargs)
         if user and user.is_authenticated:
-            if user.is_staff:
-                queryset = Organization.objects.all()
-            else:
-                space_ids = space_ids_with_permission(user, PermissionCode.SPACE_ACTIVITIES_MANAGE)
-                queryset = Organization.objects.all() if space_ids is None else Organization.objects.filter(pk__in=space_ids)
-            self.fields["organization"].queryset = queryset.distinct()
-            if not instance and queryset.count() == 1:
-                self.fields["organization"].initial = queryset.first()
+            space_ids = space_ids_with_permission(user, PermissionCode.SPACE_ACTIVITIES_MANAGE)
+            queryset = Organization.objects.all() if space_ids is None else Organization.objects.filter(pk__in=space_ids)
+            self.fields["organization"].queryset = queryset.distinct().order_by("name")
 
         if instance is not None:
             self.initial.update(
@@ -92,7 +93,7 @@ class EventForm(forms.Form):
         if start_at and end_at and end_at <= start_at:
             self.add_error("end_at", "La fin doit être postérieure au début.")
         if registration_start_at and registration_end_at and registration_end_at <= registration_start_at:
-            self.add_error("registration_end_at", "La fin des inscriptions doit être postérieure à leur début.")
+            self.add_error("registration_end_at", "La fin des inscriptions doit être postérieure au début.")
         if registration_end_at and end_at and registration_end_at > end_at:
             self.add_error("registration_end_at", "Les inscriptions ne peuvent pas se terminer après l’événement.")
         if registration_start_at and end_at and registration_start_at >= end_at:
