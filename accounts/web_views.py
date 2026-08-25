@@ -4,12 +4,13 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
-from django.views.generic import FormView
+from django.views.generic import FormView, TemplateView
 
 from core.web_throttling import (
     RATE_LIMIT_MESSAGE,
@@ -18,6 +19,11 @@ from core.web_throttling import (
     value_rate_identity,
 )
 
+from .device_accounts import (
+    forget_account_on_device,
+    remembered_accounts_for_request,
+    remembered_device_for_user,
+)
 from .forms import (
     AccountDeleteForm,
     AccountProfileForm,
@@ -234,6 +240,53 @@ class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     def form_valid(self, form):
         messages.success(self.request, "Mot de passe modifié avec succès.")
         return super().form_valid(form)
+
+
+class AccountSwitcherView(LoginRequiredMixin, TemplateView):
+    login_url = "core:login"
+    template_name = "accounts/account_switcher.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        devices = remembered_accounts_for_request(self.request)
+        context["remembered_accounts"] = [row.user for row in devices]
+        return context
+
+
+class SwitchRememberedAccountView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, user_id):
+        device = remembered_device_for_user(request, user_id)
+        if device is None:
+            raise Http404("Ce compte n'est pas mémorisé sur cet appareil.")
+        if device.user_id == request.user.pk:
+            return redirect("core:participant-home")
+        target_email = device.user.email
+        logout(request)
+        login_url = reverse("core:login")
+        query = urlencode({"email": target_email, "next": reverse("core:participant-home")})
+        return redirect(f"{login_url}?{query}")
+
+
+class AddAccountView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request):
+        logout(request)
+        login_url = reverse("core:login")
+        query = urlencode({"next": reverse("core:participant-home")})
+        return redirect(f"{login_url}?{query}")
+
+
+class RemoveRememberedAccountView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, user_id):
+        if not forget_account_on_device(request, user_id):
+            raise Http404("Ce compte n'est pas mémorisé sur cet appareil.")
+        messages.success(request, "Compte retiré de cet appareil.")
+        return redirect("account:switcher")
 
 
 class AccountDeleteView(LoginRequiredMixin, FormView):
