@@ -5,6 +5,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
 from tickets.models import TicketStatus
 
 from .intelligence import event_access_snapshot
@@ -16,6 +18,11 @@ from .tests import ScannerFixtureMixin
 class SmartAccessServiceTests(ScannerFixtureMixin, TestCase):
     def setUp(self):
         self.build_fixture()
+        grant_space_role(
+            profile=self.organizer,
+            space=self.space,
+            role=SystemRoleCode.SPACE_OWNER,
+        )
         self.gate = EventAccessGate.objects.create(
             event=self.event,
             name="Entrée Nord",
@@ -94,6 +101,11 @@ class SmartAccessServiceTests(ScannerFixtureMixin, TestCase):
 class SmartAccessApiTests(ScannerFixtureMixin, APITestCase):
     def setUp(self):
         self.build_fixture()
+        grant_space_role(
+            profile=self.organizer,
+            space=self.space,
+            role=SystemRoleCode.SPACE_OWNER,
+        )
         self.gate = EventAccessGate.objects.create(
             event=self.event,
             name="Porte VIP",
@@ -162,6 +174,11 @@ class SmartAccessApiTests(ScannerFixtureMixin, APITestCase):
 class SmartAccessWebTests(ScannerFixtureMixin, TestCase):
     def setUp(self):
         self.build_fixture()
+        grant_space_role(
+            profile=self.organizer,
+            space=self.space,
+            role=SystemRoleCode.SPACE_OWNER,
+        )
         self.gate = EventAccessGate.objects.create(
             event=self.event,
             name="Entrée principale",
