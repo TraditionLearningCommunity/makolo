@@ -51,10 +51,10 @@ def _ensure_can_manage(actor, event: Event) -> None:
         raise PermissionDenied("Vous ne pouvez pas gérer cet événement.")
 
 
-def _ensure_can_create(actor, space) -> None:
+def _ensure_can_create(actor, space=None) -> None:
     if not getattr(actor, "is_authenticated", False):
         raise PermissionDenied("Authentification requise.")
-    if not can(actor, PermissionCode.SPACE_ACTIVITIES_MANAGE, space):
+    if space is not None and not can(actor, PermissionCode.SPACE_ACTIVITIES_MANAGE, space):
         raise PermissionDenied("Vous ne pouvez pas créer d’événement dans cet Espace.")
 
 
@@ -124,10 +124,10 @@ def _event_specific_values(fields):
 def create_event(
     *,
     actor,
-    organization,
     title,
     start_at,
     end_at,
+    organization=None,
     timezone="Africa/Lubumbashi",
     short_description="",
     description="",
@@ -140,10 +140,11 @@ def create_event(
     metadata=None,
     capacity=UNSET,
 ) -> Event:
-    """Create an Event by composing canonical owners first."""
+    """Create an Event as a vertical over one explicitly-owned Activity."""
     _ensure_can_create(actor, organization)
     activity = create_activity(
         space=organization,
+        owner_profile=actor if organization is None else None,
         created_by=actor,
         title=title,
         short_description=short_description,
@@ -198,6 +199,10 @@ def update_event(*, event: Event, actor, organization=None, **fields) -> Event:
 
     activity_values = {name: fields[name] for name in CORE_ACTIVITY_FIELDS if name in fields}
     if organization is not None and organization.pk != activity.space_id:
+        if activity.owner_profile_id:
+            raise ValidationError(
+                "Le transfert d’une Activity personnelle vers un Espace n’est pas réalisé depuis ce formulaire."
+            )
         if not can(actor, PermissionCode.SPACE_ACTIVITIES_MANAGE, organization):
             raise PermissionDenied("Vous ne pouvez pas déplacer cet événement vers cet Espace.")
         activity_values["space"] = organization
