@@ -219,6 +219,8 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
             return super().create(**kwargs)
 
         from activities.models import Activity, Occurrence, OccurrencePlace
+        from authorization.constants import SystemRoleCode
+        from authorization.services import grant_activity_role
         from capacity.models import CapacityPool
 
         organization = kwargs.pop("organization", None)
@@ -261,6 +263,15 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
             if not has_space:
                 activity_values["owner_profile_id"] = organizer_id
         activity = Activity.objects.create(**activity_values)
+        if activity.owner_profile_id:
+            owner = organizer or activity.owner_profile
+            grant_activity_role(
+                profile=owner,
+                activity=activity,
+                role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+                granted_by=owner,
+                source="event-manager-compatibility",
+            )
         occurrence = Occurrence.objects.create(
             activity=activity,
             start_at=start_at,
