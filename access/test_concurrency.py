@@ -27,7 +27,11 @@ class AccessConcurrencyTests(TransactionTestCase):
             email="access-concurrency@example.com",
             password="Access-2026!",
         )
-        self.activity = Activity.objects.create(created_by=self.user, title="Concurrent Access")
+        self.activity = Activity.objects.create(
+            owner_profile=self.user,
+            created_by=self.user,
+            title="Concurrent Access",
+        )
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
             start_at=timezone.now() - timedelta(minutes=5),
