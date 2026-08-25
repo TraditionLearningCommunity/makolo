@@ -34,7 +34,6 @@ from .participant_selectors import (
     participant_history_journeys,
     participant_journeys,
     participant_upcoming_accesses,
-    participant_upcoming_occurrences,
 )
 
 
@@ -80,13 +79,12 @@ class ParticipantHomeView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
         actionable = list(participant_actionable_journeys(profile)[:5])
-        upcoming = list(participant_upcoming_occurrences(profile)[:5])
-        accesses = list(participant_upcoming_accesses(profile)[:5])
+        upcoming_accesses = list(participant_upcoming_accesses(profile)[:5])
         context.update(
             {
                 "actionable": [_journey_card(j) for j in actionable],
-                "upcoming": [_journey_card(j) for j in upcoming],
-                "active_accesses": [_access_card(a) for a in accesses],
+                "upcoming": [_access_card(a) for a in upcoming_accesses],
+                "active_accesses": [_access_card(a) for a in upcoming_accesses],
                 "recent_journeys": [_journey_card(j) for j in participant_journeys(profile)[:5]],
             }
         )

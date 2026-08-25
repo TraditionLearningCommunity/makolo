@@ -7,12 +7,12 @@
         <div>
             <a href="{% url 'organizations:console-control' space.slug %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Contrôle d’accès</a>
             <h2 class="mt-2 text-3xl font-black text-zinc-900 dark:text-white">{{ activity.title }}</h2>
-            {% if scanner_assignment %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Départ affecté : {{ scanner_assignment.occurrence.start_at|date:"d/m/Y H:i" }}</p>{% else %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Contrôlez les billets valables pour cette activité.</p>{% endif %}
+            {% if scanner_assignment %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Contrôle affecté : {{ scanner_vocabulary.occurrence_noun }} du {{ scanner_assignment.occurrence.start_at|date:"d/m/Y H:i" }}</p>{% else %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Contrôlez les accès valables pour cette activité.</p>{% endif %}
         </div>
     </div>
 
     <div class="rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border);background:var(--mk-brand-softer)">
-        <div class="flex items-start gap-3"><i data-lucide="scan-qr-code" class="mt-0.5 h-5 w-5 shrink-0" style="color:var(--mk-brand)"></i><div><p class="font-bold">Scanner Makolo</p><p class="mt-1" style="color:var(--mk-muted)">Scannez le QR. Si un départ est affecté, Makolo vérifie aussi que le billet correspond à ce départ.</p></div></div>
+        <div class="flex items-start gap-3"><i data-lucide="scan-qr-code" class="mt-0.5 h-5 w-5 shrink-0" style="color:var(--mk-brand)"></i><div><p class="font-bold">Scanner Makolo</p><p class="mt-1" style="color:var(--mk-muted)">Scannez le QR. Lorsqu’une occurrence est affectée, Makolo vérifie aussi que l’accès correspond au bon contrôle.</p></div></div>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-5">
@@ -38,6 +38,7 @@
                 <h3 id="result-title" class="mt-4 text-2xl font-black text-zinc-900 dark:text-white">Prêt à scanner</h3>
                 <p id="result-message" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Présentez un QR Makolo devant la caméra.</p>
                 <div id="ticket-info" class="mt-5 hidden rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-zinc-900"></div>
+                <button id="scan-next" type="button" class="mt-5 hidden w-full rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white">Scanner le suivant</button>
             </div>
 
             <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
@@ -48,9 +49,9 @@
 
             <form id="manual-form" class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
                 {% csrf_token %}
-                <label for="manual-token" class="text-sm font-bold text-zinc-900 dark:text-white">Code du billet</label>
+                <label for="manual-token" class="text-sm font-bold text-zinc-900 dark:text-white">Code de l’accès</label>
                 <textarea id="manual-token" name="token" rows="3" class="mt-3 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900" placeholder="Collez le contenu du QR"></textarea>
-                <button type="submit" class="mt-3 w-full rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white hover:bg-indigo-500">Vérifier le billet</button>
+                <button type="submit" class="mt-3 w-full rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white hover:bg-indigo-500">Vérifier l’accès</button>
             </form>
         </aside>
     </div>

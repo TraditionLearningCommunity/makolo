@@ -18,6 +18,7 @@ from journeys.services import (
 from .models import (
     Access,
     AccessStatus,
+    AccessUse,
     AccessUseResult,
     CredentialStatus,
     CredentialType,
@@ -194,6 +195,7 @@ class AccessServiceTests(AccessFixtureMixin, TestCase):
             validate_access_credential(other_token, expected_activity=other_activity).result,
             AccessUseResult.WRONG_ACTIVITY,
         )
+        self.assertEqual(other_access.uses.filter(result=AccessUseResult.ACCEPTED).count(), 0)
 
         second_occurrence = Occurrence.objects.create(
             activity=self.activity,
@@ -210,6 +212,7 @@ class AccessServiceTests(AccessFixtureMixin, TestCase):
             validate_access_credential(scoped_token, expected_occurrence=second_occurrence).result,
             AccessUseResult.WRONG_OCCURRENCE,
         )
+        self.assertEqual(scoped.uses.filter(result=AccessUseResult.ACCEPTED).count(), 0)
 
     def test_validity_expiration_revoke_and_cancel(self):
         now = timezone.now()
@@ -223,10 +226,12 @@ class AccessServiceTests(AccessFixtureMixin, TestCase):
         future_token = render_access_credential(
             future_access.credentials.get(status=CredentialStatus.ACTIVE)
         )
-        self.assertEqual(
-            validate_access_credential(future_token, now=now).result,
-            AccessUseResult.NOT_YET_VALID,
-        )
+        too_early = validate_access_credential(future_token, now=now)
+        self.assertEqual(too_early.result, AccessUseResult.NOT_YET_VALID)
+        future_access.refresh_from_db()
+        self.assertEqual(future_access.status, AccessStatus.VALID)
+        self.assertEqual(future_access.uses.filter(result=AccessUseResult.ACCEPTED).count(), 0)
+        self.assertEqual(too_early.use.used_at, now)
 
         expiring = issue_access(
             beneficiary=self.owner,
@@ -250,8 +255,81 @@ class AccessServiceTests(AccessFixtureMixin, TestCase):
         cancel_access(access=cancelled)
         self.assertEqual(
             validate_access_credential(cancelled_token).result,
-            AccessUseResult.REVOKED,
+            AccessUseResult.CANCELLED,
         )
+
+    def test_same_client_reference_replays_same_access_use_without_second_consumption(self):
+        access = issue_access(
+            beneficiary=self.owner,
+            activity=self.activity,
+            occurrence=self.occurrence,
+        )
+        token = render_access_credential(access.credentials.get(status=CredentialStatus.ACTIVE))
+        now = timezone.now()
+        authority = lambda controller, candidate: controller == self.decider
+
+        first = validate_access_credential(
+            token,
+            controller=self.decider,
+            authority_check=authority,
+            expected_activity=self.activity,
+            expected_occurrence=self.occurrence,
+            client_reference="same-camera-cycle",
+            source="test-scanner",
+            now=now,
+        )
+        repeated = validate_access_credential(
+            token,
+            controller=self.decider,
+            authority_check=authority,
+            expected_activity=self.activity,
+            expected_occurrence=self.occurrence,
+            client_reference="same-camera-cycle",
+            source="test-scanner",
+            now=now + timedelta(seconds=1),
+        )
+
+        self.assertEqual(first.result, AccessUseResult.ACCEPTED)
+        self.assertEqual(repeated.result, AccessUseResult.ACCEPTED)
+        self.assertEqual(first.use.pk, repeated.use.pk)
+        self.assertEqual(AccessUse.objects.filter(access=access).count(), 1)
+        access.refresh_from_db()
+        self.assertEqual(access.status, AccessStatus.USED)
+
+        later = validate_access_credential(
+            token,
+            controller=self.decider,
+            authority_check=authority,
+            expected_activity=self.activity,
+            expected_occurrence=self.occurrence,
+            client_reference="new-presentation",
+            source="test-scanner",
+            now=now + timedelta(minutes=5),
+        )
+        self.assertEqual(later.result, AccessUseResult.ALREADY_USED)
+        self.assertEqual(AccessUse.objects.filter(access=access).count(), 2)
+        self.assertEqual(AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).count(), 1)
+
+    def test_client_reference_cannot_be_reused_for_another_access(self):
+        first = issue_access(beneficiary=self.owner, activity=self.activity, occurrence=self.occurrence)
+        second = issue_access(beneficiary=self.owner, activity=self.activity, occurrence=self.occurrence)
+        first_token = render_access_credential(first.credentials.get(status=CredentialStatus.ACTIVE))
+        second_token = render_access_credential(second.credentials.get(status=CredentialStatus.ACTIVE))
+        authority = lambda controller, candidate: controller == self.decider
+
+        validate_access_credential(
+            first_token,
+            controller=self.decider,
+            authority_check=authority,
+            client_reference="reused-reference",
+        )
+        with self.assertRaises(ValidationError):
+            validate_access_credential(
+                second_token,
+                controller=self.decider,
+                authority_check=authority,
+                client_reference="reused-reference",
+            )
 
     def test_participant_cannot_administer_access(self):
         access = issue_access(beneficiary=self.owner, activity=self.activity, occurrence=None)

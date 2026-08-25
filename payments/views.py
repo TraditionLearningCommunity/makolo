@@ -11,6 +11,7 @@ from django.views import View
 from django.views.generic import DetailView, ListView
 
 from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
+from core.participant_selectors import participant_accesses
 from tickets.models import TicketOrderStatus
 from tickets.selectors import get_orders_visible_to
 
@@ -55,6 +56,16 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
         context["sandbox_enabled"] = self.object.provider == PaymentProvider.SANDBOX
         context["refund_form"] = RefundForm()
         context["manual_form"] = ManualPaymentCompleteForm()
+        context["exact_access"] = None
+        if self.object.status == PaymentStatus.SUCCEEDED and self.object.commerce_order_id:
+            journey_id = self.object.commerce_order.journey_id
+            accesses = list(
+                participant_accesses(self.request.user)
+                .filter(journey_id=journey_id)
+                .order_by("created_at", "id")[:2]
+            )
+            if len(accesses) == 1:
+                context["exact_access"] = accesses[0]
         return context
 
 
@@ -242,17 +253,18 @@ class PaymentRefundView(LoginRequiredMixin, View):
         payment = get_object_or_404(get_payments_visible_to(request.user), pk=pk)
         form = RefundForm(request.POST)
         if not form.is_valid():
-            messages.error(request, "Motif de remboursement invalide.")
+            messages.error(request, "Demande de remboursement invalide.")
             return redirect("payments:detail", pk=payment.pk)
         try:
             refund_payment(
                 payment=payment,
                 actor=request.user,
+                amount=payment.amount,
                 reason=form.cleaned_data.get("reason", ""),
                 idempotency_key=request.POST.get("idempotency_key") or None,
             )
         except (PermissionDenied, ValidationError) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(request, "Paiement remboursé et droits associés annulés selon le parcours.")
+            messages.success(request, "Remboursement confirmé.")
         return redirect("payments:detail", pk=payment.pk)

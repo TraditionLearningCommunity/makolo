@@ -2,121 +2,161 @@
 
 ## Responsabilité
 
-`scanner` est la couche Makolo de contrôle d’accès. Il consomme les QR signés produits par `tickets`, vérifie l’autorisation de l’agent et de l’événement, marque un billet comme utilisé de façon transactionnelle et conserve un journal d’audit de chaque tentative.
+`scanner` est la couche Makolo de contrôle d’accès des `Activity` / `Occurrence`.
 
-Le module ne fait jamais confiance au contenu du QR côté client. La décision finale est prise par le serveur.
+La vérité métier contrôlée est canonique :
+
+- `Access` représente le droit ;
+- `AccessCredential` représente le QR / pass / credential présenté ;
+- `AccessUse` représente le contrôle ou l’utilisation du droit.
+
+La verticale `events` peut conserver ses surfaces et projections historiques (`Ticket`, `ScanLog`), mais elle compose le contrôle canonique au lieu de recréer une décision métier parallèle.
+
+Le module ne fait jamais confiance au contenu du QR ni aux identifiants Activity/Occurrence transmis par le navigateur. La décision finale et le scope sont revalidés côté serveur.
 
 ## Modèles
 
 ### ScannerAssignment
 
-Une affectation relie un agent à un événement. Elle contient :
+Une affectation relie un agent à une portée de contrôle. Le modèle supporte la portée canonique Activity/Occurrence et conserve la compatibilité Event nécessaire aux surfaces historiques.
 
-- l’événement ;
-- l’agent ;
-- l’organisateur/staff qui l’a affecté ;
-- un libellé de porte ou zone ;
-- un état actif/inactif ;
-- une fenêtre facultative `valid_from` / `valid_until` ;
-- des notes opérationnelles.
+Une affectation n’est pas une permission en elle-même : l’autorité serveur reste résolue par les permissions / rôles / Mandates applicables. Une TeamMembership ou GroupMembership seule ne donne pas le droit de scanner.
 
-Un couple événement + agent est unique.
+### AccessUse
+
+`AccessUse` est le journal canonique lorsqu’un `Access` identifiable a pu être résolu.
+
+Il conserve notamment :
+
+- l’Access ;
+- le credential identifié lorsque pertinent ;
+- l’acteur de contrôle lorsque pertinent ;
+- l’Occurrence de contrôle ;
+- le résultat ;
+- la source ;
+- l’heure métier du contrôle ;
+- une `client_reference` facultative pour l’idempotence du cycle scanner.
+
+Le QR brut, le token signé et les hashes ne sont pas stockés dans `AccessUse`.
 
 ### ScanLog
 
-Chaque tentative autorisée d’un terminal crée un journal avec :
+`ScanLog` reste la projection opérationnelle et la couche de compatibilité du Scanner historique Event, notamment pour les tentatives qui ne peuvent pas résoudre un `Access`.
 
-- l’événement contrôlé ;
+Il conserve :
+
+- l’événement historique contrôlé ;
 - le billet lorsqu’il a pu être identifié ;
 - l’agent ;
 - l’affectation ;
-- le résultat ;
+- le résultat opérationnel ;
 - l’heure ;
 - la porte ;
 - une référence client idempotente ;
 - une empreinte SHA-256 du QR.
 
-Le jeton QR brut n’est jamais stocké dans les journaux.
+Lorsque la décision vient d’Access, `ScanLog.metadata` peut porter le résultat canonique et l’identifiant `AccessUse`, jamais le QR brut.
 
-## Résultats
+## Résultats canoniques AccessUse
 
 ```text
 accepted          accès autorisé
-duplicate         billet déjà utilisé
-invalid_token     signature/format QR invalide
-unknown_ticket    code signé mais billet absent
-wrong_event       billet valide pour un autre événement
-invalid_status    billet annulé, remboursé ou autrement non valide
-event_unavailable événement non publié ou terminé
+already_used      accès single-use déjà consommé
+expired           accès expiré
+not_yet_valid     accès authentique mais contrôle trop tôt
+revoked           accès révoqué
+cancelled         accès annulé
+wrong_activity    accès prévu pour une autre Activity
+wrong_occurrence  accès prévu pour une autre Occurrence
+invalid_credential credential invalide ou non reconnu
 ```
+
+Les surfaces Event peuvent projeter ces décisions vers leurs anciens `ScanResult`, mais l’interface doit conserver le résultat canonique afin de présenter le bon vocabulaire produit.
 
 ## Autorisation
 
-Le droit de scanner un événement est accordé à :
+Le Scanner générique doit vérifier `ACTIVITY_ACCESS_SCAN` dans la bonne portée ou une affectation canonique valide selon les règles du domaine Scanner.
 
-1. un compte staff ;
-2. l’organisateur propriétaire de l’événement ;
-3. un utilisateur ayant le rôle actif `scanner-agent` (ou le fallback historique `is_scanner_agent`) **et** une affectation active/courante pour l’événement.
+La verticale Event conserve ses contrôles de compatibilité, mais une Membership d’Espace ou de Groupe n’accorde jamais implicitement l’autorité de scanner. Les rôles, permissions et Mandates restent la source de vérité serveur.
 
-Avoir seulement le rôle scanner-agent ne donne donc pas accès à tous les événements Makolo.
+## Anti-double-scan et concurrence
 
-## Anti-double-scan
+La validation canonique `validate_access()` s’exécute dans une transaction et verrouille l’`Access` avec `select_for_update()`.
 
-Le service `scan_ticket()` exécute la décision dans `transaction.atomic()` et verrouille l’événement puis le billet avec `select_for_update()`.
-
-Pour un premier scan valide :
+Pour un `Access` single-use :
 
 ```text
-Ticket.valid
+Access.valid
   -> lock DB
-  -> vérification événement / signature / billet
-  -> Ticket.used + used_at
-  -> ScanLog.accepted
+  -> scope / credential / fenêtre de validité
+  -> AccessUse.accepted
+  -> Access.used
+  -> Domain Event Access.used
   -> commit
 ```
 
-Pour un second scan :
+Une véritable présentation ultérieure produit :
 
 ```text
-Ticket.used
-  -> ScanLog.duplicate
-  -> accès refusé
+Access.used
+  -> AccessUse.already_used
 ```
 
-Une contrainte conditionnelle de base de données impose en plus qu’un billet ne possède jamais plus d’un `ScanLog` avec le résultat `accepted`.
+La capacité n’est pas consommée une seconde fois et aucun nouveau droit n’est créé.
 
-PostgreSQL reste la cible de production recommandée pour garantir le verrouillage ligne par ligne sous forte concurrence. SQLite reste adapté au développement local mais ne reproduit pas exactement la sémantique de verrouillage de PostgreSQL.
+PostgreSQL fournit la sémantique de verrouillage ligne par ligne attendue sous concurrence. SQLite reste utile au développement et aux tests mais ne reproduit pas exactement ce verrouillage.
 
-## Idempotence réseau
+## Idempotence d’un cycle scanner
 
-Les clients peuvent transmettre `client_reference`. Pour un même agent, une nouvelle requête portant la même référence retourne le résultat déjà enregistré au lieu de consommer une deuxième fois le billet.
+Les scanners peuvent transmettre `client_reference`.
 
-Cette règle protège notamment les terminaux mobiles contre les doubles soumissions dues à un réseau instable.
+Pour un même contrôleur authentifié, la combinaison `(actor, client_reference)` est unique lorsqu’une référence est fournie. Une répétition technique avec la même référence retourne le même `AccessUse` et le même résultat au lieu de créer une seconde utilisation.
 
-## API v1
+Cette règle distingue :
 
-```text
-GET              /api/v1/scanner/events/
-GET/POST         /api/v1/scanner/assignments/
-GET/PATCH/DELETE /api/v1/scanner/assignments/<id>/
-GET              /api/v1/scanner/logs/
-POST             /api/v1/scanner/scan/
-```
+- la répétition réseau / caméra du même cycle ;
+- une nouvelle présentation volontaire, qui utilise une nouvelle référence et peut donc produire `already_used`.
 
-Exemple de requête de scan :
-
-```json
-{
-  "event_id": "<uuid>",
-  "token": "<jeton-qr-signe>",
-  "client_reference": "<uuid-du-terminal>",
-  "gate": "Porte A"
-}
-```
-
-Le endpoint de scan est limité à 180 requêtes par minute et par utilisateur authentifié.
+Le Scanner Event conserve également son idempotence `ScanLog` pour sa couche opérationnelle historique.
 
 ## Interface web
+
+Après `accepted`, la console web fige le résultat et ignore les nouvelles lectures caméra jusqu’à une action explicite **Scanner le suivant**. Le succès ne peut donc plus être remplacé visuellement par la relecture immédiate du même QR.
+
+Les titres de décision distinguent notamment :
+
+- `Accès autorisé` ;
+- `Contrôle pas encore ouvert` ;
+- `Billet déjà utilisé` ;
+- `Billet expiré` ;
+- `Billet révoqué` ;
+- `Billet annulé` ;
+- `Autre activité / occurrence` ;
+- `QR invalide ou non reconnu`.
+
+Les surfaces génériques utilisent `Activity` / `Occurrence` / `Contrôle affecté`. Une verticale peut contextualiser le vocabulaire (`Départ` pour Transport, date/séance pour Event, etc.).
+
+Aucune validation de sécurité n’est effectuée dans JavaScript : le navigateur capture le credential et l’envoie au serveur.
+
+## Audit participant et Operations
+
+- le participant voit l’historique de son propre `Access` à partir d’`AccessUse` ;
+- il voit date/heure, résultat compréhensible et occurrence utile, sans identité interne du contrôleur, hashes, metadata ni credential ;
+- Operations réutilise les scopes Space/Activity et les Mandates existants ;
+- `ScanLog` ne remplace jamais `AccessUse` pour un Access identifiable ;
+- aucune nouvelle table de tentative parallèle n’est nécessaire pour ce cycle.
+
+## Confidentialité
+
+- le QR brut n’est jamais persisté dans les logs applicatifs ;
+- le Scanner historique peut conserver uniquement un fingerprint SHA-256 ;
+- les credentials signés ne sont pas exposés dans Operations ;
+- aucune donnée client n’est utilisée comme preuve d’autorisation ;
+- Activity et Occurrence sont toujours revalidées côté serveur.
+
+## Compatibilité historique Event
+
+Les routes historiques Event restent disponibles tant que les surfaces correspondantes existent :
 
 ```text
 /scanner/
@@ -126,23 +166,12 @@ Le endpoint de scan est limité à 180 requêtes par minute et par utilisateur a
 /scanner/assignments/
 ```
 
-La console tente d’utiliser l’API navigateur `BarcodeDetector` et la caméra arrière. Si le navigateur ne la supporte pas ou si la permission caméra est refusée, la saisie manuelle du contenu QR reste disponible.
-
-Aucune validation de sécurité n’est effectuée dans JavaScript : le navigateur ne fait que capturer le texte du QR et l’envoyer au serveur.
-
-## Audit et confidentialité
-
-- le QR brut n’est pas persisté ;
-- chaque acceptation et chaque refus lié à une tentative autorisée est horodaté ;
-- les participants ne peuvent pas consulter les journaux ;
-- un agent voit ses propres scans ;
-- un organisateur voit les scans de ses événements ;
-- le staff dispose du périmètre global.
+Elles doivent déléguer la décision d’un credential canonique à Access. Les futurs parcours non-Event ne doivent pas dépendre de ces routes ni de `Ticket` / `ScanLog` pour leur vérité métier.
 
 ## Extensions prévues
 
 - mode PWA/offline contrôlé avec synchronisation et politique explicite de conflit ;
 - statistiques temps réel dans `analytics_app` ;
 - notifications d’incidents ;
-- zones multiples / capacités par porte ;
-- intégration de matériels scanners dédiés via l’API v1.
+- zones multiples / capacités par point de contrôle ;
+- intégration de matériels scanners dédiés via l’API.

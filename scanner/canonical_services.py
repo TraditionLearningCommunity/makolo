@@ -12,6 +12,7 @@ def scan_access_credential(
     activity,
     occurrence=None,
     source="scanner",
+    client_reference="",
     now=None,
 ):
     """Validate a canonical AccessCredential in an Activity/Occurrence context.
@@ -37,5 +38,6 @@ def scan_access_credential(
         expected_activity=activity,
         expected_occurrence=occurrence,
         source=(source or "scanner")[:80],
+        client_reference=(client_reference or "")[:64],
         now=now,
     )

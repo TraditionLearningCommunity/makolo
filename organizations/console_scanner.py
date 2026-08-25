@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView
 
-from access.models import AccessUseResult
+from access.models import AccessUse, AccessUseResult
 from access.services import resolve_access_credential, validate_access
 from activities.models import Activity
 from authorization.constants import PermissionCode
@@ -26,6 +26,9 @@ def _scanner_message(outcome, activity):
     if outcome.result == AccessUseResult.ALREADY_USED:
         return "Ce billet a déjà été utilisé."
     if outcome.result == AccessUseResult.NOT_YET_VALID:
+        if outcome.access and outcome.access.valid_from:
+            local_start = outcome.access.valid_from.astimezone()
+            return f"Ce billet sera valable à partir du {local_start:%d/%m/%Y à %H:%M}."
         return "Ce billet n’est pas encore valable."
     if outcome.result == AccessUseResult.EXPIRED:
         return "Ce billet est expiré."
@@ -34,12 +37,27 @@ def _scanner_message(outcome, activity):
     if outcome.result == AccessUseResult.CANCELLED:
         return "Ce billet a été annulé."
     if outcome.result == AccessUseResult.WRONG_OCCURRENCE:
-        return "Mauvais départ." if vocabulary.vertical == "transport" else "Cet accès n’est pas valable pour cette date."
+        if vocabulary.vertical == "transport":
+            return "Ce billet correspond à un autre départ."
+        if vocabulary.vertical == "event":
+            return "Ce billet correspond à une autre date de l’événement."
+        return "Ce billet correspond à une autre occurrence."
     if outcome.result == AccessUseResult.WRONG_ACTIVITY:
-        return "Ce billet n’est pas valable pour cette activité."
+        return "Ce billet correspond à une autre activité."
     if outcome.result == AccessUseResult.INVALID_CREDENTIAL:
-        return "QR non valide."
-    return "Contrôle refusé."
+        return "QR invalide ou non reconnu."
+    return "Contrôle impossible."
+
+
+def _accepted_at(access):
+    if access is None:
+        return None
+    return (
+        AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED)
+        .order_by("used_at", "id")
+        .values_list("used_at", flat=True)
+        .first()
+    )
 
 
 class _SpaceActivityScannerMixin(SpaceConsoleMixin):
@@ -71,7 +89,7 @@ class _SpaceActivityScannerMixin(SpaceConsoleMixin):
         )
         return assignment.occurrence if assignment else None
 
-    def validate_token(self, *, activity, occurrence, token):
+    def validate_token(self, *, activity, occurrence, token, client_reference=""):
         credential = resolve_access_credential(token)
         return validate_access(
             access=credential.access,
@@ -85,6 +103,7 @@ class _SpaceActivityScannerMixin(SpaceConsoleMixin):
             expected_activity=activity,
             expected_occurrence=occurrence,
             source="space_console",
+            client_reference=client_reference,
         )
 
 
@@ -96,6 +115,7 @@ class SpaceActivityScannerView(_SpaceActivityScannerMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         activity = self.get_activity()
         context["activity"] = activity
+        context["scanner_vocabulary"] = vocabulary_for(activity=activity)
         context["console_page_title"] = f"Contrôle · {activity.title}"
         context["occurrences"] = activity.occurrences.order_by("start_at", "id")
         context["scanner_assignment"] = (
@@ -117,15 +137,32 @@ class SpaceActivityScannerAPIView(_SpaceActivityScannerMixin, View):
         activity = self.get_activity()
         occurrence = self.get_occurrence(activity)
         token = (request.POST.get("token") or "").strip()
+        client_reference = (request.POST.get("client_reference") or "").strip()[:64]
         try:
-            outcome = self.validate_token(activity=activity, occurrence=occurrence, token=token)
+            outcome = self.validate_token(
+                activity=activity,
+                occurrence=occurrence,
+                token=token,
+                client_reference=client_reference,
+            )
         except ValidationError:
-            return JsonResponse({"accepted": False, "message": "QR non valide."}, status=400)
+            return JsonResponse(
+                {
+                    "accepted": False,
+                    "result": AccessUseResult.INVALID_CREDENTIAL,
+                    "message": "QR invalide ou non reconnu.",
+                },
+                status=400,
+            )
+        accepted_at = _accepted_at(outcome.access)
         return JsonResponse(
             {
                 "accepted": outcome.accepted,
                 "result": outcome.result,
                 "message": _scanner_message(outcome, activity),
+                "controlled_at": outcome.use.used_at.isoformat() if outcome.use else None,
+                "accepted_at": accepted_at.isoformat() if accepted_at else None,
+                "valid_from": outcome.access.valid_from.isoformat() if outcome.access and outcome.access.valid_from else None,
                 "access": {
                     "beneficiary": outcome.access.beneficiary.full_name or outcome.access.beneficiary.email,
                     "status": access_status_label(outcome.access.status),

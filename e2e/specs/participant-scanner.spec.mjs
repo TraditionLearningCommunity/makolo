@@ -76,7 +76,10 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
 
   await page.goto('/notifications/');
   await expect(page.getByRole('heading', { name: 'Paiement confirmé', exact: true })).toHaveCount(1);
-  await expect(page.getByRole('heading', { name: 'Billet disponible', exact: true })).toHaveCount(1);
+  const accessNotification = page.locator('article').filter({ hasText: 'Billet disponible' });
+  await expect(accessNotification).toHaveCount(1);
+  await accessNotification.getByRole('link', { name: 'Ouvrir' }).click();
+  await expect(page).toHaveURL(accessUrl);
 
   await page.goto('/me/journeys/');
   const paidJourneys = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' });
@@ -98,11 +101,13 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await expect(page.getByLabel('Code du billet')).toBeVisible();
   await page.locator('#qr-image').setInputFiles(qrPath);
   await expect(page.getByRole('heading', { name: 'Accès autorisé' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Scanner le suivant' })).toBeVisible();
+  await page.waitForTimeout(4500);
+  await expect(page.getByRole('heading', { name: 'Accès autorisé' })).toBeVisible();
 
-  await page.reload();
+  await page.getByRole('button', { name: 'Scanner le suivant' }).click();
   await page.locator('#qr-image').setInputFiles(qrPath);
-  await expect(page.getByRole('heading', { name: 'Accès refusé' })).toBeVisible();
-  await expect(page.getByText(/déjà utilisé/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Billet déjà utilisé' })).toBeVisible();
   await page.getByRole('link', { name: 'Historique' }).click();
   const scanRows = page.locator('tbody tr');
   await expect(scanRows.filter({ hasText: 'Accès autorisé' })).toHaveCount(1);
@@ -129,6 +134,9 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await usedCard.getByRole('link', { name: /Voir mon billet|Voir mon accès/i }).click();
   await expect(page).toHaveURL(accessUrl);
   await expect(page.getByText('Utilisé', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Historique de contrôle' })).toBeVisible();
+  await expect(page.getByText('Accès accepté', { exact: true })).toHaveCount(1);
+  await expect(page.getByText(/Nouvelle présentation/)).toHaveCount(1);
 });
 
 

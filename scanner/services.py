@@ -102,11 +102,11 @@ def _message_for_access(result):
     return {
         AccessUseResult.ACCEPTED: "Accès autorisé.",
         AccessUseResult.ALREADY_USED: "Billet déjà utilisé.",
-        AccessUseResult.WRONG_ACTIVITY: "Ce billet appartient à un autre événement.",
-        AccessUseResult.WRONG_OCCURRENCE: "Ce billet appartient à une autre occurrence.",
-        AccessUseResult.INVALID_CREDENTIAL: "QR code invalide ou altéré.",
+        AccessUseResult.WRONG_ACTIVITY: "Ce billet correspond à une autre activité.",
+        AccessUseResult.WRONG_OCCURRENCE: "Ce billet correspond à une autre occurrence.",
+        AccessUseResult.INVALID_CREDENTIAL: "QR invalide ou non reconnu.",
         AccessUseResult.EXPIRED: "Billet expiré.",
-        AccessUseResult.NOT_YET_VALID: "Billet pas encore valide.",
+        AccessUseResult.NOT_YET_VALID: "Billet pas encore valable.",
         AccessUseResult.REVOKED: "Billet révoqué.",
         AccessUseResult.CANCELLED: "Billet annulé.",
     }[result]
@@ -129,8 +129,12 @@ def _log_access_outcome(
     effective_gate,
     metadata,
 ):
-    # AccessUse is the canonical record of the control. Ticket remains only an
-    # Event presentation link and is deliberately not mutated after a scan.
+    # AccessUse is the canonical record of the control. ScanLog keeps the Event
+    # operational projection and the QR fingerprint, never the raw credential.
+    operational_metadata = dict(metadata or {})
+    operational_metadata["access_result"] = outcome.result
+    if outcome.use is not None:
+        operational_metadata["access_use_id"] = str(outcome.use.pk)
     return _create_log(
         event=event,
         scanner=actor,
@@ -142,7 +146,17 @@ def _log_access_outcome(
         ticket=ticket,
         client_reference=client_reference,
         gate=gate,
-        metadata=metadata,
+        metadata=operational_metadata,
+    )
+
+
+def _existing_client_log(actor, client_reference):
+    if not client_reference:
+        return None
+    return (
+        ScanLog.objects.select_related("ticket", "ticket__ticket_type", "access_gate")
+        .filter(scanner=actor, client_reference=client_reference)
+        .first()
     )
 
 
@@ -168,12 +182,9 @@ def scan_ticket(
     gate = (gate or "").strip()[:120]
     effective_gate = _resolve_access_gate(event=event, assignment=assignment, access_gate=access_gate, gate_text=gate)
 
-    if client_reference:
-        existing = ScanLog.objects.select_related("ticket", "ticket__ticket_type", "access_gate").filter(
-            scanner=actor, client_reference=client_reference
-        ).first()
-        if existing:
-            return _outcome_from_log(existing)
+    existing = _existing_client_log(actor, client_reference)
+    if existing:
+        return _outcome_from_log(existing)
 
     if effective_gate and not effective_gate.is_active:
         return _create_log(
@@ -204,9 +215,6 @@ def scan_ticket(
         )
     authority_check = _scanner_authority(event)
 
-    # During the cutover, a historical Ticket cancellation can predate its
-    # canonical Access projection. Reject that Event presentation before the
-    # Access service can consume it; Access remains the only mutable authority.
     canonical_ticket = None
     try:
         credential = resolve_access_credential(token)
@@ -235,32 +243,35 @@ def scan_ticket(
         expected_activity=activity,
         expected_occurrence=occurrence,
         source="scanner",
+        client_reference=client_reference,
     )
     if canonical.result != AccessUseResult.INVALID_CREDENTIAL:
         ticket = canonical_ticket
         if ticket is None and canonical.access is not None:
             ticket = Ticket.objects.select_related("ticket_type", "order", "owner", "access").filter(access=canonical.access).first()
         try:
-            return _log_access_outcome(
-                outcome=canonical, event=event, actor=actor, assignment=assignment, token=token, ticket=ticket,
-                client_reference=client_reference, gate=gate, effective_gate=effective_gate, metadata=metadata,
-            )
+            with transaction.atomic():
+                return _log_access_outcome(
+                    outcome=canonical, event=event, actor=actor, assignment=assignment, token=token, ticket=ticket,
+                    client_reference=client_reference, gate=gate, effective_gate=effective_gate, metadata=metadata,
+                )
         except IntegrityError:
+            existing = _existing_client_log(actor, client_reference)
+            if existing:
+                return _outcome_from_log(existing)
             return _create_log(
                 event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
                 result=ScanResult.DUPLICATE, message="Billet déjà accepté par un autre contrôle.", token=token,
-                ticket=ticket, client_reference=client_reference, gate=gate, metadata=metadata,
+                ticket=ticket, client_reference="", gate=gate, metadata=metadata,
             )
 
-    # Explicit legacy compatibility: signed Ticket.code is accepted only for a
-    # historical Ticket whose active canonical credential has not replaced it.
     try:
         raw_code = Signer(salt=QR_SIGNING_SALT).unsign(token)
         code = uuid.UUID(raw_code)
     except (BadSignature, ValueError, TypeError, AttributeError):
         return _create_log(
             event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
-            result=ScanResult.INVALID_TOKEN, message="QR code invalide ou altéré.", token=token,
+            result=ScanResult.INVALID_TOKEN, message="QR invalide ou non reconnu.", token=token,
             client_reference=client_reference, gate=gate, metadata=metadata,
         )
 
@@ -277,7 +288,7 @@ def scan_ticket(
     if ticket.event_id != event.pk:
         return _create_log(
             event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
-            result=ScanResult.WRONG_EVENT, message="Ce billet appartient à un autre événement.", token=token,
+            result=ScanResult.WRONG_EVENT, message="Ce billet correspond à une autre activité.", token=token,
             ticket=ticket, client_reference=client_reference, gate=gate, metadata=metadata,
         )
     if ticket.status == TicketStatus.USED:
@@ -309,14 +320,13 @@ def scan_ticket(
             expected_activity=activity,
             expected_occurrence=occurrence,
             source="scanner-legacy-ticket",
+            client_reference=client_reference,
         )
         return _log_access_outcome(
             outcome=outcome, event=event, actor=actor, assignment=assignment, token=token, ticket=ticket,
             client_reference=client_reference, gate=gate, effective_gate=effective_gate, metadata=metadata,
         )
 
-    # Last-resort historical ticket with no Profile/Access. No new flow creates
-    # this debt, but the controlled beta data remains usable.
     ticket.status = TicketStatus.USED
     ticket.used_at = timezone.now()
     ticket.save(update_fields=["status", "used_at", "updated_at"])
@@ -328,8 +338,11 @@ def scan_ticket(
                 client_reference=client_reference, gate=gate, metadata=metadata,
             )
     except IntegrityError:
+        existing = _existing_client_log(actor, client_reference)
+        if existing:
+            return _outcome_from_log(existing)
         return _create_log(
             event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
             result=ScanResult.DUPLICATE, message="Billet déjà accepté par un autre contrôle.", token=token,
-            ticket=ticket, client_reference=client_reference, gate=gate, metadata=metadata,
+            ticket=ticket, client_reference="", gate=gate, metadata=metadata,
         )

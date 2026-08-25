@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from access.models import Access, AccessStatus
 from commerce.models import CommerceOrder
-from journeys.models import Journey, JourneyStatus
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from payments.models import Payment
 
 
@@ -29,7 +29,7 @@ HISTORY_JOURNEY_STATUSES = {
     JourneyStatus.CANCELLED,
     JourneyStatus.EXPIRED,
 }
-ACTIVE_ACCESS_STATUSES = {AccessStatus.PENDING, AccessStatus.VALID}
+ACTIVE_ACCESS_STATUSES = {AccessStatus.VALID}
 HISTORY_ACCESS_STATUSES = {
     AccessStatus.USED,
     AccessStatus.CANCELLED,
@@ -77,13 +77,6 @@ class ParticipantStateContext:
 
 
 def participant_state_context(profile, occurrences):
-    """Load all personal state for a set of occurrences with a fixed query count.
-
-    Anonymous callers deliberately execute no participant queries. The context is
-    beneficiary-scoped: professional permissions never turn third-party Journey,
-    Commerce, Capacity or Access data into personal state.
-    """
-
     context = ParticipantStateContext(profile=profile)
     if not _authenticated(profile):
         return context
@@ -151,15 +144,31 @@ def participant_journeys(profile):
 
 
 def participant_actionable_journeys(profile):
-    return participant_journeys(profile).filter(status__in=ACTIONABLE_JOURNEY_STATUSES)
+    return (
+        participant_journeys(profile)
+        .filter(
+            Q(status__in=ACTIONABLE_JOURNEY_STATUSES)
+            | Q(status=JourneyStatus.SUBMITTED, workflow=WorkflowKind.INVITATION)
+        )
+        .filter(accesses__isnull=True)
+        .distinct()
+    )
 
 
 def participant_active_journeys(profile):
-    return participant_journeys(profile).filter(status__in=ACTIVE_JOURNEY_STATUSES)
+    return (
+        participant_journeys(profile)
+        .filter(status__in=ACTIVE_JOURNEY_STATUSES, accesses__isnull=True)
+        .distinct()
+    )
 
 
 def participant_history_journeys(profile):
-    return participant_journeys(profile).filter(status__in=HISTORY_JOURNEY_STATUSES)
+    return (
+        participant_journeys(profile)
+        .filter(Q(status__in=HISTORY_JOURNEY_STATUSES) | Q(accesses__isnull=False))
+        .distinct()
+    )
 
 
 def participant_orders(profile):
@@ -168,7 +177,7 @@ def participant_orders(profile):
     return (
         CommerceOrder.objects.filter(buyer=profile)
         .select_related("journey", "journey__activity", "journey__occurrence")
-        .prefetch_related("items__offer")
+        .prefetch_related("items__offer", "payments")
     )
 
 
@@ -185,31 +194,47 @@ def participant_accesses(profile):
             "journey",
             "issued_by",
         )
-        .prefetch_related("occurrence__place_links__place", "credentials")
+        .prefetch_related("occurrence__place_links__place", "credentials", "uses")
     )
 
 
-def participant_active_accesses(profile):
-    return participant_accesses(profile).filter(status__in=ACTIVE_ACCESS_STATUSES)
+def participant_active_accesses(profile, *, at=None):
+    at = at or timezone.now()
+    return (
+        participant_accesses(profile)
+        .filter(status__in=ACTIVE_ACCESS_STATUSES)
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
+        .filter(
+            Q(occurrence__isnull=True)
+            | Q(occurrence__end_at__isnull=True)
+            | Q(occurrence__end_at__gte=at)
+        )
+        .distinct()
+    )
 
 
 def participant_upcoming_accesses(profile, *, at=None):
     at = at or timezone.now()
-    return participant_active_accesses(profile).filter(
-        Q(occurrence__isnull=True)
-        | Q(occurrence__end_at__gte=at)
-        | Q(occurrence__end_at__isnull=True, occurrence__start_at__gte=at)
-    ).order_by("occurrence__start_at", "-created_at")
+    return participant_active_accesses(profile, at=at).order_by("occurrence__start_at", "-created_at")
 
 
-def participant_access_history(profile):
-    return participant_accesses(profile).filter(status__in=HISTORY_ACCESS_STATUSES)
+def participant_access_history(profile, *, at=None):
+    at = at or timezone.now()
+    return (
+        participant_accesses(profile)
+        .filter(
+            Q(status__in=HISTORY_ACCESS_STATUSES)
+            | Q(status=AccessStatus.VALID, valid_until__isnull=False, valid_until__lte=at)
+            | Q(status=AccessStatus.VALID, occurrence__end_at__lt=at)
+        )
+        .distinct()
+    )
 
 
 def participant_upcoming_occurrences(profile, *, at=None):
     at = at or timezone.now()
     return (
-        participant_journeys(profile)
+        participant_active_journeys(profile)
         .filter(occurrence__isnull=False, occurrence__start_at__gte=at)
         .order_by("occurrence__start_at")
     )

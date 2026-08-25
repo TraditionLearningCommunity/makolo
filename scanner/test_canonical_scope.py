@@ -59,6 +59,37 @@ class CanonicalScannerScopeTests(TestCase):
         self.assertEqual(AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).count(), 1)
         self.assertEqual(ScanLog.objects.count(), 0)
 
+    def test_same_generic_scanner_cycle_is_idempotent_but_next_cycle_is_not(self):
+        ScannerAssignment.objects.create(activity=self.activity, agent=self.agent, label="Activity-wide")
+        access, token = self._token()
+
+        first = scan_access_credential(
+            token=token,
+            actor=self.agent,
+            activity=self.activity,
+            client_reference="camera-cycle-1",
+        )
+        replay = scan_access_credential(
+            token=token,
+            actor=self.agent,
+            activity=self.activity,
+            client_reference="camera-cycle-1",
+        )
+        second_presentation = scan_access_credential(
+            token=token,
+            actor=self.agent,
+            activity=self.activity,
+            client_reference="camera-cycle-2",
+        )
+
+        self.assertEqual(first.result, AccessUseResult.ACCEPTED)
+        self.assertEqual(replay.result, AccessUseResult.ACCEPTED)
+        self.assertEqual(first.use.pk, replay.use.pk)
+        self.assertEqual(second_presentation.result, AccessUseResult.ALREADY_USED)
+        self.assertEqual(AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).count(), 1)
+        self.assertEqual(AccessUse.objects.filter(access=access).count(), 2)
+        self.assertEqual(ScanLog.objects.count(), 0)
+
     def test_occurrence_assignment_cannot_scan_another_occurrence(self):
         ScannerAssignment.objects.create(
             activity=self.activity,

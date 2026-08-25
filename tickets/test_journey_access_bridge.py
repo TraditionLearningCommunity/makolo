@@ -152,7 +152,7 @@ class TicketJourneyAccessBridgeTests(TestCase):
         ticket.access.refresh_from_db()
         self.assertEqual(ticket.status, TicketStatus.CANCELLED)
         self.assertEqual(ticket.access.status, AccessStatus.CANCELLED)
-        self.assertEqual(validate_access_credential(old_token).result, AccessUseResult.REVOKED)
+        self.assertEqual(validate_access_credential(old_token).result, AccessUseResult.CANCELLED)
 
         second = self._free_order().tickets.select_related("access").get()
         second.status = TicketStatus.REFUNDED

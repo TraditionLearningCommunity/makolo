@@ -207,6 +207,11 @@ class AccessUse(models.Model):
     )
     result = models.CharField(max_length=32, choices=AccessUseResult.choices)
     source = models.CharField(max_length=80, blank=True)
+    client_reference = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Référence idempotente du cycle de contrôle. Aucun credential brut n’est stocké ici.",
+    )
     used_at = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -215,6 +220,13 @@ class AccessUse(models.Model):
         indexes = [
             models.Index(fields=["access", "used_at"], name="access_use_access_time_idx"),
             models.Index(fields=["occurrence", "used_at"], name="access_use_occurrence_time_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["actor", "client_reference"],
+                condition=Q(actor__isnull=False) & ~Q(client_reference=""),
+                name="access_use_actor_client_ref_unique",
+            ),
         ]
 
     def __str__(self):
