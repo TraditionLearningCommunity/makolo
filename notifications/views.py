@@ -6,7 +6,7 @@ from django.views import View
 from django.views.generic import ListView
 
 from accounts.models import NotificationPreference
-from core.participant_selectors import participant_accesses, participant_journeys
+from core.participant_selectors import participant_accesses, participant_journeys, participant_orders
 
 from .forms import NotificationPreferenceForm
 from .selectors import get_notifications_for_user
@@ -44,10 +44,20 @@ class NotificationOpenView(LoginRequiredMixin, View):
             access = participant_accesses(request.user).filter(pk=notification.access_id).first()
             if access:
                 return redirect("core:participant-access-detail", pk=access.pk)
+            return redirect("notifications:list")
+
+        if notification.template_key == "journey.payment.required" and notification.commerce_order_id:
+            order = participant_orders(request.user).filter(pk=notification.commerce_order_id).first()
+            if order:
+                return redirect("payments:commerce-start", order_pk=order.pk)
+            return redirect("notifications:list")
+
         if notification.journey_id:
             journey = participant_journeys(request.user).filter(pk=notification.journey_id).first()
             if journey:
                 return redirect("core:participant-journey-detail", pk=journey.pk)
+            return redirect("notifications:list")
+
         if notification.activity_id:
             journey = (
                 participant_journeys(request.user)
@@ -65,6 +75,7 @@ class NotificationOpenView(LoginRequiredMixin, View):
             )
             if access:
                 return redirect("core:participant-access-detail", pk=access.pk)
+            return redirect("notifications:list")
 
         if notification.action_url.startswith("/") and not notification.action_url.startswith("//"):
             return redirect(notification.action_url)
