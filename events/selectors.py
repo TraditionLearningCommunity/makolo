@@ -15,6 +15,7 @@ def get_events():
     return Event.objects.select_related(
         "activity",
         "activity__space",
+        "activity__owner_profile",
         "activity__created_by",
         "category",
         "venue",
@@ -25,6 +26,14 @@ def get_events():
 def _space_is_not_suspended_filter() -> Q:
     return Q(activity__space__isnull=True) | ~Q(
         activity__space__verification_status=OrganizationVerificationStatus.SUSPENDED
+    )
+
+
+def _legacy_creator_filter(user) -> Q:
+    return Q(
+        activity__space__isnull=True,
+        activity__owner_profile__isnull=True,
+        activity__created_by=user,
     )
 
 
@@ -64,7 +73,6 @@ def get_events_visible_to(user, *, for_detail: bool = False):
     if activity_ids is None:
         return queryset
     contextual_filter = Q(activity_id__in=activity_ids) if activity_ids else Q(pk__isnull=True)
-    legacy_creator_filter = Q(activity__created_by=user)
     participant_filter = Q(pk__isnull=True)
     if for_detail:
         participant_filter = Q(activity__journeys__beneficiary=user) | Q(
@@ -73,7 +81,7 @@ def get_events_visible_to(user, *, for_detail: bool = False):
     # Participant history can remain reachable after completion/cancellation;
     # this does not grant management authority and remains scoped to self.
     return queryset.filter(
-        public_filter | contextual_filter | legacy_creator_filter | participant_filter
+        public_filter | contextual_filter | _legacy_creator_filter(user) | participant_filter
     ).distinct()
 
 
@@ -85,5 +93,4 @@ def get_manageable_events(user):
     if activity_ids is None:
         return queryset
     contextual_filter = Q(activity_id__in=activity_ids) if activity_ids else Q(pk__isnull=True)
-    legacy_creator_filter = Q(activity__created_by=user)
-    return queryset.filter(contextual_filter | legacy_creator_filter).distinct()
+    return queryset.filter(contextual_filter | _legacy_creator_filter(user)).distinct()

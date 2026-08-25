@@ -6,7 +6,10 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.fields import GenericRelation
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+
+from geography.validators import validate_timezone_name
 
 
 # =========================================================
@@ -33,6 +36,18 @@ def validate_phone_number(value):
     digit_count = len(re.sub(r"\D", "", value))
     if digit_count < 7 or digit_count > 15:
         raise ValidationError("Saisissez un numéro de téléphone contenant entre 7 et 15 chiffres.")
+
+
+class GenderCode(models.TextChoices):
+    MALE = "male", "Homme"
+    FEMALE = "female", "Femme"
+    UNSPECIFIED = "unspecified", "Non renseigné"
+
+
+class LanguageCode(models.TextChoices):
+    # Makolo currently ships with French as its configured Django locale. Add
+    # another value only when that locale is genuinely supported by the app.
+    FRENCH = "fr", "Français"
 
 
 # =========================================================
@@ -170,6 +185,8 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
 
     gender = models.CharField(
         max_length=20,
+        choices=GenderCode.choices,
+        default=GenderCode.UNSPECIFIED,
         blank=True,
         null=True
     )
@@ -187,12 +204,14 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
 
     language = models.CharField(
         max_length=20,
-        default="fr"
+        choices=LanguageCode.choices,
+        default=LanguageCode.FRENCH
     )
 
     timezone = models.CharField(
         max_length=100,
-        default="Africa/Lubumbashi"
+        default="Africa/Lubumbashi",
+        validators=[validate_timezone_name]
     )
 
     # =====================================================
@@ -211,6 +230,7 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
         default=False
     )
 
+    # Historical compatibility markers. Contextual authority must use Mandates.
     is_organizer = models.BooleanField(
         default=False
     )
@@ -438,6 +458,15 @@ class UserDevice(UUIDModel, TimeStampedModel):
         related_name="devices"
     )
 
+    # SHA-256 of an opaque, non-authenticating HttpOnly browser identifier.
+    # The raw value is never stored server-side and is not a session grant.
+    device_key_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True
+    )
+
     device_name = models.CharField(
         max_length=255
     )
@@ -476,6 +505,15 @@ class UserDevice(UUIDModel, TimeStampedModel):
         default=dict,
         blank=True
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "device_key_hash"],
+                condition=~Q(device_key_hash=""),
+                name="accounts_device_user_key_unique",
+            )
+        ]
 
     def __str__(self):
         return f"{self.user.email} - {self.device_name}"

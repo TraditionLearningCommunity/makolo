@@ -12,6 +12,7 @@ from django.views.generic import TemplateView
 
 from access.models import CredentialStatus, CredentialType
 from access.services import render_access_credential
+from activities.selectors import activities_owned_by
 from commerce.models import PaymentMode
 from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
 
@@ -86,6 +87,7 @@ class ParticipantHomeView(LoginRequiredMixin, TemplateView):
                 "upcoming": [_access_card(a) for a in upcoming_accesses],
                 "active_accesses": [_access_card(a) for a in upcoming_accesses],
                 "recent_journeys": [_journey_card(j) for j in participant_journeys(profile)[:5]],
+                "organized_activities": list(activities_owned_by(profile)[:5]),
             }
         )
         return context

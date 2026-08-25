@@ -140,6 +140,7 @@ def _base_queryset(*, now):
         .select_related(
             "activity",
             "activity__space",
+            "activity__owner_profile",
             "activity__event_vertical",
             "activity__event_vertical__category",
             "activity__transport_service",
@@ -174,6 +175,9 @@ def _apply_text(queryset, text):
         | Q(activity__short_description__icontains=text)
         | Q(activity__description__icontains=text)
         | Q(activity__space__name__icontains=text)
+        | Q(activity__owner_profile__first_name__icontains=text)
+        | Q(activity__owner_profile__last_name__icontains=text)
+        | Q(activity__owner_profile__username__icontains=text)
         | Q(place_links__place__name__icontains=text)
         | Q(place_links__place__locality__icontains=text)
     )

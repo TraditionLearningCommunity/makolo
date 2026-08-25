@@ -23,7 +23,11 @@ class CanonicalScannerScopeTests(TestCase):
         self.owner = User.objects.create_user("scan-owner", "scan-owner@example.com", "Scan-2026!")
         self.agent = User.objects.create_user("scan-agent", "scan-agent@example.com", "Scan-2026!")
         self.other = User.objects.create_user("scan-other", "scan-other@example.com", "Scan-2026!")
-        self.activity = Activity.objects.create(created_by=self.owner, title="Canonical scan activity")
+        self.activity = Activity.objects.create(
+            owner_profile=self.owner,
+            created_by=self.owner,
+            title="Canonical scan activity",
+        )
         now = timezone.now()
         self.occurrence_a = Occurrence.objects.create(
             activity=self.activity,
@@ -110,7 +114,11 @@ class CanonicalScannerScopeTests(TestCase):
         self.assertFalse(AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).exists())
 
     def test_assignment_scope_rejects_wrong_activity_and_inactive_assignment(self):
-        other_activity = Activity.objects.create(created_by=self.owner, title="Other activity")
+        other_activity = Activity.objects.create(
+            owner_profile=self.owner,
+            created_by=self.owner,
+            title="Other activity",
+        )
         ScannerAssignment.objects.create(activity=other_activity, agent=self.agent)
         _access, token = self._token()
         outcome = scan_access_credential(

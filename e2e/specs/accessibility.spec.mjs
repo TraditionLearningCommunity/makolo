@@ -20,9 +20,9 @@ test('public and account entry surfaces have no serious or critical axe violatio
 });
 
 
-test('participant dashboard profile and ticket pass axe gate', async ({ page }) => {
+test('participant personal space profile and ticket pass axe gate', async ({ page }) => {
   await login(page, 'visual.participant@e2e.makolo.test');
-  await audit(page, '/dashboard/');
+  await audit(page, '/me/');
   await audit(page, '/account/profile/');
   await audit(page, '/discover/');
   await audit(page, '/tickets/');
@@ -31,13 +31,13 @@ test('participant dashboard profile and ticket pass axe gate', async ({ page }) 
 });
 
 
-test('scanner organization and Operations surfaces pass axe gate', async ({ page }) => {
+test('scanner Space and Operations surfaces pass axe gate', async ({ page }) => {
   await login(page, 'scanner@e2e.makolo.test');
   await audit(page, '/scanner/event/festival-makolo-e2e/');
 
   await page.context().clearCookies();
   await login(page, 'owner@e2e.makolo.test');
-  await audit(page, '/dashboard/');
+  await audit(page, '/spaces/');
 
   await page.context().clearCookies();
   await login(page, 'staff@e2e.makolo.test');
@@ -46,6 +46,6 @@ test('scanner organization and Operations surfaces pass axe gate', async ({ page
   await page.context().clearCookies();
   await login(page, 'participant@e2e.makolo.test');
   const response = await page.goto('/events/new/');
-  expect(response.status()).toBe(403);
+  expect(response.status()).toBe(200);
   await expectNoSeriousAxeViolations(page);
 });

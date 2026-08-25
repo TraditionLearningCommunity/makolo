@@ -26,8 +26,27 @@ class ActivityVisibility(models.TextChoices):
 
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    space = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="activities", null=True, blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_activities", null=True, blank=True)
+    space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="activities",
+        null=True,
+        blank=True,
+    )
+    owner_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="owned_activities",
+        null=True,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_activities",
+        null=True,
+        blank=True,
+    )
     title = models.CharField(max_length=220)
     slug = models.SlugField(max_length=240, blank=True)
     short_description = models.CharField(max_length=320, blank=True)
@@ -40,19 +59,75 @@ class Activity(models.Model):
     class Meta:
         ordering = ["title", "id"]
         constraints = [
-            models.UniqueConstraint(fields=["space", "slug"], condition=Q(space__isnull=False), name="activities_space_slug_unique"),
-            models.UniqueConstraint(fields=["slug"], condition=Q(space__isnull=True), name="activities_legacy_slug_unique"),
+            models.CheckConstraint(
+                condition=~Q(space__isnull=False, owner_profile__isnull=False),
+                name="activities_single_logical_owner",
+            ),
+            models.UniqueConstraint(
+                fields=["space", "slug"],
+                condition=Q(space__isnull=False),
+                name="activities_space_slug_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["owner_profile", "slug"],
+                condition=Q(owner_profile__isnull=False, space__isnull=True),
+                name="activities_profile_slug_unique",
+            ),
+            # Compatibility only for pre-T24 rows whose logical owner cannot be
+            # inferred safely. New rows are rejected by clean() if both owners
+            # are absent.
+            models.UniqueConstraint(
+                fields=["slug"],
+                condition=Q(space__isnull=True, owner_profile__isnull=True),
+                name="activities_legacy_slug_unique",
+            ),
         ]
         indexes = [
             models.Index(fields=["space", "status"], name="activities_space_status_idx"),
+            models.Index(fields=["owner_profile", "status"], name="activities_owner_status_idx"),
             models.Index(fields=["visibility", "status"], name="activities_visibility_idx"),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.space_id and self.owner_profile_id:
+            raise ValidationError(
+                "Une Activity appartient soit à un Profil, soit à un Espace, jamais aux deux."
+            )
+        if not self.space_id and not self.owner_profile_id and self._state.adding:
+            raise ValidationError(
+                "Toute nouvelle Activity doit avoir un propriétaire logique explicite."
+            )
+
+    def _slug_scope(self):
+        queryset = Activity.objects.exclude(pk=self.pk)
+        if self.space_id:
+            return queryset.filter(space_id=self.space_id)
+        if self.owner_profile_id:
+            return queryset.filter(space_id=None, owner_profile_id=self.owner_profile_id)
+        return queryset.filter(space_id=None, owner_profile_id=None)
+
+    @property
+    def is_personal(self):
+        return bool(self.owner_profile_id and not self.space_id)
+
+    @property
+    def operator_display_name(self):
+        if self.space_id:
+            return self.space.name
+        if self.owner_profile_id:
+            return self.owner_profile.full_name or self.owner_profile.username
+        # Legacy compatibility only. created_by remains provenance and is not
+        # promoted to ownership for newly-created Activities.
+        if self.created_by_id:
+            return self.created_by.full_name or self.created_by.username
+        return ""
 
     def save(self, *args, **kwargs):
         if not self.slug:
             base = slugify(self.title)[:210] or "activite"
             candidate, suffix = base, 2
-            qs = Activity.objects.exclude(pk=self.pk).filter(space_id=self.space_id)
+            qs = self._slug_scope()
             while qs.filter(slug=candidate).exists():
                 candidate = f"{base[:225]}-{suffix}"
                 suffix += 1

@@ -46,6 +46,7 @@ class JourneyFixtureMixin:
             password="Journey-2026!",
         )
         self.activity = Activity.objects.create(
+            owner_profile=self.initiator,
             created_by=self.initiator,
             title="Makolo Journey Activity",
         )
@@ -153,7 +154,11 @@ class JourneyWorkflowTests(JourneyFixtureMixin, TestCase):
         self.assertEqual(expiring.status, JourneyStatus.EXPIRED)
 
     def test_activity_occurrence_consistency_and_distinct_beneficiary(self):
-        other = Activity.objects.create(created_by=self.initiator, title="Other Activity")
+        other = Activity.objects.create(
+            owner_profile=self.initiator,
+            created_by=self.initiator,
+            title="Other Activity",
+        )
         other_occurrence = Occurrence.objects.create(
             activity=other,
             start_at=timezone.now() + timedelta(hours=1),
@@ -214,7 +219,11 @@ class JourneyRequestSecurityTests(JourneyFixtureMixin, TestCase):
         )
         grant_activity_role(profile=manager, activity=self.activity)
 
-        other = Activity.objects.create(created_by=self.initiator, title="Activity B")
+        other = Activity.objects.create(
+            owner_profile=self.initiator,
+            created_by=self.initiator,
+            title="Activity B",
+        )
         other_occurrence = Occurrence.objects.create(
             activity=other,
             start_at=timezone.now() + timedelta(hours=1),

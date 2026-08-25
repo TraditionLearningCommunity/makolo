@@ -165,11 +165,11 @@ class OrganizationCapabilityBoundaryTests(TestCase):
         self.assertFalse(get_scannable_events(self.marketing).filter(pk=self.event.pk).exists())
         self.assertFalse(get_payments_visible_to(self.access_manager).filter(pk=self.payment.pk).exists())
 
-    def test_legacy_dashboard_redirects_professional_to_space_list(self):
+    def test_legacy_dashboard_redirects_professional_to_personal_context(self):
         self.client.force_login(self.event_manager)
         response = self.client.get(reverse("core:dashboard"))
         self.assertRedirects(
             response,
-            reverse("organizations:list"),
+            reverse("core:participant-home"),
             fetch_redirect_response=False,
         )

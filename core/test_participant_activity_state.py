@@ -37,6 +37,7 @@ class ParticipantActivityStateTests(TestCase):
         self.activity = Activity.objects.create(
             title="Activité canonique",
             created_by=self.other,
+            owner_profile=self.other,
             status=ActivityStatus.PUBLISHED,
         )
         self.occurrence = Occurrence.objects.create(
@@ -166,6 +167,7 @@ class ParticipantActivityStateTests(TestCase):
                 activity = Activity.objects.create(
                     title=f"Activité fermée {index}",
                     created_by=self.other,
+                    owner_profile=self.other,
                     status=activity_status,
                 )
                 occurrence = Occurrence.objects.create(
@@ -270,6 +272,7 @@ class ParticipantActivityStateTests(TestCase):
     def test_cancelled_activity_keeps_personal_access_but_blocks_acquisition(self):
         cancelled = Activity.objects.create(
             title="Activité annulée",
+            owner_profile=self.other,
             status=ActivityStatus.CANCELLED,
         )
         occurrence = Occurrence.objects.create(

@@ -70,7 +70,11 @@ class DomainEventOutboxTests(TestCase):
             username="rollback-beneficiary",
             email="rollback-beneficiary@example.com",
         )
-        activity = Activity.objects.create(created_by=initiator, title="Rollback Activity")
+        activity = Activity.objects.create(
+            owner_profile=initiator,
+            created_by=initiator,
+            title="Rollback Activity",
+        )
         journey = create_journey(
             initiated_by=initiator,
             beneficiary=beneficiary,

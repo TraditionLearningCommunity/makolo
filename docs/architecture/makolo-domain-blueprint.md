@@ -23,7 +23,7 @@ La migration doit réutiliser les capacités existantes, préserver les frontiè
 
 | Concept | Définition canonique | Usage interface |
 |---|---|---|
-| **Profil** | Personne physique disposant d'un compte Makolo. L'identité est globale ; ses responsabilités ne le sont pas. | « Profil », « compte », nom de la personne selon l'écran. Ne jamais qualifier globalement un Profil de participant ou organisateur. |
+| **Profil** | Personne physique disposant d'un compte Makolo. L'identité est globale ; ses responsabilités ne le sont pas. Un Profil peut opérer directement une Activité personnelle sans créer d'Espace artificiel. | « Profil », « compte », nom de la personne selon l'écran. Ne jamais qualifier globalement un Profil de participant ou organisateur. |
 | **Espace** | Identité collective opérée dans Makolo : entreprise, association, institution, marque, collectif, école, organisation publique, etc. Un Espace n'a pas de mot de passe. | « Espace » dans les surfaces génériques ; nom et vocabulaire métier de l'organisation ailleurs. Ne pas employer « Page » comme concept canonique. |
 | **Équipe** | Ensemble de Profils qui travaillent pour un Espace ou une Activité. L'Équipe organise la collaboration ; l'autorité effective est exprimée par des Mandats. | « Équipe », « collaborateurs », « agents » selon le contexte. |
 | **Groupe** | Ensemble de Profils réunis pour appartenance, ciblage ou éligibilité, sans autorité implicite : Promotion 2026, VIP, employés, famille, presse, etc. | « Groupe », « promotion », « liste VIP », « employés » selon le métier. |
@@ -32,7 +32,7 @@ La migration doit réutiliser les capacités existantes, préserver les frontiè
 | **Mandat** | Attribution d'un Rôle à un Profil dans une portée déterminée, éventuellement limitée dans le temps. Formule : `Profil + Rôle + Portée = Mandat`. | Présenté comme responsabilité/accès/role dans un Espace ou une Activité. |
 | **Confiance** | Domaine des mécanismes d'identité, sécurité, preuve et assurance utilisés par Makolo. | « Sécurité », « confiance », « vérification » selon l'écran. |
 | **Vérification** | Processus/constat contrôlé confirmant une information : Profil, Espace, autorité d'un administrateur, information de paiement, etc. | « Vérifié par Makolo » lorsque la portée est explicite. Ne pas promettre une certification générale de qualité. |
-| **Activité** | Chose organisée, proposée ou opérée : concert, conférence, mariage, trajet, formation, séance ou autre service. Porte l'identité durable et les règles communes, pas toutes les données spécifiques d'une verticale. | Toujours contextualiser lorsque possible : concert, trajet, conférence, cérémonie… |
+| **Activité** | Chose organisée, proposée ou opérée : concert, conférence, mariage, trajet, formation, séance ou autre service. Porte l'identité durable et les règles communes, pas toutes les données spécifiques d'une verticale. Son opérateur logique est exactement un Profil ou un Espace. | Toujours contextualiser lorsque possible : concert, trajet, conférence, cérémonie… |
 | **Occurrence** | Réalisation concrète d'une Activité dans le temps et éventuellement dans un Lieu. | Départ, séance, session, cérémonie, créneau… Le mot « occurrence » peut rester interne. |
 | **Démarche** | Processus utilisateur orchestré par Makolo : achat, commande, réservation, inscription, invitation, demande de participation ou combinaison d'étapes. | Utiliser réservation, inscription, commande, invitation, demande… |
 | **Demande** | Objet décisionnel dans une Démarche lorsqu'une validation humaine ou automatique est nécessaire. | Demande d'inscription, de réservation, de participation… |
@@ -54,21 +54,21 @@ Exemple : une `Access` issue d'une `Journey` liée à une `Occurrence` de transp
 
 **Responsabilité** : identité personnelle Makolo, authentification, préférences personnelles et sécurité du compte.
 
-**Possède** : identité de connexion, informations personnelles, préférences, appareils/sessions, liens vers vérifications personnelles.
+**Possède** : identité de connexion, informations personnelles, préférences, appareils/sessions, liens vers vérifications personnelles et, lorsque la personne agit en son nom, Activities personnelles dont il est l'opérateur logique.
 
 **Ne possède pas** : un rôle métier global « organisateur », « finance » ou « scanner ». Les flags historiques de ce type sont des compatibilités à retirer progressivement.
 
 **Cycle essentiel** : création → vérifications éventuelles → actif/verrouillé/désactivé → anonymisation/suppression selon les règles futures.
 
-**Relations** : Équipes, Groupes, Mandats, Démarches, Accès, Vérifications.
+**Relations** : Équipes, Groupes, Mandats, Activités personnelles, Démarches, Accès, Vérifications.
 
 ### Espace
 
-**Responsabilité** : identité collective, propriétaire logique des activités et des capacités métier d'une entité collective.
+**Responsabilité** : identité collective et opérateur logique des activités/capacités métier d'une entité collective lorsqu'elle agit dans Makolo.
 
-**Possède** : identité publique, paramètres, équipes, activités, groupes internes, configuration métier, vérifications propres à l'entité.
+**Possède** : identité publique, paramètres, équipes, activités qu'il opère, groupes internes, configuration métier, vérifications propres à l'entité.
 
-**Ne possède pas** : des identifiants d'authentification humains ; un Espace n'est jamais un `User` déguisé.
+**Ne possède pas** : des identifiants d'authentification humains ; un Espace n'est jamais un `User` déguisé et ne doit pas être fabriqué pour représenter le contexte personnel d'un Profil.
 
 **Cycle essentiel** : création → configuration → vérification éventuelle → actif → suspendu/archivé.
 
@@ -131,9 +131,9 @@ Les preuves, décisions de revue, reviewer, dates et portée de la vérification
 
 **Responsabilité** : identité durable et règles communes de ce qui est proposé/opéré.
 
-**Possède** : Espace opérateur, titre/description, visibilité, catégorie/taxonomie transversale, état, règles communes, éventuellement zones de pertinence.
+**Possède** : un opérateur logique explicite — **Profil ou Espace, jamais les deux** — ainsi que titre/description, visibilité, catégorie/taxonomie transversale, état, règles communes et éventuellement zones de pertinence. La provenance `created_by` reste distincte : elle indique quel Profil humain a créé l'objet, y compris lorsqu'il agit au nom d'un Espace.
 
-**Ne possède pas** : les champs spécifiques de toutes les verticales, ni nécessairement une date unique, un lieu unique, une origine/destination ou une tarification.
+**Ne possède pas** : les champs spécifiques de toutes les verticales, ni nécessairement une date unique, un lieu unique, une origine/destination ou une tarification. La propriété logique n'accorde pas directement une Permission : l'autorité d'administration reste exprimée par les Mandats.
 
 Les données événementielles ou transport sont ajoutées par **composition** dans les verticales spécialisées.
 
@@ -197,7 +197,8 @@ erDiagram
     ROLE ||--o{ MANDATE : grants
     ROLE ||--o{ ROLE_PERMISSION : contains
     PERMISSION ||--o{ ROLE_PERMISSION : included
-    SPACE ||--o{ ACTIVITY : operates
+    PROFILE ||--o{ ACTIVITY : operates_personally
+    SPACE ||--o{ ACTIVITY : operates_collectively
     ACTIVITY ||--o{ OCCURRENCE : realizes
     OCCURRENCE }o--o{ PLACE : uses
     ACTIVITY }o--o{ ZONE : relevant_in
@@ -221,7 +222,7 @@ erDiagram
 - **Profil ↔ Groupe** : M:N via `GroupMembership`, afin de conserver source, validité et état.
 - **Profil ↔ Mandat** : 1:N ; plusieurs responsabilités peuvent coexister sur des portées différentes.
 - **Mandat ↔ Rôle** : N:1 ; **Rôle ↔ Permission** : M:N via un modèle `RolePermission` explicite.
-- **Espace ↔ Activité** : recommandation principale 1:N pour l'opérateur/propriétaire principal. Une collaboration multi-Espaces future doit passer par un modèle de relation distinct, pas rendre immédiatement l'ownership ambigu.
+- **Profil/Espace ↔ Activité** : une Activity possède exactement un opérateur logique principal : `owner_profile` **XOR** `space`. Le Profil est utilisé lorsque la personne agit en son nom ; l'Espace lorsqu'elle agit pour une identité collective. Une collaboration multi-Espaces future doit passer par un modèle de relation distinct sans rendre cet ownership ambigu. `created_by` reste une relation de provenance vers le Profil humain et ne remplace jamais cette propriété métier.
 - **Activité ↔ Occurrence** : 1:N.
 - **Occurrence ↔ Lieu** : M:N via un modèle intermédiaire lorsque plusieurs rôles de lieux sont nécessaires ; sinon une FK explicite suffit pour un rôle unique d'une verticale.
 - **Activité/Occurrence ↔ Zone** : via modèles intermédiaires lorsque la relation porte un sens (découverte, desserte, éligibilité, restriction).
@@ -267,7 +268,9 @@ Renommer une table/modèle mature n'apporte pas à lui seul la nouvelle architec
 
 ### ForeignKey
 
-Utiliser une `ForeignKey` lorsqu'une entité appartient naturellement à une autre ou lorsqu'une relation N:1 possède une sémantique stable : Occurrence → Activity, Activity → Space opérateur, Access → Profile bénéficiaire.
+Utiliser une `ForeignKey` lorsqu'une entité appartient naturellement à une autre ou lorsqu'une relation N:1 possède une sémantique stable : Occurrence → Activity, Activity → Space opérateur **ou** Activity → Profile opérateur personnel, Access → Profile bénéficiaire.
+
+Pour l'ownership Activity, deux FKs explicites et une contrainte XOR sont préférables à `ContentType`, `GenericForeignKey` ou un propriétaire polymorphe opaque. `created_by` est une FK séparée de provenance/audit.
 
 `PROTECT`, `SET_NULL` ou `CASCADE` doivent refléter la rétention métier, pas une convention globale. Les droits, paiements, décisions et audits historiques doivent généralement survivre à la suppression logique de leur contexte.
 
@@ -345,7 +348,11 @@ Lie `Role` + `Permission`, avec éventuellement une valeur système/personnalis�
 
 ### ActivityOwnership / collaboration
 
-Pour la première migration, `Activity.space` doit rester une FK vers l'Espace opérateur principal. Si les co-organisations deviennent un besoin réel, ajouter un modèle `ActivitySpaceRole`/équivalent avec un rôle explicite (co-organisateur, sponsor opérateur, partenaire), sans rendre l'ownership principal M2M.
+L'ownership principal d'une Activity est explicite : `Activity.space` pour un opérateur collectif **ou** `Activity.owner_profile` pour un opérateur personnel, avec contrainte XOR pour les nouvelles lignes. `Activity.created_by` reste indépendant et conserve le Profil humain à l'origine de la création. Les données historiques antérieures dont l'ownership n'est pas déterminable automatiquement peuvent rester temporairement non résolues pendant une migration additive plutôt que d'être attribuées arbitrairement.
+
+Si les co-organisations deviennent un besoin réel, ajouter un modèle `ActivitySpaceRole`/équivalent avec un rôle explicite (co-organisateur, sponsor opérateur, partenaire), sans rendre l'ownership principal M2M.
+
+La propriété personnelle n'est pas une permission implicite. La création d'une Activity personnelle doit attribuer transactionnellement le Mandat Activity approprié au Profil propriétaire ; la délégation à d'autres Profils continue ensuite à passer par des Mandats Activity.
 
 ### GroupEligibility
 
@@ -379,6 +386,8 @@ Le système actuel sépare déjà correctement `is_staff` des rôles d'organisat
 3. **Permissions Activité** : publication, configuration, billetterie/offres, validation de demandes, accès et opérations d'une Activité précise.
 4. **Permissions Groupe** : gestion de membres/éligibilité d'un Groupe précis. Appartenir au Groupe ne donne aucun de ces droits.
 5. **Mandats** : seule attribution métier canonique des rôles contextuels.
+
+L'ownership `Activity.owner_profile` ou `Activity.space` ne constitue pas un raccourci autour de `can()`. Lorsqu'un Profil crée personnellement une Activity, son autorité locale est matérialisée par un Mandat Activity ; un manager délégué reçoit de même un Mandat Activity. TeamMembership ou GroupMembership seules ne donnent aucune capacité de gestion.
 
 ### Rôles standards
 
@@ -700,6 +709,7 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 16. **Les données historiques financières et d'accès conservent leurs snapshots et leur audit.**
 17. **La géolocalisation est minimisée.** Une position ponctuelle de découverte n'est pas un historique de déplacements.
 18. **Ne pas conserver un modèle historique uniquement par peur de casser la bêta.** La migration doit être progressive et testée, mais la compatibilité est un pont, pas la cible.
+19. **Une nouvelle Activity possède exactement un opérateur logique : un Profil ou un Espace.** `created_by` conserve la provenance du Profil humain et ne constitue pas l'autorité ; celle-ci reste portée par les Mandats.
 
 ---
 

@@ -97,17 +97,17 @@ class RoleAwareWebProductTests(TestCase):
         self.assertNotContains(response, ">Activités<")
         self.assertNotContains(response, ">Équipe<")
 
-    def test_staff_lands_in_operations(self):
+    def test_staff_lands_in_personal_context_before_operations(self):
         self.client.force_login(self.staff)
         response = self.client.get(reverse("core:dashboard"))
-        self.assertRedirects(response, reverse("operations:dashboard"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("core:participant-home"), fetch_redirect_response=False)
 
-    def test_participant_is_still_refused_server_side_on_event_create(self):
+    def test_participant_can_open_personal_event_creation_without_space_authority(self):
         self.client.force_login(self.participant)
         response = self.client.get(reverse("events:create"))
 
-        self.assertEqual(response.status_code, 403)
-        self.assertContains(response, "Erreur 403", status_code=403)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Créer")
 
     def test_product_404_page(self):
         response = self.client.get("/page-qui-n-existe-pas-makolo/")

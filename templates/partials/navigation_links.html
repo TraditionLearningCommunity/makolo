@@ -3,8 +3,7 @@
 <nav class="px-3 pb-6">
     {% if request.user.is_authenticated %}
         {% if space_console %}
-            <p class="mk-nav-group-label">Contexte</p>
-            <a href="{% url 'core:participant-home' %}" class="mk-nav-item"><i data-lucide="user-round"></i><span>Retour à mon espace personnel</span></a>
+            <p class="mk-nav-group-label">Espace</p>
             <a href="{% url 'organizations:console-overview' space.slug %}" class="mk-nav-item {% if console_module_key == 'overview' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>{{ space.name }}</span></a>
 
             {% for group in space_console.navigation_groups %}
@@ -19,12 +18,6 @@
             <a href="{% url 'core:participant-journeys' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.url_name == 'participant-journey-detail' %}is-active{% endif %}"><i data-lucide="calendar-search"></i><span>Mes démarches</span></a>
             <a href="{% url 'core:participant-accesses' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.url_name == 'participant-access-detail' %}is-active{% endif %}"><i data-lucide="badge-check"></i><span>Mes accès</span></a>
             <a href="{% url 'notifications:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'notifications' %}is-active{% endif %}"><i data-lucide="bell"></i><span>Notifications</span></a>
-            <a href="{% url 'account:profile' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'account' %}is-active{% endif %}"><i data-lucide="user-round"></i><span>Profil</span></a>
-
-            {% if caps.has_organizer_tools %}
-                <p class="mk-nav-group-label">Mes Espaces</p>
-                <a href="{% url 'organizations:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'organizations' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>Gérer mes Espaces</span></a>
-            {% endif %}
         {% endif %}
 
         {% if caps.is_staff and not space_console %}

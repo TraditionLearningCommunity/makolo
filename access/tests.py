@@ -54,7 +54,11 @@ class AccessFixtureMixin:
             email="access-decider@example.com",
             password="Access-2026!",
         )
-        self.activity = Activity.objects.create(created_by=self.owner, title="Access Activity")
+        self.activity = Activity.objects.create(
+            owner_profile=self.owner,
+            created_by=self.owner,
+            title="Access Activity",
+        )
         now = timezone.now()
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
@@ -179,7 +183,11 @@ class AccessServiceTests(AccessFixtureMixin, TestCase):
         self.assertEqual(first.result, AccessUseResult.ACCEPTED)
         self.assertEqual(second.result, AccessUseResult.ALREADY_USED)
 
-        other_activity = Activity.objects.create(created_by=self.owner, title="Wrong Activity")
+        other_activity = Activity.objects.create(
+            owner_profile=self.owner,
+            created_by=self.owner,
+            title="Wrong Activity",
+        )
         other_occurrence = Occurrence.objects.create(
             activity=other_activity,
             start_at=timezone.now() - timedelta(minutes=10),
@@ -337,7 +345,11 @@ class AccessServiceTests(AccessFixtureMixin, TestCase):
             revoke_access(access=access, actor=self.other)
 
     def test_activity_occurrence_and_journey_consistency(self):
-        other_activity = Activity.objects.create(created_by=self.owner, title="Other Access Activity")
+        other_activity = Activity.objects.create(
+            owner_profile=self.owner,
+            created_by=self.owner,
+            title="Other Access Activity",
+        )
         other_occurrence = Occurrence.objects.create(
             activity=other_activity,
             start_at=timezone.now(),
