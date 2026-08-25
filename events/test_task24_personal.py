@@ -51,7 +51,7 @@ class Task24EventOwnershipTests(TestCase):
         self.assertFalse(can(self.other, PermissionCode.ACTIVITY_MANAGE, activity=activity))
         self.assertEqual(Organization.objects.count(), 0)
 
-    def test_legacy_manager_new_personal_row_gets_explicit_owner(self):
+    def test_legacy_manager_new_personal_row_gets_explicit_owner_and_mandate(self):
         event = Event.objects.create(
             organizer=self.sarah,
             title="Compatibilité cérémonie",
@@ -61,6 +61,7 @@ class Task24EventOwnershipTests(TestCase):
         self.assertEqual(event.activity.owner_profile_id, self.sarah.pk)
         self.assertEqual(event.activity.created_by_id, self.sarah.pk)
         self.assertIsNone(event.activity.space_id)
+        self.assertTrue(can(self.sarah, PermissionCode.ACTIVITY_MANAGE, activity=event.activity))
 
     def test_space_event_keeps_space_owner_and_human_provenance_distinct(self):
         space = Organization.objects.create(name="Makolo Beta Events", created_by=self.sarah)
