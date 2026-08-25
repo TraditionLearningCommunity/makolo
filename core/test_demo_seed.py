@@ -105,6 +105,8 @@ class MakoloDemoSeedTests(TestCase):
                 "beta.access@makolo.test",
                 "beta.activitylocal@makolo.test",
                 "beta.teamonly@makolo.test",
+                "beta.personal@makolo.test",
+                "beta.personaldelegate@makolo.test",
             },
         )
         self.assertTrue(all(email.endswith(".test") for email in set(BETA_PERSONAS.values()) | set(T22_PERSONAS.values())))
