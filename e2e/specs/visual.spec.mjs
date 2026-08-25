@@ -137,9 +137,8 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
 
   await page.context().clearCookies();
   await login(page, 'new.organizer@e2e.makolo.test');
-  const organizerLandingUrl = page.url();
   await setAccountAppearance(page, 'light');
-  await page.goto(organizerLandingUrl);
+  await page.goto('/spaces/makolo-e2e-nouvelle-organisation/overview/');
   await shot(page, 'organizer-dashboard-light-desktop.png');
 
   await page.context().clearCookies();
