@@ -707,4 +707,72 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 14. **Les états métier changent par transitions contrôlées et services, pas par combinaisons de booléens.**
 15. **Les selectors, permissions et services restent des frontières de sécurité.** Généraliser le domaine ne doit jamais élargir accidentellement l'accès aux PII, paiements, CRM ou journaux d'accès.
 16. **Les données historiques financières et d'accès conservent leurs snapshots et leur audit.**
-17. **Une nouvelle Activity possède exactement un opérateur logique : un Profil ou un Espace.** `created_by` conserve la provenance du Profil humain et ne constitue pas l'autorité ; celle-ci reste portée par les Mandats.
+17. **La géolocalisation est minimisée.** Une position ponctuelle de découverte n'est pas un historique de déplacements.
+18. **Ne pas conserver un modèle historique uniquement par peur de casser la bêta.** La migration doit être progressive et testée, mais la compatibilité est un pont, pas la cible.
+19. **Une nouvelle Activity possède exactement un opérateur logique : un Profil ou un Espace.** `created_by` conserve la provenance du Profil humain et ne constitue pas l'autorité ; celle-ci reste portée par les Mandats.
+
+---
+
+## Lecture avec l'architecture existante
+
+Tant que les migrations ci-dessus ne sont pas réalisées, [`authorization-boundaries.md`](authorization-boundaries.md) reste la référence opérationnelle des permissions actuellement exécutées par le code. Le présent blueprint définit **où ces frontières doivent converger**, pas une autorisation déjà disponible dans le runtime.
+
+Les prochaines PR de refactoring doivent citer la section et l'étape de migration qu'elles mettent en œuvre, et préciser les adaptateurs de compatibilité conservés ou supprimés.
+
+### Note d'implémentation — Démarche / Demande / Accès
+
+L'étape 5 est désormais matérialisée par les bounded contexts `journeys` et `access` : `Journey`, `JourneyRequest`, `JourneyTransition`, `Access`, `AccessCredential` et `AccessUse` existent avec workflows/transitions contrôlés, émission individuelle, credential QR signé et rotatable, validation transactionnelle single-use et permissions Activity-scoped.
+
+`TicketOrder.journey` et `Ticket.access` constituent les bridges explicites de migration. `TicketOrder`, `Ticket`, `TicketType`, `Payment`, `ScannerAssignment` et l'UX Event restent conservés par compatibilité ; les QR Ticket historiques utilisent un resolver legacy contrôlé, tandis que toute nouvelle représentation canonique invalide l'ancien bearer. La décision de scan converge vers `Access` et produit `AccessUse` sans supprimer `ScanLog`.
+
+La prochaine étape structurante reste **Commerce / capacité / paiement**. Le détail des invariants, mappings de backfill et compatibilités de cette implémentation est documenté dans [`journey-request-access.md`](journey-request-access.md).
+
+### Note d'implémentation — Commerce / capacité / paiement
+
+L'étape 6 est désormais matérialisée par deux bounded contexts séparés : `capacity` porte `CapacityPool` et `CapacityReservation`, tandis que `commerce` porte `Offer`, `CommerceOrder`, `CommerceOrderItem` et les `PaymentMode` contrôlés. La capacité reste indépendante du commerce et du paiement : une Journey gratuite peut réserver puis engager une place et produire un Access sans CommerceOrder ni Payment.
+
+Les bridges explicites sont `TicketType → Offer/CapacityPool`, `TicketOrder → CommerceOrder`, `TicketOrderItem → CommerceOrderItem/CapacityReservation` et `Payment → CommerceOrder`. `Payment` reste la source de vérité provider et peut désormais référencer une CommerceOrder sans TicketOrder ; Journey reste propriétaire du workflow et Access du droit. Les modèles Ticket historiques, Promotions et Waitlist restent conservés comme compatibilités de la verticale Events.
+
+Le verrouillage de capacité est transactionnel sur `CapacityPool` et la disponibilité est dérivée des réservations `held` non expirées et `committed`, sans compteur canonique concurrent. Les détails des invariants, backfills, modes `none/upfront/after_approval/on_site/later` et limites volontaires sont documentés dans [`commerce-capacity.md`](commerce-capacity.md).
+
+### Note d'implémentation — 8A Domain Events / Notifications / Automation
+
+La généralisation des capacités transversales est désormais découpée en étapes maîtrisables. **8A** introduit un contrat de Domain Events stables `<domain>.<fact>`, une outbox transactionnelle persistée dans `core`, un processor batché/retryable et des traces de consommation idempotentes. Les transitions canoniques de Journey/Request, Activity/Occurrence, Access, Commerce et Payment produisent leurs faits depuis leurs services ; le contrat ne dépend pas de la verticale historique `events.Event`.
+
+`notifications` consomme ces faits comme **consumer système** et conserve le vocabulaire contextuel Event/registration/invitation ainsi que les préférences existantes. `automation` peut désormais déclencher des règles configurables par `event_type`, avec portée Espace/Activity, conditions whitelistées et exécutions idempotentes ; Autopilot reste le scheduler des travaux temporels et peut traiter l'outbox sans devenir propriétaire des workflows.
+
+Les bridges Event/Ticket et les moteurs historiques encore nécessaires restent des compatibilités. La généralisation **CRM + Promotions / audiences commerciales** est reportée à **8B** ; **Scanner/Operations + Analytics** à **8C**. Les détails du contrat, du retry et de la séparation consumers système/règles configurables sont documentés dans [`domain-events-automation.md`](domain-events-automation.md).
+
+### Note d'implémentation — 8B CRM / Audiences / Promotions
+
+**8B** matérialise la relation CRM `Espace ↔ Profil` avec une unicité par Espace/Profil et des `CRMInteraction` dérivées des Domain Events via le consumer système `crm.system`. `Audience`/`AudienceMember` matérialisent une population statique, issue d'une sélection de Profils, d'un Groupe courant ou d'un `GroupSnapshot` ; **Groupe ≠ Audience** et **Audience ≠ consentement marketing**.
+
+Les Promotions ciblent désormais Commerce par `PromotionTargeting` et `PromotionOffer`, avec une Audience optionnelle contrôlée au checkout. Les `TicketType` historiques restent une projection Events et leur bridge `ticket_type.offer` alimente les cibles Offer sans devenir la cible canonique. Les quotas historiques et canoniques sont comptés ensemble, tandis que `CommerceOrder`/`CommerceOrderItem` conservent les snapshots de prix et remise.
+
+`AudienceSegment`, `CRMWorkflow*`, `Promotion.event`, `eligible_ticket_types` et les redemptions TicketOrder restent des couches de compatibilité. Scanner/Operations et Analytics restent réservés à **8C**. Les détails sont documentés dans [`crm-promotions-audiences.md`](crm-promotions-audiences.md).
+
+### Note d'implémentation — 8C Scanner / Operations / Analytics
+
+**8C** fait converger le contrôle d'accès vers `Activity` / `Occurrence` et le moteur `AccessCredential → Access → AccessUse`. `ScannerAssignment` porte désormais ce scope canonique ; `Event`, `Ticket` et `ScanLog` restent des bridges de la verticale Events et ne décident plus de l'autorisation.
+
+Operations peut contextualiser un incident par Espace, Activity et Occurrence sans Event obligatoire. Analytics lit Journey, Access, CommerceOrder, Payment et Capacity comme sources canoniques, projette seulement les Domain Events utiles via `analytics.system`, sépare valeur commerciale et paiement réellement encaissé, conserve les devises distinctes et évite le double comptage des projections Event/Ticket bridgées.
+
+Le backend reste générique tandis que les dashboards et écrans Events conservent les termes « billets », « participants », « revenus » et « contrôle d'accès ». Les invariants et compatibilités de cette étape sont détaillés dans [`scanner-operations-analytics.md`](scanner-operations-analytics.md).
+
+### Note d'implémentation — Task 9 Events comme verticale
+
+L'étape « Events comme verticale » est désormais matérialisée par composition sur les propriétaires canoniques : `Event → Activity`, calendrier → `Occurrence`, lieu physique → `Place` via `OccurrencePlace`, type de billet → `Offer` / `CapacityPool`, commande → `Journey` / `CommerceOrder`, billet → `Access`, QR → `AccessCredential` et validation → `AccessUse`.
+
+`Event`, `EventVenue`, `TicketType`, `TicketOrder`, `TicketOrderItem`, `Ticket`, Waitlist et `ScanLog` ne portent plus les décisions génériques déjà possédées par ces bounded contexts ; ils restent configuration, vocabulaire, snapshots historiques ou bridges explicitement documentés de la verticale Events. Les nouveaux flux écrivent d'abord les propriétaires canoniques. Les détails de cutover et la dette de compatibilité restante sont documentés dans [`events-vertical.md`](events-vertical.md).
+
+### Note d'implémentation — Task 10 Participant Experience
+
+La surface participant est désormais canonical-first : `Occurrence` fournit le quand/où, `Journey` est présenté comme la démarche et porte la prochaine action de présentation, Commerce/Payment n'apparaît que lorsque le workflow l'exige, et `Access`/`AccessCredential` fournit le droit et son QR contextualisé. L'accueil personnel, Mes démarches et Mes accès fonctionnent sans dépendance obligatoire à Event, Ticket ou TicketOrder ; Event reste uniquement une verticale de vocabulaire. Les détails et compatibilités encore consommées sont documentés dans [`participant-experience.md`](participant-experience.md).
+
+### Note d'implémentation — Task 12 Transport MVP
+
+**Task 12 — Transport MVP** est désormais matérialisée par `transport` comme verticale composée sur le cœur canonique. Les responsabilités, invariants et non-goals sont documentés dans [`transport-mvp.md`](transport-mvp.md).
+
+### Note d'implémentation — Task 13 Spatio-temporal Discovery
+
+La Discovery publique est désormais construite sur `Activity + Occurrence + Geography` : Activity porte le « quoi », Occurrence le « quand », `OccurrencePlace → Place` le « où », et un presenter léger fournit le vocabulaire et le CTA de la verticale. Event et Transport partagent ainsi le même moteur sans rendre Event obligatoire ; les règles de timezone, nearby bounding-box/Haversine, Offer/Capacity et rendu MapLibre sont documentées dans [`spatiotemporal-discovery.md`](spatiotemporal-discovery.md).
