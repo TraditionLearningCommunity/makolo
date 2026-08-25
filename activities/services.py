@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 
@@ -18,13 +20,47 @@ def _occurrence_scope(occurrence):
     return getattr(occurrence.activity, "space_id", None), occurrence.activity_id
 
 
+def _activity_payload(activity, **extra):
+    payload = {
+        "activity_id": str(activity.pk),
+        "space_id": str(activity.space_id) if activity.space_id else None,
+        "owner_profile_id": str(activity.owner_profile_id) if activity.owner_profile_id else None,
+        "status": activity.status,
+    }
+    payload.update(extra)
+    return payload
+
+
 @transaction.atomic
-def create_activity(*, space, created_by, title, **fields) -> Activity:
-    if space is None:
-        raise ValidationError({"space": "Toute nouvelle activité doit appartenir à un Espace."})
-    activity = Activity(space=space, created_by=created_by, title=title.strip(), **fields)
+def create_activity(*, created_by, title, space=None, owner_profile=None, **fields) -> Activity:
+    if bool(space) == bool(owner_profile):
+        raise ValidationError(
+            "Toute nouvelle Activity doit appartenir soit à un Profil, soit à un Espace."
+        )
+    if owner_profile is not None and owner_profile.pk != getattr(created_by, "pk", None):
+        raise ValidationError(
+            {"owner_profile": "Une Activity personnelle doit être créée par son propriétaire."}
+        )
+
+    activity = Activity(
+        space=space,
+        owner_profile=owner_profile,
+        created_by=created_by,
+        title=title.strip(),
+        **fields,
+    )
     activity.full_clean()
     activity.save()
+
+    if owner_profile is not None:
+        grant_activity_role(
+            profile=owner_profile,
+            activity=activity,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=created_by,
+            source="personal-activity-ownership",
+        )
+
     if activity.status == ActivityStatus.PUBLISHED:
         emit_domain_event(
             event_type=DomainEventType.ACTIVITY_PUBLISHED,
@@ -33,11 +69,7 @@ def create_activity(*, space, created_by, title, **fields) -> Activity:
             idempotency_key=f"activity:{activity.pk}:published",
             space_id=activity.space_id,
             activity_id=activity.pk,
-            payload={
-                "activity_id": str(activity.pk),
-                "space_id": str(activity.space_id),
-                "status": activity.status,
-            },
+            payload=_activity_payload(activity),
         )
     return activity
 
@@ -61,12 +93,7 @@ def update_activity_common(*, activity: Activity, **fields) -> Activity:
             idempotency_key=f"activity:{activity.pk}:published",
             space_id=activity.space_id,
             activity_id=activity.pk,
-            payload={
-                "activity_id": str(activity.pk),
-                "space_id": str(activity.space_id) if activity.space_id else None,
-                "previous_status": previous_status,
-                "status": activity.status,
-            },
+            payload=_activity_payload(activity, previous_status=previous_status),
         )
     return activity
 
@@ -88,12 +115,7 @@ def reopen_completed_activity(*, activity: Activity) -> Activity:
         idempotency_key=f"activity:{activity.pk}:reopened:{transition_revision}"[:255],
         space_id=activity.space_id,
         activity_id=activity.pk,
-        payload={
-            "activity_id": str(activity.pk),
-            "space_id": str(activity.space_id) if activity.space_id else None,
-            "previous_status": previous_status,
-            "status": activity.status,
-        },
+        payload=_activity_payload(activity, previous_status=previous_status),
     )
     return activity
 
