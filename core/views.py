@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
 
+from accounts.device_accounts import remember_account_on_device
 from events.selectors import get_public_discoverable_events
 from organizations.models import Organization, OrganizationVerificationStatus
 
@@ -42,6 +43,10 @@ class RateLimitedLoginView(LoginView):
             response.status_code = 429
             return response
         return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        return remember_account_on_device(self.request, response, self.request.user)
 
 
 class PublicHomeView(TemplateView):
