@@ -11,7 +11,6 @@ from events.models import EventCategory, EventStatus, EventVenue
 from events.permissions import IsEventOrganizer, IsEventOwnerOrAdmin
 from events.selectors import get_events_visible_to
 from events.services import cancel_event, complete_event, create_event, publish_event, reopen_event, update_event
-from organizations.services import ensure_personal_organization
 
 from .serializers import (
     EventCategorySerializer,
@@ -64,7 +63,7 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         values = dict(serializer.validated_data)
-        organization = values.pop("organization", None) or ensure_personal_organization(self.request.user)
+        organization = values.pop("organization", None)
         event = create_event(actor=self.request.user, organization=organization, **values)
         ensure_policy(event)
         serializer.instance = event
