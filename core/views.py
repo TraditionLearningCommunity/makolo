@@ -1,6 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -43,6 +44,12 @@ class RateLimitedLoginView(LoginView):
             response.status_code = 429
             return response
         return super().post(request, *args, **kwargs)
+
+    def get_success_url(self):
+        # LoginView.get_redirect_url() already validates the `next` host/scheme.
+        # Only a login without an explicit safe business destination falls back
+        # to the Profile's personal context.
+        return self.get_redirect_url() or reverse("core:participant-home")
 
     def form_valid(self, form):
         response = super().form_valid(form)
