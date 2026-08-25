@@ -14,6 +14,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from access.services import validate_access
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import Organization
 from tickets.models import TicketOrderStatus, TicketStatus, TicketType
@@ -37,6 +39,11 @@ def make_payment_event(organizer):
     organization = Organization.objects.create(
         name=f"Makolo Payments Test Org {organizer.pk}",
         created_by=organizer,
+    )
+    grant_space_role(
+        profile=organizer,
+        space=organization,
+        role=SystemRoleCode.SPACE_OWNER,
     )
     return Event.objects.create(
         organization=organization,
