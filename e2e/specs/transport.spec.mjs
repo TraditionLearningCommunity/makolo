@@ -55,7 +55,7 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and early
   // The deterministic departure is in 2031: the real scanner must recognize
   // the authentic ticket while clearly explaining that control is not open yet.
   await expect(page.locator('#result-title')).toHaveText('Contrôle pas encore ouvert');
-  await expect(page.locator('#result-message')).toContainText(/pas encore valable/i);
+  await expect(page.locator('#result-message')).toHaveText('Ce billet sera valable à partir du 15/06/2031 à 08:00.');
 });
 
 test('Transport on-site confirms without online payment surface', async ({ page }) => {
