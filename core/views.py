@@ -4,11 +4,9 @@ from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
 
-from authorization.services import has_platform_authority
 from events.selectors import get_public_discoverable_events
 from organizations.models import Organization, OrganizationVerificationStatus
 
-from .capabilities import get_web_capabilities
 from .web_throttling import (
     RATE_LIMIT_MESSAGE,
     allow_web_request,
@@ -46,25 +44,11 @@ class RateLimitedLoginView(LoginView):
         return super().post(request, *args, **kwargs)
 
 
-def _authenticated_landing(user):
-    if has_platform_authority(user):
-        return "operations"
-    capabilities = get_web_capabilities(user)
-    if capabilities["has_organizer_tools"]:
-        return "spaces"
-    return "personal"
-
-
 class PublicHomeView(TemplateView):
     template_name = "core/public_home.html"
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
-            target = _authenticated_landing(request.user)
-            if target == "spaces":
-                return redirect("organizations:list")
-            if target == "operations":
-                return redirect("operations:dashboard")
             return redirect("core:participant-home")
         return super().dispatch(request, *args, **kwargs)
 
@@ -80,14 +64,9 @@ class PublicHomeView(TemplateView):
 
 
 class DashboardView(LoginRequiredMixin, View):
-    """Compatibility URL that routes users to the relevant Makolo context."""
+    """Compatibility URL for old post-login links; personal context is default."""
 
     login_url = "core:login"
 
     def get(self, request, *args, **kwargs):
-        target = _authenticated_landing(request.user)
-        if target == "spaces":
-            return redirect("organizations:list")
-        if target == "operations":
-            return redirect("operations:dashboard")
         return redirect("core:participant-home")
