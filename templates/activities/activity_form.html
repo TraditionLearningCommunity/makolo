@@ -1,0 +1,27 @@
+{% extends 'base/app.html' %}
+{% block title %}Créer une activité | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6 pb-10">
+  <section>
+    <span class="mk-kicker">Contexte personnel</span>
+    <h1 class="mk-page-title mt-2">Créer une activité</h1>
+    <p class="mk-page-copy mt-3">Organisez en votre nom ou au nom d’un Espace que vous êtes autorisé à représenter. L’identité qui crée l’objet reste toujours votre Profil.</p>
+  </section>
+  <form method="post" class="mk-panel space-y-5 p-5 sm:p-7">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <div>
+        <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="mt-2 text-xs" style="color:var(--mk-muted)">{{ field.help_text }}</p>{% endif %}
+        {% for error in field.errors %}<p class="mt-2 text-sm font-semibold text-rose-600">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <div class="flex flex-wrap gap-3 pt-2">
+      <button type="submit" class="mk-btn mk-btn-primary">Créer en brouillon</button>
+      <a href="{% url 'core:participant-home' %}" class="mk-btn mk-btn-secondary">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
