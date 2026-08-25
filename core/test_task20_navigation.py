@@ -22,7 +22,7 @@ class Task20LandingNavigationTests(TestCase):
 
         self.assertRedirects(response, reverse("core:participant-home"))
 
-    def test_organizer_lands_on_space_list_not_arbitrary_space(self):
+    def test_organizer_lands_in_personal_context_before_selecting_space(self):
         user = User.objects.create_user(
             username="task20-organizer",
             email="task20-organizer@example.test",
@@ -33,7 +33,7 @@ class Task20LandingNavigationTests(TestCase):
 
         response = self.client.get(reverse("core:home"))
 
-        self.assertRedirects(response, reverse("organizations:list"))
+        self.assertRedirects(response, reverse("core:participant-home"))
 
     def test_django_staff_without_platform_authority_stays_personal(self):
         user = User.objects.create_user(
@@ -48,7 +48,7 @@ class Task20LandingNavigationTests(TestCase):
 
         self.assertRedirects(response, reverse("core:participant-home"))
 
-    def test_staff_lands_in_platform_operations(self):
+    def test_platform_staff_lands_in_personal_context_before_operations(self):
         user = User.objects.create_user(
             username="task20-staff",
             email="task20-staff@example.test",
@@ -60,4 +60,4 @@ class Task20LandingNavigationTests(TestCase):
 
         response = self.client.get(reverse("core:home"))
 
-        self.assertRedirects(response, reverse("operations:dashboard"))
+        self.assertRedirects(response, reverse("core:participant-home"))
