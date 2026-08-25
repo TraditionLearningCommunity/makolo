@@ -35,6 +35,7 @@ class ParticipantLifecycleTests(TestCase):
         )
         self.activity = Activity.objects.create(
             created_by=self.participant,
+            owner_profile=self.participant,
             title="Atelier canonique Task 23",
         )
         now = timezone.now()
