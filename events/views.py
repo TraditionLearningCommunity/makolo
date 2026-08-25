@@ -11,8 +11,6 @@ from automation.services import ensure_policy
 from core.participant_presentation import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
 from discovery.presentation import availability_presentation, presenter_for, price_presentation
-from organizations.models import OrganizationMembership
-from organizations.services import ensure_personal_organization
 
 from .forms import EventForm
 from .models import Event, EventStatus
@@ -33,10 +31,6 @@ class EventListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["can_create_event"] = user_can_manage_events(self.request.user)
-        context["has_organization"] = bool(
-            self.request.user.is_authenticated
-            and OrganizationMembership.objects.filter(user=self.request.user, is_active=True).exists()
-        )
         return context
 
 
@@ -51,17 +45,8 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     def handle_no_permission(self):
         if self.request.user.is_authenticated:
-            raise PermissionDenied("Créez une organisation ou rejoignez une équipe ayant le droit de gérer les événements.")
+            raise PermissionDenied("Vous ne pouvez pas créer cet événement.")
         return super().handle_no_permission()
-
-    def dispatch(self, request, *args, **kwargs):
-        if (
-            request.user.is_authenticated
-            and user_can_manage_events(request.user)
-            and not OrganizationMembership.objects.filter(user=request.user, is_active=True).exists()
-        ):
-            ensure_personal_organization(request.user)
-        return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
