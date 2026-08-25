@@ -3,6 +3,8 @@ from __future__ import annotations
 from access.models import Access, AccessUse, AccessUseResult
 from access.services import issue_access, validate_access
 from accounts.models import NotificationPreference, User
+from activities.models import Activity, ActivityStatus, ActivityVisibility
+from activities.services import create_activity
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import Mandate, MandateStatus
 from authorization.services import can, grant_activity_role, grant_space_role, replace_standard_space_role
@@ -18,6 +20,8 @@ T22_PERSONAS = {
     "access_manager": "beta.access@makolo.test",
     "activity_local": "beta.activitylocal@makolo.test",
     "team_only": "beta.teamonly@makolo.test",
+    "personal": "beta.personal@makolo.test",
+    "personal_delegate": "beta.personaldelegate@makolo.test",
 }
 
 
@@ -138,6 +142,23 @@ def _remove_historical_demo_owner_mandates(profile: User) -> None:
     ).delete()
 
 
+def _personal_activity(owner: User) -> Activity:
+    activity = Activity.objects.filter(
+        owner_profile=owner,
+        title="Cérémonie personnelle bêta T24",
+    ).first()
+    if activity is not None:
+        return activity
+    return create_activity(
+        owner_profile=owner,
+        created_by=owner,
+        title="Cérémonie personnelle bêta T24",
+        short_description="Activity personnelle gratuite pour valider le contexte Profil.",
+        status=ActivityStatus.DRAFT,
+        visibility=ActivityVisibility.PRIVATE,
+    )
+
+
 def seed_task22_extension(ctx: SeedContext) -> None:
     """Complete the canonical beta seed with the final T22 authority matrix.
 
@@ -152,6 +173,8 @@ def seed_task22_extension(ctx: SeedContext) -> None:
     access_manager = _user(ctx, "access_manager", "Alex", "Accès")
     activity_local = _user(ctx, "activity_local", "Lina", "Trajet")
     team_only = _user(ctx, "team_only", "Tina", "Équipe")
+    personal = _user(ctx, "personal", "Sarah", "Personnel")
+    personal_delegate = _user(ctx, "personal_delegate", "Christophe", "Délégué")
 
     for space in (event_space, transport_space):
         _team_member(space, owner, historical_admin)
@@ -205,12 +228,25 @@ def seed_task22_extension(ctx: SeedContext) -> None:
     # no Mandate and therefore no authority over the Espace.
     _team_member(event_space, team_only, owner)
 
+    # T24: Sarah owns an Activity directly as a Profile and has no synthetic
+    # Organization. Christophe collaborates only through an Activity Mandate.
+    personal_activity = _personal_activity(personal)
+    grant_activity_role(
+        profile=personal_delegate,
+        activity=personal_activity,
+        role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+        granted_by=personal,
+        source="makolo-beta-task24",
+    )
+
     _exercise_transport_access(
         {
             "owner": owner,
             "scanner": User.objects.get(email="beta.scanner@makolo.test"),
         }
     )
-    ctx.add("task22_personas", 4)
+    ctx.add("task22_personas", 6)
     ctx.add("task22_team_only_members", 1)
+    ctx.add("task22_personal_activities", 1)
+    ctx.add("task22_personal_activity_delegates", 1)
     ctx.add("task22_non_event_access_uses", 1)
