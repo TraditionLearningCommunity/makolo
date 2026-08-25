@@ -135,7 +135,7 @@ class EventApiTests(APITestCase):
         titles = [item["title"] for item in response.data["results"]]
         self.assertEqual(titles, ["Visible"])
 
-    def test_organizer_can_create_draft_event(self):
+    def test_authenticated_profile_can_create_personal_draft_event(self):
         self.client.force_authenticate(self.organizer)
         start_at = timezone.now() + timedelta(days=5)
         response = self.client.post(
@@ -149,24 +149,28 @@ class EventApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        event = Event.objects.get(title="Created through API")
+        event = Event.objects.select_related("activity").get(title="Created through API")
         self.assertEqual(event.organizer, self.organizer)
-        self.assertIsNotNone(event.organization_id)
+        self.assertIsNone(event.organization_id)
+        self.assertEqual(event.activity.owner_profile_id, self.organizer.pk)
         self.assertEqual(event.status, EventStatus.DRAFT)
 
-    def test_regular_user_cannot_create_event(self):
+    def test_regular_user_can_create_personal_event_without_space(self):
         self.client.force_authenticate(self.regular_user)
         start_at = timezone.now() + timedelta(days=5)
         response = self.client.post(
             "/api/v1/events/",
             {
-                "title": "Forbidden",
+                "title": "Personal participant Event",
                 "start_at": start_at.isoformat(),
                 "end_at": (start_at + timedelta(hours=1)).isoformat(),
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        event = Event.objects.select_related("activity").get(title="Personal participant Event")
+        self.assertIsNone(event.organization_id)
+        self.assertEqual(event.activity.owner_profile_id, self.regular_user.pk)
 
     def test_other_organizer_cannot_modify_foreign_draft(self):
         event = self.make_event(title="Owner draft")
