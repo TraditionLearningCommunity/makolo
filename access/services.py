@@ -343,14 +343,68 @@ def expire_due_accesses(*, now=None):
     return count
 
 
-def _record_use(*, access, credential, controller, occurrence, result, source):
+def _result_message(result):
+    return {
+        AccessUseResult.ACCEPTED: "Accès autorisé.",
+        AccessUseResult.ALREADY_USED: "Accès déjà utilisé.",
+        AccessUseResult.EXPIRED: "Accès expiré.",
+        AccessUseResult.NOT_YET_VALID: "Accès pas encore valide.",
+        AccessUseResult.REVOKED: "Accès révoqué.",
+        AccessUseResult.CANCELLED: "Accès annulé.",
+        AccessUseResult.WRONG_ACTIVITY: "Accès prévu pour une autre Activity.",
+        AccessUseResult.WRONG_OCCURRENCE: "Accès prévu pour une autre Occurrence.",
+        AccessUseResult.INVALID_CREDENTIAL: "Credential invalide.",
+    }.get(result, "Résultat du contrôle.")
+
+
+def _controller_actor(controller):
+    return controller if getattr(controller, "is_authenticated", False) else None
+
+
+def _normalize_client_reference(controller, client_reference):
+    if _controller_actor(controller) is None:
+        return ""
+    return (client_reference or "").strip()[:64]
+
+
+def _existing_idempotent_use(*, access, controller, client_reference):
+    actor = _controller_actor(controller)
+    client_reference = _normalize_client_reference(controller, client_reference)
+    if actor is None or not client_reference:
+        return None
+    existing = (
+        AccessUse.objects.select_related("credential")
+        .filter(actor=actor, client_reference=client_reference)
+        .order_by("created_at", "id")
+        .first()
+    )
+    if existing is None:
+        return None
+    if existing.access_id != access.pk:
+        raise ValidationError("Cette référence client appartient à un autre contrôle.")
+    return existing
+
+
+def _record_use(
+    *,
+    access,
+    credential,
+    controller,
+    occurrence,
+    result,
+    source,
+    now,
+    client_reference="",
+):
     return AccessUse.objects.create(
         access=access,
         credential=credential,
-        actor=controller if getattr(controller, "is_authenticated", False) else None,
+        actor=_controller_actor(controller),
         occurrence=occurrence,
         result=result,
         source=(source or "")[:80],
+        client_reference=_normalize_client_reference(controller, client_reference),
+        used_at=now,
     )
 
 
@@ -374,6 +428,7 @@ def validate_access(
     expected_activity=None,
     expected_occurrence=None,
     source="",
+    client_reference="",
     now=None,
 ) -> AccessValidationOutcome:
     now = now or timezone.now()
@@ -393,17 +448,6 @@ def validate_access(
         )
         if locked_credential is None:
             return _outcome(result=AccessUseResult.INVALID_CREDENTIAL, message="Credential invalide.", access=access)
-        if locked_credential.status != CredentialStatus.ACTIVE:
-            result = AccessUseResult.EXPIRED if locked_credential.status == CredentialStatus.EXPIRED else AccessUseResult.REVOKED
-            use = _record_use(
-                access=access,
-                credential=locked_credential,
-                controller=controller,
-                occurrence=expected_occurrence,
-                result=result,
-                source=source,
-            )
-            return _outcome(result=result, message="Credential inactif.", access=access, credential=locked_credential, use=use)
 
     if controller is not None:
         if authority_check is not None:
@@ -417,6 +461,51 @@ def validate_access(
         if not authorized:
             raise PermissionDenied("Ce contrôleur n’est pas autorisé pour cet Accès.")
 
+    existing_use = _existing_idempotent_use(
+        access=access,
+        controller=controller,
+        client_reference=client_reference,
+    )
+    if existing_use is not None:
+        return _outcome(
+            result=existing_use.result,
+            message=_result_message(existing_use.result),
+            access=access,
+            credential=existing_use.credential or locked_credential,
+            use=existing_use,
+        )
+
+    if locked_credential is not None and locked_credential.status != CredentialStatus.ACTIVE:
+        result = {
+            AccessStatus.CANCELLED: AccessUseResult.CANCELLED,
+            AccessStatus.EXPIRED: AccessUseResult.EXPIRED,
+            AccessStatus.REVOKED: AccessUseResult.REVOKED,
+            AccessStatus.TRANSFERRED: AccessUseResult.REVOKED,
+        }.get(access.status)
+        if result is None:
+            result = (
+                AccessUseResult.EXPIRED
+                if locked_credential.status == CredentialStatus.EXPIRED
+                else AccessUseResult.REVOKED
+            )
+        use = _record_use(
+            access=access,
+            credential=locked_credential,
+            controller=controller,
+            occurrence=expected_occurrence,
+            result=result,
+            source=source,
+            now=now,
+            client_reference=client_reference,
+        )
+        return _outcome(
+            result=result,
+            message=_result_message(result),
+            access=access,
+            credential=locked_credential,
+            use=use,
+        )
+
     if expected_activity is not None and access.activity_id != expected_activity.pk:
         use = _record_use(
             access=access,
@@ -425,8 +514,10 @@ def validate_access(
             occurrence=expected_occurrence,
             result=AccessUseResult.WRONG_ACTIVITY,
             source=source,
+            now=now,
+            client_reference=client_reference,
         )
-        return _outcome(result=AccessUseResult.WRONG_ACTIVITY, message="Accès prévu pour une autre Activity.", access=access, credential=locked_credential, use=use)
+        return _outcome(result=AccessUseResult.WRONG_ACTIVITY, message=_result_message(AccessUseResult.WRONG_ACTIVITY), access=access, credential=locked_credential, use=use)
 
     if expected_occurrence is not None and access.occurrence_id not in {None, expected_occurrence.pk}:
         use = _record_use(
@@ -436,8 +527,10 @@ def validate_access(
             occurrence=expected_occurrence,
             result=AccessUseResult.WRONG_OCCURRENCE,
             source=source,
+            now=now,
+            client_reference=client_reference,
         )
-        return _outcome(result=AccessUseResult.WRONG_OCCURRENCE, message="Accès prévu pour une autre Occurrence.", access=access, credential=locked_credential, use=use)
+        return _outcome(result=AccessUseResult.WRONG_OCCURRENCE, message=_result_message(AccessUseResult.WRONG_OCCURRENCE), access=access, credential=locked_credential, use=use)
 
     status_result = {
         AccessStatus.USED: AccessUseResult.ALREADY_USED,
@@ -454,8 +547,10 @@ def validate_access(
             occurrence=expected_occurrence,
             result=status_result,
             source=source,
+            now=now,
+            client_reference=client_reference,
         )
-        return _outcome(result=status_result, message="Accès non valide.", access=access, credential=locked_credential, use=use)
+        return _outcome(result=status_result, message=_result_message(status_result), access=access, credential=locked_credential, use=use)
     if access.status != AccessStatus.VALID:
         use = _record_use(
             access=access,
@@ -464,6 +559,8 @@ def validate_access(
             occurrence=expected_occurrence,
             result=AccessUseResult.CANCELLED,
             source=source,
+            now=now,
+            client_reference=client_reference,
         )
         return _outcome(result=AccessUseResult.CANCELLED, message="Accès non actif.", access=access, credential=locked_credential, use=use)
     if access.valid_from and now < access.valid_from:
@@ -474,8 +571,10 @@ def validate_access(
             occurrence=expected_occurrence,
             result=AccessUseResult.NOT_YET_VALID,
             source=source,
+            now=now,
+            client_reference=client_reference,
         )
-        return _outcome(result=AccessUseResult.NOT_YET_VALID, message="Accès pas encore valide.", access=access, credential=locked_credential, use=use)
+        return _outcome(result=AccessUseResult.NOT_YET_VALID, message=_result_message(AccessUseResult.NOT_YET_VALID), access=access, credential=locked_credential, use=use)
     if access.valid_until and now >= access.valid_until:
         _set_access_status(access, AccessStatus.EXPIRED)
         _revoke_active_credentials(access, status=CredentialStatus.EXPIRED, now=now)
@@ -486,8 +585,10 @@ def validate_access(
             occurrence=expected_occurrence,
             result=AccessUseResult.EXPIRED,
             source=source,
+            now=now,
+            client_reference=client_reference,
         )
-        return _outcome(result=AccessUseResult.EXPIRED, message="Accès expiré.", access=access, credential=locked_credential, use=use)
+        return _outcome(result=AccessUseResult.EXPIRED, message=_result_message(AccessUseResult.EXPIRED), access=access, credential=locked_credential, use=use)
 
     if access.single_use:
         if AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).exists():
@@ -499,8 +600,10 @@ def validate_access(
                 occurrence=expected_occurrence,
                 result=AccessUseResult.ALREADY_USED,
                 source=source,
+                now=now,
+                client_reference=client_reference,
             )
-            return _outcome(result=AccessUseResult.ALREADY_USED, message="Accès déjà utilisé.", access=access, credential=locked_credential, use=use)
+            return _outcome(result=AccessUseResult.ALREADY_USED, message=_result_message(AccessUseResult.ALREADY_USED), access=access, credential=locked_credential, use=use)
         _set_access_status(access, AccessStatus.USED)
 
     use = _record_use(
@@ -510,6 +613,8 @@ def validate_access(
         occurrence=expected_occurrence or access.occurrence,
         result=AccessUseResult.ACCEPTED,
         source=source,
+        now=now,
+        client_reference=client_reference,
     )
     _emit_access_event(
         access,
@@ -517,7 +622,7 @@ def validate_access(
         previous_status=AccessStatus.VALID,
         use=use,
     )
-    return _outcome(result=AccessUseResult.ACCEPTED, message="Accès autorisé.", access=access, credential=locked_credential, use=use)
+    return _outcome(result=AccessUseResult.ACCEPTED, message=_result_message(AccessUseResult.ACCEPTED), access=access, credential=locked_credential, use=use)
 
 
 def validate_access_credential(
@@ -529,6 +634,7 @@ def validate_access_credential(
     expected_occurrence=None,
     expected_type=CredentialType.QR,
     source="",
+    client_reference="",
     now=None,
 ):
     try:
@@ -543,5 +649,6 @@ def validate_access_credential(
         expected_activity=expected_activity,
         expected_occurrence=expected_occurrence,
         source=source,
+        client_reference=client_reference,
         now=now,
     )
