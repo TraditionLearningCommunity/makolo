@@ -17,7 +17,7 @@ test('Operations distinguishes demo history from a real live incident', async ({
 
 test('403 and public 404 are branded safe exits without tracebacks', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
-  let response = await page.goto('/events/new/');
+  let response = await page.goto('/operations/');
   expect(response.status()).toBe(403);
   await expect(page.getByText(/Erreur 403/i)).toBeVisible();
   await expect(page.getByRole('heading', { name: /Cet espace n’est pas accessible/i })).toBeVisible();
