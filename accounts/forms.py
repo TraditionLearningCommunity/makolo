@@ -1,7 +1,9 @@
+from zoneinfo import available_timezones
+
 from django import forms
 from django.db import transaction
 
-from .models import NotificationPreference, User, UserProfile
+from .models import GenderCode, LanguageCode, NotificationPreference, User, UserProfile
 from .validators import validate_avatar
 
 
@@ -92,14 +94,25 @@ class AccountDeleteForm(forms.Form):
 
 
 class AccountProfileForm(forms.ModelForm):
-    company_name = forms.CharField(required=False, label="Entreprise")
-    organization_name = forms.CharField(required=False, label="Organisation")
+    company_name = forms.CharField(
+        required=False,
+        label="Entreprise (information de profil)",
+        help_text="Information déclarative : ceci ne crée pas un Espace Makolo.",
+    )
+    organization_name = forms.CharField(
+        required=False,
+        label="Organisation (information de profil)",
+        help_text="Information déclarative : la gestion collective passe par Mes Espaces.",
+    )
     profession = forms.CharField(required=False, label="Profession")
     country = forms.CharField(required=False, label="Pays")
     city = forms.CharField(required=False, label="Ville")
     address = forms.CharField(required=False, label="Adresse", widget=forms.Textarea(attrs={"rows": 3}))
     public_profile = forms.BooleanField(required=False, label="Profil public")
     searchable = forms.BooleanField(required=False, label="Apparaître dans la recherche")
+    gender = forms.ChoiceField(required=False, choices=GenderCode.choices, label="Genre")
+    language = forms.ChoiceField(choices=LanguageCode.choices, label="Langue")
+    timezone = forms.ChoiceField(label="Fuseau horaire")
 
     class Meta:
         model = User
@@ -124,7 +137,6 @@ class AccountProfileForm(forms.ModelForm):
             "last_name": "Nom",
             "phone": "Téléphone",
             "birth_date": "Date de naissance",
-            "gender": "Genre",
             "bio": "Présentation",
             "avatar": "Photo de profil",
             "website": "Site web",
@@ -132,8 +144,6 @@ class AccountProfileForm(forms.ModelForm):
             "facebook_url": "Facebook",
             "instagram_url": "Instagram",
             "x_url": "X / Twitter",
-            "language": "Langue",
-            "timezone": "Fuseau horaire",
         }
         widgets = {
             "birth_date": forms.DateInput(attrs={"type": "date"}),
@@ -171,6 +181,26 @@ class AccountProfileForm(forms.ModelForm):
         if profile and not self.is_bound:
             for field_name in self.profile_fields:
                 self.initial[field_name] = getattr(profile, field_name)
+
+        timezone_choices = [(name, name) for name in sorted(available_timezones())]
+        self.fields["timezone"].choices = timezone_choices
+
+        # Preserve an unknown historical gender/language value in the edit form
+        # without offering it for new profiles. The user can explicitly replace
+        # it with a supported canonical value.
+        if self.instance and self.instance.pk:
+            gender_values = {value for value, _ in GenderCode.choices}
+            if self.instance.gender and self.instance.gender not in gender_values:
+                self.fields["gender"].choices = [
+                    (self.instance.gender, f"Valeur historique : {self.instance.gender}"),
+                    *GenderCode.choices,
+                ]
+            language_values = {value for value, _ in LanguageCode.choices}
+            if self.instance.language and self.instance.language not in language_values:
+                self.fields["language"].choices = [
+                    (self.instance.language, f"Valeur historique : {self.instance.language}"),
+                    *LanguageCode.choices,
+                ]
 
         for field_name, field in self.fields.items():
             widget = field.widget
