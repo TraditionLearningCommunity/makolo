@@ -43,6 +43,7 @@ class DiscoveryParticipantStateTests(TestCase):
             title="Forum canonique participant",
             short_description="Une activité de test participant.",
             created_by=self.owner,
+            owner_profile=self.owner,
             status=ActivityStatus.PUBLISHED,
         )
         self.occurrence = Occurrence.objects.create(
@@ -222,6 +223,7 @@ class DiscoveryParticipantStateTests(TestCase):
         professional_activity = Activity.objects.create(
             title="Événement double identité",
             created_by=self.profile,
+            owner_profile=self.profile,
             status=ActivityStatus.PUBLISHED,
         )
         occurrence = Occurrence.objects.create(
@@ -261,6 +263,7 @@ class DiscoveryParticipantStateTests(TestCase):
             activity = Activity.objects.create(
                 title=f"Forum secondaire {index}",
                 created_by=self.owner,
+                owner_profile=self.owner,
                 status=ActivityStatus.PUBLISHED,
             )
             occurrence = Occurrence.objects.create(
