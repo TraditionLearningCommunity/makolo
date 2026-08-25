@@ -35,8 +35,10 @@ def user_can_manage_event(user, event) -> bool:
 def user_can_manage_event_finance(user, event) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    space = event.activity.space
-    return bool(space is not None and can(user, PermissionCode.FINANCE_MANAGE, space))
+    activity = event.activity
+    if activity.space_id is not None:
+        return can(user, PermissionCode.FINANCE_MANAGE, activity.space)
+    return can(user, PermissionCode.ACTIVITY_COMMERCE_MANAGE, activity=activity)
 
 
 def user_can_manage_event_access(user, event) -> bool:
