@@ -206,8 +206,8 @@ def participant_active_accesses(profile, *, at=None):
         .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
         .filter(
             Q(occurrence__isnull=True)
+            | Q(occurrence__end_at__isnull=True)
             | Q(occurrence__end_at__gte=at)
-            | Q(occurrence__end_at__isnull=True, occurrence__start_at__gte=at)
         )
         .distinct()
     )
