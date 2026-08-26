@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/makolo.mjs';
 import { login, logout } from '../helpers/auth.mjs';
 
 
-test('groups cover bulk membership, invitation security and scoped administration', async ({ page }) => {
+test('groups cover community membership, invitation security and scoped administration', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
 
   await page.goto('/groups/new/');
@@ -10,7 +10,8 @@ test('groups cover bulk membership, invitation security and scoped administratio
   await page.getByLabel('Description').fill('Population E2E créée depuis le navigateur.');
   await page.getByRole('button', { name: 'Créer le Groupe' }).click();
   await expect(page.getByRole('heading', { name: 'Groupe E2E A', exact: true })).toBeVisible();
-  await expect(page.getByText(/administration passe par les Mandats/i)).toBeVisible();
+  await expect(page.getByText('Uniquement les personnes autorisées', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sur invitation', { exact: true })).toBeVisible();
 
   await page.getByRole('link', { name: 'Administrer' }).click();
   await page.getByRole('link', { name: 'Importer CSV' }).click();
@@ -46,8 +47,30 @@ test('groups cover bulk membership, invitation security and scoped administratio
   await page.getByRole('button', { name: 'Créer le Groupe' }).click();
   await expect(page.getByRole('heading', { name: 'Groupe E2E B', exact: true })).toBeVisible();
 
+  await page.goto('/groups/new/');
+  await page.getByLabel('Nom').fill('Anciens MAPENDO E2E');
+  await page.getByLabel('Description').fill('Groupe trouvable avec adhésion sur demande.');
+  await page.getByLabel('Qui peut trouver ce Groupe ?').selectOption('listed');
+  await page.getByLabel('Qui peut rejoindre ?').selectOption('request');
+  await page.getByRole('button', { name: 'Créer le Groupe' }).click();
+  await expect(page.getByRole('heading', { name: 'Anciens MAPENDO E2E', exact: true })).toBeVisible();
+  await expect(page.getByText('Trouvable dans Makolo', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sur demande', { exact: true })).toBeVisible();
+
   await logout(page);
   await login(page, 'participant@e2e.makolo.test');
+
+  await page.goto('/groups/explore/?q=MAPENDO');
+  await expect(page.getByRole('link', { name: /Anciens MAPENDO E2E/ })).toBeVisible();
+  await page.getByRole('link', { name: /Anciens MAPENDO E2E/ }).click();
+  await expect(page.getByRole('heading', { name: 'Anciens MAPENDO E2E', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Demander à rejoindre' }).click();
+  await expect(page.getByText('Demande envoyée.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Demande en attente', { exact: true })).toBeVisible();
+
+  let hidden = await page.goto('/groups/groupe-e2e-b/');
+  expect(hidden.status()).toBe(404);
+
   await page.goto('/groups/groupe-e2e-a/');
   await expect(page.getByRole('heading', { name: 'Groupe E2E A', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Administrer' })).toHaveCount(0);
@@ -56,6 +79,12 @@ test('groups cover bulk membership, invitation security and scoped administratio
 
   await logout(page);
   await login(page, 'owner@e2e.makolo.test');
+
+  await page.goto('/groups/anciens-mapendo-e2e/members/');
+  await expect(page.getByText('participant@e2e.makolo.test')).toBeVisible();
+  await page.getByRole('button', { name: 'Approuver' }).click();
+  await expect(page.getByText(/membre est maintenant actif/i)).toBeVisible();
+
   await page.goto('/groups/groupe-e2e-a/members/');
   await page.getByRole('link', { name: 'Déléguer' }).click();
   await page.getByLabel('Profil').fill('participant@e2e.makolo.test');
@@ -65,6 +94,9 @@ test('groups cover bulk membership, invitation security and scoped administratio
 
   await logout(page);
   await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/groups/anciens-mapendo-e2e/');
+  await expect(page.getByText('Membre', { exact: true })).toBeVisible();
+
   await page.goto('/groups/groupe-e2e-a/');
   await expect(page.getByRole('link', { name: 'Administrer' })).toBeVisible();
   forbidden = await page.goto('/groups/groupe-e2e-b/members/');
