@@ -91,6 +91,6 @@ test('nearby permission denial keeps textual Discovery usable', async ({ page, c
   await page.goto('/discover/?q=Discovery+Event+E2E&when=tomorrow');
   await expect(page.locator('#discovery-map')).toHaveCount(0);
   await page.getByRole('button', { name: 'Autour de moi' }).click();
-  await expect(page.getByRole('status')).toContainText(/Localisation indisponible|position n’est pas disponible/i);
+  await expect(page.getByRole('status')).toContainText('Impossible de vous localiser. Saisissez une ville ou un lieu.');
   await expect(page.getByRole('heading', { name: 'Discovery Event E2E' })).toBeVisible();
 });
