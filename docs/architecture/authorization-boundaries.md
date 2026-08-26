@@ -81,6 +81,21 @@ space.groups.manage
 
 Elles sont composées dans les rôles système Propriétaire/Admin d'Espace ; elles ne sont pas accordées automatiquement à tous les membres d'une Équipe.
 
+### T27 — utiliser un Groupe dans une Activity
+
+La découvrabilité, l'adhésion et le droit de cibler un Groupe sont trois décisions séparées. Un Groupe `LISTED` et `OPEN` n'est pas pour autant un canal que n'importe quel organisateur peut exploiter.
+
+`ActivityGroupEligibility` relie explicitement une Activity et un Groupe. La création ou l'approbation de cette relation ne transfère aucune autorité entre les deux objets :
+
+- le demandeur doit avoir `activity.manage` sur l'Activity exacte ;
+- l'autorisation du Groupe exige `group.manage` sur le Groupe exact, ou l'héritage documenté `space.groups.manage` lorsque ce Groupe appartient à cet Espace ;
+- lorsque la même personne possède les deux autorités, l'utilisation peut être approuvée immédiatement ;
+- sinon la relation reste `requested` jusqu'à une décision du côté Groupe ;
+- connaître l'UUID d'un Groupe ne suffit jamais pour l'attacher à une Activity ;
+- être `GroupMembership.ACTIVE` rend éventuellement un Profil éligible à l'action, mais ne lui donne jamais `group.manage` ni `activity.manage`.
+
+L'éligibilité ne crée ni Mandat, ni TeamMembership, ni Access, ni export CRM. Elle vérifie seulement, au point d'entrée métier concerné, qu'un bénéficiaire est membre actif d'au moins un Groupe approuvé. Un Access déjà acquis conserve son propre cycle et n'est pas révoqué automatiquement si l'appartenance change ensuite.
+
 ## Matrice minimale
 
 | Domaine | Propriétaire/Admin | Responsable activité | Finance | Marketing | Responsable accès | Profil utilisateur |
@@ -193,6 +208,8 @@ Les services transactionnels Groups appliquent la discipline issue de la migrati
 - les relations nécessaires sont chargées après le lock ;
 - les conflits d'unicité récupérables de l'import CSV sont isolés dans des savepoints imbriqués afin qu'un `IntegrityError` n'empoisonne pas la transaction PostgreSQL extérieure.
 
+T27 applique la même discipline au self-join, aux demandes d'adhésion, aux décisions et à `ActivityGroupEligibility`. Les contraintes d'unicité restent la dernière ligne de défense contre les doubles clics et courses concurrentes.
+
 ## Promotions et prix côté serveur
 
 Le client web ou API ne calcule jamais la remise finale. Il transmet seulement un `promotion_code`. Le serveur recharge l'événement, les billets sélectionnés, l'offre et le code, puis vérifie période, Espace, événement, billets éligibles, devise, minimum de commande, quota global, quota du code et limite par client. Le montant payé par Payments reste `TicketOrder.total_amount` après validation serveur.
@@ -210,6 +227,8 @@ Les avantages membership/récompense qui prennent la forme d'une remise utilisen
 L'accès à un contact CRM ne constitue jamais une autorisation de prospection. `CRMContact.marketing_consent` et les préférences du compte Makolo sont des frontières supplémentaires vérifiées au moment de la livraison. Un achat, un billet, un follow ou un déclencheur automatique ne transforme pas automatiquement un utilisateur en abonné marketing.
 
 Les communications événementielles nécessaires sont séparées des messages marketing. Une notification Makolo promotionnelle créée par CRM Automation doit rester explicitement marquée et repasser par les garde-fous de consentement.
+
+L'autorisation `ActivityGroupEligibility` ne modifie pas cette frontière : elle ne crée ni Contact, ni Audience, ni AudienceMember. La conversion d'un Groupe en Audience reste limitée aux Groupes du même Espace par le service CRM existant ; la réutilisation cross-owner fonctionne par référence et n'accorde aucun accès implicite aux coordonnées des membres.
 
 ## Compatibilité historique contrôlée
 
@@ -232,9 +251,11 @@ La portée Groupe est introduite sans relation générique :
 - `groups.0001_initial` crée `Group`, `GroupMembership`, `GroupInvitation`, `GroupSnapshot` et `GroupSnapshotMember` ;
 - `groups.0002_group_slug_blank` aligne l'état de migration avec le slug généré par le service/modèle ;
 - `groups.0003_invitation_identity_verification` conserve l'état temporaire du challenge e-mail sans stocker le code en clair ;
+- `groups.0004_align_invitation_identity_constraint` aligne la contrainte d'identité d'invitation ;
+- `groups.0005_community_layer` ajoute `discoverability`, `membership_policy`, `GroupJoinRequest` et la relation explicite `ActivityGroupEligibility`, avec backfill conservateur `PRIVATE → HIDDEN` et `SPACE → SPACE_ONLY` ;
 - `authorization.0003_group_scope` ajoute `AuthorityScope.GROUP`, la FK explicite `Mandate.group`, les contraintes de forme de portée, les Permissions et rôles Groupe et `space.groups.*`.
 
-Aucune FK Activity factice, `GroupEligibility`, relation vers `Event`, `Ticket`, QR collectif ou modèle Access provisoire n'est créée dans cette étape.
+Aucune GFK, FK vers `Event`/`Ticket`, QR collectif ou modèle Access provisoire n'est utilisée pour l'éligibilité Groupe.
 
 ## Régressions couvertes
 
@@ -242,8 +263,10 @@ Les tests vérifient notamment : portée Espace correcte, refus inter-Espaces, T
 
 La suite Groups ajoute : appartenance sans autorité, isolation Groupe A/B, rôles owner/admin/moderator, héritage Espace contrôlé, import CSV jusqu'à 1 000 lignes, sécurité des invitations et challenge d'identité pour les nouveaux comptes, snapshots immuables et continuité du propriétaire d'un Groupe personnel.
 
+T27 ajoute : migration de confidentialité, séparation découvrabilité/adhésion, self-join et join requests idempotents, protection `LEFT/SUSPENDED/REMOVED`, consentement cross-owner, anti-IDOR, absence de copie CRM, éligibilité `ACTIVE` uniquement et courses PostgreSQL sur join/approval/eligibility.
+
 T24 ajoute les régressions Activity personnelles : propriétaire Profil explicite, `created_by` distinct, Mandat Activity transactionnel, délégation/révocation, sélection Space forgée refusée, staff sans rôle local implicite, Event personnel sans Organization artificielle et Discovery utilisant l'opérateur logique.
 
-Le gate PostgreSQL exécute directement `authorization.tests`, les tests de portée Groupe, `organizations.tests` et `groups.tests` afin que les services transactionnels et contraintes soient validés sur PostgreSQL 16, pas uniquement sur SQLite.
+Le gate PostgreSQL exécute directement les suites pertinentes afin que les services transactionnels et contraintes soient validés sur PostgreSQL 16, pas uniquement sur SQLite.
 
 Les suites existantes continuent aussi à protéger la séparation des PII et finances, le consentement CRM, Promotions, Loyalty, Growth, Payments, scanner et les parcours E2E multi-rôles.
