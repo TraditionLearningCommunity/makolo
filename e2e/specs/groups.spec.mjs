@@ -68,7 +68,7 @@ test('groups cover community membership, invitation security and scoped administ
   await expect(page.getByText('Demande envoyée.', { exact: true })).toBeVisible();
   await expect(page.getByText('Demande en attente', { exact: true })).toBeVisible();
 
-  let hidden = await page.goto('/groups/groupe-e2e-b/');
+  const hidden = await page.goto('/groups/groupe-e2e-b/');
   expect(hidden.status()).toBe(404);
 
   await page.goto('/groups/groupe-e2e-a/');
@@ -81,7 +81,7 @@ test('groups cover community membership, invitation security and scoped administ
   await login(page, 'owner@e2e.makolo.test');
 
   await page.goto('/groups/anciens-mapendo-e2e/members/');
-  await expect(page.getByText('participant@e2e.makolo.test')).toBeVisible();
+  await expect(page.getByText('e2e-participant', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Approuver' }).click();
   await expect(page.getByText(/membre est maintenant actif/i)).toBeVisible();
 
