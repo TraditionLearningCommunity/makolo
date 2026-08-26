@@ -14,7 +14,9 @@ def preserve_legacy_visibility(apps, schema_editor):
 
 def reverse_legacy_visibility(apps, schema_editor):
     Group = apps.get_model("groups", "Group")
-    Group.objects.filter(discoverability="space_only", space__isnull=False).update(visibility="space")
+    Group.objects.filter(discoverability="space_only", space__isnull=False).update(
+        visibility="space"
+    )
     Group.objects.exclude(discoverability="space_only").update(visibility="private")
 
 
@@ -26,6 +28,16 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name="group",
+            name="visibility",
+            field=models.CharField(
+                choices=[("private", "Privé"), ("space", "Visible dans l’Espace")],
+                default="private",
+                help_text="Champ historique pré-T27. Utiliser discoverability pour les nouvelles surfaces.",
+                max_length=16,
+            ),
+        ),
         migrations.AddField(
             model_name="group",
             name="discoverability",
@@ -73,7 +85,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="GroupJoinRequest",
             fields=[
-                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
                 (
                     "status",
                     models.CharField(
@@ -124,7 +144,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ActivityGroupEligibility",
             fields=[
-                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
                 (
                     "status",
                     models.CharField(
@@ -192,11 +220,17 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="groupjoinrequest",
-            index=models.Index(fields=["group", "status", "requested_at"], name="groups_join_group_status_idx"),
+            index=models.Index(
+                fields=["group", "status", "requested_at"],
+                name="groups_join_group_status_idx",
+            ),
         ),
         migrations.AddIndex(
             model_name="groupjoinrequest",
-            index=models.Index(fields=["profile", "status"], name="groups_join_profile_status_idx"),
+            index=models.Index(
+                fields=["profile", "status"],
+                name="groups_join_profile_status_idx",
+            ),
         ),
         migrations.AddConstraint(
             model_name="activitygroupeligibility",
@@ -207,18 +241,30 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="activitygroupeligibility",
-            index=models.Index(fields=["group", "status"], name="groups_elig_group_status_idx"),
+            index=models.Index(
+                fields=["group", "status"],
+                name="groups_elig_group_status_idx",
+            ),
         ),
         migrations.AddIndex(
             model_name="activitygroupeligibility",
-            index=models.Index(fields=["activity", "status"], name="groups_elig_act_status_idx"),
+            index=models.Index(
+                fields=["activity", "status"],
+                name="groups_elig_act_status_idx",
+            ),
         ),
         migrations.AddIndex(
             model_name="group",
-            index=models.Index(fields=["discoverability", "status"], name="groups_group_discover_idx"),
+            index=models.Index(
+                fields=["discoverability", "status"],
+                name="groups_group_discover_idx",
+            ),
         ),
         migrations.AddIndex(
             model_name="group",
-            index=models.Index(fields=["membership_policy", "status"], name="groups_group_policy_idx"),
+            index=models.Index(
+                fields=["membership_policy", "status"],
+                name="groups_group_policy_idx",
+            ),
         ),
     ]
