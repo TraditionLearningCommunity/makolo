@@ -81,8 +81,11 @@ test('groups cover community membership, invitation security and scoped administ
   await login(page, 'owner@e2e.makolo.test');
 
   await page.goto('/groups/anciens-mapendo-e2e/members/');
-  await expect(page.getByText('e2e-participant', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Approuver' }).click();
+  const joinRequests = page.locator('section').filter({
+    has: page.getByRole('heading', { name: 'Demandes d’adhésion', exact: true }),
+  });
+  await expect(joinRequests.getByText('Participant', { exact: true })).toBeVisible();
+  await joinRequests.getByRole('button', { name: 'Approuver' }).click();
   await expect(page.getByText(/membre est maintenant actif/i)).toBeVisible();
 
   await page.goto('/groups/groupe-e2e-a/members/');
