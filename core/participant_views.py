@@ -5,6 +5,8 @@ import qrcode
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import View
@@ -37,6 +39,10 @@ from .participant_selectors import (
     participant_purchased_accesses_for_others,
     participant_upcoming_accesses,
 )
+
+
+PERSONAL_SEARCH_MAX_LENGTH = 120
+PERSONAL_PAGE_SIZE = 24
 
 
 def _primary_place(occurrence):
@@ -75,6 +81,54 @@ def _access_card(access):
     }
 
 
+def _search_value(request):
+    return (request.GET.get("q") or "").strip()[:PERSONAL_SEARCH_MAX_LENGTH]
+
+
+def _journey_search(queryset, q):
+    if not q:
+        return queryset
+    return queryset.filter(
+        Q(activity__title__icontains=q)
+        | Q(activity__space__name__icontains=q)
+        | Q(activity__owner_profile__first_name__icontains=q)
+        | Q(activity__owner_profile__last_name__icontains=q)
+        | Q(activity__owner_profile__username__icontains=q)
+        | Q(occurrence__place_links__place__name__icontains=q)
+        | Q(occurrence__place_links__place__locality__icontains=q)
+        | Q(activity__transport_service__route__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__locality__icontains=q)
+    ).distinct()
+
+
+def _access_search(queryset, q, *, include_external_holder=False):
+    if not q:
+        return queryset
+    lookup = (
+        Q(activity__title__icontains=q)
+        | Q(activity__space__name__icontains=q)
+        | Q(activity__owner_profile__first_name__icontains=q)
+        | Q(activity__owner_profile__last_name__icontains=q)
+        | Q(activity__owner_profile__username__icontains=q)
+        | Q(occurrence__place_links__place__name__icontains=q)
+        | Q(occurrence__place_links__place__locality__icontains=q)
+        | Q(activity__transport_service__route__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__locality__icontains=q)
+    )
+    if include_external_holder:
+        lookup |= Q(external_beneficiary__display_name__icontains=q)
+    return queryset.filter(lookup).distinct()
+
+
+def _pagination_query(request, *page_keys):
+    params = request.GET.copy()
+    for key in page_keys:
+        params.pop(key, None)
+    return params.urlencode()
+
+
 class ParticipantHomeView(LoginRequiredMixin, TemplateView):
     template_name = "core/participant_home.html"
     login_url = "core:login"
@@ -103,8 +157,34 @@ class ParticipantJourneyListView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
-        context["active_journeys"] = [_journey_card(j) for j in participant_active_journeys(profile)]
-        context["history_journeys"] = [_journey_card(j) for j in participant_history_journeys(profile)]
+        q = _search_value(self.request)
+        status_filter = (self.request.GET.get("status") or "all").strip().lower()
+
+        active = participant_active_journeys(profile)
+        if status_filter == "action":
+            active = participant_actionable_journeys(profile)
+        elif status_filter == "pending":
+            active = active.filter(status__in={JourneyStatus.SUBMITTED, JourneyStatus.PENDING_APPROVAL})
+        elif status_filter == "payment":
+            active = active.filter(status=JourneyStatus.PENDING_PAYMENT)
+        elif status_filter != "all":
+            status_filter = "all"
+
+        active = _journey_search(active, q).order_by("-updated_at", "-created_at", "id")
+        history = _journey_search(participant_history_journeys(profile), q).order_by("-updated_at", "-created_at", "id")
+        active_page = Paginator(active, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("active_page"))
+        history_page = Paginator(history, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("history_page"))
+        context.update(
+            {
+                "q": q,
+                "status_filter": status_filter,
+                "active_journeys": [_journey_card(j) for j in active_page.object_list],
+                "history_journeys": [_journey_card(j) for j in history_page.object_list],
+                "active_page_obj": active_page,
+                "history_page_obj": history_page,
+                "pagination_query": _pagination_query(self.request, "active_page", "history_page"),
+            }
+        )
         return context
 
 
@@ -170,9 +250,34 @@ class ParticipantAccessListView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
-        context["active_accesses"] = [_access_card(a) for a in participant_active_accesses(profile)]
-        context["history_accesses"] = [_access_card(a) for a in participant_access_history(profile)]
-        context["purchased_for_others"] = [_access_card(a) for a in participant_purchased_accesses_for_others(profile)]
+        q = _search_value(self.request)
+        active = _access_search(participant_active_accesses(profile), q).order_by("occurrence__start_at", "-created_at", "id")
+        history = _access_search(participant_access_history(profile), q).order_by("-created_at", "id")
+        purchased = _access_search(
+            participant_purchased_accesses_for_others(profile),
+            q,
+            include_external_holder=True,
+        )
+        active_page = Paginator(active, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("active_page"))
+        history_page = Paginator(history, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("history_page"))
+        purchased_page = Paginator(purchased, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("purchased_page"))
+        context.update(
+            {
+                "q": q,
+                "active_accesses": [_access_card(a) for a in active_page.object_list],
+                "history_accesses": [_access_card(a) for a in history_page.object_list],
+                "purchased_for_others": [_access_card(a) for a in purchased_page.object_list],
+                "active_page_obj": active_page,
+                "history_page_obj": history_page,
+                "purchased_page_obj": purchased_page,
+                "pagination_query": _pagination_query(
+                    self.request,
+                    "active_page",
+                    "history_page",
+                    "purchased_page",
+                ),
+            }
+        )
         return context
 
 
