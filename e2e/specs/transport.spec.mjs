@@ -54,7 +54,7 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and early
   await expect(page.getByText('Lubumbashi → Kolwezi E2E')).toBeVisible();
   await expect(page.getByText('Billet', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Imprimer / enregistrer en PDF' })).toBeVisible();
-  const qr = page.getByRole('img', { name: /QR du billet/i });
+  const qr = page.getByRole('img', { name: /QR de votre billet/i });
   await expect(qr).toBeVisible();
   const qrPath = testInfo.outputPath('transport-ticket.png');
   await qr.screenshot({ path: qrPath });
