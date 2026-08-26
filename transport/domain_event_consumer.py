@@ -16,6 +16,7 @@ def consume_transport_payment(event):
             "journey__activity",
             "journey__occurrence",
             "journey__beneficiary",
+            "journey__external_beneficiary",
         )
         .filter(pk=order_id, status=CommerceOrderStatus.CONFIRMED)
         .first()

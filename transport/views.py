@@ -7,20 +7,17 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
-from django.views import View
 from django.views.generic import TemplateView
 
-from commerce.models import Offer
+from access.models import Access
+from commerce.models import CommerceOrder, Offer, PaymentMode
 from geography.models import Place
+from journeys.beneficiary_services import create_external_beneficiary
 from payments.models import PaymentMethod, PaymentProvider
 from payments.services import initiate_commerce_payment
 
-from .models import TransportDeparture, TransportRouteStop
-from .selectors import (
-    departure_available_offers,
-    departure_capacity_snapshot,
-    search_departures,
-)
+from .models import TransportDeparture
+from .selectors import departure_available_offers, departure_capacity_snapshot, search_departures
 from .services import book_transport
 
 
@@ -35,14 +32,29 @@ def _departure_or_404(pk):
     return get_object_or_404(
         TransportDeparture.objects.select_related(
             "occurrence__activity__space",
+            "occurrence__activity__owner_profile",
             "occurrence__activity__transport_service__route",
             "vehicle",
             "passenger_capacity_pool",
         ).prefetch_related(
             "occurrence__activity__transport_service__route__stops__place",
-            "occurrence__offers",
+            "occurrence__offers__payment_options",
         ),
         pk=pk,
+    )
+
+
+def _purchased_accesses(profile, departure):
+    if not getattr(profile, "is_authenticated", False):
+        return Access.objects.none()
+    return (
+        Access.objects.filter(
+            occurrence=departure.occurrence,
+            journey__commerce_orders__buyer=profile,
+        )
+        .select_related("beneficiary", "external_beneficiary", "journey")
+        .distinct()
+        .order_by("created_at", "id")
     )
 
 
@@ -69,7 +81,7 @@ class TransportSearchView(TemplateView):
             context["search_error"] = "Choisissez une origine, une destination et une date valides."
             return context
         if origin.pk == destination.pk:
-            context["search_error"] = "L’origine et la destination doivent être différentes."
+            context["search_error"] = "Le départ et la destination doivent être différents."
             return context
         rows = []
         for departure in search_departures(origin=origin, destination=destination, date=travel_date):
@@ -89,7 +101,7 @@ class TransportSearchView(TemplateView):
                     "offers": offers,
                     "from_price": min((offer.unit_price for offer in offers), default=None),
                     "currency": offers[0].currency if offers else "",
-                    "payment_modes": sorted({offer.payment_mode for offer in offers}),
+                    "payment_modes": sorted({mode for offer in offers for mode in offer.allowed_payment_modes}),
                 }
             )
         context["results"] = rows
@@ -108,6 +120,7 @@ class TransportDepartureDetailView(TemplateView):
         if occurrence.status not in {"scheduled", "cancelled"}:
             raise Http404
         route = occurrence.activity.transport_service.route
+        purchased_accesses = _purchased_accesses(self.request.user, departure)
         context.update(
             {
                 "departure": departure,
@@ -116,6 +129,8 @@ class TransportDepartureDetailView(TemplateView):
                 "stops": route.stops.all(),
                 "capacity": departure_capacity_snapshot(departure),
                 "offers": departure_available_offers(departure) if occurrence.status == "scheduled" else [],
+                "purchased_accesses": purchased_accesses,
+                "purchased_access_count": purchased_accesses.count(),
             }
         )
         return context
@@ -127,7 +142,7 @@ class TransportBookView(LoginRequiredMixin, TemplateView):
 
     def _objects(self):
         departure = _departure_or_404(self.kwargs["departure_id"])
-        offer = get_object_or_404(Offer, pk=self.kwargs["offer_id"])
+        offer = get_object_or_404(Offer.objects.prefetch_related("payment_options"), pk=self.kwargs["offer_id"])
         if offer.occurrence_id != departure.occurrence_id:
             raise Http404
         return departure, offer
@@ -142,6 +157,7 @@ class TransportBookView(LoginRequiredMixin, TemplateView):
                 "offer": offer,
                 "capacity": departure_capacity_snapshot(departure),
                 "idempotency_key": uuid.uuid4().hex,
+                "payment_modes": offer.allowed_payment_modes,
             }
         )
         return context
@@ -151,14 +167,39 @@ class TransportBookView(LoginRequiredMixin, TemplateView):
         if departure_capacity_snapshot(departure)["sold_out"]:
             messages.error(request, "Ce départ est complet.")
             return redirect("transport:departure-detail", pk=departure.pk)
+        idempotency_key = (request.POST.get("idempotency_key") or uuid.uuid4().hex)[:128]
+        selected_mode = (request.POST.get("payment_mode") or offer.payment_mode).strip()
+        holder_type = (request.POST.get("holder_type") or "self").strip()
+        beneficiary = request.user
+        external_beneficiary = None
+        created_external_beneficiary = False
         try:
+            existing = CommerceOrder.objects.filter(idempotency_key=idempotency_key, buyer=request.user).first()
+            if existing is None and holder_type == "guest":
+                guest_name = (request.POST.get("guest_name") or "").strip()
+                if not guest_name:
+                    raise ValidationError("Indiquez le nom du voyageur invité.")
+                beneficiary = None
+                external_beneficiary = create_external_beneficiary(
+                    created_by=request.user,
+                    display_name=guest_name,
+                    email=(request.POST.get("guest_email") or "").strip(),
+                    phone=(request.POST.get("guest_phone") or "").strip(),
+                )
+                created_external_beneficiary = True
+            elif holder_type not in {"self", "guest"}:
+                raise ValidationError("Type de bénéficiaire invalide.")
+
             result = book_transport(
                 departure=departure,
                 offer=offer,
                 participant=request.user,
-                idempotency_key=(request.POST.get("idempotency_key") or uuid.uuid4().hex)[:128],
+                beneficiary=beneficiary,
+                external_beneficiary=external_beneficiary,
+                payment_mode=selected_mode,
+                idempotency_key=idempotency_key,
             )
-            if offer.payment_mode == "upfront":
+            if result["payment_mode"] == PaymentMode.UPFRONT:
                 if not getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False):
                     raise ValidationError("Le paiement en ligne n’est pas disponible dans cet environnement.")
                 payment = initiate_commerce_payment(
@@ -170,8 +211,20 @@ class TransportBookView(LoginRequiredMixin, TemplateView):
                 )
                 messages.success(request, "Votre place est maintenue pendant le paiement.")
                 return redirect("payments:detail", pk=payment.pk)
-            messages.success(request, "Réservation confirmée. Votre billet est disponible.")
+            if result["payment_mode"] == PaymentMode.ON_SITE:
+                messages.success(
+                    request,
+                    f"Réservation confirmée. {result['order'].total} {result['order'].currency} à payer sur place.",
+                )
+            else:
+                messages.success(request, "Réservation confirmée. Aucun paiement requis.")
             return redirect("core:participant-access-detail", pk=result["access"].pk)
         except ValidationError as exc:
+            if (
+                created_external_beneficiary
+                and external_beneficiary is not None
+                and not external_beneficiary.journeys.exists()
+            ):
+                external_beneficiary.delete()
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
             return redirect("transport:departure-detail", pk=departure.pk)

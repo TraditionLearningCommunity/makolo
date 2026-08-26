@@ -2,11 +2,20 @@
 
 ## Statut
 
-Cette note décrit l’implémentation de l’étape **Démarche / Demande / Accès** du blueprint Makolo. Le noyau canonique est désormais porté par `journeys` et `access`; `TicketOrder`, `Ticket`, `TicketType`, `Event`, `Payment` et `ScannerAssignment` restent des objets historiques ou verticaux conservés par compatibilité.
+Cette note décrit l’implémentation de l’étape **Démarche / Demande / Accès** du blueprint Makolo. Le noyau canonique est porté par `journeys` et `access`; `TicketOrder`, `Ticket`, `TicketType`, `Event`, `Payment` et `ScannerAssignment` restent des objets historiques ou verticaux conservés par compatibilité.
+
+La Tâche 25 étend ce noyau pour distinguer un **Profil Makolo authentifiable** d’un **bénéficiaire externe** qui reçoit légitimement un droit sans posséder de compte. Cette extension ne transforme ni CRM Contact ni Ticket holder legacy en identité canonique universelle.
 
 ## Démarche
 
-`Journey` représente une instance concrète du processus orchestré pour un bénéficiaire. Elle référence explicitement un `initiated_by`, un `beneficiary`, une `Activity` et, lorsque le processus vise une exécution précise, une `Occurrence`.
+`Journey` représente une instance concrète du processus orchestré. Elle référence explicitement un `initiated_by`, une `Activity` et, lorsque le processus vise une exécution précise, une `Occurrence`.
+
+L’initiateur est toujours un Profil Makolo authentifié lorsque l’action est déclenchée par un utilisateur. Le bénéficiaire logique est distinct et prend exactement une des deux formes suivantes pour les nouvelles écritures :
+
+- `beneficiary` → Profil Makolo existant ;
+- `external_beneficiary` → identité minimale d’une personne extérieure.
+
+Une Démarche ne remplace jamais un bénéficiaire externe par son acheteur uniquement pour satisfaire une FK. Exemple : Sarah peut initier une Journey pour Jacques sans compte ; `initiated_by=Sarah` et `external_beneficiary=Jacques` restent deux faits différents.
 
 Les workflows supportés sont contrôlés dans le code :
 
@@ -22,31 +31,57 @@ Une Journey peut exister et aller jusqu’à confirmation/fulfillment sans `Tick
 
 Si `occurrence` est renseignée, elle doit appartenir exactement à `journey.activity`. Cette règle est appliquée par validation métier et par les services ; elle n’est pas exprimable proprement par une simple contrainte SQL inter-table portable SQLite/PostgreSQL.
 
+## Bénéficiaire externe
+
+`ExternalBeneficiary` est une identité de titulaire minimale, **pas un compte Makolo**. Il peut conserver le nom d’affichage et, lorsqu’ils sont utiles à la transaction, un email ou un téléphone, ainsi que le Profil qui a créé cette identité transactionnelle.
+
+Invariants :
+
+- aucun `User` fictif n’est créé ;
+- aucune authentification n’est attachée à l’objet ;
+- un email identique à celui d’un Profil ne déclenche jamais un claim automatique ;
+- l’objet ne donne aucun accès au Profil, aux Journeys, Groupes, Payments ou autres Access d’une personne ;
+- les Domain Events évitent d’embarquer email/téléphone et préfèrent des IDs et états ;
+- CRM Contact reste une relation CRM et n’est pas détourné comme titulaire canonique de tous les Access.
+
+Un rattachement futur à un Profil devra être explicite et disposer d’une preuve suffisante. T25 prépare la structure de données mais n’introduit aucun claim automatique par correspondance d’email.
+
 ## Demande
 
-`JourneyRequest` représente une décision attendue dans une Démarche, et non la Démarche elle-même. Une Journey peut avoir plusieurs Requests mais la première implémentation reste volontairement simple et n’introduit aucun moteur de chaîne de décisions.
+`JourneyRequest` représente une décision attendue dans une Démarche, et non la Démarche elle-même. Une Journey peut avoir plusieurs Requests mais l’implémentation reste volontairement simple et n’introduit aucun moteur de chaîne de décisions.
 
 Les états sont `pending`, `approved`, `rejected`, `cancelled` et `expired`. Les décisions passent par `approve_request`, `reject_request`, `cancel_request` ou `expire_request`; les services vérifient l’état, l’Activity et l’autorité du décideur puis synchronisent la Journey lorsque la décision modifie son étape.
 
 ## Accès
 
-`Access` est le droit individuel canonique. Il appartient toujours à un Profil bénéficiaire, vise une `Activity`, éventuellement une `Occurrence`, et peut conserver sa provenance via une `Journey`. Une création administrative sans Journey reste possible.
+`Access` est le droit individuel canonique. Il vise une `Activity`, éventuellement une `Occurrence`, et peut conserver sa provenance via une `Journey`. Une création administrative sans Journey reste possible.
+
+Pour les nouvelles écritures, le titulaire est exactement un des deux suivants :
+
+- `beneficiary` → Profil Makolo ;
+- `external_beneficiary` → bénéficiaire externe.
+
+Un Access externe reste individuel et reçoit son propre credential. Acheter trois places pour Sarah, Jacques et Enfant X produit trois Access et trois credentials lorsque le métier délivre trois droits ; aucune `Access.quantity` n’est introduite et aucun QR collectif n’est créé.
 
 Les états sont `pending`, `valid`, `used`, `cancelled`, `revoked`, `expired` et `transferred`. La politique initiale conserve le comportement single-use historique des Tickets, tout en laissant le modèle prêt à porter ultérieurement une autre politique d’utilisation.
 
-Une Access respecte trois invariants :
+Un Access respecte notamment ces invariants :
 
+- exactement un titulaire Profile ou externe pour les nouvelles écritures ;
 - son `occurrence`, lorsqu’elle existe, appartient à son `activity` ;
 - sa `journey`, lorsqu’elle existe, concerne la même `activity` ;
+- son titulaire est cohérent avec le résultat métier porté par la Journey ;
 - `valid_until > valid_from` lorsque les deux bornes existent.
 
-`issue_access` centralise l’émission et l’idempotence. L’unicité n’est pas définie globalement sur bénéficiaire + occurrence : une `source_key` liée à la Journey identifie le résultat métier lorsque la provenance fournit une clé stable, par exemple `ticket:<uuid>`.
+`issue_access` et le service d’émission par titulaire centralisent l’émission et l’idempotence. L’unicité n’est pas définie globalement sur bénéficiaire + occurrence : une `source_key` liée à la Journey identifie le résultat métier lorsque la provenance fournit une clé stable, par exemple `ticket:<uuid>` ou `transport-ticket`. Cette idempotence empêche un retry d’émettre deux fois le même droit sans interdire un nouvel achat volontaire.
 
-## Credential
+## Credential et représentation du billet
 
 Le QR n’est pas l’Access. `AccessCredential` est une représentation révocable et versionnée du droit. Le credential QR contient un identifiant public aléatoire et une version, puis est authentifié avec le mécanisme de signature Django sous un salt dédié. Le token brut n’est pas stocké comme secret réutilisable et le même credential peut être re-rendu à partir de ses données persistées.
 
 `rotate_access_credential` révoque les credentials actifs avant d’émettre la version suivante. L’ancien QR devient donc inutilisable. Une révocation, annulation ou expiration de l’Access invalide également ses credentials actifs.
+
+T25 enrichit la page Access participant comme représentation imprimable du billet au lieu de créer un `TicketV2`. Elle peut afficher le titulaire, l’opérateur de l’Activity, la référence, le contexte temporel/géographique ou Transport et le QR lorsque l’état l’autorise. L’impression ou l’enregistrement navigateur en PDF partage une représentation du credential ; cela ne change pas `Access.status` vers `transferred` et ne constitue pas à lui seul un transfert juridique du droit.
 
 ## Validation et anti-double-use
 
@@ -56,35 +91,46 @@ Pour un droit single-use, la validation verrouille la ligne `Access` avec `selec
 
 `AccessUse` conserve le résultat, l’Access, le credential éventuel, le contrôleur éventuel, l’Occurrence et une source courte. Aucun secret QR brut n’est journalisé.
 
+## Visibilité participant et acheteur
+
+Les projections personnelles continuent de considérer comme **Mes accès** uniquement les Access dont le Profil connecté est réellement bénéficiaire.
+
+Lorsqu’un acheteur a financé ou réservé un droit pour un autre titulaire, il peut retrouver l’Access issu de **sa propre CommerceOrder** afin d’afficher, imprimer ou transmettre le billet. Cette visibilité transactionnelle ne fait pas de l’acheteur le bénéficiaire et n’autorise aucun accès aux autres ressources du titulaire.
+
+La présentation distingue donc les droits personnels des « billets achetés pour d’autres personnes ». Les selectors serveur restent la frontière anti-IDOR : un tiers qui n’est ni titulaire ni acheteur de la transaction ne peut pas ouvrir ce billet.
+
 ## Bridge Events
 
 ### TicketOrder → Journey
 
-`TicketOrder.journey` est une OneToOne nullable pendant la migration. Le commercial reste dans Tickets : prix, lignes, réservations de stock, devise et paiement ne sont pas déplacés dans Journey.
+`TicketOrder.journey` est une OneToOne nullable pendant la migration. Le commercial reste projeté dans Tickets pour la compatibilité Event tandis que Commerce reste le noyau transversal.
 
-Le backfill utilise :
+Le backfill historique utilise :
 
 - `Event.activity` comme Activity ;
 - l’Occurrence Event correspondante ;
-- `buyer` comme bénéficiaire/initiator, avec résolution par e-mail uniquement lorsqu’un Profil actif correspondant existe ;
+- `buyer` comme bénéficiaire/initiator lorsque ce Profil est déterminable ;
+- résolution par e-mail seulement pour reconnaître un Profil actif dans le bridge legacy, jamais pour fabriquer un User ;
 - workflow `purchase` ;
 - `pending → pending_payment` ;
 - `confirmed → fulfilled` si des Tickets ont déjà été produits, sinon `confirmed` ;
 - `cancelled → cancelled` ;
 - `expired → expired`.
 
-Les commandes invitées historiques sans Profil déterministe sont laissées au modèle legacy plutôt que de fabriquer un bénéficiaire fictif.
+Les commandes invitées historiques qui ne peuvent pas être attribuées de façon sûre restent sur le chemin legacy. T25 n’effectue pas de rattachement automatique de ces lignes à partir d’un email.
 
 ### Ticket → Access
 
-`Ticket.access` est une OneToOne nullable. Le titulaire est choisi dans cet ordre : `Ticket.owner`, Profil correspondant à `holder_email`, puis bénéficiaire déterministe de la commande. Le backfill mappe :
+`Ticket.access` est une OneToOne nullable. Pour le bridge historique, le titulaire Profile déterminable reste choisi selon les données legacy disponibles. Les nouveaux flows génériques peuvent en revanche utiliser explicitement `ExternalBeneficiary` sans créer de compte.
+
+Le backfill mappe :
 
 - `valid → valid` avec la fenêtre Event comme limite de validité ;
 - `used → used` ;
 - `cancelled → cancelled` ;
 - `refunded → revoked`.
 
-Les nouveaux Tickets rattachables à un Profil obtiennent transactionnellement leur Access et un credential. Les Tickets invités historiques sans Profil déterministe conservent temporairement le comportement legacy ; aucune Access collective ou sans bénéficiaire n’est créée.
+Ticket reste une représentation/compatibilité Event ; Access reste l’autorité du droit.
 
 ## Compatibilité QR historique
 
@@ -96,47 +142,43 @@ Après rotation ou réémission, un ancien credential Access est révoqué. Le Q
 
 ## Scanner
 
-L’interface Scanner reste Event/Ticket. `ScannerAssignment`, `EventAccessGate` et `ScanLog` ne sont pas remplacés dans cette étape.
+L’interface Scanner conserve les adaptations de vocabulaire Event/Transport nécessaires. La décision critique vient du service Access :
 
-La décision critique vient désormais du service Access :
-
-1. le scanner vérifie son autorité Event comme auparavant ;
+1. le scanner vérifie son autorité contextuelle ;
 2. le token canonique est résolu vers `AccessCredential → Access` ;
 3. la validation Access décide accepté/refusé et écrit `AccessUse` ;
-4. le bridge met à jour le `Ticket` historique lorsqu’un scan est accepté ;
-5. le `ScanLog` historique est conservé comme journal Event-facing, avec seulement un fingerprint du token.
-
-Les anciens QR Ticket passent par un resolver compatible puis la même décision Access lorsqu’une Access déterministe existe. Les rares Tickets bêta sans Profil/Access restent sur le dernier fallback legacy afin de ne pas casser les billets déjà émis.
+4. un bridge met à jour le `Ticket` historique lorsqu’il existe ;
+5. les journaux historiques restent compatibles sans conserver le token brut.
 
 ## Transfert, annulation et remboursement
 
-Lorsqu’un transfert Ticket est accepté, le titulaire du Ticket et `Access.beneficiary` sont alignés, les credentials actifs sont révoqués et un nouveau credential est émis pour un droit encore actif. Un droit historique déjà terminal peut voir son propriétaire aligné pour cohérence d’historique, sans réémission d’un droit actif.
+Lorsqu’un transfert Ticket legacy est accepté, le titulaire du Ticket et `Access.beneficiary` sont alignés, les credentials actifs sont révoqués et un nouveau credential est émis pour un droit encore actif. T25 ne généralise pas ce mécanisme en transfert complet entre bénéficiaire externe et Profile.
 
-Une annulation Ticket synchronise Access vers `cancelled`; un Ticket remboursé synchronise Access vers `revoked`. Les credentials actifs deviennent inutilisables. Le domaine Access ne décide pas si le remboursement lui-même est autorisé : Payments conserve cette responsabilité et continue à passer par le workflow Order/Ticket existant.
+Une annulation Ticket synchronise Access vers `cancelled`; un Ticket remboursé synchronise Access vers `revoked`. Les credentials actifs deviennent inutilisables. Le domaine Access ne décide pas si le remboursement lui-même est autorisé : Payments conserve cette responsabilité.
+
+Partager ou imprimer un billet ne provoque aucune transition de transfert.
 
 ## Autorité
 
-Les permissions Activity-scoped ajoutées sont :
+Les permissions Activity-scoped du domaine Journey/Access comprennent notamment :
 
 - `activity.requests.view` ;
 - `activity.requests.decide` ;
 - `activity.access.view` ;
 - `activity.access.manage`.
 
-Le rôle local `activity-manager` reçoit ces permissions. Les responsabilités Espace héritent explicitement vers les Activities de cet Espace : les permissions de lecture héritent de `space.activities.view`, les décisions/gestions de `space.activities.manage`. Cette règle n’accorde ni Finance ni CRM.
+Le rôle local `activity-manager` reçoit les responsabilités prévues par ces contrats. Les responsabilités Espace héritent explicitement vers les Activities de cet Espace lorsqu’une règle d’héritage existe. Cette règle n’accorde ni Finance ni CRM.
 
-Un gestionnaire Activity A ne peut pas décider ou administrer une Access de l’Activity B. Les selectors participant filtrent toujours par bénéficiaire et ne retournent jamais un `Access.objects.all()` brut à une surface utilisateur.
+Un gestionnaire Activity A ne peut pas décider ou administrer un Access de l’Activity B. Les selectors participant filtrent par bénéficiaire ou par transaction d’achat explicitement autorisée ; ils ne retournent jamais un `Access.objects.all()` brut à une surface utilisateur.
 
 ## Compatibilités conservées et suite
 
 Cette étape conserve volontairement :
 
-- `TicketOrder` comme objet commercial Event ;
-- `TicketType` comme prix/quota/disponibilité Event ;
-- `Ticket` comme représentation et vocabulaire Event ;
-- `Payment` et `Refund` dans leur bounded context actuel ;
-- `ScannerAssignment` et l’UX Scanner Event ;
-- `ScanLog` historique ;
-- le resolver QR Ticket legacy nécessaire à la bêta.
+- `TicketOrder`, `TicketType` et `Ticket` comme projections/vocabulaire Event ;
+- `Payment` et `Refund` dans leur bounded context ;
+- les bridges Scanner/Ticket nécessaires à la bêta ;
+- le resolver QR Ticket legacy ;
+- les bénéficiaires Profile historiques sans conversion destructive.
 
-La prochaine étape **Commerce / Capacity** pourra introduire Offer, Order/OrderLine génériques et Capacity sans retransformer Journey en commande commerciale. `GroupEligibility`, Transport et la grande UX « Mes démarches / Mes accès » restent également hors de cette PR.
+T25 ajoute la compatibilité bénéficiaire externe de façon additive : nouvelle relation nullable, services compatibles et contraintes empêchant les nouvelles écritures ambiguës. Les anciens Access/Journey liés à un Profil continuent donc à fonctionner sans conversion en chaînes de texte.

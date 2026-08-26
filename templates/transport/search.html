@@ -1,4 +1,5 @@
 {% extends 'base/public.html' %}
+{% load static %}
 {% block title %}Voyager | Makolo{% endblock %}
 {% block content %}
 <section class="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
@@ -6,7 +7,7 @@
     <p class="text-sm font-bold uppercase tracking-wider text-white/90">Transport Makolo</p>
     <h1 class="mt-3 text-4xl font-black sm:text-5xl">Voyager sans déplacement inutile.</h1>
     <p class="mt-4 max-w-2xl text-white/90">Consultez les départs, vérifiez les places disponibles, réservez et retrouvez votre billet avant de vous déplacer pour embarquer.</p>
-    <form method="get" class="mt-8 grid gap-3 rounded-3xl bg-white/70 p-4 md:grid-cols-4">
+    <form method="get" class="mt-8 grid gap-3 rounded-3xl bg-white/70 p-4 md:grid-cols-4" data-transport-search-form>
       <label class="text-sm font-bold text-zinc-900">Départ
         <select name="origin" required class="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900">
           <option value="">Choisir</option>{% for place in places %}<option value="{{ place.pk }}" {% if origin_value == place.pk|stringformat:'s' %}selected{% endif %}>{{ place.locality|default:place.name }} · {{ place.name }}</option>{% endfor %}
@@ -18,12 +19,13 @@
         </select>
       </label>
       <label class="text-sm font-bold text-zinc-900">Date<input type="date" name="date" value="{{ date_value }}" required class="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900"></label>
-      <button class="rounded-2xl bg-rose-600 px-6 py-3 font-black text-white">Rechercher</button>
+      <button type="submit" class="rounded-2xl bg-rose-600 px-6 py-3 font-black text-white">Rechercher</button>
+      <p class="col-span-full rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700" data-route-error role="alert" hidden></p>
     </form>
   </div>
 
   {% if search_error %}<div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{{ search_error }}</div>{% endif %}
-  {% if searched %}
+  {% if searched and origin and destination %}
   <section>
     <div class="flex items-end justify-between gap-4"><div><p class="text-sm font-bold uppercase tracking-wider text-indigo-600">Départs</p><h2 class="mt-1 text-3xl font-black">{{ origin.locality|default:origin.name }} → {{ destination.locality|default:destination.name }}</h2></div><p class="text-sm text-zinc-500">{{ date_value }}</p></div>
     <div class="mt-5 space-y-4">
@@ -41,4 +43,5 @@
   </section>
   {% endif %}
 </section>
+<script src="{% static 'js/transport-search.js' %}" defer></script>
 {% endblock %}

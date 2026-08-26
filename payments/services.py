@@ -153,6 +153,12 @@ def initiate_commerce_payment(
         .order_by()
         .get(pk=commerce_order.pk)
     )
+    if idempotency_key:
+        existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
+        if existing:
+            if existing.commerce_order_id != commerce_order.pk:
+                raise ValidationError("Cette clé d’idempotence appartient à une autre commande Commerce.")
+            return existing
     if not _commerce_payment_actor_can_initiate(actor, commerce_order):
         raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette commande Commerce.")
     if commerce_order.status != CommerceOrderStatus.PENDING:

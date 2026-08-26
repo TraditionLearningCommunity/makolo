@@ -32,6 +32,15 @@ class Access(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="access_rights",
+        null=True,
+        blank=True,
+    )
+    external_beneficiary = models.ForeignKey(
+        "journeys.ExternalBeneficiary",
+        on_delete=models.PROTECT,
+        related_name="access_rights",
+        null=True,
+        blank=True,
     )
     activity = models.ForeignKey(
         "activities.Activity",
@@ -75,6 +84,7 @@ class Access(models.Model):
         ordering = ["-created_at", "id"]
         indexes = [
             models.Index(fields=["beneficiary", "status"], name="access_beneficiary_status_idx"),
+            models.Index(fields=["external_beneficiary", "status"], name="access_extben_status_idx"),
             models.Index(fields=["activity", "status"], name="access_activity_status_idx"),
             models.Index(fields=["occurrence", "status"], name="access_occurrence_status_idx"),
             models.Index(fields=["valid_until"], name="access_valid_until_idx"),
@@ -83,6 +93,11 @@ class Access(models.Model):
             models.CheckConstraint(
                 condition=Q(valid_from__isnull=True) | Q(valid_until__isnull=True) | Q(valid_until__gt=models.F("valid_from")),
                 name="access_valid_window",
+            ),
+            models.CheckConstraint(
+                condition=(Q(beneficiary__isnull=False) & Q(external_beneficiary__isnull=True))
+                | (Q(beneficiary__isnull=True) & Q(external_beneficiary__isnull=False)),
+                name="access_exactly_one_beneficiary",
             ),
             models.UniqueConstraint(
                 fields=["journey", "source_key"],
@@ -103,6 +118,12 @@ class Access(models.Model):
         if self.journey_id and self.occurrence_id and self.journey.occurrence_id:
             if self.journey.occurrence_id != self.occurrence_id:
                 errors["occurrence"] = "L’Occurrence de l’Accès doit être cohérente avec celle de la Démarche."
+        if bool(self.beneficiary_id) == bool(self.external_beneficiary_id):
+            errors["beneficiary"] = "L’Accès doit avoir exactement un bénéficiaire, Profile ou externe."
+        # Journey records the process and its original logical beneficiary.
+        # Access records the current holder of the right. Those identities may
+        # legitimately diverge after a transfer or in legacy Event projections,
+        # so model validation must not rewrite or freeze Journey history here.
         if errors:
             raise ValidationError(errors)
 
@@ -116,8 +137,19 @@ class Access(models.Model):
         self._allow_status_transition = False
         return result
 
+    @property
+    def beneficiary_display_name(self):
+        if self.beneficiary_id:
+            full_name = self.beneficiary.get_full_name().strip()
+            return full_name or self.beneficiary.username
+        return self.external_beneficiary.display_name if self.external_beneficiary_id else ""
+
+    @property
+    def is_external_beneficiary(self):
+        return bool(self.external_beneficiary_id)
+
     def __str__(self):
-        return f"{self.beneficiary} — {self.activity} — {self.get_status_display()}"
+        return f"{self.beneficiary_display_name} — {self.activity} — {self.get_status_display()}"
 
 
 class CredentialType(models.TextChoices):

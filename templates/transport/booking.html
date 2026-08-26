@@ -7,8 +7,35 @@
     <p class="text-xs font-bold uppercase tracking-[.16em] text-indigo-600">Votre voyage</p>
     <h1 class="mt-2 text-3xl font-black">{{ route.origin.locality|default:route.origin.name }} → {{ route.destination.locality|default:route.destination.name }}</h1>
     <p class="mt-2 text-zinc-500">{{ departure.occurrence.start_at|date:"l d F Y à H:i" }}</p>
-    <div class="mt-6 rounded-2xl bg-zinc-50 p-5 dark:bg-zinc-900"><div class="flex items-center justify-between gap-4"><div><p class="font-black">{{ offer.name }}</p><p class="text-sm text-zinc-500">{% if offer.payment_mode == 'on_site' %}À payer sur place{% elif offer.payment_mode == 'none' %}Aucun paiement requis{% else %}Paiement en ligne{% endif %}</p></div><p class="text-2xl font-black">{{ offer.unit_price }} {{ offer.currency }}</p></div></div>
-    {% if capacity.sold_out %}<div class="mt-5 rounded-2xl bg-red-50 p-4 font-bold text-red-700">Ce départ est complet.</div>{% else %}<form method="post" class="mt-6">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button class="w-full rounded-2xl bg-indigo-600 px-6 py-4 text-lg font-black text-white">{% if offer.payment_mode == 'upfront' %}Continuer vers le paiement{% elif offer.payment_mode == 'on_site' %}Confirmer la réservation{% else %}Confirmer gratuitement{% endif %}</button><p class="mt-3 text-center text-xs text-zinc-500">1 réservation = 1 voyageur = 1 place.</p></form>{% endif %}
+    <div class="mt-6 rounded-2xl bg-zinc-50 p-5 dark:bg-zinc-900"><div class="flex items-center justify-between gap-4"><div><p class="font-black">{{ offer.name }}</p><p class="text-sm text-zinc-500">1 voyageur · 1 place</p></div><p class="text-2xl font-black">{{ offer.unit_price }} {{ offer.currency }}</p></div></div>
+    {% if capacity.sold_out %}<div class="mt-5 rounded-2xl bg-red-50 p-4 font-bold text-red-700">Ce départ est complet.</div>{% else %}
+    <form method="post" class="mt-6 space-y-6">
+      {% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+      <fieldset class="space-y-3">
+        <legend class="font-black">Pour qui est ce billet ?</legend>
+        <label class="flex gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><input type="radio" name="holder_type" value="self" checked><span><strong>Pour moi</strong><span class="block text-sm text-zinc-500">Le billet sera lié à votre Profil Makolo.</span></span></label>
+        <label class="flex gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><input type="radio" name="holder_type" value="guest"><span><strong>Pour une autre personne</strong><span class="block text-sm text-zinc-500">Aucun compte Makolo ne sera créé pour elle.</span></span></label>
+      </fieldset>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="sm:col-span-2"><span class="text-sm font-bold">Nom du voyageur invité</span><input name="guest_name" maxlength="180" class="mt-1 w-full rounded-xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700" autocomplete="name"></label>
+        <label><span class="text-sm font-bold">Email (facultatif)</span><input name="guest_email" type="email" class="mt-1 w-full rounded-xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700" autocomplete="email"></label>
+        <label><span class="text-sm font-bold">Téléphone (facultatif)</span><input name="guest_phone" maxlength="40" class="mt-1 w-full rounded-xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-700" autocomplete="tel"></label>
+      </div>
+      <p class="text-xs text-zinc-500">Ces données servent uniquement à identifier le titulaire de ce billet.</p>
+      {% if payment_modes|length > 1 %}
+      <fieldset class="space-y-3"><legend class="font-black">Comment souhaitez-vous payer ?</legend>
+        {% for mode in payment_modes %}
+          {% if mode == 'upfront' %}<label class="flex gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><input type="radio" name="payment_mode" value="upfront"{% if offer.payment_mode == 'upfront' %} checked{% endif %}><span><strong>Payer maintenant en ligne</strong><span class="block text-sm text-zinc-500">La place reste maintenue pendant le paiement.</span></span></label>{% endif %}
+          {% if mode == 'on_site' %}<label class="flex gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><input type="radio" name="payment_mode" value="on_site"{% if offer.payment_mode == 'on_site' %} checked{% endif %}><span><strong>Réserver et payer sur place</strong><span class="block text-sm text-zinc-500">{{ offer.unit_price }} {{ offer.currency }} resteront dus.</span></span></label>{% endif %}
+          {% if mode == 'none' %}<input type="hidden" name="payment_mode" value="none">{% endif %}
+        {% endfor %}
+      </fieldset>
+      {% else %}
+        <input type="hidden" name="payment_mode" value="{{ offer.payment_mode }}">
+        {% if offer.payment_mode == 'on_site' %}<div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><strong>À payer sur place :</strong> {{ offer.unit_price }} {{ offer.currency }}. Aucun Payment ne sera créé avant un encaissement réel.</div>{% elif offer.payment_mode == 'upfront' %}<div class="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-200">Paiement en ligne requis avant confirmation.</div>{% else %}<div class="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">Aucun paiement requis.</div>{% endif %}
+      {% endif %}
+      <button class="w-full rounded-2xl bg-indigo-600 px-6 py-4 text-lg font-black text-white">Continuer</button><p class="text-center text-xs text-zinc-500">1 réservation = 1 voyageur = 1 place. Le serveur revalide tarif, capacité et mode de paiement.</p>
+    </form>{% endif %}
   </div>
 </section>
 {% endblock %}

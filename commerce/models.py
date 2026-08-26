@@ -67,6 +67,7 @@ class Offer(models.Model):
         max_length=24,
         choices=PaymentMode.choices,
         default=PaymentMode.NONE,
+        help_text="Mode par défaut et compatibilité legacy. Les choix supplémentaires vivent dans payment_options.",
     )
     available_from = models.DateTimeField(null=True, blank=True)
     available_until = models.DateTimeField(null=True, blank=True)
@@ -118,6 +119,16 @@ class Offer(models.Model):
         return super().save(*args, **kwargs)
 
     @property
+    def allowed_payment_modes(self):
+        if not self.pk:
+            return [self.payment_mode]
+        configured = list(self.payment_options.order_by("mode").values_list("mode", flat=True))
+        return configured or [self.payment_mode]
+
+    def allows_payment_mode(self, mode):
+        return mode in self.allowed_payment_modes
+
+    @property
     def is_free(self):
         return self.unit_price == Decimal("0.00")
 
@@ -140,6 +151,36 @@ class Offer(models.Model):
         return f"{self.activity} — {self.name}"
 
 
+class OfferPaymentOption(models.Model):
+    """Queryable set of payment modes a participant may choose for one Offer."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    offer = models.ForeignKey(Offer, on_delete=models.CASCADE, related_name="payment_options")
+    mode = models.CharField(max_length=24, choices=PaymentMode.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["offer_id", "mode"]
+        constraints = [
+            models.UniqueConstraint(fields=["offer", "mode"], name="commerce_offer_payment_mode_unique")
+        ]
+        indexes = [models.Index(fields=["mode", "offer"], name="commerce_offer_paymode_idx")]
+
+    def clean(self):
+        super().clean()
+        if self.offer_id and self.mode == PaymentMode.NONE and self.offer.unit_price != Decimal("0.00"):
+            raise ValidationError({"mode": "Le mode sans paiement exige une Offer gratuite."})
+        if self.offer_id and self.offer.unit_price == Decimal("0.00") and self.mode != PaymentMode.NONE:
+            raise ValidationError({"mode": "Une Offer gratuite n’accepte que le mode sans paiement."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.offer} — {self.get_mode_display()}"
+
+
 class CommerceOrder(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reference = models.CharField(max_length=24, unique=True, editable=False)
@@ -159,6 +200,13 @@ class CommerceOrder(models.Model):
         "organizations.Organization",
         on_delete=models.PROTECT,
         related_name="commerce_orders",
+        null=True,
+        blank=True,
+    )
+    payee_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payee_commerce_orders",
         null=True,
         blank=True,
     )
@@ -185,6 +233,7 @@ class CommerceOrder(models.Model):
         indexes = [
             models.Index(fields=["buyer", "status"], name="commerce_order_buyer_idx"),
             models.Index(fields=["payee_space", "status"], name="commerce_order_payee_idx"),
+            models.Index(fields=["payee_profile", "status"], name="commerce_order_ppayee_idx"),
             models.Index(fields=["journey"], name="commerce_order_journey_idx"),
             models.Index(fields=["created_at"], name="commerce_order_created_idx"),
         ]
@@ -194,6 +243,10 @@ class CommerceOrder(models.Model):
             models.CheckConstraint(condition=Q(total__gte=0), name="commerce_order_total_nonnegative"),
             models.CheckConstraint(condition=Q(discount_total__lte=F("subtotal")), name="commerce_order_discount_lte_subtotal"),
             models.CheckConstraint(condition=Q(total=F("subtotal") - F("discount_total")), name="commerce_order_total_consistent"),
+            models.CheckConstraint(
+                condition=Q(payee_space__isnull=True) | Q(payee_profile__isnull=True),
+                name="commerce_order_single_payee",
+            ),
         ]
 
     def clean(self):
@@ -210,6 +263,8 @@ class CommerceOrder(models.Model):
             errors["total"] = "Le total doit être égal au sous-total moins la remise."
         if self.payment_mode == PaymentMode.NONE and self.total != Decimal("0.00"):
             errors["payment_mode"] = "Une commande sans paiement attendu doit avoir un total nul."
+        if self.payee_space_id and self.payee_profile_id:
+            errors["payee_profile"] = "Une commande ne peut avoir qu’un seul bénéficiaire financier logique."
         if errors:
             raise ValidationError(errors)
 
@@ -226,6 +281,10 @@ class CommerceOrder(models.Model):
         self._allow_status_transition = False
         return result
 
+    @property
+    def payee(self):
+        return self.payee_space or self.payee_profile
+
     def __str__(self):
         return self.reference
 
@@ -237,6 +296,13 @@ class CommerceOrderItem(models.Model):
     beneficiary = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
+        related_name="commerce_order_items",
+        null=True,
+        blank=True,
+    )
+    external_beneficiary = models.ForeignKey(
+        "journeys.ExternalBeneficiary",
+        on_delete=models.PROTECT,
         related_name="commerce_order_items",
         null=True,
         blank=True,
@@ -261,6 +327,7 @@ class CommerceOrderItem(models.Model):
         indexes = [
             models.Index(fields=["order"], name="commerce_item_order_idx"),
             models.Index(fields=["offer"], name="commerce_item_offer_idx"),
+            models.Index(fields=["external_beneficiary"], name="commerce_item_extben_idx"),
         ]
         constraints = [
             models.CheckConstraint(condition=Q(quantity__gt=0), name="commerce_item_quantity_positive"),
@@ -270,6 +337,10 @@ class CommerceOrderItem(models.Model):
             models.CheckConstraint(condition=Q(line_total__gte=0), name="commerce_item_total_nonnegative"),
             models.CheckConstraint(condition=Q(discount_total__lte=F("line_subtotal")), name="commerce_item_discount_lte_subtotal"),
             models.CheckConstraint(condition=Q(line_total=F("line_subtotal") - F("discount_total")), name="commerce_item_total_consistent"),
+            models.CheckConstraint(
+                condition=Q(beneficiary__isnull=True) | Q(external_beneficiary__isnull=True),
+                name="commerce_item_single_beneficiary",
+            ),
         ]
 
     def clean(self):
@@ -278,6 +349,8 @@ class CommerceOrderItem(models.Model):
         if self.order_id and self.offer_id:
             if self.offer.activity_id != self.order.journey.activity_id:
                 errors["offer"] = "L’Offer appartient à une autre Activity que la Démarche."
+        if self.beneficiary_id and self.external_beneficiary_id:
+            errors["beneficiary"] = "Une ligne Commerce ne peut cibler qu’un seul bénéficiaire."
         if self.capacity_reservation_id:
             if self.capacity_reservation.journey_id != self.order.journey_id:
                 errors["capacity_reservation"] = "La réservation de capacité appartient à une autre Démarche."

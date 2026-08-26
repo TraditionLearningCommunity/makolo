@@ -187,6 +187,7 @@ jobs:
           journeys.tests
           access.tests
           access.test_concurrency
+          access.test_task25_issue_concurrency
           access.test_manual_grants
           access.test_manual_grant_concurrency
           tickets.test_journey_access_backfill
@@ -200,6 +201,10 @@ jobs:
           capacity.test_access_bridge
           capacity.test_concurrency
           commerce.tests
+          commerce.test_order_edge_cases
+          transport.tests
+          transport.test_task25_booking
+          transport.test_task25_concurrency
           tickets.test_commerce_capacity_bridge
           tickets.test_commerce_capacity_backfill
           tickets.test_commerce_capacity_concurrency
@@ -242,6 +247,8 @@ jobs:
         run: >-
           python manage.py test
           payments.test_operational_hardening
+          payments.test_task25_manual
+          payments.test_task25_concurrency
           payments.tests
 
       - name: Run ticket and scanner PostgreSQL tests

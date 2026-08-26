@@ -1,0 +1,7 @@
+@media print {
+  header, nav, footer, [data-no-print] { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .access-ticket-print { max-width: 100% !important; margin: 0 !important; box-shadow: none !important; border: 1px solid #ddd !important; }
+  .access-ticket-print img { max-width: 320px !important; margin: 0 auto !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+}
