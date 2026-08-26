@@ -7,7 +7,7 @@
       <div class="min-w-0">
         <a href="{% url 'groups:list' %}" class="text-sm font-bold" style="color:var(--mk-primary)">← Mes Groupes</a>
         <div class="mt-3 flex flex-wrap items-center gap-2"><h1 class="text-2xl font-black" style="color:var(--mk-text)">{{ group.name }}</h1><span class="mk-badge">{{ group.get_status_display }}</span></div>
-        <p class="mt-2 text-sm" style="color:var(--mk-subtle)">{% if group.space %}Propriétaire logique : Espace {{ group.space.name }}{% else %}Groupe personnel{% endif %}</p>
+        <p class="mt-2 text-sm" style="color:var(--mk-subtle)">Géré par {{ owner_label }}</p>
         <p class="mt-4 max-w-3xl text-sm" style="color:var(--mk-muted)">{{ group.description|default:'Aucune description.' }}</p>
       </div>
       {% if can_manage or can_members or can_invite %}
@@ -19,25 +19,58 @@
     </div>
   </header>
 
-  <div class="grid gap-4 md:grid-cols-3">
+  <div class="grid gap-4 md:grid-cols-4">
     <div class="mk-card p-5"><p class="text-xs font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Population active</p><p class="mt-2 text-3xl font-black" style="color:var(--mk-text)">{{ active_member_count }}</p></div>
-    <div class="mk-card p-5"><p class="text-xs font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Visibilité</p><p class="mt-2 text-base font-black" style="color:var(--mk-text)">{{ group.get_visibility_display }}</p></div>
-    <div class="mk-card p-5"><p class="text-xs font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Ma relation</p><p class="mt-2 text-sm font-bold" style="color:var(--mk-text)">{% if direct_roles %}Responsabilité par Mandat{% elif membership and membership.status == 'active' %}Membre{% else %}Accès administratif{% endif %}</p>{% if direct_roles %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ direct_roles|join:', ' }}</p>{% endif %}</div>
+    <div class="mk-card p-5"><p class="text-xs font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Découvrabilité</p><p class="mt-2 text-sm font-black" style="color:var(--mk-text)">{{ group.get_discoverability_display }}</p></div>
+    <div class="mk-card p-5"><p class="text-xs font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Adhésion</p><p class="mt-2 text-sm font-black" style="color:var(--mk-text)">{{ group.get_membership_policy_display }}</p></div>
+    <div class="mk-card p-5"><p class="text-xs font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Ma relation</p><p class="mt-2 text-sm font-bold" style="color:var(--mk-text)">{% if direct_roles %}Gestionnaire par Mandat{% elif membership and membership.status == 'active' %}Membre{% elif join_request %}Demande en attente{% elif invitation %}Invité{% else %}Non membre{% endif %}</p>{% if direct_roles %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ direct_roles|join:', ' }}</p>{% endif %}</div>
   </div>
 
-  {% if membership and membership.status == 'active' %}
-  <div class="mk-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="font-black" style="color:var(--mk-text)">Appartenance</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Quitter le Groupe ne modifie aucun Mandat administratif éventuel.</p></div><form method="post" action="{% url 'groups:leave' group.slug %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-secondary">Quitter le Groupe</button></form></div>
+  {% if group.status == 'active' %}
+    {% if membership and membership.status == 'active' %}
+    <div class="mk-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="font-black" style="color:var(--mk-text)">Vous êtes membre</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Quitter le Groupe ne modifie aucun Mandat administratif éventuel.</p></div><form method="post" action="{% url 'groups:leave' group.slug %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-secondary">Quitter le Groupe</button></form></div>
+    {% elif join_request %}
+    <div class="mk-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="font-black" style="color:var(--mk-text)">Demande envoyée</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Votre appartenance ne sera active qu’après approbation.</p></div><form method="post" action="{% url 'groups:join-request-cancel' join_request.pk %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-secondary">Annuler la demande</button></form></div>
+    {% elif group.membership_policy == membership_policy_open %}
+    <div class="mk-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="font-black" style="color:var(--mk-text)">Rejoindre ce Groupe</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">L’adhésion devient active immédiatement.</p></div><form method="post" action="{% url 'groups:join' group.slug %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-primary">Rejoindre le Groupe</button></form></div>
+    {% elif group.membership_policy == membership_policy_request %}
+    <div class="mk-card p-5"><h2 class="font-black" style="color:var(--mk-text)">Demander à rejoindre</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Aucun Membership actif n’est créé avant approbation.</p><form method="post" action="{% url 'groups:join-request' group.slug %}" class="mt-4 space-y-3">{% csrf_token %}{{ join_form.message.label_tag }}{{ join_form.message }}<button type="submit" class="mk-btn mk-btn-primary">Demander à rejoindre</button></form></div>
+    {% else %}
+    <div class="mk-card p-5"><h2 class="font-black" style="color:var(--mk-text)">Adhésion sur invitation</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Seules les invitations valides ou les ajouts par un gestionnaire permettent de rejoindre ce Groupe.</p></div>
+    {% endif %}
   {% endif %}
 
-  {% if can_snapshot %}
+  {% if related_activities %}
   <section class="mk-card p-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h2 class="text-lg font-black" style="color:var(--mk-text)">Snapshots</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Photo immuable des membres actifs à un instant donné.</p></div><form method="post" action="{% url 'groups:snapshot-create' group.slug %}" class="flex gap-2">{% csrf_token %}<input name="name" maxlength="180" placeholder="Nom facultatif" class="rounded-xl border px-3 py-2 text-sm"><button class="mk-btn mk-btn-primary" type="submit">Créer un snapshot</button></form></div>
-    <div class="mt-5 space-y-2">{% for snapshot in snapshots %}<div class="flex items-center justify-between rounded-xl border p-3" style="border-color:var(--mk-border)"><div><p class="text-sm font-bold" style="color:var(--mk-text)">{{ snapshot.name }}</p><p class="text-xs" style="color:var(--mk-subtle)">{{ snapshot.created_at|date:'d/m/Y H:i' }}</p></div><span class="mk-badge">{{ snapshot.member_count }} membres</span></div>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun snapshot pour le moment.</p>{% endfor %}</div>
+    <h2 class="text-lg font-black" style="color:var(--mk-text)">Pour ce Groupe</h2>
+    <p class="mt-1 text-sm" style="color:var(--mk-muted)">Actions publiées pour lesquelles l’appartenance à ce Groupe donne l’éligibilité.</p>
+    <div class="mt-4 grid gap-3 md:grid-cols-2">
+      {% for relation in related_activities %}<div class="rounded-xl border p-4" style="border-color:var(--mk-border)"><p class="font-black" style="color:var(--mk-text)">{{ relation.activity.title }}</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ relation.activity.short_description|default:relation.activity.description|truncatechars:140 }}</p></div>{% endfor %}
+    </div>
   </section>
   {% endif %}
 
+  {% if manageable_activities %}
+  <section class="mk-card p-6">
+    <h2 class="text-lg font-black" style="color:var(--mk-text)">Utiliser ce Groupe pour une Activity</h2>
+    <p class="mt-1 text-sm" style="color:var(--mk-muted)">L’Activity référence ce Groupe sans en changer le propriétaire et sans copier ses membres.</p>
+    <form method="post" action="{% url 'groups:activity-eligibility-request' group.slug %}" class="mt-4 flex flex-col gap-3 sm:flex-row">{% csrf_token %}<select name="activity_id" class="w-full rounded-xl border px-3 py-2" required><option value="">Choisir une Activity</option>{% for activity in manageable_activities %}<option value="{{ activity.pk }}">{{ activity.title }}</option>{% endfor %}</select><button class="mk-btn mk-btn-primary" type="submit">Demander l’utilisation</button></form>
+  </section>
+  {% endif %}
+
+  {% if pending_activity_eligibilities %}
+  <section id="activity-use" class="mk-card p-6">
+    <h2 class="text-lg font-black" style="color:var(--mk-text)">Demandes d’utilisation du Groupe</h2>
+    <div class="mt-4 space-y-3">{% for relation in pending_activity_eligibilities %}<div class="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between" style="border-color:var(--mk-border)"><div><p class="font-black" style="color:var(--mk-text)">{{ relation.activity.title }}</p><p class="text-xs" style="color:var(--mk-subtle)">Demande d’éligibilité — aucune donnée membre n’est transférée.</p></div><div class="flex gap-2"><form method="post" action="{% url 'groups:activity-eligibility-approve' relation.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Autoriser</button></form><form method="post" action="{% url 'groups:activity-eligibility-reject' relation.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Refuser</button></form></div></div>{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  {% if can_snapshot %}
+  <section class="mk-card p-6"><div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h2 class="text-lg font-black" style="color:var(--mk-text)">Snapshots</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Photo immuable des membres actifs à un instant donné.</p></div><form method="post" action="{% url 'groups:snapshot-create' group.slug %}" class="flex gap-2">{% csrf_token %}<input name="name" maxlength="180" placeholder="Nom facultatif" class="rounded-xl border px-3 py-2 text-sm"><button class="mk-btn mk-btn-primary" type="submit">Créer un snapshot</button></form></div><div class="mt-5 space-y-2">{% for snapshot in snapshots %}<div class="flex items-center justify-between rounded-xl border p-3" style="border-color:var(--mk-border)"><div><p class="text-sm font-bold" style="color:var(--mk-text)">{{ snapshot.name }}</p><p class="text-xs" style="color:var(--mk-subtle)">{{ snapshot.created_at|date:'d/m/Y H:i' }}</p></div><span class="mk-badge">{{ snapshot.member_count }} membres</span></div>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun snapshot pour le moment.</p>{% endfor %}</div></section>
+  {% endif %}
+
   {% if can_manage and group.status == 'active' %}
-  <section class="mk-card p-6"><h2 class="font-black" style="color:var(--mk-text)">Archivage</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">L’archivage bloque les nouvelles appartenances et conserve l’historique.</p><form method="post" action="{% url 'groups:archive' group.slug %}" class="mt-4">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Archiver le Groupe</button></form></section>
+  <section class="mk-card p-6"><h2 class="font-black" style="color:var(--mk-text)">Archivage</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">L’archivage bloque les nouvelles appartenances, invitations et nouvelles utilisations tout en conservant l’historique.</p><form method="post" action="{% url 'groups:archive' group.slug %}" class="mt-4">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Archiver le Groupe</button></form></section>
   {% endif %}
 </div>
 {% endblock %}
