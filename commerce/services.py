@@ -227,7 +227,7 @@ def create_order(
 
     journey = (
         Journey.objects.select_for_update(of=("self",))
-        .select_related("beneficiary", "external_beneficiary", "activity", "activity__owner_profile")
+        .select_related("beneficiary", "external_beneficiary", "activity")
         .order_by()
         .get(pk=journey.pk)
     )
@@ -282,18 +282,15 @@ def create_order(
         if not offer.allows_payment_mode(payment_mode):
             raise ValidationError(f"{offer.name} n’autorise pas ce mode de paiement.")
 
-    activity_space_id, activity_owner_profile_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
-        "activity__space_id", "activity__owner_profile_id", "activity_id", "occurrence_id"
+    activity_space_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
+        "activity__space_id", "activity_id", "occurrence_id"
     ).get()
     if payee_space is not None and payee_profile is not None:
         raise ValidationError("Une commande ne peut avoir qu’un seul bénéficiaire financier logique.")
-    if payee_space is None and payee_profile is None:
-        if activity_space_id is not None:
-            from organizations.models import Organization
-            payee_space = Organization.objects.get(pk=activity_space_id)
-        elif activity_owner_profile_id is not None:
-            from django.contrib.auth import get_user_model
-            payee_profile = get_user_model().objects.get(pk=activity_owner_profile_id)
+    if payee_space is None and payee_profile is None and activity_space_id is not None:
+        from organizations.models import Organization
+
+        payee_space = Organization.objects.get(pk=activity_space_id)
     if promotion_code and payee_space is None:
         raise ValidationError("Une Promotion nécessite un Espace bénéficiaire explicite.")
 
@@ -312,14 +309,21 @@ def create_order(
             payee_space=payee_space,
             now=now,
         )
-        prepared = allocate_discount(prepared=prepared, quote=promotion_quote)
+        originals = list(prepared)
+        promotion_rows = [
+            (offer, quantity, beneficiary, line_subtotal, line_discount)
+            for offer, quantity, beneficiary, _external, line_subtotal, line_discount in originals
+        ]
+        allocated = allocate_discount(prepared=promotion_rows, quote=promotion_quote)
+        prepared = [
+            (offer, quantity, beneficiary, original[3], line_subtotal, line_discount)
+            for (offer, quantity, beneficiary, line_subtotal, line_discount), original in zip(allocated, originals)
+        ]
         discount_total = promotion_quote["discount_amount"]
 
     total = subtotal - discount_total
     if payment_mode == PaymentMode.NONE and total != Decimal("0.00"):
         raise ValidationError("Une commande payment_mode=none doit être gratuite.")
-    if total == Decimal("0.00") and payment_mode != PaymentMode.NONE:
-        raise ValidationError("Une commande gratuite doit utiliser le mode sans paiement.")
 
     order = CommerceOrder(
         journey=journey,
@@ -376,6 +380,7 @@ def create_order(
 
     if promotion_quote:
         from promotions.canonical_services import create_commerce_redemption
+
         create_commerce_redemption(order=order, quote=promotion_quote)
 
     _emit_order_event(
@@ -391,6 +396,7 @@ def create_order(
 
 def _successful_payment_exists(order):
     from payments.models import Payment, PaymentStatus
+
     return Payment.objects.filter(commerce_order=order, status=PaymentStatus.SUCCEEDED).exists()
 
 
@@ -424,6 +430,7 @@ def confirm_order(*, order, actor=None, payment_verified=False):
     order = _set_order_status(order, CommerceOrderStatus.CONFIRMED)
     try:
         from promotions.canonical_services import confirm_commerce_redemption
+
         confirm_commerce_redemption(order=order)
     except ImportError:
         pass
@@ -456,6 +463,7 @@ def cancel_order(*, order, actor=None, release_committed=False):
     order = _set_order_status(order, CommerceOrderStatus.CANCELLED)
     try:
         from promotions.canonical_services import reverse_commerce_redemption
+
         reverse_commerce_redemption(order=order)
     except ImportError:
         pass
@@ -492,6 +500,7 @@ def expire_order(*, order, now=None):
     order = _set_order_status(order, CommerceOrderStatus.EXPIRED, now=now)
     try:
         from promotions.canonical_services import reverse_commerce_redemption
+
         reverse_commerce_redemption(order=order)
     except ImportError:
         pass
