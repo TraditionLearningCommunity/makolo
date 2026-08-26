@@ -32,7 +32,7 @@
       </fieldset>
       {% else %}
         <input type="hidden" name="payment_mode" value="{{ offer.payment_mode }}">
-        {% if offer.payment_mode == 'on_site' %}<div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><strong>À payer sur place :</strong> {{ offer.unit_price }} {{ offer.currency }}. Aucun Payment ne sera créé avant un encaissement réel.</div>{% elif offer.payment_mode == 'upfront' %}<div class="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-200">Paiement en ligne requis avant confirmation.</div>{% else %}<div class="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">Aucun paiement requis.</div>{% endif %}
+        {% if offer.payment_mode == 'on_site' %}<div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><strong>À payer sur place :</strong> {{ offer.unit_price }} {{ offer.currency }}. Aucun Payment ne sera créé avant un encaissement réel.</div>{% elif offer.payment_mode == 'upfront' %}<div class="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-200">Paiement en ligne requis avant confirmation.</div>{% else %}<div class="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">Aucun paiement requis.</div>{% endif %}
       {% endif %}
       <button class="w-full rounded-2xl bg-indigo-600 px-6 py-4 text-lg font-black text-white">Continuer</button><p class="text-center text-xs text-zinc-500">1 réservation = 1 voyageur = 1 place. Le serveur revalide tarif, capacité et mode de paiement.</p>
     </form>{% endif %}
