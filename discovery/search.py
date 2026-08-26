@@ -37,6 +37,7 @@ class DiscoverySearchResult:
     items: list
     timezone_name: str
     total: int
+    nearby_active: bool
 
 
 def _valid_zone(name):
@@ -156,6 +157,14 @@ def _base_queryset(*, now):
         )
         .order_by("start_at", "id")
     )
+
+
+def public_occurrences_for_activities(activity_ids, *, now=None):
+    now = now or timezone.now()
+    ids = list(activity_ids)
+    if not ids:
+        return Occurrence.objects.none()
+    return _base_queryset(now=now).filter(activity_id__in=ids)
 
 
 def _apply_time(queryset, window):
@@ -300,15 +309,20 @@ def search_occurrences(params, *, profile=None, now=None):
             raise ValidationError("Le tri par proximité exige une position et un rayon.")
         items.sort(
             key=lambda item: (
-                item.start_at,
                 item.distance_km if item.distance_km is not None else float("inf"),
+                item.start_at,
             )
         )
     elif ordering == "soon":
         items.sort(key=lambda item: (_text_rank(item, text), item.start_at, item.distance_km or 0))
     else:
         raise ValidationError("Tri invalide.")
-    return DiscoverySearchResult(items=items, timezone_name=str(zone), total=len(items))
+    return DiscoverySearchResult(
+        items=items,
+        timezone_name=str(zone),
+        total=len(items),
+        nearby_active=nearby is not None,
+    )
 
 
 def get_public_occurrence(pk, *, now=None):

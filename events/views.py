@@ -117,11 +117,14 @@ class EventDetailView(DetailView):
             )
 
         if self.request.user.is_authenticated:
-            from discovery.models import EventBookmark
+            from discovery.models import ActivityBookmark
             from growth.models import EventFeedback
             from growth.services import can_submit_feedback
 
-            context["is_bookmarked"] = EventBookmark.objects.filter(user=self.request.user, event=self.object).exists()
+            context["is_bookmarked"] = ActivityBookmark.objects.filter(
+                user=self.request.user,
+                activity=self.object.activity,
+            ).exists()
             context["can_submit_feedback"] = can_submit_feedback(self.request.user, self.object)
             context["existing_feedback"] = EventFeedback.objects.filter(user=self.request.user, event=self.object).first()
         return context

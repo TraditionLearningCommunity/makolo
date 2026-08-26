@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from discovery.models import EventBookmark
+from discovery.models import ActivityBookmark
 from discovery.search import search_occurrences
 from discovery.services import (
     build_recommendations,
@@ -45,12 +45,20 @@ class DiscoveryItemsAPIView(APIView):
                 "page": page,
                 "page_size": page_size,
                 "timezone": result.timezone_name,
+                "nearby_active": result.nearby_active,
                 "results": [item.to_public_dict() for item in result.items[start:end]],
             }
         )
 
 
 class DiscoveryMapAPIView(APIView):
+    """Legacy public map API.
+
+    Web Discovery only renders/loads the map when nearby_active is true.  The
+    endpoint keeps returning its historical bounded public point set so mobile
+    or older clients are not broken by T26.
+    """
+
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -70,6 +78,7 @@ class DiscoveryMapAPIView(APIView):
                 "count": len(points),
                 "total_results": result.total,
                 "timezone": result.timezone_name,
+                "nearby_active": result.nearby_active,
                 "results": points,
             }
         )
@@ -83,6 +92,7 @@ class DiscoveryForYouAPIView(APIView):
         trending = build_trending(limit=12)
         return Response(
             {
+                "scope": "event_compatibility",
                 "recommendations": [
                     serialize_event(
                         row["event"],
@@ -97,22 +107,26 @@ class DiscoveryForYouAPIView(APIView):
 
 
 class BookmarkListCreateAPIView(APIView):
+    """Legacy Event-shaped bookmark API backed by canonical ActivityBookmark."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        bookmarks = EventBookmark.objects.filter(user=request.user).select_related(
-            "event",
-            "event__activity",
-            "event__activity__space",
-            "event__category",
-            "event__venue",
+        bookmarks = ActivityBookmark.objects.filter(
+            user=request.user,
+            activity__event_vertical__isnull=False,
+        ).select_related(
+            "activity",
+            "activity__event_vertical",
+            "activity__event_vertical__category",
+            "activity__event_vertical__venue",
         )[:100]
         return Response(
             [
                 {
                     "id": str(bookmark.pk),
                     "created_at": bookmark.created_at,
-                    "event": serialize_event(bookmark.event),
+                    "event": serialize_event(bookmark.activity.event_vertical),
                 }
                 for bookmark in bookmarks
             ]
@@ -121,7 +135,10 @@ class BookmarkListCreateAPIView(APIView):
     def post(self, request):
         event_id = request.data.get("event_id")
         event = get_object_or_404(public_discovery_events(), pk=event_id)
-        bookmark, created = EventBookmark.objects.get_or_create(user=request.user, event=event)
+        bookmark, created = ActivityBookmark.objects.get_or_create(
+            user=request.user,
+            activity=event.activity,
+        )
         return Response(
             {
                 "id": str(bookmark.pk),
@@ -136,5 +153,6 @@ class BookmarkDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, event_id):
-        EventBookmark.objects.filter(user=request.user, event_id=event_id).delete()
+        event = get_object_or_404(public_discovery_events(), pk=event_id)
+        ActivityBookmark.objects.filter(user=request.user, activity=event.activity).delete()
         return Response(status=204)

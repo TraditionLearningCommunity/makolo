@@ -10,7 +10,7 @@ from events.models import Event, EventStatus, EventVisibility
 from organizations.models import OrganizationFollow, OrganizationVerificationStatus
 from tickets.models import TicketOrder, TicketOrderStatus, TicketType
 
-from .models import EventBookmark
+from .models import ActivityBookmark
 
 
 RECENT_DAYS = 30
@@ -37,7 +37,13 @@ def _public_event_annotations():
         .annotate(value=Min("offer__unit_price"))
         .values("value")[:1]
     )
-    bookmark_count = _count_for_event(EventBookmark.objects.filter(event_id=OuterRef("pk")))
+    bookmark_count = (
+        ActivityBookmark.objects.filter(activity_id=OuterRef("activity_id"))
+        .order_by()
+        .values("activity_id")
+        .annotate(total=Count("pk"))
+        .values("total")[:1]
+    )
     confirmed_order_count = _count_for_event(
         TicketOrder.objects.filter(
             event_id=OuterRef("pk"),
@@ -77,6 +83,7 @@ def public_discovery_events():
         Event.objects.select_related(
             "activity",
             "activity__space",
+            "activity__owner_profile",
             "category",
             "venue",
             "venue__place",
@@ -95,6 +102,11 @@ def public_discovery_events():
 
 
 def search_discovery_events(params):
+    """Legacy Event-specific query retained for API compatibility.
+
+    New Discovery surfaces use search_occurrences(); this function remains only
+    for callers whose public contract is explicitly Event-shaped.
+    """
     queryset = public_discovery_events()
     q = (params.get("q") or "").strip()
     category = (params.get("category") or "").strip()
@@ -110,6 +122,8 @@ def search_discovery_events(params):
             | Q(activity__short_description__icontains=q)
             | Q(activity__description__icontains=q)
             | Q(activity__space__name__icontains=q)
+            | Q(activity__owner_profile__first_name__icontains=q)
+            | Q(activity__owner_profile__last_name__icontains=q)
             | Q(category__name__icontains=q)
             | Q(venue__name__icontains=q)
             | Q(venue__place__locality__icontains=q)
@@ -125,6 +139,7 @@ def search_discovery_events(params):
         queryset = queryset.filter(
             Q(activity__space__slug=organizer)
             | Q(activity__space__name__icontains=organizer)
+            | Q(activity__owner_profile__username__iexact=organizer)
         )
     if price == "free":
         queryset = queryset.filter(
@@ -173,7 +188,7 @@ def _event_score(event, *, followed_org_ids, preferred_category_ids, preferred_c
         reasons.append(f"Parce que vous suivez {event.organization.name}")
     if event.category_id and event.category_id in preferred_category_ids:
         score += 30
-        reasons.append(f"Parce que vous aimez les événements {event.category.name}")
+        reasons.append(f"Parce que vous avez enregistré des événements {event.category.name}")
     venue_city = event.venue.effective_city if event.venue_id else ""
     organization_city = event.organization.city if event.organization_id else ""
     event_city = (venue_city or organization_city or "").strip().lower()
@@ -187,7 +202,7 @@ def _event_score(event, *, followed_org_ids, preferred_category_ids, preferred_c
     score += max(20 - min(days_until, 20), 0)
     if not reasons:
         if getattr(event, "confirmed_order_count", 0) or getattr(event, "bookmark_count", 0):
-            reasons.append("Populaire en ce moment")
+            reasons.append("Activité demandée en ce moment")
         else:
             reasons.append("À venir sur Makolo")
     return score, reasons[:2]
@@ -201,6 +216,12 @@ def _profile_city(user):
 
 
 def build_recommendations(user, *, limit=12):
+    """Compatibility recommendations currently limited to the Event vertical.
+
+    The universal findability surface is Activity/Occurrence-first Discovery.
+    This compatibility section intentionally keeps its legacy Event-shaped
+    return contract until a future recommendation contract becomes generic.
+    """
     candidates = list(
         public_discovery_events().order_by("activity__occurrences__start_at")[:120]
     )
@@ -227,9 +248,10 @@ def build_recommendations(user, *, limit=12):
         ).values_list("event__category_id", flat=True)
     )
     bookmarked_category_ids = set(
-        EventBookmark.objects.filter(user=user, event__category__isnull=False).values_list(
-            "event__category_id", flat=True
-        )
+        ActivityBookmark.objects.filter(
+            user=user,
+            activity__event_vertical__category__isnull=False,
+        ).values_list("activity__event_vertical__category_id", flat=True)
     )
     preferred_category_ids = purchased_category_ids | bookmarked_category_ids
     preferred_cities = set(
@@ -274,11 +296,15 @@ def build_trending(*, limit=10):
             confirmed_at__gte=cutoff,
         )
     )
-    recent_bookmarks = _count_for_event(
-        EventBookmark.objects.filter(
-            event_id=OuterRef("pk"),
+    recent_bookmarks = (
+        ActivityBookmark.objects.filter(
+            activity_id=OuterRef("activity_id"),
             created_at__gte=cutoff,
         )
+        .order_by()
+        .values("activity_id")
+        .annotate(total=Count("pk"))
+        .values("total")[:1]
     )
     events = list(
         public_discovery_events()
