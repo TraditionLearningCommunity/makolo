@@ -159,6 +159,14 @@ def _base_queryset(*, now):
     )
 
 
+def public_occurrences_for_activities(activity_ids, *, now=None):
+    now = now or timezone.now()
+    ids = list(activity_ids)
+    if not ids:
+        return Occurrence.objects.none()
+    return _base_queryset(now=now).filter(activity_id__in=ids)
+
+
 def _apply_time(queryset, window):
     if window is None:
         return queryset
