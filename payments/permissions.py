@@ -6,11 +6,13 @@ from events.permissions import user_can_manage_event_finance
 from tickets.permissions import user_can_access_order
 
 
-def _commerce_payment_space(payment):
+def _commerce_payment_context(payment):
     if not payment.commerce_order_id:
-        return None
+        return None, None
     order = payment.commerce_order
-    return order.payee_space or order.journey.activity.space
+    activity = order.journey.activity
+    space = order.payee_space or activity.space
+    return space, activity
 
 
 def user_can_access_payment(user, payment) -> bool:
@@ -25,8 +27,10 @@ def user_can_access_payment(user, payment) -> bool:
     order = payment.commerce_order
     if order.buyer_id == user.pk or payment.initiated_by_id == user.pk:
         return True
-    space = _commerce_payment_space(payment)
-    return bool(space is not None and can(user, PermissionCode.FINANCE_VIEW, space))
+    space, activity = _commerce_payment_context(payment)
+    if space is not None and can(user, PermissionCode.FINANCE_VIEW, space):
+        return True
+    return bool(activity is not None and can(user, PermissionCode.ACTIVITY_FINANCE_VIEW, activity=activity))
 
 
 def user_can_manage_payment(user, payment) -> bool:
@@ -38,8 +42,10 @@ def user_can_manage_payment(user, payment) -> bool:
         return False
     if getattr(user, "is_staff", False):
         return True
-    space = _commerce_payment_space(payment)
-    return bool(space is not None and can(user, PermissionCode.FINANCE_MANAGE, space))
+    space, activity = _commerce_payment_context(payment)
+    if space is not None and can(user, PermissionCode.FINANCE_MANAGE, space):
+        return True
+    return bool(activity is not None and can(user, PermissionCode.ACTIVITY_FINANCE_MANAGE, activity=activity))
 
 
 class CanAccessPayment(BasePermission):
