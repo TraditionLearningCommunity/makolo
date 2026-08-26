@@ -79,6 +79,15 @@ async function stableDiscoveryMap(page) {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 
+async function enableDiscoveryNearby(page) {
+  const context = page.context();
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: -11.6647, longitude: 27.4794 });
+  await page.getByRole('button', { name: 'Autour de moi' }).click();
+  await expect(page).toHaveURL(/lat=-11\.6647/);
+  await expect(page.getByText(/Proximité active/)).toBeVisible();
+}
+
 async function assertDesktopShellStable(page) {
   await expect(page.locator('aside.mk-sidebar').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ouvrir la navigation' })).toBeHidden();
@@ -122,8 +131,11 @@ test('representative light desktop surfaces @visual', async ({ page }) => {
   await stabilizePublicHome(page);
   await shot(page, 'home-light-desktop.png');
   await page.goto('/discover/');
-  await stableDiscoveryMap(page);
+  await expect(page.locator('#discovery-map')).toHaveCount(0);
   await shot(page, 'discovery-light-desktop.png');
+  await enableDiscoveryNearby(page);
+  await stableDiscoveryMap(page);
+  await shot(page, 'discovery-nearby-light-desktop.png');
 
   await login(page, 'visual.participant@e2e.makolo.test');
   await setAccountAppearance(page, 'light');
@@ -165,8 +177,11 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
   await page.goto('/me/');
   await shot(page, 'participant-dashboard-dark-desktop.png');
   await page.goto('/discover/');
-  await stableDiscoveryMap(page);
+  await expect(page.locator('#discovery-map')).toHaveCount(0);
   await shot(page, 'discovery-dark-desktop.png');
+  await enableDiscoveryNearby(page);
+  await stableDiscoveryMap(page);
+  await shot(page, 'discovery-nearby-dark-desktop.png');
 
   await page.context().clearCookies();
   await login(page, 'scanner@e2e.makolo.test');
@@ -183,6 +198,7 @@ test('representative mobile surfaces @visual @mobile @mobile-only', async ({ pag
   await stabilizePublicHome(page);
   await shot(page, 'home-light-mobile.png');
   await page.goto('/discover/');
+  await expect(page.locator('#discovery-map-panel')).toHaveCount(0);
   await shot(page, 'discovery-light-mobile.png');
 
   await login(page, 'visual.participant@e2e.makolo.test');
