@@ -64,6 +64,13 @@ def _bookmarked_activity_ids(user):
     return set(ActivityBookmark.objects.filter(user=user).values_list("activity_id", flat=True))
 
 
+def _query_without_page(request):
+    params = request.GET.copy()
+    params.pop("page", None)
+    params.pop("focus", None)
+    return params.urlencode()
+
+
 class DiscoveryHomeView(TemplateView):
     template_name = "discovery/home.html"
 
@@ -99,6 +106,7 @@ class DiscoveryHomeView(TemplateView):
                 "nearby_active": nearby_active,
                 "map_items": map_items,
                 "bookmarked_activity_ids": _bookmarked_activity_ids(self.request.user),
+                "pagination_query": _query_without_page(self.request),
                 "map_config": {
                     "tile_url": settings.MAP_TILE_URL,
                     "attribution": settings.MAP_TILE_ATTRIBUTION,
