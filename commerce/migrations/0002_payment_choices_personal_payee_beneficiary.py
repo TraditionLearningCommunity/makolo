@@ -28,6 +28,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name="offer",
+            name="payment_mode",
+            field=models.CharField(
+                choices=[
+                    ("none", "Aucun paiement"),
+                    ("upfront", "Paiement avant confirmation"),
+                    ("after_approval", "Paiement après validation"),
+                    ("on_site", "Paiement sur place"),
+                    ("later", "Paiement différé"),
+                ],
+                default="none",
+                help_text="Mode par défaut et compatibilité legacy. Les choix supplémentaires vivent dans payment_options.",
+                max_length=24,
+            ),
+        ),
         migrations.CreateModel(
             name="OfferPaymentOption",
             fields=[
