@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from discovery.models import EventBookmark
+from discovery.models import ActivityBookmark
 from events.models import EventStatus
 from growth.models import (
     EventFeedback,
@@ -75,7 +75,7 @@ def _seed_discovery_and_growth(ctx: SeedContext) -> None:
     for i, user in enumerate(ctx.users[:min(120, len(ctx.users))]):
         for j, event in enumerate(public_future[:3]):
             if (i+j) % 2:
-                bookmark = upsert(EventBookmark, f"user-{i}-bookmark-{event.id}", defaults={"user": user, "event": event})
+                bookmark = upsert(ActivityBookmark, f"user-{i}-bookmark-{event.activity_id}", defaults={"user": user, "activity": event.activity})
                 backdate(bookmark, created_at=ctx.as_of - timedelta(days=(i+j) % 70))
 
     attribution_orders_used = set()
