@@ -8,22 +8,18 @@ import django.db.models.deletion
 def forwards(apps, schema_editor):
     EventBookmark = apps.get_model("discovery", "EventBookmark")
     ActivityBookmark = apps.get_model("discovery", "ActivityBookmark")
-    rows = []
     seen = set()
     for bookmark in EventBookmark.objects.select_related("event").order_by("created_at", "id"):
         key = (bookmark.user_id, bookmark.event.activity_id)
         if key in seen:
             continue
         seen.add(key)
-        rows.append(
-            ActivityBookmark(
-                id=bookmark.id,
-                user_id=bookmark.user_id,
-                activity_id=bookmark.event.activity_id,
-                created_at=bookmark.created_at,
-            )
+        migrated, _ = ActivityBookmark.objects.get_or_create(
+            user_id=bookmark.user_id,
+            activity_id=bookmark.event.activity_id,
+            defaults={"id": bookmark.id},
         )
-    ActivityBookmark.objects.bulk_create(rows, ignore_conflicts=True)
+        ActivityBookmark.objects.filter(pk=migrated.pk).update(created_at=bookmark.created_at)
 
 
 def backwards(apps, schema_editor):
@@ -34,25 +30,22 @@ def backwards(apps, schema_editor):
         activity_id: event_id
         for activity_id, event_id in Event.objects.values_list("activity_id", "id")
     }
-    rows = []
     for bookmark in ActivityBookmark.objects.order_by("created_at", "id"):
         event_id = event_by_activity.get(bookmark.activity_id)
         if not event_id:
             continue
-        rows.append(
-            EventBookmark(
-                id=bookmark.id,
-                user_id=bookmark.user_id,
-                event_id=event_id,
-                created_at=bookmark.created_at,
-            )
+        restored, _ = EventBookmark.objects.get_or_create(
+            user_id=bookmark.user_id,
+            event_id=event_id,
+            defaults={"id": bookmark.id},
         )
-    EventBookmark.objects.bulk_create(rows, ignore_conflicts=True)
+        EventBookmark.objects.filter(pk=restored.pk).update(created_at=bookmark.created_at)
 
 
 class Migration(migrations.Migration):
     dependencies = [
         ("activities", "0003_activity_owner_profile"),
+        ("events", "0007_cutover_event_to_activity"),
         ("discovery", "0001_initial"),
     ]
 
