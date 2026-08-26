@@ -52,6 +52,13 @@ class DiscoveryItemsAPIView(APIView):
 
 
 class DiscoveryMapAPIView(APIView):
+    """Legacy public map API.
+
+    Web Discovery only renders/loads the map when nearby_active is true.  The
+    endpoint keeps returning its historical bounded public point set so mobile
+    or older clients are not broken by T26.
+    """
+
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -59,16 +66,6 @@ class DiscoveryMapAPIView(APIView):
             result = search_occurrences(request.query_params)
         except ValidationError as exc:
             return Response({"errors": exc.messages}, status=400)
-        if not result.nearby_active:
-            return Response(
-                {
-                    "count": 0,
-                    "total_results": result.total,
-                    "timezone": result.timezone_name,
-                    "nearby_active": False,
-                    "results": [],
-                }
-            )
         points = []
         for item in result.items:
             payload = item.to_map_dict()
@@ -81,7 +78,7 @@ class DiscoveryMapAPIView(APIView):
                 "count": len(points),
                 "total_results": result.total,
                 "timezone": result.timezone_name,
-                "nearby_active": True,
+                "nearby_active": result.nearby_active,
                 "results": points,
             }
         )
