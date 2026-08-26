@@ -1,15 +1,44 @@
 {% extends 'base/app.html' %}
-{% block title %}{% if space %}Groupes — {{ space.name }}{% else %}Mes Groupes{% endif %} — Makolo{% endblock %}
+{% block title %}Mes Groupes — Makolo{% endblock %}
 {% block content %}
 <div class="space-y-6">
   <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <p class="text-xs font-bold uppercase tracking-[.16em]" style="color:var(--mk-subtle)">Appartenance & ciblage</p>
-      <h1 class="mt-2 text-2xl font-black" style="color:var(--mk-text)">{% if space %}Groupes de {{ space.name }}{% else %}Mes Groupes{% endif %}</h1>
-      <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Un Groupe rassemble une population. Être membre ne donne aucun droit d’administration.</p>
+      <p class="text-xs font-bold uppercase tracking-[.16em]" style="color:var(--mk-subtle)">Communautés & appartenance</p>
+      <h1 class="mt-2 text-2xl font-black" style="color:var(--mk-text)">Mes Groupes</h1>
+      <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Un Groupe représente une communauté ou une population. Être membre ne donne aucun droit d’administration.</p>
     </div>
-    <a href="{% url 'groups:create' %}{% if space %}?space={{ space.pk }}{% endif %}" class="mk-btn mk-btn-primary">Créer un Groupe</a>
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'groups:explore' %}" class="mk-btn mk-btn-secondary">Découvrir des Groupes</a>
+      <a href="{% url 'groups:create' %}" class="mk-btn mk-btn-primary">Créer un Groupe</a>
+    </div>
   </header>
+
+  {% if pending_requests %}
+  <section class="mk-card p-5">
+    <h2 class="font-black" style="color:var(--mk-text)">Demandes en attente</h2>
+    <div class="mt-3 space-y-2">
+      {% for request_item in pending_requests %}
+      <div class="flex items-center justify-between gap-3 rounded-xl border p-3" style="border-color:var(--mk-border)">
+        <a class="font-bold" href="{% url 'groups:detail' request_item.group.slug %}" style="color:var(--mk-text)">{{ request_item.group.name }}</a>
+        <span class="mk-badge">Demande envoyée</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if invitations %}
+  <section class="mk-card p-5">
+    <h2 class="font-black" style="color:var(--mk-text)">Invitations</h2>
+    <p class="mt-1 text-sm" style="color:var(--mk-muted)">Les invitations sécurisées restent distinctes d’une adhésion active.</p>
+    <div class="mt-3 space-y-2">
+      {% for invitation in invitations %}
+      <div class="rounded-xl border p-3" style="border-color:var(--mk-border)"><span class="font-bold" style="color:var(--mk-text)">{{ invitation.group.name }}</span></div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   {% if groups %}
   <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -18,14 +47,14 @@
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h2 class="truncate text-base font-black" style="color:var(--mk-text)">{{ group.name }}</h2>
-          <p class="mt-1 text-xs" style="color:var(--mk-subtle)">{% if group.space %}Espace · {{ group.space.name }}{% else %}Groupe personnel{% endif %}</p>
+          <p class="mt-1 text-xs" style="color:var(--mk-subtle)">{% if group.space %}Géré par {{ group.space.name }}{% else %}Groupe personnel{% endif %}</p>
         </div>
         <span class="mk-badge">{{ group.get_status_display }}</span>
       </div>
       <p class="mt-4 line-clamp-2 text-sm" style="color:var(--mk-muted)">{{ group.description|default:'Aucune description.' }}</p>
       <div class="mt-5 flex items-center justify-between text-xs font-semibold" style="color:var(--mk-subtle)">
         <span>{{ group.active_member_count }} membre{{ group.active_member_count|pluralize }}</span>
-        <span>{{ group.get_visibility_display }}</span>
+        <span>{{ group.get_discoverability_display }}</span>
       </div>
     </a>
     {% endfor %}
@@ -33,7 +62,7 @@
   {% else %}
   <div class="mk-card p-8 text-center">
     <h2 class="text-lg font-black" style="color:var(--mk-text)">Aucun Groupe à afficher</h2>
-    <p class="mt-2 text-sm" style="color:var(--mk-muted)">Créez un Groupe personnel ou rejoignez une population invitée.</p>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">Créez votre communauté ou découvrez les Groupes trouvables dans Makolo.</p>
   </div>
   {% endif %}
 </div>
