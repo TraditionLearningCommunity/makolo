@@ -33,3 +33,31 @@ class ActivityBookmark(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.activity}"
+
+
+class _LegacyEventBookmarkManager:
+    """Read/query compatibility for code that still imports EventBookmark.
+
+    This is deliberately not a Django model and owns no table. Event-shaped
+    predicates are translated to the canonical ActivityBookmark relation.
+    """
+
+    @staticmethod
+    def _translate(kwargs):
+        values = dict(kwargs)
+        event = values.pop("event", None)
+        event_id = values.pop("event_id", None)
+        if event is not None:
+            values["activity_id"] = event.activity_id
+        elif event_id is not None:
+            values["activity__event_vertical_id"] = event_id
+        return values
+
+    def filter(self, *args, **kwargs):
+        return ActivityBookmark.objects.filter(*args, **self._translate(kwargs))
+
+
+class EventBookmark:
+    """Deprecated Event-shaped facade; persistence is ActivityBookmark only."""
+
+    objects = _LegacyEventBookmarkManager()
