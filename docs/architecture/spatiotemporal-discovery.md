@@ -95,7 +95,7 @@ La route historique « Mes événements » n'est plus un hub participant canoniq
 
 Les requêtes publiques limitent la longueur des champs, la plage de dates, le rayon et le nombre de candidats. Les listes personnelles sont filtrées côté serveur et paginées. Le MVP reste compatible SQLite et PostgreSQL standard ; aucun moteur FTS externe, Elasticsearch, OpenSearch, Meilisearch ou PostGIS n'est requis.
 
-Les artefacts frontend versionnés de `static/dist` font partie du contrat reproductible de la verticale : après `npm run build`, la CI exige que `package-lock.json` et `static/dist` restent sans diff.
+Les artefacts frontend versionnés de `static/dist` font partie du contrat reproductible de la verticale : après `npm run build`, la CI exige que `package-lock.json` et `static/dist` restent sans diff. Ce garde-fou couvre notamment les bundles Discovery et cartographiques effectivement servis.
 
 ## Cutover legacy
 
