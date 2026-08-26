@@ -3,6 +3,7 @@ import { E2E_PASSWORD, login, logout } from '../helpers/auth.mjs';
 
 const PARTICIPANT = 'participant@e2e.makolo.test';
 const RESERVATION = 'reservation.participant@e2e.makolo.test';
+const INVITEE = 'invitee.participant@e2e.makolo.test';
 const MANAGER = 'event.manager@e2e.makolo.test';
 const SCANNER = 'scanner@e2e.makolo.test';
 
@@ -16,6 +17,15 @@ async function searchTransport(page, date = '2031-06-15') {
   await page.getByRole('button', { name: 'Rechercher' }).click();
   await expect(page.getByRole('heading', { name: /Lubumbashi.*Kolwezi/ })).toBeVisible();
 }
+
+test('Transport search blocks identical origin and destination before request', async ({ page }) => {
+  await page.goto('/transport/');
+  await page.locator('select[name="origin"]').selectOption({ label: 'Lubumbashi · Agence Mulykap Lubumbashi E2E' });
+  await page.locator('select[name="destination"]').selectOption({ label: 'Lubumbashi · Agence Mulykap Lubumbashi E2E' });
+  await page.locator('input[name="date"]').fill('2031-06-15');
+  await expect(page.getByRole('button', { name: 'Rechercher' })).toBeDisabled();
+  await expect(page.getByText('Le départ et la destination doivent être différents.')).toBeVisible();
+});
 
 test('Transport upfront: search, auth continuation, payment, ticket QR and early boarding guard', async ({ page }, testInfo) => {
   await searchTransport(page);
@@ -34,15 +44,17 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and early
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page.getByText('Votre voyage')).toBeVisible();
   await expect(page.getByText('Promo web E2E')).toBeVisible();
+  await expect(page.getByText('Pour qui est ce billet ?')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Continuer vers le paiement' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await expect(page.getByRole('heading', { name: /PAY-/ })).toBeVisible();
   await page.getByRole('button', { name: 'Simuler un paiement réussi' }).click();
   await expect(page.getByText('Réussi')).toBeVisible();
   await page.getByRole('link', { name: 'Voir cet accès' }).click();
   await expect(page.getByText('Lubumbashi → Kolwezi E2E')).toBeVisible();
   await expect(page.getByText('Billet', { exact: true })).toBeVisible();
-  const qr = page.getByRole('img', { name: /QR de votre billet/i });
+  await expect(page.getByRole('button', { name: 'Imprimer / enregistrer en PDF' })).toBeVisible();
+  const qr = page.getByRole('img', { name: /QR du billet/i });
   await expect(qr).toBeVisible();
   const qrPath = testInfo.outputPath('transport-ticket.png');
   await qr.screenshot({ path: qrPath });
@@ -58,14 +70,55 @@ test('Transport upfront: search, auth continuation, payment, ticket QR and early
   await expect(page.locator('#result-message')).toHaveText('Ce billet sera valable à partir du 15/06/2031 à 08:00.');
 });
 
-test('Transport on-site confirms without online payment surface', async ({ page }) => {
+test('Transport on-site makes a repeat purchase explicit and supports a guest holder', async ({ page }) => {
   await login(page, RESERVATION);
   await searchTransport(page);
   await page.locator('a').filter({ hasText: '14:00' }).first().click();
+  const departureUrl = page.url();
   await expect(page.getByText('À payer sur place')).toBeVisible();
-  await page.getByRole('link', { name: 'Réserver' }).click();
-  await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
+  const fareCard = page
+    .locator('div.rounded-3xl')
+    .filter({ has: page.getByText('Payer à l’agence E2E', { exact: true }) });
+  await fareCard.getByRole('link', { name: 'Réserver' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await expect(page.getByText('Billet', { exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/payments\//);
+
+  await page.goto(departureUrl);
+  await expect(page.getByText('Vous avez déjà acheté 1 billet pour ce départ.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voir mon billet' })).toBeVisible();
+  const repeatCard = page
+    .locator('div.rounded-3xl')
+    .filter({ has: page.getByText('Payer à l’agence E2E', { exact: true }) });
+  await repeatCard.getByRole('link', { name: 'Acheter un autre billet' }).click();
+
+  await page.getByLabel('Pour une autre personne').check();
+  await page.locator('input[name="guest_name"]').fill('Jacques Invité E2E');
+  await page.locator('input[name="guest_email"]').fill('jacques.invite@example.test');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await expect(page.getByText('Billet acheté pour Jacques Invité E2E')).toBeVisible();
+  await expect(page.getByText('Titulaire : Jacques Invité E2E')).toBeVisible();
+  await expect(page).not.toHaveURL(/\/payments\//);
+
+  await page.goto('/me/accesses/');
+  await expect(page.getByRole('heading', { name: 'Billets achetés pour d’autres personnes' })).toBeVisible();
+  await expect(page.getByText('Titulaire : Jacques Invité E2E')).toBeVisible();
+});
+
+test('Transport flexible Offer stores the chosen on-site mode without online payment', async ({ page }) => {
+  await login(page, INVITEE);
+  await searchTransport(page);
+  await page.locator('a').filter({ hasText: '08:00' }).first().click();
+  const flexibleCard = page
+    .locator('div.rounded-3xl')
+    .filter({ has: page.getByText('Flexible E2E', { exact: true }) })
+    .filter({ hasText: money('22') });
+  await expect(flexibleCard.getByText('Paiement en ligne ou sur place')).toBeVisible();
+  await flexibleCard.getByRole('link', { name: 'Acheter le billet' }).click();
+  await page.getByLabel('Réserver et payer sur place').check();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await expect(page.getByText('Billet', { exact: true })).toBeVisible();
+  await expect(page.getByText(/22[,.]00 USD à payer sur place/)).toBeVisible();
   await expect(page).not.toHaveURL(/\/payments\//);
 });
 
