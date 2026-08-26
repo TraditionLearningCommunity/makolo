@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError, transaction
+from django.db import transaction
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
+from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.services import can
 from notifications.models import NotificationCategory, NotificationKind
 from notifications.services import create_notification
@@ -52,11 +54,10 @@ def _active_membership(profile, group) -> bool:
 def _pending_invitation_matches(profile, group) -> bool:
     if not getattr(profile, "is_authenticated", False):
         return False
-    now = timezone.now()
     queryset = GroupInvitation.objects.filter(
         group=group,
         status=GroupInvitationStatus.PENDING,
-        expires_at__gt=now,
+        expires_at__gt=timezone.now(),
     )
     if queryset.filter(profile=profile).exists():
         return True
@@ -69,7 +70,7 @@ def _pending_invitation_matches(profile, group) -> bool:
 
 
 def can_view_community_group(profile, group: Group) -> bool:
-    """Return whether this authenticated Profile may learn this Group exists."""
+    """Whether this authenticated Profile may learn this Group exists."""
     if not getattr(profile, "is_authenticated", False):
         return False
     if has_group_permission(profile, PermissionCode.GROUP_VIEW, group):
@@ -80,12 +81,10 @@ def can_view_community_group(profile, group: Group) -> bool:
         return True
     if group.status != GroupStatus.ACTIVE:
         return False
-    if group.discoverability in {
+    return group.discoverability in {
         GroupDiscoverability.LISTED,
         GroupDiscoverability.UNLISTED,
-    }:
-        return True
-    return False
+    }
 
 
 def group_owner_label(group: Group) -> str:
@@ -107,8 +106,6 @@ def _ensure_self_membership_allowed(group: Group, profile) -> GroupMembership | 
         .order_by()
         .first()
     )
-    if membership and membership.status == GroupMembershipStatus.ACTIVE:
-        return membership
     if membership and membership.status in {
         GroupMembershipStatus.SUSPENDED,
         GroupMembershipStatus.REMOVED,
@@ -117,6 +114,67 @@ def _ensure_self_membership_allowed(group: Group, profile) -> GroupMembership | 
             "Cette appartenance ne peut pas être réactivée en libre-service."
         )
     return membership
+
+
+def _activate_self_membership(*, membership, group, profile, source, now):
+    if membership:
+        if membership.status == GroupMembershipStatus.ACTIVE:
+            return membership, False
+        if membership.status in {
+            GroupMembershipStatus.SUSPENDED,
+            GroupMembershipStatus.REMOVED,
+        }:
+            raise PermissionDenied(
+                "Cette appartenance ne peut pas être réactivée en libre-service."
+            )
+        membership.status = GroupMembershipStatus.ACTIVE
+        membership.source = source
+        membership.joined_at = now
+        membership.verified_at = now
+        membership.save(
+            update_fields=[
+                "status",
+                "source",
+                "joined_at",
+                "verified_at",
+                "updated_at",
+            ]
+        )
+        return membership, False
+
+    membership, created = GroupMembership.objects.select_for_update().get_or_create(
+        group=group,
+        profile=profile,
+        defaults={
+            "status": GroupMembershipStatus.ACTIVE,
+            "source": source,
+            "joined_at": now,
+            "verified_at": now,
+        },
+    )
+    if created or membership.status == GroupMembershipStatus.ACTIVE:
+        return membership, created
+    if membership.status in {
+        GroupMembershipStatus.SUSPENDED,
+        GroupMembershipStatus.REMOVED,
+    }:
+        raise PermissionDenied(
+            "Cette appartenance ne peut pas être réactivée en libre-service."
+        )
+    membership.status = GroupMembershipStatus.ACTIVE
+    membership.source = source
+    membership.joined_at = now
+    membership.verified_at = now
+    membership.save(
+        update_fields=[
+            "status",
+            "source",
+            "joined_at",
+            "verified_at",
+            "updated_at",
+        ]
+    )
+    return membership, False
 
 
 @transaction.atomic
@@ -129,43 +187,14 @@ def join_group(*, profile, group) -> tuple[GroupMembership, bool]:
     if locked_group.membership_policy != GroupMembershipPolicy.OPEN:
         raise PermissionDenied("Ce Groupe ne permet pas l'adhésion directe.")
     membership = _ensure_self_membership_allowed(locked_group, profile)
-    if membership and membership.status == GroupMembershipStatus.ACTIVE:
-        return membership, False
     now = timezone.now()
-    if membership:
-        membership.status = GroupMembershipStatus.ACTIVE
-        membership.source = GroupMembershipSource.SELF_JOIN
-        membership.joined_at = now
-        membership.verified_at = now
-        membership.save(
-            update_fields=[
-                "status",
-                "source",
-                "joined_at",
-                "verified_at",
-                "updated_at",
-            ]
-        )
-        created = False
-    else:
-        try:
-            membership = GroupMembership.objects.create(
-                group=locked_group,
-                profile=profile,
-                status=GroupMembershipStatus.ACTIVE,
-                source=GroupMembershipSource.SELF_JOIN,
-                joined_at=now,
-                verified_at=now,
-            )
-            created = True
-        except IntegrityError:
-            membership = GroupMembership.objects.select_for_update().get(
-                group=locked_group,
-                profile=profile,
-            )
-            if membership.status != GroupMembershipStatus.ACTIVE:
-                raise
-            created = False
+    membership, created = _activate_self_membership(
+        membership=membership,
+        group=locked_group,
+        profile=profile,
+        source=GroupMembershipSource.SELF_JOIN,
+        now=now,
+    )
     GroupJoinRequest.objects.filter(
         group=locked_group,
         profile=profile,
@@ -190,33 +219,13 @@ def request_to_join(*, profile, group, message="") -> tuple[GroupJoinRequest, bo
     membership = _ensure_self_membership_allowed(locked_group, profile)
     if membership and membership.status == GroupMembershipStatus.ACTIVE:
         raise ValidationError("Vous êtes déjà membre actif de ce Groupe.")
-    existing = (
-        GroupJoinRequest.objects.select_for_update()
-        .filter(
-            group=locked_group,
-            profile=profile,
-            status=GroupJoinRequestStatus.PENDING,
-        )
-        .order_by()
-        .first()
+    request, created = GroupJoinRequest.objects.select_for_update().get_or_create(
+        group=locked_group,
+        profile=profile,
+        status=GroupJoinRequestStatus.PENDING,
+        defaults={"message": (message or "").strip()[:500]},
     )
-    if existing:
-        return existing, False
-    try:
-        request = GroupJoinRequest.objects.create(
-            group=locked_group,
-            profile=profile,
-            status=GroupJoinRequestStatus.PENDING,
-            message=(message or "").strip()[:500],
-        )
-        return request, True
-    except IntegrityError:
-        request = GroupJoinRequest.objects.get(
-            group=locked_group,
-            profile=profile,
-            status=GroupJoinRequestStatus.PENDING,
-        )
-        return request, False
+    return request, created
 
 
 @transaction.atomic
@@ -253,6 +262,8 @@ def _membership_from_approved_request(*, locked_group, profile, now):
         raise ValidationError(
             "Une appartenance suspendue ou retirée doit être réactivée explicitement par la gestion des membres."
         )
+    if membership and membership.status == GroupMembershipStatus.ACTIVE:
+        return membership
     if membership:
         membership.status = GroupMembershipStatus.ACTIVE
         membership.source = GroupMembershipSource.REQUEST
@@ -268,20 +279,29 @@ def _membership_from_approved_request(*, locked_group, profile, now):
             ]
         )
         return membership
-    return GroupMembership.objects.create(
+    membership, _ = GroupMembership.objects.get_or_create(
         group=locked_group,
         profile=profile,
-        status=GroupMembershipStatus.ACTIVE,
-        source=GroupMembershipSource.REQUEST,
-        joined_at=now,
-        verified_at=now,
+        defaults={
+            "status": GroupMembershipStatus.ACTIVE,
+            "source": GroupMembershipSource.REQUEST,
+            "joined_at": now,
+            "verified_at": now,
+        },
     )
+    if membership.status in {
+        GroupMembershipStatus.SUSPENDED,
+        GroupMembershipStatus.REMOVED,
+    }:
+        raise ValidationError(
+            "Une appartenance suspendue ou retirée doit être réactivée explicitement par la gestion des membres."
+        )
+    return membership
 
 
 @transaction.atomic
 def approve_join_request(*, actor, request) -> tuple[GroupJoinRequest, GroupMembership]:
     locked_group = _lock_group(request.group_id)
-    has_group_permission(actor, PermissionCode.GROUP_MEMBERS_MANAGE, locked_group)
     if not has_group_permission(actor, PermissionCode.GROUP_MEMBERS_MANAGE, locked_group):
         raise PermissionDenied("Vous ne pouvez pas approuver les demandes de ce Groupe.")
     locked = (
@@ -337,6 +357,32 @@ def _activity_manager(actor, activity) -> bool:
     )
 
 
+def _current_usage_manager_mandates(group):
+    conditions = Q(
+        scope_type=AuthorityScope.GROUP,
+        group=group,
+        role__role_permissions__permission__code=PermissionCode.GROUP_MANAGE,
+        role__role_permissions__permission__is_active=True,
+    )
+    if group.space_id:
+        conditions |= Q(
+            scope_type=AuthorityScope.SPACE,
+            space_id=group.space_id,
+            role__role_permissions__permission__code=PermissionCode.SPACE_GROUPS_MANAGE,
+            role__role_permissions__permission__is_active=True,
+        )
+    return (
+        Mandate.objects.filter(
+            conditions,
+            status=MandateStatus.ACTIVE,
+            revoked_at__isnull=True,
+            role__is_active=True,
+        )
+        .select_related("profile", "role")
+        .distinct()
+    )
+
+
 def _notify_group_usage_request(eligibility):
     group = eligibility.group
     recipients = []
@@ -344,14 +390,8 @@ def _notify_group_usage_request(eligibility):
         recipients.append(group.owner_profile)
     recipients.extend(
         mandate.profile
-        for mandate in group.authority_mandates.filter(status="active", revoked_at__isnull=True)
-        .select_related("profile", "role")
-        .prefetch_related("role__permissions")
+        for mandate in _current_usage_manager_mandates(group)
         if mandate.is_current()
-        and any(
-            permission.code == PermissionCode.GROUP_MANAGE
-            for permission in mandate.role.permissions.all()
-        )
     )
     unique = {recipient.pk: recipient for recipient in recipients if recipient}
     for recipient in unique.values():
@@ -360,7 +400,10 @@ def _notify_group_usage_request(eligibility):
             kind=NotificationKind.SYSTEM,
             category=NotificationCategory.SYSTEM,
             title="Demande d’utilisation d’un Groupe",
-            message=f"L’Activity « {eligibility.activity.title} » souhaite utiliser le Groupe « {group.name} ».",
+            message=(
+                f"L’Activity « {eligibility.activity.title} » souhaite utiliser "
+                f"le Groupe « {group.name} »."
+            ),
             action_url=reverse(
                 "groups:activity-eligibility-review",
                 kwargs={"eligibility_id": eligibility.pk},
@@ -380,7 +423,11 @@ def _notify_group_usage_decision(eligibility):
     recipient = eligibility.requested_by
     if not recipient:
         return
-    label = "acceptée" if eligibility.status == ActivityGroupEligibilityStatus.APPROVED else "refusée"
+    label = (
+        "acceptée"
+        if eligibility.status == ActivityGroupEligibilityStatus.APPROVED
+        else "refusée"
+    )
     create_notification(
         recipient=recipient,
         kind=NotificationKind.SYSTEM,
@@ -401,41 +448,56 @@ def _notify_group_usage_decision(eligibility):
 
 
 @transaction.atomic
-def request_activity_group_eligibility(*, actor, activity, group) -> tuple[ActivityGroupEligibility, bool]:
+def request_activity_group_eligibility(
+    *, actor, activity, group
+) -> tuple[ActivityGroupEligibility, bool]:
     if not _activity_manager(actor, activity):
         raise PermissionDenied("Vous ne pouvez pas modifier l'éligibilité de cette Activity.")
     locked_group = _lock_group(group)
     if locked_group.status != GroupStatus.ACTIVE:
         raise ValidationError("Un Groupe archivé ne peut pas être utilisé par une Activity.")
     immediate = has_group_permission(actor, PermissionCode.GROUP_MANAGE, locked_group)
-    relation = (
-        ActivityGroupEligibility.objects.select_for_update()
-        .filter(group=locked_group, activity=activity)
-        .order_by()
-        .first()
-    )
-    created = relation is None
     now = timezone.now()
-    if relation is None:
-        relation = ActivityGroupEligibility(
-            group=locked_group,
-            activity=activity,
-            requested_by=actor,
-        )
-    elif relation.status == ActivityGroupEligibilityStatus.APPROVED:
+    relation, created = ActivityGroupEligibility.objects.select_for_update().get_or_create(
+        group=locked_group,
+        activity=activity,
+        defaults={
+            "status": (
+                ActivityGroupEligibilityStatus.APPROVED
+                if immediate
+                else ActivityGroupEligibilityStatus.REQUESTED
+            ),
+            "requested_by": actor,
+            "decided_by": actor if immediate else None,
+            "requested_at": now,
+            "decided_at": now if immediate else None,
+        },
+    )
+    if not created and relation.status == ActivityGroupEligibilityStatus.APPROVED:
         return relation, False
-    relation.requested_by = actor
-    relation.requested_at = now
-    relation.revoked_at = None
-    if immediate:
-        relation.status = ActivityGroupEligibilityStatus.APPROVED
-        relation.decided_by = actor
-        relation.decided_at = now
-    else:
-        relation.status = ActivityGroupEligibilityStatus.REQUESTED
-        relation.decided_by = None
-        relation.decided_at = None
-    relation.save()
+    if not created:
+        relation.requested_by = actor
+        relation.requested_at = now
+        relation.revoked_at = None
+        if immediate:
+            relation.status = ActivityGroupEligibilityStatus.APPROVED
+            relation.decided_by = actor
+            relation.decided_at = now
+        else:
+            relation.status = ActivityGroupEligibilityStatus.REQUESTED
+            relation.decided_by = None
+            relation.decided_at = None
+        relation.save(
+            update_fields=[
+                "status",
+                "requested_by",
+                "requested_at",
+                "decided_by",
+                "decided_at",
+                "revoked_at",
+                "updated_at",
+            ]
+        )
     if not immediate:
         transaction.on_commit(
             lambda relation_id=relation.pk: _notify_group_usage_request(
@@ -459,6 +521,8 @@ def decide_activity_group_eligibility(*, actor, eligibility, approve: bool):
     )
     if not has_group_permission(actor, PermissionCode.GROUP_MANAGE, locked.group):
         raise PermissionDenied("Vous ne pouvez pas autoriser l'utilisation de ce Groupe.")
+    if approve and locked.group.status != GroupStatus.ACTIVE:
+        raise ValidationError("Un Groupe archivé ne peut pas autoriser une nouvelle utilisation.")
     target = (
         ActivityGroupEligibilityStatus.APPROVED
         if approve
@@ -518,7 +582,6 @@ def profile_is_eligible_for_activity(profile, activity) -> bool:
     approved_group_ids = ActivityGroupEligibility.objects.filter(
         activity=activity,
         status=ActivityGroupEligibilityStatus.APPROVED,
-        group__status=GroupStatus.ACTIVE,
     ).values_list("group_id", flat=True)
     if not approved_group_ids.exists():
         return True
