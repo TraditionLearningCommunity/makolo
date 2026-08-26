@@ -23,7 +23,7 @@ from activities.services import (
     update_activity_common,
 )
 from capacity.models import CapacityPool, CapacityReservationStatus
-from commerce.models import CommerceOrder, CommerceOrderStatus, OfferStatus, PaymentMode
+from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus, PaymentMode
 from commerce.services import OrderSelection, confirm_order, create_offer, create_order
 from journeys.beneficiary_services import create_journey_for_holder
 from journeys.models import WorkflowKind
@@ -329,6 +329,17 @@ def book_transport(
 ):
     if not getattr(participant, "is_authenticated", False):
         raise ValidationError("Une authentification est requise pour réserver un voyage.")
+    if idempotency_key:
+        # A retry key cannot lock a row that does not exist yet. Serialize on
+        # the selected Offer, which is stable before Journey/Order creation,
+        # then re-check the key while holding that lock. This prevents two
+        # simultaneous network retries from creating parallel business paths.
+        offer = (
+            Offer.objects.select_for_update(of=("self",))
+            .prefetch_related("payment_options")
+            .order_by()
+            .get(pk=offer.pk)
+        )
     existing = _existing_transport_booking(
         idempotency_key=idempotency_key,
         participant=participant,
