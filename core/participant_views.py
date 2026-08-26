@@ -28,12 +28,13 @@ from .participant_presentation import (
 )
 from .participant_selectors import (
     participant_access_history,
-    participant_accesses,
+    participant_accesses_visible_to_buyer,
     participant_actionable_journeys,
     participant_active_accesses,
     participant_active_journeys,
     participant_history_journeys,
     participant_journeys,
+    participant_purchased_accesses_for_others,
     participant_upcoming_accesses,
 )
 
@@ -69,6 +70,8 @@ def _access_card(access):
         "vocabulary": vocabulary_for(activity=access.activity, workflow=getattr(access.journey, "workflow", None)),
         "place": _primary_place(access.occurrence),
         "timing": occurrence_timing(access.occurrence),
+        "holder_name": access.beneficiary_display_name,
+        "external_holder": access.is_external_beneficiary,
     }
 
 
@@ -117,11 +120,7 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         rejected_request = next((r for r in journey.requests.all() if r.status == RequestStatus.REJECTED), None)
         order = card["order"]
         payment_url = None
-        if (
-            order
-            and journey.status == JourneyStatus.PENDING_PAYMENT
-            and order.payment_mode in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}
-        ):
+        if order and journey.status == JourneyStatus.PENDING_PAYMENT and order.payment_mode in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}:
             payment_url = reverse("payments:commerce-start", kwargs={"order_pk": order.pk})
         context.update(
             {
@@ -130,10 +129,7 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,
-                "can_respond_invitation": (
-                    journey.workflow == WorkflowKind.INVITATION
-                    and journey.status == JourneyStatus.SUBMITTED
-                ),
+                "can_respond_invitation": journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED,
             }
         )
         return context
@@ -176,6 +172,7 @@ class ParticipantAccessListView(LoginRequiredMixin, TemplateView):
         profile = self.request.user
         context["active_accesses"] = [_access_card(a) for a in participant_active_accesses(profile)]
         context["history_accesses"] = [_access_card(a) for a in participant_access_history(profile)]
+        context["purchased_for_others"] = [_access_card(a) for a in participant_purchased_accesses_for_others(profile)]
         return context
 
 
@@ -185,14 +182,10 @@ class ParticipantAccessDetailView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        access = get_object_or_404(participant_accesses(self.request.user), pk=kwargs["pk"])
+        access = get_object_or_404(participant_accesses_visible_to_buyer(self.request.user), pk=kwargs["pk"])
         card = _access_card(access)
         credential = next(
-            (
-                c
-                for c in access.credentials.all()
-                if c.status == CredentialStatus.ACTIVE and c.credential_type == CredentialType.QR
-            ),
+            (c for c in access.credentials.all() if c.status == CredentialStatus.ACTIVE and c.credential_type == CredentialType.QR),
             None,
         )
         qr_data = None
@@ -202,5 +195,13 @@ class ParticipantAccessDetailView(LoginRequiredMixin, TemplateView):
             buffer = BytesIO()
             image.save(buffer, format="PNG")
             qr_data = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
-        context.update({**card, "credential": credential, "qr_data": qr_data})
+        context.update(
+            {
+                **card,
+                "credential": credential,
+                "qr_data": qr_data,
+                "viewing_as_buyer": access.beneficiary_id != self.request.user.pk,
+                "operator_name": access.activity.operator_display_name,
+            }
+        )
         return context
