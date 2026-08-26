@@ -245,7 +245,6 @@ def create_order(
     }
     now = timezone.now()
     currencies = set()
-    default_modes = set()
     subtotal = Decimal("0.00")
     discount_total = Decimal("0.00")
     prepared = []
@@ -262,7 +261,6 @@ def create_order(
         if line_discount < 0 or line_discount > line_subtotal:
             raise ValidationError("La remise de ligne est invalide.")
         currencies.add(offer.currency)
-        default_modes.add(offer.payment_mode)
         subtotal += line_subtotal
         discount_total += line_discount
         prepared.append((offer, quantity, beneficiary, external_beneficiary, line_subtotal, line_discount))
@@ -271,14 +269,17 @@ def create_order(
         raise ValidationError("Une commande ne peut pas mélanger plusieurs devises.")
     currency = currencies.pop()
 
+    chargeable_offers = [offer for offer, *_ in prepared if offer.unit_price != Decimal("0.00")]
     if payment_mode is None:
-        chargeable_defaults = default_modes - {PaymentMode.NONE}
+        chargeable_defaults = {offer.payment_mode for offer in chargeable_offers}
         if len(chargeable_defaults) > 1:
             raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement par défaut.")
         payment_mode = chargeable_defaults.pop() if chargeable_defaults else PaymentMode.NONE
     if payment_mode not in PaymentMode.values:
         raise ValidationError("Mode de paiement choisi invalide.")
-    for offer, *_ in prepared:
+    if not chargeable_offers and payment_mode != PaymentMode.NONE:
+        raise ValidationError("Une commande composée uniquement d’Offers gratuites utilise le mode sans paiement.")
+    for offer in chargeable_offers:
         if not offer.allows_payment_mode(payment_mode):
             raise ValidationError(f"{offer.name} n’autorise pas ce mode de paiement.")
 
