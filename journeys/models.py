@@ -10,7 +10,7 @@ from django.utils import timezone
 class ExternalBeneficiary(models.Model):
     """Minimal identity for a holder who does not have a Makolo account.
 
-    This is deliberately not a CRM contact and never authenticates.  It exists
+    This is deliberately not a CRM contact and never authenticates. It exists
     only so a Journey/Access can name the individual who receives the right
     without manufacturing a User row.
     """
@@ -152,6 +152,14 @@ class Journey(models.Model):
                 errors["occurrence"] = "L’Occurrence doit appartenir à la même Activity que la Démarche."
         if bool(self.beneficiary_id) == bool(self.external_beneficiary_id):
             errors["beneficiary"] = "La Démarche doit avoir exactement un bénéficiaire, Profile ou externe."
+        if self._state.adding and self.activity_id and not errors.get("beneficiary"):
+            from groups.community_services import profile_is_eligible_for_activity
+
+            eligible_profile = self.beneficiary if self.beneficiary_id else None
+            if not profile_is_eligible_for_activity(eligible_profile, self.activity):
+                errors["beneficiary"] = (
+                    "Cette Activity est réservée aux membres actifs d'un Groupe autorisé."
+                )
         if errors:
             raise ValidationError(errors)
 
