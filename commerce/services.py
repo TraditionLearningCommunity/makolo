@@ -12,7 +12,15 @@ from domain_events.services import emit_domain_event
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from journeys.services import confirm_journey, expire_journey, require_payment
 
-from .models import CommerceOrder, CommerceOrderItem, CommerceOrderStatus, Offer, OfferStatus, PaymentMode
+from .models import (
+    CommerceOrder,
+    CommerceOrderItem,
+    CommerceOrderStatus,
+    Offer,
+    OfferPaymentOption,
+    OfferStatus,
+    PaymentMode,
+)
 
 
 @dataclass(frozen=True)
@@ -20,6 +28,7 @@ class OrderSelection:
     offer: Offer
     quantity: int
     beneficiary: object | None = None
+    external_beneficiary: object | None = None
     discount_total: Decimal = Decimal("0.00")
 
 
@@ -43,6 +52,7 @@ def _emit_order_event(order, *, event_type, activity_id, space_id, occurrence_id
             "occurrence_id": _string_id(occurrence_id),
             "buyer_id": _string_id(order.buyer_id),
             "payee_space_id": _string_id(order.payee_space_id),
+            "payee_profile_id": _string_id(order.payee_profile_id),
             "payment_mode": order.payment_mode,
             "currency": order.currency,
             "amount": str(order.total),
@@ -51,14 +61,42 @@ def _emit_order_event(order, *, event_type, activity_id, space_id, occurrence_id
     )
 
 
-def create_offer(**values):
-    offer = Offer(**values)
-    offer.full_clean()
-    offer.save()
+def _normalize_payment_modes(offer, modes):
+    modes = list(dict.fromkeys(modes or [offer.payment_mode]))
+    if not modes:
+        modes = [offer.payment_mode]
+    invalid = [mode for mode in modes if mode not in PaymentMode.values]
+    if invalid:
+        raise ValidationError("Mode de paiement Offer invalide.")
+    if offer.payment_mode not in modes:
+        raise ValidationError("Le mode de paiement par défaut doit faire partie des modes autorisés.")
+    if offer.unit_price == Decimal("0.00"):
+        if modes != [PaymentMode.NONE]:
+            raise ValidationError("Une Offer gratuite accepte uniquement le mode sans paiement.")
+    elif PaymentMode.NONE in modes:
+        raise ValidationError("Une Offer payante ne peut pas proposer le mode sans paiement.")
+    return modes
+
+
+@transaction.atomic
+def set_offer_payment_modes(*, offer, modes):
+    offer = Offer.objects.select_for_update(of=("self",)).order_by().get(pk=offer.pk)
+    modes = _normalize_payment_modes(offer, modes)
+    OfferPaymentOption.objects.filter(offer=offer).exclude(mode__in=modes).delete()
+    for mode in modes:
+        OfferPaymentOption.objects.get_or_create(offer=offer, mode=mode)
     return offer
 
 
-def update_offer(*, offer, **values):
+def create_offer(*, payment_modes=None, **values):
+    offer = Offer(**values)
+    offer.full_clean()
+    offer.save()
+    set_offer_payment_modes(offer=offer, modes=payment_modes or [offer.payment_mode])
+    return offer
+
+
+def update_offer(*, offer, payment_modes=None, **values):
     offer = Offer.objects.select_for_update(of=("self",)).order_by().get(pk=offer.pk)
     protected = {"id", "activity"}
     if protected & values.keys():
@@ -67,6 +105,10 @@ def update_offer(*, offer, **values):
         setattr(offer, field, value)
     offer.full_clean()
     offer.save()
+    if payment_modes is not None:
+        set_offer_payment_modes(offer=offer, modes=payment_modes)
+    elif not offer.payment_options.exists():
+        set_offer_payment_modes(offer=offer, modes=[offer.payment_mode])
     return offer
 
 
@@ -78,6 +120,7 @@ def _normalize_selection(raw):
             offer=raw["offer"],
             quantity=raw.get("quantity", 1),
             beneficiary=raw.get("beneficiary"),
+            external_beneficiary=raw.get("external_beneficiary"),
             discount_total=Decimal(str(raw.get("discount_total", "0.00"))),
         )
     if isinstance(raw, (tuple, list)):
@@ -108,6 +151,21 @@ def _validate_offer_for_journey(offer, journey, quantity, *, now):
     if offer.max_quantity is not None and quantity > offer.max_quantity:
         raise ValidationError(f"{offer.name}: quantité maximale {offer.max_quantity}.")
     return quantity
+
+
+def _selection_holder(selection, journey):
+    beneficiary = selection.beneficiary
+    external = selection.external_beneficiary
+    if beneficiary is None and external is None:
+        beneficiary = journey.beneficiary
+        external = journey.external_beneficiary
+    if bool(beneficiary) == bool(external):
+        raise ValidationError("Chaque ligne doit cibler exactement un bénéficiaire Profile ou externe.")
+    if journey.beneficiary_id and getattr(beneficiary, "pk", None) != journey.beneficiary_id:
+        raise ValidationError("Le bénéficiaire de la ligne doit correspondre à celui de la Démarche.")
+    if journey.external_beneficiary_id and getattr(external, "pk", None) != journey.external_beneficiary_id:
+        raise ValidationError("Le bénéficiaire externe de la ligne doit correspondre à celui de la Démarche.")
+    return beneficiary, external
 
 
 def _set_order_status(order, status, *, now=None):
@@ -147,6 +205,8 @@ def create_order(
     buyer,
     selections,
     payee_space=None,
+    payee_profile=None,
+    payment_mode=None,
     expires_at=None,
     idempotency_key=None,
     source_key=None,
@@ -165,7 +225,12 @@ def create_order(
                 raise ValidationError("Cette référence source appartient à une autre Démarche.")
             return existing
 
-    journey = Journey.objects.select_for_update(of=("self",)).select_related("beneficiary").order_by().get(pk=journey.pk)
+    journey = (
+        Journey.objects.select_for_update(of=("self",))
+        .select_related("beneficiary", "external_beneficiary", "activity", "activity__owner_profile")
+        .order_by()
+        .get(pk=journey.pk)
+    )
     normalized = [_normalize_selection(raw) for raw in selections]
     if not normalized:
         raise ValidationError("Une commande doit contenir au moins une ligne.")
@@ -173,11 +238,14 @@ def create_order(
     offer_ids = [selection.offer.pk for selection in normalized]
     locked_offers = {
         offer.pk: offer
-        for offer in Offer.objects.select_for_update(of=("self",)).filter(pk__in=offer_ids).order_by()
+        for offer in Offer.objects.select_for_update(of=("self",))
+        .filter(pk__in=offer_ids)
+        .prefetch_related("payment_options")
+        .order_by()
     }
     now = timezone.now()
     currencies = set()
-    payment_modes = set()
+    default_modes = set()
     subtotal = Decimal("0.00")
     discount_total = Decimal("0.00")
     prepared = []
@@ -186,6 +254,7 @@ def create_order(
         if offer is None:
             raise ValidationError("Offer introuvable.")
         quantity = _validate_offer_for_journey(offer, journey, selection.quantity, now=now)
+        beneficiary, external_beneficiary = _selection_holder(selection, journey)
         line_subtotal = offer.unit_price * quantity
         line_discount = Decimal(selection.discount_total)
         if promotion_code and line_discount != Decimal("0.00"):
@@ -193,26 +262,38 @@ def create_order(
         if line_discount < 0 or line_discount > line_subtotal:
             raise ValidationError("La remise de ligne est invalide.")
         currencies.add(offer.currency)
-        payment_modes.add(offer.payment_mode)
+        default_modes.add(offer.payment_mode)
         subtotal += line_subtotal
         discount_total += line_discount
-        prepared.append((offer, quantity, selection.beneficiary, line_subtotal, line_discount))
+        prepared.append((offer, quantity, beneficiary, external_beneficiary, line_subtotal, line_discount))
 
     if len(currencies) != 1:
         raise ValidationError("Une commande ne peut pas mélanger plusieurs devises.")
     currency = currencies.pop()
 
-    chargeable_modes = payment_modes - {PaymentMode.NONE}
-    if len(chargeable_modes) > 1:
-        raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement.")
-    payment_mode = chargeable_modes.pop() if chargeable_modes else PaymentMode.NONE
+    if payment_mode is None:
+        chargeable_defaults = default_modes - {PaymentMode.NONE}
+        if len(chargeable_defaults) > 1:
+            raise ValidationError("Une commande ne peut pas mélanger plusieurs modes de paiement par défaut.")
+        payment_mode = chargeable_defaults.pop() if chargeable_defaults else PaymentMode.NONE
+    if payment_mode not in PaymentMode.values:
+        raise ValidationError("Mode de paiement choisi invalide.")
+    for offer, *_ in prepared:
+        if not offer.allows_payment_mode(payment_mode):
+            raise ValidationError(f"{offer.name} n’autorise pas ce mode de paiement.")
 
-    activity_space_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
-        "activity__space_id", "activity_id", "occurrence_id"
+    activity_space_id, activity_owner_profile_id, activity_id, occurrence_id = Journey.objects.filter(pk=journey.pk).values_list(
+        "activity__space_id", "activity__owner_profile_id", "activity_id", "occurrence_id"
     ).get()
-    if payee_space is None and activity_space_id is not None:
-        from organizations.models import Organization
-        payee_space = Organization.objects.get(pk=activity_space_id)
+    if payee_space is not None and payee_profile is not None:
+        raise ValidationError("Une commande ne peut avoir qu’un seul bénéficiaire financier logique.")
+    if payee_space is None and payee_profile is None:
+        if activity_space_id is not None:
+            from organizations.models import Organization
+            payee_space = Organization.objects.get(pk=activity_space_id)
+        elif activity_owner_profile_id is not None:
+            from django.contrib.auth import get_user_model
+            payee_profile = get_user_model().objects.get(pk=activity_owner_profile_id)
     if promotion_code and payee_space is None:
         raise ValidationError("Une Promotion nécessite un Espace bénéficiaire explicite.")
 
@@ -237,11 +318,14 @@ def create_order(
     total = subtotal - discount_total
     if payment_mode == PaymentMode.NONE and total != Decimal("0.00"):
         raise ValidationError("Une commande payment_mode=none doit être gratuite.")
+    if total == Decimal("0.00") and payment_mode != PaymentMode.NONE:
+        raise ValidationError("Une commande gratuite doit utiliser le mode sans paiement.")
 
     order = CommerceOrder(
         journey=journey,
         buyer=buyer if getattr(buyer, "is_authenticated", False) else None,
         payee_space=payee_space,
+        payee_profile=payee_profile,
         status=CommerceOrderStatus.PENDING,
         currency=currency,
         payment_mode=payment_mode,
@@ -266,7 +350,7 @@ def create_order(
                 return existing
         raise ValidationError("Impossible de créer cette commande de façon unique.") from exc
 
-    for index, (offer, quantity, beneficiary, line_subtotal, line_discount) in enumerate(prepared):
+    for index, (offer, quantity, beneficiary, external_beneficiary, line_subtotal, line_discount) in enumerate(prepared):
         reservation = None
         if offer.capacity_pool_id:
             reservation = reserve_capacity(
@@ -280,6 +364,7 @@ def create_order(
             order=order,
             offer=offer,
             beneficiary=beneficiary,
+            external_beneficiary=external_beneficiary,
             capacity_reservation=reservation,
             quantity=quantity,
             label_snapshot=offer.name,
