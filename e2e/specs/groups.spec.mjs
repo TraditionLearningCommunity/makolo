@@ -84,6 +84,7 @@ test('groups cover community membership, invitation security and scoped administ
   const joinRequests = page.locator('section').filter({
     has: page.getByRole('heading', { name: 'Demandes d’adhésion', exact: true }),
   });
+  // The administrative view renders the Profile full name before falling back to its username.
   await expect(joinRequests.getByText('Participant', { exact: true })).toBeVisible();
   await joinRequests.getByRole('button', { name: 'Approuver' }).click();
   await expect(page.getByText(/membre est maintenant actif/i)).toBeVisible();
