@@ -172,6 +172,7 @@ class TransportBookView(LoginRequiredMixin, TemplateView):
         holder_type = (request.POST.get("holder_type") or "self").strip()
         beneficiary = request.user
         external_beneficiary = None
+        created_external_beneficiary = False
         try:
             existing = CommerceOrder.objects.filter(idempotency_key=idempotency_key, buyer=request.user).first()
             if existing is None and holder_type == "guest":
@@ -185,6 +186,7 @@ class TransportBookView(LoginRequiredMixin, TemplateView):
                     email=(request.POST.get("guest_email") or "").strip(),
                     phone=(request.POST.get("guest_phone") or "").strip(),
                 )
+                created_external_beneficiary = True
             elif holder_type not in {"self", "guest"}:
                 raise ValidationError("Type de bénéficiaire invalide.")
 
@@ -218,5 +220,11 @@ class TransportBookView(LoginRequiredMixin, TemplateView):
                 messages.success(request, "Réservation confirmée. Aucun paiement requis.")
             return redirect("core:participant-access-detail", pk=result["access"].pk)
         except ValidationError as exc:
+            if (
+                created_external_beneficiary
+                and external_beneficiary is not None
+                and not external_beneficiary.journeys.exists()
+            ):
+                external_beneficiary.delete()
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
             return redirect("transport:departure-detail", pk=departure.pk)
