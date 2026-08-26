@@ -1,0 +1,8 @@
+{% extends 'base/app.html' %}
+{% block title %}Autoriser l’utilisation du Groupe — Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6">
+  <a href="{% url 'groups:detail' eligibility.group.slug %}" class="text-sm font-bold" style="color:var(--mk-primary)">← {{ eligibility.group.name }}</a>
+  <section class="mk-card p-6"><p class="text-xs font-bold uppercase tracking-[.14em]" style="color:var(--mk-subtle)">Demande d’utilisation</p><h1 class="mt-2 text-2xl font-black" style="color:var(--mk-text)">{{ eligibility.activity.title }}</h1><p class="mt-3 text-sm" style="color:var(--mk-muted)">Cette Activity souhaite utiliser « {{ eligibility.group.name }} » comme règle d’éligibilité. Autoriser cette relation ne transfère ni les Memberships ni les coordonnées membres vers l’Activity ou son CRM.</p><div class="mt-5 flex gap-2"><form method="post" action="{% url 'groups:activity-eligibility-approve' eligibility.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Autoriser</button></form><form method="post" action="{% url 'groups:activity-eligibility-reject' eligibility.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Refuser</button></form></div></section>
+</div>
+{% endblock %}

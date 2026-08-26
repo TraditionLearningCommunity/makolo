@@ -776,3 +776,13 @@ La surface participant est désormais canonical-first : `Occurrence` fournit le 
 ### Note d'implémentation — Task 13 Spatio-temporal Discovery
 
 La Discovery publique est désormais construite sur `Activity + Occurrence + Geography` : Activity porte le « quoi », Occurrence le « quand », `OccurrencePlace → Place` le « où », et un presenter léger fournit le vocabulaire et le CTA de la verticale. Event et Transport partagent ainsi le même moteur sans rendre Event obligatoire ; les règles de timezone, nearby bounding-box/Haversine, Offer/Capacity et rendu MapLibre sont documentées dans [`spatiotemporal-discovery.md`](spatiotemporal-discovery.md).
+
+### Note d'implémentation — Task 27 Groupes comme couche communautaire
+
+**Task 27** matérialise désormais l'étape Groupes comme une couche de communauté/population réutilisable : `Group` garde exactement un propriétaire logique Profil ou Espace, tandis que son utilisation par une Activity reste une relation séparée et n'en change jamais l'ownership.
+
+La découvrabilité (`LISTED`, `UNLISTED`, `HIDDEN`, `SPACE_ONLY`) est distincte de la politique d'adhésion (`OPEN`, `REQUEST`, `INVITE_ONLY`). `GroupJoinRequest` porte la demande d'appartenance sans la confondre avec `JourneyRequest`, et `GroupMembership` n'accorde toujours aucune autorité : l'administration reste `Role + Permission + Mandate` dans `AuthorityScope.GROUP` ou via l'héritage Espace explicitement documenté.
+
+`ActivityGroupEligibility` fournit la première relation explicite Groupe–Activity, sans `GenericForeignKey`. L'autorité Activity et l'autorité Groupe sont vérifiées séparément ; un usage cross-owner passe par consentement explicite. Seul un Membership `ACTIVE` satisfait l'éligibilité d'une nouvelle Journey. Cette éligibilité ne crée jamais automatiquement Journey, CommerceOrder, Payment, Access ou export CRM, et une perte ultérieure de Membership ne révoque pas un Access déjà acquis.
+
+La frontière CRM reste inchangée : **Groupe ≠ Audience**. Réutiliser un Groupe cross-Space fonctionne par référence et n'autorise aucune copie implicite de ses membres ou de leurs coordonnées. Les détails opérationnels, politiques de confidentialité, migrations et parcours sont documentés dans [`groups.md`](groups.md) et [`authorization-boundaries.md`](authorization-boundaries.md).
