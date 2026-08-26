@@ -125,6 +125,13 @@ class Command(BaseCommand):
             unit_price=Decimal("15.00"),
             payment_mode=PaymentMode.UPFRONT,
         )
+        configure_transport_fare(
+            departure=morning,
+            name="Flexible E2E",
+            unit_price=Decimal("22.00"),
+            payment_mode=PaymentMode.UPFRONT,
+            payment_modes=[PaymentMode.UPFRONT, PaymentMode.ON_SITE],
+        )
         publish_transport_departure(departure=morning)
 
         afternoon = create_transport_departure(
