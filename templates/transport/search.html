@@ -25,7 +25,7 @@
   </div>
 
   {% if search_error %}<div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{{ search_error }}</div>{% endif %}
-  {% if searched %}
+  {% if searched and origin and destination %}
   <section>
     <div class="flex items-end justify-between gap-4"><div><p class="text-sm font-bold uppercase tracking-wider text-indigo-600">Départs</p><h2 class="mt-1 text-3xl font-black">{{ origin.locality|default:origin.name }} → {{ destination.locality|default:destination.name }}</h2></div><p class="text-sm text-zinc-500">{{ date_value }}</p></div>
     <div class="mt-5 space-y-4">
