@@ -2,6 +2,12 @@
   const form = document.getElementById('discovery-search-form');
   const latitude = document.getElementById('discover-lat');
   const longitude = document.getElementById('discover-lon');
+  const query = document.getElementById('discover-query');
+
+  const params = new URLSearchParams(window.location.search);
+  if (query && params.get('focus') === 'search') {
+    window.requestAnimationFrame(() => query.focus({ preventScroll: false }));
+  }
 
   if (form) {
     form.addEventListener('submit', () => {
