@@ -33,6 +33,8 @@ class PermissionCode:
     ACTIVITY_COMMERCE_MANAGE = "activity.commerce.manage"
     ACTIVITY_CAPACITY_VIEW = "activity.capacity.view"
     ACTIVITY_CAPACITY_MANAGE = "activity.capacity.manage"
+    ACTIVITY_FINANCE_VIEW = "activity.finance.view"
+    ACTIVITY_FINANCE_MANAGE = "activity.finance.manage"
     ORDERS_VIEW = "orders.view"
     TICKETS_VIEW = "tickets.view"
     FINANCE_VIEW = "finance.view"
@@ -67,6 +69,7 @@ class SystemRoleCode:
     ACTIVITY_LOCAL_MANAGER = "activity-manager"
     ACTIVITY_SCANNER = "activity-scanner"
     ACTIVITY_OPERATIONS_MANAGER = "activity-operations-manager"
+    ACTIVITY_FINANCE = "activity-finance"
     FINANCE = "finance"
     MARKETING = "marketing"
     ACCESS_MANAGER = "access-manager"
@@ -98,6 +101,8 @@ ACTIVITY_PERMISSION_CODES = {
     PermissionCode.ACTIVITY_COMMERCE_MANAGE,
     PermissionCode.ACTIVITY_CAPACITY_VIEW,
     PermissionCode.ACTIVITY_CAPACITY_MANAGE,
+    PermissionCode.ACTIVITY_FINANCE_VIEW,
+    PermissionCode.ACTIVITY_FINANCE_MANAGE,
 }
 SPACE_PERMISSION_CODES = {
     value
@@ -125,6 +130,7 @@ STANDARD_ACTIVITY_ROLE_CODES = {
     SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
     SystemRoleCode.ACTIVITY_SCANNER,
     SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+    SystemRoleCode.ACTIVITY_FINANCE,
 }
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
