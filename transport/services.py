@@ -1,11 +1,12 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
 
-from access.services import issue_access
+from access.beneficiary_services import issue_access_for_holder
 from activities.models import (
     ActivityStatus,
     ActivityVisibility,
@@ -22,12 +23,16 @@ from activities.services import (
     update_activity_common,
 )
 from capacity.models import CapacityPool, CapacityReservationStatus
-from commerce.models import CommerceOrderStatus, OfferStatus, PaymentMode
+from commerce.models import CommerceOrder, CommerceOrderStatus, OfferStatus, PaymentMode
 from commerce.services import OrderSelection, confirm_order, create_offer, create_order
+from journeys.beneficiary_services import create_journey_for_holder
 from journeys.models import WorkflowKind
-from journeys.services import create_journey, submit_journey
+from journeys.services import submit_journey
 
 from .models import TransportDeparture, TransportRoute, TransportRouteStop, TransportService, Vehicle
+
+
+TRANSPORT_PAYMENT_MODES = {PaymentMode.UPFRONT, PaymentMode.ON_SITE, PaymentMode.NONE}
 
 
 def _validate_route(route):
@@ -199,17 +204,26 @@ def configure_transport_fare(
     unit_price,
     currency="USD",
     payment_mode=PaymentMode.UPFRONT,
+    payment_modes=None,
 ):
-    if payment_mode not in {PaymentMode.UPFRONT, PaymentMode.ON_SITE, PaymentMode.NONE}:
+    price = Decimal(str(unit_price))
+    allowed_modes = list(dict.fromkeys(payment_modes or [payment_mode]))
+    if payment_mode not in TRANSPORT_PAYMENT_MODES or any(mode not in TRANSPORT_PAYMENT_MODES for mode in allowed_modes):
         raise ValidationError("Ce mode de paiement n’est pas activé pour Transport.")
+    if price == Decimal("0"):
+        payment_mode = PaymentMode.NONE
+        allowed_modes = [PaymentMode.NONE]
+    elif PaymentMode.NONE in allowed_modes:
+        raise ValidationError("Un tarif Transport payant ne peut pas proposer Aucun paiement.")
     return create_offer(
         activity=departure.occurrence.activity,
         occurrence=departure.occurrence,
         capacity_pool=departure.passenger_capacity_pool,
         name=name,
-        unit_price=unit_price,
+        unit_price=price,
         currency=currency,
         payment_mode=payment_mode,
+        payment_modes=allowed_modes,
         min_quantity=1,
         max_quantity=1,
         status=OfferStatus.ACTIVE,
@@ -254,6 +268,7 @@ def issue_transport_ticket_for_order(*, order, issued_by=None):
         "journey__activity",
         "journey__occurrence",
         "journey__beneficiary",
+        "journey__external_beneficiary",
     ).get(pk=order.pk)
     if order.status != CommerceOrderStatus.CONFIRMED:
         raise ValidationError("Le billet ne peut être émis qu’après confirmation de la commande.")
@@ -264,8 +279,9 @@ def issue_transport_ticket_for_order(*, order, issued_by=None):
         raise ValidationError("Cette commande n’appartient pas à un Trajet Transport.") from exc
     if journey.occurrence_id is None:
         raise ValidationError("Un billet Transport doit cibler un Départ.")
-    return issue_access(
+    return issue_access_for_holder(
         beneficiary=journey.beneficiary,
+        external_beneficiary=journey.external_beneficiary,
         activity=journey.activity,
         occurrence=journey.occurrence,
         journey=journey,
@@ -275,10 +291,52 @@ def issue_transport_ticket_for_order(*, order, issued_by=None):
     )
 
 
+def _existing_transport_booking(*, idempotency_key, participant, departure, offer):
+    if not idempotency_key:
+        return None
+    order = (
+        CommerceOrder.objects.select_related(
+            "journey__activity",
+            "journey__occurrence",
+            "journey__beneficiary",
+            "journey__external_beneficiary",
+        )
+        .prefetch_related("items")
+        .filter(idempotency_key=idempotency_key)
+        .first()
+    )
+    if order is None:
+        return None
+    if order.buyer_id != participant.pk or order.journey.occurrence_id != departure.occurrence_id:
+        raise ValidationError("Cette clé d’idempotence appartient à une autre réservation.")
+    item = order.items.first()
+    if item is None or item.offer_id != offer.pk or item.quantity != 1:
+        raise ValidationError("Cette clé d’idempotence appartient à une autre sélection.")
+    access = order.journey.accesses.filter(source_key="transport-ticket").first()
+    return {"journey": order.journey, "order": order, "access": access, "payment_mode": order.payment_mode}
+
+
 @transaction.atomic
-def book_transport(*, departure, offer, participant, idempotency_key=None):
+def book_transport(
+    *,
+    departure,
+    offer,
+    participant,
+    beneficiary=None,
+    external_beneficiary=None,
+    payment_mode=None,
+    idempotency_key=None,
+):
     if not getattr(participant, "is_authenticated", False):
         raise ValidationError("Une authentification est requise pour réserver un voyage.")
+    existing = _existing_transport_booking(
+        idempotency_key=idempotency_key,
+        participant=participant,
+        departure=departure,
+        offer=offer,
+    )
+    if existing is not None:
+        return existing
     if offer.occurrence_id != departure.occurrence_id or offer.capacity_pool_id != departure.passenger_capacity_pool_id:
         raise ValidationError("Ce Tarif ne correspond pas au départ sélectionné.")
     if departure.occurrence.status != OccurrenceStatus.SCHEDULED or departure.occurrence.start_at <= timezone.now():
@@ -286,10 +344,19 @@ def book_transport(*, departure, offer, participant, idempotency_key=None):
     if not departure.occurrence.activity.transport_service.route.active:
         raise ValidationError("Ce Trajet n’est plus réservable.")
 
-    workflow = WorkflowKind.PURCHASE if offer.payment_mode == PaymentMode.UPFRONT else WorkflowKind.RESERVATION
-    journey = create_journey(
+    if beneficiary is None and external_beneficiary is None:
+        beneficiary = participant
+    if bool(beneficiary) == bool(external_beneficiary):
+        raise ValidationError("Choisissez exactement un voyageur Profile ou externe.")
+    selected_payment_mode = payment_mode or offer.payment_mode
+    if selected_payment_mode not in TRANSPORT_PAYMENT_MODES or not offer.allows_payment_mode(selected_payment_mode):
+        raise ValidationError("Ce mode de paiement n’est pas disponible pour ce tarif.")
+
+    workflow = WorkflowKind.PURCHASE if selected_payment_mode == PaymentMode.UPFRONT else WorkflowKind.RESERVATION
+    journey = create_journey_for_holder(
         initiated_by=participant,
-        beneficiary=participant,
+        beneficiary=beneficiary,
+        external_beneficiary=external_beneficiary,
         activity=departure.occurrence.activity,
         occurrence=departure.occurrence,
         workflow=workflow,
@@ -301,12 +368,21 @@ def book_transport(*, departure, offer, participant, idempotency_key=None):
         journey=journey,
         buyer=participant,
         payee_space=departure.occurrence.activity.space,
-        selections=[OrderSelection(offer=offer, quantity=1, beneficiary=participant)],
+        payee_profile=departure.occurrence.activity.owner_profile,
+        selections=[
+            OrderSelection(
+                offer=offer,
+                quantity=1,
+                beneficiary=beneficiary,
+                external_beneficiary=external_beneficiary,
+            )
+        ],
+        payment_mode=selected_payment_mode,
         idempotency_key=idempotency_key,
-        expires_at=timezone.now() + timedelta(minutes=15) if offer.payment_mode == PaymentMode.UPFRONT else None,
+        expires_at=timezone.now() + timedelta(minutes=15) if selected_payment_mode == PaymentMode.UPFRONT else None,
     )
     access = None
-    if offer.payment_mode in {PaymentMode.NONE, PaymentMode.ON_SITE}:
+    if selected_payment_mode in {PaymentMode.NONE, PaymentMode.ON_SITE}:
         order = confirm_order(order=order, actor=participant)
         access = issue_transport_ticket_for_order(order=order, issued_by=participant)
-    return {"journey": order.journey, "order": order, "access": access}
+    return {"journey": order.journey, "order": order, "access": access, "payment_mode": selected_payment_mode}
