@@ -19,7 +19,7 @@
     <p class="text-lg font-black">Vous avez déjà acheté {{ purchased_access_count }} billet{% if purchased_access_count > 1 %}s{% endif %} pour ce départ.</p>
     <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Un nouvel achat est possible, mais il doit être volontaire.</p>
     <div class="mt-4 flex flex-wrap gap-3">
-      {% if purchased_access_count == 1 %}{% with first_access=purchased_accesses.0 %}<a href="{% url 'core:participant-access-detail' first_access.pk %}" class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white">Voir mon billet</a>{% endwith %}{% else %}<a href="{% url 'core:participant-access-list' %}" class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white">Voir mes billets</a>{% endif %}
+      {% if purchased_access_count == 1 %}{% with first_access=purchased_accesses.0 %}<a href="{% url 'core:participant-access-detail' first_access.pk %}" class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white">Voir mon billet</a>{% endwith %}{% else %}<a href="{% url 'core:participant-accesses' %}" class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white">Voir mes billets</a>{% endif %}
       <a href="#tarifs" class="rounded-xl border border-indigo-300 px-4 py-2 font-bold text-indigo-700 dark:text-indigo-200">Acheter un autre billet</a>
     </div>
   </section>
