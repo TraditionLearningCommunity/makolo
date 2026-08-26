@@ -120,11 +120,10 @@ class Access(models.Model):
                 errors["occurrence"] = "L’Occurrence de l’Accès doit être cohérente avec celle de la Démarche."
         if bool(self.beneficiary_id) == bool(self.external_beneficiary_id):
             errors["beneficiary"] = "L’Accès doit avoir exactement un bénéficiaire, Profile ou externe."
-        if self.journey_id:
-            if self.journey.beneficiary_id and self.beneficiary_id != self.journey.beneficiary_id:
-                errors["beneficiary"] = "Le bénéficiaire Profile doit correspondre à celui de la Démarche."
-            if self.journey.external_beneficiary_id and self.external_beneficiary_id != self.journey.external_beneficiary_id:
-                errors["external_beneficiary"] = "Le bénéficiaire externe doit correspondre à celui de la Démarche."
+        # Journey records the process and its original logical beneficiary.
+        # Access records the current holder of the right. Those identities may
+        # legitimately diverge after a transfer or in legacy Event projections,
+        # so model validation must not rewrite or freeze Journey history here.
         if errors:
             raise ValidationError(errors)
 
