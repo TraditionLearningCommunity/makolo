@@ -188,11 +188,10 @@ class OrganizationMembership(models.Model):
 
 
 class OrganizationFollow(models.Model):
-    """Relation sociale explicite entre un participant et un organisateur.
+    """Private follow relationship between a participant and a Space organizer.
 
-    Suivre un organisateur n'est pas un consentement marketing e-mail. Les
-    préférences e-mail sont opt-in et restent subordonnées au réglage global du
-    compte Makolo.
+    The relationship is action-oriented and must never be exposed as a public
+    popularity metric. Email preferences remain explicit opt-ins.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -228,3 +227,46 @@ class OrganizationFollow(models.Model):
 
     def __str__(self):
         return f"{self.user} suit {self.organization}"
+
+
+class ProfileFollow(models.Model):
+    """Private follow relationship for a personal Profile organizer.
+
+    This model is intentionally explicit instead of polymorphic. It is not a
+    CRM Audience, permission, quality score or public popularity signal.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizer_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile_followers",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="followed_profiles",
+    )
+    notify_new_activities = models.BooleanField(default=True)
+    followed_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-followed_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organizer_profile", "user"],
+                name="profile_follow_unique_user",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(organizer_profile=models.F("user")),
+                name="profile_follow_no_self",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organizer_profile", "followed_at"], name="profile_follow_org_date_idx"),
+            models.Index(fields=["user", "followed_at"], name="profile_follow_user_date_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.user} suit {self.organizer_profile}"

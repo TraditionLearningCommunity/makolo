@@ -1,0 +1,38 @@
+{% extends 'base/app.html' %}
+{% block title %}Growth · {{ organization.name }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-8">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div><a href="{% url 'analytics:growth-dashboard' %}" class="text-sm font-bold text-fuchsia-600 dark:text-fuchsia-400">← Growth Analytics</a><p class="mt-3 text-sm font-bold uppercase tracking-[0.2em] text-zinc-400">{{ organization.name }}</p><h1 class="mt-2 text-4xl font-black tracking-tight md:text-5xl">Rétention & croissance</h1><p class="mt-3 max-w-3xl text-zinc-500 dark:text-zinc-400">Mesures fondées sur les achats, campagnes et coûts observables. Le nombre de personnes qui suivent un organisateur n’est ni affiché ni utilisé comme indicateur de valeur.</p></div>
+    <div class="flex flex-wrap gap-2">{% if can_manage_spend %}<a href="{% url 'analytics:growth-spend-new' organization.slug %}" class="rounded-xl bg-fuchsia-600 px-4 py-2 text-xs font-bold text-white">Ajouter une dépense</a>{% endif %}</div>
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Acheteurs</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.customers }}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Repeat buyers</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.repeat_customers }}</p><p class="mt-1 text-xs text-zinc-400">{% if growth.customer_metrics.repeat_buyer_percent is not None %}{{ growth.customer_metrics.repeat_buyer_percent }}%{% else %}—{% endif %}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Nouveaux · 30j</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.new_customers_30d }}</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><p class="text-xs text-zinc-500">Commandes / client</p><p class="mt-2 text-3xl font-black">{{ growth.customer_metrics.orders_per_customer }}</p></div>
+  </div>
+
+  {% if growth.insights %}<section class="grid gap-4 lg:grid-cols-2">{% for insight in growth.insights %}<div class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="font-black">{{ insight.title }}</h2><p class="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{{ insight.body }}</p><p class="mt-2 text-xs font-semibold text-zinc-400">{{ insight.action }}</p></div>{% endfor %}</section>{% endif %}
+
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <h2 class="text-2xl font-black">Nouveaux vs repeat</h2><p class="mt-1 text-sm text-zinc-500">{{ months }} derniers mois, à partir des commandes confirmées.</p>
+    <div class="mt-6 overflow-x-auto"><table class="min-w-full text-sm"><thead><tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400 dark:border-zinc-800"><th class="py-3 pr-6">Mois</th><th class="py-3 pr-6">Nouveaux</th><th class="py-3 pr-6">Repeat orders</th><th class="py-3">Commandes</th></tr></thead><tbody>{% for row in growth.growth_series %}<tr class="border-b border-zinc-100 dark:border-zinc-900"><td class="py-3 pr-6 font-bold">{{ row.label }}</td><td class="py-3 pr-6">{{ row.new_customers }}</td><td class="py-3 pr-6">{{ row.repeat_orders }}</td><td class="py-3">{{ row.orders }}</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+
+  <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <h2 class="text-2xl font-black">Cohortes de rétention</h2><p class="mt-1 text-sm text-zinc-500">M0 = mois du premier achat confirmé.</p>
+    <div class="mt-6 overflow-x-auto"><table class="min-w-full text-sm"><thead><tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400 dark:border-zinc-800"><th class="py-3 pr-5">Cohorte</th><th class="py-3 pr-5">Taille</th>{% if growth.cohorts %}{% for cell in growth.cohorts.0.months %}<th class="py-3 px-3">M{{ cell.offset }}</th>{% endfor %}{% endif %}</tr></thead><tbody>{% for cohort in growth.cohorts %}<tr class="border-b border-zinc-100 dark:border-zinc-900"><td class="py-3 pr-5 font-bold">{{ cohort.label }}</td><td class="py-3 pr-5">{{ cohort.size }}</td>{% for cell in cohort.months %}<td class="px-3 py-3">{% if cell.retention_percent is not None %}{{ cell.retention_percent }}%{% else %}—{% endif %}</td>{% endfor %}</tr>{% empty %}<tr><td colspan="14" class="py-8 text-center text-zinc-500">Pas encore assez d’achats confirmés.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+
+  <section class="grid gap-5 xl:grid-cols-2">
+    <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-black">CRM</h2><p class="mt-3 text-sm text-zinc-500">{{ growth.channels.crm.sent }} envoyés · {{ growth.channels.crm.clicks }} clics · {{ growth.channels.crm.conversions }} conversions confirmées.</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-black">Partenaires</h2><p class="mt-3 text-sm text-zinc-500">{{ growth.channels.partners.visits }} visites · {{ growth.channels.partners.conversions }} conversions.</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-black">Promotions</h2><p class="mt-3 text-sm text-zinc-500">{{ growth.channels.promotions.redemptions }} utilisation(s) confirmée(s).</p></div>
+    <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-black">Fidélité</h2><p class="mt-3 text-sm text-zinc-500">{% if growth.channels.loyalty.enabled %}{{ growth.channels.loyalty.active_memberships }} membership(s) actif(s).{% else %}Aucun programme actif.{% endif %}</p></div>
+  </section>
+
+  {% if growth.financial_visible %}<section class="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 dark:border-emerald-900 dark:bg-emerald-950/20"><h2 class="text-2xl font-black">LTV par devise</h2><div class="mt-5 grid gap-4 md:grid-cols-3">{% for money in growth.ltv_by_currency %}<div class="rounded-2xl bg-white p-4 dark:bg-zinc-950"><p class="text-xs text-zinc-500">{{ money.currency }}</p><p class="mt-2 text-2xl font-black">{{ money.net|floatformat:2 }}</p><p class="mt-1 text-xs text-zinc-500">Net · moyenne {{ money.average_net_ltv|floatformat:2 }}</p></div>{% empty %}<p class="text-sm text-zinc-500">Aucune donnée de paiement confirmée.</p>{% endfor %}</div></section>{% else %}<section class="rounded-3xl border border-zinc-200 p-5 text-sm text-zinc-500 dark:border-zinc-800">Métriques financières masquées pour votre rôle.</section>{% endif %}
+</div>
+{% endblock %}

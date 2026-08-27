@@ -120,7 +120,7 @@ class Task26PersonalSearchTests(TestCase):
         self.assertContains(response, "Forum Alpha Kolwezi")
         self.assertNotContains(response, "Forum Beta Privé")
 
-    def test_access_history_is_searchable_without_reclassifying_used_access(self):
+    def test_access_history_search_is_canonicalized_to_personal_history(self):
         access = Access.objects.create(
             beneficiary=self.alice,
             activity=self.alice_activity,
@@ -129,12 +129,16 @@ class Task26PersonalSearchTests(TestCase):
         )
         self.client.force_login(self.alice)
         response = self.client.get(reverse("core:participant-accesses"), {"q": "Kolwezi"})
-        self.assertContains(response, "Historique")
-        self.assertContains(response, self.alice_activity.title)
+        self.assertContains(response, "Voir l’historique")
+        self.assertNotContains(response, self.alice_activity.title)
         active_ids = {item["access"].pk for item in response.context["active_accesses"]}
-        history_ids = {item["access"].pk for item in response.context["history_accesses"]}
         self.assertNotIn(access.pk, active_ids)
-        self.assertIn(access.pk, history_ids)
+
+        history = self.client.get(
+            reverse("core:participant-history"),
+            {"q": "Kolwezi", "type": "accesses"},
+        )
+        self.assertContains(history, self.alice_activity.title)
 
     def test_journey_list_is_paginated_server_side(self):
         for index in range(26):

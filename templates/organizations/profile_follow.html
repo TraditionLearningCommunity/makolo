@@ -1,0 +1,19 @@
+{% extends 'base/app.html' %}
+{% block title %}Suivre {{ organizer.full_name|default:organizer.username }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6 pb-10">
+  <section><span class="mk-kicker">Réseau d’action</span><h1 class="mk-page-title mt-2">{{ organizer.full_name|default:organizer.username }}</h1><p class="mk-page-copy mt-3">Le suivi reste privé. Il sert uniquement à retrouver les prochaines activités utiles de cet organisateur.</p></section>
+  <section class="mk-panel p-6">
+    {% if follow %}
+      <p class="font-extrabold">Vous suivez cet organisateur.</p>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">Aucun compteur public, classement ou score de popularité n’est associé à ce suivi.</p>
+      <form method="post" class="mt-5">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Ne plus suivre</button></form>
+    {% else %}
+      <p class="font-extrabold">Rester informé de ses actions utiles</p>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">Makolo pourra vous signaler ses nouvelles activités publiques sans transformer ce lien en audience sociale publique.</p>
+      <form method="post" class="mt-5">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Suivre cet organisateur</button></form>
+    {% endif %}
+  </section>
+  <a class="mk-btn mk-btn-ghost" href="{% url 'organizer_public:profile-following' %}"><i data-lucide="arrow-left" class="h-4 w-4"></i>Mes organisateurs suivis</a>
+</div>
+{% endblock %}
