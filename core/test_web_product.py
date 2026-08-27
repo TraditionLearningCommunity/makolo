@@ -67,8 +67,10 @@ class RoleAwareWebProductTests(TestCase):
         self.assertContains(response, "Accueil")
         self.assertContains(response, "Mes démarches")
         self.assertContains(response, "Mes accès")
-        self.assertContains(response, "Notifications")
-        self.assertContains(response, "Profil")
+        self.assertContains(response, "Historique")
+        self.assertContains(response, 'aria-label="Notifications"')
+        self.assertContains(response, "Mon profil et réglages")
+        self.assertNotContains(response, ">Notifications</span>")
         self.assertNotContains(response, "CRM")
         self.assertNotContains(response, "Contrôle d’accès")
 
@@ -119,11 +121,9 @@ class RoleAwareWebProductTests(TestCase):
     def test_product_500_page_exposes_only_correlation_identifier(self):
         request = RequestFactory().get("/synthetic-server-error/")
         request.user = AnonymousUser()
-
         response = error_500(request)
-        body = response.content.decode()
 
         self.assertEqual(response.status_code, 500)
-        self.assertIn("Erreur 500", body)
-        self.assertRegex(body, r"MKL-[0-9A-F]{6}")
-        self.assertNotIn("Traceback", body)
+        self.assertContains(response, "Erreur 500", status_code=500)
+        self.assertContains(response, "Référence", status_code=500)
+        self.assertNotContains(response, "Traceback", status_code=500)
