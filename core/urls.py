@@ -4,6 +4,7 @@ from django.urls import path
 from .participant_views import (
     ParticipantAccessDetailView,
     ParticipantAccessListView,
+    ParticipantHistoryView,
     ParticipantHomeView,
     ParticipantInvitationAcceptView,
     ParticipantInvitationDeclineView,
@@ -45,6 +46,7 @@ urlpatterns = [
         ParticipantAccessDetailView.as_view(),
         name="participant-access-detail",
     ),
+    path("me/history/", ParticipantHistoryView.as_view(), name="participant-history"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("", PublicHomeView.as_view(), name="home"),
 ]
