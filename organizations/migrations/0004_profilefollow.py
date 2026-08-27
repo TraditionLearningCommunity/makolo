@@ -30,7 +30,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="profilefollow",
-            constraint=models.CheckConstraint(condition=models.Q(("organizer_profile", models.F("user")), _negated=True), name="profile_follow_no_self"),
+            constraint=models.CheckConstraint(
+                condition=~models.Q(organizer_profile=models.F("user")),
+                name="profile_follow_no_self",
+            ),
         ),
         migrations.AddIndex(
             model_name="profilefollow",
