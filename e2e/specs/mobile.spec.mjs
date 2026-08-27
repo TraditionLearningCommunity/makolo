@@ -27,7 +27,7 @@ test('participant home, memory and Access QR stay usable on mobile @mobile', asy
   } else {
     await page.goto('/me/history/');
   }
-  await expect(page.getByRole('heading', { name: 'Historique', exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('heading', { name: 'Historique', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /Notifications/i }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
