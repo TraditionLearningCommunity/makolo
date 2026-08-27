@@ -70,7 +70,7 @@ class Task28ActivityFinanceConsoleTests(TestCase):
             journey=journey,
             buyer=self.owner,
             payee_space=self.space,
-            payment_mode=PaymentMode.ONLINE,
+            payment_mode=PaymentMode.UPFRONT,
             subtotal=Decimal("10.00"),
             discount_total=Decimal("0.00"),
             total=Decimal("10.00"),
