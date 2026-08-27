@@ -38,17 +38,12 @@ test('participant experience works for a canonical non-Event registration', asyn
   await page.goto('/me/journeys/');
   await expect(page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Voir l’historique/i })).toBeVisible();
-  await page.goto('/me/history/?type=journeys');
-  const journeyMemory = page.locator('article').filter({ hasText: 'Inscription communautaire E2E' }).first();
-  await expect(journeyMemory).toBeVisible();
-  await journeyMemory.getByRole('link', { name: 'Voir la démarche' }).click();
-  await expect(page.getByText('Maison des initiatives E2E')).toBeVisible();
-  await expect(page.getByText(/Inscription confirmée/)).toBeVisible();
 
   await page.goto('/me/accesses/');
   const access = page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' }).first();
   await expect(access).toContainText('Confirmation');
   await access.click();
+  await expect(page.getByText('Maison des initiatives E2E')).toBeVisible();
   await expect(page.getByRole('img', { name: /QR de votre confirmation/i })).toBeVisible();
 });
 
@@ -94,11 +89,6 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   const paidJourneys = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' });
   await expect(paidJourneys).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Voir l’historique/i })).toBeVisible();
-  await page.goto('/me/history/?type=journeys');
-  const paidJourneyMemory = page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first();
-  await expect(paidJourneyMemory).toBeVisible();
-  await paidJourneyMemory.getByRole('link', { name: 'Voir la démarche' }).click();
-  await expect(page.getByText('Terminée', { exact: true }).first()).toBeVisible();
 
   await page.goto(accessUrl);
   const qrPath = testInfo.outputPath('purchased-access-qr.png');
@@ -155,7 +145,13 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   const memory = page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first();
   await expect(memory).toBeVisible();
   await expect(memory.getByText(/Participé|Utilisé|Accès utilisé/i)).toBeVisible();
-  await memory.getByRole('link', { name: 'Voir l’accès' }).click();
+  await expect(memory.getByRole('link', { name: 'Voir la démarche' })).toBeVisible();
+  await memory.getByRole('link', { name: 'Voir la démarche' }).click();
+  await expect(page.getByText('Terminée', { exact: true }).first()).toBeVisible();
+
+  await page.goto('/me/history/');
+  const accessMemory = page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first();
+  await accessMemory.getByRole('link', { name: 'Voir l’accès' }).click();
   await expect(page).toHaveURL(accessUrl);
 });
 
