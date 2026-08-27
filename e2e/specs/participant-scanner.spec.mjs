@@ -36,9 +36,12 @@ test('participant experience works for a canonical non-Event registration', asyn
   await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
 
   await page.goto('/me/journeys/');
-  const journey = page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' }).first();
-  await expect(journey).toContainText('Inscription');
-  await journey.click();
+  await expect(page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Voir l’historique/i })).toBeVisible();
+  await page.goto('/me/history/?type=journeys');
+  const journeyMemory = page.locator('article').filter({ hasText: 'Inscription communautaire E2E' }).first();
+  await expect(journeyMemory).toBeVisible();
+  await journeyMemory.getByRole('link', { name: 'Voir la démarche' }).click();
   await expect(page.getByText('Maison des initiatives E2E')).toBeVisible();
   await expect(page.getByText(/Inscription confirmée/)).toBeVisible();
 
@@ -89,8 +92,12 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
 
   await page.goto('/me/journeys/');
   const paidJourneys = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' });
-  await expect(paidJourneys).toHaveCount(1);
-  await paidJourneys.first().click();
+  await expect(paidJourneys).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Voir l’historique/i })).toBeVisible();
+  await page.goto('/me/history/?type=journeys');
+  const paidJourneyMemory = page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first();
+  await expect(paidJourneyMemory).toBeVisible();
+  await paidJourneyMemory.getByRole('link', { name: 'Voir la démarche' }).click();
   await expect(page.getByText('Terminée', { exact: true }).first()).toBeVisible();
 
   await page.goto(accessUrl);
