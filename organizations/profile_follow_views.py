@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import ListView
 
@@ -62,8 +63,15 @@ class ProfileFollowView(LoginRequiredMixin, View):
         else:
             follow_profile(user=request.user, organizer_profile=organizer)
             messages.success(request, "Vous suivez maintenant cet organisateur.")
-        next_url = request.POST.get("next") or reverse(
+        fallback = reverse(
             "organizer_public:profile-follow",
             kwargs={"profile_id": organizer.pk},
         )
+        next_url = (request.POST.get("next") or "").strip()
+        if not next_url or not url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            next_url = fallback
         return redirect(next_url)
