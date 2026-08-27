@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from analytics_app.event_adapter import build_event_analytics
-from analytics_app.growth import build_growth_portfolio, build_organization_growth
+from analytics_app.growth_contract import build_growth_portfolio, build_organization_growth
 from analytics_app.permissions import user_can_view_event_financials
 from analytics_app.selectors import (
     get_analytics_events,
