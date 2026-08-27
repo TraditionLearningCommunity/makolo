@@ -19,6 +19,35 @@ class TeamMemberCreateForm(OrganizationMemberForm):
             ]
 
 
+class TeamNameForm(forms.Form):
+    name = forms.CharField(
+        max_length=160,
+        label="Nom de l’équipe",
+        help_text="Une équipe regroupe des collaborateurs de cet Espace ; elle ne donne aucune Permission.",
+        widget=forms.TextInput(attrs={"class": INPUT_CLASS, "autocomplete": "off"}),
+    )
+
+    def clean_name(self):
+        return " ".join((self.cleaned_data["name"] or "").split())
+
+
+class TeamExistingCollaboratorForm(forms.Form):
+    email = forms.EmailField(
+        label="Collaborateur Makolo",
+        help_text="La personne doit déjà faire partie de l’Équipe principale de cet Espace.",
+        widget=forms.EmailInput(
+            attrs={
+                "class": INPUT_CLASS,
+                "autocomplete": "email",
+                "placeholder": "collaborateur@exemple.com",
+            }
+        ),
+    )
+
+    def clean_email(self):
+        return (self.cleaned_data["email"] or "").strip().lower()
+
+
 class MemberSpaceResponsibilityForm(forms.Form):
     role = forms.ChoiceField(
         label="Responsabilité dans l'Espace",
