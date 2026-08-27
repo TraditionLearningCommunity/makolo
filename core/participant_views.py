@@ -155,8 +155,43 @@ def _history_items(*, profile, q="", history_filter="all", offset=0, limit=PERSO
 
 
 def _recent_history_items(profile, *, at=None, limit=HOME_SECTION_LIMIT):
-    items, _, _ = _history_items(profile=profile, offset=0, limit=limit, at=at)
-    return items
+    """Small hub projection with a constant two history queries.
+
+    The full History page needs rich cards and prefetches, but the home preview
+    only needs an exact detail target, Activity title and product status label.
+    Dropping those prefetches here avoids query growth when recent rows exist.
+    """
+    at = at or timezone.now()
+    accesses = list(
+        participant_unified_history_accesses(profile, at=at)
+        .prefetch_related(None)[:limit]
+    )
+    journeys = list(
+        participant_unified_history_journeys(profile)
+        .prefetch_related(None)[:limit]
+    )
+    items = [
+        {
+            "kind": "access",
+            "history_at": getattr(access, "history_at", access.updated_at),
+            "label": _history_access_label(access),
+            "activity": access.activity,
+            "access": access,
+        }
+        for access in accesses
+    ]
+    items.extend(
+        {
+            "kind": "journey",
+            "history_at": journey.updated_at,
+            "label": _history_journey_label(journey),
+            "activity": journey.activity,
+            "journey": journey,
+        }
+        for journey in journeys
+    )
+    items.sort(key=lambda item: item["history_at"], reverse=True)
+    return items[:limit]
 
 
 def _search_value(request):
@@ -221,8 +256,6 @@ class ParticipantHistoryView(LoginRequiredMixin, TemplateView):
         requested_filter = (self.request.GET.get("type") or "all").strip().lower()
         page_number = self.request.GET.get("page") or 1
 
-        # Use a cheap count-only paginator to calculate offset/links, then replace
-        # the page's object_list with a bounded cross-domain history window.
         access_qs = participant_access_search(participant_unified_history_accesses(profile), q)
         journey_qs = participant_journey_search(participant_unified_history_journeys(profile), q)
         if requested_filter == "accesses":
