@@ -269,12 +269,11 @@ def participant_upcoming_accesses(profile, *, at=None):
 
 
 def participant_upcoming_engagements(profile, *, at=None):
-    """Active personal Accesses that have a meaningful temporal engagement."""
+    """Active personal Accesses with a future Occurrence."""
     at = at or timezone.now()
     return (
         participant_active_accesses(profile, at=at)
-        .filter(occurrence__isnull=False)
-        .filter(Q(occurrence__end_at__isnull=True) | Q(occurrence__end_at__gte=at))
+        .filter(occurrence__isnull=False, occurrence__start_at__gte=at)
         .order_by("occurrence__start_at", "-created_at", "id")
     )
 
