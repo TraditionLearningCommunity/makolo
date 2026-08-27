@@ -1,0 +1,25 @@
+{% extends 'base/app.html' %}
+{% block title %}Historique | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6 pb-10">
+<section><span class="mk-kicker">Mon espace</span><h1 class="mk-page-title mt-2">Historique</h1><p class="mk-page-copy mt-3">Retrouvez ce que vous avez déjà fait, obtenu ou terminé sur Makolo. Les démarches et accès liés restent consultables sans être répétés comme deux souvenirs distincts.</p></section>
+
+<section class="mk-panel p-5 sm:p-6">
+<form method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+<div class="flex-1"><label for="history-q" class="mb-2 block text-sm font-bold">Rechercher dans mon historique</label><input id="history-q" name="q" value="{{ q }}" maxlength="120" class="mk-input" placeholder="Activité, organisateur, lieu, ville, trajet"></div>
+<input type="hidden" name="type" value="{{ history_filter }}">
+<button class="mk-btn mk-btn-primary" type="submit">Rechercher</button>
+</form>
+<div class="mt-4 flex flex-wrap gap-2" aria-label="Filtrer l’historique">
+<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=all" class="mk-btn {% if history_filter == 'all' %}mk-btn-secondary{% else %}mk-btn-ghost{% endif %}" {% if history_filter == 'all' %}aria-current="page"{% endif %}>Tout</a>
+<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=accesses" class="mk-btn {% if history_filter == 'accesses' %}mk-btn-secondary{% else %}mk-btn-ghost{% endif %}" {% if history_filter == 'accesses' %}aria-current="page"{% endif %}>Participations / accès</a>
+<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=journeys" class="mk-btn {% if history_filter == 'journeys' %}mk-btn-secondary{% else %}mk-btn-ghost{% endif %}" {% if history_filter == 'journeys' %}aria-current="page"{% endif %}>Démarches</a>
+</div>
+</section>
+
+<section class="mk-panel overflow-hidden">
+{% for item in history_items %}<article class="border-b px-5 py-5 last:border-b-0 sm:px-6" style="border-color:var(--mk-border)"><div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><h2 class="font-extrabold">{{ item.activity.title }}</h2><span class="mk-badge">{{ item.label }}</span></div><p class="mt-1 text-sm" style="color:var(--mk-muted)">Organisé par {{ item.activity.operator_display_name }}</p>{% if item.kind == 'access' %}{% if item.access_card.timing %}<p class="mt-2 text-sm">{{ item.access_card.timing.compact_label }}{% if item.access_card.place %} · {{ item.access_card.place.name }}{% if item.access_card.place.locality %}, {{ item.access_card.place.locality }}{% endif %}{% endif %}</p>{% endif %}{% else %}{% if item.journey_card.timing %}<p class="mt-2 text-sm">{{ item.journey_card.timing.compact_label }}{% if item.journey_card.place %} · {{ item.journey_card.place.name }}{% if item.journey_card.place.locality %}, {{ item.journey_card.place.locality }}{% endif %}{% endif %}</p>{% endif %}{% endif %}</div><div class="flex flex-wrap gap-2 sm:justify-end">{% if item.kind == 'access' %}<a class="mk-btn mk-btn-secondary" href="{% url 'core:participant-access-detail' item.access_card.access.pk %}">Voir l’accès</a>{% if item.journey_card and item.journey_card.journey.beneficiary_id == request.user.pk %}<a class="mk-btn mk-btn-ghost" href="{% url 'core:participant-journey-detail' item.journey_card.journey.pk %}">Voir la démarche</a>{% endif %}{% else %}<a class="mk-btn mk-btn-secondary" href="{% url 'core:participant-journey-detail' item.journey_card.journey.pk %}">Voir la démarche</a>{% endif %}</div></div></article>{% empty %}<div class="px-6 py-10 text-center"><p class="font-semibold">Aucun élément dans cet historique.</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">{% if q %}Essayez une autre recherche ou retirez le filtre.{% else %}Vos démarches closes et vos accès terminés apparaîtront ici.{% endif %}</p></div>{% endfor %}
+</section>
+
+{% if page_obj.paginator.num_pages > 1 %}<nav class="flex items-center justify-between gap-4" aria-label="Pagination de l’historique"><div>{% if page_obj.has_previous %}<a class="mk-btn mk-btn-ghost" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Précédent</a>{% endif %}</div><p class="text-sm" style="color:var(--mk-muted)">Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</p><div>{% if page_obj.has_next %}<a class="mk-btn mk-btn-ghost" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Suivant</a>{% endif %}</div></nav>{% endif %}
+</div>{% endblock %}
