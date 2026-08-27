@@ -138,6 +138,21 @@ Les surfaces génériques utilisent `Activity` / `Occurrence` / `Contrôle affec
 
 Aucune validation de sécurité n’est effectuée dans JavaScript : le navigateur capture le credential et l’envoie au serveur.
 
+### T28 — contrat terrain/mobile
+
+La surface caméra est une amélioration progressive du même Scanner canonique :
+
+- `QrScanner` demande en priorité la caméra `environment` ; le fallback `BarcodeDetector/getUserMedia` utilise également `facingMode: {ideal: "environment"}` ;
+- le sélecteur de caméra existant reste la seule UI de changement de device ;
+- l’action Lampe n’est rendue visible que lorsque la caméra expose réellement cette capacité ;
+- refus de permission, absence de caméra ou API indisponible produisent un message actionnable et laissent disponibles l’image QR et la saisie manuelle ;
+- le résultat est annoncé textuellement via une région `aria-live` ; couleur, son ou vibration ne sont jamais la seule information ;
+- lorsque `navigator.vibrate` existe, un feedback tactile bref peut distinguer succès et refus ; son absence ou son échec ne change jamais le résultat ;
+- **Scanner le suivant** reste l’action dominante après succès ;
+- `pagehide` arrête la caméra et détruit le moteur QR pour ne pas laisser de track actif en arrière-plan.
+
+Le feedback sonore reste facultatif et n’est pas requis par T28 : le visuel et le texte suffisent dans tous les cas.
+
 ## Audit participant et Operations
 
 - le participant voit l’historique de son propre `Access` à partir d’`AccessUse` ;
