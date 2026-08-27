@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from accounts.models import UserProfile
 from activities.models import ActivityStatus, ActivityVisibility
 from activities.services import create_activity, update_activity_common
 from notifications.models import Notification
@@ -30,9 +31,11 @@ class Task30FollowContractTests(TestCase):
             email="task30-other@example.test",
             password="StrongPass2026!",
         )
-        self.organizer.profile.public_profile = True
-        self.organizer.profile.searchable = True
-        self.organizer.profile.save(update_fields=["public_profile", "searchable", "updated_at"])
+        UserProfile.objects.create(
+            user=self.organizer,
+            public_profile=True,
+            searchable=True,
+        )
 
     def test_profile_follow_is_explicit_private_and_not_self_follow(self):
         follow = follow_profile(user=self.follower, organizer_profile=self.organizer)
