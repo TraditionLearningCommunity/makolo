@@ -50,13 +50,6 @@ def _public_event_annotations():
             status=TicketOrderStatus.CONFIRMED,
         )
     )
-    follower_count = (
-        OrganizationFollow.objects.filter(organization_id=OuterRef("activity__space_id"))
-        .order_by()
-        .values("organization_id")
-        .annotate(total=Count("pk"))
-        .values("total")[:1]
-    )
     return {
         "min_ticket_price": Subquery(
             min_ticket_price,
@@ -68,10 +61,6 @@ def _public_event_annotations():
         ),
         "confirmed_order_count": Coalesce(
             Subquery(confirmed_order_count, output_field=IntegerField()),
-            Value(0),
-        ),
-        "follower_count": Coalesce(
-            Subquery(follower_count, output_field=IntegerField()),
             Value(0),
         ),
     }
@@ -169,7 +158,6 @@ def search_discovery_events(params):
         queryset = queryset.order_by(
             "-confirmed_order_count",
             "-bookmark_count",
-            "-follower_count",
             "activity__occurrences__start_at",
         )
     else:
@@ -197,7 +185,6 @@ def _event_score(event, *, followed_org_ids, preferred_category_ids, preferred_c
         reasons.append(f"Près de vous à {venue_city or organization_city}")
     score += min(getattr(event, "confirmed_order_count", 0), 20) * 3
     score += min(getattr(event, "bookmark_count", 0), 20) * 2
-    score += min(getattr(event, "follower_count", 0), 50)
     days_until = max((event.start_at - timezone.now()).days, 0)
     score += max(20 - min(days_until, 20), 0)
     if not reasons:
@@ -327,7 +314,6 @@ def build_trending(*, limit=10):
         score = (
             event.recent_orders * 8
             + event.recent_bookmarks * 4
-            + min(event.follower_count, 50)
             + max(14 - min(days_until, 14), 0)
         )
         rows.append({"event": event, "score": score})
