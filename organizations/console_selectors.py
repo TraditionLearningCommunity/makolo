@@ -21,6 +21,8 @@ from operations.models import IncidentStatus, OperationsIncident
 from payments.models import Payment, PaymentStatus
 from promotions.models import Promotion
 
+from .models import TeamMembership, TeamMembershipStatus
+
 
 def _visible_modules(context):
     return {item["key"] for group in context.navigation_groups for item in group["items"]}
@@ -122,16 +124,27 @@ def orders_for_console(context):
 
 def payments_for_console(context):
     queryset = Payment.objects.filter(commerce_order__payee_space=context.space, commerce_order__isnull=False)
-    if context.activity_ids is not None:
-        queryset = queryset.filter(commerce_order__journey__activity_id__in=context.activity_ids)
+    if PermissionCode.FINANCE_VIEW not in context.space_permissions:
+        allowed = activity_ids_with_permission(context.profile, PermissionCode.ACTIVITY_FINANCE_VIEW)
+        if allowed is not None:
+            queryset = queryset.filter(commerce_order__journey__activity_id__in=allowed)
     return queryset.select_related("commerce_order", "commerce_order__journey", "commerce_order__journey__activity").order_by("-created_at", "id")
 
 
-def team_for_console(context):
+def team_for_console(context, *, query=""):
     team = context.space.teams.filter(is_default=True, is_active=True).first()
     if team is None:
         return []
-    memberships = list(team.memberships.select_related("user").order_by("user__email"))
+    memberships_qs = team.memberships.filter(status=TeamMembershipStatus.ACTIVE).select_related("user")
+    query = (query or "").strip()
+    if query:
+        memberships_qs = memberships_qs.filter(
+            Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__username__icontains=query)
+            | Q(user__email__icontains=query)
+        )
+    memberships = list(memberships_qs.order_by("user__email", "pk"))
     profile_ids = [membership.user_id for membership in memberships]
     mandates = list(
         current_mandates()
@@ -161,6 +174,28 @@ def team_for_console(context):
         membership.console_custom_space_mandates = [m for m in space_mandates if not m.role.is_system]
         membership.console_activity_mandates = [m for m in member_mandates if m.scope_type == AuthorityScope.ACTIVITY]
     return memberships
+
+
+def teams_for_console(context):
+    active_memberships = (
+        TeamMembership.objects.filter(status=TeamMembershipStatus.ACTIVE)
+        .select_related("user")
+        .order_by("user__email", "pk")
+    )
+    return (
+        context.space.teams.filter(is_active=True)
+        .annotate(
+            active_member_count=Count(
+                "memberships",
+                filter=Q(memberships__status=TeamMembershipStatus.ACTIVE),
+                distinct=True,
+            )
+        )
+        .prefetch_related(
+            Prefetch("memberships", queryset=active_memberships, to_attr="console_memberships")
+        )
+        .order_by("-is_default", "name", "pk")
+    )
 
 
 def groups_for_console(context):
