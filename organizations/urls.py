@@ -17,6 +17,7 @@ from .console_t21_views import (
     SpaceConsoleOperationsView,
     SpaceConsolePaymentsView,
 )
+from .console_team import SpaceConsoleTeamView
 from .console_views import (
     SpaceAccessRevokeView,
     SpaceConsoleActivitiesView,
@@ -32,13 +33,21 @@ from .console_views import (
     SpaceConsoleOverviewView,
     SpaceConsolePlacesView,
     SpaceConsolePromotionsView,
-    SpaceConsoleSettingsView,
-    SpaceConsoleTeamView,
     SpaceConsoleRequestsView,
+    SpaceConsoleSettingsView,
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
-from .team_views import OrganizationMemberCreateView, OrganizationMemberDeactivateView, SpaceConsoleMemberResponsibilitiesView
+from .team_views import (
+    OrganizationMemberCreateView,
+    OrganizationMemberDeactivateView,
+    SpaceConsoleMemberResponsibilitiesView,
+    SpaceTeamAddMemberView,
+    SpaceTeamArchiveView,
+    SpaceTeamCreateView,
+    SpaceTeamRemoveMemberView,
+    SpaceTeamRenameView,
+)
 from .views import FollowingListView, OrganizationCreateView, OrganizationListView, OrganizationUpdateView
 
 app_name = "organizations"
@@ -80,6 +89,11 @@ urlpatterns = [
     path("<slug:slug>/automation/", SpaceConsoleAutomationView.as_view(), name="console-automation"),
     path("<slug:slug>/team/", SpaceConsoleTeamView.as_view(), name="console-team"),
     path("<slug:slug>/team/add/", OrganizationMemberCreateView.as_view(), name="team-member-create"),
+    path("<slug:slug>/team/new/", SpaceTeamCreateView.as_view(), name="team-create"),
+    path("<slug:slug>/team/<uuid:team_id>/rename/", SpaceTeamRenameView.as_view(), name="team-rename"),
+    path("<slug:slug>/team/<uuid:team_id>/archive/", SpaceTeamArchiveView.as_view(), name="team-archive"),
+    path("<slug:slug>/team/<uuid:team_id>/members/add/", SpaceTeamAddMemberView.as_view(), name="team-add-member"),
+    path("<slug:slug>/team/<uuid:team_id>/members/<uuid:membership_id>/remove/", SpaceTeamRemoveMemberView.as_view(), name="team-remove-member"),
     path("<slug:slug>/team/<uuid:membership_id>/responsibilities/", SpaceConsoleMemberResponsibilitiesView.as_view(), name="member-responsibilities"),
     path("<slug:slug>/team/<uuid:pk>/deactivate/", OrganizationMemberDeactivateView.as_view(), name="member-deactivate"),
     path("<slug:slug>/settings/", SpaceConsoleSettingsView.as_view(), name="console-settings"),
