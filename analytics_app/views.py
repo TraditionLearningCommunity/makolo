@@ -9,7 +9,7 @@ from partners.analytics import build_event_partner_analytics
 
 from .event_adapter import build_event_analytics
 from .forms import GrowthSpendForm
-from .growth import build_growth_portfolio, build_organization_growth
+from .growth_contract import build_growth_portfolio, build_organization_growth
 from .models import GrowthSpend
 from .permissions import user_can_manage_growth_spend, user_can_view_event_financials
 from .selectors import get_analytics_events, get_growth_organizations, get_growth_spends
@@ -59,7 +59,7 @@ class GrowthAnalyticsDashboardView(LoginRequiredMixin, TemplateView):
 
 
 class OrganizationGrowthAnalyticsView(LoginRequiredMixin, TemplateView):
-    template_name = "analytics_app/growth_organization.html"
+    template_name = "analytics_app/growth_organization_t30.html"
     login_url = "core:login"
 
     def get_context_data(self, **kwargs):
