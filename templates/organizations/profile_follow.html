@@ -14,6 +14,6 @@
       <form method="post" class="mt-5">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Suivre cet organisateur</button></form>
     {% endif %}
   </section>
-  <a class="mk-btn mk-btn-ghost" href="{% url 'organizations:profile-following' %}"><i data-lucide="arrow-left" class="h-4 w-4"></i>Mes organisateurs suivis</a>
+  <a class="mk-btn mk-btn-ghost" href="{% url 'organizer_public:profile-following' %}"><i data-lucide="arrow-left" class="h-4 w-4"></i>Mes organisateurs suivis</a>
 </div>
 {% endblock %}
