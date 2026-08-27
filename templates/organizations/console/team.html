@@ -4,7 +4,7 @@
   <section class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div class="min-w-0">
       <p class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Collaboration interne</p>
-      <h2 class="mt-1 break-words text-2xl font-black tracking-tight sm:text-3xl">Équipes de {{ space.name }}</h2>
+      <h2 class="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Équipes de {{ space.name }}</h2>
       <p class="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">Une Équipe regroupe les personnes qui travaillent ensemble dans cet Espace. Les responsabilités et Permissions restent portées par les Mandates.</p>
     </div>
     {% if can_manage_team %}<a href="{% url 'organizations:team-create' space.slug %}" class="min-h-11 shrink-0 rounded-2xl bg-indigo-600 px-4 py-3 text-center text-sm font-bold text-white">Créer une équipe</a>{% endif %}
@@ -15,8 +15,8 @@
     {% for team in teams %}
       <article class="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <div class="flex flex-wrap items-center gap-2">
-          <h4 class="break-words text-lg font-black">{{ team.name }}</h4>
-          {% if team.is_default %}<span class="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Principale</span>{% endif %}
+          <h4 class="text-lg font-black">{{ team.name }}</h4>
+          {% if team.is_default %}<span class="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Principale</span>{% endif %}
         </div>
         <p class="mt-2 text-sm text-zinc-500">{{ team.active_member_count }} membre{{ team.active_member_count|pluralize }}</p>
 
@@ -31,7 +31,7 @@
           <div class="mt-5 space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {% for team_membership in team.console_memberships %}
               <div class="flex flex-col gap-2 rounded-2xl bg-zinc-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-900">
-                <div class="min-w-0"><p class="break-words text-sm font-bold">{{ team_membership.user.full_name|default:team_membership.user.username }}</p><p class="break-all text-xs text-zinc-500">{{ team_membership.user.email }}</p></div>
+                <div class="min-w-0"><p class="text-sm font-bold">{{ team_membership.user.full_name|default:team_membership.user.username }}</p><p class="break-all text-xs text-zinc-500">{{ team_membership.user.email }}</p></div>
                 {% if can_manage_team %}<form method="post" action="{% url 'organizations:team-remove-member' space.slug team.pk team_membership.pk %}" data-confirm-message="Retirer cette personne de {{ team.name }} ? Ses autres équipes et responsabilités resteront inchangées.">{% csrf_token %}<button type="submit" class="min-h-11 rounded-xl px-3 text-sm font-bold text-rose-600">Retirer de cette équipe</button></form>{% endif %}
               </div>
             {% empty %}<p class="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-500 dark:bg-zinc-900">Aucun membre actif dans cette équipe.</p>{% endfor %}
@@ -54,7 +54,7 @@
       {% for membership in page_obj %}
         <article class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div class="min-w-0"><p class="break-words font-black">{{ membership.user.full_name|default:membership.user.username }}</p><p class="mt-1 break-all text-xs text-zinc-500">{{ membership.user.email }}</p><div class="mt-2 flex flex-wrap gap-2 text-xs">{% if membership.console_standard_space_mandate %}<span class="rounded-full bg-indigo-50 px-2.5 py-1 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ membership.console_standard_space_mandate.role.name }}</span>{% else %}<span class="rounded-full bg-white px-2.5 py-1 text-zinc-500 dark:bg-zinc-950">Aucune responsabilité Space</span>{% endif %}{% if membership.console_activity_mandates %}<span class="rounded-full bg-white px-2.5 py-1 text-zinc-500 dark:bg-zinc-950">{{ membership.console_activity_mandates|length }} responsabilité{{ membership.console_activity_mandates|length|pluralize }} Activity</span>{% endif %}</div></div>
+            <div class="min-w-0"><p class="font-black">{{ membership.user.full_name|default:membership.user.username }}</p><p class="mt-1 break-all text-xs text-zinc-500">{{ membership.user.email }}</p><div class="mt-2 flex flex-wrap gap-2 text-xs">{% if membership.console_standard_space_mandate %}<span class="rounded-full bg-indigo-50 px-2 py-1 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ membership.console_standard_space_mandate.role.name }}</span>{% else %}<span class="rounded-full bg-white px-2 py-1 text-zinc-500 dark:bg-zinc-950">Aucune responsabilité Space</span>{% endif %}{% if membership.console_activity_mandates %}<span class="rounded-full bg-white px-2 py-1 text-zinc-500 dark:bg-zinc-950">{{ membership.console_activity_mandates|length }} responsabilité{{ membership.console_activity_mandates|length|pluralize }} Activity</span>{% endif %}</div></div>
             {% if can_manage_team %}<div class="flex flex-col gap-2 sm:flex-row"><a href="{% url 'organizations:member-responsibilities' space.slug membership.pk %}" class="min-h-11 rounded-xl border border-zinc-300 px-4 py-3 text-center text-sm font-bold dark:border-zinc-700">Responsabilités</a><form method="post" action="{% url 'organizations:member-deactivate' space.slug membership.pk %}" data-confirm-message="Retirer cette personne de l’Espace ? Toutes ses Teams et responsabilités locales seront révoquées.">{% csrf_token %}<button type="submit" class="min-h-11 rounded-xl border border-rose-500 px-4 text-sm font-bold text-rose-600">Retirer de l’Espace</button></form></div>{% endif %}
           </div>
         </article>
