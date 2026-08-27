@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+from accounts.models import UserProfile
 from activities.models import Activity, ActivityStatus
 from events.models import Event, EventStatus
 from notifications.models import NotificationCategory, NotificationKind
@@ -48,14 +49,14 @@ def _notify_event_followers(event_id):
 
 def _notify_profile_followers(activity_id):
     activity = (
-        Activity.objects.select_related("owner_profile", "owner_profile__profile")
+        Activity.objects.select_related("owner_profile")
         .filter(pk=activity_id)
         .first()
     )
     if not activity or activity.status != ActivityStatus.PUBLISHED or not activity.owner_profile_id:
         return
     owner_profile = activity.owner_profile
-    public_profile = getattr(owner_profile, "profile", None)
+    public_profile = UserProfile.objects.filter(user=owner_profile).first()
     if not public_profile or not public_profile.public_profile or not public_profile.searchable:
         return
     follows = ProfileFollow.objects.filter(
