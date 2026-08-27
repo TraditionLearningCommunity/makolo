@@ -1,6 +1,8 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
+from accounts.models import UserProfile
+
 from .models import ProfileFollow
 
 
@@ -10,7 +12,7 @@ def follow_profile(*, user, organizer_profile) -> ProfileFollow:
         raise PermissionDenied("Connectez-vous pour suivre un organisateur.")
     if organizer_profile.pk == user.pk:
         raise ValidationError("Vous ne pouvez pas suivre votre propre Profil.")
-    profile = getattr(organizer_profile, "profile", None)
+    profile = UserProfile.objects.filter(user=organizer_profile).first()
     if not profile or not profile.public_profile or not profile.searchable:
         raise ValidationError("Ce Profil organisateur ne peut pas être suivi actuellement.")
     follow, _ = ProfileFollow.objects.get_or_create(
