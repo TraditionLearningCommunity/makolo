@@ -30,9 +30,9 @@ class ProfileFollowingListView(LoginRequiredMixin, ListView):
 class ProfileFollowView(LoginRequiredMixin, View):
     template_name = "organizations/profile_follow.html"
 
-    def _organizer(self, profile_id):
+    def _organizer(self, request, profile_id):
         return get_object_or_404(
-            User.objects.select_related("profile"),
+            User.objects.select_related("profile").exclude(pk=request.user.pk),
             pk=profile_id,
             profile__public_profile=True,
             profile__searchable=True,
@@ -40,7 +40,7 @@ class ProfileFollowView(LoginRequiredMixin, View):
         )
 
     def get(self, request, profile_id):
-        organizer = self._organizer(profile_id)
+        organizer = self._organizer(request, profile_id)
         follow = ProfileFollow.objects.filter(
             organizer_profile=organizer,
             user=request.user,
@@ -52,7 +52,7 @@ class ProfileFollowView(LoginRequiredMixin, View):
         )
 
     def post(self, request, profile_id):
-        organizer = self._organizer(profile_id)
+        organizer = self._organizer(request, profile_id)
         follow = ProfileFollow.objects.filter(
             organizer_profile=organizer,
             user=request.user,
