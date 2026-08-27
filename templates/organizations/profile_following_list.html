@@ -1,0 +1,18 @@
+{% extends 'base/app.html' %}
+{% block title %}Profils suivis | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6 pb-10">
+  <section><span class="mk-kicker">Réseau d’action</span><h1 class="mk-page-title mt-2">Organisateurs personnels suivis</h1><p class="mk-page-copy mt-3">Cette liste est privée et visible uniquement par vous.</p></section>
+  <section class="mk-panel overflow-hidden">
+    {% for follow in follows %}
+      <article class="flex flex-col gap-4 border-b px-5 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between" style="border-color:var(--mk-border)">
+        <div><p class="font-extrabold">{{ follow.organizer_profile.full_name|default:follow.organizer_profile.username }}</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Suivi depuis {{ follow.followed_at|date:'d/m/Y' }}</p></div>
+        <a class="mk-btn mk-btn-secondary" href="{% url 'organizer_public:profile-follow' follow.organizer_profile_id %}">Gérer le suivi</a>
+      </article>
+    {% empty %}
+      <div class="px-6 py-10 text-center"><p class="font-semibold">Vous ne suivez encore aucun organisateur personnel.</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Vous pouvez suivre un Profile public depuis une Activity personnelle qu’il organise.</p></div>
+    {% endfor %}
+  </section>
+  <a class="mk-btn mk-btn-ghost" href="{% url 'organizations:following' %}"><i data-lucide="building-2" class="h-4 w-4"></i>Espaces suivis</a>
+</div>
+{% endblock %}
