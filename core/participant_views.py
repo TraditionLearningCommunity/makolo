@@ -6,13 +6,14 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, When
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
-from access.models import CredentialStatus, CredentialType
+from access.models import AccessStatus, CredentialStatus, CredentialType
 from access.services import render_access_credential
 from activities.selectors import activities_owned_by
 from commerce.models import PaymentMode
@@ -30,19 +31,24 @@ from .participant_presentation import (
 )
 from .participant_selectors import (
     participant_access_history,
+    participant_access_search,
     participant_accesses_visible_to_buyer,
     participant_actionable_journeys,
     participant_active_accesses,
     participant_active_journeys,
     participant_history_journeys,
+    participant_journey_search,
     participant_journeys,
     participant_purchased_accesses_for_others,
-    participant_upcoming_accesses,
+    participant_unified_history_accesses,
+    participant_unified_history_journeys,
+    participant_upcoming_engagements,
 )
 
 
 PERSONAL_SEARCH_MAX_LENGTH = 120
 PERSONAL_PAGE_SIZE = 24
+HOME_SECTION_LIMIT = 5
 
 
 def _primary_place(occurrence):
@@ -81,45 +87,80 @@ def _access_card(access):
     }
 
 
+def _history_access_label(access):
+    if access.status == AccessStatus.USED:
+        return "Participé"
+    if access.status == AccessStatus.CANCELLED:
+        return "Annulé"
+    if access.status == AccessStatus.REVOKED:
+        return "Révoqué"
+    if access.status == AccessStatus.TRANSFERRED:
+        return "Transféré"
+    if access.status == AccessStatus.EXPIRED:
+        return "Expiré"
+    if access.status == AccessStatus.VALID:
+        return "Terminé"
+    return access_status_label(access.status)
+
+
+def _history_journey_label(journey):
+    labels = {
+        JourneyStatus.FULFILLED: "Démarche terminée",
+        JourneyStatus.REJECTED: "Demande refusée",
+        JourneyStatus.CANCELLED: "Démarche annulée",
+        JourneyStatus.EXPIRED: "Démarche expirée",
+    }
+    return labels.get(journey.status, journey_status_label(journey.status))
+
+
+def _history_access_item(access):
+    return {
+        "kind": "access",
+        "history_at": getattr(access, "history_at", access.updated_at),
+        "label": _history_access_label(access),
+        "access_card": _access_card(access),
+        "journey_card": _journey_card(access.journey) if access.journey_id else None,
+        "activity": access.activity,
+    }
+
+
+def _history_journey_item(journey):
+    return {
+        "kind": "journey",
+        "history_at": journey.updated_at,
+        "label": _history_journey_label(journey),
+        "access_card": None,
+        "journey_card": _journey_card(journey),
+        "activity": journey.activity,
+    }
+
+
+def _history_items(*, profile, q="", history_filter="all", offset=0, limit=PERSONAL_PAGE_SIZE, at=None):
+    """Compose a bounded unified history window from canonical personal querysets."""
+    at = at or timezone.now()
+    history_filter = history_filter if history_filter in {"all", "accesses", "journeys"} else "all"
+    access_qs = participant_access_search(participant_unified_history_accesses(profile, at=at), q)
+    journey_qs = participant_journey_search(participant_unified_history_journeys(profile), q)
+
+    access_count = access_qs.count() if history_filter in {"all", "accesses"} else 0
+    journey_count = journey_qs.count() if history_filter in {"all", "journeys"} else 0
+    window_end = offset + limit
+    candidates = []
+    if history_filter in {"all", "accesses"}:
+        candidates.extend(_history_access_item(access) for access in access_qs[:window_end])
+    if history_filter in {"all", "journeys"}:
+        candidates.extend(_history_journey_item(journey) for journey in journey_qs[:window_end])
+    candidates.sort(key=lambda item: item["history_at"], reverse=True)
+    return candidates[offset:window_end], access_count + journey_count, history_filter
+
+
+def _recent_history_items(profile, *, at=None, limit=HOME_SECTION_LIMIT):
+    items, _, _ = _history_items(profile=profile, offset=0, limit=limit, at=at)
+    return items
+
+
 def _search_value(request):
     return (request.GET.get("q") or "").strip()[:PERSONAL_SEARCH_MAX_LENGTH]
-
-
-def _journey_search(queryset, q):
-    if not q:
-        return queryset
-    return queryset.filter(
-        Q(activity__title__icontains=q)
-        | Q(activity__space__name__icontains=q)
-        | Q(activity__owner_profile__first_name__icontains=q)
-        | Q(activity__owner_profile__last_name__icontains=q)
-        | Q(activity__owner_profile__username__icontains=q)
-        | Q(occurrence__place_links__place__name__icontains=q)
-        | Q(occurrence__place_links__place__locality__icontains=q)
-        | Q(activity__transport_service__route__name__icontains=q)
-        | Q(activity__transport_service__route__stops__place__name__icontains=q)
-        | Q(activity__transport_service__route__stops__place__locality__icontains=q)
-    ).distinct()
-
-
-def _access_search(queryset, q, *, include_external_holder=False):
-    if not q:
-        return queryset
-    lookup = (
-        Q(activity__title__icontains=q)
-        | Q(activity__space__name__icontains=q)
-        | Q(activity__owner_profile__first_name__icontains=q)
-        | Q(activity__owner_profile__last_name__icontains=q)
-        | Q(activity__owner_profile__username__icontains=q)
-        | Q(occurrence__place_links__place__name__icontains=q)
-        | Q(occurrence__place_links__place__locality__icontains=q)
-        | Q(activity__transport_service__route__name__icontains=q)
-        | Q(activity__transport_service__route__stops__place__name__icontains=q)
-        | Q(activity__transport_service__route__stops__place__locality__icontains=q)
-    )
-    if include_external_holder:
-        lookup |= Q(external_beneficiary__display_name__icontains=q)
-    return queryset.filter(lookup).distinct()
 
 
 def _pagination_query(request, *page_keys):
@@ -129,6 +170,23 @@ def _pagination_query(request, *page_keys):
     return params.urlencode()
 
 
+def _prioritized_actionable(profile):
+    return (
+        participant_actionable_journeys(profile)
+        .annotate(
+            attention_priority=Case(
+                When(status=JourneyStatus.PENDING_PAYMENT, then=1),
+                When(status=JourneyStatus.SUBMITTED, workflow=WorkflowKind.INVITATION, then=2),
+                When(status=JourneyStatus.PENDING_APPROVAL, then=3),
+                When(status=JourneyStatus.DRAFT, then=4),
+                default=5,
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("attention_priority", "updated_at", "created_at", "id")
+    )
+
+
 class ParticipantHomeView(LoginRequiredMixin, TemplateView):
     template_name = "core/participant_home.html"
     login_url = "core:login"
@@ -136,15 +194,63 @@ class ParticipantHomeView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
-        actionable = list(participant_actionable_journeys(profile)[:5])
-        upcoming_accesses = list(participant_upcoming_accesses(profile)[:5])
+        now = timezone.now()
+        actionable = list(_prioritized_actionable(profile)[:HOME_SECTION_LIMIT])
+        upcoming = list(participant_upcoming_engagements(profile, at=now)[:HOME_SECTION_LIMIT])
+        active_access_count = participant_active_accesses(profile, at=now).count()
         context.update(
             {
-                "actionable": [_journey_card(j) for j in actionable],
-                "upcoming": [_access_card(a) for a in upcoming_accesses],
-                "active_accesses": [_access_card(a) for a in upcoming_accesses],
-                "recent_journeys": [_journey_card(j) for j in participant_journeys(profile)[:5]],
-                "organized_activities": list(activities_owned_by(profile)[:5]),
+                "actionable": [_journey_card(journey) for journey in actionable],
+                "upcoming": [_access_card(access) for access in upcoming],
+                "active_access_count": active_access_count,
+                "recent_history": _recent_history_items(profile, at=now),
+                "organized_activities": list(activities_owned_by(profile)[:HOME_SECTION_LIMIT]),
+            }
+        )
+        return context
+
+
+class ParticipantHistoryView(LoginRequiredMixin, TemplateView):
+    template_name = "core/participant_history.html"
+    login_url = "core:login"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        profile = self.request.user
+        q = _search_value(self.request)
+        requested_filter = (self.request.GET.get("type") or "all").strip().lower()
+        page_number = self.request.GET.get("page") or 1
+
+        # Use a cheap count-only paginator to calculate offset/links, then replace
+        # the page's object_list with a bounded cross-domain history window.
+        access_qs = participant_access_search(participant_unified_history_accesses(profile), q)
+        journey_qs = participant_journey_search(participant_unified_history_journeys(profile), q)
+        if requested_filter == "accesses":
+            total_count = access_qs.count()
+        elif requested_filter == "journeys":
+            total_count = journey_qs.count()
+        else:
+            requested_filter = "all"
+            total_count = access_qs.count() + journey_qs.count()
+
+        paginator = Paginator(range(total_count), PERSONAL_PAGE_SIZE)
+        page_obj = paginator.get_page(page_number)
+        offset = (page_obj.number - 1) * PERSONAL_PAGE_SIZE
+        items, _, history_filter = _history_items(
+            profile=profile,
+            q=q,
+            history_filter=requested_filter,
+            offset=offset,
+            limit=PERSONAL_PAGE_SIZE,
+        )
+        page_obj.object_list = items
+        context.update(
+            {
+                "q": q,
+                "history_filter": history_filter,
+                "history_items": items,
+                "page_obj": page_obj,
+                "pagination_query": _pagination_query(self.request, "page"),
             }
         )
         return context
@@ -170,16 +276,18 @@ class ParticipantJourneyListView(LoginRequiredMixin, TemplateView):
         elif status_filter != "all":
             status_filter = "all"
 
-        active = _journey_search(active, q).order_by("-updated_at", "-created_at", "id")
-        history = _journey_search(participant_history_journeys(profile), q).order_by("-updated_at", "-created_at", "id")
+        active = participant_journey_search(active, q).order_by("-updated_at", "-created_at", "id")
+        history = participant_journey_search(participant_history_journeys(profile), q).order_by(
+            "-updated_at", "-created_at", "id"
+        )
         active_page = Paginator(active, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("active_page"))
         history_page = Paginator(history, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("history_page"))
         context.update(
             {
                 "q": q,
                 "status_filter": status_filter,
-                "active_journeys": [_journey_card(j) for j in active_page.object_list],
-                "history_journeys": [_journey_card(j) for j in history_page.object_list],
+                "active_journeys": [_journey_card(journey) for journey in active_page.object_list],
+                "history_journeys": [_journey_card(journey) for journey in history_page.object_list],
                 "active_page_obj": active_page,
                 "history_page_obj": history_page,
                 "pagination_query": _pagination_query(self.request, "active_page", "history_page"),
@@ -196,11 +304,14 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         journey = get_object_or_404(participant_journeys(self.request.user), pk=kwargs["pk"])
         card = _journey_card(journey)
-        pending_request = next((r for r in journey.requests.all() if r.status == RequestStatus.PENDING), None)
-        rejected_request = next((r for r in journey.requests.all() if r.status == RequestStatus.REJECTED), None)
+        pending_request = next((request for request in journey.requests.all() if request.status == RequestStatus.PENDING), None)
+        rejected_request = next((request for request in journey.requests.all() if request.status == RequestStatus.REJECTED), None)
         order = card["order"]
         payment_url = None
-        if order and journey.status == JourneyStatus.PENDING_PAYMENT and order.payment_mode in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}:
+        if order and journey.status == JourneyStatus.PENDING_PAYMENT and order.payment_mode in {
+            PaymentMode.UPFRONT,
+            PaymentMode.AFTER_APPROVAL,
+        }:
             payment_url = reverse("payments:commerce-start", kwargs={"order_pk": order.pk})
         context.update(
             {
@@ -209,7 +320,8 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,
-                "can_respond_invitation": journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED,
+                "can_respond_invitation": journey.workflow == WorkflowKind.INVITATION
+                and journey.status == JourneyStatus.SUBMITTED,
             }
         )
         return context
@@ -251,9 +363,11 @@ class ParticipantAccessListView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
         q = _search_value(self.request)
-        active = _access_search(participant_active_accesses(profile), q).order_by("occurrence__start_at", "-created_at", "id")
-        history = _access_search(participant_access_history(profile), q).order_by("-created_at", "id")
-        purchased = _access_search(
+        active = participant_access_search(participant_active_accesses(profile), q).order_by(
+            "occurrence__start_at", "-created_at", "id"
+        )
+        history = participant_access_search(participant_access_history(profile), q).order_by("-created_at", "id")
+        purchased = participant_access_search(
             participant_purchased_accesses_for_others(profile),
             q,
             include_external_holder=True,
@@ -264,9 +378,9 @@ class ParticipantAccessListView(LoginRequiredMixin, TemplateView):
         context.update(
             {
                 "q": q,
-                "active_accesses": [_access_card(a) for a in active_page.object_list],
-                "history_accesses": [_access_card(a) for a in history_page.object_list],
-                "purchased_for_others": [_access_card(a) for a in purchased_page.object_list],
+                "active_accesses": [_access_card(access) for access in active_page.object_list],
+                "history_accesses": [_access_card(access) for access in history_page.object_list],
+                "purchased_for_others": [_access_card(access) for access in purchased_page.object_list],
                 "active_page_obj": active_page,
                 "history_page_obj": history_page,
                 "purchased_page_obj": purchased_page,
@@ -290,7 +404,11 @@ class ParticipantAccessDetailView(LoginRequiredMixin, TemplateView):
         access = get_object_or_404(participant_accesses_visible_to_buyer(self.request.user), pk=kwargs["pk"])
         card = _access_card(access)
         credential = next(
-            (c for c in access.credentials.all() if c.status == CredentialStatus.ACTIVE and c.credential_type == CredentialType.QR),
+            (
+                credential
+                for credential in access.credentials.all()
+                if credential.status == CredentialStatus.ACTIVE and credential.credential_type == CredentialType.QR
+            ),
             None,
         )
         qr_data = None
