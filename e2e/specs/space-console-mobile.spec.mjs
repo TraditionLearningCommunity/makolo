@@ -45,7 +45,7 @@ test('Space Team operations remain usable and authority-safe on mobile @mobile',
   await expectNoHorizontalOverflow(page);
 });
 
-test('Space Scanner exposes safe camera fallbacks and Operations on mobile @mobile', async ({ page }) => {
+test('Space Scanner exposes safe camera fallbacks and tactile refusal feedback on mobile @mobile', async ({ page }) => {
   await page.addInitScript(() => {
     const denied = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
     Object.defineProperty(navigator, 'mediaDevices', {
@@ -78,7 +78,35 @@ test('Space Scanner exposes safe camera fallbacks and Operations on mobile @mobi
   await expect(page.getByRole('button', { name: 'Scanner le suivant' })).toBeHidden();
   await expectNoHorizontalOverflow(page);
 
+  await page.getByLabel('Code de l’accès').fill('credential-invalide-t28-e2e');
+  await page.getByRole('button', { name: 'Vérifier l’accès' }).click();
+  await expect(page.locator('#result-title')).toContainText(/QR|Contrôle|Billet/i);
+  await expect.poll(() => page.evaluate(() => window.__makoloVibration)).toEqual([25, 35, 25]);
+
   await page.goto('/spaces/makolo-e2e-events/operations/');
   await expect(page.getByRole('heading', { name: 'Opérations', exact: true }).first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('Space operational surfaces avoid critical horizontal overflow across representative viewports @mobile', async ({ page }) => {
+  await login(page, 'owner@e2e.makolo.test');
+  const viewports = [
+    { width: 375, height: 667 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 768, height: 1024 },
+  ];
+  const paths = [
+    '/spaces/makolo-e2e-events/overview/',
+    '/spaces/makolo-e2e-events/team/',
+    '/spaces/makolo-e2e-events/operations/',
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    for (const path of paths) {
+      await page.goto(path);
+      await expectNoHorizontalOverflow(page);
+    }
+  }
 });
