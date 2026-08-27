@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -6,7 +7,7 @@ from access.models import Access, AccessStatus
 from activities.models import Activity
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
-from .models import Organization, OrganizationFollow, ProfileFollow
+from .models import Organization, ProfileFollow
 from .profile_follow_services import follow_profile
 from .services import follow_organization
 
@@ -33,7 +34,7 @@ class Task30FollowClosureTests(TestCase):
         )
         self.organizer.profile.public_profile = True
         self.organizer.profile.searchable = True
-        self.organizer.profile.save(update_fields=["public_profile", "searchable", "updated_at"])
+        self.organizer.profile.save()
         self.space = Organization.objects.create(
             name="Task 30 Space",
             created_by=self.organizer,
@@ -67,7 +68,7 @@ class Task30FollowClosureTests(TestCase):
         response = self.client.get(reverse("organizer_public:profile-following"))
         self.assertNotContains(response, self.organizer.username)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             follow_profile(user=self.organizer, organizer_profile=self.organizer)
 
     def test_profile_follow_rejects_external_next_redirect(self):
@@ -87,7 +88,7 @@ class Task30FollowClosureTests(TestCase):
 
     def test_profile_follow_route_hides_non_public_profiles(self):
         self.organizer.profile.public_profile = False
-        self.organizer.profile.save(update_fields=["public_profile", "updated_at"])
+        self.organizer.profile.save()
         self.client.force_login(self.follower)
         response = self.client.get(
             reverse(
