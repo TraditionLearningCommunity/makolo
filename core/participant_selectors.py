@@ -190,9 +190,19 @@ def _access_queryset():
             "activity__owner_profile",
             "occurrence",
             "journey",
+            "journey__beneficiary",
+            "journey__activity",
+            "journey__occurrence",
             "issued_by",
         )
-        .prefetch_related("occurrence__place_links__place", "credentials", "uses")
+        .prefetch_related(
+            "occurrence__place_links__place",
+            "credentials",
+            "uses",
+            "journey__occurrence__place_links__place",
+            "journey__accesses__credentials",
+            "journey__commerce_orders__items__offer",
+        )
     )
 
 
