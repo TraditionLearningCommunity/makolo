@@ -72,6 +72,19 @@ test('Space Scanner exposes safe camera fallbacks and tactile refusal feedback o
   const scannerLink = page.locator('a[href*="/control/"]').filter({ hasText: 'Ouvrir le scanner' }).first();
   await scannerLink.click();
 
+  await page.route('**/spaces/makolo-e2e-events/control/*/scan/', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        accepted: false,
+        result: 'invalid_credential',
+        message: 'QR invalide ou non reconnu.',
+      }),
+    });
+  });
+
   await expect(page.locator('#camera-state')).toContainText(/refusé|indisponible|image QR/i);
   await expect(page.getByText('Lire un QR depuis une image', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Code de l’accès')).toBeVisible();
