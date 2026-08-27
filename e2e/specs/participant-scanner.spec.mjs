@@ -63,6 +63,12 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await page.getByRole('button', { name: /Créer la commande/i }).click();
   await completeSandboxPayment(page);
 
+  await page.goto('/me/');
+  const todoSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'À faire', exact: true }) });
+  await expect(todoSection.getByText('Festival Makolo E2E', { exact: true })).toHaveCount(0);
+  const upcomingSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'À venir', exact: true }) });
+  await expect(upcomingSection.getByText('Festival Makolo E2E', { exact: true })).toBeVisible();
+
   await page.goto('/discover/?q=Festival+Makolo+E2E');
   const discoveryCard = page.locator('article').filter({ hasText: 'Festival Makolo E2E' });
   await expect(discoveryCard).toContainText('Vous avez accès');
@@ -137,6 +143,13 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await expect(page.getByRole('heading', { name: 'Historique de contrôle' })).toBeVisible();
   await expect(page.getByText('Accès accepté', { exact: true })).toHaveCount(1);
   await expect(page.getByText(/Nouvelle présentation/)).toHaveCount(1);
+
+  await page.goto('/me/history/');
+  const memory = page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first();
+  await expect(memory).toBeVisible();
+  await expect(memory.getByText(/Participé|Utilisé|Accès utilisé/i)).toBeVisible();
+  await memory.getByRole('link', { name: 'Voir l’accès' }).click();
+  await expect(page).toHaveURL(accessUrl);
 });
 
 
