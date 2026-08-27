@@ -114,7 +114,7 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await page.getByRole('button', { name: 'Scanner le suivant' }).click();
   await page.locator('#qr-image').setInputFiles(qrPath);
   await expect(page.getByRole('heading', { name: 'Billet déjà utilisé' })).toBeVisible();
-  await page.getByRole('link', { name: 'Historique' }).click();
+  await page.locator('#scanner-console').getByRole('link', { name: 'Historique', exact: true }).click();
   const scanRows = page.locator('tbody tr');
   await expect(scanRows.filter({ hasText: 'Accès autorisé' })).toHaveCount(1);
   await expect(scanRows.filter({ hasText: 'Billet déjà utilisé' })).toHaveCount(1);
