@@ -51,6 +51,13 @@
     return data.access_result || data.result || '';
   }
 
+  function tactileFeedback(data) {
+    if (!navigator.vibrate) return;
+    try {
+      navigator.vibrate(data.accepted || effectiveResult(data) === 'accepted' ? 45 : [25, 35, 25]);
+    } catch (error) {}
+  }
+
   function presentationFor(data) {
     const result = effectiveResult(data);
     if (data.accepted || result === 'accepted') return {title: 'Accès autorisé', tone: 'success', icon: '✓'};
@@ -94,6 +101,7 @@
     resultIcon.className = iconClasses(presentation.tone);
     resultTitle.textContent = presentation.title;
     resultMessage.textContent = data.message || 'Résultat du contrôle.';
+    tactileFeedback(data);
 
     ticketInfo.innerHTML = '';
     const holderName = data.ticket?.holder_name || data.access?.beneficiary || '';

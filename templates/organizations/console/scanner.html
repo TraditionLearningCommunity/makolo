@@ -4,7 +4,7 @@
 {% block console_content %}
 <div id="scanner-console" data-scan-url="{% url 'organizations:console-control-activity-scan' space.slug activity.pk %}" class="space-y-6">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
+        <div class="min-w-0">
             <a href="{% url 'organizations:console-control' space.slug %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Contrôle d’accès</a>
             <h2 class="mt-2 text-3xl font-black text-zinc-900 dark:text-white">{{ activity.title }}</h2>
             {% if scanner_assignment %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Contrôle affecté : {{ scanner_vocabulary.occurrence_noun }} du {{ scanner_assignment.occurrence.start_at|date:"d/m/Y H:i" }}</p>{% else %}<p class="mt-2 text-zinc-500 dark:text-zinc-400">Contrôlez les accès valables pour cette activité.</p>{% endif %}
@@ -24,26 +24,26 @@
             </div>
             <div class="space-y-3 p-4">
                 <div class="flex flex-wrap gap-2">
-                    <button id="start-camera" type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900">Démarrer la caméra</button>
-                    <button id="stop-camera" type="button" class="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white">Arrêter</button>
-                    <button id="toggle-flash" type="button" class="hidden rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white"><span>Lampe</span></button>
+                    <button id="start-camera" type="button" class="min-h-11 rounded-xl bg-white px-4 py-2 text-sm font-bold text-zinc-900">Démarrer la caméra</button>
+                    <button id="stop-camera" type="button" class="min-h-11 rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white">Arrêter</button>
+                    <button id="toggle-flash" type="button" class="hidden min-h-11 rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-white"><span>Lampe</span></button>
                 </div>
-                <div id="camera-picker-wrap" class="hidden"><label for="camera-picker" class="mb-1 block text-xs font-bold text-zinc-300">Caméra</label><select id="camera-picker" class="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"></select></div>
+                <div id="camera-picker-wrap" class="hidden"><label for="camera-picker" class="mb-1 block text-xs font-bold text-zinc-300">Caméra</label><select id="camera-picker" class="min-h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"></select></div>
             </div>
         </section>
 
         <aside class="space-y-5 lg:col-span-2">
-            <div id="scan-result" class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <div id="scan-result" class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950" role="status" aria-live="polite" aria-atomic="true">
                 <div id="result-icon" class="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800">—</div>
                 <h3 id="result-title" class="mt-4 text-2xl font-black text-zinc-900 dark:text-white">Prêt à scanner</h3>
                 <p id="result-message" class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">Présentez un QR Makolo devant la caméra.</p>
                 <div id="ticket-info" class="mt-5 hidden rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-zinc-900"></div>
-                <button id="scan-next" type="button" class="mt-5 hidden w-full rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white">Scanner le suivant</button>
+                <button id="scan-next" type="button" class="mt-5 hidden min-h-[50px] w-full rounded-2xl bg-indigo-600 px-4 py-3 text-lg font-black text-white">Scanner le suivant</button>
             </div>
 
             <div class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
                 <div class="flex items-start gap-3"><i data-lucide="image" class="mt-0.5 h-5 w-5 text-indigo-500"></i><div><h3 class="text-sm font-bold text-zinc-900 dark:text-white">Lire un QR depuis une image</h3><p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Photo, capture d’écran ou fichier enregistré.</p></div></div>
-                <label for="qr-image" class="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-4 text-sm font-bold transition hover:border-indigo-400 dark:border-zinc-700"><i data-lucide="image-plus" class="h-4 w-4"></i>Choisir une image</label>
+                <label for="qr-image" class="mt-4 flex min-h-[50px] cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-4 text-sm font-bold transition hover:border-indigo-400 dark:border-zinc-700"><i data-lucide="image-plus" class="h-4 w-4"></i>Choisir une image</label>
                 <input id="qr-image" type="file" accept="image/*" capture="environment" class="sr-only">
             </div>
 
@@ -51,7 +51,7 @@
                 {% csrf_token %}
                 <label for="manual-token" class="text-sm font-bold text-zinc-900 dark:text-white">Code de l’accès</label>
                 <textarea id="manual-token" name="token" rows="3" class="mt-3 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900" placeholder="Collez le contenu du QR"></textarea>
-                <button type="submit" class="mt-3 w-full rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white hover:bg-indigo-500">Vérifier l’accès</button>
+                <button type="submit" class="mt-3 min-h-[50px] w-full rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white hover:bg-indigo-500">Vérifier l’accès</button>
             </form>
         </aside>
     </div>

@@ -4,30 +4,30 @@
     {% if request.user.is_authenticated %}
         {% if space_console %}
             <p class="mk-nav-group-label">Espace</p>
-            <a href="{% url 'organizations:console-overview' space.slug %}" class="mk-nav-item {% if console_module_key == 'overview' %}is-active{% endif %}"><i data-lucide="building-2"></i><span>{{ space.name }}</span></a>
+            <a href="{% url 'organizations:console-overview' space.slug %}" class="mk-nav-item {% if console_module_key == 'overview' %}is-active{% endif %}" {% if console_module_key == 'overview' %}aria-current="page"{% endif %}><i data-lucide="building-2"></i><span>{{ space.name }}</span></a>
 
             {% for group in space_console.navigation_groups %}
                 <p class="mk-nav-group-label">{{ group.label }}</p>
                 {% for item in group.items %}
-                    <a href="{{ item.url }}" class="mk-nav-item {% if console_module_key == item.key %}is-active{% endif %}"><i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span></a>
+                    <a href="{{ item.url }}" class="mk-nav-item {% if console_module_key == item.key %}is-active{% endif %}" {% if console_module_key == item.key %}aria-current="page"{% endif %}><i data-lucide="{{ item.icon }}"></i><span>{{ item.label }}</span></a>
                 {% endfor %}
             {% endfor %}
         {% else %}
             <p class="mk-nav-group-label">Pour moi</p>
-            <a href="{% url 'core:participant-home' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-home' %}is-active{% endif %}"><i data-lucide="home"></i><span>Accueil</span></a>
-            <a href="{% url 'core:participant-journeys' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.url_name == 'participant-journey-detail' %}is-active{% endif %}"><i data-lucide="calendar-search"></i><span>Mes démarches</span></a>
-            <a href="{% url 'core:participant-accesses' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.url_name == 'participant-access-detail' %}is-active{% endif %}"><i data-lucide="badge-check"></i><span>Mes accès</span></a>
-            <a href="{% url 'notifications:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'notifications' %}is-active{% endif %}"><i data-lucide="bell"></i><span>Notifications</span></a>
+            <a href="{% url 'core:participant-home' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-home' %}is-active{% endif %}" {% if request.resolver_match.url_name == 'participant-home' %}aria-current="page"{% endif %}><i data-lucide="home"></i><span>Accueil</span></a>
+            <a href="{% url 'core:participant-journeys' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.url_name == 'participant-journey-detail' %}is-active{% endif %}" {% if request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.url_name == 'participant-journey-detail' %}aria-current="page"{% endif %}><i data-lucide="calendar-search"></i><span>Mes démarches</span></a>
+            <a href="{% url 'core:participant-accesses' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.url_name == 'participant-access-detail' %}is-active{% endif %}" {% if request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.url_name == 'participant-access-detail' %}aria-current="page"{% endif %}><i data-lucide="badge-check"></i><span>Mes accès</span></a>
+            <a href="{% url 'notifications:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'notifications' %}is-active{% endif %}" {% if request.resolver_match.namespace == 'notifications' %}aria-current="page"{% endif %}><i data-lucide="bell"></i><span>Notifications</span></a>
         {% endif %}
 
         {% if caps.is_staff and not space_console %}
             <p class="mk-nav-group-label">Plateforme</p>
-            <a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' %}is-active{% endif %}"><i data-lucide="shield-check"></i><span>Opérations</span></a>
+            <a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' %}is-active{% endif %}" {% if request.resolver_match.namespace == 'operations' %}aria-current="page"{% endif %}><i data-lucide="shield-check"></i><span>Opérations</span></a>
         {% endif %}
     {% else %}
         <p class="mk-nav-group-label">Makolo</p>
         <a href="{% url 'core:home' %}" class="mk-nav-item"><i data-lucide="home"></i><span>Accueil</span></a>
-        <a href="{% url 'discovery:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' %}is-active{% endif %}"><i data-lucide="compass"></i><span>Découvrir</span></a>
+        <a href="{% url 'discovery:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'discovery' %}is-active{% endif %}" {% if request.resolver_match.namespace == 'discovery' %}aria-current="page"{% endif %}><i data-lucide="compass"></i><span>Découvrir</span></a>
         <a href="{% url 'organizer_public:list' %}" class="mk-nav-item"><i data-lucide="building-2"></i><span>Organisateurs</span></a>
         <a href="{% url 'core:login' %}" class="mk-nav-item"><i data-lucide="log-in"></i><span>Se connecter</span></a>
         <a href="{% url 'account:register' %}" class="mk-nav-item"><i data-lucide="user-plus"></i><span>Créer un compte</span></a>

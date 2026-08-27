@@ -7,7 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
-from django.views.generic import TemplateView
+from django.views.generic import FormView, TemplateView
 
 from authorization.constants import PermissionCode, STANDARD_ACTIVITY_ROLE_CODES, STANDARD_SPACE_ROLE_CODES, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, Role, RolePermission
@@ -15,10 +15,24 @@ from authorization.selectors import current_mandates
 from authorization.services import can
 
 from .console_views import SpaceConsoleMixin
-from .models import Organization, TeamMembership, TeamMembershipStatus
+from .models import Organization, Team, TeamMembership, TeamMembershipStatus
 from .permissions import user_can_manage_organization_team
-from .services import add_or_update_member, find_user_for_team
-from .team_forms import MemberActivityResponsibilityForm, MemberSpaceResponsibilityForm, TeamMemberCreateForm
+from .services import (
+    add_existing_collaborator_to_team,
+    add_or_update_member,
+    archive_team,
+    create_team,
+    find_user_for_team,
+    remove_member_from_team,
+    rename_team,
+)
+from .team_forms import (
+    MemberActivityResponsibilityForm,
+    MemberSpaceResponsibilityForm,
+    TeamExistingCollaboratorForm,
+    TeamMemberCreateForm,
+    TeamNameForm,
+)
 from .team_responsibilities import (
     grant_member_activity_responsibility,
     remove_member_from_space,
@@ -37,7 +51,7 @@ def _role_catalog(*, scope_type, codes):
 
 
 class OrganizationMemberCreateView(View):
-    """Existing add-member flow with ownership choices constrained by actor authority."""
+    """Add an existing Makolo Profile to the Space and its primary Team."""
 
     def _space(self, slug):
         return get_object_or_404(Organization, slug=slug)
@@ -73,7 +87,7 @@ class OrganizationMemberCreateView(View):
             except (ValidationError, PermissionDenied) as exc:
                 form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
             else:
-                messages.success(request, "Membre et responsabilité ajoutés.")
+                messages.success(request, "Collaborateur et responsabilité ajoutés à l’Espace.")
                 return redirect("organizations:console-team", slug=space.slug)
         return render(
             request,
@@ -81,6 +95,105 @@ class OrganizationMemberCreateView(View):
             {"organization": space, "space": space, "form": form},
             status=400,
         )
+
+
+class _SpaceTeamManagementMixin(SpaceConsoleMixin):
+    module_key = "team"
+
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        if not self.space_console.can_manage_team:
+            raise PermissionDenied("Vous ne pouvez pas gérer les équipes de cet Espace.")
+        return response
+
+    def get_team(self, *, active_only=False):
+        queryset = Team.objects.filter(organization=self.space)
+        if active_only:
+            queryset = queryset.filter(is_active=True)
+        return get_object_or_404(queryset, pk=self.kwargs["team_id"])
+
+
+class SpaceTeamCreateView(_SpaceTeamManagementMixin, FormView):
+    template_name = "organizations/console/team_form.html"
+    form_class = TeamNameForm
+    page_title = "Créer une équipe"
+
+    def form_valid(self, form):
+        try:
+            create_team(organization=self.space, actor=self.request.user, name=form.cleaned_data["name"])
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
+            return self.form_invalid(form)
+        messages.success(self.request, "Équipe créée. Aucune Permission n’a été accordée automatiquement.")
+        return redirect("organizations:console-team", slug=self.space.slug)
+
+
+class SpaceTeamRenameView(_SpaceTeamManagementMixin, FormView):
+    template_name = "organizations/console/team_form.html"
+    form_class = TeamNameForm
+    page_title = "Renommer l’équipe"
+
+    def get_initial(self):
+        return {"name": self.get_team().name}
+
+    def form_valid(self, form):
+        try:
+            rename_team(team=self.get_team(), actor=self.request.user, name=form.cleaned_data["name"])
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
+            return self.form_invalid(form)
+        messages.success(self.request, "Équipe renommée sans modifier ses membres ni leurs responsabilités.")
+        return redirect("organizations:console-team", slug=self.space.slug)
+
+
+class SpaceTeamArchiveView(_SpaceTeamManagementMixin, View):
+    def post(self, request, *args, **kwargs):
+        try:
+            archive_team(team=self.get_team(), actor=request.user)
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Équipe archivée. Son historique de Membership est conservé.")
+        return redirect("organizations:console-team", slug=self.space.slug)
+
+
+class SpaceTeamAddMemberView(_SpaceTeamManagementMixin, FormView):
+    template_name = "organizations/console/team_member_form.html"
+    form_class = TeamExistingCollaboratorForm
+    page_title = "Ajouter à une équipe"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["team"] = self.get_team(active_only=True)
+        return context
+
+    def form_valid(self, form):
+        team = self.get_team(active_only=True)
+        try:
+            user = find_user_for_team(email=form.cleaned_data["email"])
+            add_existing_collaborator_to_team(team=team, actor=self.request.user, user=user)
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
+            return self.form_invalid(form)
+        messages.success(self.request, f"Collaborateur ajouté à {team.name}. Ses Mandates n’ont pas été modifiés.")
+        return redirect("organizations:console-team", slug=self.space.slug)
+
+
+class SpaceTeamRemoveMemberView(_SpaceTeamManagementMixin, View):
+    def post(self, request, *args, **kwargs):
+        team = self.get_team()
+        membership = get_object_or_404(
+            TeamMembership.objects.select_related("team__organization", "user"),
+            pk=kwargs["membership_id"],
+            team=team,
+        )
+        try:
+            remove_member_from_team(membership=membership, actor=request.user)
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, f"Collaborateur retiré de {team.name}. Ses autres équipes et Mandates sont inchangés.")
+        return redirect("organizations:console-team", slug=self.space.slug)
 
 
 class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
@@ -93,6 +206,7 @@ class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
             TeamMembership.objects.select_related("team__organization", "user"),
             pk=self.kwargs["membership_id"],
             team__organization=self.space,
+            team__is_default=True,
         )
 
     def _responsibilities(self, membership):
@@ -166,7 +280,7 @@ class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         membership = self.get_membership()
         if membership.status != TeamMembershipStatus.ACTIVE:
-            raise PermissionDenied("Ce membre n'est plus actif dans l'équipe.")
+            raise PermissionDenied("Ce membre n'est plus actif dans l'équipe principale.")
         action = (request.POST.get("action") or "").strip()
 
         if action == "space-role":
@@ -244,11 +358,12 @@ class OrganizationMemberDeactivateView(SpaceConsoleMixin, View):
             TeamMembership.objects.select_related("team__organization", "user"),
             pk=kwargs["pk"],
             team__organization=self.space,
+            team__is_default=True,
         )
         try:
             remove_member_from_space(membership=membership, actor=request.user)
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(request, "Membre retiré de l'équipe et responsabilités de cet Espace révoquées.")
+            messages.success(request, "Collaborateur retiré de l’Espace ; ses TeamMemberships locales et responsabilités de cet Espace sont révoquées.")
         return redirect("organizations:console-team", slug=self.space.slug)

@@ -193,7 +193,12 @@ def revoke_member_activity_responsibility(*, membership, actor, mandate):
 
 @transaction.atomic
 def remove_member_from_space(*, membership, actor):
-    """Deactivate membership and remove authority belonging to this Space only."""
+    """Remove one collaborator from the Space, every Team and local authority.
+
+    This action is deliberately different from removing one secondary
+    TeamMembership. It revokes authority belonging to this Space and deactivates
+    every TeamMembership for the same Profile inside the Space.
+    """
 
     space = _lock_space(membership.team.organization)
     membership = _lock_membership(membership=membership, space=space)
@@ -203,10 +208,18 @@ def remove_member_from_space(*, membership, actor):
     if _is_current_owner(profile=membership.user, space=space):
         _require_ownership_management(actor=actor, space=space)
 
+    # Lock all TeamMembership rows before changing authority so a concurrent
+    # Team mutation cannot leave one active membership behind after departure.
+    space_memberships = list(
+        TeamMembership.objects.select_for_update()
+        .filter(team__organization=space, user=membership.user)
+        .order_by("pk")
+    )
+
     # Canonical Space cleanup also enforces the last-owner invariant.
     revoke_all_space_mandates(profile=membership.user, space=space, actor=actor)
 
-    # A complete departure from the Space team also removes local authority on
+    # A complete departure from the Space also removes local authority on
     # Activities operated by this Space, but deliberately leaves Group,
     # Platform and other-Space mandates untouched.
     activity_mandates = list(
@@ -222,7 +235,14 @@ def remove_member_from_space(*, membership, actor):
     for activity_mandate in activity_mandates:
         revoke_mandate(mandate=activity_mandate, actor=actor)
 
-    membership.status = TeamMembershipStatus.INACTIVE
-    membership.save(update_fields=["status", "updated_at"])
-    OrganizationMembership.objects.filter(organization=space, user=membership.user).update(is_active=False)
+    for team_membership in space_memberships:
+        if team_membership.status != TeamMembershipStatus.INACTIVE:
+            team_membership.status = TeamMembershipStatus.INACTIVE
+            team_membership.save(update_fields=["status", "updated_at"])
+
+    OrganizationMembership.objects.filter(
+        organization=space,
+        user=membership.user,
+    ).update(is_active=False)
+    membership.refresh_from_db()
     return membership

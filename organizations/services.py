@@ -262,6 +262,131 @@ def find_user_for_team(*, email: str):
         raise ValidationError("Aucun compte Makolo ne correspond à cette adresse e-mail.") from exc
 
 
+def _normalize_team_name(name: str) -> str:
+    normalized = " ".join((name or "").split())
+    if not normalized:
+        raise ValidationError("Le nom de l'équipe est obligatoire.")
+    return normalized
+
+
+def _locked_team(*, team, organization=None):
+    queryset = Team.objects.select_for_update().select_related("organization").order_by()
+    if organization is not None:
+        queryset = queryset.filter(organization=organization)
+    try:
+        return queryset.get(pk=team.pk)
+    except Team.DoesNotExist as exc:
+        raise ValidationError("Cette équipe n'appartient pas à l'Espace courant.") from exc
+
+
+def _require_team_management(*, actor, organization):
+    if not user_can_manage_organization_team(actor, organization):
+        raise PermissionDenied("Vous ne pouvez pas gérer les équipes de cet Espace.")
+
+
+@transaction.atomic
+def create_team(*, organization, actor, name: str) -> Team:
+    """Create one secondary operational Team without granting any authority."""
+    organization = Organization.objects.select_for_update().order_by().get(pk=organization.pk)
+    _require_team_management(actor=actor, organization=organization)
+    team = Team(
+        organization=organization,
+        name=_normalize_team_name(name),
+        is_default=False,
+        is_active=True,
+    )
+    team.full_clean()
+    team.save()
+    return team
+
+
+@transaction.atomic
+def rename_team(*, team, actor, name: str) -> Team:
+    """Rename a Team while preserving its UUID, memberships and authority separation."""
+    team = _locked_team(team=team)
+    _require_team_management(actor=actor, organization=team.organization)
+    team.name = _normalize_team_name(name)
+    team.full_clean()
+    team.save(update_fields=["name", "updated_at"])
+    return team
+
+
+@transaction.atomic
+def archive_team(*, team, actor) -> Team:
+    """Archive a secondary Team without deleting historical memberships."""
+    team = _locked_team(team=team)
+    _require_team_management(actor=actor, organization=team.organization)
+    if team.is_default:
+        raise ValidationError("L'équipe principale ne peut pas être archivée.")
+    if team.is_active:
+        team.is_active = False
+        team.save(update_fields=["is_active", "updated_at"])
+    return team
+
+
+@transaction.atomic
+def add_existing_collaborator_to_team(*, team, actor, user) -> TeamMembership:
+    """Add an existing Space collaborator to a secondary Team without touching Mandates."""
+    team = _locked_team(team=team)
+    _require_team_management(actor=actor, organization=team.organization)
+    if not team.is_active:
+        raise ValidationError("Cette équipe est archivée.")
+    if team.is_default:
+        raise ValidationError(
+            "Utilisez l'ajout de collaborateur de l'Espace pour l'équipe principale."
+        )
+    default_membership = TeamMembership.objects.filter(
+        team__organization=team.organization,
+        team__is_default=True,
+        team__is_active=True,
+        user=user,
+        status=TeamMembershipStatus.ACTIVE,
+    ).exists()
+    if not default_membership:
+        raise ValidationError(
+            "Cette personne doit d'abord être ajoutée comme collaborateur de l'Espace."
+        )
+    membership, created = TeamMembership.objects.select_for_update().get_or_create(
+        team=team,
+        user=user,
+        defaults={
+            "status": TeamMembershipStatus.ACTIVE,
+            "invited_by": actor,
+            "joined_at": timezone.now(),
+        },
+    )
+    if not created and membership.status != TeamMembershipStatus.ACTIVE:
+        membership.status = TeamMembershipStatus.ACTIVE
+        membership.invited_by = actor
+        membership.joined_at = timezone.now()
+        membership.save(update_fields=["status", "invited_by", "joined_at", "updated_at"])
+    return membership
+
+
+@transaction.atomic
+def remove_member_from_team(*, membership, actor) -> TeamMembership:
+    """Remove one secondary Team membership only; never revoke Space/Activity Mandates."""
+    try:
+        membership = (
+            TeamMembership.objects.select_for_update()
+            .select_related("team__organization", "user")
+            .order_by()
+            .get(pk=membership.pk)
+        )
+    except TeamMembership.DoesNotExist as exc:
+        raise ValidationError("Cette appartenance d'équipe n'existe pas.") from exc
+    team = membership.team
+    _require_team_management(actor=actor, organization=team.organization)
+    if team.is_default:
+        raise ValidationError(
+            "Pour quitter l'équipe principale, utilisez l'action explicite Retirer de l'Espace."
+        )
+    if membership.status != TeamMembershipStatus.INACTIVE:
+        membership.status = TeamMembershipStatus.INACTIVE
+        membership.save(update_fields=["status", "updated_at"])
+    return membership
+
+
 def _sync_follower_to_crm_on_commit(follow_id):
     def callback():
         from crm.services import sync_contact_from_follower

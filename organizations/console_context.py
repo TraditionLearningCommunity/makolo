@@ -129,7 +129,7 @@ def _module_allowed(profile, space, key, *, space_permissions, limited, space_ro
     if key == "orders":
         return PermissionCode.ORDERS_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_COMMERCE_VIEW)
     if key == "payments":
-        return PermissionCode.FINANCE_VIEW in space_permissions
+        return PermissionCode.FINANCE_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_FINANCE_VIEW)
     if key == "promotions":
         return PermissionCode.PROMOTIONS_VIEW in space_permissions
     if key == "groups":
