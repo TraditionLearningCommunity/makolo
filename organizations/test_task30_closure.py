@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from access.models import Access, AccessStatus
+from accounts.models import UserProfile
 from activities.models import Activity
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
@@ -32,9 +33,11 @@ class Task30FollowClosureTests(TestCase):
             email="task30-other@example.test",
             password="StrongPass2026!",
         )
-        self.organizer.profile.public_profile = True
-        self.organizer.profile.searchable = True
-        self.organizer.profile.save()
+        UserProfile.objects.create(
+            user=self.organizer,
+            public_profile=True,
+            searchable=True,
+        )
         self.space = Organization.objects.create(
             name="Task 30 Space",
             created_by=self.organizer,
