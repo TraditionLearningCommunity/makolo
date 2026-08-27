@@ -1,10 +1,10 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from django.db.models import Prefetch, Q
+from django.db.models import Case, DateTimeField, F, Max, Prefetch, Q, When
 from django.utils import timezone
 
-from access.models import Access, AccessStatus
+from access.models import Access, AccessStatus, AccessUseResult
 from commerce.models import CommerceOrder
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from payments.models import Payment
@@ -110,15 +110,42 @@ def participant_journeys(profile):
         return Journey.objects.none()
     return (
         Journey.objects.filter(beneficiary=profile)
-        .select_related("activity", "activity__event_vertical", "occurrence")
-        .prefetch_related("occurrence__place_links__place", "requests", "transitions", "accesses__credentials", "commerce_orders__items__offer")
+        .select_related("activity", "activity__event_vertical", "activity__space", "activity__owner_profile", "occurrence")
+        .prefetch_related(
+            "occurrence__place_links__place",
+            "requests",
+            "transitions",
+            "accesses__credentials",
+            "commerce_orders__items__offer",
+        )
     )
+
+
+def participant_journey_search(queryset, q):
+    q = (q or "").strip()
+    if not q:
+        return queryset
+    return queryset.filter(
+        Q(activity__title__icontains=q)
+        | Q(activity__space__name__icontains=q)
+        | Q(activity__owner_profile__first_name__icontains=q)
+        | Q(activity__owner_profile__last_name__icontains=q)
+        | Q(activity__owner_profile__username__icontains=q)
+        | Q(occurrence__place_links__place__name__icontains=q)
+        | Q(occurrence__place_links__place__locality__icontains=q)
+        | Q(activity__transport_service__route__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__locality__icontains=q)
+    ).distinct()
 
 
 def participant_actionable_journeys(profile):
     return (
         participant_journeys(profile)
-        .filter(Q(status__in=ACTIONABLE_JOURNEY_STATUSES) | Q(status=JourneyStatus.SUBMITTED, workflow=WorkflowKind.INVITATION))
+        .filter(
+            Q(status__in=ACTIONABLE_JOURNEY_STATUSES)
+            | Q(status=JourneyStatus.SUBMITTED, workflow=WorkflowKind.INVITATION)
+        )
         .filter(accesses__isnull=True)
         .distinct()
     )
@@ -130,6 +157,16 @@ def participant_active_journeys(profile):
 
 def participant_history_journeys(profile):
     return participant_journeys(profile).filter(Q(status__in=HISTORY_JOURNEY_STATUSES) | Q(accesses__isnull=False)).distinct()
+
+
+def participant_unified_history_journeys(profile):
+    """Closed Journeys with no Access representation of the same experience."""
+    return (
+        participant_journeys(profile)
+        .filter(status__in=HISTORY_JOURNEY_STATUSES, accesses__isnull=True)
+        .distinct()
+        .order_by("-updated_at", "-created_at", "id")
+    )
 
 
 def participant_orders(profile):
@@ -163,6 +200,27 @@ def participant_accesses(profile):
     if not _authenticated(profile):
         return Access.objects.none()
     return _access_queryset().filter(beneficiary=profile)
+
+
+def participant_access_search(queryset, q, *, include_external_holder=False):
+    q = (q or "").strip()
+    if not q:
+        return queryset
+    lookup = (
+        Q(activity__title__icontains=q)
+        | Q(activity__space__name__icontains=q)
+        | Q(activity__owner_profile__first_name__icontains=q)
+        | Q(activity__owner_profile__last_name__icontains=q)
+        | Q(activity__owner_profile__username__icontains=q)
+        | Q(occurrence__place_links__place__name__icontains=q)
+        | Q(occurrence__place_links__place__locality__icontains=q)
+        | Q(activity__transport_service__route__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__name__icontains=q)
+        | Q(activity__transport_service__route__stops__place__locality__icontains=q)
+    )
+    if include_external_holder:
+        lookup |= Q(external_beneficiary__display_name__icontains=q)
+    return queryset.filter(lookup).distinct()
 
 
 def participant_accesses_visible_to_buyer(profile):
@@ -200,6 +258,17 @@ def participant_upcoming_accesses(profile, *, at=None):
     return participant_active_accesses(profile, at=at).order_by("occurrence__start_at", "-created_at")
 
 
+def participant_upcoming_engagements(profile, *, at=None):
+    """Active personal Accesses that have a meaningful temporal engagement."""
+    at = at or timezone.now()
+    return (
+        participant_active_accesses(profile, at=at)
+        .filter(occurrence__isnull=False)
+        .filter(Q(occurrence__end_at__isnull=True) | Q(occurrence__end_at__gte=at))
+        .order_by("occurrence__start_at", "-created_at", "id")
+    )
+
+
 def participant_access_history(profile, *, at=None):
     at = at or timezone.now()
     return (
@@ -213,6 +282,47 @@ def participant_access_history(profile, *, at=None):
     )
 
 
+def participant_unified_history_accesses(profile, *, at=None):
+    """Historical personal Accesses ordered by the most relevant business moment."""
+    at = at or timezone.now()
+    return (
+        participant_access_history(profile, at=at)
+        .annotate(
+            latest_accepted_use_at=Max(
+                "uses__used_at",
+                filter=Q(uses__result=AccessUseResult.ACCEPTED),
+            )
+        )
+        .annotate(
+            history_at=Case(
+                When(
+                    status=AccessStatus.USED,
+                    latest_accepted_use_at__isnull=False,
+                    then=F("latest_accepted_use_at"),
+                ),
+                When(
+                    status=AccessStatus.VALID,
+                    occurrence__end_at__lt=at,
+                    then=F("occurrence__end_at"),
+                ),
+                When(
+                    status=AccessStatus.VALID,
+                    valid_until__isnull=False,
+                    valid_until__lte=at,
+                    then=F("valid_until"),
+                ),
+                default=F("updated_at"),
+                output_field=DateTimeField(),
+            )
+        )
+        .order_by("-history_at", "-created_at", "id")
+    )
+
+
 def participant_upcoming_occurrences(profile, *, at=None):
     at = at or timezone.now()
-    return participant_active_journeys(profile).filter(occurrence__isnull=False, occurrence__start_at__gte=at).order_by("occurrence__start_at")
+    return (
+        participant_active_journeys(profile)
+        .filter(occurrence__isnull=False, occurrence__start_at__gte=at)
+        .order_by("occurrence__start_at")
+    )
