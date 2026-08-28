@@ -17,6 +17,7 @@ ACTIVE_JOURNEY_STATUSES = {
     JourneyStatus.APPROVED,
     JourneyStatus.PENDING_PAYMENT,
     JourneyStatus.CONFIRMED,
+    JourneyStatus.IN_PROGRESS,
 }
 ACTIONABLE_JOURNEY_STATUSES = {
     JourneyStatus.DRAFT,
