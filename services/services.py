@@ -61,6 +61,12 @@ def create_plan_template(*, service, actor, key, name, version=1):
 
 @transaction.atomic
 def add_template_step(*, template, actor, title, kind=JourneyStepKind.ACTION, description="", position=0, is_required=True, relative_due_days=None):
+    template = (
+        ServicePlanTemplate.objects.select_for_update(of=("self",))
+        .select_related("service", "service__activity")
+        .order_by()
+        .get(pk=template.pk)
+    )
     _ensure_activity_manager(actor, template.service)
     if template.status != ServicePlanTemplateStatus.DRAFT:
         raise ValidationError("Seul un template brouillon peut être modifié.")
@@ -82,10 +88,18 @@ def _template_dependency_would_cycle(*, step, depends_on):
 
 @transaction.atomic
 def add_template_dependency(*, step, depends_on, actor):
-    _ensure_activity_manager(actor, step.template.service)
+    step = ServicePlanTemplateStep.objects.select_related("template", "template__service", "template__service__activity").get(pk=step.pk)
+    depends_on = ServicePlanTemplateStep.objects.select_related("template").get(pk=depends_on.pk)
     if step.template_id != depends_on.template_id:
         raise ValidationError("Une dépendance de plan ne peut pas traverser deux templates.")
-    if step.template.status != ServicePlanTemplateStatus.DRAFT:
+    template = (
+        ServicePlanTemplate.objects.select_for_update(of=("self",))
+        .select_related("service", "service__activity")
+        .order_by()
+        .get(pk=step.template_id)
+    )
+    _ensure_activity_manager(actor, template.service)
+    if template.status != ServicePlanTemplateStatus.DRAFT:
         raise ValidationError("Un template publié ou retiré est immuable.")
     if step.pk == depends_on.pk:
         raise ValidationError("Une étape de plan ne peut pas dépendre d’elle-même.")
@@ -145,14 +159,22 @@ def create_plan_template_version(*, template, actor, name=None):
 
 @transaction.atomic
 def create_service_journey(*, service, initiated_by, beneficiary=None, external_beneficiary=None, objective="", template=None, expires_at=None):
+    service = ServiceDetails.objects.select_related("activity").get(pk=service.pk)
     if service.opportunity_policy == OpportunityPolicy.REQUIRED:
         raise ValidationError("Ce Service exige une Opportunity ; son démarrage opérationnel est différé à T32.")
     if bool(beneficiary) == bool(external_beneficiary):
         raise ValidationError("Choisissez exactement un bénéficiaire Profile ou externe.")
     if external_beneficiary is not None and not service.allows_external_beneficiary:
         raise ValidationError("Ce Service n’autorise pas de bénéficiaire externe.")
-    if template is not None and (template.service_id != service.pk or template.status != ServicePlanTemplateStatus.PUBLISHED):
-        raise ValidationError("La Journey doit utiliser un template publié de ce Service.")
+    if template is not None:
+        template = (
+            ServicePlanTemplate.objects.select_for_update(of=("self",))
+            .select_related("service", "service__activity")
+            .order_by()
+            .get(pk=template.pk)
+        )
+        if template.service_id != service.pk or template.status != ServicePlanTemplateStatus.PUBLISHED:
+            raise ValidationError("La Journey doit utiliser un template publié de ce Service.")
     journey = create_journey_for_holder(initiated_by=initiated_by, beneficiary=beneficiary, external_beneficiary=external_beneficiary, activity=service.activity, workflow=WorkflowKind.SERVICE, occurrence=None, expires_at=expires_at)
     context = ServiceJourneyContext(journey=journey, service_plan_template=template, objective=(objective or "").strip())
     context.save()
