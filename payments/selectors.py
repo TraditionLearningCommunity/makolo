@@ -3,7 +3,7 @@ from django.db.models import Q
 from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 
-from .models import Payment, PaymentEvent, Refund
+from .models import Payment, PaymentEvent, PaymentEvidence, PaymentObligation, PaymentObligationStatus, Refund
 
 
 def _space_filter(prefix: str, space_ids) -> Q:
@@ -23,6 +23,58 @@ def _commerce_space_filter(prefix: str, space_ids) -> Q:
     )
 
 
+def obligations_for_journey(journey):
+    return (
+        PaymentObligation.objects.filter(journey=journey)
+        .select_related("journey", "commerce_order", "step", "payee_space", "payee_profile", "created_by")
+        .order_by("due_at", "created_at", "id")
+    )
+
+
+def pending_obligations_for_journey(journey):
+    return obligations_for_journey(journey).filter(status__in={PaymentObligationStatus.PENDING, PaymentObligationStatus.PROCESSING})
+
+
+def obligations_for_step(step):
+    return (
+        PaymentObligation.objects.filter(step=step)
+        .select_related("journey", "commerce_order", "step", "payee_space", "payee_profile")
+        .order_by("created_at", "id")
+    )
+
+
+def payments_for_obligation(obligation):
+    return Payment.objects.filter(obligation=obligation).select_related("obligation", "commerce_order", "order", "initiated_by").order_by("created_at", "id")
+
+
+def payment_evidence_for_obligation(obligation):
+    return PaymentEvidence.objects.filter(obligation=obligation).select_related("artifact", "submitted_by", "verified_by").order_by("created_at", "id")
+
+
+def obligations_visible_to(user):
+    queryset = PaymentObligation.objects.select_related(
+        "journey",
+        "journey__beneficiary",
+        "journey__activity",
+        "journey__activity__space",
+        "commerce_order",
+        "step",
+        "payee_space",
+        "payee_profile",
+    )
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+    if getattr(user, "is_staff", False):
+        return queryset
+    space_ids = space_ids_with_permission(user, PermissionCode.FINANCE_VIEW)
+    filters = Q(journey__beneficiary=user) | Q(created_by=user)
+    if space_ids is None:
+        return queryset
+    if space_ids:
+        filters |= Q(journey__activity__space_id__in=space_ids)
+    return queryset.filter(filters).distinct()
+
+
 def get_payments_visible_to(user):
     queryset = Payment.objects.select_related(
         "order",
@@ -37,6 +89,10 @@ def get_payments_visible_to(user):
         "commerce_order__journey__activity__space",
         "commerce_order__buyer",
         "commerce_order__payee_space",
+        "obligation",
+        "obligation__journey",
+        "obligation__journey__beneficiary",
+        "obligation__journey__activity",
         "initiated_by",
     ).prefetch_related("refunds")
     if not getattr(user, "is_authenticated", False):
@@ -47,12 +103,15 @@ def get_payments_visible_to(user):
         return queryset
     contextual = _space_filter("order__event__", space_ids)
     commerce_contextual = _commerce_space_filter("commerce_order__", space_ids)
+    obligation_contextual = Q(obligation__journey__activity__space_id__in=space_ids) if space_ids else Q(pk__isnull=True)
     return queryset.filter(
         Q(order__buyer=user)
         | Q(commerce_order__buyer=user)
+        | Q(obligation__journey__beneficiary=user)
         | Q(initiated_by=user)
         | contextual
         | commerce_contextual
+        | obligation_contextual
         | Q(order__event__activity__space__isnull=True, order__event__activity__created_by=user)
     ).distinct()
 
@@ -67,6 +126,7 @@ def get_refunds_visible_to(user):
         "payment__commerce_order__journey",
         "payment__commerce_order__journey__activity",
         "payment__commerce_order__payee_space",
+        "payment__obligation",
         "requested_by",
     ).filter(payment_id__in=payment_ids)
 
@@ -84,6 +144,8 @@ def get_payment_events_visible_to(user):
         "payment__commerce_order__journey__activity",
         "payment__commerce_order__journey__activity__space",
         "payment__commerce_order__payee_space",
+        "payment__obligation",
+        "payment__obligation__journey",
     )
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
@@ -93,11 +155,11 @@ def get_payment_events_visible_to(user):
         return queryset
     contextual = _space_filter("payment__order__event__", space_ids)
     commerce_contextual = _commerce_space_filter("payment__commerce_order__", space_ids)
+    obligation_contextual = Q(payment__obligation__journey__activity__space_id__in=space_ids) if space_ids else Q(pk__isnull=True)
     return queryset.filter(
         contextual
         | commerce_contextual
-        | Q(
-            payment__order__event__activity__space__isnull=True,
-            payment__order__event__activity__created_by=user,
-        )
+        | obligation_contextual
+        | Q(payment__obligation__journey__beneficiary=user)
+        | Q(payment__order__event__activity__space__isnull=True, payment__order__event__activity__created_by=user)
     ).distinct()
