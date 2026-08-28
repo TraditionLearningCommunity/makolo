@@ -194,6 +194,14 @@ jobs:
           tickets.test_journey_access_bridge
           scanner.test_access_bridge
 
+      - name: Run Services T31 PostgreSQL tests
+        run: >-
+          python manage.py test
+          journeys.test_task31_services_core
+          journeys.test_task31_concurrency
+          services.tests
+          services.test_task31_concurrency
+
       - name: Run Commerce and Capacity PostgreSQL tests
         run: >-
           python manage.py test

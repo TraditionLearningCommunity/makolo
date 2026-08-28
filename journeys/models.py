@@ -56,6 +56,7 @@ class WorkflowKind(models.TextChoices):
     RESERVATION = "reservation", "Réservation"
     REGISTRATION = "registration", "Inscription"
     INVITATION = "invitation", "Invitation"
+    SERVICE = "service", "Service"
 
 
 class JourneyStatus(models.TextChoices):
@@ -65,6 +66,7 @@ class JourneyStatus(models.TextChoices):
     APPROVED = "approved", "Approuvée"
     PENDING_PAYMENT = "pending_payment", "En attente de paiement"
     CONFIRMED = "confirmed", "Confirmée"
+    IN_PROGRESS = "in_progress", "En cours"
     FULFILLED = "fulfilled", "Réalisée"
     REJECTED = "rejected", "Rejetée"
     CANCELLED = "cancelled", "Annulée"
@@ -121,6 +123,7 @@ class Journey(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
     fulfilled_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -303,3 +306,28 @@ class JourneyRequest(models.Model):
 
     def __str__(self):
         return f"{self.get_purpose_display()} — {self.journey_id} — {self.get_status_display()}"
+
+
+from .collaboration_models import (  # noqa: E402,F401
+    JourneyArtifact,
+    JourneyArtifactKind,
+    JourneyArtifactReview,
+    JourneyArtifactReviewStatus,
+    JourneyArtifactSensitivity,
+    JourneyArtifactStatus,
+    JourneyAssignment,
+    JourneyAssignmentResponsibility,
+    JourneyAssignmentStatus,
+    JourneyBlocker,
+    JourneyBlockerCategory,
+    JourneyBlockerSeverity,
+    JourneyBlockerStatus,
+    JourneyNote,
+    JourneyNoteVisibility,
+    JourneyStep,
+    JourneyStepAssignment,
+    JourneyStepDependency,
+    JourneyStepKind,
+    JourneyStepOrigin,
+    JourneyStepStatus,
+)

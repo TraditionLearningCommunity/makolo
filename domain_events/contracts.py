@@ -14,9 +14,22 @@ class DomainEventType:
     JOURNEY_REJECTED = "journey.rejected"
     JOURNEY_PENDING_PAYMENT = "journey.pending_payment"
     JOURNEY_CONFIRMED = "journey.confirmed"
+    JOURNEY_IN_PROGRESS = "journey.in_progress"
     JOURNEY_FULFILLED = "journey.fulfilled"
     JOURNEY_CANCELLED = "journey.cancelled"
     JOURNEY_EXPIRED = "journey.expired"
+
+    JOURNEY_STEP_READY = "journey.step.ready"
+    JOURNEY_STEP_STARTED = "journey.step.started"
+    JOURNEY_STEP_COMPLETED = "journey.step.completed"
+    JOURNEY_STEP_BLOCKED = "journey.step.blocked"
+    JOURNEY_BLOCKER_CREATED = "journey.blocker.created"
+    JOURNEY_BLOCKER_RESOLVED = "journey.blocker.resolved"
+    JOURNEY_ASSIGNMENT_CREATED = "journey.assignment.created"
+    JOURNEY_ASSIGNMENT_ENDED = "journey.assignment.ended"
+    JOURNEY_ARTIFACT_CREATED = "journey.artifact.created"
+    JOURNEY_ARTIFACT_REVIEW_REQUESTED = "journey.artifact.review_requested"
+    JOURNEY_ARTIFACT_REVIEW_COMPLETED = "journey.artifact.review_completed"
 
     REQUEST_CREATED = "request.created"
     REQUEST_APPROVED = "request.approved"
@@ -51,6 +64,7 @@ JOURNEY_STATUS_EVENT_TYPES = {
     "rejected": DomainEventType.JOURNEY_REJECTED,
     "pending_payment": DomainEventType.JOURNEY_PENDING_PAYMENT,
     "confirmed": DomainEventType.JOURNEY_CONFIRMED,
+    "in_progress": DomainEventType.JOURNEY_IN_PROGRESS,
     "fulfilled": DomainEventType.JOURNEY_FULFILLED,
     "cancelled": DomainEventType.JOURNEY_CANCELLED,
     "expired": DomainEventType.JOURNEY_EXPIRED,

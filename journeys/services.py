@@ -26,6 +26,7 @@ APPROVAL_WORKFLOWS = {
     WorkflowKind.RESERVATION,
     WorkflowKind.REGISTRATION,
     WorkflowKind.INVITATION,
+    WorkflowKind.SERVICE,
 }
 
 
@@ -141,6 +142,8 @@ def _transition_locked(journey, *, new_status, actor=None, reason=""):
         journey.submitted_at = now
     elif new_status == JourneyStatus.CONFIRMED and journey.confirmed_at is None:
         journey.confirmed_at = now
+    elif new_status == JourneyStatus.IN_PROGRESS and journey.started_at is None:
+        journey.started_at = now
     elif new_status == JourneyStatus.FULFILLED and journey.fulfilled_at is None:
         journey.fulfilled_at = now
     elif new_status == JourneyStatus.CANCELLED and journey.cancelled_at is None:
@@ -176,12 +179,7 @@ def request_approval(*, journey, actor=None, reason="approval_required"):
     journey = _locked(journey)
     if journey.workflow not in APPROVAL_WORKFLOWS or journey.status != JourneyStatus.SUBMITTED:
         raise ValidationError("Cette Démarche ne peut pas demander une approbation maintenant.")
-    return _transition_locked(
-        journey,
-        new_status=JourneyStatus.PENDING_APPROVAL,
-        actor=actor,
-        reason=reason,
-    )
+    return _transition_locked(journey, new_status=JourneyStatus.PENDING_APPROVAL, actor=actor, reason=reason)
 
 
 def _ensure_decider(actor, journey):
@@ -223,12 +221,7 @@ def require_payment(*, journey, actor=None, reason="payment_required"):
     )
     if not allowed:
         raise ValidationError("Cette Démarche ne peut pas attendre un paiement depuis son état actuel.")
-    return _transition_locked(
-        journey,
-        new_status=JourneyStatus.PENDING_PAYMENT,
-        actor=actor,
-        reason=reason,
-    )
+    return _transition_locked(journey, new_status=JourneyStatus.PENDING_PAYMENT, actor=actor, reason=reason)
 
 
 @transaction.atomic
@@ -243,16 +236,36 @@ def confirm_journey(*, journey, actor=None, reason="confirmed"):
         allowed = journey.status in {JourneyStatus.SUBMITTED, JourneyStatus.APPROVED}
     elif journey.workflow == WorkflowKind.INVITATION:
         allowed = journey.status == JourneyStatus.APPROVED
+    elif journey.workflow == WorkflowKind.SERVICE:
+        allowed = journey.status in {JourneyStatus.SUBMITTED, JourneyStatus.APPROVED}
     if not allowed:
         raise ValidationError("Cette Démarche ne peut pas être confirmée depuis son état actuel.")
     return _transition_locked(journey, new_status=JourneyStatus.CONFIRMED, actor=actor, reason=reason)
 
 
 @transaction.atomic
+def start_journey(*, journey, actor=None, reason="in_progress"):
+    journey = _locked(journey)
+    if journey.workflow != WorkflowKind.SERVICE or journey.status != JourneyStatus.CONFIRMED:
+        raise ValidationError("Seule une Journey Services confirmée peut entrer en cours.")
+    return _transition_locked(journey, new_status=JourneyStatus.IN_PROGRESS, actor=actor, reason=reason)
+
+
+@transaction.atomic
 def fulfill_journey(*, journey, actor=None, reason="fulfilled"):
     journey = _locked(journey)
+    if journey.workflow == WorkflowKind.SERVICE:
+        raise ValidationError("Une Journey Services doit être clôturée par la completion policy Services.")
     if journey.status != JourneyStatus.CONFIRMED:
         raise ValidationError("Seule une Démarche confirmée peut être réalisée.")
+    return _transition_locked(journey, new_status=JourneyStatus.FULFILLED, actor=actor, reason=reason)
+
+
+@transaction.atomic
+def _fulfill_service_journey(*, journey, actor=None, reason="service_completion_policy_satisfied"):
+    journey = _locked(journey)
+    if journey.workflow != WorkflowKind.SERVICE or journey.status != JourneyStatus.IN_PROGRESS:
+        raise ValidationError("Seule une Journey Services en cours peut être clôturée par Services.")
     return _transition_locked(journey, new_status=JourneyStatus.FULFILLED, actor=actor, reason=reason)
 
 
@@ -294,33 +307,15 @@ def expire_due_journeys(*, now=None) -> int:
 
 
 @transaction.atomic
-def create_request(
-    *,
-    journey,
-    requester,
-    purpose=RequestPurpose.APPROVAL,
-    message="",
-    expires_at=None,
-) -> JourneyRequest:
+def create_request(*, journey, requester, purpose=RequestPurpose.APPROVAL, message="", expires_at=None) -> JourneyRequest:
     journey = _locked(journey)
     if journey.status == JourneyStatus.SUBMITTED:
         if journey.workflow not in APPROVAL_WORKFLOWS:
             raise ValidationError("Cette Démarche ne supporte pas de Demande d’approbation.")
-        journey = _transition_locked(
-            journey,
-            new_status=JourneyStatus.PENDING_APPROVAL,
-            actor=requester,
-            reason="request_created",
-        )
+        journey = _transition_locked(journey, new_status=JourneyStatus.PENDING_APPROVAL, actor=requester, reason="request_created")
     elif journey.status != JourneyStatus.PENDING_APPROVAL:
         raise ValidationError("Une Demande ne peut être ouverte que pendant l’étape d’approbation.")
-    request = JourneyRequest(
-        journey=journey,
-        requester=requester,
-        purpose=purpose,
-        message=message,
-        expires_at=expires_at,
-    )
+    request = JourneyRequest(journey=journey, requester=requester, purpose=purpose, message=message, expires_at=expires_at)
     request.full_clean()
     request.save()
     _emit_request_event(request, journey, DomainEventType.REQUEST_CREATED)
@@ -330,18 +325,8 @@ def create_request(
 def _lock_request_and_journey(request):
     request_id = request.pk
     journey_id = JourneyRequest.objects.only("journey_id").get(pk=request_id).journey_id
-    journey = (
-        Journey.objects.select_for_update(of=("self",))
-        .select_related("activity", "occurrence", "beneficiary", "initiated_by")
-        .order_by()
-        .get(pk=journey_id)
-    )
-    request = (
-        JourneyRequest.objects.select_for_update(of=("self",))
-        .select_related("requester", "decided_by")
-        .order_by()
-        .get(pk=request_id)
-    )
+    journey = Journey.objects.select_for_update(of=("self",)).select_related("activity", "occurrence", "beneficiary", "initiated_by").order_by().get(pk=journey_id)
+    request = JourneyRequest.objects.select_for_update(of=("self",)).select_related("requester", "decided_by").order_by().get(pk=request_id)
     return request, journey
 
 
@@ -393,18 +378,11 @@ def cancel_request(*, request, actor, comment=""):
     if request.status != RequestStatus.PENDING:
         raise ValidationError("Cette Demande n’est plus en attente.")
     is_requester = request.requester_id == getattr(actor, "pk", None)
-    can_manage = getattr(actor, "is_authenticated", False) and can(
-        actor,
-        PermissionCode.ACTIVITY_REQUESTS_DECIDE,
-        activity=journey.activity,
-    )
+    can_manage = getattr(actor, "is_authenticated", False) and can(actor, PermissionCode.ACTIVITY_REQUESTS_DECIDE, activity=journey.activity)
     if not (is_requester or can_manage):
         raise PermissionDenied("Vous ne pouvez pas annuler cette Demande.")
     _save_request_decision(request, status=RequestStatus.CANCELLED, actor=actor, comment=comment)
-    if journey.status == JourneyStatus.PENDING_APPROVAL and not JourneyRequest.objects.filter(
-        journey=journey,
-        status=RequestStatus.PENDING,
-    ).exclude(pk=request.pk).exists():
+    if journey.status == JourneyStatus.PENDING_APPROVAL and not JourneyRequest.objects.filter(journey=journey, status=RequestStatus.PENDING).exclude(pk=request.pk).exists():
         _transition_locked(journey, new_status=JourneyStatus.CANCELLED, actor=actor, reason="request_cancelled")
     return request
 
@@ -425,10 +403,7 @@ def expire_request(*, request, now=None):
 
 def expire_due_requests(*, now=None) -> int:
     now = now or timezone.now()
-    ids = list(
-        JourneyRequest.objects.filter(status=RequestStatus.PENDING, expires_at__lte=now)
-        .values_list("pk", flat=True)
-    )
+    ids = list(JourneyRequest.objects.filter(status=RequestStatus.PENDING, expires_at__lte=now).values_list("pk", flat=True))
     changed = 0
     for request_id in ids:
         request = JourneyRequest.objects.get(pk=request_id)

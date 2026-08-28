@@ -12,7 +12,11 @@ from django.core.exceptions import ImproperlyConfigured
 
 from .base_settings import *  # noqa: F401,F403
 
-INSTALLED_APPS = [*INSTALLED_APPS, "transport.apps.TransportConfig"]
+INSTALLED_APPS = [
+    *INSTALLED_APPS,
+    "transport.apps.TransportConfig",
+    "services.apps.ServicesConfig",
+]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime
 # configuration and does not require a Mapbox/Google token.
