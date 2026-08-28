@@ -9,31 +9,52 @@ from .models import PaymentProvider
 
 
 @dataclass(frozen=True)
+class ProviderInitiation:
+    checkout_url: str = ""
+
+
+@dataclass(frozen=True)
 class ProviderCompletion:
     provider_reference: str
     source: str
 
 
+@dataclass(frozen=True)
+class ProviderRefund:
+    provider_reference: str
+
+
 class PaymentProviderAdapter:
     """Minimal provider boundary owned by Payments.
 
-    Real providers can later implement network initiation/event confirmation without
-    changing PaymentObligation, Journey or Commerce contracts.
+    The domain owns obligations and payment lifecycle. Adapters only encapsulate
+    provider-specific initiation/confirmation/cancellation/refund mechanics.
+    Future real providers can implement this contract without leaking provider
+    conditions into Commerce, Journey or Services.
     """
 
     code: str
 
-    def completion(self, *, payment, provider_reference: str = "", source: str = "provider") -> ProviderCompletion:
+    def initiate(self, *, payment) -> ProviderInitiation:
+        return ProviderInitiation()
+
+    def confirm(self, *, payment, provider_reference: str = "", source: str = "provider") -> ProviderCompletion:
         reference = (provider_reference or "").strip()
         if not reference:
             raise ValidationError("La référence fournisseur est obligatoire.")
         return ProviderCompletion(provider_reference=reference, source=source)
 
+    def cancel(self, *, payment) -> None:
+        return None
+
+    def refund(self, *, payment, amount) -> ProviderRefund:
+        return ProviderRefund(provider_reference=f"RFD-{self.code.upper()}-{uuid.uuid4().hex[:16].upper()}")
+
 
 class SandboxProviderAdapter(PaymentProviderAdapter):
     code = PaymentProvider.SANDBOX
 
-    def completion(self, *, payment, provider_reference: str = "", source: str = "sandbox-ui") -> ProviderCompletion:
+    def confirm(self, *, payment, provider_reference: str = "", source: str = "sandbox-ui") -> ProviderCompletion:
         reference = (provider_reference or "").strip() or f"SBX-{uuid.uuid4().hex[:20].upper()}"
         return ProviderCompletion(provider_reference=reference, source=source)
 
@@ -41,7 +62,7 @@ class SandboxProviderAdapter(PaymentProviderAdapter):
 class ManualProviderAdapter(PaymentProviderAdapter):
     code = PaymentProvider.MANUAL
 
-    def completion(self, *, payment, provider_reference: str = "", source: str = "manual") -> ProviderCompletion:
+    def confirm(self, *, payment, provider_reference: str = "", source: str = "manual") -> ProviderCompletion:
         reference = (provider_reference or "").strip() or f"MAN-{uuid.uuid4().hex[:20].upper()}"
         return ProviderCompletion(provider_reference=reference, source=source)
 
