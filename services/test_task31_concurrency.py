@@ -48,6 +48,7 @@ def run_pair(first, second):
 @skipUnless(connection.vendor == "postgresql", "T31 materialization concurrency requires PostgreSQL")
 class ServiceMaterializationConcurrencyTests(TransactionTestCase):
     reset_sequences = False
+    serialized_rollback = True
 
     def setUp(self):
         self.manager = User.objects.create_user(username="services-concurrency-manager", email="services-concurrency-manager@example.com", password="x")
