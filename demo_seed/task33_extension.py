@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -341,7 +342,7 @@ def seed_task33_extension(ctx: SeedContext, *, users: dict[str, object]) -> None
             context=submission_context,
             actor=staff,
             event_type=ServiceOutcomeEventType.UNSUCCESSFUL,
-            occurred_at=ctx.as_of,
+            occurred_at=(submission.submitted_at or ctx.as_of) + timedelta(hours=1),
             external_reference="BETA-T33-OUTCOME-001",
             note="Décision externe fictive : candidature non retenue.",
         )
