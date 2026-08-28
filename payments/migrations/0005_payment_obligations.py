@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
@@ -18,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="PaymentObligation",
             fields=[
-                ("id", models.UUIDField(editable=False, primary_key=True, serialize=False)),
+                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("reason", models.CharField(choices=[("commerce", "Commerce"), ("opportunity_requirement", "Requirement Opportunity"), ("service_process", "Processus Service"), ("access_requirement", "Condition d’accès"), ("other", "Autre")], max_length=32)),
                 ("label", models.CharField(max_length=220)),
                 ("amount", models.DecimalField(decimal_places=2, max_digits=12, validators=[MinValueValidator(Decimal("0.01"))])),
@@ -75,7 +76,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="PaymentEvidence",
             fields=[
-                ("id", models.UUIDField(editable=False, primary_key=True, serialize=False)),
+                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("external_reference", models.CharField(blank=True, max_length=240)),
                 ("paid_at", models.DateTimeField()),
                 ("status", models.CharField(choices=[("submitted", "Soumise"), ("verified", "Vérifiée"), ("rejected", "Rejetée")], default="submitted", max_length=16)),
