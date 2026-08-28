@@ -6,13 +6,16 @@ from .models import (
     ServiceIntakeQuestion,
     ServiceJourneyContext,
     ServiceOpportunityRevisionAdoption,
+    ServiceOutcomeEvent,
     ServicePlanMaterialization,
     ServicePlanTemplate,
     ServicePlanTemplateStep,
     ServicePlanTemplateStepDependency,
     ServiceRequirementAssessment,
     ServiceRequirementEvidence,
+    ServiceRequirementPaymentObligation,
     ServiceRequirementStepLink,
+    ServiceSubmission,
 )
 
 
@@ -44,8 +47,8 @@ class ServicePlanTemplateStepDependencyAdmin(admin.ModelAdmin):
 
 @admin.register(ServiceJourneyContext)
 class ServiceJourneyContextAdmin(admin.ModelAdmin):
-    list_display = ("journey", "service_plan_template", "opportunity", "opportunity_revision", "plan_materialized_at", "created_at")
-    readonly_fields = ("opportunity", "opportunity_revision", "plan_materialized_at", "created_at", "updated_at")
+    list_display = ("journey", "service_plan_template", "opportunity", "opportunity_revision", "current_outcome", "plan_materialized_at", "created_at")
+    readonly_fields = ("opportunity", "opportunity_revision", "current_outcome", "plan_materialized_at", "created_at", "updated_at")
 
 
 @admin.register(ServiceRequirementAssessment)
@@ -78,6 +81,55 @@ class ServiceOpportunityRevisionAdoptionAdmin(admin.ModelAdmin):
 class ServiceRequirementStepLinkAdmin(admin.ModelAdmin):
     list_display = ("assessment", "journey_step", "created_by", "created_at")
     readonly_fields = ("assessment", "journey_step", "created_by", "created_at")
+
+
+@admin.register(ServiceRequirementPaymentObligation)
+class ServiceRequirementPaymentObligationAdmin(admin.ModelAdmin):
+    list_display = ("assessment", "obligation", "created_by", "created_at")
+    readonly_fields = [field.name for field in ServiceRequirementPaymentObligation._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ServiceSubmission)
+class ServiceSubmissionAdmin(admin.ModelAdmin):
+    list_display = ("context", "attempt", "mode", "status", "submitted_at", "external_reference")
+    list_filter = ("mode", "status")
+    search_fields = ("context__journey__id", "external_reference", "receipt_artifact__title")
+    readonly_fields = [field.name for field in ServiceSubmission._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ServiceOutcomeEvent)
+class ServiceOutcomeEventAdmin(admin.ModelAdmin):
+    list_display = ("context", "event_type", "occurred_at", "recorded_by", "created_at")
+    list_filter = ("event_type", "occurred_at")
+    search_fields = ("context__journey__id", "external_reference", "note")
+    readonly_fields = [field.name for field in ServiceOutcomeEvent._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ServicePlanMaterialization)
