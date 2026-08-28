@@ -786,3 +786,23 @@ La découvrabilité (`LISTED`, `UNLISTED`, `HIDDEN`, `SPACE_ONLY`) est distincte
 `ActivityGroupEligibility` fournit la première relation explicite Groupe–Activity, sans `GenericForeignKey`. L'autorité Activity et l'autorité Groupe sont vérifiées séparément ; un usage cross-owner passe par consentement explicite. Seul un Membership `ACTIVE` satisfait l'éligibilité d'une nouvelle Journey. Cette éligibilité ne crée jamais automatiquement Journey, CommerceOrder, Payment, Access ou export CRM, et une perte ultérieure de Membership ne révoque pas un Access déjà acquis.
 
 La frontière CRM reste inchangée : **Groupe ≠ Audience**. Réutiliser un Groupe cross-Space fonctionne par référence et n'autorise aucune copie implicite de ses membres ou de leurs coordonnées. Les détails opérationnels, politiques de confidentialité, migrations et parcours sont documentés dans [`groups.md`](groups.md) et [`authorization-boundaries.md`](authorization-boundaries.md).
+
+### Cible canonique — Makolo Services / Opportunities
+
+Makolo Services est la prochaine verticale composée au-dessus du cœur canonique. **Une demande complète de service reste une `Journey`** : la verticale ne crée pas de `ServiceRequest` parallèle. Une `Activity` Services représente l'accompagnement réellement opéré par un Profil ou un Espace ; une **Opportunity** représente au contraire une possibilité externe (emploi, bourse, stage, admission, financement, concours, programme, etc.) que la personne cherche à atteindre.
+
+Le parcours Services étend `Journey` avec des primitives génériques de parcours long : étapes et dépendances (`JourneyStep`), aléas (`JourneyBlocker`), affectations opérationnelles (`JourneyAssignment`), pièces versionnées/reviews/notes. `Mandate` reste la source d'autorité Activity-scoped ; une affectation dossier n'accorde jamais à elle seule une permission et aucune portée `Journey` n'est ajoutée aux Mandats dans cette cible.
+
+Le domaine `opportunities` porte l'identité durable d'une Opportunity, ses révisions immuables, ses sources et contrôles de source, ses requirements, ses zones et sa curation. Une Journey Services travaille sur une `OpportunityRevision` explicite afin qu'un changement externe ne réécrive jamais silencieusement l'historique du dossier. Une Journey peut aussi exister sans Opportunity, par exemple pour un accompagnement CV ou une démarche administrative.
+
+Le workflow Journey gagne le cas `service` et l'état global `in_progress`. Un paiement nécessaire avant la confirmation globale peut utiliser `pending_payment`, mais une obligation financière intermédiaire ne doit pas faire quitter `in_progress` à toute la Journey : elle bloque l'étape concernée.
+
+Payments reste une capacité transversale. La cible introduit `PaymentObligation` pour représenter ce qui doit être payé, qu'il s'agisse d'un achat Commerce, d'une condition d'Access, d'une étape de service ou d'un frais imposé par une Opportunity. Une obligation peut être traitée par un provider Makolo ou satisfaite extérieurement par une `PaymentEvidence` vérifiée. **Un paiement externe ne doit jamais être transformé en faux `Payment` réussi**, et un Payment traité par Makolo ne signifie jamais que Makolo est automatiquement le bénéficiaire économique.
+
+Le résultat du tiers reste distinct de l'accomplissement Makolo : une Journey peut être `fulfilled` alors que l'Opportunity aboutit ensuite à un résultat externe `unsuccessful`. Notifications, Automation et Analytics consomment ces faits sans devenir propriétaires du workflow.
+
+Les dossiers Services et leurs pièces sont privés par défaut. Les facilitateurs/reviewers utilisent des permissions Activity dédiées et, lorsqu'une permission est limitée aux dossiers assignés, doivent également posséder une `JourneyAssignment` active. TeamMembership seule, Assignment seule ou appartenance au même Espace ne suffisent pas.
+
+La spécification complète des modèles, états, permissions, paiements, confidentialité, surfaces fonctionnelles et invariants Services est canonique dans [`services-opportunities.md`](services-opportunities.md). Le séquençage d'implémentation Task 31+ et ses gates sont documentés dans [`services-implementation-plan.md`](services-implementation-plan.md).
+
+Les intégrations IA, M-PESA réel, autres providers réels et l'abonnement/feature gating Makolo sont volontairement différés ; la V1 Services doit néanmoins être complète et exploitable sans eux, avec un provider sandbox pour les parcours financiers.
