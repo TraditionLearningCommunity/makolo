@@ -109,7 +109,8 @@ class ServiceDetailsAndContextTests(ServiceFixtureMixin, TestCase):
         self.assertEqual(journey.workflow, WorkflowKind.SERVICE)
         self.assertEqual(context.service_plan_template, template)
         self.assertIn("CV clair", context.objective)
-        self.assertFalse(hasattr(context, "opportunity"))
+        self.assertIsNone(context.opportunity_id)
+        self.assertIsNone(context.opportunity_revision_id)
         from journeys.services import create_journey
         legacy = create_journey(initiated_by=self.beneficiary, beneficiary=self.beneficiary, activity=self.activity, workflow=WorkflowKind.REGISTRATION)
         with self.assertRaises(ValidationError):
