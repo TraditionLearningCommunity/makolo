@@ -90,12 +90,19 @@ class ServicePlanTemplate(models.Model):
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.status != ServicePlanTemplateStatus.DRAFT:
+        persisted_status = _persisted_template_status(self.pk)
+        if persisted_status and persisted_status != ServicePlanTemplateStatus.DRAFT:
             raise ValidationError("Un ServicePlanTemplate publié ou retiré ne peut pas être supprimé.")
         return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.service.activity} — {self.key} v{self.version}"
+
+
+def _persisted_template_status(template_id):
+    if not template_id:
+        return None
+    return ServicePlanTemplate.objects.filter(pk=template_id).values_list("status", flat=True).first()
 
 
 class ServicePlanTemplateStep(models.Model):
@@ -115,7 +122,8 @@ class ServicePlanTemplateStep(models.Model):
         indexes = [models.Index(fields=["template", "position"], name="services_tpl_step_pos_idx")]
 
     def save(self, *args, **kwargs):
-        if self.template_id and self.template.status != ServicePlanTemplateStatus.DRAFT:
+        template_status = _persisted_template_status(self.template_id)
+        if template_status and template_status != ServicePlanTemplateStatus.DRAFT:
             if self._state.adding:
                 raise ValidationError("Les étapes d’un template publié ou retiré sont immuables.")
             previous = ServicePlanTemplateStep.objects.filter(pk=self.pk).values("template_id", "kind", "title", "description", "position", "is_required", "relative_due_days").first()
@@ -126,7 +134,8 @@ class ServicePlanTemplateStep(models.Model):
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.template.status != ServicePlanTemplateStatus.DRAFT:
+        template_status = _persisted_template_status(self.template_id)
+        if template_status and template_status != ServicePlanTemplateStatus.DRAFT:
             raise ValidationError("Les étapes d’un template publié ou retiré sont immuables.")
         return super().delete(*args, **kwargs)
 
@@ -151,7 +160,8 @@ class ServicePlanTemplateStepDependency(models.Model):
                 errors["depends_on"] = "Une étape de template ne peut pas dépendre d’elle-même."
             elif self.step.template_id != self.depends_on.template_id:
                 errors["depends_on"] = "Les dépendances doivent rester dans le même template versionné."
-            if self.step.template.status != ServicePlanTemplateStatus.DRAFT:
+            template_status = _persisted_template_status(self.step.template_id)
+            if template_status and template_status != ServicePlanTemplateStatus.DRAFT:
                 errors["step"] = "Les dépendances d’un template publié ou retiré sont immuables."
         if errors:
             raise ValidationError(errors)
@@ -161,7 +171,8 @@ class ServicePlanTemplateStepDependency(models.Model):
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.step.template.status != ServicePlanTemplateStatus.DRAFT:
+        template_status = _persisted_template_status(self.step.template_id)
+        if template_status and template_status != ServicePlanTemplateStatus.DRAFT:
             raise ValidationError("Les dépendances d’un template publié ou retiré sont immuables.")
         return super().delete(*args, **kwargs)
 
@@ -269,14 +280,16 @@ class ServiceIntakeQuestion(models.Model):
                 errors["options"] = "Une question à choix exige au moins une option."
         elif self.options:
             errors["options"] = "Les options ne sont permises que pour les questions à choix."
-        if self.template_id and self.template.status != ServicePlanTemplateStatus.DRAFT:
-            if self._state.adding:
-                errors["template"] = "Un template publié ou retiré ne peut plus recevoir de question Intake."
-            else:
-                previous = ServiceIntakeQuestion.objects.filter(pk=self.pk).values("service_id", "template_id", "key", "prompt", "question_type", "is_required", "options", "position").first()
-                current = {"service_id": self.service_id, "template_id": self.template_id, "key": self.key, "prompt": self.prompt, "question_type": self.question_type, "is_required": self.is_required, "options": self.options, "position": self.position}
-                if previous != current:
-                    errors["template"] = "Les questions Intake d’un template publié ou retiré sont immuables."
+        if self.template_id:
+            template_status = _persisted_template_status(self.template_id)
+            if template_status and template_status != ServicePlanTemplateStatus.DRAFT:
+                if self._state.adding:
+                    errors["template"] = "Un template publié ou retiré ne peut plus recevoir de question Intake."
+                else:
+                    previous = ServiceIntakeQuestion.objects.filter(pk=self.pk).values("service_id", "template_id", "key", "prompt", "question_type", "is_required", "options", "position").first()
+                    current = {"service_id": self.service_id, "template_id": self.template_id, "key": self.key, "prompt": self.prompt, "question_type": self.question_type, "is_required": self.is_required, "options": self.options, "position": self.position}
+                    if previous != current:
+                        errors["template"] = "Les questions Intake d’un template publié ou retiré sont immuables."
         if errors:
             raise ValidationError(errors)
 
@@ -286,8 +299,10 @@ class ServiceIntakeQuestion(models.Model):
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.template_id and self.template.status != ServicePlanTemplateStatus.DRAFT:
-            raise ValidationError("Les questions Intake d’un template publié ou retiré sont immuables.")
+        if self.template_id:
+            template_status = _persisted_template_status(self.template_id)
+            if template_status and template_status != ServicePlanTemplateStatus.DRAFT:
+                raise ValidationError("Les questions Intake d’un template publié ou retiré sont immuables.")
         return super().delete(*args, **kwargs)
 
 
