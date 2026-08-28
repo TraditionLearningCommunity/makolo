@@ -202,6 +202,13 @@ jobs:
           services.tests
           services.test_task31_concurrency
 
+      - name: Run Opportunities and Services T32 PostgreSQL tests
+        run: >-
+          python manage.py test
+          opportunities.tests
+          services.test_task32_opportunities
+          services.test_task32_concurrency
+
       - name: Run Commerce and Capacity PostgreSQL tests
         run: >-
           python manage.py test
@@ -330,7 +337,7 @@ jobs:
 
       - name: Install Playwright browsers
         run: |
-          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt-mirrors.txt >/dev/null
           npx playwright install --with-deps chromium firefox
 
       - name: Prepare deterministic E2E environment

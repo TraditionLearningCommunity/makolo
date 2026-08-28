@@ -217,14 +217,12 @@ class ServiceJourneyContext(models.Model):
                     errors["service_plan_template"] = "Le template doit appartenir au Service de la Journey."
                 if service.opportunity_policy == OpportunityPolicy.NONE and self.opportunity_id:
                     errors["opportunity"] = "Ce Service est configuré sans Opportunity."
-                if self._state.adding and service.opportunity_policy == OpportunityPolicy.REQUIRED and not self.opportunity_id:
-                    errors["opportunity"] = "Ce Service exige une Opportunity."
         if self.opportunity_revision_id:
             if self.opportunity_revision.opportunity_id != self.opportunity_id:
                 errors["opportunity_revision"] = "La révision pinnée doit appartenir à l’Opportunity sélectionnée."
             if self.opportunity_revision.published_at is None:
                 errors["opportunity_revision"] = "Une Journey Services doit pinner une OpportunityRevision publiée."
-        if self.pk and not self._state.adding and not getattr(self, "_allow_opportunity_adoption", False):
+        if self.pk and not self._state.adding and not getattr(self, "_allow_opportunity_change", False):
             previous = ServiceJourneyContext.objects.filter(pk=self.pk).values("opportunity_id", "opportunity_revision_id").first()
             if previous and (
                 previous["opportunity_id"] != self.opportunity_id
@@ -237,7 +235,7 @@ class ServiceJourneyContext(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         result = super().save(*args, **kwargs)
-        self._allow_opportunity_adoption = False
+        self._allow_opportunity_change = False
         return result
 
 
@@ -350,27 +348,57 @@ class ServiceRequirementEvidence(models.Model):
         raise ValidationError("Une preuve Requirement auditée ne peut pas être supprimée.")
 
 
+class ServiceOpportunityRevisionAdoption(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    context = models.ForeignKey(ServiceJourneyContext, on_delete=models.CASCADE, related_name="opportunity_revision_adoptions")
+    previous_revision = models.ForeignKey("opportunities.OpportunityRevision", on_delete=models.PROTECT, related_name="service_adoptions_from")
+    revision = models.ForeignKey("opportunities.OpportunityRevision", on_delete=models.PROTECT, related_name="service_adoptions_to")
+    adopted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="service_opportunity_revision_adoptions", null=True, blank=True)
+    adopted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["context", "adopted_at", "id"]
+        constraints = [models.UniqueConstraint(fields=["context", "revision"], name="services_opp_adoption_unique")]
+        indexes = [models.Index(fields=["context", "adopted_at"], name="services_opp_adopt_ctx_idx")]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.previous_revision_id and self.revision_id:
+            if self.previous_revision.opportunity_id != self.revision.opportunity_id:
+                errors["revision"] = "Les révisions d’adoption doivent appartenir à la même Opportunity."
+            if self.revision.version <= self.previous_revision.version:
+                errors["revision"] = "L’adoption doit avancer vers une version plus récente."
+        if self.context_id and self.revision_id and self.context.opportunity_id != self.revision.opportunity_id:
+            errors["context"] = "L’adoption doit rester sur l’Opportunity du contexte."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValidationError("Un audit d’adoption Opportunity est append-only.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Un audit d’adoption Opportunity ne peut pas être supprimé.")
+
+
 class ServiceRequirementStepLink(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    context = models.ForeignKey(ServiceJourneyContext, on_delete=models.CASCADE, related_name="requirement_step_links")
-    requirement = models.ForeignKey("opportunities.OpportunityRequirement", on_delete=models.PROTECT, related_name="service_step_links")
+    assessment = models.ForeignKey(ServiceRequirementAssessment, on_delete=models.PROTECT, related_name="step_links")
     journey_step = models.ForeignKey("journeys.JourneyStep", on_delete=models.PROTECT, related_name="requirement_links")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_service_requirement_step_links", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["context", "requirement", "journey_step"], name="services_req_step_link_unique")]
-        indexes = [models.Index(fields=["context", "requirement"], name="services_req_step_link_idx")]
+        constraints = [models.UniqueConstraint(fields=["assessment", "journey_step"], name="services_req_step_link_unique")]
+        indexes = [models.Index(fields=["assessment"], name="services_req_step_link_idx")]
 
     def clean(self):
         super().clean()
-        errors = {}
-        if self.context_id and self.requirement_id and self.requirement.revision_id != self.context.opportunity_revision_id:
-            errors["requirement"] = "Le Requirement doit appartenir à la révision pinnée."
-        if self.context_id and self.journey_step_id and self.journey_step.journey_id != self.context.journey_id:
-            errors["journey_step"] = "La JourneyStep doit appartenir au même dossier Services."
-        if errors:
-            raise ValidationError(errors)
+        if self.assessment_id and self.journey_step_id and self.journey_step.journey_id != self.assessment.context.journey_id:
+            raise ValidationError({"journey_step": "La JourneyStep doit appartenir au dossier de l’Assessment."})
 
     def save(self, *args, **kwargs):
         self.full_clean()

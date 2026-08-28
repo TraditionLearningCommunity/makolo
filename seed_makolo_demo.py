@@ -15,6 +15,7 @@ django.setup()
 
 from django.db import transaction
 
+from accounts.models import User
 from demo_seed.accounts_orgs import seed_accounts_and_organizations
 from demo_seed.activities_demo import seed_activity_core
 from demo_seed.authority import seed_contextual_authority
@@ -26,6 +27,7 @@ from demo_seed.events_commerce import seed_events_and_commerce
 from demo_seed.operations import seed_operations_and_edge_cases
 from demo_seed.partners_loyalty import seed_partners_loyalty_and_analytics
 from demo_seed.task22_extension import T22_PERSONAS, seed_task22_extension
+from demo_seed.task32_extension import seed_task32_extension
 from demo_seed.transport import seed_transport
 
 TZ = ZoneInfo("Africa/Lubumbashi")
@@ -73,6 +75,8 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
         if scale == "beta":
             seed_beta(ctx)
             seed_task22_extension(ctx)
+            beta_users = {key: User.objects.get(email=email) for key, email in BETA_PERSONAS.items()}
+            seed_task32_extension(ctx, users=beta_users)
             validation = assert_beta_scenario_coverage(as_of=ctx.as_of)
         else:
             # Historical volume profiles remain useful for development load, but

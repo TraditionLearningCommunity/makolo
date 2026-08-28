@@ -38,7 +38,10 @@ from .models import (
 from .requirement_services import (
     adopt_opportunity_revision,
     assess_requirement,
+    attach_opportunity_to_service_journey,
+    create_requirement_step,
     ensure_requirement_assessments,
+    has_newer_opportunity_revision,
     link_requirement_step,
     requirement_progress,
     resolve_opportunity_selection,
@@ -306,6 +309,9 @@ def start_service_journey(*, journey, actor):
     ensure_case_access(actor, context.journey, write=True)
     if context.journey.status != JourneyStatus.CONFIRMED:
         raise ValidationError("La Journey Services doit être confirmée avant démarrage.")
+    service = context.journey.activity.service_details
+    if service.opportunity_policy == OpportunityPolicy.REQUIRED and (not context.opportunity_id or not context.opportunity_revision_id):
+        raise ValidationError("Ce Service exige une Opportunity et une révision pinnée avant démarrage.")
     ensure_requirement_assessments(context=context)
     materialize_service_plan(context=context, actor=actor)
     return start_journey(journey=context.journey, actor=actor, reason="service_started")

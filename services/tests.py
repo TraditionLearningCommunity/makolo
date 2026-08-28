@@ -116,12 +116,16 @@ class ServiceDetailsAndContextTests(ServiceFixtureMixin, TestCase):
         with self.assertRaises(ValidationError):
             ServiceJourneyContext(journey=legacy).save()
 
-    def test_required_opportunity_policy_is_configuration_only_until_t32(self):
+    def test_required_opportunity_policy_blocks_operational_start_without_link(self):
         other_activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Service nécessitant une Opportunity")
         grant_activity_role(profile=self.manager, activity=other_activity)
         service = create_service_details(activity=other_activity, actor=self.manager, service_kind=ServiceKind.APPLICATION_SUPPORT, opportunity_policy=OpportunityPolicy.REQUIRED)
+        journey = create_service_journey(service=service, initiated_by=self.beneficiary, beneficiary=self.beneficiary)
+        assign_journey(journey=journey, profile=self.manager, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)
+        self.assertIsNone(journey.service_context.opportunity_id)
+        confirmed = submit_service_journey(journey=journey, actor=self.beneficiary)
         with self.assertRaises(ValidationError):
-            create_service_journey(service=service, initiated_by=self.beneficiary, beneficiary=self.beneficiary)
+            start_service_journey(journey=confirmed, actor=self.manager)
 
 
 class ServiceTemplateTests(ServiceFixtureMixin, TestCase):
