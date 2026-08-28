@@ -259,6 +259,28 @@ class ServiceT33SubmissionOutcomeTests(TestCase):
         self.assertEqual(self.context.current_outcome, ServiceCurrentOutcome.SUCCESSFUL)
         self.assertEqual(self.journey.status, JourneyStatus.IN_PROGRESS)
 
+    def test_beneficiary_can_submit_own_attempt_but_cannot_record_arbitrary_outcome(self):
+        submission = prepare_service_submission(
+            context=self.context,
+            actor=self.beneficiary,
+            mode=ServiceSubmissionMode.EMAIL,
+        )
+        submission = submit_service_submission(
+            submission=submission,
+            actor=self.beneficiary,
+            external_reference="SELF-SUBMITTED-001",
+        )
+        self.context.refresh_from_db()
+        self.assertEqual(submission.status, ServiceSubmissionStatus.SUBMITTED)
+        self.assertEqual(self.context.current_outcome, ServiceCurrentOutcome.SUBMITTED)
+        with self.assertRaises(PermissionDenied):
+            record_service_outcome(
+                context=self.context,
+                actor=self.beneficiary,
+                event_type=ServiceOutcomeEventType.SUCCESSFUL,
+                occurred_at=timezone.now() + timedelta(minutes=1),
+            )
+
     def test_late_old_outcome_does_not_regress_projection_and_events_are_append_only(self):
         now = timezone.now()
         newest = record_service_outcome(context=self.context, actor=self.manager, event_type=ServiceOutcomeEventType.INTERVIEW, occurred_at=now)
