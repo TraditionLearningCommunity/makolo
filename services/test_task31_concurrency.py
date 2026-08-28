@@ -2,7 +2,7 @@ import threading
 from unittest import skipUnless
 
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from activities.models import Activity
@@ -31,7 +31,7 @@ def run_pair(first, second):
         except Exception as exc:
             outcome = ("error", exc)
         finally:
-            close_old_connections()
+            connections.close_all()
         with lock:
             outcomes.append(outcome)
 
