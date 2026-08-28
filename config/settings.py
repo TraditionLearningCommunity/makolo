@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     *INSTALLED_APPS,
     "transport.apps.TransportConfig",
     "services.apps.ServicesConfig",
+    "opportunities.apps.OpportunitiesConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime

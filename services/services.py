@@ -35,6 +35,20 @@ from .models import (
     ServicePlanTemplateStep,
     ServicePlanTemplateStepDependency,
 )
+from .requirement_services import (
+    adopt_opportunity_revision,
+    assess_requirement,
+    attach_opportunity_to_service_journey,
+    create_requirement_step,
+    ensure_requirement_assessments,
+    has_newer_opportunity_revision,
+    link_requirement_step,
+    requirement_progress,
+    resolve_opportunity_selection,
+    review_requirement_evidence,
+    submit_requirement_evidence,
+    validate_requirement_completion,
+)
 
 
 def _ensure_activity_manager(actor, service):
@@ -158,10 +172,8 @@ def create_plan_template_version(*, template, actor, name=None):
 
 
 @transaction.atomic
-def create_service_journey(*, service, initiated_by, beneficiary=None, external_beneficiary=None, objective="", template=None, expires_at=None):
+def create_service_journey(*, service, initiated_by, beneficiary=None, external_beneficiary=None, objective="", template=None, expires_at=None, opportunity=None, opportunity_revision=None):
     service = ServiceDetails.objects.select_related("activity").get(pk=service.pk)
-    if service.opportunity_policy == OpportunityPolicy.REQUIRED:
-        raise ValidationError("Ce Service exige une Opportunity ; son démarrage opérationnel est différé à T32.")
     if bool(beneficiary) == bool(external_beneficiary):
         raise ValidationError("Choisissez exactement un bénéficiaire Profile ou externe.")
     if external_beneficiary is not None and not service.allows_external_beneficiary:
@@ -175,9 +187,21 @@ def create_service_journey(*, service, initiated_by, beneficiary=None, external_
         )
         if template.service_id != service.pk or template.status != ServicePlanTemplateStatus.PUBLISHED:
             raise ValidationError("La Journey doit utiliser un template publié de ce Service.")
+    opportunity, opportunity_revision = resolve_opportunity_selection(
+        service=service,
+        opportunity=opportunity,
+        opportunity_revision=opportunity_revision,
+    )
     journey = create_journey_for_holder(initiated_by=initiated_by, beneficiary=beneficiary, external_beneficiary=external_beneficiary, activity=service.activity, workflow=WorkflowKind.SERVICE, occurrence=None, expires_at=expires_at)
-    context = ServiceJourneyContext(journey=journey, service_plan_template=template, objective=(objective or "").strip())
+    context = ServiceJourneyContext(
+        journey=journey,
+        service_plan_template=template,
+        opportunity=opportunity,
+        opportunity_revision=opportunity_revision,
+        objective=(objective or "").strip(),
+    )
     context.save()
+    ensure_requirement_assessments(context=context)
     return journey
 
 
@@ -281,13 +305,14 @@ def materialize_service_plan(*, context, actor):
 
 @transaction.atomic
 def start_service_journey(*, journey, actor):
-    context = ServiceJourneyContext.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "service_plan_template").get(journey=journey)
+    context = ServiceJourneyContext.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "service_plan_template", "opportunity", "opportunity_revision").get(journey=journey)
     ensure_case_access(actor, context.journey, write=True)
-    service = context.journey.activity.service_details
-    if service.opportunity_policy == OpportunityPolicy.REQUIRED:
-        raise ValidationError("Ce Service ne peut pas démarrer sans moteur Opportunity T32.")
     if context.journey.status != JourneyStatus.CONFIRMED:
         raise ValidationError("La Journey Services doit être confirmée avant démarrage.")
+    service = context.journey.activity.service_details
+    if service.opportunity_policy == OpportunityPolicy.REQUIRED and (not context.opportunity_id or not context.opportunity_revision_id):
+        raise ValidationError("Ce Service exige une Opportunity et une révision pinnée avant démarrage.")
+    ensure_requirement_assessments(context=context)
     materialize_service_plan(context=context, actor=actor)
     return start_journey(journey=context.journey, actor=actor, reason="service_started")
 
@@ -304,6 +329,7 @@ def validate_service_completion(journey):
         raise ValidationError("Completion policy Services T31 inconnue.")
     if context.plan_materialized_at is None:
         raise ValidationError("Le plan Services n’a pas été matérialisé.")
+    validate_requirement_completion(context)
     required = journey.steps.filter(is_required=True)
     if not required.exists():
         raise ValidationError("Le plan Services matérialisé ne contient aucune étape obligatoire.")

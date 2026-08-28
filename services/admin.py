@@ -5,10 +5,14 @@ from .models import (
     ServiceIntakeAnswer,
     ServiceIntakeQuestion,
     ServiceJourneyContext,
+    ServiceOpportunityRevisionAdoption,
     ServicePlanMaterialization,
     ServicePlanTemplate,
     ServicePlanTemplateStep,
     ServicePlanTemplateStepDependency,
+    ServiceRequirementAssessment,
+    ServiceRequirementEvidence,
+    ServiceRequirementStepLink,
 )
 
 
@@ -40,8 +44,40 @@ class ServicePlanTemplateStepDependencyAdmin(admin.ModelAdmin):
 
 @admin.register(ServiceJourneyContext)
 class ServiceJourneyContextAdmin(admin.ModelAdmin):
-    list_display = ("journey", "service_plan_template", "plan_materialized_at", "created_at")
-    readonly_fields = ("plan_materialized_at", "created_at", "updated_at")
+    list_display = ("journey", "service_plan_template", "opportunity", "opportunity_revision", "plan_materialized_at", "created_at")
+    readonly_fields = ("opportunity", "opportunity_revision", "plan_materialized_at", "created_at", "updated_at")
+
+
+@admin.register(ServiceRequirementAssessment)
+class ServiceRequirementAssessmentAdmin(admin.ModelAdmin):
+    list_display = ("context", "requirement", "status", "assessed_by", "assessed_at")
+    list_filter = ("status",)
+    readonly_fields = ("context", "requirement", "status", "note", "assessed_by", "assessed_at", "created_at", "updated_at")
+
+
+@admin.register(ServiceRequirementEvidence)
+class ServiceRequirementEvidenceAdmin(admin.ModelAdmin):
+    list_display = ("assessment", "artifact", "status", "submitted_by", "reviewed_by", "reviewed_at")
+    list_filter = ("status",)
+    readonly_fields = ("assessment", "artifact", "status", "submitted_by", "reviewed_by", "reviewed_at", "review_note", "created_at", "updated_at")
+
+
+@admin.register(ServiceOpportunityRevisionAdoption)
+class ServiceOpportunityRevisionAdoptionAdmin(admin.ModelAdmin):
+    list_display = ("context", "previous_revision", "revision", "adopted_by", "adopted_at")
+    readonly_fields = ("context", "previous_revision", "revision", "adopted_by", "adopted_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ServiceRequirementStepLink)
+class ServiceRequirementStepLinkAdmin(admin.ModelAdmin):
+    list_display = ("assessment", "journey_step", "created_by", "created_at")
+    readonly_fields = ("assessment", "journey_step", "created_by", "created_at")
 
 
 @admin.register(ServicePlanMaterialization)

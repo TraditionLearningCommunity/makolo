@@ -111,7 +111,7 @@ jobs:
 
   postgresql-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -201,6 +201,13 @@ jobs:
           journeys.test_task31_concurrency
           services.tests
           services.test_task31_concurrency
+
+      - name: Run Opportunities and Services T32 PostgreSQL tests
+        run: >-
+          python manage.py test
+          opportunities.tests
+          services.test_task32_opportunities
+          services.test_task32_concurrency
 
       - name: Run Commerce and Capacity PostgreSQL tests
         run: >-

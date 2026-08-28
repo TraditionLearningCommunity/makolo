@@ -181,6 +181,8 @@ class ServiceJourneyContext(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     journey = models.OneToOneField("journeys.Journey", on_delete=models.CASCADE, related_name="service_context")
     service_plan_template = models.ForeignKey(ServicePlanTemplate, on_delete=models.PROTECT, related_name="journey_contexts", null=True, blank=True)
+    opportunity = models.ForeignKey("opportunities.Opportunity", on_delete=models.PROTECT, related_name="service_contexts", null=True, blank=True)
+    opportunity_revision = models.ForeignKey("opportunities.OpportunityRevision", on_delete=models.PROTECT, related_name="service_contexts", null=True, blank=True)
     objective = models.TextField(blank=True)
     plan_materialized_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -188,10 +190,21 @@ class ServiceJourneyContext(models.Model):
 
     class Meta:
         ordering = ["-created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(opportunity__isnull=True, opportunity_revision__isnull=True)
+                    | Q(opportunity__isnull=False, opportunity_revision__isnull=False)
+                ),
+                name="services_context_opp_pair",
+            )
+        ]
 
     def clean(self):
         super().clean()
         errors = {}
+        if bool(self.opportunity_id) != bool(self.opportunity_revision_id):
+            errors["opportunity"] = "Opportunity et OpportunityRevision doivent être renseignées ensemble."
         if self.journey_id:
             if self.journey.workflow != WorkflowKind.SERVICE:
                 errors["journey"] = "ServiceJourneyContext exige une Journey de workflow SERVICE."
@@ -202,8 +215,190 @@ class ServiceJourneyContext(models.Model):
             else:
                 if self.service_plan_template_id and self.service_plan_template.service_id != service.pk:
                     errors["service_plan_template"] = "Le template doit appartenir au Service de la Journey."
+                if service.opportunity_policy == OpportunityPolicy.NONE and self.opportunity_id:
+                    errors["opportunity"] = "Ce Service est configuré sans Opportunity."
+        if self.opportunity_revision_id:
+            if self.opportunity_revision.opportunity_id != self.opportunity_id:
+                errors["opportunity_revision"] = "La révision pinnée doit appartenir à l’Opportunity sélectionnée."
+            if self.opportunity_revision.published_at is None:
+                errors["opportunity_revision"] = "Une Journey Services doit pinner une OpportunityRevision publiée."
+        if self.pk and not self._state.adding and not getattr(self, "_allow_opportunity_change", False):
+            previous = ServiceJourneyContext.objects.filter(pk=self.pk).values("opportunity_id", "opportunity_revision_id").first()
+            if previous and (
+                previous["opportunity_id"] != self.opportunity_id
+                or previous["opportunity_revision_id"] != self.opportunity_revision_id
+            ):
+                errors["opportunity_revision"] = "Utilisez le service d’adoption explicite pour changer la révision pinnée."
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        result = super().save(*args, **kwargs)
+        self._allow_opportunity_change = False
+        return result
+
+
+class ServiceRequirementAssessmentStatus(models.TextChoices):
+    UNASSESSED = "unassessed", "Non évalué"
+    SATISFIED = "satisfied", "Satisfait"
+    ACTION_REQUIRED = "action_required", "Action requise"
+    NEEDS_REVIEW = "needs_review", "Revue requise"
+    NOT_APPLICABLE = "not_applicable", "Non applicable"
+    NOT_ELIGIBLE = "not_eligible", "Non éligible"
+
+
+class ServiceRequirementAssessment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    context = models.ForeignKey(ServiceJourneyContext, on_delete=models.CASCADE, related_name="requirement_assessments")
+    requirement = models.ForeignKey("opportunities.OpportunityRequirement", on_delete=models.PROTECT, related_name="service_assessments")
+    status = models.CharField(max_length=20, choices=ServiceRequirementAssessmentStatus.choices, default=ServiceRequirementAssessmentStatus.UNASSESSED)
+    note = models.TextField(blank=True)
+    assessed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="service_requirement_assessments", null=True, blank=True)
+    assessed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["context", "requirement__position", "created_at", "id"]
+        constraints = [models.UniqueConstraint(fields=["context", "requirement"], name="services_req_assessment_unique")]
+        indexes = [
+            models.Index(fields=["context", "status"], name="services_req_assess_status_idx"),
+            models.Index(fields=["requirement", "status"], name="services_req_status_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.context_id and self.requirement_id:
+            if self.context.opportunity_revision_id is None:
+                errors["context"] = "Une Assessment exige une OpportunityRevision pinnée."
+            elif self.requirement.revision_id != self.context.opportunity_revision_id:
+                errors["requirement"] = "Le Requirement doit appartenir à la révision actuellement pinnée."
+        if self.status == ServiceRequirementAssessmentStatus.UNASSESSED:
+            if self.assessed_at is not None:
+                errors["assessed_at"] = "Une Assessment non évaluée ne porte pas de date d’évaluation."
+        elif self.assessed_at is None:
+            errors["assessed_at"] = "Une Assessment évaluée doit conserver sa date d’évaluation."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding and not getattr(self, "_allow_assessment_transition", False):
+            previous = ServiceRequirementAssessment.objects.filter(pk=self.pk).values("status", "note", "assessed_by_id", "assessed_at").first()
+            current = {"status": self.status, "note": self.note, "assessed_by_id": self.assessed_by_id, "assessed_at": self.assessed_at}
+            if previous and previous != current:
+                raise ValidationError("Utilisez le service d’évaluation des Requirements.")
+        self.full_clean()
+        result = super().save(*args, **kwargs)
+        self._allow_assessment_transition = False
+        return result
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Une Assessment Requirement fait partie de l’historique du dossier et ne peut pas être supprimée.")
+
+
+class ServiceRequirementEvidenceStatus(models.TextChoices):
+    SUBMITTED = "submitted", "Soumise"
+    ACCEPTED = "accepted", "Acceptée"
+    REJECTED = "rejected", "Rejetée"
+
+
+class ServiceRequirementEvidence(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assessment = models.ForeignKey(ServiceRequirementAssessment, on_delete=models.PROTECT, related_name="evidence")
+    artifact = models.ForeignKey("journeys.JourneyArtifact", on_delete=models.PROTECT, related_name="requirement_evidence")
+    status = models.CharField(max_length=16, choices=ServiceRequirementEvidenceStatus.choices, default=ServiceRequirementEvidenceStatus.SUBMITTED)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="submitted_service_requirement_evidence", null=True, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="reviewed_service_requirement_evidence", null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["assessment", "artifact"], name="services_req_evidence_unique")]
+        indexes = [models.Index(fields=["assessment", "status"], name="services_req_evid_status_idx")]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.assessment_id and self.artifact_id and self.assessment.context.journey_id != self.artifact.journey_id:
+            errors["artifact"] = "La preuve doit être un JourneyArtifact du même dossier."
+        if self.status == ServiceRequirementEvidenceStatus.SUBMITTED:
+            if self.reviewed_at is not None or self.reviewed_by_id is not None:
+                errors["reviewed_at"] = "Une preuve soumise n’est pas encore revue."
+        elif self.reviewed_at is None:
+            errors["reviewed_at"] = "Une preuve acceptée ou rejetée doit conserver sa date de revue."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding and not getattr(self, "_allow_evidence_transition", False):
+            previous = ServiceRequirementEvidence.objects.filter(pk=self.pk).values("status", "reviewed_by_id", "reviewed_at", "review_note").first()
+            current = {"status": self.status, "reviewed_by_id": self.reviewed_by_id, "reviewed_at": self.reviewed_at, "review_note": self.review_note}
+            if previous and previous != current:
+                raise ValidationError("Utilisez le service de revue des preuves Requirement.")
+        self.full_clean()
+        result = super().save(*args, **kwargs)
+        self._allow_evidence_transition = False
+        return result
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Une preuve Requirement auditée ne peut pas être supprimée.")
+
+
+class ServiceOpportunityRevisionAdoption(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    context = models.ForeignKey(ServiceJourneyContext, on_delete=models.CASCADE, related_name="opportunity_revision_adoptions")
+    previous_revision = models.ForeignKey("opportunities.OpportunityRevision", on_delete=models.PROTECT, related_name="service_adoptions_from")
+    revision = models.ForeignKey("opportunities.OpportunityRevision", on_delete=models.PROTECT, related_name="service_adoptions_to")
+    adopted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="service_opportunity_revision_adoptions", null=True, blank=True)
+    adopted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["context", "adopted_at", "id"]
+        constraints = [models.UniqueConstraint(fields=["context", "revision"], name="services_opp_adoption_unique")]
+        indexes = [models.Index(fields=["context", "adopted_at"], name="services_opp_adopt_ctx_idx")]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.previous_revision_id and self.revision_id:
+            if self.previous_revision.opportunity_id != self.revision.opportunity_id:
+                errors["revision"] = "Les révisions d’adoption doivent appartenir à la même Opportunity."
+            if self.revision.version <= self.previous_revision.version:
+                errors["revision"] = "L’adoption doit avancer vers une version plus récente."
+        if self.context_id and self.revision_id and self.context.opportunity_id != self.revision.opportunity_id:
+            errors["context"] = "L’adoption doit rester sur l’Opportunity du contexte."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValidationError("Un audit d’adoption Opportunity est append-only.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Un audit d’adoption Opportunity ne peut pas être supprimé.")
+
+
+class ServiceRequirementStepLink(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assessment = models.ForeignKey(ServiceRequirementAssessment, on_delete=models.PROTECT, related_name="step_links")
+    journey_step = models.ForeignKey("journeys.JourneyStep", on_delete=models.PROTECT, related_name="requirement_links")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_service_requirement_step_links", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["assessment", "journey_step"], name="services_req_step_link_unique")]
+        indexes = [models.Index(fields=["assessment"], name="services_req_step_link_idx")]
+
+    def clean(self):
+        super().clean()
+        if self.assessment_id and self.journey_step_id and self.journey_step.journey_id != self.assessment.context.journey_id:
+            raise ValidationError({"journey_step": "La JourneyStep doit appartenir au dossier de l’Assessment."})
 
     def save(self, *args, **kwargs):
         self.full_clean()
