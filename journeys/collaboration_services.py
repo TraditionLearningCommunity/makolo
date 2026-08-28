@@ -193,7 +193,7 @@ def complete_step(*, step, actor, reason="completed"):
         raise ValidationError("Seule une étape en cours peut être terminée.")
     _assert_step_completion_preconditions(step)
     step = _save_step_status(step, status=JourneyStepStatus.COMPLETED, actor=actor, reason=reason, event_type=DomainEventType.JOURNEY_STEP_COMPLETED)
-    for dependant in JourneyStep.objects.select_for_update().filter(dependencies__depends_on=step, status=JourneyStepStatus.PENDING).distinct().order_by("position", "id"):
+    for dependant in JourneyStep.objects.select_for_update().filter(dependencies__depends_on=step, status=JourneyStepStatus.PENDING).order_by("position", "id"):
         if not _has_active_blockers(dependant) and _dependencies_satisfied(dependant):
             _save_step_status(dependant, status=JourneyStepStatus.READY, actor=actor, reason="dependencies_satisfied", event_type=DomainEventType.JOURNEY_STEP_READY)
     return step
@@ -230,7 +230,7 @@ def skip_step(*, step, actor, reason, allow_required=False):
     if not (reason or "").strip():
         raise ValidationError("Une raison est obligatoire pour ignorer une étape.")
     step = _save_step_status(step, status=JourneyStepStatus.SKIPPED, actor=actor, reason=reason)
-    for dependant in JourneyStep.objects.select_for_update().filter(dependencies__depends_on=step, status=JourneyStepStatus.PENDING).distinct():
+    for dependant in JourneyStep.objects.select_for_update().filter(dependencies__depends_on=step, status=JourneyStepStatus.PENDING):
         if not _has_active_blockers(dependant) and _dependencies_satisfied(dependant):
             _save_step_status(dependant, status=JourneyStepStatus.READY, actor=actor, reason="dependencies_satisfied", event_type=DomainEventType.JOURNEY_STEP_READY)
     return step
