@@ -78,7 +78,7 @@ class PaymentObligation(models.Model):
     )
     commerce_order = models.ForeignKey(
         "commerce.CommerceOrder",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name="payment_obligations",
         null=True,
         blank=True,
@@ -170,8 +170,6 @@ class PaymentObligation(models.Model):
                     errors["amount"] = "L’obligation Commerce doit correspondre au total de la CommerceOrder."
                 if self.currency != self.commerce_order.currency:
                     errors["currency"] = "L’obligation Commerce doit utiliser la devise de la CommerceOrder."
-        if self.reason == PaymentObligationReason.COMMERCE and not self.commerce_order_id:
-            errors["commerce_order"] = "Une obligation Commerce doit référencer sa CommerceOrder canonique."
         if self.step_id and self.step.journey_id != self.journey_id:
             errors["step"] = "La JourneyStep doit appartenir à la même Journey."
         if self.status == PaymentObligationStatus.SATISFIED and self.satisfied_at is None:
