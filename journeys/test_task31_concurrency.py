@@ -77,6 +77,7 @@ def run_pair(first, second):
 @skipUnless(connection.vendor == "postgresql", "T31 concurrency invariants require PostgreSQL row locks")
 class JourneyTask31ConcurrencyTests(TransactionTestCase):
     reset_sequences = False
+    serialized_rollback = True
 
     def setUp(self):
         self.manager = User.objects.create_user(username="t31-concurrency-manager", email="t31-concurrency-manager@example.com", password="x")
