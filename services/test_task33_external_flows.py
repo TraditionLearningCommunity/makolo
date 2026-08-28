@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from activities.models import Activity
 from authorization.services import grant_activity_role
-from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility, JourneyStepKind
+from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility, JourneyStep, JourneyStepKind
 from journeys.collaboration_services import assign_journey, create_artifact, start_step
 from journeys.models import JourneyStatus
 from opportunities.models import OpportunityKind, OpportunityRequirementKind, OpportunitySourceType
@@ -182,8 +182,15 @@ class ServiceT33FinancialRequirementTests(TestCase):
             is_primary=True,
             assigned_by=self.outsider,
         )
-        from journeys.collaboration_services import create_step
-        foreign_step = create_step(journey=other_journey, title="Foreign", kind=JourneyStepKind.PAYMENT, created_by=self.outsider)
+        # The fixture must contain a structurally valid step from another Journey.
+        # Creating it through create_step() would test Journey authorization before
+        # T33 can exercise the cross-Journey invariant under test here.
+        foreign_step = JourneyStep.objects.create(
+            journey=other_journey,
+            title="Foreign",
+            kind=JourneyStepKind.PAYMENT,
+            created_by=self.outsider,
+        )
         with self.assertRaises(ValidationError):
             create_requirement_payment_obligation(
                 assessment=self.assessment,
