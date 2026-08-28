@@ -220,7 +220,7 @@ def _validate_required_intake(context):
 
 @transaction.atomic
 def submit_service_journey(*, journey, actor):
-    context = ServiceJourneyContext.objects.select_for_update().select_related("journey", "journey__activity", "service_plan_template").get(journey=journey)
+    context = ServiceJourneyContext.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "service_plan_template").get(journey=journey)
     if not is_beneficiary(actor, context.journey):
         ensure_case_access(actor, context.journey, write=True)
     _validate_required_intake(context)
@@ -235,7 +235,7 @@ def submit_service_journey(*, journey, actor):
 
 @transaction.atomic
 def confirm_service_journey(*, journey, actor):
-    context = ServiceJourneyContext.objects.select_for_update().select_related("journey", "journey__activity").get(journey=journey)
+    context = ServiceJourneyContext.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity").get(journey=journey)
     service = context.journey.activity.service_details
     if service.intake_policy == IntakePolicy.REVIEW_REQUIRED and context.journey.status != JourneyStatus.APPROVED:
         raise ValidationError("Ce Service doit être approuvé avant confirmation.")
@@ -281,7 +281,7 @@ def materialize_service_plan(*, context, actor):
 
 @transaction.atomic
 def start_service_journey(*, journey, actor):
-    context = ServiceJourneyContext.objects.select_for_update().select_related("journey", "journey__activity", "service_plan_template").get(journey=journey)
+    context = ServiceJourneyContext.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "service_plan_template").get(journey=journey)
     ensure_case_access(actor, context.journey, write=True)
     service = context.journey.activity.service_details
     if service.opportunity_policy == OpportunityPolicy.REQUIRED:
