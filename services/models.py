@@ -33,6 +33,7 @@ class IntakePolicy(models.TextChoices):
 
 class CompletionPolicy(models.TextChoices):
     REQUIRED_STEPS = "required_steps", "Étapes obligatoires satisfaites"
+    REQUIRED_STEPS_AND_SUBMISSION = "required_steps_and_submission", "Étapes obligatoires et soumission externe"
 
 
 class ServiceDetails(models.Model):
@@ -177,6 +178,19 @@ class ServicePlanTemplateStepDependency(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class ServiceCurrentOutcome(models.TextChoices):
+    NOT_SUBMITTED = "not_submitted", "Non soumis"
+    SUBMITTED = "submitted", "Soumis"
+    ACKNOWLEDGED = "acknowledged", "Réception accusée"
+    UNDER_REVIEW = "under_review", "En revue"
+    ACTION_REQUIRED = "action_required", "Action requise"
+    INTERVIEW = "interview", "Entretien"
+    SUCCESSFUL = "successful", "Succès"
+    UNSUCCESSFUL = "unsuccessful", "Échec externe"
+    WITHDRAWN = "withdrawn", "Retiré"
+    UNKNOWN = "unknown", "Inconnu"
+
+
 class ServiceJourneyContext(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     journey = models.OneToOneField("journeys.Journey", on_delete=models.CASCADE, related_name="service_context")
@@ -185,6 +199,7 @@ class ServiceJourneyContext(models.Model):
     opportunity_revision = models.ForeignKey("opportunities.OpportunityRevision", on_delete=models.PROTECT, related_name="service_contexts", null=True, blank=True)
     objective = models.TextField(blank=True)
     plan_materialized_at = models.DateTimeField(null=True, blank=True)
+    current_outcome = models.CharField(max_length=24, choices=ServiceCurrentOutcome.choices, default=ServiceCurrentOutcome.NOT_SUBMITTED)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -222,13 +237,15 @@ class ServiceJourneyContext(models.Model):
                 errors["opportunity_revision"] = "La révision pinnée doit appartenir à l’Opportunity sélectionnée."
             if self.opportunity_revision.published_at is None:
                 errors["opportunity_revision"] = "Une Journey Services doit pinner une OpportunityRevision publiée."
-        if self.pk and not self._state.adding and not getattr(self, "_allow_opportunity_change", False):
-            previous = ServiceJourneyContext.objects.filter(pk=self.pk).values("opportunity_id", "opportunity_revision_id").first()
-            if previous and (
+        if self.pk and not self._state.adding:
+            previous = ServiceJourneyContext.objects.filter(pk=self.pk).values("opportunity_id", "opportunity_revision_id", "current_outcome").first()
+            if previous and not getattr(self, "_allow_opportunity_change", False) and (
                 previous["opportunity_id"] != self.opportunity_id
                 or previous["opportunity_revision_id"] != self.opportunity_revision_id
             ):
                 errors["opportunity_revision"] = "Utilisez le service d’adoption explicite pour changer la révision pinnée."
+            if previous and not getattr(self, "_allow_outcome_projection", False) and previous["current_outcome"] != self.current_outcome:
+                errors["current_outcome"] = "current_outcome est une projection contrôlée par les services Outcomes."
         if errors:
             raise ValidationError(errors)
 
@@ -236,6 +253,7 @@ class ServiceJourneyContext(models.Model):
         self.full_clean()
         result = super().save(*args, **kwargs)
         self._allow_opportunity_change = False
+        self._allow_outcome_projection = False
         return result
 
 
@@ -403,6 +421,137 @@ class ServiceRequirementStepLink(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class ServiceRequirementPaymentObligation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assessment = models.ForeignKey(ServiceRequirementAssessment, on_delete=models.PROTECT, related_name="payment_obligation_links")
+    obligation = models.ForeignKey("payments.PaymentObligation", on_delete=models.PROTECT, related_name="service_requirement_links")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_requirement_payment_links", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["assessment", "obligation"], name="services_req_payment_obligation_unique")]
+        indexes = [models.Index(fields=["assessment"], name="services_req_payobl_assess_idx")]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.assessment_id and self.obligation_id:
+            if self.assessment.requirement.kind != "financial":
+                errors["assessment"] = "Seul un Requirement financier peut être lié à une PaymentObligation."
+            if self.assessment.context.journey_id != self.obligation.journey_id:
+                errors["obligation"] = "L’obligation doit appartenir à la Journey de l’Assessment."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class ServiceSubmissionMode(models.TextChoices):
+    EXTERNAL_WEB = "external_web", "Portail web externe"
+    EMAIL = "email", "E-mail"
+    IN_PERSON = "in_person", "En personne"
+    MAKOLO_INTEGRATED = "makolo_integrated", "Intégration Makolo"
+    OTHER = "other", "Autre"
+
+
+class ServiceSubmissionStatus(models.TextChoices):
+    PREPARED = "prepared", "Préparée"
+    SUBMITTED = "submitted", "Soumise"
+    ACKNOWLEDGED = "acknowledged", "Réception accusée"
+    FAILED = "failed", "Échouée"
+    WITHDRAWN = "withdrawn", "Retirée"
+
+
+class ServiceSubmission(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    context = models.ForeignKey(ServiceJourneyContext, on_delete=models.PROTECT, related_name="submissions")
+    attempt = models.PositiveIntegerField()
+    mode = models.CharField(max_length=24, choices=ServiceSubmissionMode.choices)
+    status = models.CharField(max_length=16, choices=ServiceSubmissionStatus.choices, default=ServiceSubmissionStatus.PREPARED)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    external_reference = models.CharField(max_length=240, blank=True)
+    receipt_artifact = models.ForeignKey("journeys.JourneyArtifact", on_delete=models.PROTECT, related_name="service_submission_receipts", null=True, blank=True)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="service_submissions", null=True, blank=True)
+    failure_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["context", "attempt", "created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["context", "attempt"], name="services_submission_attempt_unique"),
+            models.CheckConstraint(condition=Q(attempt__gte=1), name="services_submission_attempt_positive"),
+        ]
+        indexes = [
+            models.Index(fields=["context", "status"], name="services_submission_status_idx"),
+            models.Index(fields=["context", "attempt"], name="services_submission_attempt_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.receipt_artifact_id and self.receipt_artifact.journey_id != self.context.journey_id:
+            errors["receipt_artifact"] = "Le reçu de soumission doit appartenir à la Journey du contexte."
+        if self.status in {ServiceSubmissionStatus.SUBMITTED, ServiceSubmissionStatus.ACKNOWLEDGED} and self.submitted_at is None:
+            errors["submitted_at"] = "Une soumission réellement envoyée doit conserver submitted_at."
+        if self.status == ServiceSubmissionStatus.PREPARED and self.submitted_at is not None:
+            errors["submitted_at"] = "Une tentative seulement préparée ne porte pas encore submitted_at."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding and not getattr(self, "_allow_status_transition", False):
+            previous = ServiceSubmission.objects.filter(pk=self.pk).values("status", "submitted_at", "failure_reason", "external_reference", "receipt_artifact_id").first()
+            current = {"status": self.status, "submitted_at": self.submitted_at, "failure_reason": self.failure_reason, "external_reference": self.external_reference, "receipt_artifact_id": self.receipt_artifact_id}
+            if previous and previous != current:
+                raise ValidationError("Utilisez les services Services pour modifier une tentative de soumission.")
+        self.full_clean()
+        result = super().save(*args, **kwargs)
+        self._allow_status_transition = False
+        return result
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Une tentative de soumission auditée ne peut pas être supprimée.")
+
+
+class ServiceOutcomeEventType(models.TextChoices):
+    SUBMITTED = "submitted", "Soumis"
+    ACKNOWLEDGED = "acknowledged", "Réception accusée"
+    UNDER_REVIEW = "under_review", "En revue"
+    ACTION_REQUIRED = "action_required", "Action requise"
+    INTERVIEW = "interview", "Entretien"
+    SUCCESSFUL = "successful", "Succès"
+    UNSUCCESSFUL = "unsuccessful", "Échec externe"
+    WITHDRAWN = "withdrawn", "Retiré"
+    OTHER = "other", "Autre"
+
+
+class ServiceOutcomeEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    context = models.ForeignKey(ServiceJourneyContext, on_delete=models.PROTECT, related_name="outcome_events")
+    event_type = models.CharField(max_length=24, choices=ServiceOutcomeEventType.choices)
+    occurred_at = models.DateTimeField()
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="recorded_service_outcomes", null=True, blank=True)
+    note = models.TextField(blank=True)
+    external_reference = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["context", "occurred_at", "created_at", "id"]
+        indexes = [models.Index(fields=["context", "occurred_at"], name="services_outcome_time_idx")]
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValidationError("ServiceOutcomeEvent est append-only.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("ServiceOutcomeEvent est append-only.")
 
 
 class ServicePlanMaterialization(models.Model):
