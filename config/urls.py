@@ -52,6 +52,7 @@ urlpatterns = [
     path("promotions/", include("promotions.urls")),
     path("loyalty/", include("loyalty.urls")),
     path("operations/", include("operations.urls")),
+    path("journeys/", include("journeys.urls")),
     path("", include("core.urls")),
 ]
 
