@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(model_name="servicesubmission", constraint=models.UniqueConstraint(fields=("context", "attempt"), name="services_submission_attempt_unique")),
         migrations.AddConstraint(model_name="servicesubmission", constraint=models.CheckConstraint(condition=Q(attempt__gte=1), name="services_submission_attempt_positive")),
         migrations.AddIndex(model_name="servicesubmission", index=models.Index(fields=["context", "status"], name="services_submission_status_idx")),
-        migrations.AddIndex(model_name="servicesubmission", index=models.Index(fields=["context", "attempt"], name="services_submission_attempt_idx")),
+        migrations.AddIndex(model_name="servicesubmission", index=models.Index(fields=["context", "attempt"], name="services_sub_attempt_idx")),
         migrations.CreateModel(
             name="ServiceOutcomeEvent",
             fields=[
