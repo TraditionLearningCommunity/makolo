@@ -94,7 +94,9 @@ class Task31JourneyCoreTests(TestCase):
             create_step(journey=self.journey, title="Tentative IDOR", created_by=self.outsider)
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                JourneyAssignment.objects.create(journey=self.journey, profile=self.reviewer, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)
+                JourneyAssignment.objects.bulk_create([
+                    JourneyAssignment(journey=self.journey, profile=self.reviewer, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)
+                ])
 
     def test_artifact_version_review_private_boundary_and_notes(self):
         assign_journey(journey=self.journey, profile=self.reviewer, responsibility=JourneyAssignmentResponsibility.REVIEWER, assigned_by=self.manager)
