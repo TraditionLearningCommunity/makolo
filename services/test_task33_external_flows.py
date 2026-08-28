@@ -229,7 +229,7 @@ class ServiceT33SubmissionOutcomeTests(TestCase):
     def test_submission_required_for_fulfillment_then_unsuccessful_outcome_keeps_journey_fulfilled(self):
         with self.assertRaises(ValidationError):
             fulfill_service_journey(journey=self.journey, actor=self.manager)
-        receipt = create_artifact(journey=self.journey, uploaded_file=pdf_upload("submission.pdf"), uploaded_by=self.beneficiary, kind=JourneyArtifactKind.SUBMISSION_RECEIPT, title="Accusé de soumission")
+        receipt = create_artifact(journey=self.journey, uploaded_file=pdf_upload("submission.pdf"), uploaded_by=self.beneficiary, kind=JourneyArtifactKind.OTHER, title="Accusé de soumission")
         submission = prepare_service_submission(context=self.context, actor=self.manager, mode=ServiceSubmissionMode.EXTERNAL_WEB, receipt_artifact=receipt)
         self.assertEqual(submission.attempt, 1)
         submission = submit_service_submission(submission=submission, actor=self.manager, external_reference="APP-001")
@@ -275,7 +275,7 @@ class ServiceT33SubmissionOutcomeTests(TestCase):
 
     def test_submission_and_outcome_idor_boundaries(self):
         other_journey = create_service_journey(service=self.service, initiated_by=self.outsider, beneficiary=self.outsider, template=self.template)
-        foreign_receipt = create_artifact(journey=other_journey, uploaded_file=pdf_upload("foreign.pdf"), uploaded_by=self.outsider, kind=JourneyArtifactKind.SUBMISSION_RECEIPT, title="Foreign")
+        foreign_receipt = create_artifact(journey=other_journey, uploaded_file=pdf_upload("foreign.pdf"), uploaded_by=self.outsider, kind=JourneyArtifactKind.OTHER, title="Foreign")
         with self.assertRaises(PermissionDenied):
             prepare_service_submission(context=self.context, actor=self.manager, mode=ServiceSubmissionMode.EMAIL, receipt_artifact=foreign_receipt)
         with self.assertRaises(PermissionDenied):
