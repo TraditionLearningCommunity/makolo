@@ -337,7 +337,7 @@ jobs:
 
       - name: Install Playwright browsers
         run: |
-          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt-mirrors.txt >/dev/null
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
           npx playwright install --with-deps chromium firefox
 
       - name: Prepare deterministic E2E environment
