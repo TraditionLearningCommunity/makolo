@@ -455,7 +455,7 @@ Ces statuts ne remplacent pas `PaymentStatus`, `RequestStatus` ou `AccessStatus`
 | **Commande avec validation** | submitted → pending_approval → approved → pending_payment → confirmed → fulfilled | Après approbation si requis | Oui | Accès après conditions satisfaites |
 | **Réservation sans paiement immédiat** | submitted → confirmed → fulfilled ou confirmed jusqu'au service | Non immédiat ; paiement sur place possible hors provider | Optionnelle | Confirmation/Accès selon politique |
 | **Inscription gratuite** | submitted → confirmed → fulfilled | Non | Non | Accès/confirmation |
-| **Inscription avec validation** | submitted → pending_approval → approved → confirmed → fulfilled | Non | Oui | Accès/confirmation |
+| **Inscription avec validation** | submitted → pending_approval → approved → confirmed → fulfilled | Non par défaut | Oui | Accès/confirmation |
 | **Invitation** | submitted/invited → approved(acceptée) → confirmed → fulfilled | Non | Acceptation assimilée à décision contrôlée | Accès individuel |
 | **Invitation puis paiement** | invited → approved → pending_payment → confirmed → fulfilled | Oui après acceptation | Oui/acceptation | Accès après paiement |
 | **Paiement après approbation** | submitted → pending_approval → approved → pending_payment → confirmed → fulfilled | Oui après décision | Oui | Accès |
