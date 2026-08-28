@@ -14,13 +14,31 @@ from access.models import AccessStatus
 from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
 from domain_events.contracts import DomainEventType
 from events.permissions import user_can_manage_event_finance
+from journeys.collaboration_services import can_access_case, is_beneficiary
 from tickets.models import TicketOrder, TicketStatus
 from tickets.permissions import user_can_access_order
 from tickets.services import _confirm_locked_order, cancel_order
 
 from .commerce_bridge import sync_payment_commerce
 from .domain_events import emit_payment_domain_event
-from .models import Payment, PaymentEvent, PaymentProvider, PaymentStatus, Refund, RefundStatus
+from .models import (
+    Payment,
+    PaymentEvent,
+    PaymentObligation,
+    PaymentObligationProcessingMode,
+    PaymentObligationStatus,
+    PaymentProvider,
+    PaymentStatus,
+    Refund,
+    RefundStatus,
+)
+from .obligation_services import (
+    create_commerce_payment_obligation,
+    mark_obligation_processing,
+    refund_payment_obligation,
+    restore_obligation_pending,
+    satisfy_payment_obligation,
+)
 
 
 @dataclass(frozen=True)
@@ -44,10 +62,24 @@ def _commerce_payment_actor_can_initiate(actor, order: CommerceOrder) -> bool:
     return bool(getattr(actor, "is_staff", False) or order.buyer_id == actor.pk)
 
 
+def _obligation_payment_actor_can_initiate(actor, obligation: PaymentObligation) -> bool:
+    if not getattr(actor, "is_authenticated", False):
+        return False
+    if getattr(actor, "is_staff", False) or is_beneficiary(actor, obligation.journey):
+        return True
+    return can_access_case(actor, obligation.journey, write=True)
+
+
 def _payment_actor_can_manage(actor, payment: Payment) -> bool:
     if payment.order_id:
         return user_can_manage_event_finance(actor, payment.order.event)
-    return bool(getattr(actor, "is_authenticated", False) and getattr(actor, "is_staff", False))
+    if payment.commerce_order_id:
+        return bool(getattr(actor, "is_authenticated", False) and getattr(actor, "is_staff", False))
+    if payment.obligation_id:
+        # T34 will introduce the final Services finance permission. Until then,
+        # provider/manual/refund management on non-Commerce obligations is deny-by-default.
+        return bool(getattr(actor, "is_authenticated", False) and getattr(actor, "is_staff", False))
+    return False
 
 
 def _validate_provider(*, provider, actor, event=None):
@@ -60,27 +92,35 @@ def _validate_provider(*, provider, actor, event=None):
             if not user_can_manage_event_finance(actor, event):
                 raise PermissionDenied("Seul un responsable finance, propriétaire, admin ou staff peut enregistrer un paiement manuel.")
         elif not getattr(actor, "is_staff", False):
-            raise PermissionDenied("Un paiement manuel Commerce requiert une autorité financière explicite.")
+            raise PermissionDenied("Un paiement manuel requiert une autorité financière explicite.")
+
+
+def _payment_from_idempotency_key(key):
+    return Payment.objects.select_related("obligation", "commerce_order", "order").filter(idempotency_key=key).first() if key else None
+
+
+def _restore_obligation_after_failed_attempt(payment):
+    if not payment.obligation_id:
+        return
+    other_live_attempts = Payment.objects.filter(
+        obligation_id=payment.obligation_id,
+        status__in={PaymentStatus.PENDING, PaymentStatus.PROCESSING},
+    ).exclude(pk=payment.pk).exists()
+    if not other_live_attempts:
+        restore_obligation_pending(obligation=payment.obligation)
 
 
 @transaction.atomic
 def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, payer_name: str = "", payer_email: str = "", payer_phone: str = "", idempotency_key: str | None = None) -> Payment:
-    if idempotency_key:
-        existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
-        if existing:
-            if existing.order_id != order.pk:
-                raise ValidationError("Cette clé d’idempotence appartient à une autre commande.")
-            return existing
+    existing = _payment_from_idempotency_key(idempotency_key)
+    if existing:
+        if existing.order_id != order.pk:
+            raise ValidationError("Cette clé d’idempotence appartient à une autre commande.")
+        return existing
 
     order = (
         TicketOrder.objects.select_for_update(of=("self",))
-        .select_related(
-            "event__activity",
-            "event__activity__created_by",
-            "event__activity__space",
-            "buyer",
-            "commerce_order",
-        )
+        .select_related("event__activity", "event__activity__created_by", "event__activity__space", "buyer", "commerce_order")
         .get(pk=order.pk)
     )
     if not _payment_actor_can_initiate(actor, order):
@@ -101,10 +141,12 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
     if Payment.objects.filter(commerce_order=commerce_order, status=PaymentStatus.SUCCEEDED).exists():
         raise ValidationError("Cette commande possède déjà un paiement réussi.")
     _validate_provider(provider=provider, actor=actor, event=order.event)
+    obligation = create_commerce_payment_obligation(commerce_order=commerce_order, actor=actor)
 
     payment = Payment(
         order=order,
         commerce_order=commerce_order,
+        obligation=obligation,
         initiated_by=actor if getattr(actor, "is_authenticated", False) else None,
         provider=provider,
         method=method,
@@ -120,45 +162,32 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
     try:
         payment.save()
     except IntegrityError as exc:
-        if idempotency_key:
-            existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
-            if existing:
-                return existing
+        existing = _payment_from_idempotency_key(idempotency_key)
+        if existing:
+            return existing
         raise ValidationError("Impossible de créer ce paiement de façon unique.") from exc
+    if obligation.status == PaymentObligationStatus.PENDING:
+        mark_obligation_processing(obligation=obligation)
     return payment
 
 
 @transaction.atomic
 def initiate_commerce_payment(
-    *,
-    commerce_order: CommerceOrder,
-    actor,
-    provider: str,
-    method: str,
-    payer_name: str = "",
-    payer_email: str = "",
-    payer_phone: str = "",
+    *, commerce_order: CommerceOrder, actor, provider: str, method: str,
+    payer_name: str = "", payer_email: str = "", payer_phone: str = "",
     idempotency_key: str | None = None,
 ) -> Payment:
-    if idempotency_key:
-        existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
-        if existing:
-            if existing.commerce_order_id != commerce_order.pk:
-                raise ValidationError("Cette clé d’idempotence appartient à une autre commande Commerce.")
-            return existing
+    existing = _payment_from_idempotency_key(idempotency_key)
+    if existing:
+        if existing.commerce_order_id != commerce_order.pk:
+            raise ValidationError("Cette clé d’idempotence appartient à une autre commande Commerce.")
+        return existing
 
     commerce_order = (
         CommerceOrder.objects.select_for_update(of=("self",))
-        .select_related("buyer", "journey", "payee_space")
-        .order_by()
-        .get(pk=commerce_order.pk)
+        .select_related("buyer", "journey", "payee_space", "payee_profile")
+        .order_by().get(pk=commerce_order.pk)
     )
-    if idempotency_key:
-        existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
-        if existing:
-            if existing.commerce_order_id != commerce_order.pk:
-                raise ValidationError("Cette clé d’idempotence appartient à une autre commande Commerce.")
-            return existing
     if not _commerce_payment_actor_can_initiate(actor, commerce_order):
         raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette commande Commerce.")
     if commerce_order.status != CommerceOrderStatus.PENDING:
@@ -167,20 +196,18 @@ def initiate_commerce_payment(
         raise ValidationError("Cette commande Commerce a expiré.")
     if commerce_order.total <= 0 or commerce_order.payment_mode == PaymentMode.NONE:
         raise ValidationError("Cette commande Commerce ne nécessite aucun paiement provider.")
-    if commerce_order.payment_mode not in {
-        PaymentMode.UPFRONT,
-        PaymentMode.AFTER_APPROVAL,
-        PaymentMode.LATER,
-    }:
+    if commerce_order.payment_mode not in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL, PaymentMode.LATER}:
         raise ValidationError("Ce mode de paiement ne requiert pas de transaction provider immédiate.")
     if Payment.objects.filter(commerce_order=commerce_order, status=PaymentStatus.SUCCEEDED).exists():
         raise ValidationError("Cette commande Commerce possède déjà un paiement réussi.")
     _validate_provider(provider=provider, actor=actor)
+    obligation = create_commerce_payment_obligation(commerce_order=commerce_order, actor=actor)
 
     payer_default = commerce_order.buyer
     payment = Payment(
         order=None,
         commerce_order=commerce_order,
+        obligation=obligation,
         initiated_by=actor,
         provider=provider,
         method=method,
@@ -196,11 +223,65 @@ def initiate_commerce_payment(
     try:
         payment.save()
     except IntegrityError as exc:
-        if idempotency_key:
-            existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
-            if existing:
-                return existing
+        existing = _payment_from_idempotency_key(idempotency_key)
+        if existing:
+            return existing
         raise ValidationError("Impossible de créer ce paiement Commerce de façon unique.") from exc
+    if obligation.status == PaymentObligationStatus.PENDING:
+        mark_obligation_processing(obligation=obligation)
+    return payment
+
+
+@transaction.atomic
+def initiate_obligation_payment(
+    *, obligation: PaymentObligation, actor, provider: str, method: str,
+    payer_name: str = "", payer_email: str = "", payer_phone: str = "",
+    idempotency_key: str | None = None,
+) -> Payment:
+    existing = _payment_from_idempotency_key(idempotency_key)
+    if existing:
+        if existing.obligation_id != obligation.pk:
+            raise ValidationError("Cette clé d’idempotence appartient à une autre obligation.")
+        return existing
+    obligation = (
+        PaymentObligation.objects.select_for_update(of=("self",))
+        .select_related("journey__activity", "journey__beneficiary", "commerce_order")
+        .order_by().get(pk=obligation.pk)
+    )
+    if obligation.processing_mode != PaymentObligationProcessingMode.MAKOLO_PROVIDER:
+        raise ValidationError("Une obligation externe doit être satisfaite via PaymentEvidence.")
+    if obligation.status not in {PaymentObligationStatus.PENDING, PaymentObligationStatus.PROCESSING}:
+        raise ValidationError("Cette obligation n’accepte plus de tentative de paiement.")
+    if not _obligation_payment_actor_can_initiate(actor, obligation):
+        raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette obligation.")
+    if Payment.objects.filter(obligation=obligation, status=PaymentStatus.SUCCEEDED).exists():
+        raise ValidationError("Cette obligation possède déjà un paiement réussi.")
+    _validate_provider(provider=provider, actor=actor)
+    beneficiary = obligation.journey.beneficiary
+    payment = Payment(
+        obligation=obligation,
+        commerce_order=obligation.commerce_order,
+        initiated_by=actor,
+        provider=provider,
+        method=method,
+        amount=obligation.amount,
+        currency=obligation.currency,
+        payer_name=(payer_name or getattr(beneficiary, "full_name", "") or getattr(beneficiary, "username", "")).strip(),
+        payer_email=(payer_email or getattr(beneficiary, "email", "")).strip().lower(),
+        payer_phone=payer_phone.strip(),
+        idempotency_key=idempotency_key or None,
+        metadata={"source": "payment-obligation"},
+    )
+    payment.full_clean()
+    try:
+        payment.save()
+    except IntegrityError as exc:
+        existing = _payment_from_idempotency_key(idempotency_key)
+        if existing:
+            return existing
+        raise ValidationError("Impossible de créer cette tentative de paiement de façon unique.") from exc
+    if obligation.status == PaymentObligationStatus.PENDING:
+        mark_obligation_processing(obligation=obligation)
     return payment
 
 
@@ -208,7 +289,7 @@ def initiate_commerce_payment(
 def complete_payment(*, payment: Payment, provider_reference: str, source: str = "provider") -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order__event__activity", "commerce_order")
+        .select_related("order__event__activity", "commerce_order", "obligation__journey__activity")
         .get(pk=payment.pk)
     )
     if payment.status == PaymentStatus.SUCCEEDED:
@@ -231,7 +312,7 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
         if Payment.objects.filter(commerce_order=order.commerce_order, status=PaymentStatus.SUCCEEDED).exclude(pk=payment.pk).exists():
             raise ValidationError("Un autre paiement a déjà confirmé cette commande.")
         _confirm_locked_order(order)
-    else:
+    elif payment.commerce_order_id:
         commerce_order = CommerceOrder.objects.select_for_update(of=("self",)).order_by().get(pk=payment.commerce_order_id)
         if commerce_order.status != CommerceOrderStatus.PENDING:
             raise ValidationError("La commande Commerce n’est plus en attente de paiement.")
@@ -239,6 +320,14 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
             raise ValidationError("La commande Commerce a expiré avant la confirmation du paiement.")
         if Payment.objects.filter(commerce_order=commerce_order, status=PaymentStatus.SUCCEEDED).exclude(pk=payment.pk).exists():
             raise ValidationError("Un autre paiement a déjà confirmé cette commande Commerce.")
+    elif payment.obligation_id:
+        obligation = PaymentObligation.objects.select_for_update(of=("self",)).get(pk=payment.obligation_id)
+        if obligation.status not in {PaymentObligationStatus.PENDING, PaymentObligationStatus.PROCESSING}:
+            raise ValidationError("L’obligation n’est plus payable.")
+        if Payment.objects.filter(obligation=obligation, status=PaymentStatus.SUCCEEDED).exclude(pk=payment.pk).exists():
+            raise ValidationError("Un autre paiement a déjà satisfait cette obligation.")
+    else:
+        raise ValidationError("Le paiement n’a aucune source métier.")
 
     provider_reference = provider_reference.strip()
     if not provider_reference:
@@ -254,7 +343,9 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
     try:
         payment.save(update_fields=["status", "provider_reference", "processed_at", "succeeded_at", "failure_code", "failure_message", "metadata", "updated_at"])
     except IntegrityError as exc:
-        raise ValidationError("Référence fournisseur déjà utilisée ou commande déjà payée.") from exc
+        raise ValidationError("Référence fournisseur déjà utilisée ou obligation/commande déjà payée.") from exc
+    if payment.obligation_id:
+        satisfy_payment_obligation(obligation=payment.obligation, source=f"payment:{payment.pk}")
     emit_payment_domain_event(payment, event_type=DomainEventType.PAYMENT_SUCCEEDED)
     sync_payment_commerce(payment)
     return payment
@@ -262,7 +353,7 @@ def complete_payment(*, payment: Payment, provider_reference: str, source: str =
 
 @transaction.atomic
 def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: str = "", provider_reference: str = "", source: str = "provider") -> Payment:
-    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event__activity", "commerce_order").get(pk=payment.pk)
+    payment = Payment.objects.select_for_update(of=("self",)).select_related("order", "order__event__activity", "commerce_order", "obligation").get(pk=payment.pk)
     if payment.status == PaymentStatus.FAILED:
         return payment
     if payment.status in {PaymentStatus.SUCCEEDED, PaymentStatus.REFUNDED}:
@@ -278,6 +369,7 @@ def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: s
     payment.failed_at = now
     payment.metadata = {**payment.metadata, "failure_source": source}
     payment.save(update_fields=["status", "failure_code", "failure_message", "provider_reference", "processed_at", "failed_at", "metadata", "updated_at"])
+    _restore_obligation_after_failed_attempt(payment)
     emit_payment_domain_event(payment, event_type=DomainEventType.PAYMENT_FAILED)
     return payment
 
@@ -286,13 +378,15 @@ def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: s
 def cancel_payment(*, payment: Payment, actor) -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer")
+        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer", "obligation__journey__activity")
         .get(pk=payment.pk)
     )
     if payment.order_id:
         allowed = user_can_access_order(actor, payment.order)
-    else:
+    elif payment.commerce_order_id:
         allowed = _commerce_payment_actor_can_initiate(actor, payment.commerce_order)
+    else:
+        allowed = _obligation_payment_actor_can_initiate(actor, payment.obligation)
     if not allowed:
         raise PermissionDenied("Vous ne pouvez pas annuler ce paiement.")
     if payment.status == PaymentStatus.CANCELLED:
@@ -305,6 +399,7 @@ def cancel_payment(*, payment: Payment, actor) -> Payment:
     payment.cancelled_at = timezone.now()
     payment.processed_at = payment.cancelled_at
     payment.save(update_fields=["status", "cancelled_at", "processed_at", "updated_at"])
+    _restore_obligation_after_failed_attempt(payment)
     return payment
 
 
@@ -314,12 +409,17 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
         raise ValidationError("Le sandbox de paiement est désactivé.")
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer")
+        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer", "obligation__journey__activity")
         .get(pk=payment.pk)
     )
     if payment.provider != PaymentProvider.SANDBOX:
         raise ValidationError("Ce paiement n’utilise pas le fournisseur sandbox.")
-    allowed = user_can_access_order(actor, payment.order) if payment.order_id else _commerce_payment_actor_can_initiate(actor, payment.commerce_order)
+    if payment.order_id:
+        allowed = user_can_access_order(actor, payment.order)
+    elif payment.commerce_order_id:
+        allowed = _commerce_payment_actor_can_initiate(actor, payment.commerce_order)
+    else:
+        allowed = _obligation_payment_actor_can_initiate(actor, payment.obligation)
     if not allowed:
         raise PermissionDenied("Vous ne pouvez pas valider ce paiement.")
     return complete_payment(payment=payment, provider_reference=f"SBX-{uuid.uuid4().hex[:20].upper()}", source="sandbox-ui")
@@ -329,7 +429,7 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
 def complete_manual_payment(*, payment: Payment, actor, provider_reference: str = "") -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "commerce_order")
+        .select_related("order", "order__event__activity", "commerce_order", "obligation")
         .get(pk=payment.pk)
     )
     if payment.provider != PaymentProvider.MANUAL:
@@ -350,7 +450,7 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
 
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "commerce_order")
+        .select_related("order", "order__event__activity", "commerce_order", "obligation__journey__activity")
         .get(pk=payment.pk)
     )
     if not _payment_actor_can_manage(actor, payment):
@@ -362,9 +462,7 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
         raise ValidationError("Ce paiement est déjà remboursé.")
     if payment.status != PaymentStatus.SUCCEEDED:
         raise ValidationError("Seul un paiement réussi peut être remboursé.")
-    if payment.order_id and payment.order.tickets.filter(
-        Q(access__status=AccessStatus.USED) | Q(access__isnull=True, status=TicketStatus.USED)
-    ).exists():
+    if payment.order_id and payment.order.tickets.filter(Q(access__status=AccessStatus.USED) | Q(access__isnull=True, status=TicketStatus.USED)).exists():
         raise ValidationError("Un paiement contenant un billet déjà utilisé ne peut pas être remboursé.")
 
     refund = Refund(
@@ -378,8 +476,6 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
     )
     refund.save()
     if payment.order_id:
-        # ticket_order remains an Event compatibility pointer for callbacks and
-        # refund UX; cancellation itself delegates to canonical owners.
         cancel_order(order=payment.order, actor=actor)
     now = timezone.now()
     refund.status = RefundStatus.SUCCEEDED
@@ -388,6 +484,8 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
     payment.status = PaymentStatus.REFUNDED
     payment.processed_at = now
     payment.save(update_fields=["status", "processed_at", "updated_at"])
+    if payment.obligation_id:
+        refund_payment_obligation(obligation=payment.obligation)
     emit_payment_domain_event(payment, event_type=DomainEventType.PAYMENT_REFUNDED)
     sync_payment_commerce(payment)
     return refund
@@ -408,19 +506,13 @@ def _safe_webhook_payload(payload: dict) -> dict:
 
 def _existing_webhook_outcome(*, event_id: str, payload_hash: str) -> WebhookOutcome | None:
     existing = (
-        PaymentEvent.objects.filter(
-            provider=PaymentProvider.SANDBOX,
-            event_id=event_id,
-        )
-        .select_related("payment")
-        .first()
+        PaymentEvent.objects.filter(provider=PaymentProvider.SANDBOX, event_id=event_id)
+        .select_related("payment").first()
     )
     if not existing:
         return None
     if not hmac.compare_digest(existing.payload_hash, payload_hash):
-        raise ValidationError(
-            "Identifiant d’événement webhook déjà utilisé avec un payload différent."
-        )
+        raise ValidationError("Identifiant d’événement webhook déjà utilisé avec un payload différent.")
     return WebhookOutcome(event=existing, payment=existing.payment, duplicate=True)
 
 
@@ -438,7 +530,6 @@ def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcom
     event_type = str(payload.get("type", "")).strip()
     if not event_id or not event_type:
         raise ValidationError("Le webhook doit contenir id et type.")
-
     if not verify_sandbox_signature(raw_body, signature):
         raise PermissionDenied("Signature webhook invalide.")
 
