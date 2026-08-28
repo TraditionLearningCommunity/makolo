@@ -70,7 +70,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="payment",
-            constraint=models.UniqueConstraint(condition=models.Q(("obligation__isnull", False), ("status", "succeeded")), fields=("obligation",), name="payment_one_success_obligation"),
+            constraint=models.UniqueConstraint(condition=models.Q(("status", "succeeded")) & models.Q(("obligation__isnull", False)), fields=("obligation",), name="payment_one_success_obligation"),
         ),
         migrations.AddIndex(model_name="payment", index=models.Index(fields=["obligation", "status"], name="pay_obligation_status_idx")),
         migrations.CreateModel(
