@@ -148,14 +148,30 @@ def create_commerce_payment_obligation(*, commerce_order, actor=None):
 
     commerce_order = (
         CommerceOrder.objects.select_for_update(of=("self",))
-        .select_related("journey", "payee_space", "payee_profile")
+        .select_related(
+            "journey__activity__space",
+            "journey__activity__owner_profile",
+            "payee_space",
+            "payee_profile",
+        )
         .order_by()
         .get(pk=commerce_order.pk)
     )
     if commerce_order.total <= 0 or commerce_order.payment_mode == PaymentMode.NONE:
         raise ValidationError("Cette CommerceOrder ne porte aucune obligation provider payante.")
-    if not commerce_order.payee_space_id and not commerce_order.payee_profile_id:
-        raise ValidationError("La CommerceOrder ne possède pas de bénéficiaire économique explicite.")
+
+    payee_space = commerce_order.payee_space
+    payee_profile = commerce_order.payee_profile
+    if payee_space is None and payee_profile is None:
+        # Expand-compatible legacy orders may predate explicit Commerce payees.
+        # The canonical Activity owner is objective business data, not an invented payee.
+        activity = commerce_order.journey.activity
+        payee_space = activity.space
+        if payee_space is None:
+            payee_profile = activity.owner_profile
+    if payee_space is None and payee_profile is None:
+        raise ValidationError("La CommerceOrder ne permet pas de déterminer un bénéficiaire économique canonique.")
+
     return create_payment_obligation(
         journey=commerce_order.journey,
         commerce_order=commerce_order,
@@ -164,8 +180,8 @@ def create_commerce_payment_obligation(*, commerce_order, actor=None):
         amount=commerce_order.total,
         currency=commerce_order.currency,
         processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
-        payee_space=commerce_order.payee_space,
-        payee_profile=commerce_order.payee_profile,
+        payee_space=payee_space,
+        payee_profile=payee_profile,
         created_by=actor,
         source_key=f"commerce:{commerce_order.pk}",
     )
