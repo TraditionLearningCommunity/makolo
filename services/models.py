@@ -488,7 +488,7 @@ class ServiceSubmission(models.Model):
         ]
         indexes = [
             models.Index(fields=["context", "status"], name="services_submission_status_idx"),
-            models.Index(fields=["context", "attempt"], name="services_submission_attempt_idx"),
+            models.Index(fields=["context", "attempt"], name="services_sub_attempt_idx"),
         ]
 
     def clean(self):
