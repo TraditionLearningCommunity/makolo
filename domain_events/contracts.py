@@ -31,6 +31,12 @@ class DomainEventType:
     JOURNEY_ARTIFACT_REVIEW_REQUESTED = "journey.artifact.review_requested"
     JOURNEY_ARTIFACT_REVIEW_COMPLETED = "journey.artifact.review_completed"
 
+    OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
+    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"
+    OPPORTUNITY_WITHDRAWN = "opportunity.withdrawn"
+    OPPORTUNITY_MERGED = "opportunity.merged"
+    SERVICE_OPPORTUNITY_REVISION_ADOPTED = "service.opportunity_revision.adopted"
+
     REQUEST_CREATED = "request.created"
     REQUEST_APPROVED = "request.approved"
     REQUEST_REJECTED = "request.rejected"
@@ -50,11 +56,7 @@ class DomainEventType:
     ACCESS_EXPIRED = "access.expired"
     ACCESS_TRANSFERRED = "access.transferred"
 
-    values = frozenset(
-        value
-        for name, value in vars().items()
-        if name.isupper() and isinstance(value, str)
-    )
+    values = frozenset(value for name, value in vars().items() if name.isupper() and isinstance(value, str))
 
 
 JOURNEY_STATUS_EVENT_TYPES = {
