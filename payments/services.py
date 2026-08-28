@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import json
-import uuid
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -39,6 +38,7 @@ from .obligation_services import (
     restore_obligation_pending,
     satisfy_payment_obligation,
 )
+from .providers import get_provider_adapter
 
 
 @dataclass(frozen=True)
@@ -83,8 +83,7 @@ def _payment_actor_can_manage(actor, payment: Payment) -> bool:
 
 
 def _validate_provider(*, provider, actor, event=None):
-    if provider not in PaymentProvider.values:
-        raise ValidationError("Fournisseur de paiement non pris en charge.")
+    adapter = get_provider_adapter(provider)
     if provider == PaymentProvider.SANDBOX and not _sandbox_enabled():
         raise ValidationError("Le fournisseur sandbox est désactivé.")
     if provider == PaymentProvider.MANUAL:
@@ -93,10 +92,20 @@ def _validate_provider(*, provider, actor, event=None):
                 raise PermissionDenied("Seul un responsable finance, propriétaire, admin ou staff peut enregistrer un paiement manuel.")
         elif not getattr(actor, "is_staff", False):
             raise PermissionDenied("Un paiement manuel requiert une autorité financière explicite.")
+    return adapter
 
 
 def _payment_from_idempotency_key(key):
     return Payment.objects.select_related("obligation", "commerce_order", "order").filter(idempotency_key=key).first() if key else None
+
+
+def _apply_provider_initiation(payment, adapter):
+    initiation = adapter.initiate(payment=payment)
+    checkout_url = (initiation.checkout_url or "").strip()
+    if checkout_url and checkout_url != payment.checkout_url:
+        payment.checkout_url = checkout_url
+        payment.save(update_fields=["checkout_url", "updated_at"])
+    return payment
 
 
 def _restore_obligation_after_failed_attempt(payment):
@@ -140,7 +149,7 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
         raise ValidationError("Cette commande est gratuite et ne nécessite aucun paiement.")
     if Payment.objects.filter(commerce_order=commerce_order, status=PaymentStatus.SUCCEEDED).exists():
         raise ValidationError("Cette commande possède déjà un paiement réussi.")
-    _validate_provider(provider=provider, actor=actor, event=order.event)
+    adapter = _validate_provider(provider=provider, actor=actor, event=order.event)
     obligation = create_commerce_payment_obligation(commerce_order=commerce_order, actor=actor)
 
     payment = Payment(
@@ -166,6 +175,7 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
         if existing:
             return existing
         raise ValidationError("Impossible de créer ce paiement de façon unique.") from exc
+    _apply_provider_initiation(payment, adapter)
     if obligation.status == PaymentObligationStatus.PENDING:
         mark_obligation_processing(obligation=obligation)
     return payment
@@ -200,7 +210,7 @@ def initiate_commerce_payment(
         raise ValidationError("Ce mode de paiement ne requiert pas de transaction provider immédiate.")
     if Payment.objects.filter(commerce_order=commerce_order, status=PaymentStatus.SUCCEEDED).exists():
         raise ValidationError("Cette commande Commerce possède déjà un paiement réussi.")
-    _validate_provider(provider=provider, actor=actor)
+    adapter = _validate_provider(provider=provider, actor=actor)
     obligation = create_commerce_payment_obligation(commerce_order=commerce_order, actor=actor)
 
     payer_default = commerce_order.buyer
@@ -227,6 +237,7 @@ def initiate_commerce_payment(
         if existing:
             return existing
         raise ValidationError("Impossible de créer ce paiement Commerce de façon unique.") from exc
+    _apply_provider_initiation(payment, adapter)
     if obligation.status == PaymentObligationStatus.PENDING:
         mark_obligation_processing(obligation=obligation)
     return payment
@@ -256,7 +267,7 @@ def initiate_obligation_payment(
         raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette obligation.")
     if Payment.objects.filter(obligation=obligation, status=PaymentStatus.SUCCEEDED).exists():
         raise ValidationError("Cette obligation possède déjà un paiement réussi.")
-    _validate_provider(provider=provider, actor=actor)
+    adapter = _validate_provider(provider=provider, actor=actor)
     beneficiary = obligation.journey.beneficiary
     payment = Payment(
         obligation=obligation,
@@ -280,6 +291,7 @@ def initiate_obligation_payment(
         if existing:
             return existing
         raise ValidationError("Impossible de créer cette tentative de paiement de façon unique.") from exc
+    _apply_provider_initiation(payment, adapter)
     if obligation.status == PaymentObligationStatus.PENDING:
         mark_obligation_processing(obligation=obligation)
     return payment
@@ -395,6 +407,7 @@ def cancel_payment(*, payment: Payment, actor) -> Payment:
         raise ValidationError("Un paiement réussi doit être remboursé, pas annulé.")
     if payment.status == PaymentStatus.FAILED:
         return payment
+    get_provider_adapter(payment.provider).cancel(payment=payment)
     payment.status = PaymentStatus.CANCELLED
     payment.cancelled_at = timezone.now()
     payment.processed_at = payment.cancelled_at
@@ -422,7 +435,8 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
         allowed = _obligation_payment_actor_can_initiate(actor, payment.obligation)
     if not allowed:
         raise PermissionDenied("Vous ne pouvez pas valider ce paiement.")
-    return complete_payment(payment=payment, provider_reference=f"SBX-{uuid.uuid4().hex[:20].upper()}", source="sandbox-ui")
+    completion = get_provider_adapter(payment.provider).confirm(payment=payment, source="sandbox-ui")
+    return complete_payment(payment=payment, provider_reference=completion.provider_reference, source=completion.source)
 
 
 @transaction.atomic
@@ -436,7 +450,12 @@ def complete_manual_payment(*, payment: Payment, actor, provider_reference: str 
         raise ValidationError("Ce paiement n’est pas de type manuel.")
     if not _payment_actor_can_manage(actor, payment):
         raise PermissionDenied("Vous n'avez pas le droit de confirmer ce paiement manuel.")
-    return complete_payment(payment=payment, provider_reference=provider_reference.strip() or f"MAN-{uuid.uuid4().hex[:20].upper()}", source="manual")
+    completion = get_provider_adapter(payment.provider).confirm(
+        payment=payment,
+        provider_reference=provider_reference,
+        source="manual",
+    )
+    return complete_payment(payment=payment, provider_reference=completion.provider_reference, source=completion.source)
 
 
 @transaction.atomic
@@ -465,6 +484,7 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
     if payment.order_id and payment.order.tickets.filter(Q(access__status=AccessStatus.USED) | Q(access__isnull=True, status=TicketStatus.USED)).exists():
         raise ValidationError("Un paiement contenant un billet déjà utilisé ne peut pas être remboursé.")
 
+    provider_refund = get_provider_adapter(payment.provider).refund(payment=payment, amount=payment.amount)
     refund = Refund(
         payment=payment,
         requested_by=actor,
@@ -472,7 +492,7 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
         currency=payment.currency,
         reason=reason.strip()[:500],
         idempotency_key=idempotency_key or None,
-        provider_reference=f"RFD-{payment.provider.upper()}-{uuid.uuid4().hex[:16].upper()}",
+        provider_reference=provider_refund.provider_reference,
     )
     refund.save()
     if payment.order_id:
@@ -572,7 +592,12 @@ def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcom
     event.payment = payment
     try:
         if event_type == "payment.succeeded":
-            complete_payment(payment=payment, provider_reference=str(payload.get("provider_reference", "")).strip() or f"SBX-WH-{event_id[:40]}", source="sandbox-webhook")
+            completion = get_provider_adapter(payment.provider).confirm(
+                payment=payment,
+                provider_reference=str(payload.get("provider_reference", "")).strip() or f"SBX-WH-{event_id[:40]}",
+                source="sandbox-webhook",
+            )
+            complete_payment(payment=payment, provider_reference=completion.provider_reference, source=completion.source)
         elif event_type == "payment.failed":
             fail_payment(
                 payment=payment,
