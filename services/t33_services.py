@@ -261,6 +261,53 @@ def _lock_submission(submission):
     )
 
 
+def _project_current_outcome(context):
+    event = (
+        ServiceOutcomeEvent.objects.filter(context=context)
+        .order_by("-occurred_at", "-created_at", "-id")
+        .first()
+    )
+    return OUTCOME_PROJECTION.get(event.event_type, ServiceCurrentOutcome.UNKNOWN) if event else ServiceCurrentOutcome.NOT_SUBMITTED
+
+
+def _record_service_outcome(*, context, actor, event_type, occurred_at, note="", external_reference="", require_operator):
+    context = (
+        ServiceJourneyContext.objects.select_for_update(of=("self",))
+        .select_related("journey__activity")
+        .order_by()
+        .get(pk=context.pk)
+    )
+    if require_operator:
+        _ensure_case_operator(actor, context.journey)
+    if event_type not in ServiceOutcomeEventType.values:
+        raise ValidationError("Type de résultat externe inconnu.")
+    if occurred_at is None:
+        raise ValidationError("occurred_at est obligatoire pour un résultat externe.")
+    event = ServiceOutcomeEvent.objects.create(
+        context=context,
+        event_type=event_type,
+        occurred_at=occurred_at,
+        recorded_by=actor if _actor_id(actor) else None,
+        note=note or "",
+        external_reference=(external_reference or "").strip(),
+    )
+    projected = _project_current_outcome(context)
+    changed = projected != context.current_outcome
+    if changed:
+        context.current_outcome = projected
+        context._allow_outcome_projection = True
+        context.save(update_fields=["current_outcome", "updated_at"])
+    _emit_service_event(
+        event_type=DomainEventType.SERVICE_OUTCOME_CHANGED,
+        source_type="service_outcome_event",
+        source_id=event.pk,
+        context=context,
+        suffix="recorded",
+        payload={"event_type": event.event_type, "current_outcome": projected, "projection_changed": changed},
+    )
+    return event
+
+
 def _transition_submission(*, submission, actor, status, failure_reason="", external_reference=None, receipt_artifact=None):
     submission = _lock_submission(submission)
     _ensure_submission_owner_or_operator(actor, submission.context.journey)
@@ -298,22 +345,24 @@ def _transition_submission(*, submission, actor, status, failure_reason="", exte
             payload={"attempt": submission.attempt, "status": submission.status, "mode": submission.mode},
         )
     if status in {ServiceSubmissionStatus.SUBMITTED, ServiceSubmissionStatus.ACKNOWLEDGED}:
-        record_service_outcome(
+        _record_service_outcome(
             context=submission.context,
             actor=actor,
             event_type=ServiceOutcomeEventType.SUBMITTED if status == ServiceSubmissionStatus.SUBMITTED else ServiceOutcomeEventType.ACKNOWLEDGED,
             occurred_at=submission.submitted_at or now,
             external_reference=submission.external_reference,
             note=f"ServiceSubmission attempt {submission.attempt}",
+            require_operator=False,
         )
     elif status == ServiceSubmissionStatus.WITHDRAWN:
-        record_service_outcome(
+        _record_service_outcome(
             context=submission.context,
             actor=actor,
             event_type=ServiceOutcomeEventType.WITHDRAWN,
             occurred_at=now,
             external_reference=submission.external_reference,
             note=f"ServiceSubmission attempt {submission.attempt} withdrawn",
+            require_operator=False,
         )
     return submission
 
@@ -356,48 +405,14 @@ def withdraw_service_submission(*, submission, actor):
     return _transition_submission(submission=submission, actor=actor, status=ServiceSubmissionStatus.WITHDRAWN)
 
 
-def _project_current_outcome(context):
-    event = (
-        ServiceOutcomeEvent.objects.filter(context=context)
-        .order_by("-occurred_at", "-created_at", "-id")
-        .first()
-    )
-    return OUTCOME_PROJECTION.get(event.event_type, ServiceCurrentOutcome.UNKNOWN) if event else ServiceCurrentOutcome.NOT_SUBMITTED
-
-
 @transaction.atomic
 def record_service_outcome(*, context, actor, event_type, occurred_at, note="", external_reference=""):
-    context = (
-        ServiceJourneyContext.objects.select_for_update(of=("self",))
-        .select_related("journey__activity")
-        .order_by()
-        .get(pk=context.pk)
-    )
-    _ensure_case_operator(actor, context.journey)
-    if event_type not in ServiceOutcomeEventType.values:
-        raise ValidationError("Type de résultat externe inconnu.")
-    if occurred_at is None:
-        raise ValidationError("occurred_at est obligatoire pour un résultat externe.")
-    event = ServiceOutcomeEvent.objects.create(
+    return _record_service_outcome(
         context=context,
+        actor=actor,
         event_type=event_type,
         occurred_at=occurred_at,
-        recorded_by=actor if _actor_id(actor) else None,
-        note=note or "",
-        external_reference=(external_reference or "").strip(),
+        note=note,
+        external_reference=external_reference,
+        require_operator=True,
     )
-    projected = _project_current_outcome(context)
-    changed = projected != context.current_outcome
-    if changed:
-        context.current_outcome = projected
-        context._allow_outcome_projection = True
-        context.save(update_fields=["current_outcome", "updated_at"])
-    _emit_service_event(
-        event_type=DomainEventType.SERVICE_OUTCOME_CHANGED,
-        source_type="service_outcome_event",
-        source_id=event.pk,
-        context=context,
-        suffix="recorded",
-        payload={"event_type": event.event_type, "current_outcome": projected, "projection_changed": changed},
-    )
-    return event
