@@ -175,6 +175,13 @@ class ServiceT33FinancialRequirementTests(TestCase):
         grant_activity_role(profile=self.outsider, activity=other_activity)
         other_service = create_service_details(activity=other_activity, actor=self.outsider, service_kind=ServiceKind.CAREER_SUPPORT)
         other_journey = create_service_journey(service=other_service, initiated_by=self.outsider, beneficiary=self.outsider)
+        assign_journey(
+            journey=other_journey,
+            profile=self.outsider,
+            responsibility=JourneyAssignmentResponsibility.LEAD,
+            is_primary=True,
+            assigned_by=self.outsider,
+        )
         from journeys.collaboration_services import create_step
         foreign_step = create_step(journey=other_journey, title="Foreign", kind=JourneyStepKind.PAYMENT, created_by=self.outsider)
         with self.assertRaises(ValidationError):
