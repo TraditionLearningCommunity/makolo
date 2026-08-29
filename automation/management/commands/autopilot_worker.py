@@ -6,7 +6,7 @@ import time
 from django.core.management.base import BaseCommand
 
 from automation.crm_runtime import process_due_crm_workflows
-from automation.services import run_autopilot_cycle
+from automation.scheduler import run_autopilot_cycle
 from operations.models import WorkerState
 from operations.services import record_worker_heartbeat
 
