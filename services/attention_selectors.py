@@ -4,7 +4,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
-from authorization.services import can
+from authorization.services import activity_ids_with_permission, can
 from journeys.collaboration_models import (
     JourneyArtifactReviewStatus,
     JourneyBlockerSeverity,
@@ -29,10 +29,6 @@ ACTIONABLE_STEP_STATUSES = {
     JourneyStepStatus.READY,
     JourneyStepStatus.IN_PROGRESS,
     JourneyStepStatus.BLOCKED,
-}
-SATISFIED_PAYMENT_STATUSES = {
-    PaymentObligationStatus.SATISFIED,
-    PaymentObligationStatus.WAIVED,
 }
 
 
@@ -119,22 +115,18 @@ def facilitator_attention_journeys(profile, *, now=None):
         )
     )
     queryset = visible.filter(attention)
-    # PaymentEvidence is deliberately permission-gated: a normal Facilitator must not
-    # see verification work merely because the case is assigned.
-    payment_activity_ids = []
-    for activity_id in visible.values_list("activity_id", flat=True).distinct():
-        journey = visible.filter(activity_id=activity_id).select_related("activity").first()
-        if journey and can(
-            profile,
-            PermissionCode.ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY,
-            activity=journey.activity,
-        ):
-            payment_activity_ids.append(activity_id)
-    if payment_activity_ids:
-        queryset = queryset | visible.filter(
-            activity_id__in=payment_activity_ids,
-            payment_obligations__evidence__status=PaymentEvidenceStatus.SUBMITTED,
-        )
+    # PaymentEvidence remains permission-gated without one resolver call per Activity.
+    payment_activity_ids = activity_ids_with_permission(
+        profile,
+        PermissionCode.ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY,
+        at=now,
+    )
+    payment_scope = visible
+    if payment_activity_ids is not None:
+        payment_scope = payment_scope.filter(activity_id__in=payment_activity_ids)
+    queryset = queryset | payment_scope.filter(
+        payment_obligations__evidence__status=PaymentEvidenceStatus.SUBMITTED,
+    )
     return queryset.distinct()
 
 
