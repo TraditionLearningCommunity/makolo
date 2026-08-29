@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "requirements.apps.RequirementsConfig",
     "services.apps.ServicesConfig",
     "opportunities.apps.OpportunitiesConfig",
+    "subscriptions.apps.SubscriptionsConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime
