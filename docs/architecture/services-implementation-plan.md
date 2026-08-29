@@ -31,7 +31,7 @@ Règles de livraison :
 
 ## 2. Découpage d’exécution T31–T36
 
-Les anciens lots détaillés T31–T44 ont été consolidés afin d’éviter de traiter Makolo Services comme une succession de mini-apps. Ils restent utiles comme historique de conception, mais la séquence d’exécution officielle est désormais **T31–T36**.
+Les anciens lots détaillés T31–T44 ont été consolidés afin d’éviter de traiter Makolo Services comme une succession de mini-apps. Ils restent utiles comme historique de conception, mais la séquence d’exécution officielle est désormais **T31–T36**, avec T34 séparée en T34A/T34B depuis la décision horizontale Requirements/Subscriptions.
 
 ### T31 — Services Core & Journey Orchestration
 
@@ -72,7 +72,7 @@ Le noyau `journeys` ne dépend pas de la verticale `services`.
 
 ### T32 — Opportunities & Requirement Engine
 
-**Statut : livrée et mergée, avec refactoring transversal Requirements planifié en T34A.**
+**Statut : livrée et mergée ; ses primitives génériques de state/evaluation sont désormais extraites par T34A.**
 
 **But :** introduire le domaine canonique Opportunity et composer les requirements avec les dossiers Services.
 
@@ -119,7 +119,7 @@ Le lien entre un Requirement financier individuel et une obligation reste propri
 
 `ServiceSubmission` conserve des tentatives numérotées par contexte avec unicité `(context, attempt)` et transitions contrôlées. La completion policy historique `required_steps` est conservée ; `required_steps_and_submission` est opt-in et exige une tentative réellement `submitted` ou `acknowledged`, jamais un résultat externe favorable. `ServiceOutcomeEvent` est append-only et `ServiceJourneyContext.current_outcome` est une projection transactionnelle déterminée par `occurred_at` avec un tie-breaker stable. `Journey.status` et `current_outcome` restent deux axes indépendants : `Journey.fulfilled + current_outcome.unsuccessful` est un état valide et couvert par les tests.
 
-La sécurité T33 réutilise l’autorité existante : bénéficiaire pour les actions propres autorisées, ou autorité Activity + `JourneyAssignment` active pour les opérations de dossier. Les opérations financières sensibles et la vérification externe restent deny-by-default hors autorité explicite/staff jusqu’à la matrice finale T34. Les faits T33 passent par l’outbox Domain Events existante ; Notifications/Automation finales restent T34B.
+La sécurité T33 réutilise l’autorité existante : bénéficiaire pour les actions propres autorisées, ou autorité Activity + `JourneyAssignment` active pour les opérations de dossier. Les opérations financières sensibles et la vérification externe restent deny-by-default hors autorité explicite/staff jusqu’à la matrice finale T34B. Les faits T33 passent par l’outbox Domain Events existante ; Notifications/Automation finales restent T34B.
 
 ### T34 — Foundations, Authorization, Privacy, Events & Automation
 
@@ -127,22 +127,31 @@ T34 est désormais exécutée en **deux sous-phases ordonnées**. Ce découpage 
 
 #### T34A — Horizontal Requirements Foundation
 
+**Statut : implémentée dans la PR T34A ; à déclarer livrée seulement après squash merge et gates post-merge verts.**
+
 **But :** extraire les primitives réellement communes de Requirements avant de construire un second moteur dans Subscriptions.
 
-Périmètre :
+Runtime T34A :
 
-- créer le bounded context/app `requirements` si l’audit de dépendances confirme que c’est la frontière la plus propre ;
-- introduire `RequirementMode`, `RequirementAssessmentState`, `RequirementEvaluationResult` et le registre d’évaluateurs contrôlés ;
-- interdire toute expression Python/SQL/JS ou moteur booléen arbitraire configuré en DB ;
-- garder les agrégats métiers dans leurs domaines : `OpportunityRequirement` dans `opportunities`, `ServiceRequirementAssessment` dans `services` ;
-- conserver les FKs explicites ; aucun `ContentType`/GFK pour les relations métier centrales ;
-- refactorer les statuts T32 vers le contrat commun en conservant la sémantique et l’historique utiles ;
-- garder `JourneyArtifact`, `JourneyStep`, `ServiceRequirementEvidence`, `ServiceRequirementStepLink` dans leurs domaines actuels ;
-- garder le bridge financier T33 dans Services et `PaymentObligation` dans Payments ;
-- couvrir T31/T32/T33 par tests ciblés et PostgreSQL avant toute suppression d’ancien contrat ;
-- documenter les éventuels adapters temporaires puis les supprimer si aucune donnée réelle ne justifie leur conservation.
+- bounded context/app `requirements` sans modèle DB universel ;
+- `RequirementMode` : `automatic`, `action`, `verification`, `external_check`, `payment`, `review` ;
+- `RequirementAssessmentState` : `unassessed`, `pending`, `satisfied`, `unsatisfied`, `not_applicable` ;
+- `RequirementEvaluationResult` non persistant avec `state`, `reason_code`, `actual_value`, `expected_value`, `observed_at`, `retryable` ;
+- `EvaluatorRegistry` code-controlled avec enregistrement explicite, lookup, évaluation, validation stricte des paramètres/opérateurs/sujets, métadonnées `dependency_events` et `cache_policy` ;
+- rejet des clés de configuration arbitraires, sans `eval`, `exec`, SQL/JavaScript configurable, import path DB ou moteur booléen générique ;
+- aucun GFK/ContentType métier central ;
+- `OpportunityRequirement` reste dans `opportunities` ; `ServiceRequirementAssessment`, Evidence, Step links et bridge Payment restent dans `services` ;
+- migration en place des anciens pseudo-states T32 : `action_required/needs_review → pending`, `not_eligible → unsatisfied`, les autres valeurs conservées ;
+- la colonne Services reste nommée `status` mais utilise le contrat horizontal ; aucun rename cosmétique ;
+- conséquences Services `action_required`, `needs_review`, `payment_required`, `not_eligible` calculées depuis les propriétaires canoniques et non persistées ;
+- bridge financier T33 : obligation non satisfaite → Assessment `pending`; toutes obligations satisfied/waived → `satisfied` ;
+- kernel importable et exécutable par un consumer non-Services ;
+- test de frontière empêchant `requirements → services/subscriptions/opportunities/payments/journeys/events/transport` ;
+- tests PostgreSQL T34A explicites, y compris concurrence d’Assessment, en plus des régressions T31/T32/T33.
 
-**Gate T34A :** Services T31/T32/T33 reste vert, les Requirements Opportunity/Services continuent de fonctionner, et le kernel horizontal est utilisable par un domaine non-Services sans importer `services`.
+T34A n’ajoute aucun runtime Subscription, Entitlement ou Eligibility et n’ajoute pas de `mode` spéculatif à `OpportunityRequirement` faute de sémantique historique objectivement déductible.
+
+**Gate T34A :** Services T31/T32/T33 reste vert, les Requirements Opportunity/Services continuent de fonctionner, le kernel horizontal est utilisable sans Services, les migrations historiques sont préservées et PostgreSQL/Beta seed/CI sont verts.
 
 #### T34B — Services Authorization, Privacy, Events & Automation
 
@@ -205,7 +214,7 @@ T33 terminé
 T34A Requirements Foundation
     ↓
     ├── T34B Services Authorization/Events
-    └── Subscriptions B–G (Feature/Entitlement, Catalogue, Subscription, Eligibility, Transition, Authorization/Events)
+    └── Subscriptions Foundation
             ↓
 T35 Services UX          Subscriptions UX
             \            /
@@ -215,7 +224,7 @@ T35 Services UX          Subscriptions UX
 
 ### Règle de parallélisation
 
-- **Ne pas commencer le runtime Subscription avant T34A**, sinon Makolo créerait deux moteurs Requirement qu’il faudrait fusionner immédiatement.
+- **Ne pas commencer le runtime Subscription avant merge de T34A**, sinon Makolo créerait deux moteurs Requirement qu’il faudrait fusionner immédiatement.
 - **Après merge de T34A, T34B et le chantier Subscription peuvent avancer en parallèle** sur des branches distinctes, car leurs responsabilités deviennent séparées.
 - T34B ne doit pas introduire de nouvelle primitive générique réservée à Services sans vérifier d’abord `requirements`.
 - Subscription ne doit pas importer `services` ni réutiliser `Journey` pour ses transitions.
@@ -226,12 +235,10 @@ T35 Services UX          Subscriptions UX
 
 Le plan T31–T36 reste valide pour **Services** ; il n’est pas remplacé par le chantier Subscription. La numérotation des tâches globales Makolo doit simplement enregistrer un nouveau chantier horizontal après T34A au lieu de forcer Subscription à devenir « T37 Services ».
 
-Le prochain travail code recommandé est donc :
+Le prochain travail après merge de T34A est donc, sur deux branches séparées :
 
-1. **T34A — Requirements Foundation** ;
-2. après son merge, ouvrir en parallèle :
-   - **T34B — Services Authorization, Privacy, Events & Automation** ;
-   - **Subscriptions Foundation** selon l’ordre A–H de la spécification canonique, en commençant par Feature/Entitlement et Catalogue puisque Requirements est déjà extrait ;
+1. **T34B — Services Authorization, Privacy, Events & Automation** ;
+2. **Subscriptions Foundation**, commençant avec ses propres domaines Feature/Entitlement/Catalogue conformément à la spécification canonique et en consommant le kernel Requirements désormais stabilisé ;
 3. poursuivre T35 Services UX ;
 4. intégrer l’UX Subscription lorsque ses contrats serveur sont stabilisés ;
 5. faire converger les hardening/release gates avant toute production réelle.
@@ -261,7 +268,7 @@ La release Services V1 devra finalement couvrir au minimum :
 4. **Opportunity proposée par un utilisateur** — proposition → staff review → accepted/duplicate → Opportunity canonique → Journey éventuelle.
 5. **Opportunity modifiée** — dossier pinné sur revision N → N+1 publiée → comparaison → adoption explicite ou maintien de N.
 6. **Paiement commercial** — les bridges Commerce/Payment historiques restent compatibles pendant la généralisation vers PaymentObligation.
-7. **Requirements horizontal** — T32/T33 restent fonctionnels après extraction du kernel et aucun modèle Services n’est requis pour évaluer un Requirement Subscription.
+7. **Requirements horizontal** — T32/T33 restent fonctionnels après extraction du kernel et aucun modèle Services n’est requis pour évaluer une condition via le registry horizontal.
 
 ## 6. Gates transversaux
 
