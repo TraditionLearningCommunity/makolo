@@ -15,6 +15,7 @@ from requirements.contracts import RequirementAssessmentState
 
 from .models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment, ServiceRequirementEvidence, ServiceRequirementEvidenceStatus
 from .requirement_consequences import ServiceRequirementConsequence
+from .requirement_services import derive_requirement_consequence
 from .services import (
     add_template_step,
     adopt_opportunity_revision,
@@ -24,7 +25,6 @@ from .services import (
     create_requirement_step,
     create_service_details,
     create_service_journey,
-    derive_requirement_consequence,
     fulfill_service_journey,
     has_newer_opportunity_revision,
     publish_plan_template,
