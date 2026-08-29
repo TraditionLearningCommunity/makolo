@@ -309,10 +309,13 @@ def _record_service_outcome(*, context, actor, event_type, occurred_at, note="",
 
 
 def _transition_submission(*, submission, actor, status, failure_reason="", external_reference=None, receipt_artifact=None):
+    expected_status = submission.status
     submission = _lock_submission(submission)
     _ensure_submission_owner_or_operator(actor, submission.context.journey)
     if status == submission.status:
         return submission
+    if submission.status != expected_status:
+        raise ValidationError("La ServiceSubmission a changé d’état pendant cette transition. Rechargez-la avant de réessayer.")
     if status not in SUBMISSION_TRANSITIONS.get(submission.status, set()):
         raise ValidationError(f"Transition ServiceSubmission interdite: {submission.status} -> {status}.")
     if receipt_artifact is not None:
