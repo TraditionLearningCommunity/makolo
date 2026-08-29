@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models import Q
 
 from journeys.models import JourneyStepKind, WorkflowKind
+from requirements.contracts import RequirementAssessmentState
 
 
 class ServiceKind(models.TextChoices):
@@ -257,20 +258,11 @@ class ServiceJourneyContext(models.Model):
         return result
 
 
-class ServiceRequirementAssessmentStatus(models.TextChoices):
-    UNASSESSED = "unassessed", "Non évalué"
-    SATISFIED = "satisfied", "Satisfait"
-    ACTION_REQUIRED = "action_required", "Action requise"
-    NEEDS_REVIEW = "needs_review", "Revue requise"
-    NOT_APPLICABLE = "not_applicable", "Non applicable"
-    NOT_ELIGIBLE = "not_eligible", "Non éligible"
-
-
 class ServiceRequirementAssessment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     context = models.ForeignKey(ServiceJourneyContext, on_delete=models.CASCADE, related_name="requirement_assessments")
     requirement = models.ForeignKey("opportunities.OpportunityRequirement", on_delete=models.PROTECT, related_name="service_assessments")
-    status = models.CharField(max_length=20, choices=ServiceRequirementAssessmentStatus.choices, default=ServiceRequirementAssessmentStatus.UNASSESSED)
+    status = models.CharField(max_length=20, choices=RequirementAssessmentState.choices, default=RequirementAssessmentState.UNASSESSED)
     note = models.TextField(blank=True)
     assessed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="service_requirement_assessments", null=True, blank=True)
     assessed_at = models.DateTimeField(null=True, blank=True)
@@ -293,7 +285,7 @@ class ServiceRequirementAssessment(models.Model):
                 errors["context"] = "Une Assessment exige une OpportunityRevision pinnée."
             elif self.requirement.revision_id != self.context.opportunity_revision_id:
                 errors["requirement"] = "Le Requirement doit appartenir à la révision actuellement pinnée."
-        if self.status == ServiceRequirementAssessmentStatus.UNASSESSED:
+        if self.status == RequirementAssessmentState.UNASSESSED:
             if self.assessed_at is not None:
                 errors["assessed_at"] = "Une Assessment non évaluée ne porte pas de date d’évaluation."
         elif self.assessed_at is None:

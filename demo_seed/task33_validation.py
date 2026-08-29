@@ -12,12 +12,12 @@ from payments.models import (
     PaymentProvider,
     PaymentStatus,
 )
+from requirements.contracts import RequirementAssessmentState
 from services.models import (
     ServiceCurrentOutcome,
     ServiceJourneyContext,
     ServiceOutcomeEvent,
     ServiceOutcomeEventType,
-    ServiceRequirementAssessmentStatus,
     ServiceSubmission,
     ServiceSubmissionStatus,
 )
@@ -76,7 +76,7 @@ def assert_task33_beta_coverage() -> dict[str, int]:
         )
         _require(
             sandbox.service_requirement_links.filter(
-                assessment__status=ServiceRequirementAssessmentStatus.SATISFIED,
+                assessment__status=RequirementAssessmentState.SATISFIED,
             ).exists(),
             "T33: Assessment financier sandbox non synchronisé",
             errors,
@@ -98,7 +98,7 @@ def assert_task33_beta_coverage() -> dict[str, int]:
         )
         _require(
             external.service_requirement_links.filter(
-                assessment__status=ServiceRequirementAssessmentStatus.SATISFIED,
+                assessment__status=RequirementAssessmentState.SATISFIED,
             ).exists(),
             "T33: Assessment financier externe non synchronisé",
             errors,

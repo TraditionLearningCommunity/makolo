@@ -18,6 +18,7 @@ from payments.models import (
 )
 from payments.obligation_services import create_payment_obligation, verify_payment_evidence
 from payments.services import complete_sandbox_payment
+from requirements.contracts import RequirementAssessmentState
 
 from .models import (
     ServiceCurrentOutcome,
@@ -25,7 +26,6 @@ from .models import (
     ServiceOutcomeEvent,
     ServiceOutcomeEventType,
     ServiceRequirementAssessment,
-    ServiceRequirementAssessmentStatus,
     ServiceRequirementPaymentObligation,
     ServiceRequirementStepLink,
     ServiceSubmission,
@@ -107,7 +107,7 @@ def _set_assessment_status_from_payment(*, assessment, actor=None):
     if not links:
         return assessment
     satisfied = all(link.obligation.status in SATISFIED_FINANCIAL_OBLIGATION_STATUSES for link in links)
-    desired = ServiceRequirementAssessmentStatus.SATISFIED if satisfied else ServiceRequirementAssessmentStatus.ACTION_REQUIRED
+    desired = RequirementAssessmentState.SATISFIED if satisfied else RequirementAssessmentState.PENDING
     if assessment.status == desired:
         return assessment
     assessment.status = desired

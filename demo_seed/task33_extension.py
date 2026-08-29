@@ -34,6 +34,7 @@ from payments.obligation_services import (
     satisfy_payment_obligation,
 )
 from payments.services import initiate_obligation_payment
+from requirements.contracts import RequirementAssessmentState
 from services.models import (
     CompletionPolicy,
     OpportunityPolicy,
@@ -44,7 +45,6 @@ from services.models import (
     ServiceOutcomeEvent,
     ServiceOutcomeEventType,
     ServiceRequirementAssessment,
-    ServiceRequirementAssessmentStatus,
     ServiceRequirementStepLink,
     ServiceSubmission,
     ServiceSubmissionMode,
@@ -122,7 +122,7 @@ def _financial_assessment(*, key, context, requirement, staff):
         defaults={
             "context": context,
             "requirement": requirement,
-            "status": ServiceRequirementAssessmentStatus.UNASSESSED,
+            "status": RequirementAssessmentState.UNASSESSED,
         },
     )
     step, _ = JourneyStep.objects.get_or_create(
