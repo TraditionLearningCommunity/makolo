@@ -713,96 +713,115 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 
 ---
 
+## 16. Extension canonique — Requirements, Subscriptions et Entitlements
+
+Cette section étend les frontières du §5 et l'ordre de migration du §13. La spécification détaillée est [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md).
+
+### Requirements est une capacité horizontale
+
+Makolo reconnaît désormais un noyau horizontal `requirements` pour les primitives réellement communes d'évaluation des conditions.
+
+Il fournit notamment :
+
+- modes de Requirement ;
+- états génériques d'Assessment ;
+- registre d'évaluateurs contrôlés ;
+- validation de configuration ;
+- contrat de résultat d'évaluation.
+
+Il **ne devient pas** propriétaire de tous les Requirements persistants de Makolo. Les agrégats restent dans leurs domaines : par exemple `OpportunityRequirement` dans `opportunities`, `ServiceRequirementAssessment` dans `services`, `PlanRequirement` et `SubscriptionRequirementAssessment` dans `subscriptions`.
+
+Aucun GenericForeignKey, `ContentType` métier central, expression Python/SQL/JavaScript ou langage de règles arbitraire n'est introduit pour rendre le système artificiellement générique.
+
+La sémantique T32 `Requirement → Assessment → Evidence/Action` est conservée ; seule la mécanique commune est extraite afin d'éviter plusieurs moteurs concurrents.
+
+### Subscription est une capacité horizontale
+
+Une Subscription appartient exactement à **Profil XOR Espace**. Elle n'appartient jamais à Activity, Event, Journey ou une verticale.
+
+Une Activity consomme les Entitlements de son opérateur logique :
+
+```text
+Activity.owner_profile → Subscription du Profile
+Activity.space         → Subscription du Space
+```
+
+Lorsqu'un Profile agit au nom d'un Space, les Entitlements viennent du Space tandis que l'autorité de l'acteur continue à être évaluée via Permission/Role/Mandate.
+
+Les verticales ne créent donc jamais `EventSubscription`, `ServiceSubscription` ou `TransportSubscription`.
+
+### Permission, Entitlement et Requirement restent distincts
+
+- **Permission** : qui peut faire quoi, et où ?
+- **Entitlement** : quelle capacité produit/limite est disponible pour le sujet ?
+- **Requirement** : quelle condition doit être satisfaite ?
+
+Une opération peut exiger les trois, mais aucun ne remplace l'autre.
+
+Le code métier vérifie des codes de Feature/Entitlement stables ; il ne dépend pas des noms commerciaux des plans.
+
+### Plans versionnés et self-service
+
+Le Staff configure le catalogue, les Features, Entitlements, Benefits et Requirements. Les Profils/Espaces découvrent les plans pertinents et initient eux-mêmes leurs changements lorsqu'ils disposent de l'autorité nécessaire.
+
+Une PlanVersion publiée est immuable. Toute évolution crée une nouvelle version. Une transition de Subscription pinne la version demandée et n'est jamais déplacée silencieusement vers une nouvelle version publiée.
+
+L'éligibilité de catalogue est calculée à la demande : Makolo ne matérialise pas `subject × plan × requirement` pour l'ensemble de sa population.
+
+### Subscription n'est pas Journey
+
+Une `SubscriptionTransition` possède son workflow léger. Elle ne crée pas de fausse Activity et n'étend pas Journey au-delà de sa sémantique Activity/Démarche.
+
+### Payment, Verification et Notifications restent séparés
+
+Un paiement d'abonnement futur passe par les contrats Payments (`PaymentObligation` puis `Payment`) ; Subscription n'a jamais un simple booléen `is_paid`.
+
+Une vérification est consommée depuis Trust/Verification lorsque ce domaine porte déjà le sens nécessaire.
+
+Subscription émet des Domain Events ; Notifications, Automation et Analytics les consomment sans devenir la source de vérité de la Subscription.
+
+### Ajout aux bounded contexts du §5
+
+La cible inclut désormais explicitement :
+
+| Bounded context / app recommandée | Responsabilité cible | Stratégie |
+|---|---|---|
+| `requirements` | primitives communes de conditions/évaluation, evaluator registry et contrats d'Assessment | extraire la mécanique commune validée par T32 sans déplacer les agrégats Opportunity/Services |
+| `subscriptions` | catalogue, plans/versioning, Features, Entitlements, Eligibility, Subscription/Items/Transitions/Grants | nouveau domaine horizontal Profile/Space ; aucune dépendance vers `services` ou une verticale |
+
+### Ajout à l'ordre de migration du §13
+
+Après T33 Services, la prochaine fondation transversale est l'extraction du kernel Requirements. Une fois cette fondation mergée et verte, le travail peut se paralléliser :
+
+```text
+Requirements foundation
+       ↓
+       ├── Services Authorization / Privacy / Events / Automation
+       └── Subscriptions / Entitlements / Eligibility
+```
+
+Il n'est pas nécessaire d'attendre la fin de l'UX Services ou le release gate T36 pour commencer Subscription. En revanche, commencer le runtime Subscription **avant** l'extraction Requirements créerait volontairement un second moteur de conditions et est donc interdit.
+
+### Invariants supplémentaires
+
+20. **Subscription appartient exactement à Profile XOR Space.**
+21. **Une Activity consomme les Entitlements de son opérateur logique ; une verticale ne possède pas sa propre Subscription.**
+22. **Permission, Entitlement et Requirement sont trois concepts différents.**
+23. **Un plan commercial configurable ne devient jamais une branche conditionnelle codée dans une verticale.**
+24. **Une PlanVersion publiée est immuable et une transition pinne sa version.**
+25. **Eligibility est dérivée à la demande ; une consultation ne crée pas d'Assessments persistants.**
+26. **Requirements généralise la mécanique sans relations métier polymorphes opaques.**
+27. **Les évaluateurs configurables sont déclarés par le code ; le Staff n'exécute aucun code arbitraire depuis la DB.**
+28. **Un downgrade de capacité ne supprime jamais automatiquement les données métier existantes.**
+29. **Payment et Verification restent leurs domaines canoniques ; Subscription les compose.**
+30. **Subscription n'utilise pas Journey comme workflow générique de changement de plan.**
+
+---
+
 ## Lecture avec l'architecture existante
 
 Tant que les migrations ci-dessus ne sont pas réalisées, [`authorization-boundaries.md`](authorization-boundaries.md) reste la référence opérationnelle des permissions actuellement exécutées par le code. Le présent blueprint définit **où ces frontières doivent converger**, pas une autorisation déjà disponible dans le runtime.
 
+Pour Subscriptions/Entitlements/Requirements, [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md) est la spécification détaillée de référence. Pour Services/Opportunity, [`services-opportunities.md`](services-opportunities.md) reste la spécification verticale détaillée ; [`services-implementation-plan.md`](services-implementation-plan.md) fixe désormais l'extraction Requirements comme T34A avant toute implémentation Subscription.
+
 Les prochaines PR de refactoring doivent citer la section et l'étape de migration qu'elles mettent en œuvre, et préciser les adaptateurs de compatibilité conservés ou supprimés.
-
-### Note d'implémentation — Démarche / Demande / Accès
-
-L'étape 5 est désormais matérialisée par les bounded contexts `journeys` et `access` : `Journey`, `JourneyRequest`, `JourneyTransition`, `Access`, `AccessCredential` et `AccessUse` existent avec workflows/transitions contrôlés, émission individuelle, credential QR signé et rotatable, validation transactionnelle single-use et permissions Activity-scoped.
-
-`TicketOrder.journey` et `Ticket.access` constituent les bridges explicites de migration. `TicketOrder`, `Ticket`, `TicketType`, `Payment`, `ScannerAssignment` et l'UX Event restent conservés par compatibilité ; les QR Ticket historiques utilisent un resolver legacy contrôlé, tandis que toute nouvelle représentation canonique invalide l'ancien bearer. La décision de scan converge vers `Access` et produit `AccessUse` sans supprimer `ScanLog`.
-
-La prochaine étape structurante reste **Commerce / capacité / paiement**. Le détail des invariants, mappings de backfill et compatibilités de cette implémentation est documenté dans [`journey-request-access.md`](journey-request-access.md).
-
-### Note d'implémentation — Commerce / capacité / paiement
-
-L'étape 6 est désormais matérialisée par deux bounded contexts séparés : `capacity` porte `CapacityPool` et `CapacityReservation`, tandis que `commerce` porte `Offer`, `CommerceOrder`, `CommerceOrderItem` et les `PaymentMode` contrôlés. La capacité reste indépendante du commerce et du paiement : une Journey gratuite peut réserver puis engager une place et produire un Access sans CommerceOrder ni Payment.
-
-Les bridges explicites sont `TicketType → Offer/CapacityPool`, `TicketOrder → CommerceOrder`, `TicketOrderItem → CommerceOrderItem/CapacityReservation` et `Payment → CommerceOrder`. `Payment` reste la source de vérité provider et peut désormais référencer une CommerceOrder sans TicketOrder ; Journey reste propriétaire du workflow et Access du droit. Les modèles Ticket historiques, Promotions et Waitlist restent conservés comme compatibilités de la verticale Events.
-
-Le verrouillage de capacité est transactionnel sur `CapacityPool` et la disponibilité est dérivée des réservations `held` non expirées et `committed`, sans compteur canonique concurrent. Les détails des invariants, backfills, modes `none/upfront/after_approval/on_site/later` et limites volontaires sont documentés dans [`commerce-capacity.md`](commerce-capacity.md).
-
-### Note d'implémentation — 8A Domain Events / Notifications / Automation
-
-La généralisation des capacités transversales est désormais découpée en étapes maîtrisables. **8A** introduit un contrat de Domain Events stables `<domain>.<fact>`, une outbox transactionnelle persistée dans `core`, un processor batché/retryable et des traces de consommation idempotentes. Les transitions canoniques de Journey/Request, Activity/Occurrence, Access, Commerce et Payment produisent leurs faits depuis leurs services ; le contrat ne dépend pas de la verticale historique `events.Event`.
-
-`notifications` consomme ces faits comme **consumer système** et conserve le vocabulaire contextuel Event/registration/invitation ainsi que les préférences existantes. `automation` peut désormais déclencher des règles configurables par `event_type`, avec portée Espace/Activity, conditions whitelistées et exécutions idempotentes ; Autopilot reste le scheduler des travaux temporels et peut traiter l'outbox sans devenir propriétaire des workflows.
-
-Les bridges Event/Ticket et les moteurs historiques encore nécessaires restent des compatibilités. La généralisation **CRM + Promotions / audiences commerciales** est reportée à **8B** ; **Scanner/Operations + Analytics** à **8C**. Les détails du contrat, du retry et de la séparation consumers système/règles configurables sont documentés dans [`domain-events-automation.md`](domain-events-automation.md).
-
-### Note d'implémentation — 8B CRM / Audiences / Promotions
-
-**8B** matérialise la relation CRM `Espace ↔ Profil` avec une unicité par Espace/Profil et des `CRMInteraction` dérivées des Domain Events via le consumer système `crm.system`. `Audience`/`AudienceMember` matérialisent une population statique, issue d'une sélection de Profils, d'un Groupe courant ou d'un `GroupSnapshot` ; **Groupe ≠ Audience** et **Audience ≠ consentement marketing**.
-
-Les Promotions ciblent désormais Commerce par `PromotionTargeting` et `PromotionOffer`, avec une Audience optionnelle contrôlée au checkout. Les `TicketType` historiques restent une projection Events et leur bridge `ticket_type.offer` alimente les cibles Offer sans devenir la cible canonique. Les quotas historiques et canoniques sont comptés ensemble, tandis que `CommerceOrder`/`CommerceOrderItem` conservent les snapshots de prix et remise.
-
-`AudienceSegment`, `CRMWorkflow*`, `Promotion.event`, `eligible_ticket_types` et les redemptions TicketOrder restent des couches de compatibilité. Scanner/Operations et Analytics restent réservés à **8C**. Les détails sont documentés dans [`crm-promotions-audiences.md`](crm-promotions-audiences.md).
-
-### Note d'implémentation — 8C Scanner / Operations / Analytics
-
-**8C** fait converger le contrôle d'accès vers `Activity` / `Occurrence` et le moteur `AccessCredential → Access → AccessUse`. `ScannerAssignment` porte désormais ce scope canonique ; `Event`, `Ticket` et `ScanLog` restent des bridges de la verticale Events et ne décident plus de l'autorisation.
-
-Operations peut contextualiser un incident par Espace, Activity et Occurrence sans Event obligatoire. Analytics lit Journey, Access, CommerceOrder, Payment et Capacity comme sources canoniques, projette seulement les Domain Events utiles via `analytics.system`, sépare valeur commerciale et paiement réellement encaissé, conserve les devises distinctes et évite le double comptage des projections Event/Ticket bridgées.
-
-Le backend reste générique tandis que les dashboards et écrans Events conservent les termes « billets », « participants », « revenus » et « contrôle d'accès ». Les invariants et compatibilités de cette étape sont détaillés dans [`scanner-operations-analytics.md`](scanner-operations-analytics.md).
-
-### Note d'implémentation — Task 9 Events comme verticale
-
-L'étape « Events comme verticale » est désormais matérialisée par composition sur les propriétaires canoniques : `Event → Activity`, calendrier → `Occurrence`, lieu physique → `Place` via `OccurrencePlace`, type de billet → `Offer` / `CapacityPool`, commande → `Journey` / `CommerceOrder`, billet → `Access`, QR → `AccessCredential` et validation → `AccessUse`.
-
-`Event`, `EventVenue`, `TicketType`, `TicketOrder`, `TicketOrderItem`, `Ticket`, Waitlist et `ScanLog` ne portent plus les décisions génériques déjà possédées par ces bounded contexts ; ils restent configuration, vocabulaire, snapshots historiques ou bridges explicitement documentés de la verticale Events. Les nouveaux flux écrivent d'abord les propriétaires canoniques. Les détails de cutover et la dette de compatibilité restante sont documentés dans [`events-vertical.md`](events-vertical.md).
-
-### Note d'implémentation — Task 10 Participant Experience
-
-La surface participant est désormais canonical-first : `Occurrence` fournit le quand/où, `Journey` est présenté comme la démarche et porte la prochaine action de présentation, Commerce/Payment n'apparaît que lorsque le workflow l'exige, et `Access`/`AccessCredential` fournit le droit et son QR contextualisé. L'accueil personnel, Mes démarches et Mes accès fonctionnent sans dépendance obligatoire à Event, Ticket ou TicketOrder ; Event reste uniquement une verticale de vocabulaire. Les détails et compatibilités encore consommées sont documentés dans [`participant-experience.md`](participant-experience.md).
-
-### Note d'implémentation — Task 12 Transport MVP
-
-**Task 12 — Transport MVP** est désormais matérialisée par `transport` comme verticale composée sur le cœur canonique. Les responsabilités, invariants et non-goals sont documentés dans [`transport-mvp.md`](transport-mvp.md).
-
-### Note d'implémentation — Task 13 Spatio-temporal Discovery
-
-La Discovery publique est désormais construite sur `Activity + Occurrence + Geography` : Activity porte le « quoi », Occurrence le « quand », `OccurrencePlace → Place` le « où », et un presenter léger fournit le vocabulaire et le CTA de la verticale. Event et Transport partagent ainsi le même moteur sans rendre Event obligatoire ; les règles de timezone, nearby bounding-box/Haversine, Offer/Capacity et rendu MapLibre sont documentées dans [`spatiotemporal-discovery.md`](spatiotemporal-discovery.md).
-
-### Note d'implémentation — Task 27 Groupes comme couche communautaire
-
-**Task 27** matérialise désormais l'étape Groupes comme une couche de communauté/population réutilisable : `Group` garde exactement un propriétaire logique Profil ou Espace, tandis que son utilisation par une Activity reste une relation séparée et n'en change jamais l'ownership.
-
-La découvrabilité (`LISTED`, `UNLISTED`, `HIDDEN`, `SPACE_ONLY`) est distincte de la politique d'adhésion (`OPEN`, `REQUEST`, `INVITE_ONLY`). `GroupJoinRequest` porte la demande d'appartenance sans la confondre avec `JourneyRequest`, et `GroupMembership` n'accorde toujours aucune autorité : l'administration reste `Role + Permission + Mandate` dans `AuthorityScope.GROUP` ou via l'héritage Espace explicitement documenté.
-
-`ActivityGroupEligibility` fournit la première relation explicite Groupe–Activity, sans `GenericForeignKey`. L'autorité Activity et l'autorité Groupe sont vérifiées séparément ; un usage cross-owner passe par consentement explicite. Seul un Membership `ACTIVE` satisfait l'éligibilité d'une nouvelle Journey. Cette éligibilité ne crée jamais automatiquement Journey, CommerceOrder, Payment, Access ou export CRM, et une perte ultérieure de Membership ne révoque pas un Access déjà acquis.
-
-La frontière CRM reste inchangée : **Groupe ≠ Audience**. Réutiliser un Groupe cross-Space fonctionne par référence et n'autorise aucune copie implicite de ses membres ou de leurs coordonnées. Les détails opérationnels, politiques de confidentialité, migrations et parcours sont documentés dans [`groups.md`](groups.md) et [`authorization-boundaries.md`](authorization-boundaries.md).
-
-### Cible canonique — Makolo Services / Opportunities
-
-Makolo Services est la prochaine verticale composée au-dessus du cœur canonique. **Une demande complète de service reste une `Journey`** : la verticale ne crée pas de `ServiceRequest` parallèle. Une `Activity` Services représente l'accompagnement réellement opéré par un Profil ou un Espace ; une **Opportunity** représente au contraire une possibilité externe (emploi, bourse, stage, admission, financement, concours, programme, etc.) que la personne cherche à atteindre.
-
-Le parcours Services étend `Journey` avec des primitives génériques de parcours long : étapes et dépendances (`JourneyStep`), aléas (`JourneyBlocker`), affectations opérationnelles (`JourneyAssignment`), pièces versionnées/reviews/notes. `Mandate` reste la source d'autorité Activity-scoped ; une affectation dossier n'accorde jamais à elle seule une permission et aucune portée `Journey` n'est ajoutée aux Mandats dans cette cible.
-
-Le domaine `opportunities` porte l'identité durable d'une Opportunity, ses révisions immuables, ses sources et contrôles de source, ses requirements, ses zones et sa curation. Une Journey Services travaille sur une `OpportunityRevision` explicite afin qu'un changement externe ne réécrive jamais silencieusement l'historique du dossier. Une Journey peut aussi exister sans Opportunity, par exemple pour un accompagnement CV ou une démarche administrative.
-
-Le workflow Journey gagne le cas `service` et l'état global `in_progress`. Un paiement nécessaire avant la confirmation globale peut utiliser `pending_payment`, mais une obligation financière intermédiaire ne doit pas faire quitter `in_progress` à toute la Journey : elle bloque l'étape concernée.
-
-Payments reste une capacité transversale. La cible introduit `PaymentObligation` pour représenter ce qui doit être payé, qu'il s'agisse d'un achat Commerce, d'une condition d'Access, d'une étape de service ou d'un frais imposé par une Opportunity. Une obligation peut être traitée par un provider Makolo ou satisfaite extérieurement par une `PaymentEvidence` vérifiée. **Un paiement externe ne doit jamais être transformé en faux `Payment` réussi**, et un Payment traité par Makolo ne signifie jamais que Makolo est automatiquement le bénéficiaire économique.
-
-Le résultat du tiers reste distinct de l'accomplissement Makolo : une Journey peut être `fulfilled` alors que l'Opportunity aboutit ensuite à un résultat externe `unsuccessful`. Notifications, Automation et Analytics consomment ces faits sans devenir propriétaires du workflow.
-
-Les dossiers Services et leurs pièces sont privés par défaut. Les facilitateurs/reviewers utilisent des permissions Activity dédiées et, lorsqu'une permission est limitée aux dossiers assignés, doivent également posséder une `JourneyAssignment` active. TeamMembership seule, Assignment seule ou appartenance au même Espace ne suffisent pas.
-
-La spécification complète des modèles, états, permissions, paiements, confidentialité, surfaces fonctionnelles et invariants Services est canonique dans [`services-opportunities.md`](services-opportunities.md). Le séquençage d'implémentation Task 31+ et ses gates sont documentés dans [`services-implementation-plan.md`](services-implementation-plan.md).
-
-Les intégrations IA, M-PESA réel, autres providers réels et l'abonnement/feature gating Makolo sont volontairement différés ; la V1 Services doit néanmoins être complète et exploitable sans eux, avec un provider sandbox pour les parcours financiers.
