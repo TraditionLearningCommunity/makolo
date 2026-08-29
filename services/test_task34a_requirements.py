@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey, create_artifact
@@ -53,7 +54,7 @@ class ServiceHorizontalRequirementTests(TestCase):
         self.manager = User.objects.create_user(username="t34a-manager", email="t34a-manager@example.com", password="x")
         self.beneficiary = User.objects.create_user(username="t34a-beneficiary", email="t34a-beneficiary@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Requirements T34A")
-        grant_activity_role(profile=self.manager, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         self.service = create_service_details(
             activity=self.activity,
             actor=self.manager,
@@ -266,7 +267,6 @@ class ServiceRequirementStateMigrationTests(ServiceHorizontalRequirementTests):
             external_payee_name="Historical payee",
             source_key="t34a:migration:payment",
         )
-        # Restore the historical pseudo-state after relationship services applied current semantics.
         ServiceRequirementAssessment.objects.filter(pk=linked.pk).update(
             status="action_required",
             note="historical:action_required",
