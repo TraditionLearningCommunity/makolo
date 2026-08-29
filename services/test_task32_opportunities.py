@@ -210,8 +210,11 @@ class ServiceOpportunityRequirementTests(TestCase):
         add_requirement(revision=revision, actor=self.curator, kind=OpportunityRequirementKind.ELIGIBILITY, title="Critère d’éligibilité", position=10)
         publish_opportunity_revision(opportunity=opportunity, revision=revision, actor=self.curator)
         journey = self._case(opportunity=opportunity)
-        assessment = journey.service_context.requirement_assessments.get()
-        assess_requirement(assessment=assessment, actor=self.manager, status=RequirementAssessmentState.UNSATISFIED)
+        assessment = assess_requirement(
+            assessment=journey.service_context.requirement_assessments.get(),
+            actor=self.manager,
+            status=RequirementAssessmentState.UNSATISFIED,
+        )
         self.assertEqual(derive_requirement_consequence(assessment), ServiceRequirementConsequence.NOT_ELIGIBLE)
         journey.refresh_from_db()
         self.assertEqual(journey.status, JourneyStatus.DRAFT)
