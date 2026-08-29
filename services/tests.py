@@ -4,6 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import (
     JourneyArtifactKind,
@@ -67,8 +68,8 @@ class ServiceFixtureMixin:
         self.reviewer = User.objects.create_user(username="services-reviewer", email="services-reviewer@example.com", password="x")
         self.outsider = User.objects.create_user(username="services-outsider", email="services-outsider@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Refaire mon CV")
-        grant_activity_role(profile=self.manager, activity=self.activity)
-        grant_activity_role(profile=self.reviewer, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
+        grant_activity_role(profile=self.reviewer, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_REVIEWER)
         self.service = create_service_details(activity=self.activity, actor=self.manager, service_kind=ServiceKind.CAREER_SUPPORT, opportunity_policy=OpportunityPolicy.NONE, intake_policy=IntakePolicy.AUTO_CONFIRM)
 
     def build_published_template(self):
@@ -118,7 +119,7 @@ class ServiceDetailsAndContextTests(ServiceFixtureMixin, TestCase):
 
     def test_required_opportunity_policy_blocks_operational_start_without_link(self):
         other_activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Service nécessitant une Opportunity")
-        grant_activity_role(profile=self.manager, activity=other_activity)
+        grant_activity_role(profile=self.manager, activity=other_activity, role=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         service = create_service_details(activity=other_activity, actor=self.manager, service_kind=ServiceKind.APPLICATION_SUPPORT, opportunity_policy=OpportunityPolicy.REQUIRED)
         journey = create_service_journey(service=service, initiated_by=self.beneficiary, beneficiary=self.beneficiary)
         assign_journey(journey=journey, profile=self.manager, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)

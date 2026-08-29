@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from domain_events.models import DomainEventOutbox
 
@@ -28,8 +29,8 @@ class Task31JourneyCoreTests(TestCase):
         self.reviewer = User.objects.create_user(username="t31-reviewer", email="t31-reviewer@example.com", password="x")
         self.outsider = User.objects.create_user(username="t31-outsider", email="t31-outsider@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Aide CV T31")
-        grant_activity_role(profile=self.manager, activity=self.activity)
-        grant_activity_role(profile=self.reviewer, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
+        grant_activity_role(profile=self.reviewer, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_REVIEWER)
         self.journey = create_journey(initiated_by=self.beneficiary, beneficiary=self.beneficiary, activity=self.activity, workflow=WorkflowKind.SERVICE)
         self.lead = assign_journey(journey=self.journey, profile=self.manager, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)
 
@@ -87,8 +88,8 @@ class Task31JourneyCoreTests(TestCase):
         self.assertIsNotNone(skipped.skipped_at)
 
     def test_assignment_is_operational_not_authority_and_primary_lead_is_unique(self):
-        outsider_assignment = assign_journey(journey=self.journey, profile=self.outsider, responsibility=JourneyAssignmentResponsibility.SUPPORT, assigned_by=self.manager)
-        self.assertEqual(outsider_assignment.status, JourneyAssignmentStatus.ACTIVE)
+        with self.assertRaises(ValidationError):
+            assign_journey(journey=self.journey, profile=self.outsider, responsibility=JourneyAssignmentResponsibility.SUPPORT, assigned_by=self.manager)
         self.assertFalse(can_access_case(self.outsider, self.journey, write=True))
         with self.assertRaises(PermissionDenied):
             create_step(journey=self.journey, title="Tentative IDOR", created_by=self.outsider)
