@@ -132,6 +132,11 @@ def initiate_payment(*, order: TicketOrder, actor, provider: str, method: str, p
         .select_related("event__activity", "event__activity__created_by", "event__activity__space", "buyer", "commerce_order")
         .get(pk=order.pk)
     )
+    existing = _payment_from_idempotency_key(idempotency_key)
+    if existing:
+        if existing.order_id != order.pk:
+            raise ValidationError("Cette clé d’idempotence appartient à une autre commande.")
+        return existing
     if not _payment_actor_can_initiate(actor, order):
         raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette commande.")
     if order.is_expired:
@@ -198,6 +203,11 @@ def initiate_commerce_payment(
         .select_related("buyer", "journey", "payee_space", "payee_profile")
         .order_by().get(pk=commerce_order.pk)
     )
+    existing = _payment_from_idempotency_key(idempotency_key)
+    if existing:
+        if existing.commerce_order_id != commerce_order.pk:
+            raise ValidationError("Cette clé d’idempotence appartient à une autre commande Commerce.")
+        return existing
     if not _commerce_payment_actor_can_initiate(actor, commerce_order):
         raise PermissionDenied("Vous ne pouvez pas initier le paiement de cette commande Commerce.")
     if commerce_order.status != CommerceOrderStatus.PENDING:
@@ -259,6 +269,11 @@ def initiate_obligation_payment(
         .select_related("journey__activity", "journey__beneficiary", "commerce_order")
         .order_by().get(pk=obligation.pk)
     )
+    existing = _payment_from_idempotency_key(idempotency_key)
+    if existing:
+        if existing.obligation_id != obligation.pk:
+            raise ValidationError("Cette clé d’idempotence appartient à une autre obligation.")
+        return existing
     if obligation.processing_mode != PaymentObligationProcessingMode.MAKOLO_PROVIDER:
         raise ValidationError("Une obligation externe doit être satisfaite via PaymentEvidence.")
     if obligation.status not in {PaymentObligationStatus.PENDING, PaymentObligationStatus.PROCESSING}:
