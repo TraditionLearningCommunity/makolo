@@ -15,6 +15,7 @@ from .base_settings import *  # noqa: F401,F403
 INSTALLED_APPS = [
     *INSTALLED_APPS,
     "transport.apps.TransportConfig",
+    "requirements.apps.RequirementsConfig",
     "services.apps.ServicesConfig",
     "opportunities.apps.OpportunitiesConfig",
 ]

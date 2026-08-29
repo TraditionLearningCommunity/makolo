@@ -452,7 +452,7 @@ not_applicable
 
 `action_required`, `needs_review`, `payment_required`, `waiting_verification` ou `not_eligible` sont des conséquences/présentations dérivées du Requirement, de l'Assessment et de la policy ; ce ne sont pas des vérités génériques concurrentes.
 
-Pour le runtime T32 existant, le refactoring cible le mapping conceptuel :
+Pour le runtime T32 historique, le mapping normalisant appliqué par T34A est :
 
 ```text
 unassessed      → unassessed
@@ -463,7 +463,7 @@ not_applicable  → not_applicable
 not_eligible    → unsatisfied
 ```
 
-Ce mapping doit être réalisé avec tests de non-régression avant de supprimer les anciens contrats.
+Cette migration est réalisée en place : elle ne recrée aucune Assessment et conserve les relations Services historiques.
 
 ## 18. Registry d'évaluateurs
 
@@ -502,6 +502,8 @@ value = 90
 ```
 
 Le Staff configure des paramètres validés ; il ne fournit jamais la fonction d'exécution.
+
+Les clés ci-dessus restent des exemples de forme : T34A n'enregistre aucun faux evaluator Subscription simplement pour remplir le registry.
 
 ## 19. `RequirementEvaluationResult`
 
@@ -1060,7 +1062,7 @@ JourneyStep = action à accomplir
 Evidence = preuve métier
 ```
 
-Mais la mécanique générique doit sortir de `services` avant qu'un second moteur soit introduit dans Subscription.
+La mécanique générique est extraite de `services` par T34A avant l'introduction d'un second consommateur Subscription.
 
 `OpportunityRequirement` reste dans `opportunities` et garde sa FK explicite vers `OpportunityRevision`.
 
@@ -1200,8 +1202,32 @@ Le code Subscription ne doit commencer qu'après :
 - publication de cette spécification ;
 - reconnaissance de `requirements` et `subscriptions` dans le blueprint ;
 - mise à jour du plan Services ;
-- refactoring du kernel Requirements planifié avant tout second moteur ;
+- merge du refactoring T34A Requirements avec ses tests de non-régression ;
 - maintien explicite des invariants T31/T32/T33 ;
-- définition de tests de non-régression du refactoring.
+- gates PostgreSQL/CI/Beta seed verts sur le kernel partagé.
 
 Les noms commerciaux des plans, leurs prix futurs et les providers de paiement réels ne bloquent pas cette fondation.
+
+## 52. État d’implémentation T34A
+
+T34A matérialise la **Fondation A — Requirements kernel** sans démarrer le runtime Subscription.
+
+Le runtime introduit `requirements` comme app/bounded context léger, sans modèle persistant. Il fournit `RequirementMode`, `RequirementAssessmentState`, `RequirementEvaluationResult` et un `EvaluatorRegistry` code-controlled. Le registry valide les types de sujets, paramètres, opérateurs, `dependency_events` et `cache_policy`; les définitions d'evaluators viennent du code et les données ne peuvent fournir ni fonction, ni import path arbitraire, ni Python/SQL/JavaScript à exécuter.
+
+Le kernel ne dépend d'aucun modèle Services, Subscription, Opportunity, Payments, Journey, Event ou Transport. Un consumer non-Services peut l'utiliser sans persister d'Assessment. Aucun `GenericForeignKey`, `ContentType` métier central, cache canonique ou langage booléen configurable n'est ajouté.
+
+Côté Services, `ServiceRequirementAssessment` reste propriétaire de son stockage et conserve sa colonne `status`, mais ses choices utilisent le vocabulaire horizontal :
+
+```text
+unassessed
+pending
+satisfied
+unsatisfied
+not_applicable
+```
+
+Les anciens pseudo-states T32 sont normalisés par une migration explicite, testée et volontairement irréversible dans le sens historique lorsqu'une distinction a été supprimée. Les conséquences `action_required`, `needs_review`, `payment_required` et `not_eligible` sont calculées depuis les relations canoniques au lieu d'être persistées comme seconde vérité.
+
+Le bridge financier T33 reste dans Services : une obligation non satisfaite maintient l'Assessment en `pending`; lorsque toutes les obligations liées sont `satisfied` ou `waived`, l'Assessment devient `satisfied`. Payments ne dépend pas de Services.
+
+Aucun des modèles Subscription/Entitlement décrits dans les sections suivantes n'est introduit par T34A. Leur implémentation commence seulement après merge et validation post-merge du kernel partagé.

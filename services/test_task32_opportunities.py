@@ -11,8 +11,11 @@ from journeys.collaboration_services import assign_journey, complete_step, creat
 from journeys.models import JourneyStatus
 from opportunities.models import OpportunityKind, OpportunityRequirementKind, OpportunitySourceType
 from opportunities.services import add_requirement, create_opportunity, create_opportunity_revision, create_opportunity_source, publish_opportunity_revision
+from requirements.contracts import RequirementAssessmentState
 
-from .models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment, ServiceRequirementAssessmentStatus, ServiceRequirementEvidence, ServiceRequirementEvidenceStatus
+from .models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment, ServiceRequirementEvidence, ServiceRequirementEvidenceStatus
+from .requirement_consequences import ServiceRequirementConsequence
+from .requirement_services import derive_requirement_consequence
 from .services import (
     add_template_step,
     adopt_opportunity_revision,
@@ -119,7 +122,7 @@ class ServiceOpportunityRequirementTests(TestCase):
         journey = self._case()
         context = journey.service_context
         assessment_n = context.requirement_assessments.select_related("requirement").order_by("requirement__position").first()
-        assess_requirement(assessment=assessment_n, actor=self.manager, status=ServiceRequirementAssessmentStatus.SATISFIED, note="Condition vérifiée sur N.")
+        assess_requirement(assessment=assessment_n, actor=self.manager, status=RequirementAssessmentState.SATISFIED, note="Condition vérifiée sur N.")
         artifact = create_artifact(journey=journey, uploaded_file=pdf_upload(), uploaded_by=self.beneficiary, kind=JourneyArtifactKind.CV, title="CV")
         evidence = submit_requirement_evidence(assessment=assessment_n, artifact=artifact, actor=self.beneficiary)
         step_link = create_requirement_step(assessment=context.requirement_assessments.exclude(pk=assessment_n.pk).first(), actor=self.manager, title="Vérifier l’expérience")
@@ -143,7 +146,7 @@ class ServiceOpportunityRequirementTests(TestCase):
         self.assertTrue(journey.steps.filter(pk=step_link.journey_step_id).exists())
         self.assertTrue(DomainEventOutbox.objects.filter(event_type="service.opportunity_revision.adopted", source_id=str(context.pk)).exists())
         with self.assertRaises(ValidationError):
-            assess_requirement(assessment=assessment_n, actor=self.manager, status=ServiceRequirementAssessmentStatus.ACTION_REQUIRED)
+            assess_requirement(assessment=assessment_n, actor=self.manager, status=RequirementAssessmentState.PENDING)
 
     def test_evidence_uses_canonical_artifacts_and_enforces_case_boundaries(self):
         journey = self._case()
@@ -159,7 +162,7 @@ class ServiceOpportunityRequirementTests(TestCase):
         with self.assertRaises(PermissionDenied):
             submit_requirement_evidence(assessment=assessment, artifact=other_artifact, actor=self.beneficiary)
         with self.assertRaises(PermissionDenied):
-            assess_requirement(assessment=assessment, actor=self.outsider, status=ServiceRequirementAssessmentStatus.SATISFIED)
+            assess_requirement(assessment=assessment, actor=self.outsider, status=RequirementAssessmentState.SATISFIED)
 
     def test_progress_and_requirement_steps_are_derived_and_idempotent(self):
         journey = self._case()
@@ -168,15 +171,16 @@ class ServiceOpportunityRequirementTests(TestCase):
         initial = requirement_progress(context)
         self.assertEqual(initial["total"], 2)
         self.assertEqual(initial["unassessed"], 2)
-        first = assess_requirement(assessment=assessments[0], actor=self.manager, status=ServiceRequirementAssessmentStatus.ACTION_REQUIRED)
+        first = assess_requirement(assessment=assessments[0], actor=self.manager, status=RequirementAssessmentState.PENDING)
         link = create_requirement_step(assessment=first, actor=self.manager, title="Préparer la preuve")
         same = create_requirement_step(assessment=first, actor=self.manager, title="Ne pas dupliquer")
         self.assertEqual(link.pk, same.pk)
         self.assertEqual(link.assessment_id, first.pk)
         self.assertEqual(link.journey_step.journey_id, journey.pk)
         self.assertEqual(link.journey_step.kind, JourneyStepKind.DOCUMENT)
+        self.assertEqual(derive_requirement_consequence(first), ServiceRequirementConsequence.ACTION_REQUIRED)
         progress = requirement_progress(context)
-        self.assertEqual(progress["action_required"], 1)
+        self.assertEqual(progress["pending"], 1)
         self.assertEqual(progress["unassessed"], 1)
         self.assertFalse(progress["complete"])
 
@@ -184,17 +188,34 @@ class ServiceOpportunityRequirementTests(TestCase):
         opportunity, _ = self._published_opportunity(requirement_titles=("Financial fees",))
         journey = self._case(opportunity=opportunity)
         assessment = journey.service_context.requirement_assessments.get()
-        assess_requirement(assessment=assessment, actor=self.manager, status=ServiceRequirementAssessmentStatus.ACTION_REQUIRED)
+        assess_requirement(assessment=assessment, actor=self.manager, status=RequirementAssessmentState.PENDING)
         link = create_requirement_step(assessment=assessment, actor=self.manager, title="Payer les frais de candidature")
         self.assertEqual(link.journey_step.kind, JourneyStepKind.PAYMENT)
         from payments.models import Payment
         if any(field.name == "journey" for field in Payment._meta.fields):
             self.assertEqual(Payment.objects.filter(journey=journey).count(), 0)
 
-    def test_not_eligible_does_not_reject_journey(self):
-        journey = self._case()
-        assessment = journey.service_context.requirement_assessments.first()
-        assess_requirement(assessment=assessment, actor=self.manager, status=ServiceRequirementAssessmentStatus.NOT_ELIGIBLE)
+    def test_not_eligible_is_derived_from_unsatisfied_eligibility_and_does_not_reject_journey(self):
+        opportunity = create_opportunity(actor=self.curator, kind=OpportunityKind.JOB)
+        revision = create_opportunity_revision(opportunity=opportunity, actor=self.curator, title="Eligibility T34A", issuer_name="Émetteur externe", timezone_name="Africa/Lubumbashi")
+        create_opportunity_source(
+            opportunity=opportunity,
+            actor=self.curator,
+            source_type=OpportunitySourceType.OFFICIAL,
+            source_name="Eligibility T34A source",
+            url=f"https://example.test/t34a-eligibility/{opportunity.pk}",
+            is_primary=True,
+            verified=True,
+        )
+        add_requirement(revision=revision, actor=self.curator, kind=OpportunityRequirementKind.ELIGIBILITY, title="Critère d’éligibilité", position=10)
+        publish_opportunity_revision(opportunity=opportunity, revision=revision, actor=self.curator)
+        journey = self._case(opportunity=opportunity)
+        assessment = assess_requirement(
+            assessment=journey.service_context.requirement_assessments.get(),
+            actor=self.manager,
+            status=RequirementAssessmentState.UNSATISFIED,
+        )
+        self.assertEqual(derive_requirement_consequence(assessment), ServiceRequirementConsequence.NOT_ELIGIBLE)
         journey.refresh_from_db()
         self.assertEqual(journey.status, JourneyStatus.DRAFT)
 
@@ -208,7 +229,7 @@ class ServiceOpportunityRequirementTests(TestCase):
         with self.assertRaises(ValidationError):
             fulfill_service_journey(journey=started, actor=self.manager)
         for assessment in started.service_context.requirement_assessments.filter(requirement__revision=self.revision):
-            assess_requirement(assessment=assessment, actor=self.manager, status=ServiceRequirementAssessmentStatus.SATISFIED)
+            assess_requirement(assessment=assessment, actor=self.manager, status=RequirementAssessmentState.SATISFIED)
         fulfilled = fulfill_service_journey(journey=started, actor=self.manager)
         self.assertEqual(fulfilled.status, JourneyStatus.FULFILLED)
 

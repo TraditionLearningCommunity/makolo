@@ -17,6 +17,7 @@ from opportunities.services import add_requirement, create_opportunity, create_o
 from payments.models import Payment, PaymentObligationProcessingMode, PaymentObligationStatus, PaymentProvider
 from payments.obligation_services import submit_payment_evidence
 from payments.services import initiate_obligation_payment
+from requirements.contracts import RequirementAssessmentState
 
 from .models import (
     CompletionPolicy,
@@ -24,11 +25,11 @@ from .models import (
     ServiceCurrentOutcome,
     ServiceKind,
     ServiceOutcomeEventType,
-    ServiceRequirementAssessmentStatus,
     ServiceSubmissionMode,
     ServiceSubmissionStatus,
 )
-from .requirement_services import create_requirement_step
+from .requirement_consequences import ServiceRequirementConsequence
+from .requirement_services import create_requirement_step, derive_requirement_consequence
 from .services import (
     add_template_step,
     create_plan_template,
@@ -122,7 +123,8 @@ class ServiceT33FinancialRequirementTests(TestCase):
             source_key="t33:scholarship:sandbox",
         )
         self.assessment.refresh_from_db()
-        self.assertEqual(self.assessment.status, ServiceRequirementAssessmentStatus.ACTION_REQUIRED)
+        self.assertEqual(self.assessment.status, RequirementAssessmentState.PENDING)
+        self.assertEqual(derive_requirement_consequence(self.assessment), ServiceRequirementConsequence.PAYMENT_REQUIRED)
         start_step(step=self.payment_step, actor=self.manager)
         with self.assertRaises(ValidationError):
             complete_service_step(step=self.payment_step, actor=self.manager)
@@ -138,7 +140,8 @@ class ServiceT33FinancialRequirementTests(TestCase):
         self.assessment.refresh_from_db()
         self.journey.refresh_from_db()
         self.assertEqual(link.obligation.status, PaymentObligationStatus.SATISFIED)
-        self.assertEqual(self.assessment.status, ServiceRequirementAssessmentStatus.SATISFIED)
+        self.assertEqual(self.assessment.status, RequirementAssessmentState.SATISFIED)
+        self.assertIsNone(derive_requirement_consequence(self.assessment))
         self.assertEqual(self.journey.status, JourneyStatus.IN_PROGRESS)
         complete_service_step(step=self.payment_step, actor=self.manager)
 
@@ -163,12 +166,15 @@ class ServiceT33FinancialRequirementTests(TestCase):
         )
         before = Payment.objects.count()
         evidence = submit_payment_evidence(obligation=link.obligation, artifact=artifact, actor=self.beneficiary, paid_at=timezone.now(), external_reference="UNI-EXT-50")
+        self.assessment.refresh_from_db()
+        self.assertEqual(self.assessment.status, RequirementAssessmentState.PENDING)
+        self.assertEqual(Payment.objects.count(), before)
         verify_requirement_payment_evidence(evidence=evidence, actor=self.manager, review_note="Reçu validé")
         self.assessment.refresh_from_db()
         link.obligation.refresh_from_db()
         self.assertEqual(Payment.objects.count(), before)
         self.assertEqual(link.obligation.status, PaymentObligationStatus.SATISFIED)
-        self.assertEqual(self.assessment.status, ServiceRequirementAssessmentStatus.SATISFIED)
+        self.assertEqual(self.assessment.status, RequirementAssessmentState.SATISFIED)
 
     def test_foreign_step_and_outsider_cannot_create_financial_obligation(self):
         other_activity = Activity.objects.create(owner_profile=self.outsider, created_by=self.outsider, title="Autre service")
@@ -182,9 +188,6 @@ class ServiceT33FinancialRequirementTests(TestCase):
             is_primary=True,
             assigned_by=self.outsider,
         )
-        # The fixture must contain a structurally valid step from another Journey.
-        # Creating it through create_step() would test Journey authorization before
-        # T33 can exercise the cross-Journey invariant under test here.
         foreign_step = JourneyStep.objects.create(
             journey=other_journey,
             title="Foreign",

@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
-from journeys.collaboration_models import JourneyStepKind, JourneyStepOrigin
+from journeys.collaboration_models import JourneyStepKind, JourneyStepOrigin, JourneyStepStatus
 from journeys.collaboration_services import create_step, ensure_case_access, is_beneficiary, mark_ready
 from journeys.models import JourneyStatus
 from opportunities.models import (
@@ -17,24 +17,25 @@ from opportunities.models import (
     OpportunityRevision,
 )
 from opportunities.services import canonical_opportunity
+from requirements.contracts import RequirementAssessmentState
 
 from .models import (
     OpportunityPolicy,
     ServiceJourneyContext,
     ServiceOpportunityRevisionAdoption,
     ServiceRequirementAssessment,
-    ServiceRequirementAssessmentStatus,
     ServiceRequirementEvidence,
     ServiceRequirementEvidenceStatus,
     ServiceRequirementStepLink,
 )
+from .requirement_consequences import ServiceRequirementConsequence
 
 
 SATISFIED_REQUIREMENT_STATUSES = {
-    ServiceRequirementAssessmentStatus.SATISFIED,
-    ServiceRequirementAssessmentStatus.NOT_APPLICABLE,
+    RequirementAssessmentState.SATISFIED,
+    RequirementAssessmentState.NOT_APPLICABLE,
 }
-CURRENT_PROGRESS_STATUSES = tuple(ServiceRequirementAssessmentStatus.values)
+CURRENT_PROGRESS_STATUSES = tuple(RequirementAssessmentState.values)
 
 
 def resolve_opportunity_selection(*, service, opportunity=None, opportunity_revision=None):
@@ -145,11 +146,11 @@ def assess_requirement(*, assessment, actor, status, note=""):
     ensure_case_access(actor, assessment.context.journey, write=True)
     if assessment.requirement.revision_id != assessment.context.opportunity_revision_id:
         raise ValidationError("Cette Assessment appartient à une ancienne révision pinnée et reste historique.")
-    if status not in ServiceRequirementAssessmentStatus.values:
-        raise ValidationError("Statut Requirement Assessment invalide.")
+    if status not in RequirementAssessmentState.values:
+        raise ValidationError("État Requirement Assessment invalide.")
     assessment.status = status
     assessment.note = note or ""
-    if status == ServiceRequirementAssessmentStatus.UNASSESSED:
+    if status == RequirementAssessmentState.UNASSESSED:
         assessment.assessed_by = None
         assessment.assessed_at = None
     else:
@@ -273,6 +274,39 @@ def create_requirement_step(
     )
 
 
+def derive_requirement_consequence(assessment):
+    """Derive the Services next action from canonical owners, never a second stored state."""
+    if assessment.status in SATISFIED_REQUIREMENT_STATUSES:
+        return None
+    if assessment.status == RequirementAssessmentState.UNSATISFIED:
+        if assessment.requirement.kind == OpportunityRequirementKind.ELIGIBILITY:
+            return ServiceRequirementConsequence.NOT_ELIGIBLE
+        return None
+    if assessment.status != RequirementAssessmentState.PENDING:
+        return None
+
+    payment_links = assessment.payment_obligation_links.select_related("obligation").all()
+    if payment_links.exists():
+        from payments.models import PaymentObligationStatus
+
+        satisfied_financial = {PaymentObligationStatus.SATISFIED, PaymentObligationStatus.WAIVED}
+        if payment_links.exclude(obligation__status__in=satisfied_financial).exists():
+            return ServiceRequirementConsequence.PAYMENT_REQUIRED
+
+    if assessment.evidence.filter(status=ServiceRequirementEvidenceStatus.SUBMITTED).exists():
+        return ServiceRequirementConsequence.NEEDS_REVIEW
+
+    actionable_step_statuses = {
+        JourneyStepStatus.PENDING,
+        JourneyStepStatus.READY,
+        JourneyStepStatus.IN_PROGRESS,
+        JourneyStepStatus.BLOCKED,
+    }
+    if assessment.step_links.filter(journey_step__status__in=actionable_step_statuses).exists():
+        return ServiceRequirementConsequence.ACTION_REQUIRED
+    return None
+
+
 def requirement_progress(context):
     counts = {status: 0 for status in CURRENT_PROGRESS_STATUSES}
     if context.opportunity_revision_id is None:
@@ -328,9 +362,6 @@ def adopt_opportunity_revision(*, context, revision, actor):
         .order_by()
         .get(pk=context.pk)
     )
-    # A concurrent SELECT may have established its snapshot before waiting for
-    # the row lock. Refresh the pinned FK after the lock so a later transaction
-    # never evaluates its candidate against a stale related-object snapshot.
     context.refresh_from_db(fields=["opportunity", "opportunity_revision"])
     ensure_case_access(actor, context.journey, write=True)
     if context.opportunity_id is None or context.opportunity_revision_id is None:

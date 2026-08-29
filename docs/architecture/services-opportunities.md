@@ -1,6 +1,6 @@
 # Makolo Services — Services, Opportunities et parcours d'accompagnement
 
-> **Statut : canonique pour la cible Makolo Services.** Ce document complète [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md). Le blueprint reste la source d'architecture globale ; le présent document précise la verticale Services, le domaine Opportunity et les extensions nécessaires à Journey/Payment. Toute implémentation doit conserver les invariants du blueprint et l'état réel du code courant.
+> **Statut : canonique pour la cible Makolo Services.** Ce document complète [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md). Le blueprint reste la source d'architecture globale ; le présent document précise la verticale Services, le domaine Opportunity et les extensions nécessaires à Journey/Payment. Toute implémentation doit conserver les invariants du blueprint et l'état réel du code courant. Les primitives horizontales de Requirements sont définies avec [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md) et consommées ici sans déplacer les agrégats Services/Opportunity.
 
 ## 1. Intention produit
 
@@ -46,6 +46,10 @@ Elle ne possède ni identité, ni permission, ni Payment provider, ni Access, ni
 Bounded context des possibilités externes : emploi, bourse, stage, admission, concours, programme, financement, volontariat, etc. Il porte leur identité, révisions, sources, exigences, géographie, sauvegardes et propositions utilisateur.
 
 Une Opportunity n'est pas une Activity Makolo par défaut : son émetteur externe reste distinct de l'opérateur du service Makolo.
+
+### `requirements`
+
+Kernel horizontal de mécanique commune. Il porte le vocabulaire d'état, les modes, le résultat d'évaluation et le registre d'evaluators code-controlled. Il ne possède ni `OpportunityRequirement`, ni `ServiceRequirementAssessment`, ni un modèle cible polymorphe universel.
 
 ### `journeys`
 
@@ -355,6 +359,8 @@ Un changement détecté ne réécrit jamais silencieusement l'Opportunity : apr�
 
 ## 13. Requirements
 
+La mécanique générique est fournie par le kernel horizontal `requirements`, tandis que les modèles persistants restent propriétaires de leurs domaines.
+
 ### `OpportunityRequirement`
 
 Lié à une OpportunityRevision.
@@ -363,23 +369,79 @@ Types :
 
 `eligibility`, `education`, `experience`, `document`, `language`, `location`, `age`, `financial`, `deadline`, `other`.
 
-Porte titre, description, obligatoire et position.
+Porte titre, description, obligatoire et position. Cette taxonomie `kind` reste spécifique à Opportunity et ne doit pas être confondue avec `RequirementMode`, qui décrit le mécanisme de satisfaction d'une condition.
 
 Un frais de candidature est donc d'abord un requirement financier de l'Opportunity, pas une Offer Makolo.
 
+T34A n'ajoute pas de champ `mode` à `OpportunityRequirement` simplement pour utiliser l'enum horizontal : le runtime historique ne permet pas de déduire sans ambiguïté un mode pour chaque Requirement existant.
+
 ### `ServiceRequirementAssessment`
 
-Lie un `ServiceJourneyContext` à un requirement de la révision pinnée :
+Lie un `ServiceJourneyContext` à un Requirement de la révision pinnée. La colonne persistante reste nommée `status`, mais son contrat est désormais `RequirementAssessmentState` :
 
-`unassessed | satisfied | action_required | needs_review | not_applicable | not_eligible`, plus note, auteur et date.
+```text
+unassessed
+pending
+satisfied
+unsatisfied
+not_applicable
+```
+
+Sémantique :
+
+- `unassessed` : la condition n'a pas encore été évaluée ;
+- `pending` : sa vérité terminale n'est pas encore établie, par exemple en attente d'action, preuve, revue, paiement ou réponse externe ;
+- `satisfied` : condition satisfaite ;
+- `unsatisfied` : condition constatée non satisfaite, sans conséquence Journey automatique ;
+- `not_applicable` : condition non applicable au dossier.
+
+Les anciens pseudo-states T32 sont historiques. T34A les normalise en place :
+
+```text
+unassessed      → unassessed
+satisfied       → satisfied
+action_required → pending
+needs_review    → pending
+not_applicable  → not_applicable
+not_eligible    → unsatisfied
+```
+
+Les conséquences `action_required`, `needs_review`, `payment_required` et `not_eligible` ne sont plus stockées comme states. Services les dérive des propriétaires canoniques : JourneySteps actionnables, Evidence soumise, PaymentObligations non satisfaites et nature du Requirement. Il n'existe pas de seconde colonne persistante `next_action` pouvant diverger.
+
+Pour la completion des Requirements obligatoires, seuls `satisfied` et `not_applicable` satisfont la condition. `unassessed`, `pending` et `unsatisfied` bloquent la completion concernée ; `unsatisfied` ne transforme jamais automatiquement la Journey en `rejected`.
 
 ### `ServiceRequirementEvidence`
 
 Lie une Assessment à un `JourneyArtifact` avec `submitted | accepted | rejected`.
 
-Plusieurs pièces peuvent soutenir un requirement ; une même pièce peut soutenir plusieurs requirements via plusieurs relations explicites.
+Ces états décrivent la preuve, pas l'Assessment. Plusieurs pièces peuvent soutenir un Requirement ; une même pièce peut soutenir plusieurs Requirements via plusieurs relations explicites.
+
+Une Evidence `submitted` sur une Assessment `pending` peut produire la conséquence dérivée `needs_review`. Une preuve acceptée/rejetée ne change l'Assessment que via les services métier qui possèdent cette décision ; les deux modèles ne sont pas fusionnés.
+
+### `ServiceRequirementStepLink`
+
+Conserve la relation explicite entre Assessment et JourneyStep. Une Step actionnable reliée à une Assessment `pending` peut produire la conséquence dérivée `action_required`. Assessment et JourneyStep restent deux responsabilités différentes.
+
+### Requirement financier
 
 Pour un Requirement `financial`, T33 compose l'Assessment avec Payments via `ServiceRequirementPaymentObligation`. Ce bridge appartient à `services` et relie explicitement `ServiceRequirementAssessment ↔ PaymentObligation`; `payments` ne dépend donc pas du domaine Opportunity. Plusieurs obligations peuvent être reliées à une même Assessment si le métier l'exige ultérieurement, sans imposer une cardinalité one-to-one artificielle.
+
+T34A fixe la synchronisation :
+
+```text
+au moins une obligation requise non satisfied/waived
+→ Assessment = pending
+→ conséquence dérivée possible = payment_required
+
+toutes les obligations liées satisfied/waived
+→ Assessment = satisfied
+```
+
+Un Payment échoué mais retryable ne rend donc pas l'Assessment `unsatisfied`. Une PaymentEvidence externe seulement `submitted` ne la satisfait pas ; lorsque la preuve est vérifiée et que l'obligation devient `satisfied`, le bridge Services peut faire passer l'Assessment à `satisfied`, sans créer de faux Payment.
+
+### Kernel horizontal
+
+`requirements` fournit `RequirementMode`, `RequirementAssessmentState`, `RequirementEvaluationResult` et `EvaluatorRegistry`. Il ne connaît ni Services, ni Opportunities, ni Payments, ni Journeys et ne persiste aucune Assessment universelle. Les evaluators sont enregistrés par le code ; leur configuration valide uniquement des paramètres/opérateurs connus et ne peut exécuter ni Python, ni SQL, ni JavaScript, ni import path venant des données.
 
 ## 14. Découverte, sauvegarde et proposition utilisateur
 
@@ -545,7 +607,7 @@ Codes cibles :
 - `activity.services.outcomes.manage` ;
 - `activity.services.payment_evidence.verify`.
 
-Ces codes constituent la matrice finale visée pour T34 ; T33 ne les fabrique pas en avance. En T33, les writes réutilisent la frontière déjà disponible : bénéficiaire pour ses propres actions explicitement permises, ou autorité Activity existante combinée à une `JourneyAssignment` active pour le travail sur dossier. Les opérations financières sensibles, la confirmation manuelle, les refunds et la vérification de preuves restent deny-by-default hors staff/autorité financière ou de dossier explicite disponible.
+Ces codes constituent la matrice finale visée pour **T34B** ; T34A ne les crée pas. En attendant, les writes réutilisent la frontière déjà disponible : bénéficiaire pour ses propres actions explicitement permises, ou autorité Activity existante combinée à une `JourneyAssignment` active pour le travail sur dossier. Les opérations financières sensibles, la confirmation manuelle, les refunds et la vérification de preuves restent deny-by-default hors staff/autorité financière ou de dossier explicite disponible.
 
 Les données financières provider, refunds et opérations financières complètes continuent d'utiliser les permissions Finance canoniques.
 
@@ -608,7 +670,7 @@ T33 ajoute également les faits stables de lifecycle effectivement nécessaires 
 
 Notifications et Automation consomment ces faits ; elles ne modifient jamais les modèles en contournant les services de domaine.
 
-Les rappels peuvent exploiter : opening/deadline Opportunity, Journey expiration, Step due date, Blocker due date, PaymentObligation due date et Occurrence. Les notifications doivent être dédupliquées et ne plus rappeler une condition déjà satisfaite. Le branchement Notifications/Automation Services final est T34.
+Les rappels peuvent exploiter : opening/deadline Opportunity, Journey expiration, Step due date, Blocker due date, PaymentObligation due date et Occurrence. Les notifications doivent être dédupliquées et ne plus rappeler une condition déjà satisfaite. Le branchement Notifications/Automation Services final est **T34B**. T34A n'ajoute pas une avalanche d'événements Requirements ; il change seulement le contrat d'état consommé par Services.
 
 ## 21. Surfaces fonctionnelles requises en V1
 
@@ -715,6 +777,10 @@ Mesures minimales :
 25. ServiceSubmission décrit une tentative réelle de soumission ; elle n'est pas synonyme de Journey fulfilled.
 26. ServiceOutcomeEvent est append-only et ne modifie jamais automatiquement Journey.status.
 27. `current_outcome` suit la chronologie externe (`occurred_at`), pas simplement l'ordre d'insertion.
+28. Requirement state décrit la vérité fondamentale d'une condition ; la prochaine action Services est une projection dérivée.
+29. `pending` n'est synonyme ni d'`action_required`, ni de `needs_review`, ni de `payment_required`.
+30. `unsatisfied` ne rejette automatiquement ni Journey ni futur abonnement.
+31. `requirements` fournit la mécanique commune ; il ne connaît aucun modèle Services.
 
 ## 24. Extensions différées sans dette architecturale
 
@@ -771,4 +837,25 @@ ServiceJourneyContext.current_outcome
 
 Les migrations T33 suivent `expand -> backfill certain -> double compatibilité -> nouveaux writes via obligation`. Elles ne suppriment ni `Payment.order`, ni `Payment.commerce_order`, ni les bridges Ticket/Commerce existants. Le beta seed T33 couvre les quatre familles de scénario : Commerce + obligation, frais Opportunity sandbox, frais externe + Evidence sans faux Payment, puis Submission + Outcome externe distinct du fulfillment.
 
-La matrice finale `activity.services.*`, les Notifications/Automation Services complètes, l'UX finale et l'analytics/release gate restent respectivement T34, T35 et T36.
+La matrice finale `activity.services.*`, les Notifications/Automation Services complètes, l'UX finale et l'analytics/release gate restent respectivement T34B, T35 et T36.
+
+## 26. État d'implémentation T34A
+
+T34A extrait une seule fois la mécanique horizontale Requirements sans refaire T32 ni déplacer ses modèles persistants.
+
+Le runtime fournit :
+
+```text
+requirements.RequirementMode
+requirements.RequirementAssessmentState
+requirements.RequirementEvaluationResult
+requirements.EvaluatorRegistry
+```
+
+Le package `requirements` ne possède aucune table métier et n'importe pas `services`, `subscriptions`, `opportunities`, `payments`, `journeys`, `events` ou `transport` pour exécuter sa mécanique fondamentale. Un test de frontière protège cette direction, et un consumer Opportunities de test utilise le registry sans dépendre de Services.
+
+La migration Services T34A transforme les anciens states en place, conserve les IDs, contexte, Requirement, auteur/date/note et toutes les relations Evidence/Step/Payment. Les indexes existants sur `context + status` et `requirement + status` sont conservés. La distinction perdue entre `action_required` et `needs_review` est volontairement normalisée en `pending`; le reverse ne prétend donc pas reconstruire une information qui n'existe plus.
+
+Le registry est défini par le code, valide les paramètres, opérateurs et types de sujets, et expose `dependency_events`/`cache_policy` comme métadonnées techniques. Les données de configuration ne peuvent fournir aucun `expression`, SQL, JavaScript ou `import_path` exécutable. L'évaluation retourne un `RequirementEvaluationResult` non persistant ; le domaine consommateur décide ensuite s'il persiste son propre Assessment et quelle conséquence métier appliquer.
+
+Aucun runtime Subscription, Entitlement ou Eligibility n'est créé dans T34A. Après merge et gates post-merge verts, T34B et Subscriptions Foundation peuvent partir sur deux branches distinctes qui consomment le même kernel horizontal.

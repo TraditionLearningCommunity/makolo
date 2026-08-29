@@ -14,7 +14,7 @@ Principe conservé : **Event est une verticale. Activity est le noyau.** Une Opp
 - sélecteurs publics dérivant `upcoming/open/closed` des dates de la révision courante.
 - `ServiceJourneyContext` lie facultativement une Journey Services à une Opportunity et **pinnne une `OpportunityRevision` publiée**.
 - `opportunity_policy=required` autorise la préparation du brouillon, mais bloque le démarrage opérationnel tant qu’aucune Opportunity/revision n’est attachée.
-- `ServiceRequirementAssessment` matérialise les requirements de la révision pinnée ; statuts : `unassessed`, `satisfied`, `action_required`, `needs_review`, `not_applicable`, `not_eligible`.
+- `ServiceRequirementAssessment` matérialise les requirements de la révision pinnée.
 - `ServiceRequirementEvidence` référence le `JourneyArtifact` canonique du même dossier ; aucun modèle de fichier parallèle.
 - relation explicite `ServiceRequirementStepLink` entre une Assessment et une `JourneyStep` canonique.
 - une nouvelle révision publiée est détectable sans modifier le dossier existant ; l’adoption N→N+1 est explicite, transactionnelle, auditée par `ServiceOpportunityRevisionAdoption` et émet `service.opportunity_revision.adopted`.
@@ -31,13 +31,52 @@ Principe conservé : **Event est une verticale. Activity est le noyau.** Une Opp
 5. Requirement décrit la condition externe ; Assessment décrit son état dans le dossier ; JourneyStep décrit l’action à réaliser.
 6. Evidence réutilise `JourneyArtifact` et ne traverse jamais deux Journeys.
 7. Un requirement financier peut produire une Step `payment`, mais T32 ne fabrique ni `Payment` ni `PaymentObligation`.
-8. `not_eligible` est un fait d’assessment et ne force pas un `JourneyStatus=rejected`.
+8. Un constat défavorable sur une condition ne force pas automatiquement un `JourneyStatus=rejected`.
+
+## Évolution postérieure — T34A
+
+T32 a historiquement livré un enum Services spécifique avec les valeurs :
+
+```text
+unassessed
+satisfied
+action_required
+needs_review
+not_applicable
+not_eligible
+```
+
+T34A extrait ensuite la mécanique commune dans le kernel horizontal `requirements` sans déplacer les agrégats T32. `OpportunityRequirement` reste dans `opportunities`, tandis que `ServiceRequirementAssessment`, `ServiceRequirementEvidence` et `ServiceRequirementStepLink` restent dans `services` avec leurs FK explicites et leur historique.
+
+Le contrat d’état persistant devient `RequirementAssessmentState` :
+
+```text
+unassessed
+pending
+satisfied
+unsatisfied
+not_applicable
+```
+
+La migration T34A normalise les données historiques en place :
+
+```text
+unassessed      → unassessed
+satisfied       → satisfied
+action_required → pending
+needs_review    → pending
+not_applicable  → not_applicable
+not_eligible    → unsatisfied
+```
+
+`action_required`, `needs_review`, `payment_required` et `not_eligible` sont désormais des conséquences Services dérivées de relations canoniques (Steps, Evidence, PaymentObligations et nature du Requirement), pas des états génériques persistants. Cette évolution ne réécrit pas l’histoire de T32 : elle généralise après coup la mécanique qui avait été validée dans Services.
 
 ## Hors périmètre volontaire
 
-- **T33** : `PaymentObligation`, `PaymentEvidence`, paiements provider/externe, `ServiceSubmission`, receipts et résultats tiers.
-- **T34** : permissions finales `activity.services.*`, rôles Services finaux, selectors anti-IDOR finaux, notifications/automation et rappels.
+- **T33** : `PaymentObligation`, `PaymentEvidence`, paiements provider/externe, `ServiceSubmission`, receipts et résultats tiers — livrés après T32.
+- **T34A** : extraction horizontale des contrats Requirements — implémentée après T32 sans déplacer ses modèles persistants.
+- **T34B** : permissions finales `activity.services.*`, rôles Services finaux, selectors anti-IDOR finaux, notifications/automation et rappels.
 - **T35** : UX complète participant/facilitateur/manager/staff.
 - **T36** : analytics, performance, security review et release gate V1.
 
-Cette note décrit l’implémentation réelle de T32 ; les spécifications canoniques restent `makolo-domain-blueprint.md`, `services-opportunities.md` et `services-implementation-plan.md`.
+Cette note décrit l’implémentation historique réelle de T32 et son évolution explicite par T34A ; les spécifications canoniques restent `makolo-domain-blueprint.md`, `subscriptions-entitlements-requirements.md`, `services-opportunities.md` et `services-implementation-plan.md`.
