@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import wraps
 
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 
 from authorization.constants import PermissionCode
 from authorization.services import can as authorization_can
@@ -34,6 +35,8 @@ def _require_outcomes(actor, journey):
 def install_services_runtime_authorization():
     from . import services as service_services
     from . import t33_services
+    from .attention_selectors import participant_service_attention_journeys
+    from core import participant_selectors
     from payments import obligation_services
 
     if getattr(service_services, "_t34b_runtime_authorization_installed", False):
@@ -93,4 +96,21 @@ def install_services_runtime_authorization():
             raise PermissionDenied("La vérification des preuves de paiement Services n'est pas autorisée.")
 
     obligation_services._ensure_evidence_reviewer = ensure_evidence_reviewer
+
+    # /me stays a read-only projection. Compose Services attention into the existing
+    # participant selector instead of creating a persistent task or feed model.
+    original_participant_actionable_journeys = participant_selectors.participant_actionable_journeys
+
+    @wraps(original_participant_actionable_journeys)
+    def participant_actionable_journeys(profile):
+        legacy = original_participant_actionable_journeys(profile)
+        service_attention = participant_service_attention_journeys(profile)
+        return (
+            participant_selectors.participant_journeys(profile)
+            .filter(Q(pk__in=legacy.values("pk")) | Q(pk__in=service_attention.values("pk")))
+            .filter(accesses__isnull=True)
+            .distinct()
+        )
+
+    participant_selectors.participant_actionable_journeys = participant_actionable_journeys
     service_services._t34b_runtime_authorization_installed = True
