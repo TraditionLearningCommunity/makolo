@@ -1,5 +1,4 @@
 from django.db import migrations, models
-from django.db.migrations.exceptions import IrreversibleError
 
 
 OLD_TO_NEW = {
@@ -11,27 +10,51 @@ OLD_TO_NEW = {
     "not_eligible": "unsatisfied",
 }
 
+# The forward normalization intentionally removes distinctions that cannot be
+# reconstructed. Django migration-graph tests still need to move backwards, so
+# a downgrade uses one deterministic legacy representative for each collapsed
+# state. In particular, former needs_review rows cannot be distinguished from
+# former action_required rows after both became pending.
+NEW_TO_OLD_LOSSY = {
+    "unassessed": "unassessed",
+    "pending": "action_required",
+    "satisfied": "satisfied",
+    "unsatisfied": "not_eligible",
+    "not_applicable": "not_applicable",
+}
 
-def migrate_requirement_assessment_states(apps, schema_editor):
+
+def _normalize_states(*, apps, schema_editor, mapping, label):
     Assessment = apps.get_model("services", "ServiceRequirementAssessment")
     alias = schema_editor.connection.alias
     queryset = Assessment.objects.using(alias).all()
     present = set(queryset.values_list("status", flat=True).distinct())
-    unknown = present - set(OLD_TO_NEW)
+    unknown = present - set(mapping)
     if unknown:
         raise RuntimeError(
-            "Unknown historical ServiceRequirementAssessment states: "
+            f"Unknown {label} ServiceRequirementAssessment states: "
             + ", ".join(sorted(unknown))
         )
-    for old_state, new_state in OLD_TO_NEW.items():
+    for old_state, new_state in mapping.items():
         if old_state != new_state:
             queryset.filter(status=old_state).update(status=new_state)
 
 
+def migrate_requirement_assessment_states(apps, schema_editor):
+    _normalize_states(
+        apps=apps,
+        schema_editor=schema_editor,
+        mapping=OLD_TO_NEW,
+        label="historical",
+    )
+
+
 def reverse_requirement_assessment_states(apps, schema_editor):
-    raise IrreversibleError(
-        "T34A intentionally collapses action_required/needs_review into pending and "
-        "not_eligible into unsatisfied; the original pseudo-state cannot be reconstructed honestly."
+    _normalize_states(
+        apps=apps,
+        schema_editor=schema_editor,
+        mapping=NEW_TO_OLD_LOSSY,
+        label="T34A",
     )
 
 
