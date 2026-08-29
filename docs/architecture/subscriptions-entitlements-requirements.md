@@ -437,7 +437,6 @@ review
 Le prix normal d'un abonnement futur ne doit pas être saisi manuellement comme une fausse condition ; les termes commerciaux créeront la PaymentObligation appropriée.
 
 ## 17. États génériques d'Assessment
-
 Le noyau générique sépare la vérité de la condition de la prochaine action UI.
 
 États :
@@ -1231,3 +1230,29 @@ Les anciens pseudo-states T32 sont normalisés par une migration explicite, test
 Le bridge financier T33 reste dans Services : une obligation non satisfaite maintient l'Assessment en `pending`; lorsque toutes les obligations liées sont `satisfied` ou `waived`, l'Assessment devient `satisfied`. Payments ne dépend pas de Services.
 
 Aucun des modèles Subscription/Entitlement décrits dans les sections suivantes n'est introduit par T34A. Leur implémentation commence seulement après merge et validation post-merge du kernel partagé.
+
+## 53. État d’implémentation S1
+
+S1 matérialise la **fondation Catalogue & Entitlements** dans le bounded context `subscriptions`, sans créer de Subscription individuelle.
+
+Le runtime livré par S1 comprend uniquement :
+
+```text
+FeatureDefinition
+SubscriptionPlan
+PlanVersion
+PlanBenefit
+PlanEntitlement
+```
+
+`FeatureDefinition` porte le contrat technique code-owned : type de valeur strict (`boolean`, `integer`, `decimal`, `enum`), sujets Profile/Space supportés, stratégie d'agrégation, unité éventuelle, provider d'usage, policy d'enforcement, bornes et activation. Les premières Features enregistrées sont limitées aux capacités démontrées par le runtime actuel : `activities.create`, `team.members` et `custom_roles`. Les exemples documentaires non démontrés tels que `analytics.advanced`, CRM ou automation ne sont pas seedés.
+
+`SubscriptionPlan` distingue BASE/ADDON et Profile/Space. Seul un BASE peut être par défaut et la base de données empêche deux BASE actifs par défaut pour un même `subject_type`. S1 ne crée cependant encore aucun Plan commercial par défaut ni aucune Subscription de Profile/Espace.
+
+`PlanVersion` est mutable uniquement en `draft`. La publication passe par un service transactionnel contrôlé, impose la séquence v1 puis N+1, revalide Benefits/Entitlements/Features, conserve l'historique et déplace `current_version`. Une version publiée ou retirée et son contenu deviennent immuables côté serveur ; le retrait de la version courante est refusé tant qu'aucun remplacement n'a été publié.
+
+`PlanBenefit` reste strictement marketing. `PlanEntitlement` est la source de configuration produit et valide sa valeur selon le contrat de la Feature ainsi que la compatibilité du type de sujet.
+
+S1 n'introduit pas `PlanRequirement`, `EntitlementRequirement`, `SubscriptionRequirementAssessment`, `Subscription`, `SubscriptionItem`, `EntitlementGrant`, `EffectiveEntitlement`, Eligibility, Transition, pricing, Payment bridge, permissions Subscription finales, UI, Notifications, Automation ou Domain Events Subscription complets. Ces responsabilités restent différées aux étapes suivantes.
+
+Le détail d'implémentation, des contraintes, migrations, Features auditées et différés se trouve dans [`subscriptions-s1-implementation.md`](subscriptions-s1-implementation.md).
