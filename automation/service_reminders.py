@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.db.models import F
 from django.urls import reverse
 from django.utils import timezone
 
@@ -85,7 +86,7 @@ def _run_opportunity_opening(now):
     revisions = (
         OpportunityRevision.objects.filter(
             opportunity__publication_status=OpportunityPublicationStatus.PUBLISHED,
-            opportunity__current_revision_id=models.F("pk"),
+            opportunity__current_revision_id=F("pk"),
             published_at__isnull=False,
             opens_at__isnull=False,
             opens_at__lte=now,
@@ -118,7 +119,7 @@ def _run_opportunity_deadlines(now):
     revisions = (
         OpportunityRevision.objects.filter(
             opportunity__publication_status=OpportunityPublicationStatus.PUBLISHED,
-            opportunity__current_revision_id=models.F("pk"),
+            opportunity__current_revision_id=F("pk"),
             published_at__isnull=False,
             deadline_at__isnull=False,
         )
@@ -224,7 +225,6 @@ def _run_blocker_due(now):
         if not milestone:
             continue
         title = "Blocage en retard" if milestone == "overdue" else f"Échéance d’un blocage — {milestone}"
-        message = "Un blocage de votre démarche nécessite votre attention."
         created += _create_once(
             target_type="blocker",
             target_id=blocker.pk,
@@ -233,7 +233,7 @@ def _run_blocker_due(now):
             recipient=blocker.journey.beneficiary,
             category=NotificationCategory.SERVICE,
             title=title,
-            message=message,
+            message="Un blocage de votre démarche nécessite votre attention.",
             journey=blocker.journey,
             metadata={"blocker_id": str(blocker.pk)},
         )
