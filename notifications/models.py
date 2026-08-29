@@ -12,6 +12,8 @@ class NotificationCategory(models.TextChoices):
     SECURITY = "security", "Sécurité"
     SYSTEM = "system", "Système"
     MARKETING = "marketing", "Marketing"
+    SERVICE = "service", "Services"
+    OPPORTUNITY = "opportunity", "Opportunités"
 
 
 class NotificationKind(models.TextChoices):

@@ -4,6 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from domain_events.models import DomainEventOutbox
 from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility, JourneyStepKind
@@ -51,7 +52,7 @@ class ServiceOpportunityRequirementTests(TestCase):
         self.other_beneficiary = User.objects.create_user(username="t32-beneficiary-2", email="t32-beneficiary-2@example.com", password="x")
         self.outsider = User.objects.create_user(username="t32-outsider", email="t32-outsider@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Accompagnement candidature emploi")
-        grant_activity_role(profile=self.manager, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         self.service = create_service_details(activity=self.activity, actor=self.manager, service_kind=ServiceKind.APPLICATION_SUPPORT, opportunity_policy=OpportunityPolicy.REQUIRED)
         template = create_plan_template(service=self.service, actor=self.manager, key="job", name="Candidature emploi")
         add_template_step(template=template, actor=self.manager, title="Préparer le dossier", position=10)
@@ -104,7 +105,7 @@ class ServiceOpportunityRequirementTests(TestCase):
 
     def test_optional_and_none_policies_are_explicit(self):
         optional_activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Service optional")
-        grant_activity_role(profile=self.manager, activity=optional_activity)
+        grant_activity_role(profile=self.manager, activity=optional_activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         optional = create_service_details(activity=optional_activity, actor=self.manager, service_kind=ServiceKind.APPLICATION_SUPPORT, opportunity_policy=OpportunityPolicy.OPTIONAL)
         without = create_service_journey(service=optional, initiated_by=self.beneficiary, beneficiary=self.beneficiary)
         self.assertIsNone(without.service_context.opportunity_id)
@@ -112,7 +113,7 @@ class ServiceOpportunityRequirementTests(TestCase):
         self.assertEqual(with_opp.service_context.opportunity_revision_id, self.revision.pk)
 
         none_activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Service sans Opportunity")
-        grant_activity_role(profile=self.manager, activity=none_activity)
+        grant_activity_role(profile=self.manager, activity=none_activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         none_service = create_service_details(activity=none_activity, actor=self.manager, service_kind=ServiceKind.CAREER_SUPPORT, opportunity_policy=OpportunityPolicy.NONE)
         create_service_journey(service=none_service, initiated_by=self.beneficiary, beneficiary=self.beneficiary)
         with self.assertRaises(ValidationError):

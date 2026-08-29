@@ -6,6 +6,7 @@ from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey
@@ -57,7 +58,7 @@ class ServiceOpportunityConcurrencyTests(TransactionTestCase):
         self.manager = User.objects.create_user(username="t32-concurrency-manager", email="t32-concurrency-manager@example.com", password="x")
         self.beneficiary = User.objects.create_user(username="t32-concurrency-beneficiary", email="t32-concurrency-beneficiary@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="T32 concurrency service")
-        grant_activity_role(profile=self.manager, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         self.service = create_service_details(activity=self.activity, actor=self.manager, service_kind=ServiceKind.APPLICATION_SUPPORT, opportunity_policy=OpportunityPolicy.REQUIRED)
         self.opportunity = create_opportunity(actor=self.curator, kind=OpportunityKind.JOB)
         revision1 = create_opportunity_revision(opportunity=self.opportunity, actor=self.curator, title="Opportunity v1", issuer_name="Issuer", timezone_name="Africa/Lubumbashi")

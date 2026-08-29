@@ -703,6 +703,14 @@ class NotificationPreference(UUIDModel, TimeStampedModel):
         default=True
     )
 
+    service_notifications = models.BooleanField(
+        default=True
+    )
+
+    opportunity_notifications = models.BooleanField(
+        default=True
+    )
+
     quiet_hours_enabled = models.BooleanField(
         default=False
     )

@@ -4,7 +4,7 @@ import socket
 from django.core.management.base import BaseCommand
 
 from automation.crm_runtime import process_due_crm_workflows
-from automation.services import run_autopilot_cycle
+from automation.scheduler import run_autopilot_cycle
 from capacity.services import expire_stale_capacity_reservations
 from core.logging_filters import redact_sensitive_text
 from domain_events.services import process_domain_events, recover_stale_domain_events

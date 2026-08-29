@@ -3,6 +3,10 @@
 
 class PermissionCode:
     PLATFORM_MANAGE = "platform.manage"
+    OPPORTUNITIES_MANAGE = "opportunities.manage"
+    OPPORTUNITIES_REVIEW_SUBMISSIONS = "opportunities.review_submissions"
+    OPPORTUNITIES_SOURCES_VERIFY = "opportunities.sources.verify"
+    OPPORTUNITIES_MERGE = "opportunities.merge"
     SPACE_VIEW = "space.view"
     SPACE_MANAGE = "space.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
@@ -35,6 +39,20 @@ class PermissionCode:
     ACTIVITY_CAPACITY_MANAGE = "activity.capacity.manage"
     ACTIVITY_FINANCE_VIEW = "activity.finance.view"
     ACTIVITY_FINANCE_MANAGE = "activity.finance.manage"
+    ACTIVITY_SERVICES_CONFIGURE = "activity.services.configure"
+    ACTIVITY_SERVICES_CASES_VIEW_ALL = "activity.services.cases.view_all"
+    ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED = "activity.services.cases.view_assigned"
+    ACTIVITY_SERVICES_CASES_MANAGE = "activity.services.cases.manage"
+    ACTIVITY_SERVICES_ASSIGNMENTS_MANAGE = "activity.services.assignments.manage"
+    ACTIVITY_SERVICES_STEPS_MANAGE = "activity.services.steps.manage"
+    ACTIVITY_SERVICES_BLOCKERS_MANAGE = "activity.services.blockers.manage"
+    ACTIVITY_SERVICES_ARTIFACTS_VIEW = "activity.services.artifacts.view"
+    ACTIVITY_SERVICES_ARTIFACTS_MANAGE = "activity.services.artifacts.manage"
+    ACTIVITY_SERVICES_ARTIFACTS_RESTRICTED_VIEW = "activity.services.artifacts.restricted_view"
+    ACTIVITY_SERVICES_REVIEWS_MANAGE = "activity.services.reviews.manage"
+    ACTIVITY_SERVICES_NOTES_INTERNAL = "activity.services.notes.internal"
+    ACTIVITY_SERVICES_OUTCOMES_MANAGE = "activity.services.outcomes.manage"
+    ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY = "activity.services.payment_evidence.verify"
     ORDERS_VIEW = "orders.view"
     TICKETS_VIEW = "tickets.view"
     FINANCE_VIEW = "finance.view"
@@ -60,6 +78,7 @@ class PermissionCode:
 
 class SystemRoleCode:
     PLATFORM_ADMIN = "makolo-platform-admin"
+    OPPORTUNITY_CURATOR = "opportunity-curator"
     SPACE_OWNER = "space-owner"
     SPACE_ADMIN = "space-admin"
     # Historical Python contract kept as the Space-scoped Activity portfolio role.
@@ -70,6 +89,9 @@ class SystemRoleCode:
     ACTIVITY_SCANNER = "activity-scanner"
     ACTIVITY_OPERATIONS_MANAGER = "activity-operations-manager"
     ACTIVITY_FINANCE = "activity-finance"
+    ACTIVITY_SERVICE_MANAGER = "activity-service-manager"
+    ACTIVITY_SERVICE_FACILITATOR = "activity-service-facilitator"
+    ACTIVITY_SERVICE_REVIEWER = "activity-service-reviewer"
     FINANCE = "finance"
     MARKETING = "marketing"
     ACCESS_MANAGER = "access-manager"
@@ -78,6 +100,13 @@ class SystemRoleCode:
     GROUP_MODERATOR = "group-moderator"
 
 
+PLATFORM_PERMISSION_CODES = {
+    PermissionCode.PLATFORM_MANAGE,
+    PermissionCode.OPPORTUNITIES_MANAGE,
+    PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS,
+    PermissionCode.OPPORTUNITIES_SOURCES_VERIFY,
+    PermissionCode.OPPORTUNITIES_MERGE,
+}
 GROUP_PERMISSION_CODES = {
     PermissionCode.GROUP_VIEW,
     PermissionCode.GROUP_MANAGE,
@@ -103,16 +132,34 @@ ACTIVITY_PERMISSION_CODES = {
     PermissionCode.ACTIVITY_CAPACITY_MANAGE,
     PermissionCode.ACTIVITY_FINANCE_VIEW,
     PermissionCode.ACTIVITY_FINANCE_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_CONFIGURE,
+    PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
+    PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED,
+    PermissionCode.ACTIVITY_SERVICES_CASES_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_ASSIGNMENTS_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_STEPS_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_BLOCKERS_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_VIEW,
+    PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_RESTRICTED_VIEW,
+    PermissionCode.ACTIVITY_SERVICES_REVIEWS_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_NOTES_INTERNAL,
+    PermissionCode.ACTIVITY_SERVICES_OUTCOMES_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY,
 }
 SPACE_PERMISSION_CODES = {
     value
     for name, value in PermissionCode.__dict__.items()
     if name.isupper()
-    and value != PermissionCode.PLATFORM_MANAGE
+    and value not in PLATFORM_PERMISSION_CODES
     and value not in GROUP_PERMISSION_CODES
     and value not in ACTIVITY_PERMISSION_CODES
 }
 
+STANDARD_PLATFORM_ROLE_CODES = {
+    SystemRoleCode.PLATFORM_ADMIN,
+    SystemRoleCode.OPPORTUNITY_CURATOR,
+}
 STANDARD_SPACE_ROLE_CODES = {
     SystemRoleCode.SPACE_OWNER,
     SystemRoleCode.SPACE_ADMIN,
@@ -131,6 +178,9 @@ STANDARD_ACTIVITY_ROLE_CODES = {
     SystemRoleCode.ACTIVITY_SCANNER,
     SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
     SystemRoleCode.ACTIVITY_FINANCE,
+    SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+    SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
+    SystemRoleCode.ACTIVITY_SERVICE_REVIEWER,
 }
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {

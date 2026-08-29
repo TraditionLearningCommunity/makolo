@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility, JourneyStep, JourneyStepKind
 from journeys.collaboration_services import assign_journey, create_artifact, start_step
@@ -67,7 +68,7 @@ class ServiceT33FinancialRequirementTests(TestCase):
         self.beneficiary = User.objects.create_user(username="t33-service-beneficiary", email="t33-service-beneficiary@example.com", password="x")
         self.outsider = User.objects.create_user(username="t33-service-outsider", email="t33-service-outsider@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Bourse T33")
-        grant_activity_role(profile=self.manager, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         self.service = create_service_details(
             activity=self.activity,
             actor=self.manager,
@@ -178,7 +179,7 @@ class ServiceT33FinancialRequirementTests(TestCase):
 
     def test_foreign_step_and_outsider_cannot_create_financial_obligation(self):
         other_activity = Activity.objects.create(owner_profile=self.outsider, created_by=self.outsider, title="Autre service")
-        grant_activity_role(profile=self.outsider, activity=other_activity)
+        grant_activity_role(profile=self.outsider, activity=other_activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         other_service = create_service_details(activity=other_activity, actor=self.outsider, service_kind=ServiceKind.CAREER_SUPPORT)
         other_journey = create_service_journey(service=other_service, initiated_by=self.outsider, beneficiary=self.outsider)
         assign_journey(
@@ -224,7 +225,7 @@ class ServiceT33SubmissionOutcomeTests(TestCase):
         self.beneficiary = User.objects.create_user(username="t33-submit-beneficiary", email="t33-submit-beneficiary@example.com", password="x")
         self.outsider = User.objects.create_user(username="t33-submit-outsider", email="t33-submit-outsider@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Candidature externe T33")
-        grant_activity_role(profile=self.manager, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         self.service = create_service_details(
             activity=self.activity,
             actor=self.manager,

@@ -7,3 +7,4 @@ class NotificationsConfig(AppConfig):
 
     def ready(self):
         from . import domain_event_consumer  # noqa: F401
+        from . import services_domain_event_consumer  # noqa: F401

@@ -30,6 +30,8 @@ from demo_seed.task22_extension import T22_PERSONAS, seed_task22_extension
 from demo_seed.task32_extension import seed_task32_extension
 from demo_seed.task33_extension import seed_task33_extension
 from demo_seed.task33_validation import assert_task33_beta_coverage
+from demo_seed.task34b_extension import T34B_PERSONAS, seed_task34b_extension
+from demo_seed.task34b_validation import assert_task34b_beta_coverage
 from demo_seed.transport import seed_transport
 
 TZ = ZoneInfo("Africa/Lubumbashi")
@@ -80,8 +82,10 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
             beta_users = {key: User.objects.get(email=email) for key, email in BETA_PERSONAS.items()}
             seed_task32_extension(ctx, users=beta_users)
             seed_task33_extension(ctx, users=beta_users)
+            seed_task34b_extension(ctx, users=beta_users)
             validation = assert_beta_scenario_coverage(as_of=ctx.as_of)
             validation.update(assert_task33_beta_coverage())
+            validation.update(assert_task34b_beta_coverage())
         else:
             # Historical volume profiles remain useful for development load, but
             # they are not the canonical beta contract and no longer fabricate
@@ -100,11 +104,15 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
         "as_of": ctx.as_of.date().isoformat(),
         "stats": dict(sorted(ctx.stats.items())),
         "validation": validation or {},
-        "login_examples": list(BETA_PERSONAS.values()) + list(T22_PERSONAS.values()) if scale == "beta" else [
-            "demo.user001@makolo.test",
-            "demo.user011@makolo.test",
-            "demo.user026@makolo.test",
-        ],
+        "login_examples": (
+            list(BETA_PERSONAS.values()) + list(T22_PERSONAS.values()) + list(T34B_PERSONAS.values())
+            if scale == "beta"
+            else [
+                "demo.user001@makolo.test",
+                "demo.user011@makolo.test",
+                "demo.user026@makolo.test",
+            ]
+        ),
     }
 
 

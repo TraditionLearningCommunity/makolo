@@ -6,6 +6,7 @@ from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey
@@ -54,7 +55,7 @@ class ServiceMaterializationConcurrencyTests(TransactionTestCase):
         self.manager = User.objects.create_user(username="services-concurrency-manager", email="services-concurrency-manager@example.com", password="x")
         self.beneficiary = User.objects.create_user(username="services-concurrency-beneficiary", email="services-concurrency-beneficiary@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="Services materialization concurrency")
-        grant_activity_role(profile=self.manager, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         self.service = create_service_details(activity=self.activity, actor=self.manager, service_kind=ServiceKind.CAREER_SUPPORT, opportunity_policy=OpportunityPolicy.NONE)
         template = create_plan_template(service=self.service, actor=self.manager, key="concurrency", name="Concurrency plan")
         add_template_step(template=template, actor=self.manager, title="Step A", position=10)

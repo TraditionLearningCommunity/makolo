@@ -9,7 +9,9 @@ from activities.models import Activity
 from commerce.models import CommerceOrder
 from core.logging_filters import redact_sensitive_text
 from domain_events.registry import register_consumer
-from journeys.models import Journey
+from journeys.collaboration_models import JourneyAssignment, JourneyAssignmentStatus
+from journeys.models import Journey, WorkflowKind
+from journeys.service_authorization import CASE_SCOPE_VIEW_ALL, CASE_SCOPE_VIEW_ASSIGNED, service_case_scope
 from access.models import Access
 from notifications.models import NotificationCategory, NotificationKind
 from notifications.services import create_notification
@@ -24,11 +26,23 @@ from .models import (
 
 User = get_user_model()
 CONSUMER_NAME = "automation.rules"
+SCALAR_CONDITION_KEYS = {
+    "workflow",
+    "payment_mode",
+    "status",
+    "currency",
+    "severity",
+    "responsibility",
+    "processing_mode",
+    "reason",
+    "outcome",
+}
+OPERATOR_CASE_SCOPES = {CASE_SCOPE_VIEW_ALL, CASE_SCOPE_VIEW_ASSIGNED}
 
 
 def _conditions_match(rule, event):
     payload = event.payload or {}
-    for key in ("workflow", "payment_mode", "status", "currency"):
+    for key in SCALAR_CONDITION_KEYS:
         if key in rule.conditions and payload.get(key) != rule.conditions[key]:
             return False
     if "amount_gte" in rule.conditions:
@@ -42,8 +56,7 @@ def _conditions_match(rule, event):
     return True
 
 
-def _recipient_for(rule, event):
-    selector = rule.action_config.get("recipient", "beneficiary")
+def _legacy_recipient(rule, event, selector):
     field = {
         "beneficiary": "beneficiary_id",
         "initiated_by": "initiated_by_id",
@@ -56,7 +69,43 @@ def _recipient_for(rule, event):
     recipient = User.objects.filter(pk=recipient_id, is_active=True).first()
     if recipient is None:
         raise ValueError("Le destinataire Automation n’existe plus ou est inactif.")
-    return recipient
+    return [recipient]
+
+
+def _assigned_recipients(rule, event, *, primary_only=False):
+    journey_id = (event.payload or {}).get("journey_id")
+    if not journey_id:
+        return []
+    journey = Journey.objects.select_related("activity").filter(pk=journey_id).first()
+    if journey is None or journey.workflow != WorkflowKind.SERVICE:
+        return []
+    assignments = JourneyAssignment.objects.filter(
+        journey=journey,
+        status=JourneyAssignmentStatus.ACTIVE,
+        profile__is_active=True,
+    ).select_related("profile")
+    if primary_only:
+        assignments = assignments.filter(is_primary=True)
+    recipients = []
+    seen = set()
+    for assignment in assignments.order_by("assigned_at", "id"):
+        recipient = assignment.profile
+        if recipient.pk in seen:
+            continue
+        if service_case_scope(recipient, journey) not in OPERATOR_CASE_SCOPES:
+            continue
+        seen.add(recipient.pk)
+        recipients.append(recipient)
+    return recipients
+
+
+def _recipients_for(rule, event):
+    selector = rule.action_config.get("recipient", "beneficiary")
+    if selector == "assigned_profiles":
+        return _assigned_recipients(rule, event)
+    if selector == "primary_assignee":
+        return _assigned_recipients(rule, event, primary_only=True)
+    return _legacy_recipient(rule, event, selector)
 
 
 def _canonical_context(event):
@@ -124,25 +173,30 @@ def _finish_execution(execution_id, *, success, error=""):
 
 
 def _execute_notification(rule, event):
-    recipient = _recipient_for(rule, event)
+    recipients = _recipients_for(rule, event)
     activity, journey, access, commerce_order = _canonical_context(event)
     config = rule.action_config
-    return create_notification(
-        recipient=recipient,
-        kind=NotificationKind.SYSTEM,
-        category=config.get("category", NotificationCategory.SYSTEM),
-        title=str(config["title"]),
-        message=str(config["message"]),
-        dedup_key=f"automation:{rule.pk}:{event.pk}:{recipient.pk}",
-        metadata={"automation_rule_id": str(rule.pk), "domain_event_id": str(event.pk)},
-        queue_email=config.get("queue_email", True),
-        domain_event=event,
-        activity=activity,
-        journey=journey,
-        access=access,
-        commerce_order=commerce_order,
-        template_key="automation.rule",
-    )
+    notifications = []
+    for recipient in recipients:
+        notifications.append(
+            create_notification(
+                recipient=recipient,
+                kind=NotificationKind.SYSTEM,
+                category=config.get("category", NotificationCategory.SYSTEM),
+                title=str(config["title"]),
+                message=str(config["message"]),
+                dedup_key=f"automation:{rule.pk}:{event.pk}:{recipient.pk}",
+                metadata={"automation_rule_id": str(rule.pk), "domain_event_id": str(event.pk)},
+                queue_email=config.get("queue_email", True),
+                domain_event=event,
+                activity=activity,
+                journey=journey,
+                access=access,
+                commerce_order=commerce_order,
+                template_key="automation.rule",
+            )
+        )
+    return notifications
 
 
 def _run_rule(rule, event):

@@ -8,6 +8,7 @@ from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 
 from .collaboration_models import (
@@ -85,8 +86,9 @@ class JourneyTask31ConcurrencyTests(TransactionTestCase):
         self.support = User.objects.create_user(username="t31-concurrency-support", email="t31-concurrency-support@example.com", password="x")
         self.beneficiary = User.objects.create_user(username="t31-concurrency-beneficiary", email="t31-concurrency-beneficiary@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="T31 concurrency")
-        grant_activity_role(profile=self.manager, activity=self.activity)
-        grant_activity_role(profile=self.reviewer, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
+        grant_activity_role(profile=self.reviewer, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_REVIEWER)
+        grant_activity_role(profile=self.support, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR)
         self.journey = create_journey(initiated_by=self.beneficiary, beneficiary=self.beneficiary, activity=self.activity, workflow=WorkflowKind.SERVICE)
         self.lead = assign_journey(journey=self.journey, profile=self.manager, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)
 
