@@ -37,6 +37,10 @@ def _category_allowed(preferences, category: str) -> bool:
         return preferences.security_notifications
     if category == NotificationCategory.MARKETING:
         return preferences.marketing_notifications
+    if category == NotificationCategory.SERVICE:
+        return preferences.service_notifications
+    if category == NotificationCategory.OPPORTUNITY:
+        return preferences.opportunity_notifications
     return True
 
 
