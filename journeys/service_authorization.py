@@ -161,7 +161,9 @@ def install_service_authorization_policy():
         def guarded(*args, **kwargs):
             journey = journey_getter(kwargs) if journey_getter else kwargs.get("journey")
             actor = kwargs.get(actor_key)
-            if journey is not None and _is_service(journey) and actor is not None:
+            if journey is not None and _is_service(journey):
+                if actor is None:
+                    raise PermissionDenied("Une mutation de dossier Services exige un acteur explicite.")
                 if not (beneficiary_safe and journey.beneficiary_id == _actor_id(actor)):
                     _require_service_permission(
                         actor,
@@ -177,9 +179,10 @@ def install_service_authorization_policy():
     blocker_journey = lambda kw: getattr(kw.get("blocker"), "journey", None)
     assignment_journey = lambda kw: getattr(kw.get("assignment"), "journey", None)
     artifact_journey = lambda kw: getattr(kw.get("artifact"), "journey", None)
+    review_journey = lambda kw: getattr(getattr(kw.get("review"), "artifact", None), "journey", None)
 
     wrap_action("create_step", PermissionCode.ACTIVITY_SERVICES_STEPS_MANAGE, actor_key="created_by")
-    for name in ("start_step", "complete_step", "skip_step", "cancel_step"):
+    for name in ("mark_ready", "start_step", "complete_step", "skip_step", "cancel_step"):
         wrap_action(name, PermissionCode.ACTIVITY_SERVICES_STEPS_MANAGE, journey_getter=step_journey)
     wrap_action("add_step_dependency", PermissionCode.ACTIVITY_SERVICES_STEPS_MANAGE, journey_getter=step_journey)
 
@@ -273,6 +276,7 @@ def install_service_authorization_policy():
         return review
 
     cs.request_artifact_review = request_artifact_review
+    wrap_action("cancel_artifact_review", PermissionCode.ACTIVITY_SERVICES_REVIEWS_MANAGE, journey_getter=review_journey)
 
     def ensure_reviewer(actor, review):
         if not _is_service(review.artifact.journey):
