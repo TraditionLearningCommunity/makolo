@@ -198,6 +198,15 @@ class ServiceOpportunityRequirementTests(TestCase):
     def test_not_eligible_is_derived_from_unsatisfied_eligibility_and_does_not_reject_journey(self):
         opportunity = create_opportunity(actor=self.curator, kind=OpportunityKind.JOB)
         revision = create_opportunity_revision(opportunity=opportunity, actor=self.curator, title="Eligibility T34A", issuer_name="Émetteur externe", timezone_name="Africa/Lubumbashi")
+        create_opportunity_source(
+            opportunity=opportunity,
+            actor=self.curator,
+            source_type=OpportunitySourceType.OFFICIAL,
+            source_name="Eligibility T34A source",
+            url=f"https://example.test/t34a-eligibility/{opportunity.pk}",
+            is_primary=True,
+            verified=True,
+        )
         add_requirement(revision=revision, actor=self.curator, kind=OpportunityRequirementKind.ELIGIBILITY, title="Critère d’éligibilité", position=10)
         publish_opportunity_revision(opportunity=opportunity, revision=revision, actor=self.curator)
         journey = self._case(opportunity=opportunity)
