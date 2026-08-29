@@ -10,3 +10,6 @@ class OpportunitiesConfig(AppConfig):
         # Enforce persisted-state immutability for children of published revisions,
         # including bulk/queryset deletes where model.delete() is bypassed.
         from . import signals  # noqa: F401
+        from .runtime_authorization import install_opportunity_authorization_policy
+
+        install_opportunity_authorization_policy()
