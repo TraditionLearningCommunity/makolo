@@ -208,6 +208,7 @@ jobs:
           requirements
           opportunities.test_task34a_requirements_kernel_consumer
           services.test_task34a_requirements
+          services.test_task34a_concurrency
 
       - name: Run Opportunities and Services T32 PostgreSQL tests
         run: >-

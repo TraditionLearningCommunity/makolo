@@ -88,6 +88,8 @@ class RequirementsContractsTests(SimpleTestCase):
             RequirementEvaluationResult(state="pending", reason_code="UI message with spaces", observed_at=timezone.now())
         with self.assertRaises(ValueError):
             RequirementEvaluationResult(state="pending", reason_code="pending", observed_at=timezone.now(), retryable=1)
+        with self.assertRaises(ValueError):
+            RequirementEvaluationResult(state="pending", reason_code="pending", actual_value={"entire": "model"}, observed_at=timezone.now())
 
 
 class EvaluatorRegistryTests(SimpleTestCase):
@@ -113,6 +115,9 @@ class EvaluatorRegistryTests(SimpleTestCase):
         invalid = (
             {"operator": ">="},
             {"operator": ">=", "value": 90, "expression": "__import__('os').system('id')"},
+            {"operator": ">=", "value": 90, "sql": "DROP TABLE auth_user"},
+            {"operator": ">=", "value": 90, "javascript": "fetch('/admin')"},
+            {"operator": ">=", "value": 90, "import_path": "os.system"},
             {"operator": ">=", "value": "90"},
             {"operator": "contains", "value": 90},
             {"operator": ">=", "value": -1},
@@ -142,6 +147,24 @@ class EvaluatorRegistryTests(SimpleTestCase):
         with self.assertRaises(RequirementRegistryError):
             registry.evaluate("test.invalid", subject=DummySubject(), config={})
 
+    def test_invalid_definition_metadata_is_rejected(self):
+        with self.assertRaises(RequirementRegistryError):
+            EvaluatorDefinition(key="test.bad_subject", evaluator=account_age_evaluator, supported_subject_type="profile")
+        with self.assertRaises(RequirementRegistryError):
+            EvaluatorDefinition(
+                key="test.bad_schema",
+                evaluator=account_age_evaluator,
+                supported_subject_type=DummySubject,
+                parameter_schema={"value": int},
+            )
+        with self.assertRaises(RequirementRegistryError):
+            EvaluatorDefinition(
+                key="test.bad_events",
+                evaluator=account_age_evaluator,
+                supported_subject_type=DummySubject,
+                dependency_events=("valid.event", "not valid"),
+            )
+
 
 class RequirementsDependencyBoundaryTests(SimpleTestCase):
     def test_requirements_package_has_no_domain_back_imports(self):
@@ -160,4 +183,17 @@ class RequirementsDependencyBoundaryTests(SimpleTestCase):
                 overlap = roots & forbidden
                 if overlap:
                     violations.append((path.name, sorted(overlap)))
+        self.assertEqual(violations, [])
+
+    def test_runtime_kernel_has_no_arbitrary_code_or_polymorphic_model_hooks(self):
+        root = Path(__file__).resolve().parent
+        forbidden_fragments = ("eval(", "exec(", "importlib", "GenericForeignKey", "ContentType")
+        violations = []
+        for path in root.glob("*.py"):
+            if path.name == "tests.py":
+                continue
+            text = path.read_text(encoding="utf-8")
+            for fragment in forbidden_fragments:
+                if fragment in text:
+                    violations.append((path.name, fragment))
         self.assertEqual(violations, [])

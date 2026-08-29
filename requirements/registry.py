@@ -10,6 +10,7 @@ from .contracts import RequirementEvaluationResult
 
 
 _EVALUATOR_KEY_RE = re.compile(r"^[a-z][a-z0-9_.-]*$")
+_METADATA_CODE_RE = re.compile(r"^[a-z][a-z0-9_.:-]*$")
 
 
 class RequirementRegistryError(ValueError):
@@ -25,6 +26,15 @@ class EvaluatorParameter:
     expected_type: type | tuple[type, ...]
     required: bool = True
     validator: Callable[[Any], bool] | None = None
+
+    def __post_init__(self):
+        expected = self.expected_type if isinstance(self.expected_type, tuple) else (self.expected_type,)
+        if not expected or any(not isinstance(item, type) for item in expected):
+            raise RequirementRegistryError("EvaluatorParameter.expected_type must contain Python types.")
+        if type(self.required) is not bool:
+            raise RequirementRegistryError("EvaluatorParameter.required must be a boolean.")
+        if self.validator is not None and not callable(self.validator):
+            raise RequirementRegistryError("EvaluatorParameter.validator must be callable.")
 
 
 @dataclass(frozen=True)
@@ -43,10 +53,26 @@ class EvaluatorDefinition:
             raise RequirementRegistryError("Evaluator key must be a stable lowercase code.")
         if not callable(self.evaluator):
             raise RequirementRegistryError("Evaluator must be callable.")
+        subject_types = self.supported_subject_type if isinstance(self.supported_subject_type, tuple) else (self.supported_subject_type,)
+        if not subject_types or any(not isinstance(item, type) for item in subject_types):
+            raise RequirementRegistryError("supported_subject_type must contain Python types.")
+        if not isinstance(self.parameter_schema, Mapping):
+            raise RequirementRegistryError("parameter_schema must be a mapping.")
+        for name, parameter in self.parameter_schema.items():
+            if not isinstance(name, str) or not _EVALUATOR_KEY_RE.fullmatch(name):
+                raise RequirementRegistryError("Evaluator parameter names must be stable lowercase codes.")
+            if not isinstance(parameter, EvaluatorParameter):
+                raise RequirementRegistryError("parameter_schema values must be EvaluatorParameter instances.")
         if not isinstance(self.result_type, type) or not issubclass(self.result_type, RequirementEvaluationResult):
             raise RequirementRegistryError("result_type must be RequirementEvaluationResult or a subclass.")
-        if not self.cache_policy or not isinstance(self.cache_policy, str):
-            raise RequirementRegistryError("cache_policy must be a non-empty code string.")
+        if len(set(self.operators)) != len(self.operators) or any(not isinstance(value, str) or not value for value in self.operators):
+            raise RequirementRegistryError("operators must contain unique non-empty strings.")
+        if len(set(self.dependency_events)) != len(self.dependency_events) or any(
+            not isinstance(value, str) or not _METADATA_CODE_RE.fullmatch(value) for value in self.dependency_events
+        ):
+            raise RequirementRegistryError("dependency_events must contain unique stable event codes.")
+        if not isinstance(self.cache_policy, str) or not _METADATA_CODE_RE.fullmatch(self.cache_policy):
+            raise RequirementRegistryError("cache_policy must be a stable code string.")
         object.__setattr__(self, "parameter_schema", MappingProxyType(dict(self.parameter_schema)))
         object.__setattr__(self, "operators", tuple(self.operators))
         object.__setattr__(self, "dependency_events", tuple(self.dependency_events))
