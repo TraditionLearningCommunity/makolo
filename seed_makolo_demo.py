@@ -28,6 +28,8 @@ from demo_seed.operations import seed_operations_and_edge_cases
 from demo_seed.partners_loyalty import seed_partners_loyalty_and_analytics
 from demo_seed.task22_extension import T22_PERSONAS, seed_task22_extension
 from demo_seed.task32_extension import seed_task32_extension
+from demo_seed.task33_extension import seed_task33_extension
+from demo_seed.task33_validation import assert_task33_beta_coverage
 from demo_seed.transport import seed_transport
 
 TZ = ZoneInfo("Africa/Lubumbashi")
@@ -77,7 +79,9 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
             seed_task22_extension(ctx)
             beta_users = {key: User.objects.get(email=email) for key, email in BETA_PERSONAS.items()}
             seed_task32_extension(ctx, users=beta_users)
+            seed_task33_extension(ctx, users=beta_users)
             validation = assert_beta_scenario_coverage(as_of=ctx.as_of)
+            validation.update(assert_task33_beta_coverage())
         else:
             # Historical volume profiles remain useful for development load, but
             # they are not the canonical beta contract and no longer fabricate

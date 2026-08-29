@@ -111,7 +111,7 @@ jobs:
 
   postgresql-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -208,6 +208,14 @@ jobs:
           opportunities.tests
           services.test_task32_opportunities
           services.test_task32_concurrency
+
+      - name: Run Payments and Services T33 PostgreSQL tests
+        run: >-
+          python manage.py test
+          payments.test_task33_obligations
+          payments.test_task33_concurrency
+          services.test_task33_external_flows
+          services.test_task33_concurrency
 
       - name: Run Commerce and Capacity PostgreSQL tests
         run: >-
@@ -337,7 +345,7 @@ jobs:
 
       - name: Install Playwright browsers
         run: |
-          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt-mirrors.txt >/dev/null
           npx playwright install --with-deps chromium firefox
 
       - name: Prepare deterministic E2E environment

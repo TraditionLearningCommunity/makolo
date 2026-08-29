@@ -261,7 +261,7 @@ Un blocker n'est jamais supprimé pour effacer l'historique et ne devient pas un
 Champs :
 
 - `journey`, `step` nullable ;
-- `kind = cv | cover_letter | certificate | transcript | recommendation | identity_document | form | payment_receipt | submission_receipt | other` ;
+- runtime actuel : `kind = cv | cover_letter | certificate | transcript | recommendation | identity_document | form | payment_receipt | other` ;
 - `title` ;
 - fichier via stockage privé ;
 - `status = draft | submitted | in_review | accepted | rejected | superseded` ;
@@ -270,6 +270,8 @@ Champs :
 - `version` ;
 - `uploaded_by`, `uploaded_at` ;
 - taille, MIME, hash pour contrôle technique.
+
+Le vocabulaire cible avait envisagé `submission_receipt`, mais ce kind n'existe pas dans le noyau Journey T31 actuellement mergé. T33 ne crée pas un stockage ou un modèle parallèle : `ServiceSubmission.receipt_artifact` référence un `JourneyArtifact` de la même Journey, et les nouveaux reçus de soumission utilisent `other` tant qu'un vocabulaire Journey plus précis n'est pas introduit explicitement dans le noyau.
 
 Un remplacement crée une nouvelle version ; le fichier précédent n'est pas écrasé.
 
@@ -377,6 +379,8 @@ Lie une Assessment à un `JourneyArtifact` avec `submitted | accepted | rejected
 
 Plusieurs pièces peuvent soutenir un requirement ; une même pièce peut soutenir plusieurs requirements via plusieurs relations explicites.
 
+Pour un Requirement `financial`, T33 compose l'Assessment avec Payments via `ServiceRequirementPaymentObligation`. Ce bridge appartient à `services` et relie explicitement `ServiceRequirementAssessment ↔ PaymentObligation`; `payments` ne dépend donc pas du domaine Opportunity. Plusieurs obligations peuvent être reliées à une même Assessment si le métier l'exige ultérieurement, sans imposer une cardinalité one-to-one artificielle.
+
 ## 14. Découverte, sauvegarde et proposition utilisateur
 
 ### `OpportunitySave`
@@ -405,7 +409,7 @@ OneToOne avec Journey :
 - `current_outcome` ;
 - timestamps.
 
-Si la révision courante de l'Opportunity change, le dossier reste sur sa révision historique. Makolo avertit qu'une nouvelle version existe ; l'adoption d'une nouvelle révision est explicite et auditée.
+Si la révision courante de l'Opportunity change, le dossier reste sur sa révision historique. Makolo avertit qu'une nouvelle version existe ; l'adoption d'une nouvelle révision est explicite et auditée. L'adoption est monotone sous verrouillage : une concurrence entre plusieurs révisions publiées ne doit jamais faire régresser le dossier vers une version plus ancienne.
 
 Une Journey Services peut exister sans Opportunity, par exemple pour « refaire mon CV ».
 
@@ -422,7 +426,9 @@ Conserve les tentatives réelles vers le tiers :
 - `receipt_artifact` nullable ;
 - `submitted_by`, `failure_reason`.
 
-Plusieurs tentatives peuvent exister sans perdre l'historique.
+Plusieurs tentatives peuvent exister sans perdre l'historique. `(context, attempt)` est unique et le prochain numéro est réservé sous verrou transactionnel du contexte afin d'éviter deux `attempt=2` concurrents. Une tentative `failed` ne redevient pas `submitted` ; un retry crée une nouvelle tentative.
+
+La completion policy historique `required_steps` reste compatible avec les Services T31. La policy opt-in `required_steps_and_submission` exige les étapes requises puis au moins une `ServiceSubmission` réellement `submitted` ou `acknowledged`. Elle n'exige jamais un résultat externe `successful` pour considérer le travail Makolo accompli.
 
 ### `ServiceOutcomeEvent`
 
@@ -432,9 +438,11 @@ Historique append-only du résultat externe :
 
 Chaque événement porte date externe, date d'enregistrement, auteur, note et référence éventuelle.
 
-`ServiceJourneyContext.current_outcome` est une projection transactionnelle pour les requêtes.
+`ServiceJourneyContext.current_outcome` est une projection transactionnelle pour les requêtes. La projection est déterminée par `occurred_at`, puis par un tie-breaker stable (`created_at`, `id`) ; l'ordre d'insertion ne suffit pas. Enregistrer tardivement un événement historiquement plus ancien ne fait pas régresser `current_outcome`.
 
-**Invariant : `Journey.status = fulfilled` et `current_outcome = unsuccessful` sont compatibles.** Makolo peut avoir accompli correctement le parcours même si un tiers refuse la candidature.
+Les transitions `ServiceSubmission -> submitted|acknowledged|withdrawn` alimentent la même timeline externe via `ServiceOutcomeEvent`, ce qui évite deux sources de vérité concurrentes : la Submission décrit la tentative, l'OutcomeEvent décrit l'évolution externe, et `current_outcome` reste la projection de lecture.
+
+**Invariant : `Journey.status = fulfilled` et `current_outcome = unsuccessful` sont compatibles.** Makolo peut avoir accompli correctement le parcours même si un tiers refuse la candidature. Réciproquement, un résultat externe `successful` ne passe jamais automatiquement la Journey à `fulfilled`.
 
 ## 17. Paiements : `PaymentObligation`
 
@@ -442,7 +450,7 @@ Chaque événement porte date externe, date d'enregistrement, auteur, note et r�
 
 `PaymentObligation` représente une somme qui doit être réglée dans un contexte Makolo afin de satisfaire une obligation métier. Elle appartient au bounded context `payments`.
 
-Champs cibles :
+Champs implémentés T33 :
 
 - `journey` ;
 - `commerce_order` nullable ;
@@ -456,13 +464,14 @@ Champs cibles :
 - `payee_profile` nullable ;
 - `external_payee_name` nullable ;
 - `due_at`, `satisfied_at` ;
+- `source_key` nullable pour provenance/idempotence ;
 - `created_by`, timestamps.
 
-Pour les nouvelles données, le bénéficiaire économique doit être explicite. Makolo n'est pas automatiquement le bénéficiaire parce que la transaction passe par sa plateforme ou son provider.
+Pour les nouvelles données, le bénéficiaire économique doit être explicite. Makolo n'est pas automatiquement le bénéficiaire parce que la transaction passe par sa plateforme ou son provider. Les codes devise sont normalisés en majuscules et les obligations exigent un montant strictement positif.
 
 ### Paiement traité par Makolo/provider
 
-Une obligation `makolo_provider` peut avoir plusieurs `Payment` attempts. Un seul paiement réussi peut la satisfaire.
+Une obligation `makolo_provider` peut avoir plusieurs `Payment` attempts. Un seul paiement `succeeded` peut la satisfaire, garanti par contrainte DB. Une tentative `failed` ou `cancelled` ne détruit pas l'obligation et permet une nouvelle tentative ; l'obligation revient à `pending` lorsqu'aucune autre tentative active ne la maintient en traitement.
 
 Exemple commercial :
 
@@ -472,7 +481,23 @@ Exemple Opportunity :
 
 `OpportunityRequirement -> Assessment -> JourneyStep -> PaymentObligation -> Payment -> étape satisfaite`.
 
-La V1 utilise le provider sandbox existant ; M-PESA et autres providers devront implémenter la même abstraction sans modifier Journey/Opportunity/Access.
+Le pipeline T33 introduit un contrat provider minimal centralisant `initiate`, `confirm`, `cancel` et `refund`. Les adapters réellement présents sont `sandbox` et `manual`. Le sandbox existant est réutilisé pour Commerce/Event et Services ; aucun second sandbox n'est créé. M-PESA, Airtel Money et autres providers réels restent différés.
+
+`manual` reste un provider transactionnel contrôlé par l'autorité financière existante. Il ne doit jamais être utilisé pour transformer un paiement réellement effectué sur le portail d'un tiers en faux Payment réussi.
+
+### Compatibilité Commerce/Tickets
+
+T33 applique une migration expand-compatible : `Payment.order` et `Payment.commerce_order` restent en place, et `Payment.obligation` est ajouté de façon nullable. Un Payment peut donc temporairement porter les relations legacy et l'obligation lorsque ces références décrivent le même contexte canonique.
+
+Les nouveaux paiements Commerce/Event payants obtiennent ou créent une obligation Commerce déterministe avant la tentative Payment. Le backfill ne matérialise une obligation historique que lorsque Journey, montant, devise et bénéficiaire économique peuvent être déduits objectivement. Aucune transaction, réussite ou payee n'est inventé.
+
+`PaymentObligation.commerce_order` reste nullable et utilise `SET_NULL` : cette décision préserve l'obligation et son historique lorsqu'un test/mécanisme de compatibilité reconstruit une ancienne projection Commerce. Les nouveaux writes Commerce conservent néanmoins la relation explicite. Les relations legacy seront supprimées, si nécessaire, uniquement lors d'un futur cutover observé et séparé.
+
+### JourneyStep de paiement
+
+Le noyau `journeys` ne dépend pas de Payments. La verticale Services compose `JourneyStep(kind=payment)` et vérifie, avant completion, que les obligations reliées sont `satisfied` ou `waived`. Une condition financière non encore remplie n'est pas automatiquement transformée en `JourneyBlocker` : le blocker reste réservé à un véritable aléa métier.
+
+Un paiement intermédiaire ne modifie jamais artificiellement la Journey globale en `pending_payment`; cet état reste réservé au paiement qui conditionne la confirmation/démarrage de la Journey entière.
 
 ### Paiement fait hors Makolo
 
@@ -487,11 +512,13 @@ Aucun faux `Payment(status=succeeded)` n'est créé.
 - `status = submitted | verified | rejected` ;
 - `submitted_by`, `verified_by`, `verified_at`, `review_note`.
 
-Une preuve vérifiée satisfait l'obligation sans créer de transaction provider Makolo.
+Une preuve est réservée à une obligation `processing_mode=external` et son Artifact doit appartenir à la même Journey. Une preuve vérifiée satisfait l'obligation transactionnellement sans créer de transaction provider Makolo. Une preuve rejetée et son Artifact restent audités ; une nouvelle preuve peut être soumise selon le lifecycle autorisé.
 
 ### Refunds et settlement
 
-Refund conserve son domaine existant pour les transactions réellement traitées. Les mécanismes futurs de payout/settlement dépendent du provider financier réel et ne doivent pas être inventés avant intégration d'un provider qui les exige.
+Refund conserve son domaine existant pour les transactions réellement traitées. Le runtime T33 conserve le comportement de remboursement total existant ; il n'invente pas de remboursement partiel si le modèle courant ne le supporte pas. Une obligation devient `refunded` lorsque le Payment qui l'avait satisfaite est réellement remboursé selon le service canonique.
+
+Les mécanismes futurs de payout/settlement dépendent du provider financier réel et ne doivent pas être inventés avant intégration d'un provider qui les exige.
 
 ## 18. Permissions et confidentialité
 
@@ -517,6 +544,8 @@ Codes cibles :
 - `activity.services.notes.internal` ;
 - `activity.services.outcomes.manage` ;
 - `activity.services.payment_evidence.verify`.
+
+Ces codes constituent la matrice finale visée pour T34 ; T33 ne les fabrique pas en avance. En T33, les writes réutilisent la frontière déjà disponible : bénéficiaire pour ses propres actions explicitement permises, ou autorité Activity existante combinée à une `JourneyAssignment` active pour le travail sur dossier. Les opérations financières sensibles, la confirmation manuelle, les refunds et la vérification de preuves restent deny-by-default hors staff/autorité financière ou de dossier explicite disponible.
 
 Les données financières provider, refunds et opérations financières complètes continuent d'utiliser les permissions Finance canoniques.
 
@@ -575,9 +604,11 @@ Les transitions passent par des services transactionnels et émettent des faits 
 - `service.submission.submitted` ;
 - `service.outcome.changed`.
 
+T33 ajoute également les faits stables de lifecycle effectivement nécessaires (`payment.obligation.refunded`, et les événements `service.submission.acknowledged|failed|withdrawn` lorsqu'une transition correspondante a lieu) via la même outbox canonique. Les payloads restent minimaux et ne doivent jamais contenir de secret provider, token, donnée bancaire complète ou contenu d'Artifact.
+
 Notifications et Automation consomment ces faits ; elles ne modifient jamais les modèles en contournant les services de domaine.
 
-Les rappels peuvent exploiter : opening/deadline Opportunity, Journey expiration, Step due date, Blocker due date, PaymentObligation due date et Occurrence. Les notifications doivent être dédupliquées et ne plus rappeler une condition déjà satisfaite.
+Les rappels peuvent exploiter : opening/deadline Opportunity, Journey expiration, Step due date, Blocker due date, PaymentObligation due date et Occurrence. Les notifications doivent être dédupliquées et ne plus rappeler une condition déjà satisfaite. Le branchement Notifications/Automation Services final est T34.
 
 ## 21. Surfaces fonctionnelles requises en V1
 
@@ -679,6 +710,11 @@ Mesures minimales :
 20. Notifications/Automation réagissent aux faits du domaine ; elles ne sont pas la source de vérité.
 21. Les intégrations IA et providers futurs passent par les mêmes services/invariants et ne contournent pas le domaine.
 22. Aucun abonnement Makolo n'est requis pour les capacités Services de cette V1.
+23. Plusieurs tentatives Payment peuvent exister pour une obligation, mais au plus une peut être `succeeded`.
+24. Une PaymentEvidence externe satisfaite ne crée aucun Payment provider Makolo.
+25. ServiceSubmission décrit une tentative réelle de soumission ; elle n'est pas synonyme de Journey fulfilled.
+26. ServiceOutcomeEvent est append-only et ne modifie jamais automatiquement Journey.status.
+27. `current_outcome` suit la chronologie externe (`occurred_at`), pas simplement l'ordre d'insertion.
 
 ## 24. Extensions différées sans dette architecturale
 
@@ -693,3 +729,46 @@ Peuvent être ajoutés plus tard sans modifier les fondations ci-dessus :
 - nouveaux kinds d'Opportunity ou de Service.
 
 Ces extensions doivent composer les propriétaires canoniques existants, pas créer des modèles parallèles de Journey, Payment, Permission, Access ou Activity.
+
+## 25. État d'implémentation T33
+
+T33 matérialise la séparation suivante dans le runtime :
+
+```text
+OpportunityRequirement
+    = exigence publiée du tiers
+
+ServiceRequirementAssessment
+    = état individuel de cette exigence dans un dossier
+
+PaymentObligation
+    = somme due dans la Journey
+
+Payment
+    = tentative transactionnelle réellement traitée par Makolo/provider
+
+PaymentEvidence
+    = preuve d'un paiement réellement effectué ailleurs
+
+CommerceOrder
+    = transaction commerciale Makolo
+
+JourneyStep
+    = action du parcours
+
+ServiceSubmission
+    = tentative réelle d'envoi au tiers
+
+ServiceOutcomeEvent
+    = évolution ou décision externe append-only
+
+Journey.status
+    = accomplissement du parcours Makolo
+
+ServiceJourneyContext.current_outcome
+    = projection de l'état externe observé
+```
+
+Les migrations T33 suivent `expand -> backfill certain -> double compatibilité -> nouveaux writes via obligation`. Elles ne suppriment ni `Payment.order`, ni `Payment.commerce_order`, ni les bridges Ticket/Commerce existants. Le beta seed T33 couvre les quatre familles de scénario : Commerce + obligation, frais Opportunity sandbox, frais externe + Evidence sans faux Payment, puis Submission + Outcome externe distinct du fulfillment.
+
+La matrice finale `activity.services.*`, les Notifications/Automation Services complètes, l'UX finale et l'analytics/release gate restent respectivement T34, T35 et T36.

@@ -328,6 +328,10 @@ def adopt_opportunity_revision(*, context, revision, actor):
         .order_by()
         .get(pk=context.pk)
     )
+    # A concurrent SELECT may have established its snapshot before waiting for
+    # the row lock. Refresh the pinned FK after the lock so a later transaction
+    # never evaluates its candidate against a stale related-object snapshot.
+    context.refresh_from_db(fields=["opportunity", "opportunity_revision"])
     ensure_case_access(actor, context.journey, write=True)
     if context.opportunity_id is None or context.opportunity_revision_id is None:
         raise ValidationError("Ce dossier Services n’est pas lié à une Opportunity.")

@@ -34,6 +34,7 @@ from .models import (
     ServicePlanTemplateStatus,
     ServicePlanTemplateStep,
     ServicePlanTemplateStepDependency,
+    ServiceSubmissionStatus,
 )
 from .requirement_services import (
     adopt_opportunity_revision,
@@ -49,6 +50,7 @@ from .requirement_services import (
     submit_requirement_evidence,
     validate_requirement_completion,
 )
+from .t33_services import validate_payment_step_completion
 
 
 def _ensure_activity_manager(actor, service):
@@ -325,8 +327,8 @@ def validate_service_completion(journey):
     except ServiceJourneyContext.DoesNotExist as exc:
         raise ValidationError("La Journey Services n’a pas de contexte.") from exc
     service = journey.activity.service_details
-    if service.completion_policy != CompletionPolicy.REQUIRED_STEPS:
-        raise ValidationError("Completion policy Services T31 inconnue.")
+    if service.completion_policy not in {CompletionPolicy.REQUIRED_STEPS, CompletionPolicy.REQUIRED_STEPS_AND_SUBMISSION}:
+        raise ValidationError("Completion policy Services inconnue.")
     if context.plan_materialized_at is None:
         raise ValidationError("Le plan Services n’a pas été matérialisé.")
     validate_requirement_completion(context)
@@ -342,10 +344,15 @@ def validate_service_completion(journey):
             raise ValidationError(f"Étape obligatoire non satisfaite: {step.title}")
         if step.kind == JourneyStepKind.REVIEW and not step.artifacts.filter(reviews__status=JourneyArtifactReviewStatus.APPROVED).exists():
             raise ValidationError(f"Revue obligatoire non approuvée: {step.title}")
+        if step.kind == JourneyStepKind.PAYMENT:
+            validate_payment_step_completion(step)
     if journey.blockers.filter(status=JourneyBlockerStatus.ACTIVE, severity=JourneyBlockerSeverity.CRITICAL).exists():
         raise ValidationError("Un blocker critique actif empêche la clôture.")
     if journey.blockers.filter(status=JourneyBlockerStatus.ACTIVE, step__is_required=True).exists():
         raise ValidationError("Un blocker actif empêche une étape obligatoire.")
+    if service.completion_policy == CompletionPolicy.REQUIRED_STEPS_AND_SUBMISSION:
+        if not context.submissions.filter(status__in={ServiceSubmissionStatus.SUBMITTED, ServiceSubmissionStatus.ACKNOWLEDGED}).exists():
+            raise ValidationError("Cette completion policy exige une soumission externe réellement envoyée.")
     return True
 
 

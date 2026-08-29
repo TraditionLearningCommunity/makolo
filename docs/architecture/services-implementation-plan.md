@@ -103,6 +103,16 @@ Périmètre :
 - ServiceOutcomeEvent append-only ;
 - distinction stricte entre fulfillment Makolo et résultat externe.
 
+**Note d’implémentation T33 :** le runtime livré reste additif et expand-compatible. `payments` possède `PaymentObligation` et `PaymentEvidence`; `Payment` conserve ses relations legacy `order` et `commerce_order` tout en acceptant une `obligation`. Une obligation peut avoir plusieurs tentatives de Payment, avec une contrainte DB garantissant au plus un `succeeded` par obligation. Les nouveaux paiements Commerce créent/réutilisent une obligation canonique ; le backfill ne crée une obligation que lorsque Journey, montant, devise et payee sont objectivement déterminables. La relation `PaymentObligation.commerce_order` est nullable et `SET_NULL` afin de préserver l’historique financier lorsqu’une ancienne projection Commerce est reconstruite, sans supprimer l’obligation ni le Payment.
+
+Les obligations `makolo_provider` passent par le pipeline Payment existant. Un contrat provider minimal centralise `initiate`, `confirm`, `cancel` et `refund`; les seuls adapters T33 sont les providers déjà réels dans le dépôt, `sandbox` et `manual`. Aucun M-PESA, Airtel Money, wallet, split payment, payout ou credential fictif n’est introduit. Une obligation `external` est satisfaite par `PaymentEvidence` reliée à un `JourneyArtifact`; aucune transaction `Payment(status=succeeded)` n’est fabriquée pour représenter un paiement effectué sur un portail tiers.
+
+Le lien entre un Requirement financier individuel et une obligation reste propriétaire de la verticale Services via `ServiceRequirementPaymentObligation` (`ServiceRequirementAssessment ↔ PaymentObligation`). `payments` ne dépend donc pas d’`opportunities`. Une `JourneyStep(kind=payment)` est validée par le bridge Services avant completion : le noyau `journeys` ne connaît pas Payments. Un paiement intermédiaire ne modifie pas la Journey globale vers `pending_payment`.
+
+`ServiceSubmission` conserve des tentatives numérotées par contexte avec unicité `(context, attempt)` et transitions contrôlées. La completion policy historique `required_steps` est conservée ; `required_steps_and_submission` est opt-in et exige une tentative réellement `submitted` ou `acknowledged`, jamais un résultat externe favorable. `ServiceOutcomeEvent` est append-only et `ServiceJourneyContext.current_outcome` est une projection transactionnelle déterminée par `occurred_at` avec un tie-breaker stable. `Journey.status` et `current_outcome` restent deux axes indépendants : `Journey.fulfilled + current_outcome.unsuccessful` est un état valide et couvert par les tests.
+
+La sécurité T33 réutilise l’autorité existante : bénéficiaire pour les actions propres autorisées, ou autorité Activity + `JourneyAssignment` active pour les opérations de dossier. Les opérations financières sensibles et la vérification externe restent deny-by-default hors autorité explicite/staff jusqu’à la matrice finale T34. Les faits T33 passent par l’outbox Domain Events existante ; Notifications/Automation finales restent T34.
+
 ### T34 — Authorization, Privacy, Events & Automation
 
 **But :** stabiliser la matrice d’autorité et l’orchestration événementielle/attention Services.
