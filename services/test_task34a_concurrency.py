@@ -9,8 +9,14 @@ from activities.models import Activity
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey
-from opportunities.models import OpportunityKind, OpportunityRequirementKind
-from opportunities.services import add_requirement, create_opportunity, create_opportunity_revision, publish_opportunity_revision
+from opportunities.models import OpportunityKind, OpportunityRequirementKind, OpportunitySourceType
+from opportunities.services import (
+    add_requirement,
+    create_opportunity,
+    create_opportunity_revision,
+    create_opportunity_source,
+    publish_opportunity_revision,
+)
 from requirements.contracts import RequirementAssessmentState
 
 from .models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment
@@ -73,6 +79,15 @@ class ServiceRequirementAssessmentConcurrencyTests(TransactionTestCase):
             title="T34A concurrent assessment",
             issuer_name="Issuer",
             timezone_name="Africa/Lubumbashi",
+        )
+        create_opportunity_source(
+            opportunity=opportunity,
+            actor=self.curator,
+            source_type=OpportunitySourceType.OFFICIAL,
+            source_name="T34A concurrency source",
+            url=f"https://example.test/t34a-concurrency/{opportunity.pk}",
+            is_primary=True,
+            verified=True,
         )
         add_requirement(
             revision=revision,
