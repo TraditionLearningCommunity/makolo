@@ -138,13 +138,19 @@ class ServiceHorizontalRequirementTests(TestCase):
         self.assertNotIn("not_eligible", progress)
 
     def test_consequences_are_derived_from_canonical_relations(self):
-        document = self.assessments[0]
-        assess_requirement(assessment=document, actor=self.manager, status=RequirementAssessmentState.PENDING)
+        document = assess_requirement(
+            assessment=self.assessments[0],
+            actor=self.manager,
+            status=RequirementAssessmentState.PENDING,
+        )
         step_link = create_requirement_step(assessment=document, actor=self.manager, title="Provide document")
         self.assertEqual(derive_requirement_consequence(document), ServiceRequirementConsequence.ACTION_REQUIRED)
 
-        evidence_assessment = self.assessments[1]
-        assess_requirement(assessment=evidence_assessment, actor=self.manager, status=RequirementAssessmentState.PENDING)
+        evidence_assessment = assess_requirement(
+            assessment=self.assessments[1],
+            actor=self.manager,
+            status=RequirementAssessmentState.PENDING,
+        )
         artifact = create_artifact(
             journey=self.journey,
             uploaded_file=pdf_upload(),
@@ -155,8 +161,11 @@ class ServiceHorizontalRequirementTests(TestCase):
         submit_requirement_evidence(assessment=evidence_assessment, artifact=artifact, actor=self.beneficiary)
         self.assertEqual(derive_requirement_consequence(evidence_assessment), ServiceRequirementConsequence.NEEDS_REVIEW)
 
-        financial = self.assessments[2]
-        assess_requirement(assessment=financial, actor=self.manager, status=RequirementAssessmentState.PENDING)
+        financial = assess_requirement(
+            assessment=self.assessments[2],
+            actor=self.manager,
+            status=RequirementAssessmentState.PENDING,
+        )
         payment_step = create_requirement_step(assessment=financial, actor=self.manager, title="Pay fee")
         create_requirement_payment_obligation(
             assessment=financial,
@@ -172,16 +181,25 @@ class ServiceHorizontalRequirementTests(TestCase):
         self.assertEqual(financial.status, RequirementAssessmentState.PENDING)
         self.assertEqual(derive_requirement_consequence(financial), ServiceRequirementConsequence.PAYMENT_REQUIRED)
 
-        eligibility = self.assessments[3]
-        assess_requirement(assessment=eligibility, actor=self.manager, status=RequirementAssessmentState.UNSATISFIED)
+        eligibility = assess_requirement(
+            assessment=self.assessments[3],
+            actor=self.manager,
+            status=RequirementAssessmentState.UNSATISFIED,
+        )
         self.assertEqual(derive_requirement_consequence(eligibility), ServiceRequirementConsequence.NOT_ELIGIBLE)
 
-        satisfied = self.assessments[4]
-        assess_requirement(assessment=satisfied, actor=self.manager, status=RequirementAssessmentState.SATISFIED)
+        satisfied = assess_requirement(
+            assessment=self.assessments[4],
+            actor=self.manager,
+            status=RequirementAssessmentState.SATISFIED,
+        )
         self.assertIsNone(derive_requirement_consequence(satisfied))
 
-        not_applicable = self.assessments[5]
-        assess_requirement(assessment=not_applicable, actor=self.manager, status=RequirementAssessmentState.NOT_APPLICABLE)
+        not_applicable = assess_requirement(
+            assessment=self.assessments[5],
+            actor=self.manager,
+            status=RequirementAssessmentState.NOT_APPLICABLE,
+        )
         self.assertIsNone(derive_requirement_consequence(not_applicable))
         self.assertTrue(ServiceRequirementStepLink.objects.filter(pk=step_link.pk).exists())
 
