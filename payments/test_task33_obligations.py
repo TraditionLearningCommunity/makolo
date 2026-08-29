@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey, create_artifact
@@ -41,7 +42,7 @@ class PaymentObligationTests(TestCase):
         self.beneficiary = User.objects.create_user(username="t33-pay-beneficiary", email="t33-pay-beneficiary@example.com", password="x")
         self.outsider = User.objects.create_user(username="t33-pay-outsider", email="t33-pay-outsider@example.com", password="x")
         self.activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="T33 Service payments")
-        grant_activity_role(profile=self.manager, activity=self.activity)
+        grant_activity_role(profile=self.manager, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         self.service = create_service_details(activity=self.activity, actor=self.manager, service_kind=ServiceKind.APPLICATION_SUPPORT)
         self.journey = create_service_journey(service=self.service, initiated_by=self.beneficiary, beneficiary=self.beneficiary)
         assign_journey(journey=self.journey, profile=self.manager, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)
