@@ -47,7 +47,6 @@ class T34BServiceCaseAccessTests(TestCase):
         self.outsider = User.objects.create_user(username="t34b-outsider", email="t34b-outsider@makolo.test", password="x")
         self.space = Organization.objects.create(name="T34B Services Space", created_by=self.bootstrap)
         self.activity = Activity.objects.create(
-            owner_profile=self.bootstrap,
             created_by=self.bootstrap,
             space=self.space,
             title="T34B Service Activity",
@@ -63,7 +62,7 @@ class T34BServiceCaseAccessTests(TestCase):
         grant_activity_role(profile=self.reviewer, activity=self.activity, role=SystemRoleCode.ACTIVITY_SERVICE_REVIEWER)
         self.service = create_service_details(
             activity=self.activity,
-            actor=self.bootstrap,
+            actor=self.manager,
             service_kind=ServiceKind.CAREER_SUPPORT,
             opportunity_policy=OpportunityPolicy.NONE,
             intake_policy=IntakePolicy.AUTO_CONFIRM,
