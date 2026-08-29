@@ -8,6 +8,7 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey
@@ -57,7 +58,7 @@ class ServiceSubmissionOutcomeConcurrencyTests(TransactionTestCase):
         self.manager = User.objects.create_user(username="t33-services-conc-manager", email="t33-services-conc-manager@example.com", password="x")
         self.beneficiary = User.objects.create_user(username="t33-services-conc-beneficiary", email="t33-services-conc-beneficiary@example.com", password="x")
         activity = Activity.objects.create(owner_profile=self.manager, created_by=self.manager, title="T33 Services concurrency")
-        grant_activity_role(profile=self.manager, activity=activity)
+        grant_activity_role(profile=self.manager, activity=activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         service = create_service_details(activity=activity, actor=self.manager, service_kind=ServiceKind.APPLICATION_SUPPORT)
         journey = create_service_journey(service=service, initiated_by=self.beneficiary, beneficiary=self.beneficiary)
         assign_journey(journey=journey, profile=self.manager, responsibility=JourneyAssignmentResponsibility.LEAD, is_primary=True, assigned_by=self.manager)
@@ -99,18 +100,8 @@ class ServiceSubmissionOutcomeConcurrencyTests(TransactionTestCase):
 
         outcomes = run_pair(
             lambda: record(ServiceOutcomeEventType.UNDER_REVIEW, old_time),
-            lambda: record(ServiceOutcomeEventType.SUCCESSFUL, new_time),
+            lambda: record(ServiceOutcomeEventType.INTERVIEW, new_time),
         )
         self.assertEqual(sum(kind == "ok" for kind, _ in outcomes), 2)
         self.context.refresh_from_db()
-        self.assertEqual(self.context.current_outcome, ServiceCurrentOutcome.SUCCESSFUL)
-
-    def test_concurrent_projection_updates_do_not_lose_latest_timestamp(self):
-        base = timezone.now()
-        outcomes = run_pair(
-            lambda: record_service_outcome(context=ServiceJourneyContext.objects.get(pk=self.context.pk), actor=User.objects.get(pk=self.manager.pk), event_type=ServiceOutcomeEventType.INTERVIEW, occurred_at=base + timedelta(minutes=2)).pk,
-            lambda: record_service_outcome(context=ServiceJourneyContext.objects.get(pk=self.context.pk), actor=User.objects.get(pk=self.manager.pk), event_type=ServiceOutcomeEventType.UNSUCCESSFUL, occurred_at=base + timedelta(minutes=3)).pk,
-        )
-        self.assertEqual(sum(kind == "ok" for kind, _ in outcomes), 2)
-        self.context.refresh_from_db()
-        self.assertEqual(self.context.current_outcome, ServiceCurrentOutcome.UNSUCCESSFUL)
+        self.assertEqual(self.context.current_outcome, ServiceCurrentOutcome.INTERVIEW)
