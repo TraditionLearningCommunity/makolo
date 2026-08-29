@@ -12,8 +12,14 @@ from activities.models import Activity
 from authorization.services import grant_activity_role
 from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey, create_artifact
-from opportunities.models import OpportunityKind, OpportunityRequirementKind
-from opportunities.services import add_requirement, create_opportunity, create_opportunity_revision, publish_opportunity_revision
+from opportunities.models import OpportunityKind, OpportunityRequirementKind, OpportunitySourceType
+from opportunities.services import (
+    add_requirement,
+    create_opportunity,
+    create_opportunity_revision,
+    create_opportunity_source,
+    publish_opportunity_revision,
+)
 from payments.models import PaymentObligationProcessingMode
 from requirements.contracts import RequirementAssessmentState
 
@@ -61,6 +67,15 @@ class ServiceHorizontalRequirementTests(TestCase):
             title="Requirements T34A",
             issuer_name="External issuer",
             timezone_name="Africa/Lubumbashi",
+        )
+        create_opportunity_source(
+            opportunity=self.opportunity,
+            actor=self.curator,
+            source_type=OpportunitySourceType.OFFICIAL,
+            source_name="T34A official source",
+            url=f"https://example.test/t34a/{self.opportunity.pk}",
+            is_primary=True,
+            verified=True,
         )
         self.requirements = []
         kinds = [
@@ -265,6 +280,46 @@ class ServiceRequirementStateMigrationTests(ServiceHorizontalRequirementTests):
         self.assertTrue(ServiceRequirementEvidence.objects.filter(pk=evidence.pk, assessment_id=linked.pk).exists())
         self.assertTrue(ServiceRequirementStepLink.objects.filter(pk=step_link.pk, assessment_id=linked.pk).exists())
         self.assertTrue(type(payment_link).objects.filter(pk=payment_link.pk, assessment_id=linked.pk).exists())
+
+    def test_reverse_mapping_is_explicitly_lossy_but_graph_compatible(self):
+        current_states = [
+            "unassessed",
+            "pending",
+            "satisfied",
+            "unsatisfied",
+            "not_applicable",
+            "pending",
+        ]
+        expected_legacy_states = [
+            "unassessed",
+            "action_required",
+            "satisfied",
+            "not_eligible",
+            "not_applicable",
+            "action_required",
+        ]
+        for assessment, state in zip(self.assessments, current_states):
+            ServiceRequirementAssessment.objects.filter(pk=assessment.pk).update(status=state)
+
+        migration = importlib.import_module("services.migrations.0004_horizontal_requirement_states")
+        schema_editor = SimpleNamespace(connection=SimpleNamespace(alias="default"))
+        migration.reverse_requirement_assessment_states(apps, schema_editor)
+
+        downgraded = list(
+            ServiceRequirementAssessment.objects.filter(pk__in=[item.pk for item in self.assessments])
+            .order_by("requirement__position")
+            .values_list("status", flat=True)
+        )
+        self.assertEqual(downgraded, expected_legacy_states)
+        self.assertNotIn("needs_review", downgraded)
+
+        migration.migrate_requirement_assessment_states(apps, schema_editor)
+        upgraded = list(
+            ServiceRequirementAssessment.objects.filter(pk__in=[item.pk for item in self.assessments])
+            .order_by("requirement__position")
+            .values_list("status", flat=True)
+        )
+        self.assertEqual(upgraded, current_states)
 
     def test_unknown_historical_state_fails_explicitly(self):
         assessment = self.assessments[0]
