@@ -78,6 +78,6 @@ jobs:
       - name: Run S1 catalogue regression tests
         run: python manage.py test subscriptions.tests
       - name: Run S2 runtime tests
-        run: python manage.py test subscriptions.test_s2_runtime
+        run: python manage.py test subscriptions.test_s2_runtime subscriptions.test_s2_grant_regressions
       - name: Run S2 PostgreSQL concurrency tests
         run: python manage.py test subscriptions.test_s2_concurrency
