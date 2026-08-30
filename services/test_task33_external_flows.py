@@ -181,7 +181,7 @@ class ServiceT33FinancialRequirementTests(TestCase):
         other_activity = Activity.objects.create(owner_profile=self.outsider, created_by=self.outsider, title="Autre service")
         grant_activity_role(profile=self.outsider, activity=other_activity, role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER)
         other_service = create_service_details(activity=other_activity, actor=self.outsider, service_kind=ServiceKind.CAREER_SUPPORT)
-        other_journey = create_service_journey(service=other_service, initiated_by=self.outsider, beneficiary=self.outsider)
+        other_journey = create_service_journey(service=other_service, initiated_by=self.outsider, beneficiary=self.beneficiary)
         assign_journey(
             journey=other_journey,
             profile=self.outsider,
