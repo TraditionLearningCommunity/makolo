@@ -103,6 +103,13 @@ class Subscription(models.Model):
 
 
 class SubscriptionItemQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        if kwargs:
+            raise ValidationError(
+                "Un SubscriptionItem est historique ; utilisez les services métier au lieu d'une mutation bulk."
+            )
+        return 0
+
     def delete(self):
         raise ValidationError("L'historique SubscriptionItem est conservé ; terminez l'Item au lieu de le supprimer.")
 
@@ -167,12 +174,15 @@ class SubscriptionItem(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        previous = None
         if self.pk and not self._state.adding:
-            previous = type(self).objects.filter(pk=self.pk).values(*self.IMMUTABLE_FIELDS).first()
+            previous = type(self).objects.filter(pk=self.pk).values(*self.IMMUTABLE_FIELDS, "status").first()
             if previous:
                 changed = [field for field in self.IMMUTABLE_FIELDS if previous[field] != getattr(self, field)]
                 if changed:
                     raise ValidationError({field: "Le pinning et l'identité d'un SubscriptionItem sont immuables." for field in changed})
+                if previous["status"] == SubscriptionItemStatus.ENDED and self.status != SubscriptionItemStatus.ENDED:
+                    raise ValidationError({"status": "Un SubscriptionItem terminé reste historique et ne peut pas être réactivé."})
         self.full_clean()
         return super().save(*args, **kwargs)
 
