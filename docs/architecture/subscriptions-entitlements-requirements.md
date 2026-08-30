@@ -1256,3 +1256,29 @@ PlanEntitlement
 S1 n'introduit pas `PlanRequirement`, `EntitlementRequirement`, `SubscriptionRequirementAssessment`, `Subscription`, `SubscriptionItem`, `EntitlementGrant`, `EffectiveEntitlement`, Eligibility, Transition, pricing, Payment bridge, permissions Subscription finales, UI, Notifications, Automation ou Domain Events Subscription complets. Ces responsabilités restent différées aux étapes suivantes.
 
 Le détail d'implémentation, des contraintes, migrations, Features auditées et différés se trouve dans [`subscriptions-s1-implementation.md`](subscriptions-s1-implementation.md).
+
+## 54. État d’implémentation S2
+
+S2 matérialise le **runtime d’abonnement individuel** au-dessus du catalogue S1, sans démarrer Eligibility/Requirements ni le workflow de changement de formule.
+
+Le bounded context `subscriptions` comprend désormais, en plus des modèles S1 :
+
+```text
+Subscription
+SubscriptionItem
+EntitlementGrant
+```
+
+`Subscription` appartient exactement à `Profile XOR Space` via des FK explicites, sans `GenericForeignKey`, avec unicité canonique par sujet. `SubscriptionItem` pinne une `PlanVersion` exacte, distingue BASE/ADDON, impose un seul BASE actif et un seul Item actif par add-on logique, et conserve l’historique des Items terminés.
+
+S2 installe deux BASE techniques minimaux, `profile.base` et `space.base`, sans inventer de pricing ni de limite commerciale `team.members`. Les Profiles et Spaces existants sont backfillés ; les nouveaux sujets utilisent des primitives de bootstrap idempotentes et transactionnelles. L’absence d’un BASE publié par défaut nécessaire à un nouveau bootstrap produit une erreur métier explicite plutôt qu’un sujet silencieusement incomplet.
+
+Les Entitlements effectifs restent dérivés et ne sont pas persistés comme seconde vérité. Le resolver compose BASE actif, ADDONS actifs et Grants applicables avec les stratégies S1 `BOOLEAN_OR`, `SUM`, `MAX` et `REPLACE`; pour `REPLACE`, la priorité est `GRANT > ADDON > BASE`. Les sources sont conservées pour rendre le résultat explicable.
+
+Le provider `organizations.active_team_members` mesure l’usage réel de `team.members` depuis les `TeamMembership` actifs du domaine Organizations. La policy `preserve_existing_block_new` expose usage, restant et dépassement sans dupliquer le compteur ni supprimer les données existantes.
+
+La résolution Activity respecte l’ownership canonique : une Activity personnelle utilise la Subscription de son Profile propriétaire ; une Activity de Space utilise la Subscription du Space, même lorsqu’un collaborateur agit via ses Permissions/Mandates.
+
+Le détail d’implémentation S2, des contraintes, migrations, bootstrap, resolver et tests se trouve dans [`subscriptions-s2-implementation.md`](subscriptions-s2-implementation.md).
+
+S2 n’introduit toujours pas `PlanRequirement`, `EntitlementRequirement`, `EligibilityResolver`, `PlanEligibilityResult`, `SubscriptionRequirementAssessment`, `SubscriptionTransition`, Payment bridge, permissions Subscription finales, orchestration Notifications/Automation ni UI Subscription. S3, S4, S5 et S6 restent explicitement différés.

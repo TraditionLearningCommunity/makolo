@@ -48,3 +48,22 @@ class FeatureEnforcementPolicy(models.TextChoices):
         "preserve_existing_block_new",
         "Préserver l’existant et bloquer les nouveaux usages au-delà de la limite",
     )
+
+
+class SubscriptionStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    GRACE = "grace", "Grâce"
+    SUSPENDED = "suspended", "Suspendue"
+    CLOSED = "closed", "Fermée"
+
+
+class SubscriptionItemStatus(models.TextChoices):
+    SCHEDULED = "scheduled", "Planifié"
+    ACTIVE = "active", "Actif"
+    ENDED = "ended", "Terminé"
+
+
+class EntitlementSourceType(models.TextChoices):
+    BASE = "base", "Base"
+    ADDON = "addon", "Add-on"
+    GRANT = "grant", "Grant"
