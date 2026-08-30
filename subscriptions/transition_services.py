@@ -285,7 +285,7 @@ def request_subscription_transition(
     _validate_origin(request_origin)
 
     subscription = (
-        Subscription.objects.select_for_update()
+        Subscription.objects.select_for_update(of=("self",))
         .select_related("profile", "space")
         .get(pk=subscription.pk)
     )
