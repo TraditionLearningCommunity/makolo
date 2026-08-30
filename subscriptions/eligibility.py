@@ -111,14 +111,20 @@ def _acquisition_requirements(version):
     )
 
 
+def _resolve_version(plan_version):
+    if not isinstance(plan_version, PlanVersion):
+        return PlanVersion.objects.select_related("plan").get(pk=plan_version)
+    # Publication is performed on a locked DB instance. A caller may still hold
+    # the original in-memory draft object, so refresh only that stale case. A
+    # queryset-backed published instance keeps its select_related/prefetch cache.
+    if plan_version.status == PlanVersionStatus.DRAFT:
+        return PlanVersion.objects.select_related("plan").get(pk=plan_version.pk)
+    return plan_version
+
+
 def resolve_plan_eligibility(subject, plan_version, *, self_service=True, at=None):
     at = at or timezone.now()
-    if isinstance(plan_version, PlanVersion):
-        version = plan_version
-        if not hasattr(version, "plan"):
-            version = PlanVersion.objects.select_related("plan").get(pk=version.pk)
-    else:
-        version = PlanVersion.objects.select_related("plan").get(pk=plan_version)
+    version = _resolve_version(plan_version)
 
     if version.status != PlanVersionStatus.PUBLISHED:
         raise EligibilityConfigurationError("Eligibility exige une PlanVersion publiée précise.")
