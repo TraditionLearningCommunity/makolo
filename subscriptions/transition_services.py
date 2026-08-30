@@ -697,7 +697,7 @@ def complete_subscription_transition(*, transition):
 
 @transaction.atomic
 def cancel_subscription_transition(*, transition, actor=None, reason=""):
-    transition = SubscriptionTransition.objects.select_for_update().get(pk=transition.pk)
+    transition = SubscriptionTransition.objects.select_for_update(of=("self",)).get(pk=transition.pk)
     if transition.status == SubscriptionTransitionStatus.CANCELLED:
         return transition
     if transition.status not in OPEN_TRANSITION_STATUSES:
