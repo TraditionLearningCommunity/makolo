@@ -229,7 +229,19 @@ def grant_group_role(*, profile, group, role, granted_by=None, source="group-ser
 
 
 @transaction.atomic
-def grant_activity_role(*, profile, activity, role=SystemRoleCode.ACTIVITY_MANAGER, granted_by=None, source="activity-service") -> Mandate:
+def grant_activity_role(
+    *,
+    profile,
+    activity,
+    role=SystemRoleCode.ACTIVITY_MANAGER,
+    role_code=None,
+    granted_by=None,
+    source="activity-service",
+) -> Mandate:
+    if role_code is not None:
+        if role != SystemRoleCode.ACTIVITY_MANAGER and role != role_code:
+            raise ValidationError("Utilisez role ou role_code, pas deux rôles différents.")
+        role = role_code
     if isinstance(role, str):
         role = get_system_role(role, scope_type=AuthorityScope.ACTIVITY)
     validate_role_for_activity(role)
