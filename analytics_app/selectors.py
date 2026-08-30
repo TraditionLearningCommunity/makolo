@@ -10,19 +10,29 @@ from .models import GrowthSpend
 
 
 def get_analytics_activities(user):
-    queryset = Activity.objects.select_related("space", "created_by").prefetch_related("occurrences")
+    queryset = Activity.objects.select_related("space", "owner_profile", "created_by").prefetch_related("occurrences")
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
     space_ids = space_ids_with_permission(user, PermissionCode.ANALYTICS_VIEW)
     if space_ids is None:
         return queryset
-    return queryset.filter(space_id__in=space_ids)
+
+    filters = Q(space_id__in=space_ids) | Q(space__isnull=True, owner_profile=user)
+    # Compatibility only for legacy personal Activities created before the
+    # canonical owner_profile contract could be populated safely.
+    filters |= Q(space__isnull=True, owner_profile__isnull=True, created_by=user)
+    return queryset.filter(filters).distinct()
+
+
+def get_service_analytics_activities(user):
+    return get_analytics_activities(user).filter(service_details__isnull=False).distinct()
 
 
 def get_analytics_events(user):
     queryset = Event.objects.select_related(
         "activity",
         "activity__space",
+        "activity__owner_profile",
         "activity__created_by",
         "category",
         "venue",
@@ -38,7 +48,12 @@ def get_analytics_events(user):
     filters = Q(activity__space_id__in=space_ids)
     # Compatibility for historical personal Activities only. Authority still
     # comes from the canonical Activity owner, never an Event role.
-    filters |= Q(activity__space__isnull=True, activity__created_by=user)
+    filters |= Q(activity__space__isnull=True, activity__owner_profile=user)
+    filters |= Q(
+        activity__space__isnull=True,
+        activity__owner_profile__isnull=True,
+        activity__created_by=user,
+    )
     return queryset.filter(filters).distinct()
 
 
