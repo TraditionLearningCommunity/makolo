@@ -129,6 +129,26 @@ def _decorate_usage(feature, subject, effective_value, sources):
     )
 
 
+def _apply_requirement_gate(subject, result, *, at):
+    if result.effective_value is None:
+        return result
+    from .eligibility import entitlement_requirement_block
+
+    reason = entitlement_requirement_block(subject, result.feature_code, at=at)
+    if reason is None:
+        return result
+    return EffectiveEntitlementResult(
+        feature_code=result.feature_code,
+        effective_value=result.effective_value,
+        sources=result.sources,
+        usage=result.usage,
+        remaining=result.remaining,
+        allowed=False,
+        over_limit=result.over_limit,
+        reason_code="requirement_unsatisfied",
+    )
+
+
 def _resolve(subject, *, feature_code=None, at=None):
     at = at or timezone.now()
     subject_type = _subject_type(subject)
@@ -209,7 +229,8 @@ def _resolve(subject, *, feature_code=None, at=None):
         )
         sources = tuple(entry["source"] for entry in entries)
         effective = _aggregate(feature, entries) if entries else None
-        results[code] = _decorate_usage(feature, subject, effective, sources)
+        result = _decorate_usage(feature, subject, effective, sources)
+        results[code] = _apply_requirement_gate(subject, result, at=at)
     return results
 
 
