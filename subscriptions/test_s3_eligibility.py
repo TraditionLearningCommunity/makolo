@@ -1,10 +1,12 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from organizations.models import Organization
 from payments.models import PaymentObligation
-from requirements.contracts import RequirementAssessmentState, RequirementMode
+from requirements.contracts import RequirementAssessmentState, RequirementEvaluationResult, RequirementMode
 
 from .contracts import (
     AcquisitionMode,
@@ -16,7 +18,12 @@ from .contracts import (
     SubscriptionPlanType,
     SubscriptionSubjectType,
 )
-from .eligibility import EligibilityConfigurationError, resolve_plan_eligibility
+from .eligibility import (
+    EligibilityConfigurationError,
+    eligible_plan_versions,
+    evaluate_subscription_requirements,
+    resolve_plan_eligibility,
+)
 from .models import (
     EntitlementRequirement,
     FeatureDefinition,
@@ -26,7 +33,12 @@ from .models import (
     SubscriptionPlan,
 )
 from .entitlements import resolve_entitlement
-from .runtime_services import add_subscription_item, create_entitlement_grant, ensure_subscription_for_space
+from .runtime_services import (
+    add_subscription_item,
+    create_entitlement_grant,
+    ensure_subscription_for_profile,
+    ensure_subscription_for_space,
+)
 from .services import publish_plan_version
 
 
@@ -91,6 +103,29 @@ class S3EligibilityTests(TestCase):
         publish_plan_version(version)
         result = resolve_plan_eligibility(self.profile, version)
         self.assertEqual(result.status, PlanEligibilityStatus.NOT_ELIGIBLE)
+
+    def test_not_applicable_is_non_blocking(self):
+        version = self.make_version()
+        PlanRequirement.objects.create(
+            plan_version=version,
+            key="account.age.na",
+            title="Ancienneté",
+            phase=RequirementPhase.ACQUISITION,
+            mode=RequirementMode.AUTOMATIC,
+            evaluator_key="profile.account_age_days",
+            config={"operator": ">=", "value": 1},
+            failure_policy=RequirementFailurePolicy.DENY,
+        )
+        publish_plan_version(version)
+        with patch(
+            "subscriptions.eligibility.registry.evaluate",
+            return_value=RequirementEvaluationResult(
+                state=RequirementAssessmentState.NOT_APPLICABLE,
+                reason_code="profile.account_age_days.not_applicable",
+            ),
+        ):
+            result = resolve_plan_eligibility(self.profile, version)
+        self.assertEqual(result.status, PlanEligibilityStatus.AVAILABLE)
 
     def test_optional_requirement_does_not_block(self):
         version = self.make_version()
@@ -163,6 +198,13 @@ class S3EligibilityTests(TestCase):
         with self.assertRaises(ValidationError):
             mismatch.full_clean()
 
+    def test_plan_subject_mismatch_is_configuration_error(self):
+        version = self.make_version()
+        publish_plan_version(version)
+        space = Organization.objects.create(name="Wrong subject", created_by=self.profile)
+        with self.assertRaises(EligibilityConfigurationError):
+            resolve_plan_eligibility(space, version)
+
     def test_phase_policy_and_grace_matrix_is_validated(self):
         version = self.make_version()
         requirement = PlanRequirement(
@@ -204,6 +246,26 @@ class S3EligibilityTests(TestCase):
                 failure_policy=RequirementFailurePolicy.BLOCK,
             )
 
+    def test_publication_rolls_back_for_invalid_bulk_inserted_requirement(self):
+        version = self.make_version()
+        PlanRequirement.objects.bulk_create([
+            PlanRequirement(
+                plan_version=version,
+                key="invalid.bulk",
+                title="Invalid bulk",
+                phase=RequirementPhase.ACQUISITION,
+                mode=RequirementMode.AUTOMATIC,
+                evaluator_key="unknown.evaluator",
+                config={"operator": ">=", "value": 1},
+                failure_policy=RequirementFailurePolicy.BLOCK,
+            )
+        ])
+        with self.assertRaises(ValidationError):
+            publish_plan_version(version)
+        version.refresh_from_db()
+        self.assertEqual(version.status, "draft")
+        self.assertIsNone(version.published_at)
+
     def test_catalog_evaluation_does_not_create_payment(self):
         version = self.make_version()
         PlanRequirement.objects.create(
@@ -219,6 +281,42 @@ class S3EligibilityTests(TestCase):
         for _ in range(10):
             resolve_plan_eligibility(self.profile, version)
         self.assertEqual(PaymentObligation.objects.count(), before)
+
+    def test_catalog_selector_prefetches_requirements_without_n_plus_one(self):
+        for index in range(3):
+            version = self.make_version()
+            PlanRequirement.objects.create(
+                plan_version=version,
+                key=f"age.{index}",
+                title="Age",
+                phase=RequirementPhase.ACQUISITION,
+                mode=RequirementMode.AUTOMATIC,
+                evaluator_key="profile.account_age_days",
+                config={"operator": ">=", "value": 0},
+                failure_policy=RequirementFailurePolicy.BLOCK,
+            )
+            publish_plan_version(version)
+        with self.assertNumQueries(2):
+            results = eligible_plan_versions(self.profile)
+            list(results)
+
+    def test_ongoing_requirements_can_be_evaluated_explicitly(self):
+        subscription = ensure_subscription_for_profile(self.profile)
+        version = self.make_version()
+        PlanRequirement.objects.create(
+            plan_version=version,
+            key="ongoing.review",
+            title="Ongoing review",
+            phase=RequirementPhase.ONGOING,
+            mode=RequirementMode.REVIEW,
+            failure_policy=RequirementFailurePolicy.WARN,
+        )
+        publish_plan_version(version)
+        add_subscription_item(subscription=subscription, plan_version=version)
+        results = evaluate_subscription_requirements(subscription)
+        matching = [(requirement, result) for requirement, result in results if requirement.key == "ongoing.review"]
+        self.assertEqual(len(matching), 1)
+        self.assertEqual(matching[0][1].state, RequirementAssessmentState.PENDING)
 
 
 class S3EntitlementRequirementTests(TestCase):
