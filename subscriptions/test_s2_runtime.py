@@ -131,6 +131,7 @@ class SubscriptionBootstrapTests(S2Mixin, TestCase):
         activities = FeatureDefinition.objects.get(code="activities.create")
         PlanEntitlement.objects.create(plan_version=v2, feature=activities, value=True)
         publish_plan_version(v2)
+        plan.refresh_from_db()
         pinned.refresh_from_db()
         self.assertEqual(pinned.plan_version_id, old_version_id)
         self.assertNotEqual(plan.current_version_id, pinned.plan_version_id)
