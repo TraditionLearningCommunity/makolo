@@ -3,6 +3,12 @@
 
 class PermissionCode:
     PLATFORM_MANAGE = "platform.manage"
+    PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW = "platform.subscriptions.catalog.view"
+    PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE = "platform.subscriptions.catalog.manage"
+    PLATFORM_SUBSCRIPTIONS_VIEW = "platform.subscriptions.view"
+    PLATFORM_SUBSCRIPTIONS_MANAGE = "platform.subscriptions.manage"
+    PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE = "platform.subscriptions.grants.manage"
+    PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE = "platform.subscriptions.reviews.manage"
     OPPORTUNITIES_MANAGE = "opportunities.manage"
     OPPORTUNITIES_REVIEW_SUBMISSIONS = "opportunities.review_submissions"
     OPPORTUNITIES_SOURCES_VERIFY = "opportunities.sources.verify"
@@ -17,6 +23,8 @@ class PermissionCode:
     SPACE_PLACES_MANAGE = "space.places.manage"
     SPACE_ACTIVITIES_VIEW = "space.activities.view"
     SPACE_ACTIVITIES_MANAGE = "space.activities.manage"
+    SPACE_SUBSCRIPTION_VIEW = "space.subscription.view"
+    SPACE_SUBSCRIPTION_MANAGE = "space.subscription.manage"
     GROUP_VIEW = "group.view"
     GROUP_MANAGE = "group.manage"
     GROUP_MEMBERS_VIEW = "group.members.view"
@@ -102,6 +110,12 @@ class SystemRoleCode:
 
 PLATFORM_PERMISSION_CODES = {
     PermissionCode.PLATFORM_MANAGE,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE,
     PermissionCode.OPPORTUNITIES_MANAGE,
     PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS,
     PermissionCode.OPPORTUNITIES_SOURCES_VERIFY,
