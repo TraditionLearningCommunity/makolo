@@ -11,6 +11,7 @@ from capacity.models import CapacityPool
 from commerce.models import CommerceOrder, Offer
 from demo_seed.beta import BETA_PERSONAS
 from demo_seed.task22_extension import T22_PERSONAS
+from demo_seed.task34b_extension import T34B_PERSONAS
 from journeys.models import Journey
 from notifications.models import Notification
 from organizations.models import TeamMembership
@@ -56,7 +57,7 @@ class CanonicalBetaSeedTests(TransactionTestCase):
         self.assertEqual(first["validation"], second["validation"])
         self.assertEqual(
             set(first["login_examples"]),
-            set(BETA_PERSONAS.values()) | set(T22_PERSONAS.values()),
+            set(BETA_PERSONAS.values()) | set(T22_PERSONAS.values()) | set(T34B_PERSONAS.values()),
         )
         self.assertGreaterEqual(first["validation"]["future_event_occurrences"], 5)
         self.assertGreaterEqual(first["validation"]["future_transport_occurrences"], 5)
