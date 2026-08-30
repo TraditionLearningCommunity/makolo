@@ -1,0 +1,76 @@
+name: Temporary post-99 regression patch
+
+on:
+  push:
+    branches:
+      - fix/post-99-main-regressions
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/post-99-main-regressions
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Apply narrow regression fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "services/operator_views.py": [
+                  (
+                      'attention_ids = facilitator_attention_journeys(actor).values("pk").union(\n            manager_attention_journeys(actor).values("pk")\n        )',
+                      'attention_ids = facilitator_attention_journeys(actor).order_by().values("pk").union(\n            manager_attention_journeys(actor).order_by().values("pk")\n        )',
+                  ),
+              ],
+              "organizations/console_services.py": [
+                  (
+                      'attention_ids = facilitator_attention_journeys(self.request.user).filter(activity__space=self.space).values("pk").union(\n            manager_attention_journeys(self.request.user).filter(activity__space=self.space).values("pk")\n        )',
+                      'attention_ids = facilitator_attention_journeys(self.request.user).filter(activity__space=self.space).order_by().values("pk").union(\n            manager_attention_journeys(self.request.user).filter(activity__space=self.space).order_by().values("pk")\n        )',
+                  ),
+              ],
+              "subscriptions/transition_services.py": [
+                  (
+                      'Subscription.objects.select_for_update()\n        .select_related("profile", "space")',
+                      'Subscription.objects.select_for_update(of=("self",))\n        .select_related("profile", "space")',
+                  ),
+              ],
+          }
+
+          for filename, edits in replacements.items():
+              path = Path(filename)
+              text = path.read_text()
+              for old, new in edits:
+                  if text.count(old) != 1:
+                      raise SystemExit(f"Expected one exact match in {filename}, got {text.count(old)}")
+                  text = text.replace(old, new)
+              path.write_text(text)
+
+          Path('.github/workflows/tmp-post99-fix.yml').unlink()
+          PY
+      - name: Run targeted SQLite regressions
+        env:
+          DJANGO_ENV: test
+          DJANGO_DEBUG: "False"
+          DJANGO_SECRET_KEY: ci-only-secret-key-not-used-in-production
+          DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+        run: |
+          python -m pip install -r requirements.txt
+          python manage.py test services.test_t35_operator_web
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add services/operator_views.py organizations/console_services.py subscriptions/transition_services.py .github/workflows/tmp-post99-fix.yml
+          git commit -m "Fix post-T35 and Subscription database regressions"
+          git push origin HEAD:fix/post-99-main-regressions
