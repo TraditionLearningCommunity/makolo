@@ -33,3 +33,4 @@ class SubscriptionsConfig(AppConfig):
         from .evaluators import register_subscription_evaluators
 
         register_subscription_evaluators()
+        from . import dependency_consumer  # noqa: F401, E402
