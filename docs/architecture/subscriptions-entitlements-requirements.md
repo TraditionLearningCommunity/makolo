@@ -1282,3 +1282,41 @@ La résolution Activity respecte l’ownership canonique : une Activity personne
 Le détail d’implémentation S2, des contraintes, migrations, bootstrap, resolver et tests se trouve dans [`subscriptions-s2-implementation.md`](subscriptions-s2-implementation.md).
 
 S2 n’introduit toujours pas `PlanRequirement`, `EntitlementRequirement`, `EligibilityResolver`, `PlanEligibilityResult`, `SubscriptionRequirementAssessment`, `SubscriptionTransition`, Payment bridge, permissions Subscription finales, orchestration Notifications/Automation ni UI Subscription. S3, S4, S5 et S6 restent explicitement différés.
+
+## 55. État d’implémentation S3
+
+S3 matérialise **Subscription Eligibility & Requirements** au-dessus du catalogue S1 et du runtime S2, en réutilisant exclusivement le kernel horizontal `requirements` de T34A.
+
+Le bounded context `subscriptions` comprend désormais :
+
+```text
+PlanRequirement
+EntitlementRequirement
+PlanEligibilityResult (projection Python non persistée)
+```
+
+`PlanRequirement` appartient explicitement à une `PlanVersion` et supporte les phases `acquisition`, `ongoing` et `renewal`. Il réutilise `RequirementMode` du kernel horizontal. Les policies sont validées par phase : `block`/`deny` pour acquisition et renewal, `warn`/`grace`/`suspend` pour ongoing. `grace_period_days` n’est accepté que lorsqu’il a un sens. Une PlanVersion publiée ou retirée rend ses Requirements immuables côté serveur.
+
+`EntitlementRequirement` pointe explicitement vers `PlanEntitlement`; il ne duplique ni Feature ni PlanVersion et n’introduit aucune cible polymorphe. Une condition Feature non satisfaite conserve `effective_value` mais force `allowed = false` avec un motif dérivé. Un Grant peut contribuer à la valeur agrégée, mais ne contourne pas implicitement les Requirements attachés aux Entitlements actifs du Plan.
+
+L’Eligibility est calculée à la demande contre une PlanVersion précise. Les états externes sont `available`, `conditionally_available`, `not_eligible` et `hidden`. `not_eligible` reste une conséquence d’Eligibility et n’est pas ajouté à `RequirementAssessmentState`. `not_applicable` est non bloquant et un Requirement optionnel n’affecte pas automatiquement l’état global.
+
+Les evaluators réellement enregistrés par S3 sont limités aux données canoniques disponibles :
+
+```text
+profile.account_age_days → accounts.User.created_at
+space.account_age_days   → organizations.Organization.created_at
+space.member_count       → TeamMembership actifs des Teams actives
+```
+
+Ils sont code-owned, typés, soumis à la validation du registry et n’introduisent aucun provider Trust/Verification/Payment fictif. Aucun `dependency_event` n’est inventé sans contrat d’événement canonique stable ; l’orchestration événementielle reste différée à S5.
+
+Le service de publication S1 revalide désormais `PlanRequirement` et `EntitlementRequirement` dans la même transaction que la publication. Une clé evaluator, config, operator, subject type ou combinaison phase/policy invalide interrompt la publication avant changement de statut.
+
+La consultation du catalogue reste read-only métier : S3 ne crée aucune `SubscriptionRequirementAssessment`, `SubscriptionTransition`, `PaymentObligation`, Journey, Notification ou Automation. Les modes non automatiques peuvent produire `pending` sans déclencher d’effet de bord.
+
+Le selector catalogue filtre par `subject_type`, utilise `select_related`/`prefetch_related` et évite un N+1 évident sur les Requirements. Les détails `internal` et `generic` sont minimisés pour éviter les fuites d’information.
+
+La migration S3 est `subscriptions/0005_subscription_requirements.py`. Le détail des modèles, evaluators, règles d’Eligibility, publication, immutabilité et différés se trouve dans [`subscriptions-s3-implementation.md`](subscriptions-s3-implementation.md).
+
+S3 n’introduit pas `SubscriptionRequirementAssessment`, `SubscriptionTransition`, base switch/add-on workflow, Payment bridge, permissions Subscription finales, Domain Events/Notifications/Automation Subscription complets ni UX Subscription. S4, S5 et S6 restent explicitement différés.
