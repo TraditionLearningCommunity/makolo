@@ -24,7 +24,7 @@ class SubscriptionsConfig(AppConfig):
             setattr(self.models_module, name, getattr(transition_models, name))
 
     def ready(self):
-        from . import signals  # noqa: F401
+        from . import domain_event_hooks, signals  # noqa: F401
         from .evaluators import register_subscription_evaluators
 
         register_subscription_evaluators()
