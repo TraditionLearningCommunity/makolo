@@ -715,7 +715,7 @@ def cancel_subscription_transition(*, transition, actor=None, reason=""):
 def reject_subscription_transition(
     *, transition, actor, reason, failure_code="requirement_rejected"
 ):
-    transition = SubscriptionTransition.objects.select_for_update().get(pk=transition.pk)
+    transition = SubscriptionTransition.objects.select_for_update(of=("self",)).get(pk=transition.pk)
     if transition.status == SubscriptionTransitionStatus.REJECTED:
         return transition
     if transition.status not in OPEN_TRANSITION_STATUSES:
