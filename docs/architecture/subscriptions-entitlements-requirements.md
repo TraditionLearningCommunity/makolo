@@ -36,7 +36,7 @@ Quatre questions différentes restent séparées :
 
 - **Subscription** : quelle formule produit ce Profil ou cet Espace utilise-t-il ?
 - **Entitlement** : quelles capacités produit et limites cette formule rend-elle disponibles ?
-- **Permission** : cette personne a-t-il le droit d'effectuer cette action dans cette portée ?
+- **Permission** : cette personne a-t-elle le droit d'effectuer cette action dans cette portée ?
 - **Requirement** : quelle condition doit être vraie ou satisfaite ?
 
 Une opération premium peut donc exiger :
