@@ -1,0 +1,11 @@
+<article class="mk-panel p-5 sm:p-6">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="flex flex-wrap gap-2"><span class="mk-badge">{{ opportunity.get_kind_display }}</span><span class="mk-badge">{% if opportunity.current_revision.temporal_state == 'open' %}Ouverte{% elif opportunity.current_revision.temporal_state == 'upcoming' %}À venir{% else %}Close{% endif %}</span></div>
+    {% if request.user.is_authenticated and not saved_page %}<form method="post" action="{% url 'opportunities:save-toggle' opportunity.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="mk-btn mk-btn-ghost" type="submit">{% if opportunity.pk in saved_ids %}Retirer{% else %}Sauvegarder{% endif %}</button></form>{% endif %}
+  </div>
+  <h2 class="mt-4 text-lg font-extrabold"><a href="{% url 'opportunities:detail' opportunity.pk %}">{{ opportunity.current_revision.title }}</a></h2>
+  <p class="mt-1 text-sm font-semibold" style="color:var(--mk-muted)">{{ opportunity.current_revision.issuer_name }}</p>
+  {% if opportunity.current_revision.summary %}<p class="mt-3 text-sm leading-6" style="color:var(--mk-muted)">{{ opportunity.current_revision.summary|truncatechars:220 }}</p>{% endif %}
+  <div class="mt-4 flex flex-wrap gap-3 text-xs" style="color:var(--mk-muted)">{% if opportunity.current_revision.remote_allowed %}<span>À distance possible</span>{% endif %}{% if opportunity.current_revision.deadline_at %}<span>Échéance {{ opportunity.current_revision.deadline_at|date:'d/m/Y H:i' }}</span>{% endif %}</div>
+  <div class="mt-5 flex flex-wrap gap-3"><a class="mk-btn mk-btn-secondary" href="{% url 'opportunities:detail' opportunity.pk %}">Voir l’opportunité</a>{% if saved_page %}<form method="post" action="{% url 'opportunities:save-toggle' opportunity.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="mk-btn mk-btn-ghost" type="submit">Retirer</button></form>{% endif %}</div>
+</article>

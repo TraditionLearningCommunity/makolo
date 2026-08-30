@@ -173,6 +173,8 @@ Principe non négociable : **Mandate = autorité ; JourneyAssignment = affectati
 
 ### T35 — Complete Services UX
 
+**Statut : en cours sur `task-35-complete-services-ux`.**
+
 **But :** livrer les surfaces produit complètes sur les domaines déjà sécurisés.
 
 Périmètre :

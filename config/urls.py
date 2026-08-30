@@ -39,6 +39,8 @@ urlpatterns = [
     path("groups/", include("groups.urls")),
     path("autopilot/", include("automation.urls")),
     path("discover/", include("discovery.urls")),
+    path("opportunities/", include("opportunities.urls")),
+    path("services/", include("services.urls")),
     path("growth/", include("growth.urls")),
     path("transport/", include("transport.urls")),
     path("events/", include("events.urls")),
