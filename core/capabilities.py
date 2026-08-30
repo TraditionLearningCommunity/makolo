@@ -20,7 +20,22 @@ CAPABILITY_KEYS = (
     "can_view_loyalty",
     "can_view_partners",
     "can_view_analytics",
+    "can_operate_services",
+    "can_curate_opportunities",
 )
+
+SERVICE_OPERATION_CODES = {
+    PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
+    PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED,
+    PermissionCode.ACTIVITY_SERVICES_CONFIGURE,
+}
+
+OPPORTUNITY_CURATOR_CODES = {
+    PermissionCode.OPPORTUNITIES_MANAGE,
+    PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS,
+    PermissionCode.OPPORTUNITIES_SOURCES_VERIFY,
+    PermissionCode.OPPORTUNITIES_MERGE,
+}
 
 
 def _empty_capabilities(*, is_staff=False, has_organization=False):
@@ -56,6 +71,8 @@ def get_web_capabilities(user) -> dict[str, bool]:
         "can_view_loyalty": PermissionCode.LOYALTY_VIEW in effective,
         "can_view_partners": bool({PermissionCode.PARTNERS_MANAGE, PermissionCode.PARTNERS_FINANCE} & effective),
         "can_view_analytics": PermissionCode.ANALYTICS_VIEW in effective,
+        "can_operate_services": bool(SERVICE_OPERATION_CODES & effective),
+        "can_curate_opportunities": bool(OPPORTUNITY_CURATOR_CODES & effective),
     }
     capabilities["has_organizer_tools"] = any(capabilities[key] for key in CAPABILITY_KEYS)
     return capabilities
