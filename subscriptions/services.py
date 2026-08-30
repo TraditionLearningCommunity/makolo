@@ -38,8 +38,12 @@ def publish_plan_version(plan_version, *, retire_previous=True):
     version.full_clean()
     for benefit in version.benefits.all():
         benefit.full_clean()
-    for entitlement in version.entitlements.select_related("feature", "plan_version__plan"):
+    for requirement in version.requirements.all():
+        requirement.full_clean()
+    for entitlement in version.entitlements.select_related("feature", "plan_version__plan").prefetch_related("requirements"):
         entitlement.full_clean()
+        for requirement in entitlement.requirements.all():
+            requirement.full_clean()
 
     now = timezone.now()
     if current and retire_previous:
