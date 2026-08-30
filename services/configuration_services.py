@@ -73,7 +73,7 @@ def create_intake_question(
         if template.service_id != service.pk:
             raise ValidationError("La question Intake doit utiliser un template de ce Service.")
     question = ServiceIntakeQuestion(
-        service=service,
+        service=None if template is not None else service,
         template=template,
         key=(key or "").strip(),
         prompt=(prompt or "").strip(),
