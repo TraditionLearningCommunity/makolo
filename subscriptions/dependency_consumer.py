@@ -41,8 +41,9 @@ def _evaluator_keys_for_event(event_type):
 def _emit_available_plan(space, version):
     emit_domain_event(
         event_type=DomainEventType.SUBSCRIPTION_ELIGIBILITY_AVAILABLE,
-        aggregate_type="organization",
-        aggregate_id=space.pk,
+        source_type="subscription_eligibility",
+        source_id=str(space.pk),
+        space_id=space.pk,
         payload={
             "subject_type": SubscriptionSubjectType.SPACE,
             "subject_id": str(space.pk),
