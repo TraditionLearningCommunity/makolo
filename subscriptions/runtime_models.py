@@ -274,7 +274,7 @@ class EntitlementGrant(models.Model):
         if self.valid_until is not None and self.valid_until <= self.valid_from:
             errors["valid_until"] = "valid_until doit être postérieur à valid_from."
         if self.feature_id:
-            if not self.feature.is_active:
+            if self._state.adding and not self.feature.is_active:
                 errors["feature"] = "Une Feature inactive ne peut pas recevoir de nouveau Grant."
             elif self.subject_type and not self.feature.supports_subject_type(self.subject_type):
                 errors["feature"] = "La Feature ne supporte pas ce type de sujet."
