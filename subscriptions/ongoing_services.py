@@ -57,8 +57,9 @@ def _emit_requirement_change(subscription, state_row, requirement, old_state):
     )
     emit_domain_event(
         event_type=DomainEventType.SUBSCRIPTION_REQUIREMENT_CHANGED,
-        aggregate_type="subscription",
-        aggregate_id=subscription.pk,
+        source_type="subscription",
+        source_id=str(subscription.pk),
+        space_id=subscription.space_id,
         payload=payload,
         idempotency_key=f"subscription-ongoing:{state_row.pk}:{state_row.updated_at.isoformat()}:{state_row.state}",
     )
@@ -75,8 +76,9 @@ def _emit_status_change(subscription, *, event_type, previous_status, now):
     )
     emit_domain_event(
         event_type=event_type,
-        aggregate_type="subscription",
-        aggregate_id=subscription.pk,
+        source_type="subscription",
+        source_id=str(subscription.pk),
+        space_id=subscription.space_id,
         payload=payload,
         idempotency_key=f"subscription-status:{subscription.pk}:{event_type}:{now.isoformat()}",
     )
