@@ -54,6 +54,11 @@ class S4PaymentBridgeTests(TestCase):
             email="s4-payment-profile@example.test",
             password="x",
         )
+        self.manager = User.objects.create_user(
+            username="s4-payment-manager",
+            email="s4-payment-manager@example.test",
+            password="x",
+        )
         self.subscription = Subscription.objects.get(profile=self.profile)
         plan = SubscriptionPlan.objects.create(
             code="s4.payment.bridge",
@@ -87,7 +92,7 @@ class S4PaymentBridgeTests(TestCase):
 
     def obligation(self, transition, *, mode, key):
         journey = make_payment_obligation_journey(
-            manager=self.profile,
+            manager=self.manager,
             beneficiary=self.profile,
             title=f"S4 payment bridge {key}",
         )
@@ -99,7 +104,7 @@ class S4PaymentBridgeTests(TestCase):
             currency="USD",
             processing_mode=mode,
             external_payee_name="Controlled payee",
-            created_by=self.profile,
+            created_by=self.manager,
             source_key=f"s4-payment:{transition.pk}:{key}",
         )
         return journey, obligation
@@ -169,10 +174,10 @@ class S4PaymentBridgeTests(TestCase):
 
         verify_payment_evidence(
             evidence=evidence,
-            actor=self.profile,
+            actor=self.manager,
             review_note="Verified for S4 bridge contract",
         )
-        sync_transition_payment_assessment(obligation=obligation, actor=self.profile)
+        sync_transition_payment_assessment(obligation=obligation, actor=self.manager)
 
         obligation.refresh_from_db()
         assessment.refresh_from_db()
