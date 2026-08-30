@@ -7,6 +7,7 @@ from .views import (
     GrowthSpendCreateView,
     GrowthSpendDeleteView,
     OrganizationGrowthAnalyticsView,
+    ServiceActivityAnalyticsView,
 )
 
 
@@ -15,6 +16,11 @@ app_name = "analytics"
 urlpatterns = [
     path("", AnalyticsDashboardView.as_view(), name="dashboard"),
     path("events/<slug:slug>/", EventAnalyticsView.as_view(), name="event-detail"),
+    path(
+        "services/activities/<uuid:pk>/",
+        ServiceActivityAnalyticsView.as_view(),
+        name="service-activity-detail",
+    ),
     path("growth/", GrowthAnalyticsDashboardView.as_view(), name="growth-dashboard"),
     path(
         "growth/o/<slug:slug>/",
