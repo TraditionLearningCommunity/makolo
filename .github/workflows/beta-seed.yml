@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   push:
     branches:
       - main
@@ -17,9 +18,9 @@ permissions:
 
 jobs:
   fresh-sqlite-beta-seed:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     env:
       DJANGO_ENV: test
       DJANGO_DEBUG: "False"
@@ -28,29 +29,22 @@ jobs:
       DJANGO_DB_PATH: /tmp/makolo-beta-seed.sqlite3
       MAKOLO_DEMO_PASSWORD: ci-beta-seed-password-not-production
       BETA_AS_OF: "2026-08-21"
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: pip
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip check
-
       - name: Check migrations before fresh seed
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
           python manage.py migrate --plan
-
       - name: Build fresh SQLite beta database
         run: |
           rm -f "$DJANGO_DB_PATH"
@@ -58,7 +52,6 @@ jobs:
           python manage.py migrate --check
           python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
           python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
-
       - name: Verify idempotence for identical parameters
         shell: bash
         run: |
@@ -71,7 +64,6 @@ jobs:
           python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
           after="$(snapshot)"
           test "$before" = "$after"
-
       - name: Verify SQLite integrity
         run: |
           integrity="$(sqlite3 "$DJANGO_DB_PATH" 'PRAGMA integrity_check;')"
@@ -79,9 +71,9 @@ jobs:
           test "$integrity" = "ok"
 
   fresh-postgresql-beta-seed:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
-
     services:
       postgres:
         image: postgres:16-alpine
@@ -96,7 +88,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
       DJANGO_ENV: test
       DJANGO_DEBUG: "False"
@@ -110,36 +101,28 @@ jobs:
       DJANGO_DATABASE_PORT: "5432"
       MAKOLO_DEMO_PASSWORD: ci-beta-seed-password-not-production
       BETA_AS_OF: "2026-08-21"
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: pip
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip check
-
       - name: Check fresh PostgreSQL migration plan
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
           python manage.py migrate --plan
-
       - name: Migrate seed and validate fresh PostgreSQL beta database
         run: |
           python manage.py migrate --noinput
           python manage.py migrate --check
           python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
           python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
-
       - name: Verify PostgreSQL seed idempotence
         shell: bash
         run: |
