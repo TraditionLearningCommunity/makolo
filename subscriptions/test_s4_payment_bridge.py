@@ -54,12 +54,6 @@ class S4PaymentBridgeTests(TestCase):
             email="s4-payment-profile@example.test",
             password="x",
         )
-        self.staff = User.objects.create_user(
-            username="s4-payment-staff",
-            email="s4-payment-staff@example.test",
-            password="x",
-            is_staff=True,
-        )
         self.subscription = Subscription.objects.get(profile=self.profile)
         plan = SubscriptionPlan.objects.create(
             code="s4.payment.bridge",
@@ -175,10 +169,10 @@ class S4PaymentBridgeTests(TestCase):
 
         verify_payment_evidence(
             evidence=evidence,
-            actor=self.staff,
+            actor=self.profile,
             review_note="Verified for S4 bridge contract",
         )
-        sync_transition_payment_assessment(obligation=obligation, actor=self.staff)
+        sync_transition_payment_assessment(obligation=obligation, actor=self.profile)
 
         obligation.refresh_from_db()
         assessment.refresh_from_db()
