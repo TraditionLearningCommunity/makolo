@@ -14,6 +14,7 @@ from .contracts import (
     SubscriptionStatus,
     SubscriptionSubjectType,
 )
+from .models import PlanVersion
 from .runtime_models import EntitlementGrant, Subscription, SubscriptionItem
 from .selectors import get_current_default_base_plan
 
@@ -45,7 +46,7 @@ def _validate_acquirable_version(subscription, plan_version):
 @transaction.atomic
 def add_subscription_item(*, subscription, plan_version, status=SubscriptionItemStatus.ACTIVE, starts_at=None):
     subscription = Subscription.objects.select_for_update().get(pk=subscription.pk)
-    plan_version = plan_version.__class__.objects.select_for_update().select_related("plan").get(pk=plan_version.pk)
+    plan_version = PlanVersion.objects.select_for_update().select_related("plan").get(pk=plan_version.pk)
     _validate_acquirable_version(subscription, plan_version)
     plan = plan_version.plan
 
@@ -60,13 +61,10 @@ def add_subscription_item(*, subscription, plan_version, status=SubscriptionItem
     )
     if status == SubscriptionItemStatus.ACTIVE:
         if plan.plan_type == SubscriptionPlanType.BASE:
-            existing = active.filter(item_type=SubscriptionPlanType.BASE).first()
-            if existing:
+            if active.filter(item_type=SubscriptionPlanType.BASE).exists():
                 raise SubscriptionStateError("Cette Subscription possède déjà un BASE actif.")
-        else:
-            existing = active.filter(item_type=SubscriptionPlanType.ADDON, plan=plan).first()
-            if existing:
-                raise SubscriptionStateError("Cet add-on est déjà actif pour cette Subscription.")
+        elif active.filter(item_type=SubscriptionPlanType.ADDON, plan=plan).exists():
+            raise SubscriptionStateError("Cet add-on est déjà actif pour cette Subscription.")
 
     item = SubscriptionItem(
         subscription=subscription,
@@ -98,13 +96,7 @@ def end_subscription_item(*, item, reason, ended_at=None):
 
 
 def _ensure_default_base(subscription):
-    default_plan = get_current_default_base_plan(subscription.subject_type)
-    if default_plan is None or default_plan.current_version_id is None:
-        raise SubscriptionBootstrapError(
-            f"Aucun BASE publié par défaut n'est disponible pour {subscription.subject_type}."
-        )
-
-    active_base = SubscriptionItem.objects.select_for_update().filter(
+    active_base = SubscriptionItem.objects.select_for_update().select_related("plan").filter(
         subscription=subscription,
         status=SubscriptionItemStatus.ACTIVE,
         item_type=SubscriptionPlanType.BASE,
@@ -114,6 +106,11 @@ def _ensure_default_base(subscription):
             raise SubscriptionBootstrapError("Le BASE actif existant est incompatible avec le sujet.")
         return active_base
 
+    default_plan = get_current_default_base_plan(subscription.subject_type)
+    if default_plan is None or default_plan.current_version_id is None:
+        raise SubscriptionBootstrapError(
+            f"Aucun BASE publié par défaut n'est disponible pour {subscription.subject_type}."
+        )
     return add_subscription_item(
         subscription=subscription,
         plan_version=default_plan.current_version,
@@ -125,14 +122,15 @@ def _ensure_default_base(subscription):
 def ensure_subscription_for_profile(profile):
     User = get_user_model()
     profile = User.objects.select_for_update().get(pk=profile.pk)
-    default_plan = get_current_default_base_plan(SubscriptionSubjectType.PROFILE)
-    if default_plan is None or default_plan.current_version_id is None:
-        raise SubscriptionBootstrapError("Aucun BASE Profile publié par défaut n'est disponible.")
-    try:
-        subscription, _ = Subscription.objects.get_or_create(profile=profile, defaults={"status": SubscriptionStatus.ACTIVE})
-    except IntegrityError:
-        subscription = Subscription.objects.get(profile=profile)
-    subscription = Subscription.objects.select_for_update().get(pk=subscription.pk)
+    subscription = Subscription.objects.select_for_update().filter(profile=profile).first()
+    if subscription is None:
+        default_plan = get_current_default_base_plan(SubscriptionSubjectType.PROFILE)
+        if default_plan is None or default_plan.current_version_id is None:
+            raise SubscriptionBootstrapError("Aucun BASE Profile publié par défaut n'est disponible.")
+        try:
+            subscription = Subscription.objects.create(profile=profile, status=SubscriptionStatus.ACTIVE)
+        except IntegrityError:
+            subscription = Subscription.objects.select_for_update().get(profile=profile)
     _ensure_default_base(subscription)
     return subscription
 
@@ -140,14 +138,15 @@ def ensure_subscription_for_profile(profile):
 @transaction.atomic
 def ensure_subscription_for_space(space):
     space = Organization.objects.select_for_update().get(pk=space.pk)
-    default_plan = get_current_default_base_plan(SubscriptionSubjectType.SPACE)
-    if default_plan is None or default_plan.current_version_id is None:
-        raise SubscriptionBootstrapError("Aucun BASE Space publié par défaut n'est disponible.")
-    try:
-        subscription, _ = Subscription.objects.get_or_create(space=space, defaults={"status": SubscriptionStatus.ACTIVE})
-    except IntegrityError:
-        subscription = Subscription.objects.get(space=space)
-    subscription = Subscription.objects.select_for_update().get(pk=subscription.pk)
+    subscription = Subscription.objects.select_for_update().filter(space=space).first()
+    if subscription is None:
+        default_plan = get_current_default_base_plan(SubscriptionSubjectType.SPACE)
+        if default_plan is None or default_plan.current_version_id is None:
+            raise SubscriptionBootstrapError("Aucun BASE Space publié par défaut n'est disponible.")
+        try:
+            subscription = Subscription.objects.create(space=space, status=SubscriptionStatus.ACTIVE)
+        except IntegrityError:
+            subscription = Subscription.objects.select_for_update().get(space=space)
     _ensure_default_base(subscription)
     return subscription
 
@@ -163,15 +162,7 @@ def ensure_subscription_for_subject(subject):
 
 @transaction.atomic
 def create_entitlement_grant(
-    *,
-    feature,
-    value,
-    reason,
-    profile=None,
-    space=None,
-    granted_by=None,
-    valid_from=None,
-    valid_until=None,
+    *, feature, value, reason, profile=None, space=None, granted_by=None, valid_from=None, valid_until=None
 ):
     _subject_type(profile=profile, space=space)
     grant = EntitlementGrant(
