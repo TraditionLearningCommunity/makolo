@@ -67,3 +67,30 @@ class EntitlementSourceType(models.TextChoices):
     BASE = "base", "Base"
     ADDON = "addon", "Add-on"
     GRANT = "grant", "Grant"
+
+
+class RequirementPhase(models.TextChoices):
+    ACQUISITION = "acquisition", "Acquisition"
+    ONGOING = "ongoing", "Ongoing"
+    RENEWAL = "renewal", "Renewal"
+
+
+class RequirementFailurePolicy(models.TextChoices):
+    BLOCK = "block", "Block"
+    DENY = "deny", "Deny"
+    WARN = "warn", "Warn"
+    GRACE = "grace", "Grace"
+    SUSPEND = "suspend", "Suspend"
+
+
+class RequirementDisclosure(models.TextChoices):
+    VISIBLE = "visible", "Visible"
+    GENERIC = "generic", "Generic"
+    INTERNAL = "internal", "Internal"
+
+
+class PlanEligibilityStatus(models.TextChoices):
+    AVAILABLE = "available", "Available"
+    CONDITIONALLY_AVAILABLE = "conditionally_available", "Conditionally available"
+    NOT_ELIGIBLE = "not_eligible", "Not eligible"
+    HIDDEN = "hidden", "Hidden"
