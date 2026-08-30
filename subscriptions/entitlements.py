@@ -203,7 +203,10 @@ def _resolve(subject, *, feature_code=None, at=None):
 
     results = {}
     for code, feature in features.items():
-        entries = contributions[code]
+        entries = sorted(
+            contributions[code],
+            key=lambda entry: (entry["priority"], entry["at"], entry["source"].source_id),
+        )
         sources = tuple(entry["source"] for entry in entries)
         effective = _aggregate(feature, entries) if entries else None
         results[code] = _decorate_usage(feature, subject, effective, sources)
