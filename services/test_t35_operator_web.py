@@ -6,12 +6,7 @@ from django.urls import reverse
 from activities.models import Activity
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
-from journeys.collaboration_models import (
-    JourneyArtifactKind,
-    JourneyArtifactSensitivity,
-    JourneyArtifactStatus,
-    JourneyAssignmentResponsibility,
-)
+from journeys.collaboration_models import JourneyArtifactKind, JourneyArtifactSensitivity, JourneyAssignmentResponsibility
 from journeys.collaboration_services import assign_journey, create_artifact, request_artifact_review
 from organizations.models import Organization
 
@@ -95,8 +90,6 @@ class T35OperatorWebTests(TestCase):
             title="Pièce confidentielle",
             sensitivity=JourneyArtifactSensitivity.RESTRICTED,
         )
-        artifact.status = JourneyArtifactStatus.SUBMITTED
-        artifact.save(update_fields=["status", "updated_at"])
         assign_journey(
             journey=self.journey,
             profile=self.reviewer,
