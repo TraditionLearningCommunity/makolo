@@ -4,7 +4,7 @@ import threading
 import unittest
 
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from organizations.models import Organization
@@ -32,7 +32,9 @@ class SubscriptionConcurrencyTests(TransactionTestCase):
             except Exception as exc:  # assertions inspect exact absence below
                 errors.append(exc)
             finally:
-                close_old_connections()
+                # Worker threads own separate Django/PostgreSQL connections.
+                # Close them explicitly so the test database can be dropped.
+                connections.close_all()
 
         threads = [threading.Thread(target=worker) for _ in range(2)]
         for thread in threads:
