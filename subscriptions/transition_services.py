@@ -285,7 +285,7 @@ def request_subscription_transition(
     _validate_origin(request_origin)
 
     subscription = (
-        Subscription.objects.select_for_update()
+        Subscription.objects.select_for_update(of=("self",))
         .select_related("profile", "space")
         .get(pk=subscription.pk)
     )
@@ -598,7 +598,7 @@ def _create_item_from_transition(*, transition, plan_version, at):
 @transaction.atomic
 def complete_subscription_transition(*, transition):
     transition = (
-        SubscriptionTransition.objects.select_for_update()
+        SubscriptionTransition.objects.select_for_update(of=("self",))
         .select_related(
             "subscription",
             "source_plan_version__plan",
@@ -697,7 +697,7 @@ def complete_subscription_transition(*, transition):
 
 @transaction.atomic
 def cancel_subscription_transition(*, transition, actor=None, reason=""):
-    transition = SubscriptionTransition.objects.select_for_update().get(pk=transition.pk)
+    transition = SubscriptionTransition.objects.select_for_update(of=("self",)).get(pk=transition.pk)
     if transition.status == SubscriptionTransitionStatus.CANCELLED:
         return transition
     if transition.status not in OPEN_TRANSITION_STATUSES:
@@ -715,7 +715,7 @@ def cancel_subscription_transition(*, transition, actor=None, reason=""):
 def reject_subscription_transition(
     *, transition, actor, reason, failure_code="requirement_rejected"
 ):
-    transition = SubscriptionTransition.objects.select_for_update().get(pk=transition.pk)
+    transition = SubscriptionTransition.objects.select_for_update(of=("self",)).get(pk=transition.pk)
     if transition.status == SubscriptionTransitionStatus.REJECTED:
         return transition
     if transition.status not in OPEN_TRANSITION_STATUSES:

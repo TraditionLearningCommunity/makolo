@@ -127,7 +127,7 @@ def facilitator_attention_journeys(profile, *, now=None):
     queryset = queryset | payment_scope.filter(
         payment_obligations__evidence__status=PaymentEvidenceStatus.SUBMITTED,
     )
-    return queryset.distinct()
+    return queryset.order_by().distinct()
 
 
 def manager_attention_journeys(profile, *, now=None):
@@ -148,6 +148,7 @@ def manager_attention_journeys(profile, *, now=None):
             | Q(service_context__submissions__status=ServiceSubmissionStatus.FAILED)
         )
         .distinct()
+        .order_by()
     )
 
 
