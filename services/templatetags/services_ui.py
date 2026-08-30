@@ -51,19 +51,19 @@ def _timeline(context, steps, artifacts, notes, obligations, submissions, outcom
 
 
 @register.inclusion_tag("services/participant_workspace.html", takes_context=True)
-def service_participant_workspace(template_context, journey):
-    request = template_context.get("request")
+def service_participant_workspace(context, journey):
+    request = context.get("request")
     actor = getattr(request, "user", None)
     if journey.workflow != WorkflowKind.SERVICE or actor is None or journey.beneficiary_id != getattr(actor, "pk", None):
         return {"is_service_workspace": False}
 
     try:
-        context = journey.service_context
+        service_context = journey.service_context
     except Exception:
         return {"is_service_workspace": False}
 
     assessments = list(
-        context.requirement_assessments.select_related("requirement")
+        service_context.requirement_assessments.select_related("requirement")
         .prefetch_related("step_links__journey_step", "payment_obligation_links__obligation", "evidence")
         .order_by("requirement__position", "created_at", "id")
     )
@@ -93,8 +93,8 @@ def service_participant_workspace(template_context, journey):
     )
     for obligation in obligations:
         obligation.participant_payee_label = _payee_label(obligation)
-    submissions = list(submissions_for_context(context))
-    outcomes = list(outcome_timeline(context))
+    submissions = list(submissions_for_context(service_context))
+    outcomes = list(outcome_timeline(service_context))
 
     required_steps = [step for step in steps if step.is_required]
     completed_required = [step for step in required_steps if step.status in {"completed", "skipped"}]
@@ -107,7 +107,7 @@ def service_participant_workspace(template_context, journey):
     return {
         "is_service_workspace": True,
         "journey": journey,
-        "service_context": context,
+        "service_context": service_context,
         "service_details": journey.activity.service_details,
         "requirements": requirement_rows,
         "steps": steps,
@@ -117,7 +117,7 @@ def service_participant_workspace(template_context, journey):
         "obligations": obligations,
         "submissions": submissions,
         "outcomes": outcomes,
-        "timeline": _timeline(context, steps, artifacts, notes, obligations, submissions, outcomes),
+        "timeline": _timeline(service_context, steps, artifacts, notes, obligations, submissions, outcomes),
         "required_steps_count": len(required_steps),
         "completed_required_steps_count": len(completed_required),
         "required_requirements_count": len(required_requirements),
