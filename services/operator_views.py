@@ -14,7 +14,6 @@ from journeys.collaboration_models import (
     JourneyArtifactReview,
     JourneyArtifactReviewStatus,
     JourneyAssignment,
-    JourneyAssignmentStatus,
     JourneyBlocker,
     JourneyStep,
 )
@@ -40,7 +39,7 @@ from payments.obligation_services import reject_payment_evidence, verify_payment
 
 from .attention_selectors import facilitator_attention_journeys, manager_attention_journeys
 from .configuration_services import create_intake_question, update_service_details
-from .models import ServiceDetails, ServiceIntakeQuestion, ServicePlanTemplate, ServicePlanTemplateStatus
+from .models import ServiceDetails, ServiceIntakeQuestion, ServicePlanTemplate
 from .operator_forms import (
     ServiceAssignmentForm,
     ServiceBlockerForm,
@@ -156,7 +155,7 @@ class ServiceOperatorCaseView(LoginRequiredMixin, TemplateView):
                 "assignments": journey.assignments.select_related("profile").all(),
                 "artifacts": artifacts,
                 "notes": notes,
-                "obligations": journey.payment_obligations.select_related("evidence").all(),
+                "obligations": journey.payment_obligations.prefetch_related("evidence").all(),
                 "submissions": submissions_for_context(service_context),
                 "outcomes": outcome_timeline(service_context),
                 "can_manage_case": _permission(self.request.user, journey, PermissionCode.ACTIVITY_SERVICES_CASES_MANAGE),
@@ -377,7 +376,7 @@ class ServiceArtifactDownloadView(LoginRequiredMixin, View):
             raise Http404 from exc
         if artifact is None or not artifact.file:
             raise Http404
-        return FileResponse(artifact.file.open("rb"), as_attachment=True, filename=f"{artifact.title or 'document'}.{artifact.version}")
+        return FileResponse(artifact.file.open("rb"), as_attachment=True, filename=f"{artifact.title or 'document'}-v{artifact.version}")
 
 
 class ServiceConfigurationView(LoginRequiredMixin, TemplateView):
