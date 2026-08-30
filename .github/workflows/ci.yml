@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -17,58 +18,67 @@ permissions:
   statuses: write
 
 jobs:
-  django:
+  pr-fast:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-fast-only-secret-key-not-used-in-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Run fast Django contract checks
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
 
+  django:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
     env:
       DJANGO_ENV: test
       DJANGO_DEBUG: "False"
       DJANGO_SECRET_KEY: ci-only-secret-key-not-used-in-production
       DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: pip
-
-      - name: Set up Node 24.18.0
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "24.18.0"
           cache: npm
           cache-dependency-path: package-lock.json
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-
-      - name: Check installed Python dependencies
-        run: python -m pip check
-
+          python -m pip check
       - name: Install locked frontend dependencies
         run: npm ci
-
       - name: Build production frontend
         run: npm run build
-
       - name: Verify committed frontend artifacts are synchronized
         run: |
           git diff --exit-code -- package-lock.json static/dist
           git status --porcelain -- package-lock.json static/dist | tee /tmp/frontend-status.txt
           test ! -s /tmp/frontend-status.txt
-
       - name: Reject critical runtime CDN and inline-script regressions
         run: npm run check:runtime-deps
-
       - name: Run Django system checks
         run: python manage.py check
-
       - name: Check production security settings
         env:
           DJANGO_ENV: production
@@ -81,13 +91,10 @@ jobs:
           DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
           DJANGO_SECURE_HSTS_PRELOAD: "True"
         run: python manage.py check --deploy --fail-level WARNING
-
       - name: Check for missing migrations
         run: python manage.py makemigrations --check --dry-run
-
       - name: Apply migrations
         run: python manage.py migrate --noinput
-
       - name: Collect production static files without special ignores
         env:
           DJANGO_ENV: production
@@ -102,67 +109,56 @@ jobs:
         run: |
           rm -rf staticfiles
           python manage.py collectstatic --noinput
-
       - name: Validate WhiteNoise manifest
         run: python scripts/validate_static_manifest.py
-
-      - name: Run tests
+      - name: Run full Django test suite
         run: python manage.py test
 
-  postgresql-smoke:
+  postgresql-core:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
-
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: makolo_ci
+          POSTGRES_DB: makolo_ci_core
           POSTGRES_USER: makolo
           POSTGRES_PASSWORD: makolo-ci-password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U makolo -d makolo_ci"
+          --health-cmd "pg_isready -U makolo -d makolo_ci_core"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
       DJANGO_ENV: test
       DJANGO_DEBUG: "False"
-      DJANGO_SECRET_KEY: ci-postgresql-only-secret-key-not-used-in-production
+      DJANGO_SECRET_KEY: ci-postgresql-core-secret-key-not-used-in-production
       DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
       DJANGO_DATABASE_ENGINE: postgresql
-      DJANGO_DATABASE_NAME: makolo_ci
+      DJANGO_DATABASE_NAME: makolo_ci_core
       DJANGO_DATABASE_USER: makolo
       DJANGO_DATABASE_PASSWORD: makolo-ci-password
       DJANGO_DATABASE_HOST: 127.0.0.1
       DJANGO_DATABASE_PORT: "5432"
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: pip
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip check
-
-      - name: Run PostgreSQL Django checks
-        run: python manage.py check
-
-      - name: Apply migrations on PostgreSQL
-        run: python manage.py migrate --noinput
-
-      - name: Run contextual authority, Groups, geography, Activities and Discovery PostgreSQL tests
+      - name: Check and migrate PostgreSQL
+        run: |
+          python manage.py check
+          python manage.py migrate --noinput
+      - name: Run authority, Groups, geography, Activities and Discovery PostgreSQL tests
         run: >-
           python manage.py test
           authorization.tests
@@ -179,7 +175,6 @@ jobs:
           discovery.test_manual_access_grants
           events.test_activity_bridge
           core.test_manual_access_attribution
-
       - name: Run Journey, Request and Access PostgreSQL tests
         run: >-
           python manage.py test
@@ -193,7 +188,6 @@ jobs:
           tickets.test_journey_access_backfill
           tickets.test_journey_access_bridge
           scanner.test_access_bridge
-
       - name: Run Services T31 PostgreSQL tests
         run: >-
           python manage.py test
@@ -201,7 +195,6 @@ jobs:
           journeys.test_task31_concurrency
           services.tests
           services.test_task31_concurrency
-
       - name: Run horizontal Requirements T34A PostgreSQL tests
         run: >-
           python manage.py test
@@ -209,14 +202,12 @@ jobs:
           opportunities.test_task34a_requirements_kernel_consumer
           services.test_task34a_requirements
           services.test_task34a_concurrency
-
       - name: Run Opportunities and Services T32 PostgreSQL tests
         run: >-
           python manage.py test
           opportunities.tests
           services.test_task32_opportunities
           services.test_task32_concurrency
-
       - name: Run Payments and Services T33 PostgreSQL tests
         run: >-
           python manage.py test
@@ -224,7 +215,6 @@ jobs:
           payments.test_task33_concurrency
           services.test_task33_external_flows
           services.test_task33_concurrency
-
       - name: Run Commerce and Capacity PostgreSQL tests
         run: >-
           python manage.py test
@@ -242,6 +232,50 @@ jobs:
           payments.test_commerce_bridge
           payments.test_generic_commerce
 
+  postgresql-ops:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_ci_ops
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: makolo-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_ci_ops"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-postgresql-ops-secret-key-not-used-in-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_ci_ops
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: makolo-ci-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Check and migrate PostgreSQL
+        run: |
+          python manage.py check
+          python manage.py migrate --noinput
       - name: Run Domain Events, Notifications and Automation PostgreSQL tests
         run: >-
           python manage.py test
@@ -251,7 +285,6 @@ jobs:
           notifications.test_manual_access_grants
           automation.test_domain_events
           automation.test_domain_event_concurrency
-
       - name: Run CRM, audiences and promotions PostgreSQL tests
         run: >-
           python manage.py test
@@ -259,21 +292,18 @@ jobs:
           crm.test_audiences
           promotions.test_commerce_promotions
           promotions.test_concurrency
-
-      - name: Run Scanner, Operations and Analytics canonical PostgreSQL tests
+      - name: Run Scanner, Operations and Analytics PostgreSQL tests
         run: >-
           python manage.py test
           scanner.test_canonical_scope
           operations.test_canonical_scope
           analytics_app.test_canonical_metrics
-
       - name: Run operational readiness PostgreSQL tests
         run: >-
           python manage.py test
           core.test_operational_readiness
           accounts.test_operational_hardening
           events.test_operational_hardening
-
       - name: Run payment PostgreSQL tests
         run: >-
           python manage.py test
@@ -281,24 +311,29 @@ jobs:
           payments.test_task25_manual
           payments.test_task25_concurrency
           payments.tests
-
       - name: Run ticket and scanner PostgreSQL tests
         run: >-
           python manage.py test
           scanner.tests
           tickets.tests
           tickets.test_security
-
       - name: Run automation PostgreSQL tests
         run: >-
           python manage.py test
           automation.test_operational_hardening
           automation.tests
+      - name: Run Subscription S1/S2 PostgreSQL regressions
+        run: >-
+          python manage.py test
+          subscriptions.tests
+          subscriptions.test_s2_runtime
+          subscriptions.test_s2_grant_regressions
+          subscriptions.test_s2_concurrency
 
   e2e:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     env:
       DJANGO_ENV: e2e
       DJANGO_DEBUG: "False"
@@ -310,61 +345,45 @@ jobs:
       PAYMENTS_SANDBOX_ENABLED: "True"
       PAYMENTS_WEBHOOK_SECRET: makolo-e2e-webhook-secret
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: pip
-
-      - name: Set up Node 24.18.0
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "24.18.0"
           cache: npm
           cache-dependency-path: package-lock.json
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip check
-
       - name: Install locked frontend dependencies
         run: npm ci
-
       - name: Build production frontend
         run: npm run build
-
       - name: Verify committed frontend artifacts are synchronized
         run: |
           git diff --exit-code -- package-lock.json static/dist
           git status --porcelain -- package-lock.json static/dist | tee /tmp/frontend-status.txt
           test ! -s /tmp/frontend-status.txt
-
       - name: Reject critical runtime CDN and inline-script regressions
         run: npm run check:runtime-deps
-
       - name: Check for missing migrations
         run: python manage.py makemigrations --check --dry-run
-
       - name: Install Playwright browsers
         run: |
           printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt-mirrors.txt >/dev/null
           npx playwright install --with-deps chromium firefox
-
       - name: Prepare deterministic E2E environment
         run: bash scripts/prepare-e2e.sh
-
       - name: Run end-to-end product validation
         env:
           E2E_SKIP_PREP: "1"
         run: npm run test:e2e
-
       - name: Upload Playwright diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -381,10 +400,10 @@ jobs:
     if: ${{ always() && github.event_name == 'push' }}
     needs:
       - django
-      - postgresql-smoke
+      - postgresql-core
+      - postgresql-ops
       - e2e
     runs-on: ubuntu-latest
-
     steps:
       - name: Publish aggregate main status
         uses: actions/github-script@v7
@@ -396,8 +415,7 @@ jobs:
             const needs = JSON.parse(process.env.NEEDS_JSON);
             const results = Object.values(needs).map(({ result }) => result);
             const success = results.every((result) => result === "success");
-            const summary = `Django/PostgreSQL/E2E: ${results.join("/")}`;
-
+            const summary = `Django/PG-core/PG-ops/E2E: ${results.join("/")}`;
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -407,7 +425,4 @@ jobs:
               description: summary,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
-
-            if (!success) {
-              core.setFailed(summary);
-            }
+            if (!success) core.setFailed(summary);
