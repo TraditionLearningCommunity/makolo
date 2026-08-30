@@ -62,7 +62,7 @@ jobs:
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
-          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation
+          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions
 
   postgresql:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
@@ -115,5 +115,7 @@ jobs:
         run: python manage.py test subscriptions.test_s2_runtime subscriptions.test_s2_grant_regressions
       - name: Run Subscription S3 eligibility regressions
         run: python manage.py test subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation requirements
+      - name: Run Subscription S4 transition regressions
+        run: python manage.py test subscriptions.test_s4_transitions
       - name: Run Subscription PostgreSQL concurrency regressions
-        run: python manage.py test subscriptions.test_s2_concurrency
+        run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency
