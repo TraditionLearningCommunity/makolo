@@ -29,13 +29,14 @@ def make_payment_obligation_journey(*, manager, beneficiary=None, title="Payment
         initiated_by=beneficiary,
         beneficiary=beneficiary,
     )
-    assign_journey(
-        journey=journey,
-        profile=manager,
-        responsibility=JourneyAssignmentResponsibility.LEAD,
-        is_primary=True,
-        assigned_by=manager,
-    )
+    if manager.pk != beneficiary.pk:
+        assign_journey(
+            journey=journey,
+            profile=manager,
+            responsibility=JourneyAssignmentResponsibility.LEAD,
+            is_primary=True,
+            assigned_by=manager,
+        )
     return journey
 
 
