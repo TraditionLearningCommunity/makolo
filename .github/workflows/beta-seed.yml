@@ -4,6 +4,12 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - converted_to_draft
   push:
     branches:
       - main
@@ -17,6 +23,7 @@ permissions:
 
 jobs:
   fresh-sqlite-beta-seed:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -79,6 +86,7 @@ jobs:
           test "$integrity" = "ok"
 
   fresh-postgresql-beta-seed:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
 
