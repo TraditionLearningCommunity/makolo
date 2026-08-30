@@ -35,6 +35,7 @@ class ServiceParticipantWebTests(TestCase):
         revision = create_opportunity_revision(opportunity=opportunity, actor=self.manager, title=title, issuer_name="Entreprise fictive")
         create_opportunity_source(opportunity=opportunity, actor=self.manager, source_type=OpportunitySourceType.OFFICIAL, source_name="Source fictive", url=f"https://example.test/{opportunity.pk}", is_primary=True, verified=True)
         publish_opportunity_revision(opportunity=opportunity, revision=revision, actor=self.manager)
+        opportunity.refresh_from_db()
         return opportunity
 
     def test_catalog_is_public_and_only_lists_published_public_services(self):
