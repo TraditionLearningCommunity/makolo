@@ -1,293 +1,203 @@
 # Makolo Services — Plan d’implémentation consolidé
 
-> **Référence architecturale :** ce plan dérive de [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md), de [`services-opportunities.md`](services-opportunities.md) et, pour les primitives transversales de conditions/éligibilité, de [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md). Le document `services-opportunities.md` reste la spécification canonique détaillée des décisions Services/Opportunity. Ce document décrit uniquement le découpage d’exécution et les gates de livraison.
+> **Référence architecturale :** ce plan dérive de [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md), de [`services-opportunities.md`](services-opportunities.md) et, pour les primitives transversales de conditions/éligibilité, de [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md). Le runtime, les migrations et les tests du `main` courant gagnent sur un ancien statut documentaire.
 
 ## 1. Principe de livraison
 
 Makolo Services est une verticale composée sur le cœur canonique Makolo.
 
-Le principe reste :
-
 > **Event est une verticale. Activity est le noyau.**
 
-Services suit la même règle : `ServiceDetails` spécialise une `Activity`, tandis que `Journey` reste le parcours individuel canonique. La verticale réutilise Profile, Space, Activity/Occurrence, Journey, Role/Permission/Mandate, Geography, Requirements, Domain Events, Notifications/Automation, Commerce et Payments lorsque leur responsabilité s’applique ; elle ne recrée pas ces domaines.
+`ServiceDetails` spécialise une `Activity`; `Journey` reste le parcours individuel canonique. Services réutilise Profile, Space, Activity/Occurrence, Journey, Role/Permission/Mandate, Requirements, Opportunity, Domain Events, Notifications/Automation et Payments sans recréer ces domaines.
 
-Règles de livraison :
+Règles de livraison : branche dédiée, services transactionnels avant UI, permissions serveur avant données, migrations compatibles, tests ciblés puis régressions pertinentes, PostgreSQL pour les invariants de concurrence, beta seed déterministe, E2E utile, aucune CI affaiblie pour obtenir du vert et `main` revérifié après merge.
 
-- branche dédiée par tâche ;
-- changements petits, traçables et réversibles autant que possible ;
-- services métier transactionnels avant UI ;
-- permissions serveur avant exposition de données ;
-- migrations non destructrices sauf décision explicite justifiée par l’absence de données réelles à préserver ;
-- Domain Events émis depuis les services propriétaires ;
-- tests ciblés puis régressions pertinentes ;
-- `python manage.py check` vert ;
-- `python manage.py makemigrations --check --dry-run` vert ;
-- migrations SQLite et PostgreSQL vertes ;
-- build frontend/E2E lorsque la CI l’exige ;
-- beta seed déterministe et vert ;
-- aucun merge avec CI rouge ;
-- `main` revérifié après chaque merge.
+## 2. État réel du cycle T31–T36
 
-## 2. Découpage d’exécution T31–T36
+| Tâche | État canonique | Résultat |
+| --- | --- | --- |
+| T31 — Services Core & Journey Orchestration | ✅ livrée | Journey Services longue durée, Steps, Blockers, Assignments, Artifacts/Reviews/Notes, templates et intake |
+| T32 — Opportunities & Requirement Engine | ✅ livrée | Opportunity/revisions/sources, requirements, pinning historique, assessments/evidence |
+| T33 — Payments, Submissions & External Outcomes | ✅ livrée | PaymentObligation/Evidence, provider sandbox, external evidence, submissions/outcomes |
+| T34A — Horizontal Requirements Foundation | ✅ livrée | kernel horizontal `requirements`, états/évaluateurs explicites, frontières de dépendance |
+| T34B — Services Authorization, Privacy, Events & Automation | ✅ livrée | `activity.services.*`, rôles, anti-IDOR, artifacts restricted, Domain Events, notifications/automation |
+| T35 — Complete Services UX | ✅ livrée | participant/public, facilitator, reviewer, manager et Opportunity Curator ; PR #95 + #99, intégration corrigée par #100 |
+| T36 — Analytics, Hardening & V1 Release Gate | candidat dans PR #103 | ne devient ✅ qu’après merge et gates post-merge de `main` verts |
 
-Les anciens lots détaillés T31–T44 ont été consolidés afin d’éviter de traiter Makolo Services comme une succession de mini-apps. Ils restent utiles comme historique de conception, mais la séquence d’exécution officielle est désormais **T31–T36**, avec T34 séparée en T34A/T34B depuis la décision horizontale Requirements/Subscriptions.
+Le cycle Services n’est pas prolongé automatiquement par une T37. Après T36, les évolutions viennent des retours bêta, bugs, nouvelles décisions produit, Subscription ou nouveaux providers.
 
-### T31 — Services Core & Journey Orchestration
+## 3. T31 — Services Core & Journey Orchestration
 
-**Statut : livrée et mergée.**
+T31 a livré le moteur opérationnel Services sans Opportunity : `WorkflowKind.SERVICE`, transitions Journey, Steps et dépendances, Blockers, Assignments, Artifacts privés/versionnés, Reviews, Notes avec séparation bénéficiaire/interne, `ServiceDetails`, templates versionnés, Intake et `ServiceJourneyContext`.
 
-**But :** construire le moteur opérationnel complet d’un dossier Services longue durée, sans Opportunity.
+Le noyau `journeys` ne dépend pas de `services`. Une affectation n’accorde jamais une autorité : **Mandate = autorité ; JourneyAssignment = responsabilité opérationnelle.**
 
-Périmètre :
+## 4. T32 — Opportunities & Requirement Engine
 
-- Journey longue durée : `WorkflowKind.SERVICE`, `JourneyStatus.IN_PROGRESS`, `started_at` et transitions contrôlées ;
-- JourneyStep et transitions transactionnelles ;
-- JourneyStepDependency et prévention des cycles ;
-- JourneyBlocker ;
-- JourneyAssignment et JourneyStepAssignment, sans création d’autorité ;
-- JourneyArtifact privé, versionné et servi uniquement derrière une frontière serveur autorisée ;
-- JourneyArtifactReview ;
-- JourneyNote avec séparation stricte `beneficiary_visible` / `internal` ;
-- Domain Events T31 via l’outbox existante ;
-- `ServiceDetails` OneToOne Activity ;
-- templates de plan versionnés et immuables après publication ;
-- Intake typé et validé ;
-- `ServiceJourneyContext` sans Opportunity ;
-- matérialisation transactionnelle/idempotente du template vers JourneyStep ;
-- completion policy Services ;
-- scénario de référence « refaire mon CV » sans Opportunity, PaymentObligation ni soumission externe ;
-- sécurité transitoire deny-by-default avec autorité Activity existante + Assignment lorsqu’une action porte sur un dossier individualisé.
+T32 a livré Opportunity et OpportunityRevision, la provenance/source verification, les requirements et assessments, les saves/soumissions utilisateur, déduplication/merge, et le pinning Journey ↔ OpportunityRevision.
 
-**Direction de dépendance :**
+Une Opportunity externe n’est pas transformée en Activity. Une Journey pinnée sur une revision N reste sur N jusqu’à adoption explicite, même après publication d’une revision N+1.
 
-```text
-services → activities
-services → journeys
-```
+## 5. T33 — Payments, Submissions & External Outcomes
 
-Le noyau `journeys` ne dépend pas de la verticale `services`.
+T33 a livré `PaymentObligation`, `PaymentEvidence`, le bridge vers `Payment`, `ServiceSubmission` multi-attempt et `ServiceOutcomeEvent` append-only.
 
-**Note d’implémentation T31 :** la PR T31 matérialise ces responsabilités avec deux migrations additives (`journeys` puis `services`), conserve les workflows Journey historiques, utilise le stockage Django configuré sans imposer de provider futur, et n’introduit aucun modèle Opportunity/PaymentObligation/ServiceSubmission placeholder. Les projections personnelles existantes continuent d’être la source d’attention/historique des Journeys ; aucun second inbox n’est créé.
+Invariants :
 
-### T32 — Opportunities & Requirement Engine
+- `makolo_provider` utilise le pipeline Payment réel (sandbox/manual existants) ;
+- `external` est prouvé par PaymentEvidence et ne fabrique pas un faux Payment ;
+- les bridges legacy `TicketOrder`, `CommerceOrder`, `Payment.order` et `Payment.commerce_order` restent compatibles ;
+- `Journey.fulfilled` et `ServiceJourneyContext.current_outcome` sont deux axes distincts ;
+- `Journey.fulfilled + current_outcome=unsuccessful` est un état valide.
 
-**Statut : livrée et mergée ; ses primitives génériques de state/evaluation sont désormais extraites par T34A.**
+Aucun M-PESA réel, nouveau provider ou billing Subscription n’est introduit par Services V1.
 
-**But :** introduire le domaine canonique Opportunity et composer les requirements avec les dossiers Services.
+## 6. T34A — Horizontal Requirements Foundation
 
-Périmètre livré :
+T34A a extrait le kernel horizontal `requirements` sans créer un modèle DB universel ni GenericForeignKey métier. Les états canoniques restent `unassessed`, `pending`, `satisfied`, `unsatisfied`, `not_applicable` ; les conséquences UI comme action requise, revue ou paiement requis sont dérivées des propriétaires canoniques.
 
-- Opportunity et OpportunityRevision ;
-- provenance : OpportunitySource / SourceCheck ;
-- requirements ;
-- zones géographiques ;
-- saves ;
-- soumissions utilisateur d’Opportunities et déduplication/merge ;
-- liaison Journey ↔ Opportunity avec revision pinnée ;
-- assessments ;
-- evidence ;
-- adoption explicite d’une nouvelle revision sans mutation silencieuse des dossiers historiques.
+`OpportunityRequirement` reste dans `opportunities`; `ServiceRequirementAssessment` et ses bridges restent dans `services`. Subscription peut consommer le kernel sans importer Services.
 
-T32 ne remplace jamais Activity par Opportunity : une Opportunity externe reste une opportunité, pas une activité opérée par Makolo.
+## 7. T34B — Authorization, Privacy, Events & Automation
 
-**Décision post-T32 :** la sémantique `Requirement → Assessment → Evidence/Action` est validée, mais la mécanique commune ne doit pas rester enfermée dans la verticale Services si Subscriptions et d’autres domaines doivent l’utiliser. T34A extrait donc un kernel horizontal `requirements` sans déplacer les agrégats métiers : `OpportunityRequirement` reste dans `opportunities`, `ServiceRequirementAssessment` reste dans `services`, et leurs FKs explicites sont conservées. Aucun GenericForeignKey métier n’est introduit.
+T34B est livrée. Elle définit les permissions finales `activity.services.*`, les rôles Service Manager/Facilitator/Reviewer, les permissions Opportunity, les selectors anti-IDOR et la frontière serveur des artifacts restricted.
 
-### T33 — Payments, Submissions & External Outcomes
+Principes :
 
-**Statut : livrée et mergée dans `main` par la PR #84.**
+- participant : seulement ses Journeys et données autorisées ;
+- Facilitator : permission Activity + assignment actif, sauf `view_all` explicite ;
+- Reviewer : assignment/review approprié + permission ;
+- Manager : `view_all` n’accorde ni restricted artifact ni finance automatiquement ;
+- Opportunity Curator : permissions `opportunities.*` sans droit sur les dossiers Services individuels ;
+- deep-link Notification n’accorde jamais une permission ;
+- Autopilot reste le scheduler canonique des rappels/automations.
 
-**But :** couvrir les obligations financières et fermer le parcours jusqu’aux systèmes/tiers externes.
+## 8. T35 — Complete Services UX
 
-Périmètre livré :
+T35 est livrée par la PR #95, complétée par la PR #99, puis stabilisée sur `main` par la PR #100. Les anciennes mentions « T35 en cours » sont obsolètes.
 
-- PaymentObligation ;
-- PaymentEvidence ;
-- généralisation progressive de Payments sans casser Commerce/TicketOrder ;
-- sandbox Services ;
-- paiements externes prouvés sans faux Payment ;
-- ServiceSubmission multi-attempt ;
-- receipt artifacts ;
-- ServiceOutcomeEvent append-only ;
-- distinction stricte entre fulfillment Makolo et résultat externe.
+Surfaces livrées :
 
-**Note d’implémentation T33 :** le runtime livré reste additif et expand-compatible. `payments` possède `PaymentObligation` et `PaymentEvidence`; `Payment` conserve ses relations legacy `order` et `commerce_order` tout en acceptant une `obligation`. Une obligation peut avoir plusieurs tentatives de Payment, avec une contrainte DB garantissant au plus un `succeeded` par obligation. Les nouveaux paiements Commerce créent/réutilisent une obligation canonique ; le backfill ne crée une obligation que lorsque Journey, montant, devise et payee sont objectivement déterminables. La relation `PaymentObligation.commerce_order` est nullable et `SET_NULL` afin de préserver l’historique financier lorsqu’une ancienne projection Commerce est reconstruite, sans supprimer l’obligation ni le Payment.
+- découverte Services/Opportunities et parcours participant ;
+- intake et workspace de démarche ;
+- Steps, Requirements, Blockers, Artifacts, Reviews, paiements/preuves, submissions/outcomes ;
+- dashboard Facilitator ;
+- file Reviewer ;
+- console Service Manager ;
+- console Opportunity Curator.
 
-Les obligations `makolo_provider` passent par le pipeline Payment existant. Un contrat provider minimal centralise `initiate`, `confirm`, `cancel` et `refund`; les seuls adapters T33 sont les providers déjà réels dans le dépôt, `sandbox` et `manual`. Aucun M-PESA, Airtel Money, wallet, split payment, payout ou credential fictif n’est introduit. Une obligation `external` est satisfaite par `PaymentEvidence` reliée à un `JourneyArtifact`; aucune transaction `Payment(status=succeeded)` n’est fabriquée pour représenter un paiement effectué sur un portail tiers.
+La console Services reste opérationnelle (« travail du jour »). Elle n’est pas dupliquée par Analytics.
 
-Le lien entre un Requirement financier individuel et une obligation reste propriétaire de la verticale Services via `ServiceRequirementPaymentObligation` (`ServiceRequirementAssessment ↔ PaymentObligation`). `payments` ne dépend donc pas d’`opportunities`. Une `JourneyStep(kind=payment)` est validée par le bridge Services avant completion : le noyau `journeys` ne connaît pas Payments. Un paiement intermédiaire ne modifie pas la Journey globale vers `pending_payment`.
+## 9. T36 — Analytics, Hardening & V1 Release Gate
 
-`ServiceSubmission` conserve des tentatives numérotées par contexte avec unicité `(context, attempt)` et transitions contrôlées. La completion policy historique `required_steps` est conservée ; `required_steps_and_submission` est opt-in et exige une tentative réellement `submitted` ou `acknowledged`, jamais un résultat externe favorable. `ServiceOutcomeEvent` est append-only et `ServiceJourneyContext.current_outcome` est une projection transactionnelle déterminée par `occurred_at` avec un tie-breaker stable. `Journey.status` et `current_outcome` restent deux axes indépendants : `Journey.fulfilled + current_outcome.unsuccessful` est un état valide et couvert par les tests.
+### État de candidat
 
-La sécurité T33 réutilise l’autorité existante : bénéficiaire pour les actions propres autorisées, ou autorité Activity + `JourneyAssignment` active pour les opérations de dossier. Les opérations financières sensibles et la vérification externe restent deny-by-default hors autorité explicite/staff jusqu’à la matrice finale T34B. Les faits T33 passent par l’outbox Domain Events existante ; Notifications/Automation finales restent T34B.
+PR canonique : **#103 — `Task 36: harden and release Makolo Services V1`**.
 
-### T34 — Foundations, Authorization, Privacy, Events & Automation
+Le statut T36 ne doit être considéré ✅ que si la PR est mergée et que `main` post-merge est vert (CI complète, Beta seed et Subscriptions applicables). Avant cela, elle reste un candidat de release.
 
-T34 est désormais exécutée en **deux sous-phases ordonnées**. Ce découpage évite de continuer à ajouter de la logique Requirement spécifique à Services alors qu’un second consommateur horizontal, Subscriptions, est maintenant spécifié.
+### Analytics Services livrées dans le candidat
 
-#### T34A — Horizontal Requirements Foundation
+Le read model est ajouté dans `analytics_app`, sans `services_analytics`, snapshot ou modèle analytique parallèle. Il calcule depuis les modèles canoniques :
 
-**Statut : implémentée dans la PR T34A ; à déclarer livrée seulement après squash merge et gates post-merge verts.**
+- volume Journey Services ;
+- start rate avec numérateur/dénominateur explicites ;
+- Makolo fulfillment rate séparé du succès externe ;
+- temps jusqu’au fulfillment et durée des Steps mesurables ;
+- blockers par statut/catégorie/sévérité ;
+- deadlines actuelles et historique de completion tardive ;
+- funnel observable Opportunity → Journey et Journey → Submission ;
+- submissions et outcomes courants/historiques ;
+- workload via JourneyAssignment ;
+- reviews ;
+- PaymentObligation, Payment provider et PaymentEvidence externe ;
+- montants uniquement avec permission financière et toujours séparés par devise.
 
-**But :** extraire les primitives réellement communes de Requirements avant de construire un second moteur dans Subscriptions.
+`AnalyticsFact` n’est pas étendu automatiquement : aucune projection événementielle Services supplémentaire n’est nécessaire pour les métriques V1 déjà fiables depuis les modèles canoniques et `ServiceOutcomeEvent`.
 
-Runtime T34A :
+### Hardening du candidat
 
-- bounded context/app `requirements` sans modèle DB universel ;
-- `RequirementMode` : `automatic`, `action`, `verification`, `external_check`, `payment`, `review` ;
-- `RequirementAssessmentState` : `unassessed`, `pending`, `satisfied`, `unsatisfied`, `not_applicable` ;
-- `RequirementEvaluationResult` non persistant avec `state`, `reason_code`, `actual_value`, `expected_value`, `observed_at`, `retryable` ;
-- `EvaluatorRegistry` code-controlled avec enregistrement explicite, lookup, évaluation, validation stricte des paramètres/opérateurs/sujets, métadonnées `dependency_events` et `cache_policy` ;
-- rejet des clés de configuration arbitraires, sans `eval`, `exec`, SQL/JavaScript configurable, import path DB ou moteur booléen générique ;
-- aucun GFK/ContentType métier central ;
-- `OpportunityRequirement` reste dans `opportunities` ; `ServiceRequirementAssessment`, Evidence, Step links et bridge Payment restent dans `services` ;
-- migration en place des anciens pseudo-states T32 : `action_required/needs_review → pending`, `not_eligible → unsatisfied`, les autres valeurs conservées ;
-- la colonne Services reste nommée `status` mais utilise le contrat horizontal ; aucun rename cosmétique ;
-- conséquences Services `action_required`, `needs_review`, `payment_required`, `not_eligible` calculées depuis les propriétaires canoniques et non persistées ;
-- bridge financier T33 : obligation non satisfaite → Assessment `pending`; toutes obligations satisfied/waived → `satisfied` ;
-- kernel importable et exécutable par un consumer non-Services ;
-- test de frontière empêchant `requirements → services/subscriptions/opportunities/payments/journeys/events/transport` ;
-- tests PostgreSQL T34A explicites, y compris concurrence d’Assessment, en plus des régressions T31/T32/T33.
+- Activity Services identifiée exclusivement via `ServiceDetails` ;
+- autorité Analytics réutilisée, y compris ownership personnel par `owner_profile` et compatibilité legacy limitée ;
+- anti-IDOR de l’API Analytics Services ;
+- frontière financière indépendante de la simple gestion d’un dossier ;
+- read model DB-first et test de croissance des requêtes ;
+- pas d’index, cache ou lock spéculatif ;
+- audit ciblé des surfaces T35 : pagination/SQL-first, selectors de dossiers, artifacts restricted, notes internes, téléchargements privés et PaymentEvidence restent derrière les frontières serveur existantes ;
+- aucune migration T36 ajoutée.
 
-T34A n’ajoute aucun runtime Subscription, Entitlement ou Eligibility et n’ajoute pas de `mode` spéculatif à `OpportunityRequirement` faute de sémantique historique objectivement déductible.
+### E2E du candidat
 
-**Gate T34A :** Services T31/T32/T33 reste vert, les Requirements Opportunity/Services continuent de fonctionner, le kernel horizontal est utilisable sans Services, les migrations historiques sont préservées et PostgreSQL/Beta seed/CI sont verts.
+Le job E2E canonique reçoit une fixture Services compacte et des parcours consolidés :
 
-#### T34B — Services Authorization, Privacy, Events & Automation
+- participant sur workspace Services ;
+- manager + facilitator sur le dossier dans leur scope ;
+- reviewer sur une review restricted assignée ;
+- same-Space sans autorité → refus ;
+- staff sur Analytics Services ;
+- smoke mobile 390 px sans overflow horizontal critique.
 
-**But :** stabiliser la matrice d’autorité et l’orchestration événementielle/attention Services sur la fondation Requirements finale.
+Le beta seed existant reste la gate de données complète : il couvre déjà sandbox, PaymentEvidence externe, pinning Opportunity revision, rôles opérateurs, restricted artifact, note interne et `Journey.fulfilled + external unsuccessful`. T36 ne crée pas une seconde population de comptes bêta.
 
-Périmètre :
+## 10. Parallélisation avec Subscription
 
-- permissions finales `activity.services.*` ;
-- rôles Services ;
-- selectors anti-IDOR ;
-- frontière finale des artifacts restricted ;
-- permissions Opportunity ;
-- Domain Events finalisés ;
-- notifications ;
-- Automation et rappels/deadlines ;
-- surfaces d’attention alimentées par les capacités personnelles existantes, sans second centre d’attention.
+Subscription est un chantier distinct. Le runtime courant S1–S4 (et toute évolution mergée pendant T36) doit rester vert, mais T36 n’implémente pas S5/S6, pricing, billing, entitlement paywall Services, UX Subscription, notifications ou automation Subscription.
 
-Principe non négociable : **Mandate = autorité ; JourneyAssignment = affectation opérationnelle.**
+T36 et Subscription partent de `main` et ne dépendent jamais de leurs branches respectives. Si `main` avance avant le candidat final, T36 doit intégrer le nouveau `main`, relire les contrats concernés et rejouer les gates affectés.
 
-### T35 — Complete Services UX
+## 11. Scénarios de release Services V1
 
-**Statut : en cours sur `task-35-complete-services-ux`.**
+La release doit rester démontrable par les scénarios canoniques suivants :
 
-**But :** livrer les surfaces produit complètes sur les domaines déjà sécurisés.
+1. Service sans Opportunity : CV/intake → Journey → Steps → Artifact → Review → fulfillment.
+2. Opportunity emploi : Opportunity → Journey pinnée → Requirements → documents → Submission → outcome.
+3. Bourse : même pipeline avec requirement documentaire et deadline, sans code spécifique scholarship.
+4. Opportunity proposée par un utilisateur : submission → curation → promotion/publication.
+5. Opportunity change : revision N pinnée → N+1 publiée → adoption explicite seulement.
+6. Paiement provider : PaymentObligation → sandbox Payment succeeded → satisfied.
+7. Paiement externe : PaymentObligation external → Artifact/Evidence → verified → satisfied, sans faux Payment.
+8. Outcome négatif : Journey fulfilled + external unsuccessful représentés séparément.
+9. Permissions : beneficiary, assigned facilitator, unassigned facilitator, reviewer, manager, same-Space no authority, curator et staff.
+10. Restricted artifact : backend autorisé selon rôle/permission, jamais masqué uniquement en CSS.
 
-Périmètre :
+## 12. Gates V1
 
-- expérience participant ;
-- console facilitateur/reviewer ;
-- console Space/manager ;
-- console staff Opportunity ;
-- parcours mobile/accessibilité ;
-- intake, progression, requirements, blockers, artifacts/reviews, paiements/preuves, rendez-vous, timeline, soumissions et outcomes selon les capacités introduites par T31–T34.
-
-### T36 — Analytics, Hardening & V1 Release Gate
-
-**But :** fermer la V1 seulement après validation transversale.
-
-Périmètre :
-
-- analytics Services ;
-- performance/query-count ;
-- concurrence finale ;
-- security review ;
-- E2E desktop/mobile ;
-- beta seed ;
-- compatibilité migrations/données historiques réellement nécessaires ;
-- smoke tests environnement de test ;
-- régressions Events/Transport/Access/Capacity/Commerce/Payments ;
-- documentation opérationnelle ;
-- release gate V1.
-
-## 3. Parallélisation avec Subscriptions
-
-La spécification [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md) introduit un domaine horizontal qui partage uniquement le kernel Requirements avec Services.
-
-La séquence recommandée est :
+Le candidat Ready doit passer :
 
 ```text
-T33 terminé
-    ↓
-T34A Requirements Foundation
-    ↓
-    ├── T34B Services Authorization/Events
-    └── Subscriptions Foundation
-            ↓
-T35 Services UX          Subscriptions UX
-            \            /
-             \          /
-              T36 / hardening transversal
-```
-
-### Règle de parallélisation
-
-- **Ne pas commencer le runtime Subscription avant merge de T34A**, sinon Makolo créerait deux moteurs Requirement qu’il faudrait fusionner immédiatement.
-- **Après merge de T34A, T34B et le chantier Subscription peuvent avancer en parallèle** sur des branches distinctes, car leurs responsabilités deviennent séparées.
-- T34B ne doit pas introduire de nouvelle primitive générique réservée à Services sans vérifier d’abord `requirements`.
-- Subscription ne doit pas importer `services` ni réutiliser `Journey` pour ses transitions.
-- Les deux chantiers peuvent partager Domain Events/Notifications/Authorization seulement via leurs contrats canoniques, avec petits PRs et gates croisés.
-- **Ne pas attendre T35/T36 pour commencer Subscription** : cela repousserait inutilement une fondation horizontale déjà spécifiée et augmenterait le coût d’intégration tardive.
-
-### Révision des prochaines tâches
-
-Le plan T31–T36 reste valide pour **Services** ; il n’est pas remplacé par le chantier Subscription. La numérotation des tâches globales Makolo doit simplement enregistrer un nouveau chantier horizontal après T34A au lieu de forcer Subscription à devenir « T37 Services ».
-
-Le prochain travail après merge de T34A est donc, sur deux branches séparées :
-
-1. **T34B — Services Authorization, Privacy, Events & Automation** ;
-2. **Subscriptions Foundation**, commençant avec ses propres domaines Feature/Entitlement/Catalogue conformément à la spécification canonique et en consommant le kernel Requirements désormais stabilisé ;
-3. poursuivre T35 Services UX ;
-4. intégrer l’UX Subscription lorsque ses contrats serveur sont stabilisés ;
-5. faire converger les hardening/release gates avant toute production réelle.
-
-## 4. Mapping des anciens lots historiques
-
-Le découpage historique détaillé n’est plus une séquence de 14 PR obligatoires. Il se mappe au plan consolidé de la façon suivante :
-
-| Ancien lot | Découpage consolidé |
-| --- | --- |
-| anciens Tasks 31–33 : Journey long-running, collaboration/artifacts, Services vertical core | **T31** |
-| anciens Tasks 34–35 : Opportunity + Journey/requirements | **T32**, puis extraction horizontale ciblée en **T34A** |
-| anciens Tasks 36 et 38 : obligations financières + submissions/outcomes | **T33** |
-| anciens Tasks 37 et 39 : authorization/privacy + automation/attention | **T34B** |
-| anciens Tasks 40–42 : participant, facilitator/Space, curation Opportunity | **T35** |
-| anciens Tasks 43–44 : analytics + hardening/release | **T36** |
-
-Les décisions métier détaillées de ces anciens lots restent récupérables dans `services-opportunities.md` et l’historique Git, mais les futurs travaux doivent référencer les numéros consolidés T31–T36 et la sous-phase T34A lorsqu’ils touchent le kernel Requirements.
-
-## 5. Scénarios de release obligatoires
-
-La release Services V1 devra finalement couvrir au minimum :
-
-1. **Service sans Opportunity** — Activity CV → Journey → Intake → plan → facilitateur → artifacts versionnés → review → fulfillment.
-2. **Emploi avec Opportunity** — Opportunity → save → Journey → requirements → CV/review → blockers → paiement éventuel → submission → outcome.
-3. **Bourse** — Opportunity/revision/source → requirements → artifacts → frais sandbox ou preuve externe → vérification → submission → outcome.
-4. **Opportunity proposée par un utilisateur** — proposition → staff review → accepted/duplicate → Opportunity canonique → Journey éventuelle.
-5. **Opportunity modifiée** — dossier pinné sur revision N → N+1 publiée → comparaison → adoption explicite ou maintien de N.
-6. **Paiement commercial** — les bridges Commerce/Payment historiques restent compatibles pendant la généralisation vers PaymentObligation.
-7. **Requirements horizontal** — T32/T33 restent fonctionnels après extraction du kernel et aucun modèle Services n’est requis pour évaluer une condition via le registry horizontal.
-
-## 6. Gates transversaux
-
-Chaque tâche doit vérifier les domaines réellement impactés. Les gates de référence sont :
-
-```text
-check Django
-→ tests ciblés
-→ tests de régression pertinents
+sync main
+→ python manage.py check
 → makemigrations --check --dry-run
-→ migrations
-→ PostgreSQL
-→ build frontend/E2E si requis
-→ beta seed
-→ CI PR verte
-→ merge selon la stratégie décidée
-→ main post-merge vert
+→ tests ciblés Analytics / security / performance
+→ Django complet
+→ PostgreSQL Core
+→ PostgreSQL Ops
+→ E2E
+→ Beta seed SQLite/PostgreSQL/idempotence
+→ Subscriptions si applicable
+→ frontend/static/CSP/security checks
 ```
 
-Aucun test ne doit être supprimé ou affaibli pour obtenir du vert. Toute régression doit être corrigée à sa cause racine.
+Puis, avant merge, `origin/main` est revérifié une dernière fois. Un gate pending, queued, in_progress, failure ou cancelled n’est pas considéré vert.
+
+Après squash merge, T36 n’est close que lorsque le nouveau `main` obtient son cycle complet vert et `ci/aggregate=success`.
+
+## 13. Déploiement et opérations
+
+PythonAnywhere reste uniquement l’environnement temporaire de test/bêta. Il n’est pas l’hébergement de production final.
+
+Le runbook existant reste canonique pour déploiement, backup, health/readiness, Autopilot et private artifacts. T36 n’introduit aucun scheduler ni procédure de déploiement parallèle et ne lance pas npm/Playwright/beta seed sur le serveur PythonAnywhere.
+
+## 14. Différés explicites après Services V1
+
+Ne font pas partie de la V1 Services :
+
+- IA / matching IA / CV AI / ranking automatique ;
+- M-PESA réel ou nouveaux providers réels non décidés ;
+- hébergement de production final ;
+- Subscription pricing/billing ;
+- feature entitlement paywall Services spéculatif ;
+- analytics prédictives avancées ;
+- snapshots/cache Analytics sans preuve de besoin.
+
+Ces éléments ne bloquent pas le release gate T36.

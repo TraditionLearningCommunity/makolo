@@ -3,7 +3,7 @@
 {% block content %}
 <div class="space-y-8 lg:space-y-10">
     <section class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <div class="max-w-3xl"><span class="mk-kicker">Event Intelligence</span><h1 class="mk-page-title">Pilotez ce qui se passe vraiment.</h1><p class="mk-page-copy mt-4 text-[15px]">Ventes, remplissage, présence, waitlist et signaux opérationnels calculés dans le périmètre autorisé de votre rôle.</p></div>
+        <div class="max-w-3xl"><span class="mk-kicker">Analytics Makolo</span><h1 class="mk-page-title">Pilotez ce qui se passe vraiment.</h1><p class="mk-page-copy mt-4 text-[15px]">Mesures calculées depuis les domaines canoniques, dans le périmètre autorisé de votre rôle.</p></div>
         <div class="flex flex-col items-start gap-2 xl:items-end"><a href="{% url 'analytics:growth-dashboard' %}" class="mk-btn mk-btn-primary"><i data-lucide="trending-up" class="h-4 w-4"></i>Growth Analytics · {{ growth.organizations_count }} org.</a><p class="text-[10px] uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Actualisé {{ analytics.generated_at|date:"d/m/Y H:i" }}</p></div>
     </section>
 
@@ -14,6 +14,20 @@
         <div class="mk-stat-card"><p class="mk-stat-label">Waitlist active</p><p class="mk-stat-value">{{ analytics.waitlist_waiting }}</p><p class="mk-stat-meta">personne(s) en attente</p></div>
         <div class="mk-stat-card"><p class="mk-stat-label">Présence observée</p><p class="mk-stat-value">{% if analytics.attendance_percent is not None %}{{ analytics.attendance_percent }}%{% else %}—{% endif %}</p><p class="mk-stat-meta">{{ analytics.used_tickets }} billet(s) scanné(s)</p></div>
     </section>
+
+    {% if service_activities %}
+    <section class="mk-panel overflow-hidden">
+        <div class="border-b px-5 py-5 sm:px-6" style="border-color:var(--mk-border)"><span class="mk-kicker">Services</span><h2 class="mt-2 text-lg font-[730] tracking-[-.03em]">Analytics Services</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Accomplissement Makolo, résultat externe, délais, blockers, reviews et paiements restent mesurés séparément.</p></div>
+        <div class="grid gap-3 p-4 xl:grid-cols-2 sm:p-5">
+            {% for activity in service_activities %}
+            <a href="{% url 'analytics:service-activity-detail' activity.pk %}" class="group rounded-[20px] border p-5 transition hover:-translate-y-0.5 hover:shadow-lg" style="border-color:var(--mk-border);background:var(--mk-surface-solid)">
+                <div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="truncate text-[15px] font-[730] tracking-[-.025em]">{{ activity.title }}</p><p class="mt-1 text-xs" style="color:var(--mk-muted)">{% if activity.space %}{{ activity.space.name }}{% else %}Service personnel{% endif %}</p></div><span class="mk-badge">{{ activity.get_status_display }}</span></div>
+                <p class="mt-4 text-xs" style="color:var(--mk-muted)">Ouvrir les métriques déterministes et privacy-safe de cette Activity Service.</p>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 
     {% if analytics.money_totals %}
     <section class="mk-panel overflow-hidden">
