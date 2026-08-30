@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 
 from authorization.constants import PermissionCode
 from authorization.services import can
 
 from .authorization import get_subscription_for_actor, get_transition_for_actor
 from .models import PlanVersion
-from .runtime_models import EntitlementGrant
+from .runtime_models import EntitlementGrant, SubscriptionItem
 from .runtime_services import create_entitlement_grant, revoke_entitlement_grant
 from .transition_services import (
     cancel_subscription_transition,
@@ -29,7 +30,7 @@ def request_subscription_transition_for_actor(
     subscription_id,
     kind,
     target_plan_version_id=None,
-    source_item=None,
+    source_item_id=None,
     request_origin="self_service",
     idempotency_key,
     expires_at=None,
@@ -40,6 +41,11 @@ def request_subscription_transition_for_actor(
     target = None
     if target_plan_version_id is not None:
         target = PlanVersion.objects.select_related("plan").get(pk=target_plan_version_id)
+    source_item = None
+    if source_item_id is not None:
+        source_item = SubscriptionItem.objects.filter(subscription=subscription, pk=source_item_id).first()
+        if source_item is None:
+            raise Http404
     return request_subscription_transition(
         subscription=subscription,
         kind=kind,
