@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import migrations, models
 import django.db.models.deletion
 import django.utils.timezone
@@ -50,7 +51,7 @@ class Migration(migrations.Migration):
             name="EntitlementGrant",
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ("value", models.JSONField()),
+                ("value", models.JSONField(encoder=DjangoJSONEncoder)),
                 ("valid_from", models.DateTimeField(default=django.utils.timezone.now)),
                 ("valid_until", models.DateTimeField(blank=True, null=True)),
                 ("reason", models.CharField(max_length=320)),
