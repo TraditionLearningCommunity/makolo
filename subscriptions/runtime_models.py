@@ -119,6 +119,13 @@ class SubscriptionItem(models.Model):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name="items")
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.PROTECT, related_name="subscription_items")
     plan_version = models.ForeignKey(PlanVersion, on_delete=models.PROTECT, related_name="subscription_items")
+    created_via_transition = models.ForeignKey(
+        "SubscriptionTransition",
+        on_delete=models.PROTECT,
+        related_name="created_items",
+        null=True,
+        blank=True,
+    )
     item_type = models.CharField(max_length=12, choices=SubscriptionPlanType.choices)
     status = models.CharField(max_length=12, choices=SubscriptionItemStatus.choices, default=SubscriptionItemStatus.SCHEDULED)
     starts_at = models.DateTimeField(default=timezone.now)
@@ -129,7 +136,14 @@ class SubscriptionItem(models.Model):
 
     objects = SubscriptionItemQuerySet.as_manager()
 
-    IMMUTABLE_FIELDS = ("subscription_id", "plan_id", "plan_version_id", "item_type", "starts_at")
+    IMMUTABLE_FIELDS = (
+        "subscription_id",
+        "plan_id",
+        "plan_version_id",
+        "created_via_transition_id",
+        "item_type",
+        "starts_at",
+    )
 
     class Meta:
         ordering = ["subscription", "starts_at", "created_at", "id"]
@@ -163,6 +177,8 @@ class SubscriptionItem(models.Model):
             errors["item_type"] = "Le type de l'Item doit correspondre au type du Plan."
         if self.subscription_id and self.plan_id and self.subscription.subject_type != self.plan.subject_type:
             errors["plan"] = "Le Plan ne cible pas le type de sujet de cette Subscription."
+        if self.created_via_transition_id and self.created_via_transition.subscription_id != self.subscription_id:
+            errors["created_via_transition"] = "La Transition créatrice doit appartenir à la même Subscription."
         if self.status in {SubscriptionItemStatus.ACTIVE, SubscriptionItemStatus.SCHEDULED} and self.plan_version_id:
             if self.plan_version.status == PlanVersionStatus.DRAFT:
                 errors["plan_version"] = "Une PlanVersion draft ne peut pas être utilisée par un Item actif ou planifié."
