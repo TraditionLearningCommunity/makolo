@@ -11,6 +11,7 @@ from transport.console_views import (
 
 from .console_access import SpaceConsoleAccessView, SpaceConsoleGrantAccessView
 from .console_scanner import SpaceActivityScannerAPIView, SpaceActivityScannerView
+from .console_services import SpaceConsoleServicesView
 from .console_t21_views import (
     SpaceConsoleAnalyticsView,
     SpaceConsoleAutomationView,
@@ -61,6 +62,7 @@ urlpatterns = [
     path("<slug:slug>/activities/", SpaceConsoleActivitiesView.as_view(), name="console-activities"),
     path("<slug:slug>/activities/new/event/", SpaceConsoleCreateEventView.as_view(), name="console-create-event"),
     path("<slug:slug>/activities/<uuid:activity_id>/", SpaceConsoleActivityDetailView.as_view(), name="console-activity-detail"),
+    path("<slug:slug>/services/", SpaceConsoleServicesView.as_view(), name="console-services"),
     path("<slug:slug>/transport/", TransportConsoleView.as_view(), name="console-transport"),
     path("<slug:slug>/transport/routes/new/", TransportConsoleCreateRouteView.as_view(), name="console-transport-route-create"),
     path("<slug:slug>/transport/routes/<uuid:route_id>/", TransportConsoleRouteDetailView.as_view(), name="console-transport-route-detail"),
