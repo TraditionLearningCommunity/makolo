@@ -167,15 +167,16 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
 
     event_type = None
     old_grace_until = subscription.grace_until
-    lifecycle_owned = not subscription.status_reason or subscription.status_reason.startswith("ongoing_")
-    if lifecycle_owned and suspend:
+    can_enter_ongoing_lifecycle = not subscription.status_reason or subscription.status_reason.startswith("ongoing_")
+    ongoing_lifecycle_owned = subscription.status_reason.startswith("ongoing_")
+    if can_enter_ongoing_lifecycle and suspend:
         subscription.status = SubscriptionStatus.SUSPENDED
         subscription.grace_until = None
         subscription.status_reason = "ongoing_requirement_unsatisfied"
         if previous_status != SubscriptionStatus.SUSPENDED:
             event_type = DomainEventType.SUBSCRIPTION_SUSPENDED
-    elif lifecycle_owned and grace:
-        if previous_status == SubscriptionStatus.SUSPENDED:
+    elif can_enter_ongoing_lifecycle and grace:
+        if previous_status == SubscriptionStatus.SUSPENDED and ongoing_lifecycle_owned:
             subscription.status = SubscriptionStatus.SUSPENDED
             subscription.grace_until = None
             subscription.status_reason = "ongoing_grace_expired"
@@ -191,12 +192,12 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
             subscription.grace_until = now + timedelta(days=grace_days)
             subscription.status_reason = "ongoing_requirement_grace"
             event_type = DomainEventType.SUBSCRIPTION_GRACE_STARTED
-    elif lifecycle_owned and previous_status == SubscriptionStatus.GRACE:
+    elif ongoing_lifecycle_owned and previous_status == SubscriptionStatus.GRACE:
         subscription.status = SubscriptionStatus.ACTIVE
         subscription.grace_until = None
         subscription.status_reason = ""
         event_type = DomainEventType.SUBSCRIPTION_GRACE_ENDED
-    elif lifecycle_owned and previous_status == SubscriptionStatus.SUSPENDED:
+    elif ongoing_lifecycle_owned and previous_status == SubscriptionStatus.SUSPENDED:
         subscription.status = SubscriptionStatus.ACTIVE
         subscription.grace_until = None
         subscription.status_reason = ""
