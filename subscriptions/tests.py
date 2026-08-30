@@ -30,6 +30,10 @@ class CatalogMixin:
         cls.staff = get_user_model().objects.create_user(
             username="catalog-staff", email="catalog-staff@example.test", password="test-only-password"
         )
+        # S2 installs universal technical BASE plans. Catalogue unit tests create
+        # their own defaults inside the class transaction so S1 invariants remain
+        # isolated and are tested exactly as before.
+        SubscriptionPlan.objects.filter(is_default=True).update(is_default=False)
 
     def feature(self, code="test.boolean", **overrides):
         data = {
