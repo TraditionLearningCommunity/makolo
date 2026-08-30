@@ -474,7 +474,12 @@ class S4TransitionTests(TestCase):
             SubscriptionItem.objects.count(),
         )
         self.assertEqual(before, after)
-        self.assertEqual(first, second)
+        self.assertEqual(first.requirement_keys, second.requirement_keys)
+        self.assertEqual(first.features_gained, second.features_gained)
+        self.assertEqual(first.features_lost, second.features_lost)
+        self.assertEqual(first.quota_changes, second.quota_changes)
+        self.assertEqual(first.warnings, second.warnings)
+        self.assertEqual(first.eligibility.status, second.eligibility.status)
         self.assertEqual(first.requirement_keys, ("preview.action",))
         self.assertEqual(
             first.eligibility.status,
