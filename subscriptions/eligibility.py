@@ -3,10 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 
+from organizations.models import Organization
 from requirements.contracts import RequirementAssessmentState, RequirementEvaluationResult, RequirementMode
 from requirements.registry import RequirementConfigurationError, RequirementRegistryError, registry
 
@@ -19,6 +21,7 @@ from .contracts import (
     RequirementFailurePolicy,
     RequirementPhase,
     SubscriptionItemStatus,
+    SubscriptionSubjectType,
 )
 from .eligibility_models import EntitlementRequirement, PlanRequirement
 from .models import PlanEntitlement, PlanVersion
@@ -50,6 +53,15 @@ class PlanEligibilityResult:
     evaluated_at: Any
 
 
+def _subject_type(subject):
+    User = get_user_model()
+    if isinstance(subject, User):
+        return SubscriptionSubjectType.PROFILE
+    if isinstance(subject, Organization):
+        return SubscriptionSubjectType.SPACE
+    raise EligibilityConfigurationError("Eligibility exige un Profile ou un Space canonique.")
+
+
 def _evaluate_requirement(requirement, subject):
     if requirement.mode != RequirementMode.AUTOMATIC:
         return RequirementEvaluationResult(
@@ -65,11 +77,7 @@ def _evaluate_requirement(requirement, subject):
 
 def _projection(requirement, result):
     if requirement.disclosure == RequirementDisclosure.INTERNAL:
-        return RequirementProjection(
-            key=requirement.key,
-            state=result.state,
-            reason_code="requirement.internal",
-        )
+        return RequirementProjection(key=requirement.key, state=result.state, reason_code="requirement.internal")
     if requirement.disclosure == RequirementDisclosure.GENERIC:
         return RequirementProjection(
             key=requirement.key,
@@ -88,28 +96,44 @@ def _projection(requirement, result):
     )
 
 
-def resolve_plan_eligibility(subject, plan_version, *, self_service=True, at=None):
-    at = at or timezone.now()
-    version_id = getattr(plan_version, "pk", plan_version)
-    version = PlanVersion.objects.select_related("plan").get(pk=version_id)
-    if version.status != PlanVersionStatus.PUBLISHED:
-        raise EligibilityConfigurationError("Eligibility exige une PlanVersion publiée précise.")
-    if version.catalog_visibility == CatalogVisibility.INTERNAL:
-        return PlanEligibilityResult(str(version.pk), PlanEligibilityStatus.HIDDEN, (), ("catalog.internal",), at)
-    if self_service and version.acquisition_mode == AcquisitionMode.STAFF_ONLY:
-        return PlanEligibilityResult(str(version.pk), PlanEligibilityStatus.HIDDEN, (), ("catalog.staff_only",), at)
-
-    requirements = list(
+def _acquisition_requirements(version):
+    cache = getattr(version, "_prefetched_objects_cache", {})
+    if "requirements" in cache:
+        return sorted(
+            (item for item in cache["requirements"] if item.phase == RequirementPhase.ACQUISITION),
+            key=lambda item: (item.position, item.key),
+        )
+    return list(
         PlanRequirement.objects.filter(
             plan_version=version,
             phase=RequirementPhase.ACQUISITION,
         ).order_by("position", "key")
     )
+
+
+def resolve_plan_eligibility(subject, plan_version, *, self_service=True, at=None):
+    at = at or timezone.now()
+    if isinstance(plan_version, PlanVersion):
+        version = plan_version
+        if not hasattr(version, "plan"):
+            version = PlanVersion.objects.select_related("plan").get(pk=version.pk)
+    else:
+        version = PlanVersion.objects.select_related("plan").get(pk=plan_version)
+
+    if version.status != PlanVersionStatus.PUBLISHED:
+        raise EligibilityConfigurationError("Eligibility exige une PlanVersion publiée précise.")
+    if version.plan.subject_type != _subject_type(subject):
+        raise EligibilityConfigurationError("Le type de sujet ne correspond pas au Plan évalué.")
+    if version.catalog_visibility == CatalogVisibility.INTERNAL:
+        return PlanEligibilityResult(str(version.pk), PlanEligibilityStatus.HIDDEN, (), ("catalog.internal",), at)
+    if self_service and version.acquisition_mode == AcquisitionMode.STAFF_ONLY:
+        return PlanEligibilityResult(str(version.pk), PlanEligibilityStatus.HIDDEN, (), ("catalog.staff_only",), at)
+
     projections = []
     reason_codes = []
     has_block = False
     has_deny = False
-    for requirement in requirements:
+    for requirement in _acquisition_requirements(version):
         result = _evaluate_requirement(requirement, subject)
         projections.append(_projection(requirement, result))
         if not requirement.is_mandatory or result.state in {
@@ -133,7 +157,12 @@ def resolve_plan_eligibility(subject, plan_version, *, self_service=True, at=Non
 
 
 def eligible_plan_versions(subject, *, include_unlisted=False, self_service=True):
-    qs = PlanVersion.objects.filter(status=PlanVersionStatus.PUBLISHED).select_related("plan").prefetch_related("requirements")
+    subject_type = _subject_type(subject)
+    qs = (
+        PlanVersion.objects.filter(status=PlanVersionStatus.PUBLISHED, plan__subject_type=subject_type)
+        .select_related("plan")
+        .prefetch_related("requirements")
+    )
     if not include_unlisted:
         qs = qs.filter(catalog_visibility=CatalogVisibility.PUBLIC)
     return tuple(resolve_plan_eligibility(subject, version, self_service=self_service) for version in qs)
