@@ -1,0 +1,37 @@
+name: Temporary post-99 regression patch
+
+on:
+  push:
+    branches:
+      - fix/post-99-main-regressions
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/post-99-main-regressions
+          fetch-depth: 0
+      - name: Patch PostgreSQL Subscription row lock
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('subscriptions/transition_services.py')
+          text = path.read_text()
+          old = '''    subscription = (\n        Subscription.objects.select_for_update()\n        .select_related("profile", "space")\n        .get(pk=subscription.pk)\n    )\n'''
+          new = '''    # Lock only the canonical Subscription row. profile/space are mutually\n    # exclusive nullable subjects; joining them here creates LEFT OUTER JOINs,\n    # and PostgreSQL correctly refuses FOR UPDATE on their nullable side.\n    subscription = (\n        Subscription.objects.select_for_update(of=("self",))\n        .get(pk=subscription.pk)\n    )\n'''
+          if old not in text:
+              raise SystemExit('Expected Subscription lock block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add subscriptions/transition_services.py
+          git commit -m "fix: scope Subscription transition row lock to self"
+          git push origin HEAD:fix/post-99-main-regressions
