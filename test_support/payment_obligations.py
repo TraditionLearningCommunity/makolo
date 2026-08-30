@@ -5,8 +5,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from activities.models import Activity
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
-from journeys.collaboration_models import JourneyArtifactKind
-from journeys.collaboration_services import create_artifact
+from journeys.collaboration_models import JourneyArtifactKind, JourneyAssignmentResponsibility
+from journeys.collaboration_services import assign_journey, create_artifact
 from services.models import ServiceKind
 from services.services import create_service_details, create_service_journey
 
@@ -24,11 +24,19 @@ def make_payment_obligation_journey(*, manager, beneficiary=None, title="Payment
         actor=manager,
         service_kind=ServiceKind.APPLICATION_SUPPORT,
     )
-    return create_service_journey(
+    journey = create_service_journey(
         service=service,
         initiated_by=beneficiary,
         beneficiary=beneficiary,
     )
+    assign_journey(
+        journey=journey,
+        profile=manager,
+        responsibility=JourneyAssignmentResponsibility.LEAD,
+        is_primary=True,
+        assigned_by=manager,
+    )
+    return journey
 
 
 def make_payment_receipt_artifact(*, journey, uploaded_by, marker=b"receipt"):
