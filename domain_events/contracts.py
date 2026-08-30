@@ -70,6 +70,23 @@ class DomainEventType:
     ACCESS_EXPIRED = "access.expired"
     ACCESS_TRANSFERRED = "access.transferred"
 
+    SUBSCRIPTION_TRANSITION_REQUESTED = "subscription.transition.requested"
+    SUBSCRIPTION_TRANSITION_READY = "subscription.transition.ready"
+    SUBSCRIPTION_TRANSITION_COMPLETED = "subscription.transition.completed"
+    SUBSCRIPTION_TRANSITION_REJECTED = "subscription.transition.rejected"
+    SUBSCRIPTION_TRANSITION_CANCELLED = "subscription.transition.cancelled"
+    SUBSCRIPTION_TRANSITION_FAILED = "subscription.transition.failed"
+    SUBSCRIPTION_TRANSITION_EXPIRED = "subscription.transition.expired"
+    SUBSCRIPTION_REQUIREMENT_CHANGED = "subscription.requirement.changed"
+    SUBSCRIPTION_PLAN_CHANGED = "subscription.plan.changed"
+    SUBSCRIPTION_ADDON_ACTIVATED = "subscription.addon.activated"
+    SUBSCRIPTION_ADDON_REMOVED = "subscription.addon.removed"
+    SUBSCRIPTION_GRACE_STARTED = "subscription.grace.started"
+    SUBSCRIPTION_GRACE_ENDED = "subscription.grace.ended"
+    SUBSCRIPTION_SUSPENDED = "subscription.suspended"
+    SUBSCRIPTION_REACTIVATED = "subscription.reactivated"
+    SUBSCRIPTION_ELIGIBILITY_AVAILABLE = "subscription.eligibility.available"
+
     values = frozenset(value for name, value in vars().items() if name.isupper() and isinstance(value, str))
 
 
