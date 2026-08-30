@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from domain_events.contracts import DomainEventType
@@ -82,29 +82,14 @@ def _emit_status_change(subscription, *, event_type, previous_status, now):
     )
 
 
-def _active_ongoing_requirements(subscription, at):
-    plan_version_ids = SubscriptionItem.objects.filter(
-        subscription=subscription,
-        status=SubscriptionItemStatus.ACTIVE,
-        starts_at__lte=at,
-    ).filter(models.Q(ends_at__isnull=True) | models.Q(ends_at__gt=at)).values_list("plan_version_id", flat=True)
-    return PlanRequirement.objects.filter(
-        plan_version_id__in=plan_version_ids,
-        phase=RequirementPhase.ONGOING,
-        mode=RequirementMode.AUTOMATIC,
-    ).select_related("plan_version", "plan_version__plan")
-
-
 @transaction.atomic
 def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
     """Evaluate automatic ongoing Requirements for one Subscription only.
 
-    This function never scans Profiles, Spaces or Plans globally. It serializes the
-    Subscription, evaluates only Requirements attached to its active Items, persists
-    minimal change-detection state, then applies the aggregate warn/grace/suspend policy.
+    The Subscription row is locked first. Only Requirements attached to its active
+    Items are evaluated; there is no Profile/Space/Plan population scan. Minimal
+    persisted state exists solely for change detection and idempotent domain facts.
     """
-    from django.db import models
-
     now = now or timezone.now()
     subscription_id = subscription.pk if isinstance(subscription, Subscription) else subscription
     subscription = (
@@ -112,9 +97,20 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
         .select_related("profile", "space")
         .get(pk=subscription_id)
     )
-    subject = subscription.profile or subscription.space
     previous_status = subscription.status
+    if subscription.status == SubscriptionStatus.CLOSED:
+        return OngoingEvaluationSummary(
+            subscription_id=str(subscription.pk),
+            previous_status=previous_status,
+            status=subscription.status,
+            evaluated_requirements=0,
+            unsatisfied_warn=0,
+            unsatisfied_grace=0,
+            unsatisfied_suspend=0,
+            grace_until=subscription.grace_until,
+        )
 
+    subject = subscription.subject
     plan_version_ids = (
         SubscriptionItem.objects.filter(
             subscription=subscription,
@@ -135,9 +131,7 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
     warn = []
     grace = []
     suspend = []
-    active_requirement_ids = []
     for requirement in requirements:
-        active_requirement_ids.append(requirement.pk)
         result = registry.evaluate(requirement.evaluator_key, subject=subject, config=requirement.config)
         state_row = SubscriptionOngoingRequirementState.objects.select_for_update().filter(
             subscription=subscription,
@@ -149,15 +143,10 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
             state_row = SubscriptionOngoingRequirementState(
                 subscription=subscription,
                 plan_requirement=requirement,
-                state=result.state,
-                reason_code=result.reason_code,
-                last_evaluated_at=now,
             )
-        else:
-            state_row.state = result.state
-            state_row.reason_code = result.reason_code
-            state_row.last_evaluated_at = now
-
+        state_row.state = result.state
+        state_row.reason_code = result.reason_code
+        state_row.last_evaluated_at = now
         if result.state == RequirementAssessmentState.UNSATISFIED:
             if state_row.first_unsatisfied_at is None:
                 state_row.first_unsatisfied_at = now
@@ -176,19 +165,17 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
         elif requirement.failure_policy == RequirementFailurePolicy.SUSPEND:
             suspend.append(requirement)
 
-    SubscriptionOngoingRequirementState.objects.filter(subscription=subscription).exclude(
-        plan_requirement_id__in=active_requirement_ids
-    ).delete()
-
     event_type = None
-    if suspend:
+    old_grace_until = subscription.grace_until
+    lifecycle_owned = not subscription.status_reason or subscription.status_reason.startswith("ongoing_")
+    if lifecycle_owned and suspend:
         subscription.status = SubscriptionStatus.SUSPENDED
         subscription.grace_until = None
         subscription.status_reason = "ongoing_requirement_unsatisfied"
         if previous_status != SubscriptionStatus.SUSPENDED:
             event_type = DomainEventType.SUBSCRIPTION_SUSPENDED
-    elif grace:
-        if previous_status == SubscriptionStatus.SUSPENDED and subscription.status_reason.startswith("ongoing_"):
+    elif lifecycle_owned and grace:
+        if previous_status == SubscriptionStatus.SUSPENDED:
             subscription.status = SubscriptionStatus.SUSPENDED
             subscription.grace_until = None
             subscription.status_reason = "ongoing_grace_expired"
@@ -204,21 +191,18 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
             subscription.grace_until = now + timedelta(days=grace_days)
             subscription.status_reason = "ongoing_requirement_grace"
             event_type = DomainEventType.SUBSCRIPTION_GRACE_STARTED
-    elif previous_status == SubscriptionStatus.GRACE and subscription.status_reason.startswith("ongoing_"):
+    elif lifecycle_owned and previous_status == SubscriptionStatus.GRACE:
         subscription.status = SubscriptionStatus.ACTIVE
         subscription.grace_until = None
         subscription.status_reason = ""
         event_type = DomainEventType.SUBSCRIPTION_GRACE_ENDED
-    elif previous_status == SubscriptionStatus.SUSPENDED and subscription.status_reason.startswith("ongoing_"):
+    elif lifecycle_owned and previous_status == SubscriptionStatus.SUSPENDED:
         subscription.status = SubscriptionStatus.ACTIVE
         subscription.grace_until = None
         subscription.status_reason = ""
         event_type = DomainEventType.SUBSCRIPTION_REACTIVATED
 
-    if (
-        subscription.status != previous_status
-        or subscription.grace_until != Subscription.objects.filter(pk=subscription.pk).values_list("grace_until", flat=True).first()
-    ):
+    if subscription.status != previous_status or subscription.grace_until != old_grace_until:
         subscription.save(update_fields=["status", "grace_until", "status_reason", "updated_at"])
     if event_type:
         _emit_status_change(subscription, event_type=event_type, previous_status=previous_status, now=now)
