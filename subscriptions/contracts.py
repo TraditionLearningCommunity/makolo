@@ -94,3 +94,26 @@ class PlanEligibilityStatus(models.TextChoices):
     CONDITIONALLY_AVAILABLE = "conditionally_available", "Conditionally available"
     NOT_ELIGIBLE = "not_eligible", "Not eligible"
     HIDDEN = "hidden", "Hidden"
+
+
+class SubscriptionTransitionKind(models.TextChoices):
+    BASE_SWITCH = "base_switch", "Changement de BASE"
+    ADDON_ADD = "addon_add", "Ajout d’add-on"
+    ADDON_REMOVE = "addon_remove", "Retrait d’add-on"
+
+
+class SubscriptionTransitionStatus(models.TextChoices):
+    REQUESTED = "requested", "Demandée"
+    IN_PROGRESS = "in_progress", "En cours"
+    READY = "ready", "Prête"
+    COMPLETED = "completed", "Terminée"
+    REJECTED = "rejected", "Rejetée"
+    CANCELLED = "cancelled", "Annulée"
+    EXPIRED = "expired", "Expirée"
+    FAILED = "failed", "Échouée"
+
+
+class SubscriptionTransitionRequestOrigin(models.TextChoices):
+    SELF_SERVICE = "self_service", "Libre-service"
+    STAFF = "staff", "Staff"
+    SYSTEM = "system", "Système"
