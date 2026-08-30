@@ -1,0 +1,42 @@
+name: Temporary T35 operator frontend sync
+
+on:
+  push:
+    branches:
+      - task-35-operator-ux-residual
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-t35-operator-frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: task-35-operator-ux-residual
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci
+      - name: Build production frontend
+        run: npm run build
+      - name: Commit synchronized frontend artifacts
+        run: |
+          if git diff --quiet -- package-lock.json static/dist; then
+            echo "Frontend artifacts already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json static/dist
+          git commit -m "build: synchronize T35 operator frontend artifacts"
+          git push origin HEAD:task-35-operator-ux-residual
