@@ -1,0 +1,8 @@
+{% extends 'base/app.html' %}
+{% block title %}Revue d’une proposition | Makolo{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <section class="mk-panel p-6"><span class="mk-kicker">Proposition utilisateur</span><h1 class="mk-page-title mt-2">{{ submission.title|default:'Opportunity proposée' }}</h1><p class="mk-page-copy mt-2">{{ submission.url }}</p><p class="mt-3 text-sm" style="color:var(--mk-muted)">{{ submission.get_status_display }} · proposée par {{ submission.submitted_by.get_full_name|default:submission.submitted_by.email }}</p>{% if submission.comment %}<div class="mt-4 rounded-2xl border p-4" style="border-color:var(--mk-border)">{{ submission.comment }}</div>{% endif %}</section>
+  <section class="mk-panel p-5"><h2 class="text-lg font-extrabold">Décision</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Accepter ou marquer comme doublon exige une Opportunity canonique existante. La publication reste une étape séparée.</p><form method="post" class="mt-4 space-y-3">{% csrf_token %}{{ decision_form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Enregistrer la décision</button></form></section>
+</div>
+{% endblock %}
