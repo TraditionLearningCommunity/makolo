@@ -123,6 +123,7 @@ test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_e2e'], { stdio: 'inherit' });
   execFileSync('python', ['manage.py', 'prepare_transport_e2e'], { stdio: 'inherit' });
   execFileSync('python', ['manage.py', 'prepare_discovery_e2e'], { stdio: 'inherit' });
+  execFileSync('python', ['manage.py', 'prepare_services_e2e'], { stdio: 'inherit' });
 });
 
 
