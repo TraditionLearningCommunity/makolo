@@ -8,6 +8,8 @@ class DomainEventType:
     OCCURRENCE_CANCELLED = "occurrence.cancelled"
     OCCURRENCE_REOPENED = "occurrence.reopened"
 
+    ORGANIZATION_TEAM_MEMBERSHIP_CHANGED = "organization.team_membership.changed"
+
     JOURNEY_SUBMITTED = "journey.submitted"
     JOURNEY_PENDING_APPROVAL = "journey.pending_approval"
     JOURNEY_APPROVED = "journey.approved"
