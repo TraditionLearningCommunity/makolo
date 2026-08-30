@@ -12,6 +12,9 @@ on:
       - "organizations/**"
       - "activities/**"
       - "authorization/**"
+      - "domain_events/**"
+      - "notifications/**"
+      - "automation/**"
       - "payments/**"
       - "test_support/**"
       - "config/settings.py"
@@ -27,6 +30,9 @@ on:
       - "organizations/**"
       - "activities/**"
       - "authorization/**"
+      - "domain_events/**"
+      - "notifications/**"
+      - "automation/**"
       - "payments/**"
       - "test_support/**"
       - "config/settings.py"
@@ -64,7 +70,7 @@ jobs:
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
-          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview
+          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade
 
   postgresql:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
@@ -119,5 +125,7 @@ jobs:
         run: python manage.py test subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation requirements
       - name: Run Subscription S4 transition regressions
         run: python manage.py test subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview
+      - name: Run Subscription S5 security events automation regressions
+        run: python manage.py test subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade notifications automation domain_events authorization
       - name: Run Subscription PostgreSQL concurrency regressions
         run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency
