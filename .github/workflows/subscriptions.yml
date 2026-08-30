@@ -13,6 +13,7 @@ on:
       - "activities/**"
       - "authorization/**"
       - "payments/**"
+      - "test_support/**"
       - "config/settings.py"
       - "docs/architecture/subscriptions-*.md"
       - ".github/workflows/subscriptions.yml"
@@ -27,6 +28,7 @@ on:
       - "activities/**"
       - "authorization/**"
       - "payments/**"
+      - "test_support/**"
       - "config/settings.py"
       - "docs/architecture/subscriptions-*.md"
       - ".github/workflows/subscriptions.yml"
@@ -62,7 +64,7 @@ jobs:
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
-          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge
+          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview
 
   postgresql:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
@@ -116,6 +118,6 @@ jobs:
       - name: Run Subscription S3 eligibility regressions
         run: python manage.py test subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation requirements
       - name: Run Subscription S4 transition regressions
-        run: python manage.py test subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge
+        run: python manage.py test subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview
       - name: Run Subscription PostgreSQL concurrency regressions
         run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency
