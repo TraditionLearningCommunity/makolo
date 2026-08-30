@@ -107,15 +107,15 @@ def emit_team_membership_changed(sender, instance, created, raw=False, **kwargs)
     space_id = instance.team.organization_id
     emit_domain_event(
         event_type=DomainEventType.ORGANIZATION_TEAM_MEMBERSHIP_CHANGED,
-        aggregate_type="organization",
-        aggregate_id=space_id,
+        source_type="organization",
+        source_id=str(space_id),
+        space_id=space_id,
         payload={
             "space_id": str(space_id),
             "team_membership_id": str(instance.pk),
             "old_status": previous_status,
             "new_status": instance.status,
         },
-        actor=instance.invited_by,
         idempotency_key=(
             f"organization-team-membership:{instance.pk}:"
             f"{instance.updated_at.isoformat()}:{previous_status}:{instance.status}"
