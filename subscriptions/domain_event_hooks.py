@@ -32,6 +32,17 @@ def _subscription_payload(subscription):
     return payload
 
 
+def _emit_subscription_event(*, subscription, event_type, payload, idempotency_key):
+    return emit_domain_event(
+        event_type=event_type,
+        source_type="subscription",
+        source_id=str(subscription.pk),
+        space_id=subscription.space_id,
+        payload=payload,
+        idempotency_key=idempotency_key,
+    )
+
+
 @receiver(pre_save, sender=SubscriptionTransition, dispatch_uid="subscriptions.transition.capture_previous_status")
 def capture_transition_previous_status(sender, instance, **kwargs):
     if instance._state.adding:
@@ -49,7 +60,8 @@ def emit_transition_domain_events(sender, instance, created, **kwargs):
     if event_type is None:
         return
 
-    payload = _subscription_payload(instance.subscription)
+    subscription = instance.subscription
+    payload = _subscription_payload(subscription)
     payload.update(
         {
             "transition_id": str(instance.pk),
@@ -59,12 +71,10 @@ def emit_transition_domain_events(sender, instance, created, **kwargs):
             "new_state": instance.status,
         }
     )
-    emit_domain_event(
+    _emit_subscription_event(
+        subscription=subscription,
         event_type=event_type,
-        aggregate_type="subscription",
-        aggregate_id=instance.subscription_id,
         payload=payload,
-        actor=instance.requested_by,
         idempotency_key=f"subscription-transition:{instance.pk}:{event_type}",
     )
 
@@ -76,12 +86,10 @@ def emit_transition_domain_events(sender, instance, created, **kwargs):
         product_event = DomainEventType.SUBSCRIPTION_ADDON_ACTIVATED
     else:
         product_event = DomainEventType.SUBSCRIPTION_ADDON_REMOVED
-    emit_domain_event(
+    _emit_subscription_event(
+        subscription=subscription,
         event_type=product_event,
-        aggregate_type="subscription",
-        aggregate_id=instance.subscription_id,
         payload=payload,
-        actor=instance.requested_by,
         idempotency_key=f"subscription-transition:{instance.pk}:{product_event}",
     )
 
@@ -100,7 +108,8 @@ def emit_assessment_domain_event(sender, instance, created, **kwargs):
     if created or previous_state == instance.state:
         return
     transition = instance.transition
-    payload = _subscription_payload(transition.subscription)
+    subscription = transition.subscription
+    payload = _subscription_payload(subscription)
     payload.update(
         {
             "transition_id": str(transition.pk),
@@ -111,11 +120,9 @@ def emit_assessment_domain_event(sender, instance, created, **kwargs):
             "new_state": instance.state,
         }
     )
-    emit_domain_event(
+    _emit_subscription_event(
+        subscription=subscription,
         event_type=DomainEventType.SUBSCRIPTION_REQUIREMENT_CHANGED,
-        aggregate_type="subscription",
-        aggregate_id=transition.subscription_id,
         payload=payload,
-        actor=instance.assessed_by,
         idempotency_key=f"subscription-assessment:{instance.pk}:{instance.updated_at.isoformat()}:{instance.state}",
     )
