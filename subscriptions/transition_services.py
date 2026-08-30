@@ -598,7 +598,7 @@ def _create_item_from_transition(*, transition, plan_version, at):
 @transaction.atomic
 def complete_subscription_transition(*, transition):
     transition = (
-        SubscriptionTransition.objects.select_for_update()
+        SubscriptionTransition.objects.select_for_update(of=("self",))
         .select_related(
             "subscription",
             "source_plan_version__plan",
