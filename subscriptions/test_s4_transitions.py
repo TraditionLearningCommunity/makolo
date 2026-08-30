@@ -3,20 +3,16 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from activities.models import Activity
 from payments.models import (
     PaymentObligationProcessingMode,
     PaymentObligationReason,
-    PaymentObligationStatus,
 )
 from payments.obligation_services import create_payment_obligation, satisfy_payment_obligation
 from payments.obligation_transitions import waive_payment_obligation
+from payments.testing import make_payment_obligation_journey
 from requirements.contracts import RequirementAssessmentState, RequirementMode
-from services.models import ServiceKind
-from services.services import create_service_details, create_service_journey
 
 from .contracts import (
     AcquisitionMode,
@@ -74,7 +70,13 @@ class S4TransitionTests(TestCase):
     def setUp(self):
         self.subscription = Subscription.objects.get(profile=self.profile)
 
-    def make_version(self, code, *, plan_type=SubscriptionPlanType.ADDON, acquisition=AcquisitionMode.SELF_SERVICE):
+    def make_version(
+        self,
+        code,
+        *,
+        plan_type=SubscriptionPlanType.ADDON,
+        acquisition=AcquisitionMode.SELF_SERVICE,
+    ):
         plan = SubscriptionPlan.objects.create(
             code=code,
             plan_type=plan_type,
@@ -111,7 +113,15 @@ class S4TransitionTests(TestCase):
             failure_policy=policy,
         )
 
-    def request(self, version, *, kind=SubscriptionTransitionKind.ADDON_ADD, key="s4-request", source_item=None, origin=SubscriptionTransitionRequestOrigin.SELF_SERVICE):
+    def request(
+        self,
+        version,
+        *,
+        kind=SubscriptionTransitionKind.ADDON_ADD,
+        key="s4-request",
+        source_item=None,
+        origin=SubscriptionTransitionRequestOrigin.SELF_SERVICE,
+    ):
         return request_subscription_transition(
             subscription=self.subscription,
             kind=kind,
@@ -120,6 +130,24 @@ class S4TransitionTests(TestCase):
             requested_by=self.profile,
             request_origin=origin,
             idempotency_key=key,
+        )
+
+    def make_obligation(self, transition, *, suffix, created_by=None):
+        journey = make_payment_obligation_journey(
+            manager=self.profile,
+            beneficiary=self.profile,
+            title=f"S4 payment {suffix}",
+        )
+        return create_payment_obligation(
+            journey=journey,
+            reason=PaymentObligationReason.OTHER,
+            label=f"S4 controlled obligation {suffix}",
+            amount=Decimal("10.00"),
+            currency="USD",
+            processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
+            external_payee_name="Controlled payee",
+            created_by=created_by or self.profile,
+            source_key=f"s4:{transition.pk}:{suffix}",
         )
 
     def test_available_addon_request_is_ready_and_idempotent(self):
@@ -131,7 +159,10 @@ class S4TransitionTests(TestCase):
 
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(first.status, SubscriptionTransitionStatus.READY)
-        self.assertEqual(SubscriptionTransition.objects.filter(subscription=self.subscription).count(), 1)
+        self.assertEqual(
+            SubscriptionTransition.objects.filter(subscription=self.subscription).count(),
+            1,
+        )
 
     def test_same_idempotency_key_with_incompatible_intent_is_rejected(self):
         first_version = self.make_version("s4.addon.first")
@@ -142,10 +173,32 @@ class S4TransitionTests(TestCase):
         with self.assertRaises(SubscriptionTransitionError):
             self.request(second_version, key="collision")
 
+    def test_request_retry_after_completion_returns_original_transition(self):
+        version = self.make_version("s4.addon.retry-after-complete")
+        publish_plan_version(version)
+        transition = self.request(version, key="retry-after-complete")
+        complete_subscription_transition(transition=transition)
+
+        retried = self.request(version, key="retry-after-complete")
+
+        self.assertEqual(retried.pk, transition.pk)
+        self.assertEqual(retried.status, SubscriptionTransitionStatus.COMPLETED)
+        self.assertEqual(
+            self.subscription.items.filter(
+                plan=version.plan,
+                status=SubscriptionItemStatus.ACTIVE,
+            ).count(),
+            1,
+        )
+
     def test_one_open_mutating_transition_per_subscription(self):
         first_version = self.make_version("s4.addon.open.one")
         second_version = self.make_version("s4.addon.open.two")
-        self.add_requirement(first_version, key="action.pending", mode=RequirementMode.ACTION)
+        self.add_requirement(
+            first_version,
+            key="action.pending",
+            mode=RequirementMode.ACTION,
+        )
         publish_plan_version(first_version)
         publish_plan_version(second_version)
         transition = self.request(first_version, key="open-one")
@@ -155,12 +208,21 @@ class S4TransitionTests(TestCase):
 
     def test_conditionally_available_materializes_only_pinned_target_requirements(self):
         version = self.make_version("s4.addon.action")
-        requirement = self.add_requirement(version, key="action.required", mode=RequirementMode.ACTION)
+        requirement = self.add_requirement(
+            version,
+            key="action.required",
+            mode=RequirementMode.ACTION,
+        )
         publish_plan_version(version)
-        self.assertEqual(resolve_plan_eligibility(self.profile, version).status, PlanEligibilityStatus.CONDITIONALLY_AVAILABLE)
+        self.assertEqual(
+            resolve_plan_eligibility(self.profile, version).status,
+            PlanEligibilityStatus.CONDITIONALLY_AVAILABLE,
+        )
 
         transition = self.request(version, key="conditional")
-        assessment = SubscriptionRequirementAssessment.objects.get(transition=transition)
+        assessment = SubscriptionRequirementAssessment.objects.get(
+            transition=transition
+        )
         self.assertEqual(assessment.plan_requirement_id, requirement.pk)
         self.assertEqual(assessment.state, RequirementAssessmentState.PENDING)
         self.assertEqual(transition.status, SubscriptionTransitionStatus.IN_PROGRESS)
@@ -172,11 +234,21 @@ class S4TransitionTests(TestCase):
             reason_code="review.satisfied",
         )
         self.assertEqual(transition.status, SubscriptionTransitionStatus.READY)
-        self.assertEqual(SubscriptionRequirementAssessmentEvent.objects.filter(assessment=assessment).count(), 2)
+        self.assertEqual(
+            SubscriptionRequirementAssessmentEvent.objects.filter(
+                assessment=assessment
+            ).count(),
+            2,
+        )
 
     def test_optional_pending_requirement_does_not_block_readiness(self):
         version = self.make_version("s4.addon.optional")
-        self.add_requirement(version, key="optional.review", mode=RequirementMode.REVIEW, mandatory=False)
+        self.add_requirement(
+            version,
+            key="optional.review",
+            mode=RequirementMode.REVIEW,
+            mandatory=False,
+        )
         publish_plan_version(version)
         transition = self.request(version, key="optional")
         self.assertEqual(transition.status, SubscriptionTransitionStatus.READY)
@@ -198,7 +270,10 @@ class S4TransitionTests(TestCase):
         with self.assertRaises(SubscriptionTransitionError):
             self.request(denied, key="denied")
 
-        staff_only = self.make_version("s4.addon.staff", acquisition=AcquisitionMode.STAFF_ONLY)
+        staff_only = self.make_version(
+            "s4.addon.staff",
+            acquisition=AcquisitionMode.STAFF_ONLY,
+        )
         publish_plan_version(staff_only)
         with self.assertRaises(SubscriptionTransitionError):
             self.request(staff_only, key="hidden")
@@ -211,12 +286,24 @@ class S4TransitionTests(TestCase):
 
     def test_target_and_requirements_remain_pinned_when_new_version_is_published(self):
         version = self.make_version("s4.addon.pinning")
-        requirement = self.add_requirement(version, key="pin.action", mode=RequirementMode.ACTION)
+        requirement = self.add_requirement(
+            version,
+            key="pin.action",
+            mode=RequirementMode.ACTION,
+        )
         publish_plan_version(version)
         transition = self.request(version, key="pinning")
 
-        v2 = PlanVersion.objects.create(plan=version.plan, version=2, name="s4.addon.pinning.v2")
-        self.add_requirement(v2, key="pin.action.v2", mode=RequirementMode.ACTION)
+        v2 = PlanVersion.objects.create(
+            plan=version.plan,
+            version=2,
+            name="s4.addon.pinning.v2",
+        )
+        self.add_requirement(
+            v2,
+            key="pin.action.v2",
+            mode=RequirementMode.ACTION,
+        )
         publish_plan_version(v2)
 
         transition.refresh_from_db()
@@ -225,31 +312,71 @@ class S4TransitionTests(TestCase):
         self.assertEqual(assessment.plan_requirement_id, requirement.pk)
         self.assertEqual(assessment.plan_requirement.plan_version_id, version.pk)
 
-    def test_base_switch_completion_is_atomic_and_keeps_exactly_one_active_base(self):
-        target = self.make_version("s4.base.pro", plan_type=SubscriptionPlanType.BASE)
+    def test_base_switch_completion_keeps_exactly_one_active_base(self):
+        target = self.make_version(
+            "s4.base.pro",
+            plan_type=SubscriptionPlanType.BASE,
+        )
         publish_plan_version(target)
-        old_base = self.subscription.items.get(status=SubscriptionItemStatus.ACTIVE, item_type=SubscriptionPlanType.BASE)
+        old_base = self.subscription.items.get(
+            status=SubscriptionItemStatus.ACTIVE,
+            item_type=SubscriptionPlanType.BASE,
+        )
 
-        transition = self.request(target, kind=SubscriptionTransitionKind.BASE_SWITCH, key="base-switch")
+        transition = self.request(
+            target,
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
+            key="base-switch",
+        )
         self.assertEqual(transition.source_plan_version_id, old_base.plan_version_id)
         complete_subscription_transition(transition=transition)
 
         old_base.refresh_from_db()
         transition.refresh_from_db()
-        active = self.subscription.items.filter(status=SubscriptionItemStatus.ACTIVE, item_type=SubscriptionPlanType.BASE)
+        active = self.subscription.items.filter(
+            status=SubscriptionItemStatus.ACTIVE,
+            item_type=SubscriptionPlanType.BASE,
+        )
         self.assertEqual(old_base.status, SubscriptionItemStatus.ENDED)
         self.assertEqual(active.count(), 1)
         self.assertEqual(active.get().plan_version_id, target.pk)
         self.assertEqual(active.get().created_via_transition_id, transition.pk)
         self.assertEqual(transition.status, SubscriptionTransitionStatus.COMPLETED)
-        self.assertEqual(complete_subscription_transition(transition=transition).pk, transition.pk)
+        self.assertEqual(
+            complete_subscription_transition(transition=transition).pk,
+            transition.pk,
+        )
+
+    def test_base_switch_request_retry_after_completion_is_stable(self):
+        target = self.make_version(
+            "s4.base.retry",
+            plan_type=SubscriptionPlanType.BASE,
+        )
+        publish_plan_version(target)
+        transition = self.request(
+            target,
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
+            key="base-retry",
+        )
+        complete_subscription_transition(transition=transition)
+
+        retried = self.request(
+            target,
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
+            key="base-retry",
+        )
+        self.assertEqual(retried.pk, transition.pk)
+        self.assertEqual(retried.status, SubscriptionTransitionStatus.COMPLETED)
 
     def test_addon_add_and_remove_preserve_item_history(self):
         version = self.make_version("s4.addon.history")
         publish_plan_version(version)
         add_transition = self.request(version, key="addon-add")
         complete_subscription_transition(transition=add_transition)
-        item = self.subscription.items.get(plan=version.plan, status=SubscriptionItemStatus.ACTIVE)
+        item = self.subscription.items.get(
+            plan=version.plan,
+            status=SubscriptionItemStatus.ACTIVE,
+        )
 
         remove_transition = self.request(
             version,
@@ -264,29 +391,24 @@ class S4TransitionTests(TestCase):
         self.assertIsNotNone(item.ends_at)
         self.assertTrue(item.ended_reason.startswith("subscription_transition:"))
 
-    def test_payment_obligation_bridge_stays_pending_until_obligation_is_satisfied(self):
+    def test_payment_obligation_bridge_pending_then_satisfied(self):
         version = self.make_version("s4.addon.payment")
-        self.add_requirement(version, key="payment.required", mode=RequirementMode.PAYMENT)
+        self.add_requirement(
+            version,
+            key="payment.required",
+            mode=RequirementMode.PAYMENT,
+        )
         publish_plan_version(version)
         transition = self.request(version, key="payment")
         assessment = transition.assessments.get()
         self.assertEqual(assessment.state, RequirementAssessmentState.PENDING)
 
-        activity = Activity.objects.create(owner_profile=self.profile, created_by=self.profile, title="S4 controlled payment")
-        service = create_service_details(activity=activity, actor=self.profile, service_kind=ServiceKind.APPLICATION_SUPPORT)
-        journey = create_service_journey(service=service, initiated_by=self.profile, beneficiary=self.profile)
-        obligation = create_payment_obligation(
-            journey=journey,
-            reason=PaymentObligationReason.OTHER,
-            label="S4 controlled obligation",
-            amount=Decimal("10.00"),
-            currency="USD",
-            processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
-            external_payee_name="Controlled payee",
-            created_by=self.profile,
-            source_key=f"s4:{transition.pk}:payment",
+        obligation = self.make_obligation(transition, suffix="satisfied")
+        link_transition_payment_obligation(
+            assessment=assessment,
+            obligation=obligation,
+            actor=self.profile,
         )
-        link_transition_payment_obligation(assessment=assessment, obligation=obligation, actor=self.profile)
         assessment.refresh_from_db()
         self.assertEqual(assessment.state, RequirementAssessmentState.PENDING)
 
@@ -299,26 +421,25 @@ class S4TransitionTests(TestCase):
 
     def test_waived_payment_obligation_satisfies_assessment(self):
         version = self.make_version("s4.addon.payment.waived")
-        self.add_requirement(version, key="payment.waived", mode=RequirementMode.PAYMENT)
+        self.add_requirement(
+            version,
+            key="payment.waived",
+            mode=RequirementMode.PAYMENT,
+        )
         publish_plan_version(version)
         transition = self.request(version, key="payment-waived")
         assessment = transition.assessments.get()
-
-        activity = Activity.objects.create(owner_profile=self.profile, created_by=self.profile, title="S4 waived payment")
-        service = create_service_details(activity=activity, actor=self.profile, service_kind=ServiceKind.APPLICATION_SUPPORT)
-        journey = create_service_journey(service=service, initiated_by=self.profile, beneficiary=self.profile)
-        obligation = create_payment_obligation(
-            journey=journey,
-            reason=PaymentObligationReason.OTHER,
-            label="S4 waived obligation",
-            amount=Decimal("10.00"),
-            currency="USD",
-            processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
-            external_payee_name="Controlled payee",
+        obligation = self.make_obligation(
+            transition,
+            suffix="waived",
             created_by=self.staff,
-            source_key=f"s4:{transition.pk}:waived",
         )
-        link_transition_payment_obligation(assessment=assessment, obligation=obligation, actor=self.staff)
+
+        link_transition_payment_obligation(
+            assessment=assessment,
+            obligation=obligation,
+            actor=self.staff,
+        )
         waive_payment_obligation(obligation=obligation, actor=self.staff)
         sync_transition_payment_assessment(obligation=obligation, actor=self.staff)
         assessment.refresh_from_db()
@@ -326,14 +447,23 @@ class S4TransitionTests(TestCase):
 
     def test_preview_is_read_only(self):
         version = self.make_version("s4.addon.preview")
-        self.add_requirement(version, key="preview.action", mode=RequirementMode.ACTION)
+        self.add_requirement(
+            version,
+            key="preview.action",
+            mode=RequirementMode.ACTION,
+        )
         publish_plan_version(version)
         before = (
             SubscriptionTransition.objects.count(),
             SubscriptionRequirementAssessment.objects.count(),
             SubscriptionItem.objects.count(),
         )
-        preview = preview_subscription_change(
+        first = preview_subscription_change(
+            subscription=self.subscription,
+            kind=SubscriptionTransitionKind.ADDON_ADD,
+            target_plan_version=version,
+        )
+        second = preview_subscription_change(
             subscription=self.subscription,
             kind=SubscriptionTransitionKind.ADDON_ADD,
             target_plan_version=version,
@@ -344,5 +474,9 @@ class S4TransitionTests(TestCase):
             SubscriptionItem.objects.count(),
         )
         self.assertEqual(before, after)
-        self.assertEqual(preview.requirement_keys, ("preview.action",))
-        self.assertEqual(preview.eligibility.status, PlanEligibilityStatus.CONDITIONALLY_AVAILABLE)
+        self.assertEqual(first, second)
+        self.assertEqual(first.requirement_keys, ("preview.action",))
+        self.assertEqual(
+            first.eligibility.status,
+            PlanEligibilityStatus.CONDITIONALLY_AVAILABLE,
+        )
