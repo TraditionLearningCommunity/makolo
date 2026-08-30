@@ -16,6 +16,7 @@ from .models import Organization
 
 SPACE_NAVIGATION = (
     ("Activité", (("activities", "Activités", "calendar-days"), ("requests", "Demandes", "calendar-search"), ("access", "Accès", "badge-check"))),
+    ("Services", (("services", "Services · Dossiers", "route"),)),
     ("Transport", (("transport", "Routes · Départs · Véhicules", "bus-front"),)),
     ("Commercial", (("offers", "Tarifs", "ticket"), ("orders", "Commandes", "layout-dashboard"), ("payments", "Paiements", "wallet-cards"), ("promotions", "Promotions", "badge-percent"))),
     ("Publics", (("groups", "Groupes", "users-round"), ("crm", "Contacts", "contact-round"), ("audiences", "Audiences", "users-round"))),
@@ -120,6 +121,15 @@ def _has_activity_capability(profile, space, permission_code):
 def _module_allowed(profile, space, key, *, space_permissions, limited, space_role_codes):
     if key in {"activities", "transport"}:
         return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_VIEW)
+    if key == "services":
+        return any(
+            _has_activity_capability(profile, space, code)
+            for code in (
+                PermissionCode.ACTIVITY_SERVICES_CONFIGURE,
+                PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
+                PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED,
+            )
+        )
     if key == "requests":
         return _has_activity_capability(profile, space, PermissionCode.ACTIVITY_REQUESTS_VIEW)
     if key == "access":
