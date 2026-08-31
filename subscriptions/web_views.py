@@ -6,23 +6,15 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
 
-from .contracts import (
-    AcquisitionMode,
-    CatalogVisibility,
-    PlanVersionStatus,
-    SubscriptionItemStatus,
-    SubscriptionPlanType,
-    SubscriptionTransitionKind,
-    SubscriptionTransitionStatus,
-)
-from .models import PlanVersion
+from .contracts import SubscriptionTransitionKind, SubscriptionTransitionStatus
+from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
 from .product_preview import build_subscription_change_preview
 from .product_read import build_subscription_product_view
-from .runtime_models import Subscription, SubscriptionItem
+from .runtime_models import Subscription
 from .security_services import (
     cancel_subscription_transition_for_actor,
     complete_subscription_transition_for_actor,
@@ -35,36 +27,6 @@ def _profile_subscription(actor):
     if subscription is None:
         raise Http404("Aucun abonnement personnel n’est disponible.")
     return subscription
-
-
-def _self_service_target(subscription, plan_version_id):
-    return get_object_or_404(
-        PlanVersion.objects.select_related("plan"),
-        pk=plan_version_id,
-        status=PlanVersionStatus.PUBLISHED,
-        catalog_visibility=CatalogVisibility.PUBLIC,
-        acquisition_mode=AcquisitionMode.SELF_SERVICE,
-        plan__is_active=True,
-        plan__subject_type=subscription.subject_type,
-    )
-
-
-def _transition_kind_for_target(target):
-    return (
-        SubscriptionTransitionKind.BASE_SWITCH
-        if target.plan.plan_type == SubscriptionPlanType.BASE
-        else SubscriptionTransitionKind.ADDON_ADD
-    )
-
-
-def _active_addon(subscription, item_id):
-    return get_object_or_404(
-        SubscriptionItem.objects.select_related("plan", "plan_version"),
-        pk=item_id,
-        subscription=subscription,
-        status=SubscriptionItemStatus.ACTIVE,
-        item_type=SubscriptionPlanType.ADDON,
-    )
 
 
 class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
@@ -85,8 +47,8 @@ class ProfileSubscriptionPreviewView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         subscription = _profile_subscription(self.request.user)
-        target = _self_service_target(subscription, self.kwargs["plan_version_id"])
-        kind = _transition_kind_for_target(target)
+        target = get_self_service_target(subscription, self.kwargs["plan_version_id"])
+        kind = transition_kind_for_target(target)
         context.update(
             {
                 "product_preview": build_subscription_change_preview(
@@ -97,6 +59,7 @@ class ProfileSubscriptionPreviewView(LoginRequiredMixin, TemplateView):
                 "idempotency_key": secrets.token_urlsafe(24),
                 "confirm_url_name": "subscriptions:change",
                 "back_url_name": "subscriptions:home",
+                "can_confirm": True,
             }
         )
         return context
@@ -107,8 +70,8 @@ class ProfileSubscriptionChangeView(LoginRequiredMixin, View):
 
     def post(self, request, plan_version_id):
         subscription = _profile_subscription(request.user)
-        target = _self_service_target(subscription, plan_version_id)
-        kind = _transition_kind_for_target(target)
+        target = get_self_service_target(subscription, plan_version_id)
+        kind = transition_kind_for_target(target)
         try:
             transition = request_subscription_transition_for_actor(
                 actor=request.user,
@@ -134,7 +97,7 @@ class ProfileAddonRemovePreviewView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         subscription = _profile_subscription(self.request.user)
-        item = _active_addon(subscription, self.kwargs["item_id"])
+        item = get_active_addon(subscription, self.kwargs["item_id"])
         context.update(
             {
                 "product_preview": build_subscription_change_preview(
@@ -146,6 +109,7 @@ class ProfileAddonRemovePreviewView(LoginRequiredMixin, TemplateView):
                 "confirm_url_name": "subscriptions:addon-remove",
                 "confirm_item_id": str(item.pk),
                 "back_url_name": "subscriptions:home",
+                "can_confirm": True,
             }
         )
         return context
@@ -156,7 +120,7 @@ class ProfileAddonRemoveView(LoginRequiredMixin, View):
 
     def post(self, request, item_id):
         subscription = _profile_subscription(request.user)
-        item = _active_addon(subscription, item_id)
+        item = get_active_addon(subscription, item_id)
         try:
             request_subscription_transition_for_actor(
                 actor=request.user,
