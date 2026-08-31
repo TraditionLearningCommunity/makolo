@@ -18,7 +18,7 @@ test('participant can use the seeded Services V1 workspace', async ({ page }) =>
 
   await expect(page.getByText('Accompagnement Services V1 E2E')).toBeVisible();
   await expect(page.getByText('Document complémentaire requis')).toBeVisible();
-  await expect(page.getByText('Fournir le document demandé')).toBeVisible();
+  await expect(page.getByText('Fournir le document demandé', { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -57,9 +57,9 @@ test('platform staff can read Services analytics with separate fulfillment and e
   await page.goto(`/analytics/services/activities/${ACTIVITY_ID}/`);
 
   await expect(page.getByRole('heading', { name: 'Accompagnement Services V1 E2E' })).toBeVisible();
-  await expect(page.getByText('Accomplissement Makolo')).toBeVisible();
-  await expect(page.getByText('Succès externe')).toBeVisible();
-  await expect(page.getByText('Overdue actuel')).toBeVisible();
+  await expect(page.getByText('Accomplissement Makolo', { exact: true })).toBeVisible();
+  await expect(page.getByText('Succès externe', { exact: true })).toBeVisible();
+  await expect(page.getByText('Overdue actuel', { exact: true })).toBeVisible();
 });
 
 test('@mobile participant Services workspace has no critical horizontal overflow', async ({ page }) => {
