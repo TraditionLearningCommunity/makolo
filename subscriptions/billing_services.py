@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
@@ -14,7 +15,7 @@ from payments.models import (
 from payments.obligation_services import create_payment_obligation
 
 from .billing_models import PlanVersionBillingTerms, SubscriptionBillingObligation
-from .contracts import PlanVersionStatus, SubscriptionTransitionStatus
+from .contracts import PlanVersionStatus
 from .runtime_models import Subscription
 from .transition_models import OPEN_TRANSITION_STATUSES, SubscriptionTransition
 
@@ -34,7 +35,8 @@ def _actor_or_none(actor):
 
 
 def _source_key(*, subscription, billing_terms, billing_key):
-    return f"subscription:{subscription.pk}:billing:{billing_terms.pk}:{billing_key}"[:180]
+    provenance = hashlib.sha256(billing_key.encode("utf-8")).hexdigest()[:24]
+    return f"subscription:{subscription.pk}:billing:{billing_terms.pk}:{provenance}"
 
 
 def _resolve_due_at(*, billing_terms, at=None):
