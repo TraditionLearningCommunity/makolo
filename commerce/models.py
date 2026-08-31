@@ -229,10 +229,21 @@ class CommerceOrder(models.Model):
         max_length=32,
         choices=PricingPolicy.choices,
         default=PricingPolicy.SELLER_NET_GUARANTEED,
+        db_default=PricingPolicy.SELLER_NET_GUARANTEED,
     )
-    expected_payee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    makolo_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    financial_snapshot = models.JSONField(default=dict, blank=True)
+    expected_payee_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        db_default=Decimal("0.00"),
+    )
+    makolo_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        db_default=Decimal("0.00"),
+    )
+    financial_snapshot = models.JSONField(default=dict, db_default={}, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
