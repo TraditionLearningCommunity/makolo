@@ -34,7 +34,7 @@ class DomainEventType:
     JOURNEY_ARTIFACT_REVIEW_COMPLETED = "journey.artifact.review_completed"
 
     OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
-    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"
+    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source_changed"
     OPPORTUNITY_WITHDRAWN = "opportunity.withdrawn"
     OPPORTUNITY_MERGED = "opportunity.merged"
     SERVICE_OPPORTUNITY_REVISION_ADOPTED = "service.opportunity_revision.adopted"
@@ -57,6 +57,7 @@ class DomainEventType:
     PAYMENT_FAILED = "payment.failed"
     PAYMENT_REFUNDED = "payment.refunded"
     PAYMENT_OBLIGATION_CREATED = "payment.obligation.created"
+    PAYMENT_OBLIGATION_PROCESSING = "payment.obligation.processing"
     PAYMENT_OBLIGATION_SATISFIED = "payment.obligation.satisfied"
     PAYMENT_OBLIGATION_WAIVED = "payment.obligation.waived"
     PAYMENT_OBLIGATION_EXPIRED = "payment.obligation.expired"
