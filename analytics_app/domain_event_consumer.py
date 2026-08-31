@@ -12,6 +12,20 @@ from .models import AnalyticsFact
 
 
 CONSUMER_NAME = "analytics.system"
+SUBSCRIPTION_ANALYTICS_EVENT_TYPES = {
+    DomainEventType.SUBSCRIPTION_TRANSITION_REQUESTED,
+    DomainEventType.SUBSCRIPTION_TRANSITION_COMPLETED,
+    DomainEventType.SUBSCRIPTION_TRANSITION_REJECTED,
+    DomainEventType.SUBSCRIPTION_TRANSITION_CANCELLED,
+    DomainEventType.SUBSCRIPTION_TRANSITION_EXPIRED,
+    DomainEventType.SUBSCRIPTION_PLAN_CHANGED,
+    DomainEventType.SUBSCRIPTION_ADDON_ACTIVATED,
+    DomainEventType.SUBSCRIPTION_ADDON_REMOVED,
+    DomainEventType.SUBSCRIPTION_GRACE_STARTED,
+    DomainEventType.SUBSCRIPTION_SUSPENDED,
+    DomainEventType.SUBSCRIPTION_REACTIVATED,
+    DomainEventType.SUBSCRIPTION_ELIGIBILITY_AVAILABLE,
+}
 ANALYTICS_EVENT_TYPES = {
     DomainEventType.JOURNEY_SUBMITTED,
     DomainEventType.JOURNEY_APPROVED,
@@ -30,6 +44,7 @@ ANALYTICS_EVENT_TYPES = {
     DomainEventType.ACCESS_REVOKED,
     DomainEventType.OCCURRENCE_CANCELLED,
     DomainEventType.OCCURRENCE_RESCHEDULED,
+    *SUBSCRIPTION_ANALYTICS_EVENT_TYPES,
 }
 
 
@@ -44,6 +59,18 @@ def _safe_decimal(value):
 
 def _profile_id(payload):
     return payload.get("beneficiary_id") or payload.get("buyer_id") or payload.get("requester_id")
+
+
+def _subscription_subject(payload):
+    subject_type = payload.get("subject_type")
+    subject_id = payload.get("subject_id")
+    if not subject_id:
+        return None, None
+    if subject_type == "profile":
+        return get_user_model().objects.filter(pk=subject_id).first(), None
+    if subject_type == "space":
+        return None, Organization.objects.filter(pk=subject_id).first()
+    return None, None
 
 
 @transaction.atomic
@@ -62,9 +89,14 @@ def consume_analytics_event(domain_event):
             occurrence = None
 
     profile = None
-    profile_id = _profile_id(payload)
-    if profile_id:
-        profile = get_user_model().objects.filter(pk=profile_id).first()
+    if domain_event.event_type in SUBSCRIPTION_ANALYTICS_EVENT_TYPES:
+        profile, subject_space = _subscription_subject(payload)
+        if subject_space is not None:
+            space = subject_space
+    else:
+        profile_id = _profile_id(payload)
+        if profile_id:
+            profile = get_user_model().objects.filter(pk=profile_id).first()
 
     numeric_value = None
     currency = ""

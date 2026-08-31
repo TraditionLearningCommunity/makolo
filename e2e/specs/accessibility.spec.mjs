@@ -2,6 +2,7 @@ import { test, expect } from '../fixtures/makolo.mjs';
 import { expectNoSeriousAxeViolations } from '../helpers/accessibility.mjs';
 import { login } from '../helpers/auth.mjs';
 
+const SPACE_SLUG = 'makolo-e2e-events';
 
 async function audit(page, path) {
   const response = await page.goto(path);
@@ -48,4 +49,18 @@ test('scanner Space and Operations surfaces pass axe gate', async ({ page }) => 
   const response = await page.goto('/events/new/');
   expect(response.status()).toBe(200);
   await expectNoSeriousAxeViolations(page);
+});
+
+
+test('Subscription Profile Space and Staff surfaces pass axe gate', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await audit(page, '/subscription/');
+
+  await page.context().clearCookies();
+  await login(page, 'owner@e2e.makolo.test');
+  await audit(page, `/spaces/${SPACE_SLUG}/subscription/`);
+
+  await page.context().clearCookies();
+  await login(page, 'staff@e2e.makolo.test');
+  await audit(page, '/operations/subscriptions/catalog/');
 });

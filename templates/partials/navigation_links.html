@@ -18,6 +18,7 @@
             <a href="{% url 'core:participant-journeys' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.url_name == 'participant-journey-detail' %}is-active{% endif %}" {% if request.resolver_match.url_name == 'participant-journeys' or request.resolver_match.url_name == 'participant-journey-detail' %}aria-current="page"{% endif %}><i data-lucide="calendar-search"></i><span>Mes démarches</span></a>
             <a href="{% url 'core:participant-accesses' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.url_name == 'participant-access-detail' %}is-active{% endif %}" {% if request.resolver_match.url_name == 'participant-accesses' or request.resolver_match.url_name == 'participant-access-detail' %}aria-current="page"{% endif %}><i data-lucide="badge-check"></i><span>Mes accès</span></a>
             <a href="{% url 'core:participant-history' %}" class="mk-nav-item {% if request.resolver_match.url_name == 'participant-history' %}is-active{% endif %}" {% if request.resolver_match.url_name == 'participant-history' %}aria-current="page"{% endif %}><i data-lucide="history"></i><span>Historique</span></a>
+            <a href="{% url 'subscriptions:home' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'subscriptions' %}is-active{% endif %}" {% if request.resolver_match.namespace == 'subscriptions' %}aria-current="page"{% endif %}><i data-lucide="layers-3"></i><span>Abonnement</span></a>
             <p class="mk-nav-group-label">Découvrir</p>
             <a href="{% url 'services:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'services' and not request.resolver_match.url_name|slice:':9' == 'operator-' %}is-active{% endif %}"><i data-lucide="route"></i><span>Services</span></a>
             <a href="{% url 'opportunities:list' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'opportunities' and not request.resolver_match.url_name|slice:':6' == 'staff-' %}is-active{% endif %}"><i data-lucide="search-check"></i><span>Opportunités</span></a>
@@ -29,9 +30,10 @@
             {% endif %}
         {% endif %}
 
-        {% if caps.is_staff and not space_console %}
+        {% if not space_console and caps.can_access_operations or not space_console and caps.has_subscription_operations %}
             <p class="mk-nav-group-label">Plateforme</p>
-            <a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' %}is-active{% endif %}" {% if request.resolver_match.namespace == 'operations' %}aria-current="page"{% endif %}><i data-lucide="shield-check"></i><span>Opérations</span></a>
+            {% if caps.can_access_operations %}<a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' and request.resolver_match.url_name != 'subscriptions' and request.resolver_match.url_name|slice:':13' != 'subscription-' %}is-active{% endif %}"><i data-lucide="shield-check"></i><span>Opérations</span></a>{% endif %}
+            {% if caps.has_subscription_operations %}<a href="{% url 'operations:subscriptions' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' and request.resolver_match.url_name == 'subscriptions' or request.resolver_match.namespace == 'operations' and request.resolver_match.url_name|slice:':13' == 'subscription-' %}is-active{% endif %}"><i data-lucide="layers-3"></i><span>Subscriptions</span></a>{% endif %}
         {% endif %}
     {% else %}
         <p class="mk-nav-group-label">Makolo</p>

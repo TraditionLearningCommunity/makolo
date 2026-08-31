@@ -1,0 +1,10 @@
+{% load subscription_operations %}
+{% entitlement_requirement_form as entitlement_requirement_form %}
+<details class="mt-3 rounded-2xl border p-3" style="border-color:var(--mk-border)">
+    <summary class="cursor-pointer text-xs font-bold">Ajouter une condition de disponibilité</summary>
+    <form method="post" action="{% url 'operations:subscription-entitlement-requirement-create' version.pk entitlement.pk %}" class="mt-4 space-y-4">
+        {% csrf_token %}
+        {% include 'operations/_subscription_form_fields.html' with form=entitlement_requirement_form %}
+        <button class="mk-btn mk-btn-primary" type="submit">Ajouter la condition</button>
+    </form>
+</details>

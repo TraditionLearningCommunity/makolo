@@ -1,0 +1,15 @@
+{% extends 'operations/subscription_base.html' %}
+{% block subscription_content %}
+<section class="space-y-5">
+    <div><h2 class="text-2xl font-extrabold tracking-[-.03em]">Reviews Subscription</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Uniquement les Assessments de type review encore en attente. Chaque décision passe par le service S5 sérialisé et audité.</p></div>
+    <div class="grid gap-4">
+        {% for assessment in page_obj %}
+        <article class="mk-panel p-5 sm:p-6">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">{% if assessment.transition.subscription.profile_id %}Profile{% else %}Espace{% endif %}</p><h3 class="mt-1 text-lg font-extrabold">{% if assessment.transition.subscription.profile_id %}{{ assessment.transition.subscription.profile.full_name|default:assessment.transition.subscription.profile.username }}{% else %}{{ assessment.transition.subscription.space.name }}{% endif %}</h3><p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ assessment.plan_requirement.title|default:'Vérification Subscription' }} · cible {{ assessment.transition.target_plan_version.name }}</p></div><a class="mk-btn mk-btn-secondary" href="{% url 'operations:subscription-detail' assessment.transition.subscription_id %}">Voir la Subscription</a></div>
+            <form class="mt-5 space-y-4" method="post" action="{% url 'operations:subscription-review-decide' assessment.pk %}">{% csrf_token %}{% include 'operations/_subscription_form_fields.html' with form=review_form %}<button class="mk-btn mk-btn-primary" type="submit">Enregistrer la décision</button></form>
+        </article>
+        {% empty %}<div class="mk-panel p-5 text-sm" style="color:var(--mk-muted)">Aucune review Subscription en attente.</div>{% endfor %}
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}<nav class="flex items-center justify-between" aria-label="Pagination reviews">{% if page_obj.has_previous %}<a class="mk-btn mk-btn-secondary" href="?page={{ page_obj.previous_page_number }}">Précédent</a>{% else %}<span></span>{% endif %}<span class="text-sm">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="mk-btn mk-btn-secondary" href="?page={{ page_obj.next_page_number }}">Suivant</a>{% endif %}</nav>{% endif %}
+</section>
+{% endblock %}
