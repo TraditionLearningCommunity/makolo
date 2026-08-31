@@ -1,4 +1,4 @@
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -36,6 +36,10 @@ def publish_plan_version(plan_version, *, retire_previous=True):
         )
 
     version.full_clean()
+    try:
+        version.billing_terms.full_clean()
+    except ObjectDoesNotExist:
+        pass
     for benefit in version.benefits.all():
         benefit.full_clean()
     for requirement in version.requirements.all():
