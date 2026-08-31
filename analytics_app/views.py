@@ -11,8 +11,18 @@ from .event_adapter import build_event_analytics
 from .forms import GrowthSpendForm
 from .growth_contract import build_growth_portfolio, build_organization_growth
 from .models import GrowthSpend
-from .permissions import user_can_manage_growth_spend, user_can_view_event_financials
-from .selectors import get_analytics_events, get_growth_organizations, get_growth_spends
+from .permissions import (
+    user_can_manage_growth_spend,
+    user_can_view_activity_financials,
+    user_can_view_event_financials,
+)
+from .selectors import (
+    get_analytics_events,
+    get_growth_organizations,
+    get_growth_spends,
+    get_service_analytics_activities,
+)
+from .service_analytics import service_activity_summary
 from .services import build_portfolio_analytics
 
 
@@ -24,6 +34,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context["analytics"] = build_portfolio_analytics(self.request.user)
         context["growth"] = build_growth_portfolio(self.request.user)
+        context["service_activities"] = get_service_analytics_activities(self.request.user).order_by("title", "id")[:40]
         return context
 
 
@@ -45,6 +56,30 @@ class EventAnalyticsView(LoginRequiredMixin, TemplateView):
             finance_visible=user_can_view_event_financials(self.request.user, event),
         )
         context["days"] = min(max(days, 7), 90)
+        return context
+
+
+class ServiceActivityAnalyticsView(LoginRequiredMixin, TemplateView):
+    template_name = "analytics_app/service_detail.html"
+    login_url = "core:login"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        activity = get_object_or_404(
+            get_service_analytics_activities(self.request.user),
+            pk=self.kwargs["pk"],
+        )
+        financial_visible = user_can_view_activity_financials(self.request.user, activity)
+        context.update(
+            {
+                "activity": activity,
+                "financial_visible": financial_visible,
+                "service_analytics": service_activity_summary(
+                    activity,
+                    include_financials=financial_visible,
+                ),
+            }
+        )
         return context
 
 

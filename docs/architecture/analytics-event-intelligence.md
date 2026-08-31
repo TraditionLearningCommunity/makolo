@@ -2,33 +2,19 @@
 
 ## Objectif
 
-`analytics_app` est un domaine de lecture et d'aide à la décision. Il ne remplace pas les domaines métier (`events`, `tickets`, `payments`, `scanner`, `partners`) et ne duplique pas leurs états transactionnels.
+`analytics_app` est le domaine canonique de lecture et d'aide à la décision de Makolo. Il ne remplace pas les domaines métier (`activities`, `events`, `journeys`, `services`, `opportunities`, `payments`, `scanner`, `partners`) et ne duplique pas leurs états transactionnels.
 
-Les indicateurs sont calculés à partir des sources de vérité existantes :
+Les dashboards transactionnels sont calculés depuis les modèles canoniques. `AnalyticsFact` reste réservé à l'historique événementiel utile issu des Domain Events ; il ne devient pas une copie générale des modèles métier. Aucun snapshot Services persistant n'est nécessaire en V1 : des snapshots/materialized views ne seront ajoutés que si une mesure de performance le justifie.
 
-- événements et capacité ;
-- commandes et catégories de billets ;
-- billets valides/utilisés/remboursés ;
-- paiements et remboursements ;
-- waitlist et transferts ;
-- scans acceptés ;
-- visites, attributions et commissions partenaires.
-
-Aucun modèle analytique persistant n'est nécessaire dans cette première version : cela évite les désynchronisations pendant que le produit évolue rapidement. Des snapshots/materialized views pourront être ajoutés plus tard si le volume le justifie.
-
-## Frontières d'autorisation
+## Frontières d'autorisation et de confidentialité
 
 Analytics ne doit jamais devenir un contournement des permissions métier.
 
-Tous les rôles d'équipe peuvent recevoir des indicateurs agrégés compatibles avec leur fonction :
+Pour les Activities appartenant à un Espace, l'accès Analytics réutilise les permissions Analytics canoniques. Pour une Activity personnelle, l'autorité vient du propriétaire logique `owner_profile` ; `created_by` n'est qu'une provenance, avec compatibilité limitée aux anciennes lignes dépourvues de propriétaire logique.
 
-- Owner / Admin : vue complète ;
-- Event manager : performance événementielle et billetterie ;
-- Finance : performance événementielle + revenus/remboursements + coûts d'affiliation ;
-- Marketing : performance agrégée, ventes, remplissage, waitlist et acquisition partenaire, sans données clients ni montants de commissions ;
-- Scanner manager : performance agrégée et contrôle d'accès, sans données financières.
+Les métriques financières ne sont exposées qu'avec la permission financière Analytics correspondante. La capacité à gérer un dossier Services ne donne pas automatiquement accès aux montants financiers. Makolo ne somme jamais des monnaies différentes dans un seul montant.
 
-Les métriques financières ne sont exposées qu'aux rôles finance (`Owner`, `Admin`, `Finance`) ou au staff plateforme. Les réponses Analytics ne contiennent aucun nom, e-mail, téléphone, QR ou identifiant de paiement client. Les noms publics des partenaires/ambassadeurs sont des identités professionnelles de campagne, pas des données de participants.
+Les réponses Analytics restent agrégées et privacy-safe. Elles ne doivent pas contenir inutilement : nom, e-mail ou téléphone participant, contenu ou nom sensible d'un document, note interne, numéro de pièce, référence provider, reçu, CV ou payload libre.
 
 ## Indicateurs événement
 
@@ -47,11 +33,49 @@ Le détail `/analytics/events/<slug>/` expose notamment :
 - séries de billets émis ;
 - pics de scans acceptés ;
 - performance par catégorie de billet ;
-- acquisition partenaires : visites, commandes attribuées, conversions confirmées, taux de conversion et leaderboard ;
+- acquisition partenaires ;
 - revenus brut / remboursé / net, séparés par devise lorsque le rôle y a droit ;
-- commissions d'affiliation acquises/payées/inversées par devise lorsque le rôle y a droit.
+- commissions d'affiliation par devise lorsque le rôle y a droit.
 
-Makolo ne somme jamais des monnaies différentes dans un seul montant.
+## Analytics Services V1 — T36
+
+Une Activity n'entre dans les Analytics Services que si elle possède le contrat canonique `ServiceDetails`. Une vue Services ne mélange donc pas automatiquement Events, Transport et Services.
+
+Le read model Services V1 est calculé depuis `Journey`, `JourneyStep`, `JourneyBlocker`, `JourneyAssignment`, `JourneyArtifactReview`, `ServiceJourneyContext`, `ServiceSubmission`, `ServiceOutcomeEvent`, `PaymentObligation`, `Payment` et `PaymentEvidence`.
+
+Métriques livrées :
+
+- volume de Journeys Services ;
+- taux de démarrage, défini explicitement par `journeys_started / journeys_created` ;
+- taux d'accomplissement Makolo, défini par `journeys_fulfilled / journeys_started` ;
+- taux de succès externe, défini séparément depuis les outcomes courants `successful / (successful + unsuccessful)` ;
+- temps moyen jusqu'au fulfillment, uniquement pour les dossiers avec timestamps cohérents `started_at -> fulfilled_at` ;
+- durée moyenne des Steps par type, en excluant les Steps sans timestamps de durée fiables ;
+- Steps actuellement overdue et Steps terminées en retard ;
+- blockers par statut, catégorie et sévérité ;
+- funnel objectivement observable Opportunity -> Journey et Journey -> ServiceSubmission, sans inventer un dénominateur de vues non collecté ;
+- nombre de tentatives et statuts de `ServiceSubmission` ;
+- distribution des outcomes courants et historique des `ServiceOutcomeEvent`, sans confondre les deux ;
+- charge opérationnelle via les `JourneyAssignment` actifs ;
+- reviews et turnaround lorsque les timestamps le permettent ;
+- obligations de paiement par statut/mode ;
+- tentatives `Payment` provider et échecs distincts des obligations ;
+- `PaymentEvidence` externe par statut ;
+- montants financiers uniquement avec permission financière, toujours groupés par devise.
+
+Chaque pourcentage expose son numérateur et son dénominateur. Une Journey non fulfilled ne reçoit jamais de durée de fulfillment fictive.
+
+Principe essentiel :
+
+> `Journey.fulfilled` signifie que Makolo a terminé son engagement. Il ne signifie pas qu'un tiers a accepté le participant.
+
+Le taux d'accomplissement Makolo et le taux de succès externe restent donc deux métriques, deux sources et deux axes différents, même lorsqu'une fixture produit accidentellement la même valeur.
+
+## Performance Analytics Services
+
+Les agrégations Services sont DB-first (`Count`, `Avg`, `Sum`, filtres et relations canoniques). Le read model ne charge pas tous les Journeys, Steps ou Blockers en Python pour compter. Un test de croissance de requêtes vérifie que l'ajout de plusieurs Journeys n'entraîne pas une croissance N+1 du nombre de requêtes.
+
+Aucun `DailyServiceMetric`, `ServiceJourneyMetric`, cache de vérité ou index spéculatif n'est introduit par T36.
 
 ## Event Intelligence
 
@@ -71,29 +95,23 @@ Exemples de signaux :
 
 La projection de sold-out utilise le rythme moyen de billets actifs depuis le début effectif de la vente/publication. C'est une estimation opérationnelle, pas une garantie.
 
-Les insights partenaires ne modifient jamais automatiquement une commission : une règle financière négociée reste un snapshot historique une fois la conversion confirmée.
-
 ## API
 
 ```text
 GET /api/v1/analytics/overview/
 GET /api/v1/analytics/events/<slug>/
 GET /api/v1/analytics/events/<slug>/?days=7|30|90
+GET /api/v1/analytics/services/activities/<uuid>/
 ```
 
-Le détail événement contient désormais un objet `partners` avec les agrégats d'acquisition. `commission_totals` reste vide lorsque le rôle n'a pas le droit de voir les finances.
+Le détail Services applique les mêmes frontières d'autorisation que l'interface web. Un utilisateur hors scope reçoit la convention anti-IDOR du selector ; un rôle Analytics sans permission financière reçoit les métriques non financières sans montants.
 
-Les mêmes frontières d'autorisation que l'interface web s'appliquent à l'API.
+## AnalyticsFact et Domain Events Services
 
-## Évolutions prévues
+T36 ne whitelist pas automatiquement tous les événements Services dans `AnalyticsFact`. Les métriques V1 sont obtenues de façon fiable depuis les modèles canoniques et, pour l'historique des résultats externes, depuis `ServiceOutcomeEvent`.
 
-Lorsque Makolo aura davantage de volume, ce domaine pourra évoluer vers :
+Un événement Services ne doit être projeté dans `AnalyticsFact` que lorsqu'un besoin historique réel l'exige et avec un payload minimal, idempotent et sans PII inutile. Les nouvelles Analytics ne doivent déclencher aucun side effect métier, Notification, Automation ou Audience CRM.
 
-- snapshots journaliers immuables ;
-- cohortes et rétention d'audience ;
-- attribution multi-touch ;
-- funnel découverte -> visite partenaire -> commande -> paiement ;
-- comparaison entre éditions ;
-- modèles de prévision plus robustes ;
-- détection d'anomalies de scans/paiements/affiliation ;
-- recommandations actionnables avec historique d'explication.
+## Différés explicites
+
+Ne font pas partie des Analytics Services V1 : IA/ML scoring, ranking automatique, recommandations opaques, analytics prédictives avancées, snapshots prématurés et feature gating Subscription spéculatif. Ces évolutions exigent une décision produit et des preuves de besoin distinctes.

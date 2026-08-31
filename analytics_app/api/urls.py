@@ -7,6 +7,7 @@ from .views import (
     GrowthSpendDetailAPIView,
     GrowthSpendListCreateAPIView,
     OrganizationGrowthAPIView,
+    ServiceActivityAnalyticsAPIView,
 )
 
 
@@ -15,6 +16,11 @@ app_name = "analytics_api"
 urlpatterns = [
     path("overview/", AnalyticsOverviewAPIView.as_view(), name="overview"),
     path("events/<slug:slug>/", EventAnalyticsAPIView.as_view(), name="event-detail"),
+    path(
+        "services/activities/<uuid:pk>/",
+        ServiceActivityAnalyticsAPIView.as_view(),
+        name="service-activity-detail",
+    ),
     path("growth/organizations/", GrowthOrganizationsAPIView.as_view(), name="growth-organizations"),
     path(
         "growth/organizations/<slug:slug>/",

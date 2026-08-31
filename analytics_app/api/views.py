@@ -5,12 +5,17 @@ from rest_framework.views import APIView
 
 from analytics_app.event_adapter import build_event_analytics
 from analytics_app.growth_contract import build_growth_portfolio, build_organization_growth
-from analytics_app.permissions import user_can_view_event_financials
+from analytics_app.permissions import (
+    user_can_view_activity_financials,
+    user_can_view_event_financials,
+)
 from analytics_app.selectors import (
     get_analytics_events,
     get_growth_organizations,
     get_growth_spends,
+    get_service_analytics_activities,
 )
+from analytics_app.service_analytics import service_activity_summary
 from analytics_app.services import build_portfolio_analytics
 from partners.analytics import build_event_partner_analytics
 
@@ -76,6 +81,30 @@ class EventAnalyticsAPIView(APIView):
             finance_visible=user_can_view_event_financials(request.user, event),
         )
         return Response(payload)
+
+
+class ServiceActivityAnalyticsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        activity = get_object_or_404(get_service_analytics_activities(request.user), pk=pk)
+        financial_visible = user_can_view_activity_financials(request.user, activity)
+        return Response(
+            {
+                "activity": {
+                    "id": str(activity.pk),
+                    "title": activity.title,
+                    "status": activity.status,
+                    "space_id": str(activity.space_id) if activity.space_id else None,
+                    "personal": activity.is_personal,
+                },
+                "financial_visible": financial_visible,
+                "metrics": service_activity_summary(
+                    activity,
+                    include_financials=financial_visible,
+                ),
+            }
+        )
 
 
 class GrowthOrganizationsAPIView(APIView):

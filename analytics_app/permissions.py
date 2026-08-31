@@ -22,21 +22,37 @@ GROWTH_ANALYTICS_ROLES = {
 }
 
 
-def user_can_view_event_analytics(user, event) -> bool:
+def _user_owns_personal_activity(user, activity) -> bool:
+    if activity.space_id:
+        return False
+    if activity.owner_profile_id:
+        return activity.owner_profile_id == user.pk
+    # Compatibility only for legacy rows without a canonical logical owner.
+    return activity.created_by_id == user.pk
+
+
+def user_can_view_activity_analytics(user, activity) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
-    if event.activity.space_id:
-        return can(user, PermissionCode.ANALYTICS_VIEW, event.activity.space)
-    # Historical personal Activity compatibility only; no Event role grants it.
-    return event.activity.created_by_id == user.pk
+    if activity.space_id:
+        return can(user, PermissionCode.ANALYTICS_VIEW, activity.space)
+    return _user_owns_personal_activity(user, activity)
+
+
+def user_can_view_activity_financials(user, activity) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if activity.space_id:
+        return can(user, PermissionCode.ANALYTICS_FINANCIALS_VIEW, activity.space)
+    return _user_owns_personal_activity(user, activity)
+
+
+def user_can_view_event_analytics(user, event) -> bool:
+    return user_can_view_activity_analytics(user, event.activity)
 
 
 def user_can_view_event_financials(user, event) -> bool:
-    if not getattr(user, "is_authenticated", False):
-        return False
-    if event.activity.space_id:
-        return can(user, PermissionCode.ANALYTICS_FINANCIALS_VIEW, event.activity.space)
-    return event.activity.created_by_id == user.pk
+    return user_can_view_activity_financials(user, event.activity)
 
 
 def user_can_view_growth_analytics(user, organization) -> bool:

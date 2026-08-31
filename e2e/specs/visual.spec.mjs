@@ -125,6 +125,13 @@ test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_discovery_e2e'], { stdio: 'inherit' });
 });
 
+// Visual fixtures intentionally reset the shared E2E database. Restore Services only
+// after this spec finishes so later project tests keep their canonical Services case
+// without changing the visual baselines captured by this spec.
+test.afterAll(() => {
+  execFileSync('python', ['manage.py', 'prepare_services_e2e'], { stdio: 'inherit' });
+});
+
 
 test('representative light desktop surfaces @visual', async ({ page }) => {
   await usePublicLight(page);
