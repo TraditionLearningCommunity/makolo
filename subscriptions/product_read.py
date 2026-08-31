@@ -157,12 +157,7 @@ def _capability_rows(subscription):
 def _safe_requirement(requirement, state):
     disclosure = requirement.disclosure
     if disclosure == RequirementDisclosure.INTERNAL:
-        return {
-            "label": "Vérification Makolo",
-            "detail": None,
-            "state": state,
-            "internal": True,
-        }
+        return None
     if disclosure == RequirementDisclosure.GENERIC:
         return {
             "label": "Condition requise",
@@ -182,15 +177,6 @@ def _eligibility_requirements(result):
     rows = []
     for requirement in result.requirements:
         if not requirement.title:
-            # An INTERNAL projection deliberately carries no user-facing title/detail.
-            rows.append(
-                {
-                    "label": "Vérification Makolo",
-                    "detail": None,
-                    "state": requirement.state,
-                    "internal": True,
-                }
-            )
             continue
         rows.append(
             {
@@ -227,7 +213,6 @@ def _catalog_rows(subscription, active_items):
         if version.pk in active_version_ids:
             current = True
         elif version.plan.plan_type == SubscriptionPlanType.ADDON and version.plan_id in active_addon_plan_ids:
-            # Do not offer a second version of an already active logical add-on.
             continue
         else:
             current = False
@@ -272,8 +257,9 @@ def _transition_row(subscription):
         return None
     assessments = list(transition.assessments.all())
     conditions = tuple(
-        _safe_requirement(assessment.plan_requirement, assessment.state)
+        row
         for assessment in assessments
+        if (row := _safe_requirement(assessment.plan_requirement, assessment.state)) is not None
     )
     completed = sum(1 for assessment in assessments if assessment.state in _ASSESSMENT_COMPLETE)
     label, explanation = _TRANSITION_STATUS[transition.status]
@@ -299,11 +285,14 @@ def _ongoing_rows(subscription):
         .select_related("plan_requirement")
         .order_by("plan_requirement__position", "id")
     )
-    return tuple(
-        _safe_requirement(state.plan_requirement, state.state)
-        for state in states
-        if state.state not in _ASSESSMENT_COMPLETE
-    )
+    rows = []
+    for state in states:
+        if state.state in _ASSESSMENT_COMPLETE:
+            continue
+        row = _safe_requirement(state.plan_requirement, state.state)
+        if row is not None:
+            rows.append(row)
+    return tuple(rows)
 
 
 def build_subscription_product_view(subscription, *, can_manage, include_catalog=True):
