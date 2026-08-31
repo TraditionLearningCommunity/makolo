@@ -328,7 +328,12 @@ def mark_obligation_processing(*, obligation):
     if obligation.status != PaymentObligationStatus.PENDING:
         raise ValidationError("Seule une obligation en attente peut passer en traitement.")
     result = _save_obligation_status(obligation, status=PaymentObligationStatus.PROCESSING)
-    _emit_obligation_event(result, DomainEventType.PAYMENT_OBLIGATION_PROCESSING, "processing")
+    transition_marker = result.updated_at.isoformat()
+    _emit_obligation_event(
+        result,
+        DomainEventType.PAYMENT_OBLIGATION_PROCESSING,
+        f"processing:{transition_marker}",
+    )
     return result
 
 
