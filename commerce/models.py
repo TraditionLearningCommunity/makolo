@@ -33,6 +33,11 @@ class CommerceOrderStatus(models.TextChoices):
     REFUNDED = "refunded", "Remboursée"
 
 
+class PricingPolicy(models.TextChoices):
+    SELLER_NET_GUARANTEED = "seller_net_guaranteed", "Net bénéficiaire garanti"
+    CUSTOMER_TOTAL_FIXED = "customer_total_fixed", "Total client fixé"
+
+
 class Offer(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     activity = models.ForeignKey(
@@ -220,6 +225,14 @@ class CommerceOrder(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     discount_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    pricing_policy = models.CharField(
+        max_length=32,
+        choices=PricingPolicy.choices,
+        default=PricingPolicy.SELLER_NET_GUARANTEED,
+    )
+    expected_payee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    makolo_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    financial_snapshot = models.JSONField(default=dict, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
@@ -241,8 +254,9 @@ class CommerceOrder(models.Model):
             models.CheckConstraint(condition=Q(subtotal__gte=0), name="commerce_order_subtotal_nonnegative"),
             models.CheckConstraint(condition=Q(discount_total__gte=0), name="commerce_order_discount_nonnegative"),
             models.CheckConstraint(condition=Q(total__gte=0), name="commerce_order_total_nonnegative"),
+            models.CheckConstraint(condition=Q(expected_payee_amount__gte=0), name="commerce_order_payee_nonnegative"),
+            models.CheckConstraint(condition=Q(makolo_amount__gte=0), name="commerce_order_makolo_nonnegative"),
             models.CheckConstraint(condition=Q(discount_total__lte=F("subtotal")), name="commerce_order_discount_lte_subtotal"),
-            models.CheckConstraint(condition=Q(total=F("subtotal") - F("discount_total")), name="commerce_order_total_consistent"),
             models.CheckConstraint(
                 condition=Q(payee_space__isnull=True) | Q(payee_profile__isnull=True),
                 name="commerce_order_single_payee",
@@ -257,14 +271,24 @@ class CommerceOrder(models.Model):
             errors["currency"] = "La devise doit contenir exactement trois lettres."
         if self.discount_total < 0 or self.subtotal < 0 or self.total < 0:
             errors["total"] = "Les montants d’une commande ne peuvent pas être négatifs."
+        if self.expected_payee_amount < 0 or self.makolo_amount < 0:
+            errors["financial_snapshot"] = "Les montants du snapshot financier ne peuvent pas être négatifs."
         if self.discount_total > self.subtotal:
             errors["discount_total"] = "La remise ne peut pas dépasser le sous-total."
-        if self.total != self.subtotal - self.discount_total:
-            errors["total"] = "Le total doit être égal au sous-total moins la remise."
         if self.payment_mode == PaymentMode.NONE and self.total != Decimal("0.00"):
             errors["payment_mode"] = "Une commande sans paiement attendu doit avoir un total nul."
         if self.payee_space_id and self.payee_profile_id:
             errors["payee_profile"] = "Une commande ne peut avoir qu’un seul bénéficiaire financier logique."
+        if self.financial_snapshot:
+            snapshot = self.financial_snapshot
+            if snapshot.get("currency") != self.currency:
+                errors["financial_snapshot"] = "Le snapshot financier doit utiliser la devise de la commande."
+            if snapshot.get("payer_total") != format(self.total, ".2f"):
+                errors["financial_snapshot"] = "Le total payeur du snapshot doit correspondre à la commande."
+            if snapshot.get("expected_payee_amount") != format(self.expected_payee_amount, ".2f"):
+                errors["financial_snapshot"] = "Le net bénéficiaire du snapshot doit correspondre à la commande."
+            if snapshot.get("pricing_policy") != self.pricing_policy:
+                errors["financial_snapshot"] = "La politique du snapshot doit correspondre à la commande."
         if errors:
             raise ValidationError(errors)
 
@@ -273,12 +297,37 @@ class CommerceOrder(models.Model):
         if not self.reference:
             self.reference = f"COM-{uuid.uuid4().hex[:12].upper()}"
         self.full_clean()
-        if self.pk and not self._state.adding and not getattr(self, "_allow_status_transition", False):
-            previous = CommerceOrder.objects.filter(pk=self.pk).values_list("status", flat=True).first()
-            if previous is not None and previous != self.status:
-                raise ValidationError({"status": "Utilisez les services Commerce pour changer l’état de la commande."})
+        if self.pk and not self._state.adding:
+            previous = CommerceOrder.objects.filter(pk=self.pk).values(
+                "status",
+                "currency",
+                "subtotal",
+                "discount_total",
+                "total",
+                "pricing_policy",
+                "expected_payee_amount",
+                "makolo_amount",
+                "financial_snapshot",
+            ).first()
+            if previous is not None:
+                if previous["status"] != self.status and not getattr(self, "_allow_status_transition", False):
+                    raise ValidationError({"status": "Utilisez les services Commerce pour changer l’état de la commande."})
+                immutable_fields = (
+                    "currency",
+                    "subtotal",
+                    "discount_total",
+                    "total",
+                    "pricing_policy",
+                    "expected_payee_amount",
+                    "makolo_amount",
+                    "financial_snapshot",
+                )
+                changed = [field for field in immutable_fields if previous[field] != getattr(self, field)]
+                if changed and not getattr(self, "_allow_financial_snapshot_write", False):
+                    raise ValidationError({"financial_snapshot": "Le snapshot financier historique d’une commande est immuable."})
         result = super().save(*args, **kwargs)
         self._allow_status_transition = False
+        self._allow_financial_snapshot_write = False
         return result
 
     @property
