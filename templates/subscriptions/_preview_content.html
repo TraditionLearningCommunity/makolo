@@ -2,7 +2,7 @@
     <div>
         <span class="mk-kicker">Aperçu sans engagement</span>
         <h1 id="change-preview-title" class="mk-page-title">Ce qui changerait</h1>
-        <p class="mk-page-copy mt-3 text-[15px]">Cet aperçu ne modifie pas votre abonnement. La demande n’est créée qu’après confirmation.</p>
+        <p class="mk-page-copy mt-3 text-[15px]">Cet aperçu ne modifie pas l’abonnement. Une demande n’est créée qu’après confirmation par un acteur autorisé.</p>
     </div>
 
     <div class="mk-panel p-5 sm:p-6">
@@ -24,17 +24,21 @@
     {% endif %}
 
     {% if product_preview.requirements or product_preview.has_payment_requirement %}
-    <section class="mk-panel p-5 sm:p-6" aria-labelledby="requirements-title"><h2 id="requirements-title" class="text-lg font-extrabold">Conditions avant finalisation</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Confirmer peut ouvrir une demande qui restera en cours jusqu’à satisfaction des conditions.</p>{% if product_preview.requirements %}<ul class="mt-4 space-y-2">{% for requirement in product_preview.requirements %}<li class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><p class="text-sm font-bold">{{ requirement.label }}</p>{% if requirement.detail %}<p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">{{ requirement.detail }}</p>{% endif %}</li>{% endfor %}</ul>{% endif %}{% if product_preview.has_payment_requirement %}<p class="mt-4 rounded-2xl border p-3 text-sm" style="border-color:var(--mk-border)">Une obligation financière peut faire partie du parcours. Aucun prix n’est inventé ici : Makolo affichera uniquement les informations financières réellement disponibles.</p>{% endif %}</section>
+    <section class="mk-panel p-5 sm:p-6" aria-labelledby="requirements-title"><h2 id="requirements-title" class="text-lg font-extrabold">Conditions avant finalisation</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Une confirmation peut ouvrir une demande qui restera en cours jusqu’à satisfaction des conditions.</p>{% if product_preview.requirements %}<ul class="mt-4 space-y-2">{% for requirement in product_preview.requirements %}<li class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><p class="text-sm font-bold">{{ requirement.label }}</p>{% if requirement.detail %}<p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">{{ requirement.detail }}</p>{% endif %}</li>{% endfor %}</ul>{% endif %}{% if product_preview.has_payment_requirement %}<p class="mt-4 rounded-2xl border p-3 text-sm" style="border-color:var(--mk-border)">Une obligation financière peut faire partie du parcours. Aucun prix n’est inventé ici : Makolo affichera uniquement les informations financières réellement disponibles.</p>{% endif %}</section>
     {% endif %}
 
     {% if product_preview.warnings %}<section class="rounded-2xl border border-amber-400/40 bg-amber-500/[.07] p-4" aria-label="Avertissements">{% for warning in product_preview.warnings %}<p class="text-sm font-semibold">{{ warning }}</p>{% endfor %}</section>{% endif %}
 
+    {% if not can_confirm %}<p class="rounded-2xl border p-4 text-sm" role="status" style="border-color:var(--mk-border);color:var(--mk-muted)">Vous pouvez consulter cet aperçu, mais votre Mandat ne permet pas de modifier cet abonnement.</p>{% endif %}
+
     <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <a href="{% url back_url_name %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>
-        {% if confirm_item_id %}
-        <form method="post" action="{% url confirm_url_name confirm_item_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>
-        {% else %}
-        <form method="post" action="{% url confirm_url_name product_preview.target_plan_version_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>
+        {% if space_slug %}<a href="{% url back_url_name space_slug %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% else %}<a href="{% url back_url_name %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% endif %}
+        {% if can_confirm %}
+            {% if confirm_item_id %}
+                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug confirm_item_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% else %}<form method="post" action="{% url confirm_url_name confirm_item_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% endif %}
+            {% else %}
+                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug product_preview.target_plan_version_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% else %}<form method="post" action="{% url confirm_url_name product_preview.target_plan_version_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% endif %}
+            {% endif %}
         {% endif %}
     </div>
 </section>
