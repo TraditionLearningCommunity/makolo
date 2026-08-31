@@ -1,0 +1,17 @@
+{% extends 'operations/subscription_base.html' %}
+{% block subscription_content %}
+<section class="grid gap-5 lg:grid-cols-[1.35fr_.65fr]">
+    <div class="space-y-4">
+        <div><h2 class="text-2xl font-extrabold tracking-[-.03em]">Plans</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">La version publiée courante reste immuable ; les changements passent par un nouveau draft.</p></div>
+        {% for plan in plans %}
+        <a href="{% url 'operations:subscription-plan' plan.pk %}" class="mk-panel block p-5">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">{{ plan.subject_type }} · {{ plan.plan_type }}</p><h3 class="mt-1 text-lg font-extrabold">{{ plan.code }}</h3></div><span class="mk-badge {% if plan.is_active %}mk-badge-success{% endif %}">{% if plan.is_active %}Actif{% else %}Inactif{% endif %}</span></div>
+            <p class="mt-3 text-sm" style="color:var(--mk-muted)">{% if plan.current_version %}Courante : {{ plan.current_version.name }} · v{{ plan.current_version.version }}{% else %}Aucune version publiée courante{% endif %}</p>
+        </a>
+        {% empty %}<div class="mk-panel p-5 text-sm" style="color:var(--mk-muted)">Aucun Plan Subscription.</div>{% endfor %}
+    </div>
+    {% if can_manage %}
+    <aside class="mk-panel h-fit p-5 sm:p-6"><h2 class="text-lg font-extrabold">Créer un Plan</h2><p class="mt-2 text-xs leading-5" style="color:var(--mk-muted)">Le code, le type et le type de sujet forment l’identité commerciale du Plan.</p><form method="post" action="{% url 'operations:subscription-plan-create' %}" class="mt-5 space-y-4">{% csrf_token %}{% include 'operations/_subscription_form_fields.html' with form=plan_form %}<button type="submit" class="mk-btn mk-btn-primary w-full justify-center">Créer le Plan</button></form></aside>
+    {% endif %}
+</section>
+{% endblock %}

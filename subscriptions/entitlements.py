@@ -130,13 +130,8 @@ def _decorate_usage(feature, subject, effective_value, sources):
     )
 
 
-def _apply_requirement_gate(subject, result, *, at):
-    if result.effective_value is None:
-        return result
-    from .eligibility import entitlement_requirement_block
-
-    reason = entitlement_requirement_block(subject, result.feature_code, at=at)
-    if reason is None:
+def _apply_requirement_gate(result, requirement_reason):
+    if result.effective_value is None or requirement_reason is None:
         return result
     return EffectiveEntitlementResult(
         feature_code=result.feature_code,
@@ -240,6 +235,14 @@ def _resolve(subject, *, feature_code=None, at=None):
             }
         )
 
+    from .eligibility import entitlement_requirement_blocks
+
+    requirement_blocks = entitlement_requirement_blocks(
+        subject,
+        features.keys(),
+        at=at,
+        subscription=subscription,
+    )
     results = {}
     for code, feature in features.items():
         entries = sorted(
@@ -249,7 +252,7 @@ def _resolve(subject, *, feature_code=None, at=None):
         sources = tuple(entry["source"] for entry in entries)
         effective = _aggregate(feature, entries) if entries else None
         result = _decorate_usage(feature, subject, effective, sources)
-        result = _apply_requirement_gate(subject, result, at=at)
+        result = _apply_requirement_gate(result, requirement_blocks.get(code))
         results[code] = _apply_subscription_status_gate(subscription, result)
     return results
 

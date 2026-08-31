@@ -1,0 +1,44 @@
+<section class="space-y-5" aria-labelledby="change-preview-title">
+    <div>
+        <span class="mk-kicker">Aperçu sans engagement</span>
+        <h1 id="change-preview-title" class="mk-page-title">Ce qui changerait</h1>
+        <p class="mk-page-copy mt-3 text-[15px]">Cet aperçu ne modifie pas l’abonnement. Une demande n’est créée qu’après confirmation par un acteur autorisé.</p>
+    </div>
+
+    <div class="mk-panel p-5 sm:p-6">
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Aujourd’hui</p><p class="mt-2 text-lg font-extrabold">{% if product_preview.current_name %}{{ product_preview.current_name }}{% else %}Aucune formule correspondante{% endif %}</p></div>
+            <div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:var(--mk-brand-soft)"><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">{% if product_preview.kind == 'addon_remove' %}Après retrait{% else %}Formule cible{% endif %}</p><p class="mt-2 text-lg font-extrabold">{{ product_preview.target_name }}</p></div>
+        </div>
+    </div>
+
+    {% if product_preview.features_gained or product_preview.features_lost %}
+    <div class="grid gap-4 md:grid-cols-2">
+        <section class="mk-panel p-5" aria-labelledby="gained-title"><h2 id="gained-title" class="font-extrabold">Capacités gagnées</h2>{% if product_preview.features_gained %}<ul class="mt-3 space-y-2">{% for feature in product_preview.features_gained %}<li class="flex gap-2 text-sm"><i data-lucide="circle-plus" class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i>{{ feature }}</li>{% endfor %}</ul>{% else %}<p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucune capacité supplémentaire.</p>{% endif %}</section>
+        <section class="mk-panel p-5" aria-labelledby="lost-title"><h2 id="lost-title" class="font-extrabold">Capacités qui ne seront plus disponibles</h2>{% if product_preview.features_lost %}<ul class="mt-3 space-y-2">{% for feature in product_preview.features_lost %}<li class="flex gap-2 text-sm"><i data-lucide="circle-minus" class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i>{{ feature }}</li>{% endfor %}</ul>{% else %}<p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucune capacité supprimée.</p>{% endif %}</section>
+    </div>
+    {% endif %}
+
+    {% if product_preview.quota_changes %}
+    <section class="mk-panel p-5 sm:p-6" aria-labelledby="limits-title"><h2 id="limits-title" class="text-lg font-extrabold">Limites et usage</h2><div class="mt-4 space-y-3">{% for change in product_preview.quota_changes %}<div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="text-sm font-extrabold">{{ change.label }}</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ change.current_value }} → {{ change.target_value }}{% if change.usage is not None %} · usage actuel : {{ change.usage }}{% endif %}</p>{% if change.over_limit_after_change %}<p class="mt-2 text-xs font-bold" role="alert">Votre usage actuel dépasse la future limite. L’existant sera conservé ; de nouvelles opérations pourront être bloquées jusqu’au retour sous la limite.</p>{% endif %}</div>{% endfor %}</div></section>
+    {% endif %}
+
+    {% if product_preview.requirements or product_preview.has_payment_requirement %}
+    <section class="mk-panel p-5 sm:p-6" aria-labelledby="requirements-title"><h2 id="requirements-title" class="text-lg font-extrabold">Conditions avant finalisation</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Une confirmation peut ouvrir une demande qui restera en cours jusqu’à satisfaction des conditions.</p>{% if product_preview.requirements %}<ul class="mt-4 space-y-2">{% for requirement in product_preview.requirements %}<li class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><p class="text-sm font-bold">{{ requirement.label }}</p>{% if requirement.detail %}<p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">{{ requirement.detail }}</p>{% endif %}</li>{% endfor %}</ul>{% endif %}{% if product_preview.has_payment_requirement %}<p class="mt-4 rounded-2xl border p-3 text-sm" style="border-color:var(--mk-border)">Une obligation financière peut faire partie du parcours. Aucun prix n’est inventé ici : Makolo affichera uniquement les informations financières réellement disponibles.</p>{% endif %}</section>
+    {% endif %}
+
+    {% if product_preview.warnings %}<section class="rounded-2xl border border-amber-400/40 bg-amber-500/[.07] p-4" aria-label="Avertissements">{% for warning in product_preview.warnings %}<p class="text-sm font-semibold">{{ warning }}</p>{% endfor %}</section>{% endif %}
+
+    {% if not can_confirm %}<p class="rounded-2xl border p-4 text-sm" role="status" style="border-color:var(--mk-border);color:var(--mk-muted)">Vous pouvez consulter cet aperçu, mais votre Mandat ne permet pas de modifier cet abonnement.</p>{% endif %}
+
+    <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        {% if space_slug %}<a href="{% url back_url_name space_slug %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% else %}<a href="{% url back_url_name %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% endif %}
+        {% if can_confirm %}
+            {% if confirm_item_id %}
+                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug confirm_item_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% else %}<form method="post" action="{% url confirm_url_name confirm_item_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% endif %}
+            {% else %}
+                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug product_preview.target_plan_version_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% else %}<form method="post" action="{% url confirm_url_name product_preview.target_plan_version_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% endif %}
+            {% endif %}
+        {% endif %}
+    </div>
+</section>

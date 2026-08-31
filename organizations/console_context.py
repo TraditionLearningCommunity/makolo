@@ -22,7 +22,7 @@ SPACE_NAVIGATION = (
     ("Publics", (("groups", "Groupes", "users-round"), ("crm", "Contacts", "contact-round"), ("audiences", "Audiences", "users-round"))),
     ("Exploitation", (("places", "Lieux", "building-2"), ("control", "Contrôle d’accès", "scan-line"), ("operations", "Opérations", "shield-check"))),
     ("Pilotage", (("analytics", "Analyses", "chart-spline"), ("automation", "Automatisations", "sparkles"))),
-    ("Espace", (("team", "Équipe", "users-round"), ("settings", "Paramètres", "building-2"))),
+    ("Espace", (("subscription", "Abonnement", "layers-3"), ("team", "Équipe", "users-round"), ("settings", "Paramètres", "building-2"))),
 )
 
 
@@ -160,6 +160,14 @@ def _module_allowed(profile, space, key, *, space_permissions, limited, space_ro
         return PermissionCode.ANALYTICS_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_VIEW)
     if key == "automation":
         return PermissionCode.SPACE_MANAGE in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_MANAGE)
+    if key == "subscription":
+        return bool(
+            {
+                PermissionCode.SPACE_SUBSCRIPTION_VIEW,
+                PermissionCode.SPACE_SUBSCRIPTION_MANAGE,
+            }
+            & space_permissions
+        )
     if key == "team":
         return not limited and PermissionCode.SPACE_TEAM_MANAGE in space_permissions
     if key == "settings":
@@ -228,6 +236,14 @@ class SpaceConsoleContext:
     @property
     def can_manage_activities(self):
         return PermissionCode.SPACE_ACTIVITIES_MANAGE in self.space_permissions
+
+    @property
+    def can_view_subscription(self):
+        return PermissionCode.SPACE_SUBSCRIPTION_VIEW in self.space_permissions or self.can_manage_subscription
+
+    @property
+    def can_manage_subscription(self):
+        return PermissionCode.SPACE_SUBSCRIPTION_MANAGE in self.space_permissions
 
     @property
     def can_view_finance(self):

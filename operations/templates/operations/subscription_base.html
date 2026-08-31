@@ -1,0 +1,18 @@
+{% extends 'base/app.html' %}
+{% load core_navigation %}
+{% web_capabilities request.user as caps %}
+{% block title %}Subscriptions · Opérations | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-6 lg:space-y-8">
+    <section class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><span class="mk-kicker">Plateforme</span><h1 class="mk-page-title">Subscriptions</h1><p class="mk-page-copy mt-3 text-[15px]">Catalogue et support opérationnel, selon vos Permissions plateforme.</p></div>
+        <a href="{% url 'operations:subscriptions' %}" class="mk-btn mk-btn-secondary">Vue Subscription</a>
+    </section>
+    <nav class="flex gap-2 overflow-x-auto pb-2" aria-label="Navigation opérations Subscription">
+        {% if caps.can_view_subscription_catalog %}<a class="mk-btn mk-btn-secondary shrink-0" href="{% url 'operations:subscription-catalog' %}">Catalogue</a>{% endif %}
+        {% if caps.can_view_subscriptions %}<a class="mk-btn mk-btn-secondary shrink-0" href="{% url 'operations:subscription-support' %}">Support</a>{% endif %}
+        {% if caps.can_manage_subscription_reviews %}<a class="mk-btn mk-btn-secondary shrink-0" href="{% url 'operations:subscription-reviews' %}">Reviews</a>{% endif %}
+    </nav>
+    {% block subscription_content %}{% endblock %}
+</div>
+{% endblock %}

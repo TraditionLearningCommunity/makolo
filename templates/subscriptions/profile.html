@@ -1,0 +1,15 @@
+{% extends 'base/app.html' %}
+{% block title %}Mon abonnement | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-7 lg:space-y-9">
+    <section class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div class="max-w-3xl">
+            <span class="mk-kicker">Pour moi</span>
+            <h1 class="mk-page-title">Mon abonnement</h1>
+            <p class="mk-page-copy mt-3 text-[15px]">Votre formule, vos capacités, votre usage et les options réellement disponibles pour votre profil.</p>
+        </div>
+        <a href="{% url 'account:profile' %}" class="mk-btn mk-btn-secondary"><i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>Réglages du compte</a>
+    </section>
+    {% include 'subscriptions/_product_content.html' %}
+</div>
+{% endblock %}
