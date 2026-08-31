@@ -125,11 +125,12 @@ test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_discovery_e2e'], { stdio: 'inherit' });
 });
 
-// Visual fixtures intentionally reset the shared E2E database. Restore Services only
-// after this spec finishes so later project tests keep their canonical Services case
-// without changing the visual baselines captured by this spec.
+// Visual fixtures intentionally reset the shared E2E database. Restore downstream
+// domain fixtures after this spec so later tests remain independent from spec order
+// without changing the visual baselines captured here.
 test.afterAll(() => {
   execFileSync('python', ['manage.py', 'prepare_services_e2e'], { stdio: 'inherit' });
+  execFileSync('python', ['manage.py', 'prepare_subscriptions_e2e'], { stdio: 'inherit' });
 });
 
 

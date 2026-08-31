@@ -14,7 +14,7 @@ test('Profile can inspect Subscription, preview without mutation and request an 
   await page.goto('/subscription/');
 
   await expect(page.getByRole('heading', { name: 'Mon abonnement' })).toBeVisible();
-  await expect(page.getByText('Makolo Base — Profil')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Makolo Base — Profil', level: 2 })).toBeVisible();
   const target = page.locator('article').filter({ hasText: 'Makolo E2E Profil Plus' });
   await expect(target).toBeVisible();
   await target.getByRole('link', { name: 'Voir ce qui changerait' }).click();
@@ -26,7 +26,7 @@ test('Profile can inspect Subscription, preview without mutation and request an 
   await page.waitForURL('/subscription/');
   await expect(page.getByText('Makolo E2E Profil Plus').first()).toBeVisible();
   await expect(page.getByText(/1 \/ 2 conditions remplies/)).toBeVisible();
-  await expect(page.getByText('Confirmer votre choix')).toBeVisible();
+  await expect(page.getByText('Confirmer votre choix', { exact: true })).toBeVisible();
 });
 
 
@@ -35,7 +35,9 @@ test('Space owner sees canonical usage and can request a Space plan change', asy
   await page.goto(`/spaces/${SPACE_SLUG}/subscription/`);
 
   await expect(page.getByRole('heading', { name: 'Abonnement de l’Espace' })).toBeVisible();
-  await expect(page.getByText('Espace · Makolo E2E Events')).toBeVisible();
+  await expect(
+    page.getByLabel('État de l’abonnement').getByText('Espace · Makolo E2E Events', { exact: true }),
+  ).toBeVisible();
   const target = page.locator('article').filter({ hasText: 'Makolo E2E Espace Plus' });
   await expect(target).toBeVisible();
   await target.getByRole('link', { name: 'Voir ce qui changerait' }).click();
