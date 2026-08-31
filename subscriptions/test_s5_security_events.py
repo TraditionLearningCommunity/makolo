@@ -42,10 +42,10 @@ class S5AuthorizationTests(TestCase):
         self.other = User.objects.create_user(username="s5-other", email="s5-other@example.test", password="test-only")
         self.space = Organization.objects.create(name="S5 Space", created_by=self.actor)
         self.other_space = Organization.objects.create(name="S5 Other Space", created_by=self.other)
-        self.profile_subscription = Subscription.objects.create(profile=self.actor)
-        self.other_profile_subscription = Subscription.objects.create(profile=self.other)
-        self.space_subscription = Subscription.objects.create(space=self.space)
-        self.other_space_subscription = Subscription.objects.create(space=self.other_space)
+        self.profile_subscription = Subscription.objects.get(profile=self.actor)
+        self.other_profile_subscription = Subscription.objects.get(profile=self.other)
+        self.space_subscription = Subscription.objects.get(space=self.space)
+        self.other_space_subscription = Subscription.objects.get(space=self.other_space)
 
     def mandate(self, user, role_code, space=None):
         role = Role.objects.get(code=role_code, is_system=True)
@@ -90,7 +90,7 @@ class S5AuthorizationTests(TestCase):
 class S5OngoingRequirementTests(TestCase):
     def setUp(self):
         self.profile = User.objects.create_user(username="s5-profile", email="s5-profile@example.test", password="test-only")
-        self.subscription = Subscription.objects.create(profile=self.profile)
+        self.subscription = Subscription.objects.get(profile=self.profile)
         self.plan = SubscriptionPlan.objects.create(
             code="s5.profile.addon",
             plan_type=SubscriptionPlanType.ADDON,
