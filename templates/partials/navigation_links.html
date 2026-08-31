@@ -30,9 +30,10 @@
             {% endif %}
         {% endif %}
 
-        {% if caps.is_staff and not space_console %}
+        {% if not space_console and caps.can_access_operations or not space_console and caps.has_subscription_operations %}
             <p class="mk-nav-group-label">Plateforme</p>
-            <a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' %}is-active{% endif %}" {% if request.resolver_match.namespace == 'operations' %}aria-current="page"{% endif %}><i data-lucide="shield-check"></i><span>Opérations</span></a>
+            {% if caps.can_access_operations %}<a href="{% url 'operations:dashboard' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' and request.resolver_match.url_name != 'subscriptions' and request.resolver_match.url_name|slice:':13' != 'subscription-' %}is-active{% endif %}"><i data-lucide="shield-check"></i><span>Opérations</span></a>{% endif %}
+            {% if caps.has_subscription_operations %}<a href="{% url 'operations:subscriptions' %}" class="mk-nav-item {% if request.resolver_match.namespace == 'operations' and request.resolver_match.url_name == 'subscriptions' or request.resolver_match.namespace == 'operations' and request.resolver_match.url_name|slice:':13' == 'subscription-' %}is-active{% endif %}"><i data-lucide="layers-3"></i><span>Subscriptions</span></a>{% endif %}
         {% endif %}
     {% else %}
         <p class="mk-nav-group-label">Makolo</p>
