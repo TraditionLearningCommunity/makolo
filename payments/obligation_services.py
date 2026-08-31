@@ -31,12 +31,30 @@ def _actor_id(actor):
     return getattr(actor, "pk", None) if getattr(actor, "is_authenticated", False) else None
 
 
+def _obligation_context(obligation):
+    journey = obligation.journey
+    if journey is not None:
+        activity = journey.activity
+        return {
+            "journey_id": str(journey.pk),
+            "activity_id": str(activity.pk),
+            "space_id": getattr(activity, "space_id", None),
+        }
+    return {
+        "journey_id": None,
+        "activity_id": None,
+        "space_id": obligation.payer_space_id or obligation.payee_space_id,
+    }
+
+
 def _emit_obligation_event(obligation, event_type, suffix, payload=None):
+    context = _obligation_context(obligation)
     base = {
         "obligation_id": str(obligation.pk),
-        "journey_id": str(obligation.journey_id),
+        "journey_id": context["journey_id"],
         "reason": obligation.reason,
         "status": obligation.status,
+        "source_key": obligation.source_key,
     }
     base.update(payload or {})
     return emit_domain_event(
@@ -44,61 +62,136 @@ def _emit_obligation_event(obligation, event_type, suffix, payload=None):
         source_type="payment_obligation",
         source_id=obligation.pk,
         idempotency_key=f"payment_obligation:{obligation.pk}:{suffix}"[:255],
-        space_id=getattr(obligation.journey.activity, "space_id", None),
-        activity_id=obligation.journey.activity_id,
+        space_id=context["space_id"],
+        activity_id=context["activity_id"],
         payload=base,
     )
 
 
 def _emit_evidence_event(evidence, event_type, suffix):
     obligation = evidence.obligation
+    if obligation.journey_id is None:
+        raise ValidationError("PaymentEvidence exige une obligation rattachée à une Journey.")
+    context = _obligation_context(obligation)
     return emit_domain_event(
         event_type=event_type,
         source_type="payment_evidence",
         source_id=evidence.pk,
         idempotency_key=f"payment_evidence:{evidence.pk}:{suffix}"[:255],
-        space_id=getattr(obligation.journey.activity, "space_id", None),
-        activity_id=obligation.journey.activity_id,
+        space_id=context["space_id"],
+        activity_id=context["activity_id"],
         payload={
             "evidence_id": str(evidence.pk),
             "obligation_id": str(obligation.pk),
-            "journey_id": str(obligation.journey_id),
+            "journey_id": context["journey_id"],
             "status": evidence.status,
         },
     )
 
 
-def _validate_payee(*, payee_space=None, payee_profile=None, external_payee_name=""):
+def _validate_payee(*, payee_space=None, payee_profile=None, payee_platform=False, external_payee_name=""):
     external_payee_name = (external_payee_name or "").strip()
-    count = int(bool(payee_space)) + int(bool(payee_profile)) + int(bool(external_payee_name))
+    count = (
+        int(bool(payee_space))
+        + int(bool(payee_profile))
+        + int(bool(payee_platform))
+        + int(bool(external_payee_name))
+    )
     if count != 1:
         raise ValidationError("Une obligation exige exactement un bénéficiaire économique.")
     return external_payee_name
 
 
+def _validate_payer(*, payer_space=None, payer_profile=None, required=False):
+    count = int(bool(payer_space)) + int(bool(payer_profile))
+    if count > 1 or (required and count != 1):
+        raise ValidationError("Le débiteur doit être exactement un Profile ou un Space.")
+
+
+def _same_id(instance, value):
+    return getattr(instance, "pk", None) == getattr(value, "pk", None)
+
+
+def _validate_existing_source(
+    existing,
+    *,
+    journey,
+    reason,
+    amount,
+    currency,
+    processing_mode,
+    commerce_order,
+    step,
+    payer_space,
+    payer_profile,
+    payee_space,
+    payee_profile,
+    payee_platform,
+    external_payee_name,
+):
+    expected = {
+        "journey_id": getattr(journey, "pk", None),
+        "commerce_order_id": getattr(commerce_order, "pk", None),
+        "step_id": getattr(step, "pk", None),
+        "reason": reason,
+        "amount": amount,
+        "currency": (currency or "USD").upper(),
+        "processing_mode": processing_mode,
+        "payer_space_id": getattr(payer_space, "pk", None),
+        "payer_profile_id": getattr(payer_profile, "pk", None),
+        "payee_space_id": getattr(payee_space, "pk", None),
+        "payee_profile_id": getattr(payee_profile, "pk", None),
+        "payee_platform": bool(payee_platform),
+        "external_payee_name": (external_payee_name or "").strip(),
+    }
+    actual = {name: getattr(existing, name) for name in expected}
+    if actual != expected:
+        raise ValidationError("Cette clé de provenance correspond à une obligation financière différente.")
+
+
 @transaction.atomic
 def create_payment_obligation(
     *,
-    journey,
     reason,
     label,
     amount,
     currency,
     processing_mode,
+    journey=None,
     created_by=None,
     commerce_order=None,
     step=None,
+    payer_space=None,
+    payer_profile=None,
     payee_space=None,
     payee_profile=None,
+    payee_platform=False,
     external_payee_name="",
     due_at=None,
     source_key=None,
 ):
+    external_payee_name = (external_payee_name or "").strip()
     if source_key:
-        existing = PaymentObligation.objects.select_related("journey", "commerce_order", "step").filter(source_key=source_key).first()
+        existing = PaymentObligation.objects.select_related(
+            "journey", "commerce_order", "step", "payer_space", "payer_profile", "payee_space", "payee_profile"
+        ).filter(source_key=source_key).first()
         if existing:
-            if existing.journey_id != journey.pk:
-                raise ValidationError("Cette clé de provenance appartient à une autre Journey.")
+            _validate_existing_source(
+                existing,
+                journey=journey,
+                reason=reason,
+                amount=amount,
+                currency=currency,
+                processing_mode=processing_mode,
+                commerce_order=commerce_order,
+                step=step,
+                payer_space=payer_space,
+                payer_profile=payer_profile,
+                payee_space=payee_space,
+                payee_profile=payee_profile,
+                payee_platform=payee_platform,
+                external_payee_name=external_payee_name,
+            )
             return existing
     if reason not in PaymentObligationReason.values:
         raise ValidationError("Motif d’obligation inconnu.")
@@ -107,12 +200,25 @@ def create_payment_obligation(
     external_payee_name = _validate_payee(
         payee_space=payee_space,
         payee_profile=payee_profile,
+        payee_platform=payee_platform,
         external_payee_name=external_payee_name,
     )
-    if commerce_order is not None and commerce_order.journey_id != journey.pk:
-        raise ValidationError("La CommerceOrder appartient à une autre Journey.")
-    if step is not None and step.journey_id != journey.pk:
-        raise ValidationError("La JourneyStep appartient à une autre Journey.")
+    _validate_payer(
+        payer_space=payer_space,
+        payer_profile=payer_profile,
+        required=(reason == PaymentObligationReason.SUBSCRIPTION),
+    )
+    if commerce_order is not None:
+        if journey is None or commerce_order.journey_id != journey.pk:
+            raise ValidationError("La CommerceOrder exige sa Journey canonique.")
+    if step is not None:
+        if journey is None or step.journey_id != journey.pk:
+            raise ValidationError("La JourneyStep exige sa Journey canonique.")
+    if reason == PaymentObligationReason.SUBSCRIPTION:
+        if journey is not None or commerce_order is not None or step is not None:
+            raise ValidationError("Une obligation Subscription ne doit pas fabriquer de contexte Journey/Commerce.")
+        if not payee_platform:
+            raise ValidationError("Makolo doit être le bénéficiaire canonique d’une obligation Subscription.")
     obligation = PaymentObligation(
         journey=journey,
         commerce_order=commerce_order,
@@ -122,8 +228,11 @@ def create_payment_obligation(
         amount=amount,
         currency=(currency or "USD").upper(),
         processing_mode=processing_mode,
+        payer_space=payer_space,
+        payer_profile=payer_profile,
         payee_space=payee_space,
         payee_profile=payee_profile,
+        payee_platform=payee_platform,
         external_payee_name=external_payee_name,
         due_at=due_at,
         source_key=source_key or None,
@@ -136,6 +245,22 @@ def create_payment_obligation(
         if source_key:
             existing = PaymentObligation.objects.filter(source_key=source_key).first()
             if existing:
+                _validate_existing_source(
+                    existing,
+                    journey=journey,
+                    reason=reason,
+                    amount=amount,
+                    currency=currency,
+                    processing_mode=processing_mode,
+                    commerce_order=commerce_order,
+                    step=step,
+                    payer_space=payer_space,
+                    payer_profile=payer_profile,
+                    payee_space=payee_space,
+                    payee_profile=payee_profile,
+                    payee_platform=payee_platform,
+                    external_payee_name=external_payee_name,
+                )
                 return existing
         raise ValidationError("Impossible de créer cette obligation de façon unique.") from exc
     _emit_obligation_event(obligation, DomainEventType.PAYMENT_OBLIGATION_CREATED, "created")
@@ -153,6 +278,7 @@ def create_commerce_payment_obligation(*, commerce_order, actor=None):
             "journey__activity__owner_profile",
             "payee_space",
             "payee_profile",
+            "buyer",
         )
         .order_by()
         .get(pk=commerce_order.pk)
@@ -163,8 +289,6 @@ def create_commerce_payment_obligation(*, commerce_order, actor=None):
     payee_space = commerce_order.payee_space
     payee_profile = commerce_order.payee_profile
     if payee_space is None and payee_profile is None:
-        # Expand-compatible legacy orders may predate explicit Commerce payees.
-        # The canonical Activity owner is objective business data, not an invented payee.
         activity = commerce_order.journey.activity
         payee_space = activity.space
         if payee_space is None:
@@ -180,6 +304,7 @@ def create_commerce_payment_obligation(*, commerce_order, actor=None):
         amount=commerce_order.total,
         currency=commerce_order.currency,
         processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
+        payer_profile=commerce_order.buyer,
         payee_space=payee_space,
         payee_profile=payee_profile,
         created_by=actor,
@@ -202,7 +327,14 @@ def mark_obligation_processing(*, obligation):
         return obligation
     if obligation.status != PaymentObligationStatus.PENDING:
         raise ValidationError("Seule une obligation en attente peut passer en traitement.")
-    return _save_obligation_status(obligation, status=PaymentObligationStatus.PROCESSING)
+    result = _save_obligation_status(obligation, status=PaymentObligationStatus.PROCESSING)
+    transition_marker = result.updated_at.isoformat()
+    _emit_obligation_event(
+        result,
+        DomainEventType.PAYMENT_OBLIGATION_PROCESSING,
+        f"processing:{transition_marker}",
+    )
+    return result
 
 
 @transaction.atomic
@@ -243,6 +375,8 @@ def refund_payment_obligation(*, obligation):
 @transaction.atomic
 def submit_payment_evidence(*, obligation, artifact, actor, paid_at, external_reference=""):
     obligation = PaymentObligation.objects.select_for_update(of=("self",)).select_related("journey__activity").get(pk=obligation.pk)
+    if obligation.journey_id is None:
+        raise ValidationError("PaymentEvidence exige une obligation rattachée à une Journey.")
     if obligation.processing_mode != PaymentObligationProcessingMode.EXTERNAL:
         raise ValidationError("Une preuve externe exige une obligation processing_mode=external.")
     if obligation.status in TERMINAL_OBLIGATION_STATUSES:
@@ -264,6 +398,8 @@ def submit_payment_evidence(*, obligation, artifact, actor, paid_at, external_re
 
 
 def _ensure_evidence_reviewer(actor, obligation):
+    if obligation.journey_id is None:
+        raise ValidationError("PaymentEvidence exige une obligation rattachée à une Journey.")
     if getattr(actor, "is_staff", False):
         return
     ensure_case_access(actor, obligation.journey, write=True)

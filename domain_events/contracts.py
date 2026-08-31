@@ -57,6 +57,7 @@ class DomainEventType:
     PAYMENT_FAILED = "payment.failed"
     PAYMENT_REFUNDED = "payment.refunded"
     PAYMENT_OBLIGATION_CREATED = "payment.obligation.created"
+    PAYMENT_OBLIGATION_PROCESSING = "payment.obligation.processing"
     PAYMENT_OBLIGATION_SATISFIED = "payment.obligation.satisfied"
     PAYMENT_OBLIGATION_WAIVED = "payment.obligation.waived"
     PAYMENT_OBLIGATION_EXPIRED = "payment.obligation.expired"
