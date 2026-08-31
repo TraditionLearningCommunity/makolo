@@ -69,14 +69,14 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="commerceorder",
             constraint=models.CheckConstraint(
-                condition=models.Q(("expected_payee_amount__gte", 0)),
+                condition=models.Q(expected_payee_amount__gte=0),
                 name="commerce_order_payee_nonnegative",
             ),
         ),
         migrations.AddConstraint(
             model_name="commerceorder",
             constraint=models.CheckConstraint(
-                condition=models.Q(("makolo_amount__gte", 0)),
+                condition=models.Q(makolo_amount__gte=0),
                 name="commerce_order_makolo_nonnegative",
             ),
         ),
