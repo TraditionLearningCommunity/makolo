@@ -26,7 +26,7 @@ test('Profile can inspect Subscription, preview without mutation and request an 
   await page.waitForURL('/subscription/');
   await expect(page.getByText('Makolo E2E Profil Plus').first()).toBeVisible();
   await expect(page.getByText(/1 \/ 2 conditions remplies/)).toBeVisible();
-  await expect(page.getByText('Confirmer votre choix')).toBeVisible();
+  await expect(page.getByText('Confirmer votre choix', { exact: true })).toBeVisible();
 });
 
 
