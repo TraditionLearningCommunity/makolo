@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.http import Http404
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -20,6 +20,7 @@ from .security_services import (
     complete_subscription_transition_for_actor,
     request_subscription_transition_for_actor,
 )
+from .transition_models import SubscriptionTransition
 
 
 def _profile_subscription(actor):
@@ -27,6 +28,14 @@ def _profile_subscription(actor):
     if subscription is None:
         raise Http404("Aucun abonnement personnel n’est disponible.")
     return subscription
+
+
+def _profile_transition(subscription, transition_id):
+    return get_object_or_404(
+        SubscriptionTransition,
+        pk=transition_id,
+        subscription=subscription,
+    )
 
 
 class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
@@ -141,10 +150,12 @@ class ProfileTransitionCancelView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, transition_id):
+        subscription = _profile_subscription(request.user)
+        transition = _profile_transition(subscription, transition_id)
         try:
             cancel_subscription_transition_for_actor(
                 actor=request.user,
-                transition_id=transition_id,
+                transition_id=transition.pk,
                 reason="Annulée depuis l’interface Abonnement.",
             )
         except ValidationError as exc:
@@ -158,8 +169,10 @@ class ProfileTransitionCompleteView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, transition_id):
+        subscription = _profile_subscription(request.user)
+        transition = _profile_transition(subscription, transition_id)
         try:
-            complete_subscription_transition_for_actor(actor=request.user, transition_id=transition_id)
+            complete_subscription_transition_for_actor(actor=request.user, transition_id=transition.pk)
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
