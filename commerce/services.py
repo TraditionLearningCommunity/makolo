@@ -20,7 +20,9 @@ from .models import (
     OfferPaymentOption,
     OfferStatus,
     PaymentMode,
+    PricingPolicy,
 )
+from .pricing import calculate_quote
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,25 @@ def update_offer(*, offer, payment_modes=None, **values):
     elif not offer.payment_options.exists():
         set_offer_payment_modes(offer=offer, modes=[offer.payment_mode])
     return offer
+
+
+def quote_financials(
+    *,
+    currency,
+    subtotal,
+    discount_total=Decimal("0.00"),
+    pricing_policy=PricingPolicy.SELLER_NET_GUARANTEED,
+    charges=(),
+):
+    """Canonical F1 owner for Commerce pricing math before an order exists."""
+
+    return calculate_quote(
+        currency=currency,
+        subtotal=subtotal,
+        discount_total=discount_total,
+        pricing_policy=pricing_policy,
+        charges=charges,
+    )
 
 
 def _normalize_selection(raw):
@@ -211,6 +232,8 @@ def create_order(
     idempotency_key=None,
     source_key=None,
     promotion_code=None,
+    pricing_policy=PricingPolicy.SELLER_NET_GUARANTEED,
+    financial_charges=(),
 ):
     if idempotency_key:
         existing = CommerceOrder.objects.filter(idempotency_key=idempotency_key).first()
@@ -322,7 +345,14 @@ def create_order(
         ]
         discount_total = promotion_quote["discount_amount"]
 
-    total = subtotal - discount_total
+    financial_quote = quote_financials(
+        currency=currency,
+        subtotal=subtotal,
+        discount_total=discount_total,
+        pricing_policy=pricing_policy,
+        charges=financial_charges,
+    )
+    total = financial_quote.payer_total
     if payment_mode == PaymentMode.NONE and total != Decimal("0.00"):
         raise ValidationError("Une commande payment_mode=none doit être gratuite.")
 
@@ -334,9 +364,13 @@ def create_order(
         status=CommerceOrderStatus.PENDING,
         currency=currency,
         payment_mode=payment_mode,
-        subtotal=subtotal,
-        discount_total=discount_total,
-        total=total,
+        subtotal=financial_quote.subtotal,
+        discount_total=financial_quote.discount_total,
+        total=financial_quote.payer_total,
+        pricing_policy=financial_quote.pricing_policy.value,
+        expected_payee_amount=financial_quote.expected_payee_amount,
+        makolo_amount=financial_quote.makolo_amount,
+        financial_snapshot=financial_quote.as_snapshot(),
         expires_at=expires_at,
         idempotency_key=idempotency_key or None,
         source_key=source_key or None,
