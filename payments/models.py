@@ -70,6 +70,44 @@ class RefundStatus(models.TextChoices):
     CANCELLED = "cancelled", "Annulé"
 
 
+class FinancialAllocationSourceKind(models.TextChoices):
+    COMMERCE = "commerce", "Commerce snapshot"
+    SUBSCRIPTION = "subscription", "Subscription obligation"
+    OBLIGATION = "obligation", "Payment obligation"
+
+
+class FinancialAllocationLineType(models.TextChoices):
+    PAYEE = "payee", "Bénéficiaire"
+    PLATFORM = "platform", "Makolo"
+    TAX = "tax", "Taxe"
+    PROCESSING = "processing", "Traitement"
+    OTHER = "other", "Autre"
+
+
+class LedgerEntryType(models.TextChoices):
+    PAYMENT_RECOGNIZED = "payment_recognized", "Transaction reconnue"
+    PAYEE_PAYABLE = "payee_payable", "Payable bénéficiaire"
+    PLATFORM_REVENUE = "platform_revenue", "Montant Makolo"
+    TAX_LIABILITY = "tax_liability", "Position taxe"
+    PROCESSING_RESERVE = "processing_reserve", "Composante traitement"
+    OTHER_POSITION = "other_position", "Autre position"
+    REFUND = "refund", "Remboursement"
+    REVERSAL = "reversal", "Contre-écriture"
+    ADJUSTMENT = "adjustment", "Ajustement"
+
+
+class LedgerSourceKind(models.TextChoices):
+    PAYMENT = "payment", "Payment"
+    PAYMENT_EVIDENCE = "payment_evidence", "PaymentEvidence"
+    REFUND = "refund", "Refund"
+    ADJUSTMENT = "adjustment", "Ajustement"
+
+
+class FundsCustody(models.TextChoices):
+    UNKNOWN = "unknown", "Non déterminée en F3"
+    EXTERNAL = "external", "Hors garde Makolo"
+
+
 class PaymentObligation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     journey = models.ForeignKey(
@@ -467,6 +505,7 @@ class Refund(models.Model):
         null=True,
         blank=True,
     )
+    financial_breakdown = models.JSONField(default=list, blank=True)
     failure_message = models.CharField(max_length=500, blank=True)
     processed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -603,3 +642,206 @@ class PaymentEvent(models.Model):
 
     def __str__(self):
         return f"{self.provider}:{self.event_type}:{self.event_id or self.id}"
+
+
+class ImmutableFinancialQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValidationError("Un fait financier audité ne peut pas être modifié en place.")
+
+    def delete(self):
+        raise ValidationError("Un fait financier audité ne peut pas être supprimé.")
+
+
+class FinancialAllocation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    obligation = models.OneToOneField(
+        PaymentObligation,
+        on_delete=models.PROTECT,
+        related_name="financial_allocation",
+    )
+    source_kind = models.CharField(max_length=20, choices=FinancialAllocationSourceKind.choices)
+    source_key = models.CharField(max_length=220, unique=True)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    source_snapshot = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ImmutableFinancialQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [models.Index(fields=["currency", "created_at"], name="finalloc_currency_created_idx")]
+        constraints = [models.CheckConstraint(condition=Q(total_amount__gt=0), name="finalloc_total_positive")]
+
+    def clean(self):
+        super().clean()
+        self.currency = (self.currency or "").strip().upper()
+        errors = {}
+        if self.obligation_id:
+            if self.total_amount != self.obligation.amount:
+                errors["total_amount"] = "L’allocation doit porter exactement le montant de l’obligation."
+            if self.currency != self.obligation.currency:
+                errors["currency"] = "L’allocation doit utiliser la devise de l’obligation."
+        if not self.source_key:
+            errors["source_key"] = "Une allocation financière exige une identité idempotente."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding and FinancialAllocation.objects.filter(pk=self.pk).exists():
+            raise ValidationError("Une FinancialAllocation historique est immuable.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Une FinancialAllocation historique ne peut pas être supprimée.")
+
+
+class FinancialAllocationLine(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    allocation = models.ForeignKey(FinancialAllocation, on_delete=models.PROTECT, related_name="lines")
+    sequence = models.PositiveSmallIntegerField()
+    line_type = models.CharField(max_length=20, choices=FinancialAllocationLineType.choices)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    beneficiary_space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="financial_allocation_lines",
+        null=True,
+        blank=True,
+    )
+    beneficiary_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="financial_allocation_lines",
+        null=True,
+        blank=True,
+    )
+    beneficiary_platform = models.BooleanField(default=False)
+    external_beneficiary_name = models.CharField(max_length=220, blank=True)
+    source_component_type = models.CharField(max_length=40, blank=True)
+    source_component_code = models.CharField(max_length=80, blank=True)
+    source_component_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    source_metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ImmutableFinancialQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["allocation", "sequence", "id"]
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gt=0), name="finline_amount_positive"),
+            models.UniqueConstraint(fields=["allocation", "sequence"], name="finline_alloc_sequence_unique"),
+        ]
+        indexes = [models.Index(fields=["allocation", "line_type"], name="finline_alloc_role_idx")]
+
+    def clean(self):
+        super().clean()
+        self.currency = (self.currency or "").strip().upper()
+        self.external_beneficiary_name = (self.external_beneficiary_name or "").strip()
+        errors = {}
+        if self.allocation_id and self.currency != self.allocation.currency:
+            errors["currency"] = "Une ligne d’allocation doit utiliser la devise de son allocation."
+        if self.amount is None or self.amount <= 0:
+            errors["amount"] = "Une ligne d’allocation doit être strictement positive."
+        parties = (
+            int(bool(self.beneficiary_space_id))
+            + int(bool(self.beneficiary_profile_id))
+            + int(bool(self.beneficiary_platform))
+            + int(bool(self.external_beneficiary_name))
+        )
+        if self.line_type == FinancialAllocationLineType.PAYEE and parties != 1:
+            errors["line_type"] = "Une ligne PAYEE exige exactement un bénéficiaire canonique."
+        if self.line_type == FinancialAllocationLineType.PLATFORM:
+            if not self.beneficiary_platform or parties != 1:
+                errors["beneficiary_platform"] = "Une ligne PLATFORM appartient économiquement à Makolo."
+        if self.line_type in {
+            FinancialAllocationLineType.TAX,
+            FinancialAllocationLineType.PROCESSING,
+            FinancialAllocationLineType.OTHER,
+        } and parties > 1:
+            errors["line_type"] = "Une ligne financière ne peut désigner qu’un seul bénéficiaire explicite."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding and FinancialAllocationLine.objects.filter(pk=self.pk).exists():
+            raise ValidationError("Une ligne d’allocation historique est immuable.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Une ligne d’allocation historique ne peut pas être supprimée.")
+
+
+class LedgerEntry(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    obligation = models.ForeignKey(PaymentObligation, on_delete=models.PROTECT, related_name="ledger_entries")
+    allocation = models.ForeignKey(FinancialAllocation, on_delete=models.PROTECT, related_name="ledger_entries")
+    allocation_line = models.ForeignKey(
+        FinancialAllocationLine,
+        on_delete=models.PROTECT,
+        related_name="ledger_entries",
+        null=True,
+        blank=True,
+    )
+    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="ledger_entries", null=True, blank=True)
+    evidence = models.ForeignKey(PaymentEvidence, on_delete=models.PROTECT, related_name="ledger_entries", null=True, blank=True)
+    refund = models.ForeignKey(Refund, on_delete=models.PROTECT, related_name="ledger_entries", null=True, blank=True)
+    entry_type = models.CharField(max_length=32, choices=LedgerEntryType.choices)
+    economic_role = models.CharField(max_length=20, choices=FinancialAllocationLineType.choices, blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    source_kind = models.CharField(max_length=24, choices=LedgerSourceKind.choices)
+    source_key = models.CharField(max_length=220, unique=True)
+    funds_custody = models.CharField(max_length=16, choices=FundsCustody.choices, default=FundsCustody.UNKNOWN)
+    metadata = models.JSONField(default=dict, blank=True)
+    occurred_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ImmutableFinancialQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["occurred_at", "created_at", "id"]
+        constraints = [models.CheckConstraint(condition=~Q(amount=0), name="ledger_amount_nonzero")]
+        indexes = [
+            models.Index(fields=["obligation", "occurred_at"], name="ledger_obligation_time_idx"),
+            models.Index(fields=["economic_role", "occurred_at"], name="ledger_role_time_idx"),
+            models.Index(fields=["entry_type", "occurred_at"], name="ledger_type_time_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        self.currency = (self.currency or "").strip().upper()
+        errors = {}
+        if self.amount is None or self.amount == 0:
+            errors["amount"] = "Une écriture ledger ne peut pas être nulle."
+        if self.obligation_id and self.currency != self.obligation.currency:
+            errors["currency"] = "Le ledger doit utiliser la devise de l’obligation."
+        if self.allocation_id:
+            if self.allocation.obligation_id != self.obligation_id:
+                errors["allocation"] = "L’allocation et l’écriture doivent appartenir à la même obligation."
+            if self.currency != self.allocation.currency:
+                errors["currency"] = "Le ledger doit utiliser la devise de l’allocation."
+        if self.allocation_line_id and self.allocation_line.allocation_id != self.allocation_id:
+            errors["allocation_line"] = "La ligne ledger doit référencer une ligne de cette allocation."
+        if self.payment_id and self.payment.obligation_id not in {None, self.obligation_id}:
+            errors["payment"] = "Le Payment appartient à une autre obligation."
+        if self.evidence_id and self.evidence.obligation_id != self.obligation_id:
+            errors["evidence"] = "La PaymentEvidence appartient à une autre obligation."
+        if self.refund_id and self.refund.payment.obligation_id not in {None, self.obligation_id}:
+            errors["refund"] = "Le Refund appartient à une autre obligation."
+        if not self.source_key:
+            errors["source_key"] = "Une écriture ledger exige une identité idempotente."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding and LedgerEntry.objects.filter(pk=self.pk).exists():
+            raise ValidationError("Une écriture ledger est append-only et ne peut pas être modifiée.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Une écriture ledger est append-only et ne peut pas être supprimée.")
