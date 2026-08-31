@@ -20,7 +20,7 @@ test('Profile can inspect Subscription, preview without mutation and request an 
   await target.getByRole('link', { name: 'Voir ce qui changerait' }).click();
 
   await expect(page.getByRole('heading', { name: 'Ce qui changerait' })).toBeVisible();
-  await expect(page.getByText('Cet aperçu ne modifie pas votre abonnement')).toBeVisible();
+  await expect(page.getByText('Cet aperçu ne modifie pas l’abonnement')).toBeVisible();
   await page.getByRole('button', { name: 'Confirmer le changement' }).click();
 
   await page.waitForURL('/subscription/');
