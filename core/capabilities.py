@@ -7,7 +7,7 @@ from organizations.models import TeamMembership, TeamMembershipStatus
 from scanner.models import ScannerAssignment
 
 
-CAPABILITY_KEYS = (
+ORGANIZER_CAPABILITY_KEYS = (
     "can_manage_organization",
     "can_manage_events",
     "can_manage_finance",
@@ -22,6 +22,9 @@ CAPABILITY_KEYS = (
     "can_view_analytics",
     "can_operate_services",
     "can_curate_opportunities",
+)
+
+PLATFORM_CAPABILITY_KEYS = (
     "can_access_operations",
     "can_view_subscription_catalog",
     "can_manage_subscription_catalog",
@@ -29,6 +32,7 @@ CAPABILITY_KEYS = (
     "can_manage_subscriptions",
     "can_manage_subscription_grants",
     "can_manage_subscription_reviews",
+    "has_subscription_operations",
 )
 
 SERVICE_OPERATION_CODES = {
@@ -56,7 +60,7 @@ SUBSCRIPTION_PLATFORM_CODES = {
 
 def _empty_capabilities(*, is_staff=False, has_organization=False):
     capabilities = {"is_staff": is_staff, "has_organization": has_organization, "has_organizer_tools": False}
-    capabilities.update({key: False for key in CAPABILITY_KEYS})
+    capabilities.update({key: False for key in (*ORGANIZER_CAPABILITY_KEYS, *PLATFORM_CAPABILITY_KEYS)})
     return capabilities
 
 
@@ -98,7 +102,7 @@ def get_web_capabilities(user) -> dict[str, bool]:
         "can_manage_subscriptions": can_subscription_manage,
         "can_manage_subscription_grants": PermissionCode.PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE in effective,
         "can_manage_subscription_reviews": PermissionCode.PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE in effective,
+        "has_subscription_operations": bool(SUBSCRIPTION_PLATFORM_CODES & effective),
     }
-    capabilities["has_organizer_tools"] = any(capabilities[key] for key in CAPABILITY_KEYS)
-    capabilities["has_subscription_operations"] = bool(SUBSCRIPTION_PLATFORM_CODES & effective)
+    capabilities["has_organizer_tools"] = any(capabilities[key] for key in ORGANIZER_CAPABILITY_KEYS)
     return capabilities
