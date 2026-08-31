@@ -259,7 +259,7 @@ class S6StaffHardeningTests(TestCase):
             is_staff=True,
         )
         self.client.force_login(staff)
-        response = self.client.get(reverse("operations:subscription-hub"))
+        response = self.client.get(reverse("operations:subscriptions"))
         self.assertEqual(response.status_code, 403)
 
     def test_platform_mandate_grants_subscription_operations(self):
@@ -267,7 +267,7 @@ class S6StaffHardeningTests(TestCase):
         role = Role.objects.get(code=SystemRoleCode.PLATFORM_ADMIN, is_system=True)
         Mandate.objects.create(profile=actor, role=role, scope_type=AuthorityScope.PLATFORM)
         self.client.force_login(actor)
-        self.assertEqual(self.client.get(reverse("operations:subscription-hub")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("operations:subscriptions")).status_code, 200)
         self.assertEqual(self.client.get(reverse("operations:subscription-catalog")).status_code, 200)
 
     def test_staff_forms_accept_dotted_codes_and_reject_unknown_evaluator(self):
