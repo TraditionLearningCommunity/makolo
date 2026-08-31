@@ -6,29 +6,29 @@ from .models import FeatureDefinition, PlanVersion
 from .transition_preview import preview_subscription_change
 
 
-def _requirement_rows(target_version, keys):
+def _requirement_map(target_version, keys):
     if not keys:
-        return ()
-    requirements = {
+        return {}
+    return {
         requirement.key: requirement
         for requirement in PlanRequirement.objects.filter(
             plan_version=target_version,
             key__in=keys,
         ).order_by("position", "key")
     }
+
+
+def _requirement_rows(requirements, keys):
     rows = []
     for key in keys:
         requirement = requirements.get(key)
-        if requirement is None:
+        if requirement is None or requirement.disclosure == RequirementDisclosure.INTERNAL:
             continue
-        if requirement.disclosure == RequirementDisclosure.INTERNAL:
-            rows.append({"label": "Vérification Makolo", "detail": None, "internal": True})
-        elif requirement.disclosure == RequirementDisclosure.GENERIC:
+        if requirement.disclosure == RequirementDisclosure.GENERIC:
             rows.append(
                 {
                     "label": "Condition requise",
                     "detail": "Certaines conditions seront vérifiées après confirmation.",
-                    "internal": False,
                 }
             )
         else:
@@ -36,7 +36,6 @@ def _requirement_rows(target_version, keys):
                 {
                     "label": requirement.title or "Condition requise",
                     "detail": requirement.description or None,
-                    "internal": False,
                 }
             )
     return tuple(rows)
@@ -69,6 +68,8 @@ def build_subscription_change_preview(
         feature.code: feature
         for feature in FeatureDefinition.objects.filter(code__in=feature_codes)
     }
+    requirement_keys = tuple(dict.fromkeys((*preview.requirement_keys, *preview.payment_requirement_keys)))
+    requirements = _requirement_map(target, requirement_keys)
 
     def feature_label(code):
         feature = features.get(code)
@@ -86,6 +87,12 @@ def build_subscription_change_preview(
             }
         )
 
+    visible_payment_requirement = any(
+        requirements.get(key) is not None
+        and requirements[key].disclosure == RequirementDisclosure.VISIBLE
+        for key in preview.payment_requirement_keys
+    )
+
     return {
         "kind": preview.kind,
         "current_name": current.name if current else None,
@@ -94,8 +101,8 @@ def build_subscription_change_preview(
         "features_gained": tuple(feature_label(code) for code in preview.features_gained),
         "features_lost": tuple(feature_label(code) for code in preview.features_lost),
         "quota_changes": tuple(quota_rows),
-        "requirements": _requirement_rows(target, preview.requirement_keys),
-        "has_payment_requirement": bool(preview.payment_requirement_keys),
+        "requirements": _requirement_rows(requirements, preview.requirement_keys),
+        "has_payment_requirement": visible_payment_requirement,
         "eligibility": preview.eligibility.status if preview.eligibility else None,
         "warnings": tuple(
             "Votre usage actuel dépasse la future limite. Vos données existantes seront conservées, "
