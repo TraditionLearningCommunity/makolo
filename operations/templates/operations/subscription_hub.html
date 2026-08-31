@@ -1,0 +1,9 @@
+{% extends 'operations/subscription_base.html' %}
+{% block subscription_content %}
+<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {% if can_catalog_view %}<a href="{% url 'operations:subscription-catalog' %}" class="mk-panel block p-5"><i data-lucide="library" class="h-5 w-5" aria-hidden="true"></i><h2 class="mt-4 text-lg font-extrabold">Catalogue</h2><p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Plans, versions, Benefits, Entitlements et Requirements.</p><p class="mt-4 text-xs font-bold">{% if can_catalog_manage %}Consultation et gestion{% else %}Consultation uniquement{% endif %}</p></a>{% endif %}
+    {% if can_support_view %}<a href="{% url 'operations:subscription-support' %}" class="mk-panel block p-5"><i data-lucide="life-buoy" class="h-5 w-5" aria-hidden="true"></i><h2 class="mt-4 text-lg font-extrabold">Support Subscriptions</h2><p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Consulter l’état, les formules, transitions et conditions d’un Profile ou d’un Espace.</p></a>{% endif %}
+    {% if can_reviews_manage %}<a href="{% url 'operations:subscription-reviews' %}" class="mk-panel block p-5"><i data-lucide="file-check-2" class="h-5 w-5" aria-hidden="true"></i><h2 class="mt-4 text-lg font-extrabold">Reviews humaines</h2><p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Traiter les conditions en attente via la façade autorisée et auditée.</p></a>{% endif %}
+    {% if can_grants_manage %}<div class="mk-panel p-5"><i data-lucide="badge-plus" class="h-5 w-5" aria-hidden="true"></i><h2 class="mt-4 text-lg font-extrabold">Grants</h2><p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Les Grants sont créés ou révoqués depuis la fiche support du sujet. Leur historique reste immuable.</p></div>{% endif %}
+</section>
+{% endblock %}
