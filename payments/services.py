@@ -14,6 +14,7 @@ from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
 from domain_events.contracts import DomainEventType
 from events.permissions import user_can_manage_event_finance
 from journeys.collaboration_services import can_access_case, is_beneficiary
+from organizations.permissions import user_can_manage_organization_finance
 from tickets.models import TicketOrder, TicketStatus
 from tickets.permissions import user_can_access_order
 from tickets.services import _confirm_locked_order, cancel_order
@@ -65,9 +66,17 @@ def _commerce_payment_actor_can_initiate(actor, order: CommerceOrder) -> bool:
 def _obligation_payment_actor_can_initiate(actor, obligation: PaymentObligation) -> bool:
     if not getattr(actor, "is_authenticated", False):
         return False
-    if getattr(actor, "is_staff", False) or is_beneficiary(actor, obligation.journey):
+    if getattr(actor, "is_staff", False):
         return True
-    return can_access_case(actor, obligation.journey, write=True)
+    if obligation.payer_profile_id:
+        return obligation.payer_profile_id == actor.pk
+    if obligation.payer_space_id:
+        return user_can_manage_organization_finance(actor, obligation.payer_space)
+    if obligation.journey_id:
+        if is_beneficiary(actor, obligation.journey):
+            return True
+        return can_access_case(actor, obligation.journey, write=True)
+    return False
 
 
 def _payment_actor_can_manage(actor, payment: Payment) -> bool:
@@ -76,8 +85,7 @@ def _payment_actor_can_manage(actor, payment: Payment) -> bool:
     if payment.commerce_order_id:
         return bool(getattr(actor, "is_authenticated", False) and getattr(actor, "is_staff", False))
     if payment.obligation_id:
-        # T34 will introduce the final Services finance permission. Until then,
-        # provider/manual/refund management on non-Commerce obligations is deny-by-default.
+        # Provider/manual/refund management remains intentionally narrower than payer initiation.
         return bool(getattr(actor, "is_authenticated", False) and getattr(actor, "is_staff", False))
     return False
 
@@ -266,7 +274,13 @@ def initiate_obligation_payment(
         return existing
     obligation = (
         PaymentObligation.objects.select_for_update(of=("self",))
-        .select_related("journey__activity", "journey__beneficiary", "commerce_order")
+        .select_related(
+            "journey__activity",
+            "journey__beneficiary",
+            "commerce_order",
+            "payer_profile",
+            "payer_space",
+        )
         .order_by().get(pk=obligation.pk)
     )
     existing = _payment_from_idempotency_key(idempotency_key)
@@ -283,7 +297,14 @@ def initiate_obligation_payment(
     if Payment.objects.filter(obligation=obligation, status=PaymentStatus.SUCCEEDED).exists():
         raise ValidationError("Cette obligation possède déjà un paiement réussi.")
     adapter = _validate_provider(provider=provider, actor=actor)
-    beneficiary = obligation.journey.beneficiary
+    if obligation.payer_profile_id:
+        payer_default = obligation.payer_profile
+    elif obligation.payer_space_id:
+        payer_default = actor
+    elif obligation.journey_id:
+        payer_default = obligation.journey.beneficiary
+    else:
+        payer_default = actor
     payment = Payment(
         obligation=obligation,
         commerce_order=obligation.commerce_order,
@@ -292,11 +313,11 @@ def initiate_obligation_payment(
         method=method,
         amount=obligation.amount,
         currency=obligation.currency,
-        payer_name=(payer_name or getattr(beneficiary, "full_name", "") or getattr(beneficiary, "username", "")).strip(),
-        payer_email=(payer_email or getattr(beneficiary, "email", "")).strip().lower(),
+        payer_name=(payer_name or getattr(payer_default, "full_name", "") or getattr(payer_default, "username", "")).strip(),
+        payer_email=(payer_email or getattr(payer_default, "email", "")).strip().lower(),
         payer_phone=payer_phone.strip(),
         idempotency_key=idempotency_key or None,
-        metadata={"source": "payment-obligation"},
+        metadata={"source": "payment-obligation", "obligation_reason": obligation.reason},
     )
     payment.full_clean()
     try:
@@ -405,7 +426,7 @@ def fail_payment(*, payment: Payment, failure_code: str = "", failure_message: s
 def cancel_payment(*, payment: Payment, actor) -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer", "obligation__journey__activity")
+        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer", "obligation__journey__activity", "obligation__payer_profile", "obligation__payer_space")
         .get(pk=payment.pk)
     )
     if payment.order_id:
@@ -437,7 +458,7 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
         raise ValidationError("Le sandbox de paiement est désactivé.")
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer", "obligation__journey__activity")
+        .select_related("order", "order__event__activity", "order__buyer", "commerce_order", "commerce_order__buyer", "obligation__journey__activity", "obligation__payer_profile", "obligation__payer_space")
         .get(pk=payment.pk)
     )
     if payment.provider != PaymentProvider.SANDBOX:
