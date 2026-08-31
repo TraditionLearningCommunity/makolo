@@ -1,0 +1,14 @@
+{% extends 'organizations/console/base.html' %}
+{% block console_content %}
+<div class="space-y-7 lg:space-y-9">
+    <section class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div class="max-w-3xl">
+            <span class="mk-kicker">Espace · {{ space.name }}</span>
+            <h1 class="mk-page-title">Abonnement</h1>
+            <p class="mk-page-copy mt-3 text-[15px]">La formule, les capacités et l’usage de cet Espace. Cet écran ne concerne pas votre abonnement personnel.</p>
+        </div>
+        <span class="mk-badge {% if product.can_manage %}mk-badge-success{% endif %}">{% if product.can_manage %}Consultation et gestion{% else %}Consultation uniquement{% endif %}</span>
+    </section>
+    {% include 'subscriptions/_product_content.html' with space_slug=space.slug %}
+</div>
+{% endblock %}
