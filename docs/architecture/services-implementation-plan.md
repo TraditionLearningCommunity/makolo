@@ -22,9 +22,9 @@ Règles de livraison : branche dédiée, services transactionnels avant UI, perm
 | T34A — Horizontal Requirements Foundation | ✅ livrée | kernel horizontal `requirements`, états/évaluateurs explicites, frontières de dépendance |
 | T34B — Services Authorization, Privacy, Events & Automation | ✅ livrée | `activity.services.*`, rôles, anti-IDOR, artifacts restricted, Domain Events, notifications/automation |
 | T35 — Complete Services UX | ✅ livrée | participant/public, facilitator, reviewer, manager et Opportunity Curator ; PR #95 + #99, intégration corrigée par #100 |
-| T36 — Analytics, Hardening & V1 Release Gate | candidat dans PR #103 | ne devient ✅ qu’après merge et gates post-merge de `main` verts |
+| T36 — Analytics, Hardening & V1 Release Gate | ✅ livrée | PR #103, correctif E2E #105 ; Analytics Services, hardening, E2E et release gate post-merge verts |
 
-Le cycle Services n’est pas prolongé automatiquement par une T37. Après T36, les évolutions viennent des retours bêta, bugs, nouvelles décisions produit, Subscription ou nouveaux providers.
+Le cycle Services T31–T36 est fermé. Il n’est pas prolongé automatiquement par une T37. Les évolutions suivantes viennent des retours bêta, bugs, nouvelles décisions produit, Subscription ou nouveaux providers.
 
 ## 3. T31 — Services Core & Journey Orchestration
 
@@ -90,15 +90,19 @@ La console Services reste opérationnelle (« travail du jour »). Elle n’est 
 
 ## 9. T36 — Analytics, Hardening & V1 Release Gate
 
-### État de candidat
+### État final — Services V1
 
-PR canonique : **#103 — `Task 36: harden and release Makolo Services V1`**.
+T36 est livrée via **PR #103 — `Task 36: harden and release Makolo Services V1`**. Le correctif post-T36 **PR #105 — `Fix T36 Services E2E release gate`** a stabilisé les locators Playwright et la conservation des fixtures Services.
 
-Le statut T36 ne doit être considéré ✅ que si la PR est mergée et que `main` post-merge est vert (CI complète, Beta seed et Subscriptions applicables). Avant cela, elle reste un candidat de release.
+Le correctif T36 est intégré dans `main` via `a5fe731bc829752f06ab6e066ffa225450a5a2bc`. Le chantier parallèle S5 a ensuite été mergé au-dessus ; le `main` de clôture documentaire est `dff2ba49b9c16708d12e7bb3ed4e7c49c9cb5725`.
 
-### Analytics Services livrées dans le candidat
+Les gates finales de ce `main` sont verts : **CI #1244**, **Beta seed #588** et **Subscriptions #79**. Django complet, PostgreSQL Core, PostgreSQL Ops, E2E, `ci/aggregate`, frontend/static, CSP/runtime, production security, migrations SQLite/PostgreSQL et `makemigrations --check` sont tous validés.
 
-Le read model est ajouté dans `analytics_app`, sans `services_analytics`, snapshot ou modèle analytique parallèle. Il calcule depuis les modèles canoniques :
+**Verdict : Services V1 = PASS. T36 = ✅ livrée.**
+
+### Analytics Services livrées
+
+Le read model est dans `analytics_app`, sans `services_analytics`, snapshot ou modèle analytique parallèle. Il calcule depuis les modèles canoniques :
 
 - volume Journey Services ;
 - start rate avec numérateur/dénominateur explicites ;
@@ -115,7 +119,7 @@ Le read model est ajouté dans `analytics_app`, sans `services_analytics`, snaps
 
 `AnalyticsFact` n’est pas étendu automatiquement : aucune projection événementielle Services supplémentaire n’est nécessaire pour les métriques V1 déjà fiables depuis les modèles canoniques et `ServiceOutcomeEvent`.
 
-### Hardening du candidat
+### Hardening final
 
 - Activity Services identifiée exclusivement via `ServiceDetails` ;
 - autorité Analytics réutilisée, y compris ownership personnel par `owner_profile` et compatibilité legacy limitée ;
@@ -126,9 +130,9 @@ Le read model est ajouté dans `analytics_app`, sans `services_analytics`, snaps
 - audit ciblé des surfaces T35 : pagination/SQL-first, selectors de dossiers, artifacts restricted, notes internes, téléchargements privés et PaymentEvidence restent derrière les frontières serveur existantes ;
 - aucune migration T36 ajoutée.
 
-### E2E du candidat
+### E2E final
 
-Le job E2E canonique reçoit une fixture Services compacte et des parcours consolidés :
+Le job E2E canonique couvre :
 
 - participant sur workspace Services ;
 - manager + facilitator sur le dossier dans leur scope ;
@@ -137,17 +141,17 @@ Le job E2E canonique reçoit une fixture Services compacte et des parcours conso
 - staff sur Analytics Services ;
 - smoke mobile 390 px sans overflow horizontal critique.
 
-Le beta seed existant reste la gate de données complète : il couvre déjà sandbox, PaymentEvidence externe, pinning Opportunity revision, rôles opérateurs, restricted artifact, note interne et `Journey.fulfilled + external unsuccessful`. T36 ne crée pas une seconde population de comptes bêta.
+Le beta seed existant reste la gate de données complète : il couvre sandbox, PaymentEvidence externe, pinning Opportunity revision, rôles opérateurs, restricted artifact, note interne et `Journey.fulfilled + external unsuccessful`. T36 n’a pas créé une seconde population de comptes bêta.
 
 ## 10. Parallélisation avec Subscription
 
-Subscription est un chantier distinct. Le runtime courant S1–S4 (et toute évolution mergée pendant T36) doit rester vert, mais T36 n’implémente pas S5/S6, pricing, billing, entitlement paywall Services, UX Subscription, notifications ou automation Subscription.
+Subscription reste un chantier distinct. S5 a été mergée après le correctif T36 et le `main` final reste vert avec S1–S5. T36 n’a pas implémenté S5/S6, pricing, billing, entitlement paywall Services ou UX Subscription.
 
-T36 et Subscription partent de `main` et ne dépendent jamais de leurs branches respectives. Si `main` avance avant le candidat final, T36 doit intégrer le nouveau `main`, relire les contrats concernés et rejouer les gates affectés.
+Les futurs travaux Services ou Subscription continuent de partir de `main` et ne dépendent jamais de branches parallèles non mergées.
 
 ## 11. Scénarios de release Services V1
 
-La release doit rester démontrable par les scénarios canoniques suivants :
+La release reste démontrable par les scénarios canoniques suivants :
 
 1. Service sans Opportunity : CV/intake → Journey → Steps → Artifact → Review → fulfillment.
 2. Opportunity emploi : Opportunity → Journey pinnée → Requirements → documents → Submission → outcome.
@@ -162,7 +166,7 @@ La release doit rester démontrable par les scénarios canoniques suivants :
 
 ## 12. Gates V1
 
-Le candidat Ready doit passer :
+Le release gate final a été exécuté avec succès :
 
 ```text
 sync main
@@ -174,17 +178,18 @@ sync main
 → PostgreSQL Ops
 → E2E
 → Beta seed SQLite/PostgreSQL/idempotence
-→ Subscriptions si applicable
+→ Subscriptions
 → frontend/static/CSP/security checks
+→ ci/aggregate success
 ```
 
-Puis, avant merge, `origin/main` est revérifié une dernière fois. Un gate pending, queued, in_progress, failure ou cancelled n’est pas considéré vert.
-
-Après squash merge, T36 n’est close que lorsque le nouveau `main` obtient son cycle complet vert et `ci/aggregate=success`.
+Les validations post-merge confirment la clôture du cycle Services V1. Un futur changement significatif devra naturellement rejouer les gates concernés depuis le `main` alors courant.
 
 ## 13. Déploiement et opérations
 
 PythonAnywhere reste uniquement l’environnement temporaire de test/bêta. Il n’est pas l’hébergement de production final.
+
+Le déploiement PythonAnywhere, les endpoints health/readiness et les smoke tests manuels n’ont pas été réexécutés dans la clôture T36 documentée ici. Ce point opérationnel est distinct du release gate CI déjà vert et doit suivre [`docs/operations-runbook.md`](../operations-runbook.md) lorsqu’un déploiement de test est demandé.
 
 Le runbook existant reste canonique pour déploiement, backup, health/readiness, Autopilot et private artifacts. T36 n’introduit aucun scheduler ni procédure de déploiement parallèle et ne lance pas npm/Playwright/beta seed sur le serveur PythonAnywhere.
 
