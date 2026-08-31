@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from commerce.financial_services import requote_pending_order
 from commerce.models import CommerceOrder, CommerceOrderStatus
 from payments.models import Payment
 from tickets.models import TicketOrderStatus
@@ -95,9 +96,10 @@ def apply_code_to_pending_order(*, order, actor, promotion_code):
         item.line_total = item.line_subtotal - item.discount_total
         item.save(update_fields=["discount_total", "line_total"])
 
-    commerce_order.discount_total = quote["discount_amount"]
-    commerce_order.total = quote["final_amount"]
-    commerce_order.save(update_fields=["discount_total", "total", "updated_at"])
+    commerce_order = requote_pending_order(
+        order=commerce_order,
+        discount_total=quote["discount_amount"],
+    )
     create_commerce_redemption(order=commerce_order, quote=quote)
     order.total_amount = commerce_order.total
     order.save(update_fields=["total_amount", "updated_at"])
