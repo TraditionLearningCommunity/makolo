@@ -114,9 +114,6 @@ def _acquisition_requirements(version):
 def _resolve_version(plan_version):
     if not isinstance(plan_version, PlanVersion):
         return PlanVersion.objects.select_related("plan").get(pk=plan_version)
-    # Publication is performed on a locked DB instance. A caller may still hold
-    # the original in-memory draft object, so refresh only that stale case. A
-    # queryset-backed published instance keeps its select_related/prefetch cache.
     if plan_version.status == PlanVersionStatus.DRAFT:
         return PlanVersion.objects.select_related("plan").get(pk=plan_version.pk)
     return plan_version
@@ -189,26 +186,46 @@ def evaluate_subscription_requirements(subscription, *, phase=RequirementPhase.O
     return tuple((requirement, _evaluate_requirement(requirement, subject)) for requirement in requirements)
 
 
-def entitlement_requirement_block(subject, feature_code, *, at=None):
+def entitlement_requirement_blocks(subject, feature_codes, *, at=None, subscription=None):
+    """Return the first unsatisfied mandatory EntitlementRequirement per Feature.
+
+    The lookup is deliberately batched so a product page does not execute a fresh
+    SubscriptionItem/PlanEntitlement/Requirement query for every Feature.
+    """
     at = at or timezone.now()
-    subscription = get_subscription_for_subject(subject)
+    codes = tuple(feature_codes)
+    if not codes:
+        return {}
+    subscription = subscription or get_subscription_for_subject(subject)
     if subscription is None:
-        return None
+        return {}
     active_versions = SubscriptionItem.objects.filter(
         subscription=subscription,
         status=SubscriptionItemStatus.ACTIVE,
         starts_at__lte=at,
     ).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=at)).values("plan_version_id")
-    entitlement_ids = PlanEntitlement.objects.filter(
-        plan_version_id__in=active_versions,
-        feature__code=feature_code,
-    ).values("id")
-    requirements = EntitlementRequirement.objects.filter(
-        plan_entitlement_id__in=entitlement_ids,
-        is_mandatory=True,
-    ).order_by("position", "key")
+    requirements = (
+        EntitlementRequirement.objects.filter(
+            plan_entitlement__plan_version_id__in=active_versions,
+            plan_entitlement__feature__code__in=codes,
+            is_mandatory=True,
+        )
+        .select_related("plan_entitlement__feature")
+        .order_by("plan_entitlement__feature__code", "position", "key")
+    )
+    blocked = {}
     for requirement in requirements:
+        code = requirement.plan_entitlement.feature.code
+        if code in blocked:
+            continue
         result = _evaluate_requirement(requirement, subject)
-        if result.state not in {RequirementAssessmentState.SATISFIED, RequirementAssessmentState.NOT_APPLICABLE}:
-            return result.reason_code
-    return None
+        if result.state not in {
+            RequirementAssessmentState.SATISFIED,
+            RequirementAssessmentState.NOT_APPLICABLE,
+        }:
+            blocked[code] = result.reason_code
+    return blocked
+
+
+def entitlement_requirement_block(subject, feature_code, *, at=None):
+    return entitlement_requirement_blocks(subject, (feature_code,), at=at).get(feature_code)
