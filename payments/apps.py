@@ -20,3 +20,4 @@ class PaymentsConfig(AppConfig):
                 "",
             )
         from . import commerce_bridge  # noqa: F401
+        from . import financial_signals  # noqa: F401
