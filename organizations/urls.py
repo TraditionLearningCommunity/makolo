@@ -12,6 +12,15 @@ from transport.console_views import (
 from .console_access import SpaceConsoleAccessView, SpaceConsoleGrantAccessView
 from .console_scanner import SpaceActivityScannerAPIView, SpaceActivityScannerView
 from .console_services import SpaceConsoleServicesView
+from .console_subscription import (
+    SpaceAddonRemovePreviewView,
+    SpaceAddonRemoveView,
+    SpaceConsoleSubscriptionView,
+    SpaceSubscriptionChangeView,
+    SpaceSubscriptionPreviewView,
+    SpaceTransitionCancelView,
+    SpaceTransitionCompleteView,
+)
 from .console_t21_views import (
     SpaceConsoleAnalyticsView,
     SpaceConsoleAutomationView,
@@ -89,6 +98,13 @@ urlpatterns = [
     path("<slug:slug>/operations/", SpaceConsoleOperationsView.as_view(), name="console-operations"),
     path("<slug:slug>/analytics/", SpaceConsoleAnalyticsView.as_view(), name="console-analytics"),
     path("<slug:slug>/automation/", SpaceConsoleAutomationView.as_view(), name="console-automation"),
+    path("<slug:slug>/subscription/", SpaceConsoleSubscriptionView.as_view(), name="console-subscription"),
+    path("<slug:slug>/subscription/preview/<uuid:plan_version_id>/", SpaceSubscriptionPreviewView.as_view(), name="console-subscription-preview"),
+    path("<slug:slug>/subscription/change/<uuid:plan_version_id>/", SpaceSubscriptionChangeView.as_view(), name="console-subscription-change"),
+    path("<slug:slug>/subscription/addon/<uuid:item_id>/remove/preview/", SpaceAddonRemovePreviewView.as_view(), name="console-subscription-addon-remove-preview"),
+    path("<slug:slug>/subscription/addon/<uuid:item_id>/remove/", SpaceAddonRemoveView.as_view(), name="console-subscription-addon-remove"),
+    path("<slug:slug>/subscription/transition/<uuid:transition_id>/cancel/", SpaceTransitionCancelView.as_view(), name="console-subscription-transition-cancel"),
+    path("<slug:slug>/subscription/transition/<uuid:transition_id>/complete/", SpaceTransitionCompleteView.as_view(), name="console-subscription-transition-complete"),
     path("<slug:slug>/team/", SpaceConsoleTeamView.as_view(), name="console-team"),
     path("<slug:slug>/team/add/", OrganizationMemberCreateView.as_view(), name="team-member-create"),
     path("<slug:slug>/team/new/", SpaceTeamCreateView.as_view(), name="team-create"),
