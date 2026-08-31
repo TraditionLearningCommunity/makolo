@@ -55,8 +55,8 @@ _SUBSCRIPTION_STATUS = {
 
 _TRANSITION_STATUS = {
     SubscriptionTransitionStatus.REQUESTED: ("Demande reçue", "Votre demande a bien été enregistrée."),
-    SubscriptionTransitionStatus.IN_PROGRESS: ("En cours", "Makolo vérifie les conditions nécessaires."),
-    SubscriptionTransitionStatus.READY: ("Prête", "Toutes les conditions nécessaires sont remplies."),
+    SubscriptionTransitionStatus.IN_PROGRESS: ("En cours", "Makolo vérifie la demande en cours."),
+    SubscriptionTransitionStatus.READY: ("Prête", "Le changement peut maintenant être finalisé."),
     SubscriptionTransitionStatus.COMPLETED: ("Terminée", "Le changement de formule est terminé."),
     SubscriptionTransitionStatus.REJECTED: ("Non aboutie", "La demande ne peut pas être finalisée."),
     SubscriptionTransitionStatus.CANCELLED: ("Annulée", "La demande a été annulée."),
@@ -163,13 +163,11 @@ def _safe_requirement(requirement, state):
             "label": "Condition requise",
             "detail": "Certaines conditions doivent encore être vérifiées.",
             "state": state,
-            "internal": False,
         }
     return {
         "label": requirement.title or "Condition requise",
         "detail": requirement.description or None,
         "state": state,
-        "internal": False,
     }
 
 
@@ -183,7 +181,6 @@ def _eligibility_requirements(result):
                 "label": requirement.title,
                 "detail": requirement.detail,
                 "state": requirement.state,
-                "internal": False,
             }
         )
     return tuple(rows)
@@ -216,7 +213,11 @@ def _catalog_rows(subscription, active_items):
             continue
         else:
             current = False
+        requirements = _eligibility_requirements(result)
         label, explanation, tone = _ELIGIBILITY_STATUS[result.status]
+        if result.status == PlanEligibilityStatus.CONDITIONALLY_AVAILABLE and not requirements:
+            label = "Disponibilité à confirmer"
+            explanation = "Cette formule peut être demandée. Sa disponibilité finale sera confirmée après la demande."
         rows.append(
             {
                 "plan_version_id": str(version.pk),
@@ -229,7 +230,7 @@ def _catalog_rows(subscription, active_items):
                 "eligibility_label": label,
                 "eligibility_explanation": explanation,
                 "eligibility_tone": tone,
-                "requirements": _eligibility_requirements(result),
+                "requirements": requirements,
                 "transition_kind": (
                     SubscriptionTransitionKind.BASE_SWITCH
                     if version.plan.plan_type == SubscriptionPlanType.BASE
@@ -255,13 +256,13 @@ def _transition_row(subscription):
     )
     if transition is None:
         return None
-    assessments = list(transition.assessments.all())
-    conditions = tuple(
-        row
-        for assessment in assessments
-        if (row := _safe_requirement(assessment.plan_requirement, assessment.state)) is not None
-    )
-    completed = sum(1 for assessment in assessments if assessment.state in _ASSESSMENT_COMPLETE)
+    disclosed = []
+    for assessment in transition.assessments.all():
+        row = _safe_requirement(assessment.plan_requirement, assessment.state)
+        if row is not None:
+            disclosed.append((assessment, row))
+    conditions = tuple(row for _, row in disclosed)
+    completed = sum(1 for assessment, _ in disclosed if assessment.state in _ASSESSMENT_COMPLETE)
     label, explanation = _TRANSITION_STATUS[transition.status]
     return {
         "id": str(transition.pk),
@@ -272,7 +273,7 @@ def _transition_row(subscription):
         "kind": transition.kind,
         "open": transition.status in OPEN_TRANSITION_STATUSES,
         "completed_conditions": completed,
-        "total_conditions": len(assessments),
+        "total_conditions": len(disclosed),
         "conditions": conditions,
         "requested_at": transition.requested_at,
         "expires_at": transition.expires_at,
