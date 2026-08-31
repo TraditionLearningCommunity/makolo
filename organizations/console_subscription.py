@@ -5,7 +5,7 @@ import secrets
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -19,6 +19,7 @@ from subscriptions.security_services import (
     complete_subscription_transition_for_actor,
     request_subscription_transition_for_actor,
 )
+from subscriptions.transition_models import SubscriptionTransition
 
 from .console_views import SpaceConsoleMixin
 
@@ -41,6 +42,13 @@ class SpaceSubscriptionMixin(SpaceConsoleMixin):
     def require_manage(self):
         if not self.space_console.can_manage_subscription:
             raise PermissionDenied("La permission de gestion de l’abonnement de cet Espace est requise.")
+
+    def get_transition(self, subscription, transition_id):
+        return get_object_or_404(
+            SubscriptionTransition,
+            pk=transition_id,
+            subscription=subscription,
+        )
 
 
 class SpaceConsoleSubscriptionView(SpaceSubscriptionMixin, TemplateView):
@@ -154,10 +162,12 @@ class SpaceAddonRemoveView(SpaceSubscriptionMixin, View):
 class SpaceTransitionCancelView(SpaceSubscriptionMixin, View):
     def post(self, request, *args, **kwargs):
         self.require_manage()
+        subscription = self.get_subscription()
+        transition = self.get_transition(subscription, self.kwargs["transition_id"])
         try:
             cancel_subscription_transition_for_actor(
                 actor=request.user,
-                transition_id=self.kwargs["transition_id"],
+                transition_id=transition.pk,
                 reason="Annulée depuis la Console Espace.",
             )
         except ValidationError as exc:
@@ -170,10 +180,12 @@ class SpaceTransitionCancelView(SpaceSubscriptionMixin, View):
 class SpaceTransitionCompleteView(SpaceSubscriptionMixin, View):
     def post(self, request, *args, **kwargs):
         self.require_manage()
+        subscription = self.get_subscription()
+        transition = self.get_transition(subscription, self.kwargs["transition_id"])
         try:
             complete_subscription_transition_for_actor(
                 actor=request.user,
-                transition_id=self.kwargs["transition_id"],
+                transition_id=transition.pk,
             )
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
