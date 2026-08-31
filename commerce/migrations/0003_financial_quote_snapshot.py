@@ -29,6 +29,26 @@ def backfill_financial_snapshots(apps, schema_editor):
         )
 
 
+def add_field_with_db_default(*, name, database_field, state_field):
+    """Keep a DB default for historical migration-state writers without changing runtime model state."""
+    return migrations.SeparateDatabaseAndState(
+        database_operations=[
+            migrations.AddField(
+                model_name="commerceorder",
+                name=name,
+                field=database_field,
+            )
+        ],
+        state_operations=[
+            migrations.AddField(
+                model_name="commerceorder",
+                name=name,
+                field=state_field,
+            )
+        ],
+    )
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("commerce", "0002_payment_choices_personal_payee_beneficiary"),
@@ -39,10 +59,18 @@ class Migration(migrations.Migration):
             model_name="commerceorder",
             name="commerce_order_total_consistent",
         ),
-        migrations.AddField(
-            model_name="commerceorder",
+        add_field_with_db_default(
             name="pricing_policy",
-            field=models.CharField(
+            database_field=models.CharField(
+                choices=[
+                    ("seller_net_guaranteed", "Net bénéficiaire garanti"),
+                    ("customer_total_fixed", "Total client fixé"),
+                ],
+                default="seller_net_guaranteed",
+                db_default="seller_net_guaranteed",
+                max_length=32,
+            ),
+            state_field=models.CharField(
                 choices=[
                     ("seller_net_guaranteed", "Net bénéficiaire garanti"),
                     ("customer_total_fixed", "Total client fixé"),
@@ -51,20 +79,42 @@ class Migration(migrations.Migration):
                 max_length=32,
             ),
         ),
-        migrations.AddField(
-            model_name="commerceorder",
+        add_field_with_db_default(
             name="expected_payee_amount",
-            field=models.DecimalField(decimal_places=2, default=Decimal("0.00"), max_digits=12),
+            database_field=models.DecimalField(
+                decimal_places=2,
+                default=Decimal("0.00"),
+                db_default=Decimal("0.00"),
+                max_digits=12,
+            ),
+            state_field=models.DecimalField(
+                decimal_places=2,
+                default=Decimal("0.00"),
+                max_digits=12,
+            ),
         ),
-        migrations.AddField(
-            model_name="commerceorder",
+        add_field_with_db_default(
             name="makolo_amount",
-            field=models.DecimalField(decimal_places=2, default=Decimal("0.00"), max_digits=12),
+            database_field=models.DecimalField(
+                decimal_places=2,
+                default=Decimal("0.00"),
+                db_default=Decimal("0.00"),
+                max_digits=12,
+            ),
+            state_field=models.DecimalField(
+                decimal_places=2,
+                default=Decimal("0.00"),
+                max_digits=12,
+            ),
         ),
-        migrations.AddField(
-            model_name="commerceorder",
+        add_field_with_db_default(
             name="financial_snapshot",
-            field=models.JSONField(blank=True, default=dict),
+            database_field=models.JSONField(
+                blank=True,
+                default=dict,
+                db_default={},
+            ),
+            state_field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AddConstraint(
             model_name="commerceorder",
