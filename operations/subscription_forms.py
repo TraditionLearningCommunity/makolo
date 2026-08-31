@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from requirements.contracts import RequirementAssessmentState, RequirementMode
 from subscriptions.contracts import RequirementDisclosure, RequirementFailurePolicy, RequirementPhase
 from subscriptions.evaluators import evaluator_definitions
-from subscriptions.models import FeatureDefinition, PlanBenefit, PlanVersion, SubscriptionPlan
+from subscriptions.models import FeatureDefinition, PlanBenefit, PlanVersion, SubscriptionPlan, technical_code_validator
 
 
 INPUT_CLASS = "w-full rounded-xl border px-3 py-2 text-sm"
@@ -168,7 +168,11 @@ class RequirementFormBase(forms.Form):
 
 
 class PlanRequirementForm(RequirementFormBase):
-    key = forms.CharField(max_length=120, help_text="Code technique stable, par ex. space.member_count.minimum")
+    key = forms.CharField(
+        max_length=120,
+        validators=[technical_code_validator],
+        help_text="Code technique stable, par ex. space.member_count.minimum",
+    )
     title = forms.CharField(max_length=180)
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
     phase = forms.ChoiceField(choices=RequirementPhase.choices)
@@ -178,7 +182,11 @@ class PlanRequirementForm(RequirementFormBase):
 
 
 class EntitlementRequirementForm(RequirementFormBase):
-    key = forms.CharField(max_length=120, help_text="Code technique stable, segments séparés par . _ ou -")
+    key = forms.CharField(
+        max_length=120,
+        validators=[technical_code_validator],
+        help_text="Code technique stable, segments séparés par . _ ou -",
+    )
     title = forms.CharField(max_length=180)
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
     position = forms.IntegerField(min_value=0, initial=0)
@@ -228,7 +236,11 @@ class SubscriptionReviewForm(forms.Form):
             (RequirementAssessmentState.NOT_APPLICABLE, "Non applicable"),
         ]
     )
-    reason_code = forms.CharField(max_length=160, initial="subscription.review.staff_decision")
+    reason_code = forms.CharField(
+        max_length=160,
+        validators=[technical_code_validator],
+        initial="subscription.review.staff_decision",
+    )
     note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
 
     def __init__(self, *args, **kwargs):
