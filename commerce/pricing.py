@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
-from enum import StrEnum
+from enum import Enum
 
 from django.core.exceptions import ValidationError
 
@@ -11,12 +11,12 @@ MONEY_QUANTUM = Decimal("0.01")
 ZERO = Decimal("0.00")
 
 
-class PricingPolicy(StrEnum):
+class PricingPolicy(str, Enum):
     SELLER_NET_GUARANTEED = "seller_net_guaranteed"
     CUSTOMER_TOTAL_FIXED = "customer_total_fixed"
 
 
-class FinancialComponentType(StrEnum):
+class FinancialComponentType(str, Enum):
     BASE_PRICE = "base_price"
     DISCOUNT = "discount"
     MAKOLO_FEE = "makolo_fee"
@@ -25,13 +25,13 @@ class FinancialComponentType(StrEnum):
     OTHER_FEE = "other_fee"
 
 
-class ChargeIncidence(StrEnum):
+class ChargeIncidence(str, Enum):
     PAYER = "payer"
     PAYEE = "payee"
     PLATFORM = "platform"
 
 
-class ChargeScope(StrEnum):
+class ChargeScope(str, Enum):
     ORDER = "order"
     LINE = "line"
     UNIT = "unit"
@@ -210,7 +210,9 @@ def calculate_quote(
         if expected_payee_amount < ZERO:
             raise ValidationError("Les charges supportées par le bénéficiaire dépassent le total client fixé.")
 
-    reconstructed_payer_total = money(net_base + (payer_charges if pricing_policy == PricingPolicy.SELLER_NET_GUARANTEED else ZERO))
+    reconstructed_payer_total = money(
+        net_base + (payer_charges if pricing_policy == PricingPolicy.SELLER_NET_GUARANTEED else ZERO)
+    )
     if reconstructed_payer_total != payer_total:
         raise ValidationError("Le détail financier ne reconstruit pas exactement le total payeur.")
 
