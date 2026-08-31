@@ -21,7 +21,7 @@ class S5AuthorizedFacadeTests(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user(username="s5-owner", email="s5-owner@example.test", password="test-only")
         self.space = Organization.objects.create(name="S5 Facade Space", created_by=self.owner)
-        self.subscription = Subscription.objects.create(space=self.space)
+        self.subscription = Subscription.objects.get(space=self.space)
 
     def test_django_staff_without_platform_mandate_has_no_subscription_authority(self):
         staff = User.objects.create_user(
