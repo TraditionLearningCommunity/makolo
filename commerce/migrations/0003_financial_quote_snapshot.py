@@ -30,7 +30,7 @@ def backfill_financial_snapshots(apps, schema_editor):
 
 
 def add_field_with_db_default(*, name, database_field, state_field):
-    """Keep a DB default for historical migration-state writers without changing runtime model state."""
+    """Keep DB defaults visible to both historical writers and migration state."""
     return migrations.SeparateDatabaseAndState(
         database_operations=[
             migrations.AddField(
@@ -76,6 +76,7 @@ class Migration(migrations.Migration):
                     ("customer_total_fixed", "Total client fixé"),
                 ],
                 default="seller_net_guaranteed",
+                db_default="seller_net_guaranteed",
                 max_length=32,
             ),
         ),
@@ -90,6 +91,7 @@ class Migration(migrations.Migration):
             state_field=models.DecimalField(
                 decimal_places=2,
                 default=Decimal("0.00"),
+                db_default=Decimal("0.00"),
                 max_digits=12,
             ),
         ),
@@ -104,6 +106,7 @@ class Migration(migrations.Migration):
             state_field=models.DecimalField(
                 decimal_places=2,
                 default=Decimal("0.00"),
+                db_default=Decimal("0.00"),
                 max_digits=12,
             ),
         ),
@@ -114,7 +117,11 @@ class Migration(migrations.Migration):
                 default=dict,
                 db_default={},
             ),
-            state_field=models.JSONField(blank=True, default=dict),
+            state_field=models.JSONField(
+                blank=True,
+                default=dict,
+                db_default={},
+            ),
         ),
         migrations.AddConstraint(
             model_name="commerceorder",
