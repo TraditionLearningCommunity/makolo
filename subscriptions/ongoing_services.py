@@ -95,7 +95,7 @@ def evaluate_subscription_ongoing_requirements(subscription, *, now=None):
     now = now or timezone.now()
     subscription_id = subscription.pk if isinstance(subscription, Subscription) else subscription
     subscription = (
-        Subscription.objects.select_for_update()
+        Subscription.objects.select_for_update(of=("self",))
         .select_related("profile", "space")
         .get(pk=subscription_id)
     )
