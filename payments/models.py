@@ -35,6 +35,7 @@ class PaymentStatus(models.TextChoices):
 
 class PaymentObligationReason(models.TextChoices):
     COMMERCE = "commerce", "Commerce"
+    SUBSCRIPTION = "subscription", "Subscription"
     OPPORTUNITY_REQUIREMENT = "opportunity_requirement", "Requirement Opportunity"
     SERVICE_PROCESS = "service_process", "Processus Service"
     ACCESS_REQUIREMENT = "access_requirement", "Condition d’accès"
@@ -75,6 +76,8 @@ class PaymentObligation(models.Model):
         "journeys.Journey",
         on_delete=models.PROTECT,
         related_name="payment_obligations",
+        null=True,
+        blank=True,
     )
     commerce_order = models.ForeignKey(
         "commerce.CommerceOrder",
@@ -100,6 +103,20 @@ class PaymentObligation(models.Model):
     currency = models.CharField(max_length=3, default="USD")
     processing_mode = models.CharField(max_length=24, choices=PaymentObligationProcessingMode.choices)
     status = models.CharField(max_length=16, choices=PaymentObligationStatus.choices, default=PaymentObligationStatus.PENDING)
+    payer_space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="payer_payment_obligations",
+        null=True,
+        blank=True,
+    )
+    payer_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payer_payment_obligations",
+        null=True,
+        blank=True,
+    )
     payee_space = models.ForeignKey(
         "organizations.Organization",
         on_delete=models.PROTECT,
@@ -114,6 +131,7 @@ class PaymentObligation(models.Model):
         null=True,
         blank=True,
     )
+    payee_platform = models.BooleanField(default=False)
     external_payee_name = models.CharField(max_length=220, blank=True)
     due_at = models.DateTimeField(null=True, blank=True)
     satisfied_at = models.DateTimeField(null=True, blank=True)
@@ -141,11 +159,16 @@ class PaymentObligation(models.Model):
             models.CheckConstraint(condition=Q(amount__gt=0), name="payobl_amount_positive"),
             models.CheckConstraint(
                 condition=(
-                    Q(payee_space__isnull=False, payee_profile__isnull=True, external_payee_name="")
-                    | Q(payee_space__isnull=True, payee_profile__isnull=False, external_payee_name="")
-                    | (Q(payee_space__isnull=True, payee_profile__isnull=True) & ~Q(external_payee_name=""))
+                    Q(payee_space__isnull=False, payee_profile__isnull=True, payee_platform=False, external_payee_name="")
+                    | Q(payee_space__isnull=True, payee_profile__isnull=False, payee_platform=False, external_payee_name="")
+                    | Q(payee_space__isnull=True, payee_profile__isnull=True, payee_platform=True, external_payee_name="")
+                    | (Q(payee_space__isnull=True, payee_profile__isnull=True, payee_platform=False) & ~Q(external_payee_name=""))
                 ),
                 name="payobl_exactly_one_payee",
+            ),
+            models.CheckConstraint(
+                condition=Q(payer_space__isnull=True) | Q(payer_profile__isnull=True),
+                name="payobl_payer_not_multiple",
             ),
         ]
 
@@ -159,19 +182,39 @@ class PaymentObligation(models.Model):
             errors["currency"] = "La devise doit être un code ISO 4217 de trois lettres."
         if self.amount is None or self.amount <= 0:
             errors["amount"] = "Le montant d’une obligation doit être strictement positif."
-        payees = int(bool(self.payee_space_id)) + int(bool(self.payee_profile_id)) + int(bool(self.external_payee_name))
+        payees = (
+            int(bool(self.payee_space_id))
+            + int(bool(self.payee_profile_id))
+            + int(bool(self.payee_platform))
+            + int(bool(self.external_payee_name))
+        )
         if payees != 1:
             errors["external_payee_name"] = "Une obligation doit avoir exactement un bénéficiaire économique."
+        payers = int(bool(self.payer_space_id)) + int(bool(self.payer_profile_id))
+        if payers > 1:
+            errors["payer_profile"] = "Une obligation ne peut avoir qu’un seul débiteur canonique."
         if self.commerce_order_id:
-            if self.commerce_order.journey_id != self.journey_id:
+            if not self.journey_id:
+                errors["journey"] = "Une obligation Commerce conserve sa Journey canonique."
+            elif self.commerce_order.journey_id != self.journey_id:
                 errors["commerce_order"] = "La CommerceOrder doit appartenir à la même Journey."
             if self.reason == PaymentObligationReason.COMMERCE:
                 if self.amount != self.commerce_order.total:
                     errors["amount"] = "L’obligation Commerce doit correspondre au total de la CommerceOrder."
                 if self.currency != self.commerce_order.currency:
                     errors["currency"] = "L’obligation Commerce doit utiliser la devise de la CommerceOrder."
-        if self.step_id and self.step.journey_id != self.journey_id:
-            errors["step"] = "La JourneyStep doit appartenir à la même Journey."
+        if self.step_id:
+            if not self.journey_id:
+                errors["journey"] = "Une obligation liée à une JourneyStep exige sa Journey."
+            elif self.step.journey_id != self.journey_id:
+                errors["step"] = "La JourneyStep doit appartenir à la même Journey."
+        if self.reason == PaymentObligationReason.SUBSCRIPTION:
+            if self.journey_id or self.commerce_order_id or self.step_id:
+                errors["journey"] = "Une obligation Subscription ne crée ni Journey, ni CommerceOrder, ni JourneyStep."
+            if payers != 1:
+                errors["payer_profile"] = "Une obligation Subscription exige un débiteur Profile ou Space."
+            if not self.payee_platform:
+                errors["payee_platform"] = "Makolo est le bénéficiaire économique d’une obligation Subscription."
         if self.status == PaymentObligationStatus.SATISFIED and self.satisfied_at is None:
             errors["satisfied_at"] = "Une obligation satisfaite doit conserver sa date de satisfaction."
         if self.status != PaymentObligationStatus.SATISFIED and self.satisfied_at is not None:
@@ -493,7 +536,9 @@ class PaymentEvidence(models.Model):
         if self.obligation_id:
             if self.obligation.processing_mode != PaymentObligationProcessingMode.EXTERNAL:
                 errors["obligation"] = "PaymentEvidence est réservée aux obligations payées hors Makolo."
-            if self.artifact_id and self.artifact.journey_id != self.obligation.journey_id:
+            if not self.obligation.journey_id:
+                errors["obligation"] = "PaymentEvidence exige une obligation rattachée à une Journey."
+            elif self.artifact_id and self.artifact.journey_id != self.obligation.journey_id:
                 errors["artifact"] = "La preuve doit être un JourneyArtifact de la même Journey."
         if self.status == PaymentEvidenceStatus.SUBMITTED:
             if self.verified_at is not None or self.verified_by_id is not None:
