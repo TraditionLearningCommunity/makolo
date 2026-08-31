@@ -1,0 +1,139 @@
+{% extends 'base/app.html' %}
+{% block title %}Mon abonnement | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-7 lg:space-y-9">
+    <section class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div class="max-w-3xl">
+            <span class="mk-kicker">Pour moi</span>
+            <h1 class="mk-page-title">Mon abonnement</h1>
+            <p class="mk-page-copy mt-3 text-[15px]">Votre formule, vos capacités, votre usage et les options réellement disponibles pour votre profil.</p>
+        </div>
+        <a href="{% url 'account:profile' %}" class="mk-btn mk-btn-secondary"><i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>Réglages du compte</a>
+    </section>
+
+    <section class="mk-panel p-5 sm:p-6" aria-labelledby="subscription-status-title">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <p id="subscription-status-title" class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">État de l’abonnement</p>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <span class="mk-badge {% if product.status.tone == 'success' %}mk-badge-success{% elif product.status.tone == 'warning' %}mk-badge-warning{% endif %}">{{ product.status.label }}</span>
+                    {% if product.status.grace_until %}<span class="text-sm font-semibold">Échéance : {{ product.status.grace_until|date:'d/m/Y à H:i' }}</span>{% endif %}
+                </div>
+                <p class="mt-3 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">{{ product.status.explanation }}</p>
+            </div>
+            <div class="rounded-2xl px-4 py-3 text-sm" style="background:var(--mk-brand-soft)">
+                <span class="block text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Sujet</span>
+                <span class="mt-1 block font-extrabold">Profil · {{ product.subject_label }}</span>
+            </div>
+        </div>
+        {% if product.ongoing_conditions %}
+        <div class="mt-5 border-t pt-5" style="border-color:var(--mk-border)">
+            <h2 class="text-sm font-extrabold">Conditions à surveiller</h2>
+            <ul class="mt-3 grid gap-2" aria-label="Conditions actuelles de l’abonnement">
+                {% for condition in product.ongoing_conditions %}
+                <li class="flex items-start gap-3 rounded-2xl border p-3" style="border-color:var(--mk-border)">
+                    <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i>
+                    <div><p class="text-sm font-bold">{{ condition.label }}</p>{% if condition.detail %}<p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">{{ condition.detail }}</p>{% endif %}</div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+        <article class="mk-panel p-5 sm:p-6" aria-labelledby="current-plan-title">
+            <p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">Formule actuelle</p>
+            {% if product.current_base %}
+                <h2 id="current-plan-title" class="mt-2 text-2xl font-extrabold tracking-[-.03em]">{{ product.current_base.name }}</h2>
+                {% if product.current_base.description %}<p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">{{ product.current_base.description }}</p>{% endif %}
+                {% if product.current_base.benefits %}
+                <ul class="mt-5 grid gap-2">
+                    {% for benefit in product.current_base.benefits %}
+                    <li class="flex items-start gap-3 rounded-2xl p-3" style="background:var(--mk-surface-soft)"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)" aria-hidden="true"></i><span><span class="block text-sm font-bold">{{ benefit.title }}</span>{% if benefit.description %}<span class="mt-1 block text-xs leading-5" style="color:var(--mk-muted)">{{ benefit.description }}</span>{% endif %}</span></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            {% else %}
+                <h2 id="current-plan-title" class="mt-2 text-lg font-extrabold">Aucune formule BASE active</h2>
+                <p class="mt-2 text-sm" style="color:var(--mk-muted)">Votre compte reste accessible, mais aucune formule produit active n’est actuellement attachée.</p>
+            {% endif %}
+        </article>
+
+        <article class="mk-panel p-5 sm:p-6" aria-labelledby="addons-title">
+            <h2 id="addons-title" class="text-lg font-extrabold">Options actives</h2>
+            {% if product.active_addons %}
+            <div class="mt-4 space-y-3">
+                {% for addon in product.active_addons %}
+                <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+                    <p class="font-bold">{{ addon.name }}</p>
+                    {% if addon.description %}<p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">{{ addon.description }}</p>{% endif %}
+                    <a href="{% url 'subscriptions:addon-remove-preview' addon.item_id %}" class="mt-3 inline-flex min-h-11 items-center text-sm font-bold" style="color:var(--mk-danger)">Voir l’impact du retrait</a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="mt-4 rounded-2xl border border-dashed p-4 text-sm" style="border-color:var(--mk-border);color:var(--mk-muted)">Aucune option additionnelle active.</div>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="mk-panel p-5 sm:p-6" aria-labelledby="capabilities-title">
+        <div class="flex items-end justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">Ce que votre formule permet</p><h2 id="capabilities-title" class="mt-1 text-xl font-extrabold">Capacités et limites</h2></div></div>
+        {% if product.capabilities %}
+        <div class="mt-5 grid gap-3 md:grid-cols-2">
+            {% for capability in product.capabilities %}
+            <article class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+                <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-extrabold">{{ capability.name }}</h3>{% if capability.description %}<p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">{{ capability.description }}</p>{% endif %}</div><span class="mk-badge {% if capability.allowed %}mk-badge-success{% else %}mk-badge-warning{% endif %}">{% if capability.allowed %}Disponible{% else %}Limitée{% endif %}</span></div>
+                <p class="mt-3 text-sm font-bold">{{ capability.value_label }}</p>
+                {% if capability.usage_label %}
+                    <p class="mt-2 text-xs" style="color:var(--mk-muted)">{{ capability.usage_label }}{% if capability.remaining is not None %} · {{ capability.remaining }} disponibles{% endif %}</p>
+                    {% if capability.effective_value %}<progress class="mt-2 h-2 w-full" value="{{ capability.usage }}" max="{{ capability.effective_value }}" aria-label="{{ capability.usage_label }}"></progress>{% endif %}
+                {% endif %}
+                {% if capability.over_limit %}<p class="mt-2 text-xs font-bold" role="status">Limite dépassée : l’existant est conservé, de nouvelles opérations peuvent être bloquées.</p>{% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="mt-4 text-sm" style="color:var(--mk-muted)">Aucune capacité additionnelle n’est actuellement définie pour cette formule.</p>
+        {% endif %}
+    </section>
+
+    {% if product.transition %}
+    <section class="mk-panel p-5 sm:p-6" aria-labelledby="transition-title">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">Changement de formule</p><h2 id="transition-title" class="mt-1 text-xl font-extrabold">{{ product.transition.target_name }}</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ product.transition.status_label }} · {{ product.transition.status_explanation }}</p></div><span class="mk-badge {% if product.transition.open %}mk-badge-warning{% else %}mk-badge-success{% endif %}">{{ product.transition.status_label }}</span></div>
+        {% if product.transition.total_conditions %}<p class="mt-4 text-sm font-bold">{{ product.transition.completed_conditions }} / {{ product.transition.total_conditions }} conditions remplies</p>{% endif %}
+        {% if product.transition.conditions %}
+        <ul class="mt-3 grid gap-2">
+            {% for condition in product.transition.conditions %}
+            <li class="flex items-start gap-3 rounded-2xl border p-3" style="border-color:var(--mk-border)"><i data-lucide="{% if condition.state == 'satisfied' or condition.state == 'not_applicable' %}circle-check{% elif condition.state == 'unsatisfied' %}circle-x{% else %}clock-3{% endif %}" class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i><span><span class="block text-sm font-bold">{{ condition.label }}</span><span class="mt-0.5 block text-xs" style="color:var(--mk-muted)">{% if condition.state == 'satisfied' or condition.state == 'not_applicable' %}Remplie{% elif condition.state == 'unsatisfied' %}À corriger{% else %}En attente{% endif %}{% if condition.detail %} · {{ condition.detail }}{% endif %}</span></span></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if product.transition.open %}
+        <div class="mt-5 flex flex-wrap gap-2">
+            {% if product.transition.status == 'ready' %}<form method="post" action="{% url 'subscriptions:transition-complete' product.transition.id %}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Finaliser le changement</button></form>{% endif %}
+            <form method="post" action="{% url 'subscriptions:transition-cancel' product.transition.id %}" onsubmit="return confirm('Annuler cette demande de changement ?')">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Annuler la demande</button></form>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <section aria-labelledby="catalog-title">
+        <div class="mb-4"><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">Catalogue</p><h2 id="catalog-title" class="mt-1 text-2xl font-extrabold tracking-[-.03em]">Formules et options disponibles</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Seules les offres publiées et visibles pour votre profil apparaissent ici.</p></div>
+        {% if product.catalog %}
+        <div class="grid gap-4 lg:grid-cols-2">
+            {% for option in product.catalog %}
+            <article class="mk-panel flex flex-col p-5 sm:p-6">
+                <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">{% if option.plan_type == 'base' %}Formule{% else %}Option{% endif %}</p><h3 class="mt-1 text-xl font-extrabold">{{ option.name }}</h3></div>{% if option.current %}<span class="mk-badge mk-badge-success">Actuelle</span>{% else %}<span class="mk-badge {% if option.eligibility_tone == 'success' %}mk-badge-success{% elif option.eligibility_tone == 'warning' %}mk-badge-warning{% endif %}">{{ option.eligibility_label }}</span>{% endif %}</div>
+                {% if option.description %}<p class="mt-3 text-sm leading-6" style="color:var(--mk-muted)">{{ option.description }}</p>{% endif %}
+                {% if option.benefits %}<ul class="mt-4 space-y-2">{% for benefit in option.benefits %}<li class="flex items-start gap-2 text-sm"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i><span>{{ benefit.title }}</span></li>{% endfor %}</ul>{% endif %}
+                {% if option.requirements %}<div class="mt-4 rounded-2xl p-3" style="background:var(--mk-surface-soft)"><p class="text-xs font-bold">Conditions</p><ul class="mt-2 space-y-1">{% for requirement in option.requirements %}<li class="text-xs" style="color:var(--mk-muted)">{{ requirement.label }}{% if requirement.detail %} · {{ requirement.detail }}{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+                <div class="mt-auto pt-5"><p class="mb-3 text-xs leading-5" style="color:var(--mk-muted)">{{ option.eligibility_explanation }}</p>{% if option.can_request %}<a href="{% url 'subscriptions:preview' option.plan_version_id %}" class="mk-btn mk-btn-primary w-full justify-center">Voir ce qui changerait</a>{% endif %}</div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}<div class="mk-panel p-6 text-sm" style="color:var(--mk-muted)">Aucune autre formule publique n’est disponible pour le moment.</div>{% endif %}
+    </section>
+</div>
+{% endblock %}
