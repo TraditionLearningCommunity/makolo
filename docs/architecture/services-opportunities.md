@@ -837,7 +837,7 @@ ServiceJourneyContext.current_outcome
 
 Les migrations T33 suivent `expand -> backfill certain -> double compatibilité -> nouveaux writes via obligation`. Elles ne suppriment ni `Payment.order`, ni `Payment.commerce_order`, ni les bridges Ticket/Commerce existants. Le beta seed T33 couvre les quatre familles de scénario : Commerce + obligation, frais Opportunity sandbox, frais externe + Evidence sans faux Payment, puis Submission + Outcome externe distinct du fulfillment.
 
-La matrice finale `activity.services.*`, les Notifications/Automation Services complètes, l'UX finale et l'analytics/release gate restent respectivement T34B, T35 et T36.
+La matrice finale `activity.services.*`, les Notifications/Automation Services complètes, l'UX finale et l'analytics/release gate ont été livrés respectivement par T34B, T35 et T36. Le cycle Services V1 est désormais fermé.
 
 ## 26. État d'implémentation T34A
 
@@ -859,3 +859,27 @@ La migration Services T34A transforme les anciens states en place, conserve les 
 Le registry est défini par le code, valide les paramètres, opérateurs et types de sujets, et expose `dependency_events`/`cache_policy` comme métadonnées techniques. Les données de configuration ne peuvent fournir aucun `expression`, SQL, JavaScript ou `import_path` exécutable. L'évaluation retourne un `RequirementEvaluationResult` non persistant ; le domaine consommateur décide ensuite s'il persiste son propre Assessment et quelle conséquence métier appliquer.
 
 Aucun runtime Subscription, Entitlement ou Eligibility n'est créé dans T34A. Après merge et gates post-merge verts, T34B et Subscriptions Foundation peuvent partir sur deux branches distinctes qui consomment le même kernel horizontal.
+
+## 27. État final Services V1 / T36
+
+T36 est livrée via **PR #103 — `Task 36: harden and release Makolo Services V1`**, puis stabilisée par **PR #105 — `Fix T36 Services E2E release gate`**. La PR #103 a été mergée avec le commit `64cc9aaccdb83c37aab97b3ec64264e5a9b80e60`; le correctif #105 est intégré via `a5fe731bc829752f06ab6e066ffa225450a5a2bc`.
+
+Le chantier Subscription S5 a ensuite été mergé au-dessus. Au moment de la clôture documentaire, `main` pointe sur `dff2ba49b9c16708d12e7bb3ed4e7c49c9cb5725` et reste entièrement vert : **CI #1244**, **Beta seed #588** et **Subscriptions #79** sont en succès.
+
+Le release gate Services V1 est donc **PASS** : Analytics Services canoniques dans `analytics_app`, séparation fulfillment Makolo / succès externe, privacy et finance conservées, hardening performance/anti-IDOR, E2E Services et mobile validés, aucune migration T36 ajoutée et aucune source de vérité parallèle introduite.
+
+Le cycle Services est officiellement :
+
+```text
+T31 ✅
+T32 ✅
+T33 ✅
+T34A ✅
+T34B ✅
+T35 ✅
+T36 ✅
+```
+
+Il n'y a pas de T37 Services automatique. Les éléments volontairement différés restent notamment l'IA, M-PESA et autres providers réels, l'hébergement de production final, le pricing/billing Subscription, un éventuel feature paywall Services explicitement décidé plus tard et les analytics prédictives avancées.
+
+PythonAnywhere reste seulement l'environnement temporaire de test/bêta ; le déploiement et les smoke tests manuels PythonAnywhere n'ont pas été réexécutés dans cette clôture documentaire et suivent le runbook lorsqu'ils sont demandés.
