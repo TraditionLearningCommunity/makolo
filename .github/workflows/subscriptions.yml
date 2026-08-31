@@ -16,8 +16,14 @@ on:
       - "notifications/**"
       - "automation/**"
       - "payments/**"
+      - "analytics_app/**"
+      - "operations/**"
+      - "core/**"
+      - "templates/**"
+      - "e2e/**"
       - "test_support/**"
       - "config/settings.py"
+      - "config/urls.py"
       - "docs/architecture/subscriptions-*.md"
       - ".github/workflows/subscriptions.yml"
   push:
@@ -34,8 +40,14 @@ on:
       - "notifications/**"
       - "automation/**"
       - "payments/**"
+      - "analytics_app/**"
+      - "operations/**"
+      - "core/**"
+      - "templates/**"
+      - "e2e/**"
       - "test_support/**"
       - "config/settings.py"
+      - "config/urls.py"
       - "docs/architecture/subscriptions-*.md"
       - ".github/workflows/subscriptions.yml"
 
@@ -70,7 +82,7 @@ jobs:
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
-          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade
+          python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade subscriptions.test_s6_product_ux subscriptions.test_s6_performance analytics_app.test_subscription_analytics
 
   postgresql:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
@@ -127,5 +139,7 @@ jobs:
         run: python manage.py test subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview
       - name: Run Subscription S5 security events automation regressions
         run: python manage.py test subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade notifications automation domain_events authorization
+      - name: Run Subscription S6 product UX analytics hardening regressions
+        run: python manage.py test subscriptions.test_s6_product_ux subscriptions.test_s6_performance analytics_app.test_subscription_analytics
       - name: Run Subscription PostgreSQL concurrency regressions
         run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency
