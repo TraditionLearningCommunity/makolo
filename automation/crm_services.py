@@ -416,7 +416,7 @@ def _emit_birthday_workflows(*, now):
 def _claim_action_run(action_run_id, *, now):
     with transaction.atomic():
         action_run = (
-            CRMWorkflowActionRun.objects.select_for_update()
+            CRMWorkflowActionRun.objects.select_for_update(of=("self",))
             .select_related(
                 "run",
                 "run__workflow",

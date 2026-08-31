@@ -7,9 +7,9 @@ class SubscriptionsConfig(AppConfig):
     verbose_name = "Subscriptions"
 
     def import_models(self):
-        """Load runtime, eligibility and transition models during Django model import."""
+        """Load runtime, eligibility, transition and ongoing models during Django model import."""
         super().import_models()
-        from . import eligibility_models, runtime_models, transition_models
+        from . import eligibility_models, ongoing_models, runtime_models, transition_models
 
         for name in ("Subscription", "SubscriptionItem", "EntitlementGrant"):
             setattr(self.models_module, name, getattr(runtime_models, name))
@@ -22,9 +22,15 @@ class SubscriptionsConfig(AppConfig):
             "SubscriptionTransitionPaymentObligation",
         ):
             setattr(self.models_module, name, getattr(transition_models, name))
+        setattr(
+            self.models_module,
+            "SubscriptionOngoingRequirementState",
+            ongoing_models.SubscriptionOngoingRequirementState,
+        )
 
     def ready(self):
-        from . import signals  # noqa: F401
+        from . import domain_event_hooks, signals  # noqa: F401
         from .evaluators import register_subscription_evaluators
 
         register_subscription_evaluators()
+        from . import dependency_consumer  # noqa: F401, E402

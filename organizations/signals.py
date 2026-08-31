@@ -1,11 +1,13 @@
 from urllib.parse import urlencode
 
 from django.db import transaction
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 from accounts.models import UserProfile
 from activities.models import Activity, ActivityStatus
+from domain_events.contracts import DomainEventType
+from domain_events.services import emit_domain_event
 from events.models import Event, EventStatus
 from notifications.models import NotificationCategory, NotificationKind
 from notifications.services import create_notification
@@ -15,15 +17,12 @@ from .models import (
     OrganizationMembership,
     OrganizationVerificationStatus,
     ProfileFollow,
+    TeamMembership,
 )
 
 
 def _notify_event_followers(event_id):
-    event = (
-        Event.objects.select_related("activity__space")
-        .filter(pk=event_id)
-        .first()
-    )
+    event = Event.objects.select_related("activity__space").filter(pk=event_id).first()
     if not event or not event.activity.space_id or event.status != EventStatus.PUBLISHED:
         return
     organization = event.activity.space
@@ -48,11 +47,7 @@ def _notify_event_followers(event_id):
 
 
 def _notify_profile_followers(activity_id):
-    activity = (
-        Activity.objects.select_related("owner_profile")
-        .filter(pk=activity_id)
-        .first()
-    )
+    activity = Activity.objects.select_related("owner_profile").filter(pk=activity_id).first()
     if not activity or activity.status != ActivityStatus.PUBLISHED or not activity.owner_profile_id:
         return
     owner_profile = activity.owner_profile
@@ -92,6 +87,40 @@ def notify_followers_on_published_event(sender, instance, **kwargs):
 def notify_profile_followers_on_published_activity(sender, instance, **kwargs):
     if instance.status == ActivityStatus.PUBLISHED and instance.owner_profile_id:
         transaction.on_commit(lambda activity_id=instance.pk: _notify_profile_followers(activity_id))
+
+
+@receiver(pre_save, sender=TeamMembership, dispatch_uid="organizations.capture_team_membership_status")
+def capture_team_membership_status(sender, instance, **kwargs):
+    if instance._state.adding:
+        instance._domain_previous_status = None
+    else:
+        instance._domain_previous_status = sender.objects.filter(pk=instance.pk).values_list("status", flat=True).first()
+
+
+@receiver(post_save, sender=TeamMembership, dispatch_uid="organizations.emit_team_membership_changed")
+def emit_team_membership_changed(sender, instance, created, raw=False, **kwargs):
+    if raw:
+        return
+    previous_status = getattr(instance, "_domain_previous_status", None)
+    if not created and previous_status == instance.status:
+        return
+    space_id = instance.team.organization_id
+    emit_domain_event(
+        event_type=DomainEventType.ORGANIZATION_TEAM_MEMBERSHIP_CHANGED,
+        source_type="organization",
+        source_id=str(space_id),
+        space_id=space_id,
+        payload={
+            "space_id": str(space_id),
+            "team_membership_id": str(instance.pk),
+            "old_status": previous_status,
+            "new_status": instance.status,
+        },
+        idempotency_key=(
+            f"organization-team-membership:{instance.pk}:"
+            f"{instance.updated_at.isoformat()}:{previous_status}:{instance.status}"
+        ),
+    )
 
 
 @receiver(

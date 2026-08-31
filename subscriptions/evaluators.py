@@ -83,7 +83,7 @@ def evaluator_definitions():
             supported_subject_type=Organization,
             parameter_schema=schema,
             operators=operators,
-            dependency_events=(),
+            dependency_events=("organization.team_membership.changed",),
             cache_policy="request",
         ),
     )

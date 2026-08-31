@@ -18,6 +18,7 @@ from .contracts import (
     FeatureValueType,
     SubscriptionItemStatus,
     SubscriptionPlanType,
+    SubscriptionStatus,
     SubscriptionSubjectType,
 )
 from .models import FeatureDefinition, PlanEntitlement
@@ -149,6 +150,24 @@ def _apply_requirement_gate(subject, result, *, at):
     )
 
 
+def _apply_subscription_status_gate(subscription, result):
+    """Keep contractual values visible while suspension blocks premium capabilities."""
+    if subscription is None or subscription.status != SubscriptionStatus.SUSPENDED:
+        return result
+    if result.effective_value is None:
+        return result
+    return EffectiveEntitlementResult(
+        feature_code=result.feature_code,
+        effective_value=result.effective_value,
+        sources=result.sources,
+        usage=result.usage,
+        remaining=result.remaining,
+        allowed=False,
+        over_limit=result.over_limit,
+        reason_code="subscription_suspended",
+    )
+
+
 def _resolve(subject, *, feature_code=None, at=None):
     at = at or timezone.now()
     subject_type = _subject_type(subject)
@@ -230,7 +249,8 @@ def _resolve(subject, *, feature_code=None, at=None):
         sources = tuple(entry["source"] for entry in entries)
         effective = _aggregate(feature, entries) if entries else None
         result = _decorate_usage(feature, subject, effective, sources)
-        results[code] = _apply_requirement_gate(subject, result, at=at)
+        result = _apply_requirement_gate(subject, result, at=at)
+        results[code] = _apply_subscription_status_gate(subscription, result)
     return results
 
 
