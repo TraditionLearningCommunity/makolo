@@ -17,9 +17,12 @@ from .contracts import (
     RequirementPhase,
     SubscriptionPlanType,
     SubscriptionSubjectType,
+    SubscriptionTransitionKind,
 )
 from .eligibility_models import PlanRequirement
 from .models import PlanVersion, SubscriptionPlan
+from .product_preview import build_subscription_change_preview
+from .product_read import build_subscription_product_view
 from .runtime_models import Subscription
 from .security_services import request_subscription_transition_for_actor
 from .services import publish_plan_version
@@ -110,13 +113,12 @@ class S6ProductUXTests(TestCase):
             1,
         )
 
-    def test_internal_requirement_is_not_disclosed_in_profile_html(self):
-        target = self.published_base(
-            code="s6.profile.internal",
+    def test_internal_requirement_is_not_disclosed_in_product_preview_or_progress(self):
+        self.published_base(
+            code="s6.profile.internal.reference",
             subject_type=SubscriptionSubjectType.PROFILE,
-            name="S6 Internal Target",
+            name="S6 Internal Reference",
         )
-        # Published versions are immutable: build a second target with the requirement before publication.
         plan = SubscriptionPlan.objects.create(
             code="s6.profile.internal.requirement",
             plan_type=SubscriptionPlanType.BASE,
@@ -143,13 +145,40 @@ class S6ProductUXTests(TestCase):
             disclosure=RequirementDisclosure.INTERNAL,
         )
         publish_plan_version(version)
+        version.refresh_from_db()
+
+        preview = build_subscription_change_preview(
+            subscription=self.profile_subscription,
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
+            target_plan_version=version,
+        )
+        self.assertEqual(preview["requirements"], ())
+        self.assertFalse(preview["has_payment_requirement"])
+
         self.client.force_login(self.actor)
-        response = self.client.get(reverse("subscriptions:home"))
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "SECRET INTERNAL CONDITION")
-        self.assertNotContains(response, "SECRET INTERNAL DETAIL")
-        self.assertNotContains(response, "Vérification Makolo")
-        self.assertContains(response, target.name)
+        preview_response = self.client.get(reverse("subscriptions:preview", args=[version.pk]))
+        self.assertEqual(preview_response.status_code, 200)
+        self.assertNotContains(preview_response, "SECRET INTERNAL CONDITION")
+        self.assertNotContains(preview_response, "SECRET INTERNAL DETAIL")
+        self.assertNotContains(preview_response, "Vérification Makolo")
+
+        product = build_subscription_product_view(self.profile_subscription, can_manage=True)
+        option = next(item for item in product.catalog if item["plan_version_id"] == str(version.pk))
+        self.assertEqual(option["requirements"], ())
+        self.assertEqual(option["eligibility_label"], "Disponibilité à confirmer")
+
+        request_subscription_transition_for_actor(
+            actor=self.actor,
+            subscription_id=self.profile_subscription.pk,
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
+            target_plan_version_id=version.pk,
+            request_origin="self_service",
+            idempotency_key="s6-internal-progress",
+        )
+        product = build_subscription_product_view(self.profile_subscription, can_manage=True)
+        self.assertEqual(product.transition["conditions"], ())
+        self.assertEqual(product.transition["completed_conditions"], 0)
+        self.assertEqual(product.transition["total_conditions"], 0)
 
     def test_profile_transition_action_cannot_target_managed_space_transition(self):
         space = Organization.objects.create(name="S6 Managed Space", created_by=self.actor)
@@ -163,7 +192,7 @@ class S6ProductUXTests(TestCase):
         transition = request_subscription_transition_for_actor(
             actor=self.actor,
             subscription_id=space_subscription.pk,
-            kind="base_switch",
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
             target_plan_version_id=target.pk,
             request_origin="self_service",
             idempotency_key="s6-space-transition",
@@ -234,7 +263,7 @@ class S6SpaceUXTests(TestCase):
         transition = request_subscription_transition_for_actor(
             actor=self.owner,
             subscription_id=self.other_subscription.pk,
-            kind="base_switch",
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
             target_plan_version_id=target.pk,
             request_origin="self_service",
             idempotency_key="s6-other-space-transition",
