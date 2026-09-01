@@ -4,6 +4,7 @@ from django.utils import timezone
 from journeys.models import JourneyStatus
 
 from . import contributors  # noqa: F401 - registers built-in contributors
+from . import questionnaire_contributor  # noqa: F401 - registers M2 contributor
 from .registry import registry
 from .types import ReadinessCheckState, ReadinessResult, ReadinessStatus
 
