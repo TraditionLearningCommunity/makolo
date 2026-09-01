@@ -1,6 +1,6 @@
 <div class="mk-brand-empty {{ class_name|default:'' }}">
   {% include 'partials/brand_mark.html' with variant='ink' size='md' %}
-  <p class="mt-4 font-semibold">{{ title|default:message }}</p>
-  {% if body or detail %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ body|default:detail }}</p>{% endif %}
+  <p class="mt-4 font-semibold">{{ title }}</p>
+  {% if body %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ body }}</p>{% endif %}
   {% if action_url and action_label %}<a href="{{ action_url }}" class="mk-btn mk-btn-secondary mt-4">{{ action_label }}</a>{% endif %}
 </div>
