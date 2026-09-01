@@ -1,0 +1,12 @@
+{% load static %}
+<span class="mk-brand-mark-shell mk-brand-mark-{{ size|default:'md' }} {{ class_name|default:'' }}"{% if not label %} aria-hidden="true"{% endif %}>
+  {% if variant == 'white' %}
+    <img src="{% static 'brand/makolo-mark-white.svg' %}" class="mk-brand-mark-image" alt="{{ label|default:'' }}" width="48" height="33">
+  {% elif variant == 'gradient' %}
+    <img src="{% static 'brand/makolo-mark-gradient.svg' %}" class="mk-brand-mark-image" alt="{{ label|default:'' }}" width="48" height="33">
+  {% elif variant == 'violet' %}
+    <img src="{% static 'brand/makolo-mark-violet.svg' %}" class="mk-brand-mark-image" alt="{{ label|default:'' }}" width="48" height="33">
+  {% else %}
+    <img src="{% static 'brand/makolo-mark-ink.svg' %}" class="mk-brand-mark-image" alt="{{ label|default:'' }}" width="48" height="33">
+  {% endif %}
+</span>
