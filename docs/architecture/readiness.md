@@ -35,7 +35,7 @@ La priorité de synthèse est : `BLOCKED` > `ACTION_REQUIRED` > `WAITING` > `REA
 
 Le resolver central ne contient pas de branchement `if event`, `if transport` ou `if service`. Il exécute des contributeurs explicites enregistrés dans `readiness.registry`.
 
-Les contributeurs M1 lisent :
+Les contributeurs lisent notamment :
 
 - Journey et JourneyRequest ;
 - JourneyStep, dépendances et responsabilités ;
@@ -44,7 +44,8 @@ Les contributeurs M1 lisent :
 - CapacityReservation ;
 - Access ;
 - Occurrence ;
-- évaluations Requirements du contexte Services.
+- évaluations Requirements du contexte Services ;
+- FormRequest/FormResponse obligatoires du moteur `questionnaires`.
 
 Chaque domaine reste propriétaire de ses transitions. Readiness ne modifie aucun de ces objets.
 
@@ -62,6 +63,14 @@ Une étape obligatoire réellement attribuée au bénéficiaire peut produire `A
 
 Le kernel `requirements` et les évaluations propriétaires restent la vérité. Readiness ne crée pas de `ReadinessRequirement` et n’utilise pas de `GenericForeignKey` universel. Le contributeur Services lit les `ServiceRequirementAssessment` matérialisées et leurs conséquences canoniques ; les actions concrètes restent représentées par JourneyStep ou PaymentObligation lorsque ces domaines les portent.
 
+### Questionnaires
+
+M2 ajoute `questionnaire_contributor` sans modifier le contrat du resolver. Une `FormRequest` obligatoire, ouverte et non soumise produit `ACTION_REQUIRED` avec le reason code stable `form_response_required` et une `NextAction` vers la Request. Une Request future produit `WAITING`. Une Request dont la deadline est passée et qui n’est plus éditable produit `BLOCKED`. Une Response soumise satisfait le check. Une Request optionnelle ne bloque pas READY.
+
+La soumission d’un Form ne satisfait jamais implicitement un Requirement. Si un autre domaine exige ensuite une validation opérateur, l’attente ou le blocage appartient au contributeur de ce domaine, pas à une pseudo-review Form.
+
+Une `ActivityResource` informative ne contribue pas à Readiness. Un futur acknowledgement devra être une obligation explicite et auditée.
+
 ### Payments
 
 Seules les `PaymentObligation` réellement rattachées à la Journey contribuent. `satisfied` et `waived` satisfont la préparation. Une obligation `pending` due par le bénéficiaire peut demander une action ; une obligation en traitement ou due par un tiers produit une attente. Readiness ne touche ni allocation, ledger, custody, Settlement, Payout ni provider.
@@ -76,24 +85,24 @@ Access est le droit ; `AccessCredential` n’est qu’une représentation. Readi
 
 ### Occurrence
 
-Une Journey sans Occurrence est valide et n’est pas pénalisée. Lorsqu’une Occurrence existe, M1 vérifie seulement les faits canoniques nécessaires, notamment qu’elle ne soit pas annulée. M1 ne fait ni routing, ni météo, ni trafic, ni ETA, ni geofencing.
+Une Journey sans Occurrence est valide et n’est pas pénalisée. Lorsqu’une Occurrence existe, Readiness vérifie seulement les faits canoniques nécessaires, notamment qu’elle ne soit pas annulée. Il ne fait ni routing, ni météo, ni trafic, ni ETA, ni geofencing.
 
 ## Dépendances et performance
 
 `journeys` ne dépend pas de Payments, Services, Events ou Transport pour calculer READY. Le package `readiness` est la couche de composition qui peut lire ces domaines.
 
-`readiness.selectors.readiness_queryset()` regroupe `select_related` et `prefetch_related` afin que le resolver soit query-free après préchargement. `/me/` charge un nombre borné de Journeys candidates puis les résout en batch ; aucun état Readiness persistant ou cache métier n’est introduit pour masquer un N+1.
+`readiness.selectors.readiness_queryset()` regroupe `select_related` et `prefetch_related`, y compris les FormRequests M2, afin que le resolver reste à croissance bornée après préchargement. `/me/` charge un nombre borné de Journeys candidates puis les résout en batch ; aucun état Readiness persistant ou cache métier n’est introduit pour masquer un N+1.
 
 ## Permissions et disclosure
 
-La projection participant vérifie le bénéficiaire côté serveur. Un autre utilisateur ne peut pas résoudre la Readiness personnelle d’une Journey qui ne lui appartient pas. Les checks publics n’exposent que des intitulés et raisons déjà appropriés au participant ; descriptions de blockers, notes de review et métadonnées internes ne sont pas remontées.
+La projection participant vérifie le bénéficiaire côté serveur. Un autre utilisateur ne peut pas résoudre la Readiness personnelle d’une Journey qui ne lui appartient pas. Les checks publics n’exposent que des intitulés et raisons déjà appropriés au participant ; descriptions de blockers, notes de review, réponses de formulaire et métadonnées internes ne sont pas remontées.
 
 ## Web, API et extensions
 
-Le resolver est indépendant des templates et peut être consommé par le web actuel, une API, l’Automation future ou un client mobile. M1 ajoute seulement une synthèse compacte à `/me/` et au détail Journey.
+Le resolver est indépendant des templates et peut être consommé par le web actuel, une API, l’Automation ou un client mobile. La synthèse est exposée à `/me/` et au détail Journey ; M2 fournit une NextAction exploitable vers le formulaire requis.
 
-Les futurs contributeurs M2 peuvent ajouter, sans modifier le resolver central, des checks tels que `form_response_required` ou `resource_acknowledgement_required`. Les tâches Mature ultérieures pourront enrichir la compréhension spatio-temporelle ou automatiser les réactions aux Domain Events, sans créer aujourd’hui un événement `readiness.changed` à chaque lecture.
+Les tâches Mature ultérieures pourront ajouter un `resource_acknowledgement_required` seulement si une vraie obligation de lecture est modélisée, ou enrichir la compréhension spatio-temporelle, sans créer un événement `readiness.changed` à chaque lecture.
 
 ## Migrations
 
-M1 n’ajoute aucun modèle et aucune migration. READY reste entièrement dérivé.
+M1 n’ajoutait aucun modèle. M2 ajoute ses propres modèles Forms/Resources mais n’ajoute toujours aucun modèle Readiness : READY reste entièrement dérivé.

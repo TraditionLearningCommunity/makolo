@@ -33,6 +33,12 @@ class DomainEventType:
     JOURNEY_ARTIFACT_REVIEW_REQUESTED = "journey.artifact.review_requested"
     JOURNEY_ARTIFACT_REVIEW_COMPLETED = "journey.artifact.review_completed"
 
+    FORM_REQUESTED = "form.requested"
+    FORM_SUBMITTED = "form.submitted"
+    FORM_REOPENED = "form.reopened"
+    RESOURCE_PUBLISHED = "resource.published"
+    RESOURCE_REPLACED = "resource.replaced"
+
     OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
     OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"
     OPPORTUNITY_WITHDRAWN = "opportunity.withdrawn"

@@ -21,6 +21,8 @@ def readiness_queryset(queryset=None):
             "service_context__requirement_assessments__requirement",
             "service_context__requirement_assessments__step_links__journey_step",
             "service_context__requirement_assessments__payment_obligation_links__obligation",
+            "form_requests__form_version__form",
+            "form_requests__response",
         )
     )
 

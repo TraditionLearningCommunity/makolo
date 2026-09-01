@@ -10,7 +10,6 @@ handler403 = "core.error_views.error_403"
 handler404 = "core.error_views.error_404"
 handler500 = "core.error_views.error_500"
 
-
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/health/", HealthAPIView.as_view(), name="api-health"),
@@ -19,9 +18,11 @@ urlpatterns = [
     path("api/v1/organizations/", include("organizations.api.urls")),
     path("api/v1/events/", include("events.api.urls")),
     path("api/v1/tickets/", include("tickets.api.urls")),
-    path("api/v1/scanner/", include("scanner.api.urls")),
     path("api/v1/payments/", include("payments.api.urls")),
     path("api/v1/notifications/", include("notifications.api.urls")),
+    path("api/v1/questionnaires/", include("questionnaires.api_urls")),
+    path("api/v1/preparation/", include("preparation.api_urls")),
+    path("api/v1/scanner/", include("scanner.api.urls")),
     path("api/v1/analytics/", include("analytics_app.api.urls")),
     path("api/v1/partners/", include("partners.api.urls")),
     path("api/v1/crm/", include("crm.api.urls")),
@@ -49,6 +50,8 @@ urlpatterns = [
     path("scanner/", include("scanner.urls")),
     path("payments/", include("payments.urls")),
     path("notifications/", include("notifications.urls")),
+    path("questionnaires/", include("questionnaires.urls")),
+    path("preparation/", include("preparation.urls")),
     path("analytics/", include("analytics_app.urls")),
     path("partners/", include("partners.urls")),
     path("crm/", include("crm.urls")),
