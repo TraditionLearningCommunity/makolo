@@ -89,7 +89,12 @@ def _feedback_summary(space, *, period_days, at=None):
 
 def get_public_trust_summary(space, viewer=None, *, period_days=DEFAULT_RELIABILITY_PERIOD_DAYS, at=None):
     verification = [
-        {"claim_type": claim.claim_type, "status": VerificationStatus.VERIFIED, "valid_until": claim.valid_until}
+        {
+            "claim_type": claim.claim_type,
+            "claim_label": claim.get_claim_type_display(),
+            "status": VerificationStatus.VERIFIED,
+            "valid_until": claim.valid_until,
+        }
         for claim in active_public_verifications_for_space(space, at=at)
     ]
     return {
