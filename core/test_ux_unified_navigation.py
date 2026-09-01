@@ -28,11 +28,27 @@ class UnifiedNavigationUxTests(TestCase):
             {"request": self._request(), "space_console": None},
         )
 
-        for label in ("Accueil", "Mes démarches", "Mes accès", "Historique", "Découvrir"):
+        for label in ("Accueil", "Mes démarches", "Mes accès", "Historique"):
             self.assertIn(label, html)
+        self.assertNotIn("Découvrir", html)
         self.assertNotIn(">Services<", html)
         self.assertNotIn(">Opportunités<", html)
         self.assertNotIn(">Abonnement<", html)
+
+    def test_discover_is_the_anchored_personal_sidebar_cta_without_primary_duplication(self):
+        request = self._request()
+        sidebar_html = render_to_string(
+            "partials/sidebar.html",
+            {"request": request, "space_console": None},
+        )
+        navigation_html = render_to_string(
+            "partials/navigation_links.html",
+            {"request": request, "space_console": None},
+        )
+
+        self.assertEqual(sidebar_html.count("Découvrir"), 2)
+        self.assertEqual(sidebar_html.count(reverse("discovery:home")), 2)
+        self.assertNotIn("Découvrir", navigation_html)
 
     def test_personal_account_menu_contains_billing_entry(self):
         html = render_to_string(
