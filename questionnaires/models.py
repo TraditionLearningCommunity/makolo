@@ -154,7 +154,7 @@ class FormRequest(models.Model):
     class Meta:
         ordering = ["journey", "created_at", "id"]
         constraints = [models.UniqueConstraint(fields=["journey", "form_version"], name="questionnaire_request_journey_version_unique")]
-        indexes = [models.Index(fields=["journey", "status"], name="questionnaire_req_journey_status_idx")]
+        indexes = [models.Index(fields=["journey", "status"], name="qnr_req_journey_status_idx")]
 
     def clean(self):
         super().clean()
@@ -186,7 +186,7 @@ class FormResponse(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [models.Index(fields=["respondent", "status"], name="questionnaire_resp_user_status_idx")]
+        indexes = [models.Index(fields=["respondent", "status"], name="qnr_resp_user_status_idx")]
 
     def clean(self):
         super().clean()
