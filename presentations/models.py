@@ -6,6 +6,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
+from .asset_models import PresentationAsset  # noqa: F401
 from .enums import PresentationPurpose, PresentationState, Provenance, VersionStatus, Visibility
 
 
@@ -128,6 +129,8 @@ class PresentationThemeVersion(_ImmutablePublishedVersion):
 
     def clean(self):
         super().clean()
+        if self.version_number < 1:
+            raise ValidationError({"version_number": "La version doit être positive."})
         from .themes import validate_theme_tokens
         validate_theme_tokens(self.tokens)
 
