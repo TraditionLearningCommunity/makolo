@@ -34,7 +34,7 @@ test('M2 operator creates draft, publishes and requests a form from the Activity
   await page.getByRole('link').filter({ hasText: 'Réservation sur place E2E' }).first().click();
   await page.getByRole('link', { name: 'Questionnaires', exact: true }).click();
 
-  await expect(page.getByText('Questionnaire opérateur E2E', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Questionnaire opérateur E2E', exact: true })).toBeVisible();
   const pageText = await page.locator('main').innerText();
   const journeyMatch = pageText.match(/Journey\s+([0-9a-f-]{36})/i);
   expect(journeyMatch).not.toBeNull();
@@ -61,5 +61,9 @@ test('M2 operator creates draft, publishes and requests a form from the Activity
   await formSection.getByPlaceholder('UUID Journey').fill(journeyId);
   await formSection.getByRole('button', { name: 'Demander', exact: true }).click();
   await expect(page.getByText('Formulaire demandé dans la Journey.', { exact: true })).toBeVisible();
-  await expect(page.getByText('Questionnaire navigateur E2E', { exact: true })).toBeVisible();
+
+  const requestsSection = page.locator('section').filter({
+    has: page.getByRole('heading', { name: 'Demandes et réponses', exact: true }),
+  });
+  await expect(requestsSection.getByText('Questionnaire navigateur E2E', { exact: true })).toBeVisible();
 });
