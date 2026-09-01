@@ -62,9 +62,9 @@
   height: auto;
 }
 
-.mk-brand-mark-sm { width: 28px; }
-.mk-brand-mark-md { width: 42px; }
-.mk-brand-mark-lg { width: 56px; }
+.mk-brand-mark-sm, .mk-brand-mark-28 { width: 28px; }
+.mk-brand-mark-md, .mk-brand-mark-42 { width: 42px; }
+.mk-brand-mark-lg, .mk-brand-mark-56 { width: 56px; }
 
 .mk-brand-empty {
   padding: 2rem 1.5rem;
