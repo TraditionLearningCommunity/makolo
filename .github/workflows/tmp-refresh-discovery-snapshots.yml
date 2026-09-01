@@ -1,0 +1,62 @@
+name: Temporary Refresh Discovery Snapshots
+
+on:
+  push:
+    branches:
+      - fix/frontend-artifact-sync-post-114
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_ENV: e2e
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: makolo-e2e-snapshot-refresh-only-secret-2026
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost
+      DJANGO_DB_PATH: /tmp/makolo-e2e-snapshot-refresh.sqlite3
+      DJANGO_EMAIL_FILE_PATH: /tmp/makolo-e2e-snapshot-refresh-emails
+      MAKOLO_PUBLIC_BASE_URL: http://127.0.0.1:8000
+      PAYMENTS_SANDBOX_ENABLED: "True"
+      PAYMENTS_WEBHOOK_SECRET: makolo-e2e-snapshot-refresh-webhook
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Install Chromium
+        run: |
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt-mirrors.txt >/dev/null
+          npx playwright install --with-deps chromium
+      - name: Prepare deterministic E2E environment
+        run: bash scripts/prepare-e2e.sh
+      - name: Refresh visual baselines
+        env:
+          E2E_SKIP_PREP: "1"
+        run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots
+      - name: Commit refreshed snapshots
+        run: |
+          git add e2e/specs/visual.spec.mjs-snapshots
+          if git diff --cached --quiet; then
+            echo "No snapshot changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: refresh Discovery visual baselines"
+          git push origin HEAD:fix/frontend-artifact-sync-post-114
