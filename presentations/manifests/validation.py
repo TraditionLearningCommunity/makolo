@@ -13,11 +13,14 @@ FORBIDDEN_KEYS = {"raw_html", "html", "javascript", "js", "script", "css", "styl
 FORBIDDEN_SCHEMES = {"javascript", "data", "file"}
 
 
-def _safe_url(value):
+def _safe_static_url(value):
     if not isinstance(value, str):
         return False
-    parsed = urlparse(value.strip())
-    return (parsed.scheme or "").lower() not in FORBIDDEN_SCHEMES
+    value = value.strip()
+    parsed = urlparse(value)
+    if (parsed.scheme or "").lower() in FORBIDDEN_SCHEMES or parsed.netloc:
+        return False
+    return value.startswith("/") and not value.startswith("//")
 
 
 def _walk(node, *, depth=1, counter=None):
@@ -43,10 +46,10 @@ def _walk(node, *, depth=1, counter=None):
         raise ValidationError(f"Props non autorisées pour {name}: {', '.join(sorted(unknown))}.")
     for key, value in props.items():
         if isinstance(value, dict) and "binding" in value:
-            if not binding_allowed(value["binding"]):
-                raise ValidationError(f"Binding interdit: {value['binding']}.")
-        elif key in {"url", "src", "image"} and isinstance(value, str) and not _safe_url(value):
-            raise ValidationError("URL dangereuse interdite.")
+            if set(value) != {"binding"} or not binding_allowed(value["binding"]):
+                raise ValidationError(f"Binding interdit: {value.get('binding')}.")
+        elif key in {"url", "src", "image"} and isinstance(value, str) and not _safe_static_url(value):
+            raise ValidationError("Une URL déclarative doit être un asset Makolo relatif; les destinations dynamiques viennent du Context.")
     children = node.get("children", [])
     if children and not contract["children"]:
         raise ValidationError(f"{name} n'accepte pas d'enfants.")
