@@ -10,7 +10,7 @@ class DiscoveryProductUxTests(TestCase):
         response = self.client.get(reverse("discovery:home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Les horaires sont affichés dans l’heure locale des activités.")
+        self.assertContains(response, "Les horaires des activités planifiées sont affichés dans leur heure locale.")
         self.assertContains(response, "js/discovery-ux.js")
         self.assertNotContains(response, "Dates interprétées dans Africa/")
 
