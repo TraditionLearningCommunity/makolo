@@ -27,8 +27,10 @@ from payments.models import (
 )
 from readiness import ReadinessStatus, resolve_journey_readiness, resolve_many
 from readiness.selectors import participant_readiness_queryset
-from services.models import OpportunityPolicy, ServiceKind
-from services.services import create_service_details, create_service_journey, submit_service_journey
+from requirements.contracts import RequirementAssessmentState
+from services.models import OpportunityPolicy, ServiceKind, ServiceRequirementStepLink
+from services.requirement_services import assess_requirement
+from services.services import create_service_details, create_service_journey
 
 
 User = get_user_model()
@@ -69,11 +71,18 @@ class ReadinessEngineTests(TestCase):
         )
         self.assertEqual(complete.status, ReadinessStatus.COMPLETE)
 
-    def test_participant_action_waiting_and_blocker_are_distinct(self):
-        participant = self.journey(status=JourneyStatus.DRAFT)
+    def test_participant_step_operator_waiting_and_blocker_are_distinct(self):
+        participant = self.journey()
+        JourneyStep.objects.create(
+            journey=participant,
+            title="Fournir une donnée",
+            status=JourneyStepStatus.READY,
+            created_by=self.user,
+        )
         action = resolve_journey_readiness(self.loaded(participant), viewer=self.user)
         self.assertEqual(action.status, ReadinessStatus.ACTION_REQUIRED)
-        self.assertEqual(action.next_action.key, "continue_journey")
+        self.assertEqual(action.next_action.key, "complete_step")
+        self.assertTrue(any(item.reason_code == "participant_step_required" for item in action.action_items))
 
         operator = self.journey()
         JourneyStep.objects.create(
@@ -96,7 +105,12 @@ class ReadinessEngineTests(TestCase):
         self.assertEqual(result.status, ReadinessStatus.BLOCKED)
         self.assertEqual(result.blocking_items[0].reason_code, "journey_blocker_active")
 
-    def test_pending_request_waits_and_rejected_journey_blocks(self):
+    def test_draft_and_pending_request_have_different_ownership(self):
+        draft = self.journey(status=JourneyStatus.DRAFT)
+        action = resolve_journey_readiness(self.loaded(draft), viewer=self.user)
+        self.assertEqual(action.status, ReadinessStatus.ACTION_REQUIRED)
+        self.assertEqual(action.next_action.key, "continue_journey")
+
         pending = self.journey(status=JourneyStatus.PENDING_APPROVAL)
         JourneyRequest.objects.create(journey=pending, requester=self.user, status=RequestStatus.PENDING)
         self.assertEqual(
@@ -131,23 +145,24 @@ class ReadinessEngineTests(TestCase):
         self.assertEqual(result.status, ReadinessStatus.ACTION_REQUIRED)
         self.assertTrue(any(item.reason_code == "payment_required" for item in result.action_items))
 
-        satisfied = self.journey()
-        PaymentObligation.objects.create(
-            journey=satisfied,
-            reason=PaymentObligationReason.OTHER,
-            label="Frais déjà réglés",
-            amount=Decimal("10.00"),
-            currency="USD",
-            processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
-            status=PaymentObligationStatus.SATISFIED,
-            satisfied_at=timezone.now(),
-            payer_profile=self.user,
-            payee_platform=True,
-        )
-        self.assertEqual(
-            resolve_journey_readiness(self.loaded(satisfied), viewer=self.user).status,
-            ReadinessStatus.READY,
-        )
+        for terminal_status in {PaymentObligationStatus.SATISFIED, PaymentObligationStatus.WAIVED}:
+            journey = self.journey()
+            PaymentObligation.objects.create(
+                journey=journey,
+                reason=PaymentObligationReason.OTHER,
+                label=f"Frais {terminal_status}",
+                amount=Decimal("10.00"),
+                currency="USD",
+                processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
+                status=terminal_status,
+                satisfied_at=timezone.now() if terminal_status == PaymentObligationStatus.SATISFIED else None,
+                payer_profile=self.user,
+                payee_platform=True,
+            )
+            self.assertEqual(
+                resolve_journey_readiness(self.loaded(journey), viewer=self.user).status,
+                ReadinessStatus.READY,
+            )
 
     def test_access_capacity_and_occurrence_use_canonical_facts(self):
         occurrence = Occurrence.objects.create(
@@ -191,6 +206,18 @@ class ReadinessEngineTests(TestCase):
             ReadinessStatus.WAITING,
         )
 
+        cancelled = Occurrence.objects.create(
+            activity=self.activity,
+            start_at=timezone.now() + timedelta(days=2),
+            end_at=timezone.now() + timedelta(days=2, hours=1),
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.CANCELLED,
+        )
+        self.assertEqual(
+            resolve_journey_readiness(self.loaded(self.journey(occurrence=cancelled)), viewer=self.user).status,
+            ReadinessStatus.BLOCKED,
+        )
+
     def test_participant_scope_and_batch_resolver_are_query_free_after_prefetch(self):
         first = self.journey()
         second = self.journey(status=JourneyStatus.DRAFT)
@@ -204,7 +231,7 @@ class ReadinessEngineTests(TestCase):
 
 
 class ServiceReadinessTests(TestCase):
-    def test_service_requirement_is_read_without_new_readiness_requirement_model(self):
+    def test_service_requirement_uses_assessment_and_concrete_step_without_copying_requirement(self):
         curator = User.objects.create_user(
             username="ready-curator",
             email="ready-curator@example.test",
@@ -255,10 +282,35 @@ class ServiceReadinessTests(TestCase):
             beneficiary=beneficiary,
             opportunity=opportunity,
         )
-        journey = submit_service_journey(journey=journey, actor=beneficiary)
+        assessment = journey.service_context.requirement_assessments.get()
+
+        initial = resolve_journey_readiness(
+            participant_readiness_queryset(beneficiary).get(pk=journey.pk),
+            viewer=beneficiary,
+        )
+        self.assertEqual(initial.status, ReadinessStatus.WAITING)
+        self.assertTrue(any(item.reason_code == "requirement_unassessed" for item in initial.waiting_items))
+
+        assessment = assess_requirement(
+            assessment=assessment,
+            actor=curator,
+            status=RequirementAssessmentState.PENDING,
+        )
+        step = JourneyStep.objects.create(
+            journey=journey,
+            title="Fournir le CV",
+            status=JourneyStepStatus.READY,
+            created_by=beneficiary,
+        )
+        ServiceRequirementStepLink.objects.create(
+            assessment=assessment,
+            journey_step=step,
+            created_by=curator,
+        )
         result = resolve_journey_readiness(
             participant_readiness_queryset(beneficiary).get(pk=journey.pk),
             viewer=beneficiary,
         )
         self.assertEqual(result.status, ReadinessStatus.ACTION_REQUIRED)
-        self.assertTrue(any(item.source == "requirements" for item in result.action_items))
+        self.assertTrue(any(item.reason_code == "participant_step_required" for item in result.action_items))
+        self.assertTrue(any(item.source == "requirements" for item in result.waiting_items))
