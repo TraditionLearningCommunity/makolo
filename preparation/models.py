@@ -70,7 +70,16 @@ class ActivityResource(models.Model):
     class Meta:
         ordering = ["activity", "occurrence", "key", "version", "created_at"]
         constraints = [
-            models.UniqueConstraint(fields=["activity", "occurrence", "key", "version"], name="prep_resource_scope_key_version_unique"),
+            models.UniqueConstraint(
+                fields=["activity", "key", "version"],
+                condition=Q(occurrence__isnull=True),
+                name="prep_resource_activity_key_ver_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["occurrence", "key", "version"],
+                condition=Q(occurrence__isnull=False),
+                name="prep_resource_occ_key_ver_unique",
+            ),
             models.CheckConstraint(condition=Q(version__gte=1), name="prep_resource_version_positive"),
         ]
         indexes = [
