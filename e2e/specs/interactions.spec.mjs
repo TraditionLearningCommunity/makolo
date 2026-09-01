@@ -91,7 +91,7 @@ test('account appearance persists and representative surfaces remain readable @m
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.goto('/discover/');
-  await expect(page.getByRole('heading', { name: 'Trouver une activité' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Que voulez-vous faire ?' })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
