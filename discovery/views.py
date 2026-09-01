@@ -1,10 +1,12 @@
+from types import SimpleNamespace
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, redirect
 from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
@@ -16,6 +18,7 @@ from .models import ActivityBookmark
 from .presentation import build_discovery_item, presenter_for
 from .search import get_public_occurrence, public_occurrences_for_activities, search_occurrences
 from .services import build_recommendations, build_trending, public_discovery_events
+from .unified import public_service_discovery_items
 
 
 DISCOVERY_PAGE_SIZE = 24
@@ -71,22 +74,30 @@ def _query_without_page(request):
     return params.urlencode()
 
 
+def _empty_occurrence_result():
+    return SimpleNamespace(items=[], timezone_name=settings.TIME_ZONE, total=0, nearby_active=False)
+
+
 class DiscoveryHomeView(TemplateView):
     template_name = "discovery/home.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         errors = []
+        vertical = (self.request.GET.get("vertical") or "").strip().lower()
         try:
-            result = search_occurrences(self.request.GET, profile=self.request.user)
+            result = _empty_occurrence_result() if vertical == "service" else search_occurrences(
+                self.request.GET, profile=self.request.user
+            )
         except ValidationError as exc:
-            result = None
+            result = _empty_occurrence_result()
             errors = list(exc.messages)
-        items = result.items if result else []
+        items = result.items
+        service_items = public_service_discovery_items(self.request.GET, profile=self.request.user)
         page_obj = Paginator(items, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
         filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
-        nearby_active = bool(result and result.nearby_active)
+        nearby_active = bool(result.nearby_active)
         map_items = []
         if nearby_active:
             map_items = [
@@ -97,11 +108,12 @@ class DiscoveryHomeView(TemplateView):
         context.update(
             {
                 "items": page_obj.object_list,
+                "service_items": service_items,
                 "page_obj": page_obj,
                 "filters": filters,
                 "search_errors": errors,
-                "search_timezone": result.timezone_name if result else settings.TIME_ZONE,
-                "result_count": result.total if result else 0,
+                "search_timezone": result.timezone_name,
+                "result_count": result.total + len(service_items),
                 "place_suggestions": _place_suggestions(items),
                 "nearby_active": nearby_active,
                 "map_items": map_items,
