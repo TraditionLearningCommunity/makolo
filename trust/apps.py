@@ -8,7 +8,7 @@ class TrustConfig(AppConfig):
 
     def ready(self):
         # Trust evidence reuses the canonical private Journey artifact storage:
-        # it lives outside MEDIA_ROOT and cannot expose a storage URL.  The
+        # it lives outside MEDIA_ROOT and cannot expose a storage URL. The
         # assignment is paired with migration state so makemigrations sees the
         # same storage contract without creating a second storage backend.
         from journeys.storage import private_artifact_storage
@@ -16,3 +16,7 @@ class TrustConfig(AppConfig):
         from .models import TrustEvidence
 
         TrustEvidence._meta.get_field("file").storage = private_artifact_storage
+
+        # Register lifecycle notifications. Payloads are deliberately minimal:
+        # no evidence, report body, reviewer note or other sensitive content.
+        from . import signals  # noqa: F401
