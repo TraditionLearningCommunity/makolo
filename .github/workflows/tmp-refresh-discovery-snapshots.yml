@@ -11,17 +11,6 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    env:
-      DJANGO_ENV: e2e
-      DJANGO_DEBUG: "False"
-      DJANGO_SECRET_KEY: makolo-e2e-snapshot-refresh-only-secret-2026
-      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost
-      DJANGO_DB_PATH: /tmp/makolo-e2e-snapshot-refresh.sqlite3
-      DJANGO_EMAIL_FILE_PATH: /tmp/makolo-e2e-snapshot-refresh-emails
-      MAKOLO_PUBLIC_BASE_URL: http://127.0.0.1:8000
-      PAYMENTS_SANDBOX_ENABLED: "True"
-      PAYMENTS_WEBHOOK_SECRET: makolo-e2e-snapshot-refresh-webhook
-      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -48,7 +37,7 @@ jobs:
       - name: Refresh visual baselines
         env:
           E2E_SKIP_PREP: "1"
-        run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots
+        run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots --timeout=120000
       - name: Commit refreshed snapshots
         run: |
           git add e2e/specs/visual.spec.mjs-snapshots
