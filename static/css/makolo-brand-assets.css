@@ -50,6 +50,44 @@
   display: none;
 }
 
+.mk-brand-mark-shell {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.mk-brand-mark-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mk-brand-mark-sm, .mk-brand-mark-28 { width: 28px; }
+.mk-brand-mark-md, .mk-brand-mark-42 { width: 42px; }
+.mk-brand-mark-lg, .mk-brand-mark-56 { width: 56px; }
+
+.mk-brand-empty {
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.mk-access-qr {
+  box-shadow: 0 10px 30px rgb(15 23 42 / 8%);
+}
+
+.mk-brand-enter {
+  animation: mk-brand-enter 180ms ease-out both;
+}
+
+@keyframes mk-brand-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-brand-enter { animation: none; }
+}
+
 @media (min-width: 640px) {
   .mk-brand-lockup-public {
     height: 40px;
