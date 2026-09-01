@@ -7,17 +7,11 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from activities.models import OccurrenceStatus
+from authorization.constants import PermissionCode
+from authorization.services import can
 from journeys.models import JourneyStatus
 
-from .models import (
-    Dispute,
-    Feedback,
-    Proof,
-    Report,
-    VerificationClaim,
-    VerificationDisclosure,
-    VerificationStatus,
-)
+from .models import Dispute, Feedback, Proof, Report, VerificationClaim, VerificationDisclosure, VerificationStatus
 from .services import can_view_space_trust
 
 
@@ -61,40 +55,21 @@ def get_operational_reliability_summary(space, *, period_days=DEFAULT_RELIABILIT
 
     metrics = []
     if occurrence_denominator:
-        metrics.append({
-            "key": "occurrence_completion",
-            "numerator": occurrence_counts.get(OccurrenceStatus.COMPLETED, 0),
-            "denominator": occurrence_denominator,
-            "period_days": period_days,
-            "source": "Occurrence.status",
-        })
-        metrics.append({
-            "key": "occurrence_cancellation",
-            "numerator": occurrence_counts.get(OccurrenceStatus.CANCELLED, 0),
-            "denominator": occurrence_denominator,
-            "period_days": period_days,
-            "source": "Occurrence.status",
-        })
+        metrics.append({"key": "occurrence_completion", "numerator": occurrence_counts.get(OccurrenceStatus.COMPLETED, 0), "denominator": occurrence_denominator, "period_days": period_days, "source": "Occurrence.status"})
+        metrics.append({"key": "occurrence_cancellation", "numerator": occurrence_counts.get(OccurrenceStatus.CANCELLED, 0), "denominator": occurrence_denominator, "period_days": period_days, "source": "Occurrence.status"})
     if journey_denominator:
-        metrics.append({
-            "key": "journey_fulfillment",
-            "numerator": journey_counts.get(JourneyStatus.FULFILLED, 0),
-            "denominator": journey_denominator,
-            "period_days": period_days,
-            "source": "Journey.status",
-        })
+        metrics.append({"key": "journey_fulfillment", "numerator": journey_counts.get(JourneyStatus.FULFILLED, 0), "denominator": journey_denominator, "period_days": period_days, "source": "Journey.status"})
     return {"period_days": period_days, "metrics": metrics}
 
 
 def _feedback_summary(space, *, period_days, at=None):
     start, end = _period(period_days, at)
-    qs = Feedback.objects.filter(
+    aggregate = Feedback.objects.filter(
         journey__activity__space=space,
         withdrawn_at__isnull=True,
         submitted_at__gte=start,
         submitted_at__lte=end,
-    )
-    aggregate = qs.aggregate(
+    ).aggregate(
         sample_size=Count("id"),
         positive=Count("id", filter=Q(overall_sentiment="positive")),
         neutral=Count("id", filter=Q(overall_sentiment="neutral")),
@@ -108,21 +83,13 @@ def _feedback_summary(space, *, period_days, at=None):
         "minimum_sample": PUBLIC_FEEDBACK_BREAKDOWN_MIN_SAMPLE,
     }
     if result["breakdown_available"]:
-        result["sentiment"] = {
-            "positive": aggregate["positive"],
-            "neutral": aggregate["neutral"],
-            "negative": aggregate["negative"],
-        }
+        result["sentiment"] = {"positive": aggregate["positive"], "neutral": aggregate["neutral"], "negative": aggregate["negative"]}
     return result
 
 
 def get_public_trust_summary(space, viewer=None, *, period_days=DEFAULT_RELIABILITY_PERIOD_DAYS, at=None):
     verification = [
-        {
-            "claim_type": claim.claim_type,
-            "status": VerificationStatus.VERIFIED,
-            "valid_until": claim.valid_until,
-        }
+        {"claim_type": claim.claim_type, "status": VerificationStatus.VERIFIED, "valid_until": claim.valid_until}
         for claim in active_public_verifications_for_space(space, at=at)
     ]
     return {
@@ -138,12 +105,8 @@ def get_operator_trust_summary(space, viewer, *, period_days=DEFAULT_RELIABILITY
         raise PermissionDenied("Accès Trust opérateur refusé.")
     summary = get_public_trust_summary(space, viewer=viewer, period_days=period_days, at=at)
     summary["issues"] = {
-        "reports": dict(
-            Report.objects.filter(space=space).values_list("status").annotate(count=Count("id"))
-        ),
-        "disputes": dict(
-            Dispute.objects.filter(respondent_space=space).values_list("status").annotate(count=Count("id"))
-        ),
+        "reports": dict(Report.objects.filter(space=space).values_list("status").annotate(count=Count("id"))),
+        "disputes": dict(Dispute.objects.filter(respondent_space=space).values_list("status").annotate(count=Count("id"))),
     }
     return summary
 
@@ -153,24 +116,24 @@ def proofs_for_profile(profile):
 
 
 def public_proof_by_id(public_id):
-    return Proof.objects.filter(public_id=public_id, is_public=True).select_related(
-        "subject_profile", "journey__activity", "occurrence"
-    ).first()
+    return Proof.objects.filter(public_id=public_id, is_public=True).select_related("subject_profile", "journey__activity", "occurrence").first()
 
 
 def report_visible_to(report, viewer) -> bool:
     if not getattr(viewer, "is_authenticated", False):
         return False
+    if can(viewer, PermissionCode.PLATFORM_TRUST_REVIEW):
+        return True
     if report.reporter_id == viewer.pk:
         return True
-    if report.space_id and can_view_space_trust(viewer, report.space):
-        return True
-    return False
+    return bool(report.space_id and can_view_space_trust(viewer, report.space))
 
 
 def dispute_visible_to(dispute, viewer) -> bool:
     if not getattr(viewer, "is_authenticated", False):
         return False
+    if can(viewer, PermissionCode.PLATFORM_TRUST_REVIEW):
+        return True
     if dispute.claimant_id == viewer.pk or dispute.respondent_profile_id == viewer.pk:
         return True
     return bool(dispute.respondent_space_id and can_view_space_trust(viewer, dispute.respondent_space))

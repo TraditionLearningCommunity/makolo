@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/v1/notifications/", include("notifications.api.urls")),
     path("api/v1/questionnaires/", include("questionnaires.api_urls")),
     path("api/v1/preparation/", include("preparation.api_urls")),
+    path("api/v1/trust/", include("trust.api_urls")),
     path("api/v1/scanner/", include("scanner.api.urls")),
     path("api/v1/analytics/", include("analytics_app.api.urls")),
     path("api/v1/partners/", include("partners.api.urls")),
@@ -52,6 +53,7 @@ urlpatterns = [
     path("notifications/", include("notifications.urls")),
     path("questionnaires/", include("questionnaires.urls")),
     path("preparation/", include("preparation.urls")),
+    path("trust/", include("trust.urls")),
     path("analytics/", include("analytics_app.urls")),
     path("partners/", include("partners.urls")),
     path("crm/", include("crm.urls")),
@@ -64,7 +66,6 @@ urlpatterns = [
 
 if getattr(settings, "IS_E2E", False):
     from core.e2e_views import synthetic_server_error
-
     urlpatterns.append(path("__e2e__/error/500/", synthetic_server_error, name="e2e-error-500"))
 
 if settings.DEBUG:
