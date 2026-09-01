@@ -3,6 +3,7 @@
 
 class PermissionCode:
     PLATFORM_MANAGE = "platform.manage"
+    PLATFORM_TRUST_REVIEW = "platform.trust.review"
     PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW = "platform.subscriptions.catalog.view"
     PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE = "platform.subscriptions.catalog.manage"
     PLATFORM_SUBSCRIPTIONS_VIEW = "platform.subscriptions.view"
@@ -15,6 +16,8 @@ class PermissionCode:
     OPPORTUNITIES_MERGE = "opportunities.merge"
     SPACE_VIEW = "space.view"
     SPACE_MANAGE = "space.manage"
+    SPACE_TRUST_VIEW = "space.trust.view"
+    SPACE_TRUST_MANAGE = "space.trust.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
     SPACE_OWNERSHIP_MANAGE = "space.ownership.manage"
     SPACE_GROUPS_VIEW = "space.groups.view"
@@ -89,10 +92,8 @@ class SystemRoleCode:
     OPPORTUNITY_CURATOR = "opportunity-curator"
     SPACE_OWNER = "space-owner"
     SPACE_ADMIN = "space-admin"
-    # Historical Python contract kept as the Space-scoped Activity portfolio role.
     ACTIVITY_MANAGER = "space-activity-manager"
     SPACE_ACTIVITY_MANAGER = ACTIVITY_MANAGER
-    # Local Activity-scoped roles.
     ACTIVITY_LOCAL_MANAGER = "activity-manager"
     ACTIVITY_SCANNER = "activity-scanner"
     ACTIVITY_OPERATIONS_MANAGER = "activity-operations-manager"
@@ -110,6 +111,7 @@ class SystemRoleCode:
 
 PLATFORM_PERMISSION_CODES = {
     PermissionCode.PLATFORM_MANAGE,
+    PermissionCode.PLATFORM_TRUST_REVIEW,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW,
@@ -170,32 +172,10 @@ SPACE_PERMISSION_CODES = {
     and value not in ACTIVITY_PERMISSION_CODES
 }
 
-STANDARD_PLATFORM_ROLE_CODES = {
-    SystemRoleCode.PLATFORM_ADMIN,
-    SystemRoleCode.OPPORTUNITY_CURATOR,
-}
-STANDARD_SPACE_ROLE_CODES = {
-    SystemRoleCode.SPACE_OWNER,
-    SystemRoleCode.SPACE_ADMIN,
-    SystemRoleCode.ACTIVITY_MANAGER,
-    SystemRoleCode.FINANCE,
-    SystemRoleCode.MARKETING,
-    SystemRoleCode.ACCESS_MANAGER,
-}
-STANDARD_GROUP_ROLE_CODES = {
-    SystemRoleCode.GROUP_OWNER,
-    SystemRoleCode.GROUP_ADMIN,
-    SystemRoleCode.GROUP_MODERATOR,
-}
-STANDARD_ACTIVITY_ROLE_CODES = {
-    SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
-    SystemRoleCode.ACTIVITY_SCANNER,
-    SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
-    SystemRoleCode.ACTIVITY_FINANCE,
-    SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
-    SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
-    SystemRoleCode.ACTIVITY_SERVICE_REVIEWER,
-}
+STANDARD_PLATFORM_ROLE_CODES = {SystemRoleCode.PLATFORM_ADMIN, SystemRoleCode.OPPORTUNITY_CURATOR}
+STANDARD_SPACE_ROLE_CODES = {SystemRoleCode.SPACE_OWNER, SystemRoleCode.SPACE_ADMIN, SystemRoleCode.ACTIVITY_MANAGER, SystemRoleCode.FINANCE, SystemRoleCode.MARKETING, SystemRoleCode.ACCESS_MANAGER}
+STANDARD_GROUP_ROLE_CODES = {SystemRoleCode.GROUP_OWNER, SystemRoleCode.GROUP_ADMIN, SystemRoleCode.GROUP_MODERATOR}
+STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER, SystemRoleCode.ACTIVITY_SCANNER, SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER, SystemRoleCode.ACTIVITY_FINANCE, SystemRoleCode.ACTIVITY_SERVICE_MANAGER, SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR, SystemRoleCode.ACTIVITY_SERVICE_REVIEWER}
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
     "owner": SystemRoleCode.SPACE_OWNER,
@@ -205,6 +185,4 @@ LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
     "marketing": SystemRoleCode.MARKETING,
     "scanner_manager": SystemRoleCode.ACCESS_MANAGER,
 }
-SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE = {
-    value: key for key, value in LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.items()
-}
+SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE = {value: key for key, value in LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.items()}
