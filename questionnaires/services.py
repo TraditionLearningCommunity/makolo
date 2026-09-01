@@ -93,14 +93,15 @@ def add_question(*, form_version, actor, key, label, question_type, position, re
 @transaction.atomic
 def publish_form_version(*, form_version, actor):
     _require_activity_manage(actor, form_version.form.activity)
-    form_version = FormVersion.objects.select_for_update().get(pk=form_version.pk)
-    if form_version.status != FormVersionStatus.DRAFT:
+    locked_version = FormVersion.objects.select_for_update().get(pk=form_version.pk)
+    if locked_version.status != FormVersionStatus.DRAFT:
         raise ValidationError("Cette version n’est plus un brouillon.")
-    if not form_version.questions.exists():
+    if not locked_version.questions.exists():
         raise ValidationError("Un formulaire publié doit contenir au moins une question.")
-    form_version.status = FormVersionStatus.PUBLISHED
-    form_version.published_at = timezone.now()
-    form_version.save(update_fields=["status", "published_at", "updated_at"])
+    locked_version.status = FormVersionStatus.PUBLISHED
+    locked_version.published_at = timezone.now()
+    locked_version.save(update_fields=["status", "published_at", "updated_at"])
+    form_version.refresh_from_db()
     return form_version
 
 
