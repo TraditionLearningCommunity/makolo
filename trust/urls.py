@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .staff_proof_views import StaffProofQueueView, StaffProofRevokeView
 from .views import (
     DisputeDetailView,
     EvidenceDownloadView,
@@ -31,6 +32,8 @@ urlpatterns = [
     path("proofs/", MyProofsView.as_view(), name="my-proofs"),
     path("proofs/verify/<uuid:public_id>/", PublicProofVerifyView.as_view(), name="proof-verify"),
     path("staff/", StaffTrustQueueView.as_view(), name="staff-queue"),
+    path("staff/proofs/", StaffProofQueueView.as_view(), name="staff-proof-queue"),
+    path("staff/proofs/<uuid:proof_id>/revoke/", StaffProofRevokeView.as_view(), name="staff-proof-revoke"),
     path("staff/verifications/<uuid:claim_id>/", StaffVerificationActionView.as_view(), name="staff-verification-action"),
     path("staff/reports/<uuid:report_id>/", StaffReportActionView.as_view(), name="staff-report-action"),
     path("staff/disputes/<uuid:dispute_id>/", StaffDisputeActionView.as_view(), name="staff-dispute-action"),
