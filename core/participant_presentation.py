@@ -11,6 +11,8 @@ from capacity.models import CapacityReservationStatus
 from commerce.models import CommerceOrderStatus, PaymentMode
 from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
 from payments.models import PaymentStatus
+from readiness import ReadinessStatus, resolve_journey_readiness
+from readiness.presentation import readiness_next_action_label
 
 from .product_language import (
     access_status_label,
@@ -107,27 +109,32 @@ def active_credential(access):
     return next((c for c in access.credentials.all() if c.status == CredentialStatus.ACTIVE), None)
 
 
-def next_participant_action(journey):
+def next_participant_action(journey, *, readiness=None):
+    """Compatibility presenter backed by the single Readiness decision engine."""
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
-    if journey.status == JourneyStatus.DRAFT:
-        return vocabulary.primary_action
-    if journey.status == JourneyStatus.PENDING_APPROVAL:
-        return "Attendre la validation"
-    if journey.status == JourneyStatus.PENDING_PAYMENT:
-        return "Payer"
-    if journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED:
-        return "Répondre à l’invitation"
-    if journey.workflow == WorkflowKind.RESERVATION and journey.status == JourneyStatus.CONFIRMED:
-        return vocabulary.access_detail_label
+    readiness = readiness or resolve_journey_readiness(journey)
+    if readiness.next_action:
+        if readiness.next_action.key == "continue_journey":
+            return vocabulary.primary_action
+        return readiness.next_action.label
+    if readiness.status == ReadinessStatus.WAITING:
+        if any(check.reason_code == "request_pending" for check in readiness.waiting_items):
+            return "Attendre la validation"
+        return "Aucune action maintenant"
+    if readiness.status == ReadinessStatus.BLOCKED:
+        reasons = {check.reason_code for check in readiness.blocking_items}
+        if "request_rejected" in reasons:
+            return "Demande refusée"
+        if "journey_expired" in reasons:
+            return "Démarche expirée"
+        if "journey_cancelled" in reasons:
+            return "Démarche annulée"
+        return "Voir ce qui bloque"
     if journey.status in {JourneyStatus.CONFIRMED, JourneyStatus.FULFILLED} and journey.accesses.all():
         return vocabulary.access_detail_label
-    if journey.status == JourneyStatus.REJECTED:
-        return "Demande refusée"
-    if journey.status == JourneyStatus.EXPIRED:
-        return "Démarche expirée"
-    if journey.status == JourneyStatus.CANCELLED:
-        return "Démarche annulée"
-    return vocabulary.journey_detail_label
+    if readiness.status == ReadinessStatus.COMPLETE:
+        return vocabulary.journey_detail_label
+    return readiness_next_action_label(readiness)
 
 
 def journey_progress(journey):

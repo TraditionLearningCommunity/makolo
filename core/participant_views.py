@@ -18,6 +18,9 @@ from access.services import render_access_credential
 from activities.selectors import activities_owned_by
 from commerce.models import PaymentMode
 from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
+from readiness import ReadinessStatus, resolve_journey_readiness, resolve_many
+from readiness.presentation import readiness_next_action_label, readiness_status_label
+from readiness.selectors import participant_readiness_queryset, readiness_queryset
 
 from .participant_actions import participant_accept_invitation, participant_decline_invitation
 from .participant_presentation import (
@@ -49,6 +52,16 @@ from .participant_selectors import (
 PERSONAL_SEARCH_MAX_LENGTH = 120
 PERSONAL_PAGE_SIZE = 24
 HOME_SECTION_LIMIT = 5
+HOME_READINESS_CANDIDATE_LIMIT = HOME_SECTION_LIMIT * 4
+
+
+READINESS_PRIORITY = {
+    ReadinessStatus.BLOCKED: 0,
+    ReadinessStatus.ACTION_REQUIRED: 1,
+    ReadinessStatus.WAITING: 2,
+    ReadinessStatus.READY: 3,
+    ReadinessStatus.COMPLETE: 4,
+}
 
 
 def _primary_place(occurrence):
@@ -59,13 +72,20 @@ def _primary_place(occurrence):
     return (primary or (links[0] if links else None)).place if links else None
 
 
-def _journey_card(journey):
+def _journey_card(journey, *, readiness=None):
     order = next(iter(journey.commerce_orders.all()), None)
     access = next(iter(journey.accesses.all()), None)
+    next_action = (
+        readiness_next_action_label(readiness)
+        if readiness is not None
+        else next_participant_action(journey)
+    )
     return {
         "journey": journey,
         "status_label": journey_status_label(journey.status),
-        "next_action": next_participant_action(journey),
+        "readiness": readiness,
+        "readiness_label": readiness_status_label(readiness) if readiness is not None else "",
+        "next_action": next_action,
         "vocabulary": vocabulary_for(activity=journey.activity, workflow=journey.workflow),
         "place": _primary_place(journey.occurrence),
         "timing": occurrence_timing(journey.occurrence),
@@ -222,6 +242,45 @@ def _prioritized_actionable(profile):
     )
 
 
+def _home_readiness_cards(profile, *, now):
+    candidates = list(
+        readiness_queryset(
+            participant_journeys(profile)
+            .filter(
+                status__in={
+                    JourneyStatus.DRAFT,
+                    JourneyStatus.SUBMITTED,
+                    JourneyStatus.PENDING_APPROVAL,
+                    JourneyStatus.APPROVED,
+                    JourneyStatus.PENDING_PAYMENT,
+                    JourneyStatus.CONFIRMED,
+                    JourneyStatus.IN_PROGRESS,
+                }
+            )
+            .order_by("-updated_at", "-created_at", "id")
+        )[:HOME_READINESS_CANDIDATE_LIMIT]
+    )
+    results = resolve_many(candidates, viewer=profile, observed_at=now)
+    attention = [
+        journey
+        for journey in candidates
+        if results[journey.pk].status
+        in {ReadinessStatus.BLOCKED, ReadinessStatus.ACTION_REQUIRED, ReadinessStatus.WAITING}
+    ]
+    attention.sort(
+        key=lambda journey: (
+            READINESS_PRIORITY[results[journey.pk].status],
+            journey.updated_at,
+            journey.created_at,
+            str(journey.pk),
+        )
+    )
+    return [
+        _journey_card(journey, readiness=results[journey.pk])
+        for journey in attention[:HOME_SECTION_LIMIT]
+    ]
+
+
 class ParticipantHomeView(LoginRequiredMixin, TemplateView):
     template_name = "core/participant_home.html"
     login_url = "core:login"
@@ -230,12 +289,11 @@ class ParticipantHomeView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
         now = timezone.now()
-        actionable = list(_prioritized_actionable(profile)[:HOME_SECTION_LIMIT])
         upcoming = list(participant_upcoming_engagements(profile, at=now)[:HOME_SECTION_LIMIT])
         active_access_count = participant_active_accesses(profile, at=now).count()
         context.update(
             {
-                "actionable": [_journey_card(journey) for journey in actionable],
+                "actionable": _home_readiness_cards(profile, now=now),
                 "upcoming": [_access_card(access) for access in upcoming],
                 "active_access_count": active_access_count,
                 "recent_history": _recent_history_items(profile, at=now),
@@ -309,17 +367,24 @@ class ParticipantJourneyListView(LoginRequiredMixin, TemplateView):
         elif status_filter != "all":
             status_filter = "all"
 
-        active = participant_journey_search(active, q).order_by("-updated_at", "-created_at", "id")
+        active = readiness_queryset(
+            participant_journey_search(active, q).order_by("-updated_at", "-created_at", "id")
+        )
         history = participant_journey_search(participant_history_journeys(profile), q).order_by(
             "-updated_at", "-created_at", "id"
         )
         active_page = Paginator(active, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("active_page"))
         history_page = Paginator(history, PERSONAL_PAGE_SIZE).get_page(self.request.GET.get("history_page"))
+        active_rows = list(active_page.object_list)
+        readiness_by_id = resolve_many(active_rows, viewer=profile)
         context.update(
             {
                 "q": q,
                 "status_filter": status_filter,
-                "active_journeys": [_journey_card(journey) for journey in active_page.object_list],
+                "active_journeys": [
+                    _journey_card(journey, readiness=readiness_by_id[journey.pk])
+                    for journey in active_rows
+                ],
                 "history_journeys": [_journey_card(journey) for journey in history_page.object_list],
                 "active_page_obj": active_page,
                 "history_page_obj": history_page,
@@ -335,8 +400,12 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        journey = get_object_or_404(participant_journeys(self.request.user), pk=kwargs["pk"])
-        card = _journey_card(journey)
+        journey = get_object_or_404(
+            participant_readiness_queryset(self.request.user, participant_journeys(self.request.user)),
+            pk=kwargs["pk"],
+        )
+        readiness = resolve_journey_readiness(journey, viewer=self.request.user)
+        card = _journey_card(journey, readiness=readiness)
         pending_request = next((request for request in journey.requests.all() if request.status == RequestStatus.PENDING), None)
         rejected_request = next((request for request in journey.requests.all() if request.status == RequestStatus.REJECTED), None)
         order = card["order"]

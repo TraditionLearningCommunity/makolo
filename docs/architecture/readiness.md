@@ -1,0 +1,99 @@
+# Readiness — projection READY Makolo Mature
+
+## Pourquoi Readiness existe
+
+Readiness répond à une question transversale : **cette personne est-elle prête pour la prochaine chose qu’elle doit accomplir ?** Si non, la projection explique ce qui manque, ce qui bloque, ce qui attend un tiers et la prochaine action réellement utile.
+
+Readiness n’est pas un nouveau domaine propriétaire. C’est un read model horizontal qui compose les faits canoniques existants.
+
+> READY est une projection de la réalité canonique, pas un nouvel état métier propriétaire.
+
+Il n’existe donc ni `Journey.is_ready`, ni `Journey.ready_status`, ni table `ReadinessState`, ni cache canonique de READY.
+
+## Contrat
+
+Le package `readiness` expose des types Python non persistants :
+
+- `ReadinessResult` : `status`, `is_ready`, `checks`, `blocking_items`, `waiting_items`, `action_items`, `next_action`, `observed_at` ;
+- `ReadinessCheck` : `key`, `source`, `state`, `blocking`, `reason_code`, `summary`, `next_action` ;
+- `NextAction` : action publique minimale et stable ;
+- `ReadinessStatus` : état synthétique de la projection.
+
+Les `reason_code` sont techniques et stables. Les résumés publics ne doivent jamais recopier une note interne, une raison de revue confidentielle ou un champ réservé aux opérateurs.
+
+## États
+
+- `READY` : aucune condition obligatoire applicable ne manque pour le prochain engagement connu.
+- `ACTION_REQUIRED` : le bénéficiaire peut et doit agir maintenant.
+- `WAITING` : aucune action immédiate du bénéficiaire n’est utile ; une décision, un opérateur, un payeur tiers ou un état externe est attendu.
+- `BLOCKED` : un fait canonique empêche réellement la progression.
+- `COMPLETE` : aucune préparation pertinente ne reste dans le contexte observé.
+
+La priorité de synthèse est : `BLOCKED` > `ACTION_REQUIRED` > `WAITING` > `READY`, avec `COMPLETE` seulement lorsque le contexte est réellement clos. Une Journey `fulfilled` n’est donc pas automatiquement `COMPLETE` si une Occurrence future ou un Access encore valable reste pertinent.
+
+## Contributeurs
+
+Le resolver central ne contient pas de branchement `if event`, `if transport` ou `if service`. Il exécute des contributeurs explicites enregistrés dans `readiness.registry`.
+
+Les contributeurs M1 lisent :
+
+- Journey et JourneyRequest ;
+- JourneyStep, dépendances et responsabilités ;
+- JourneyBlocker ;
+- PaymentObligation ;
+- CapacityReservation ;
+- Access ;
+- Occurrence ;
+- évaluations Requirements du contexte Services.
+
+Chaque domaine reste propriétaire de ses transitions. Readiness ne modifie aucun de ces objets.
+
+## Règles de composition
+
+### Journey
+
+La Journey fournit le contexte, le bénéficiaire, le workflow, l’Activity et l’Occurrence éventuelle. Les transitions restent dans les services Journey/verticales propriétaires.
+
+### Steps et Blockers
+
+Une étape obligatoire réellement attribuée au bénéficiaire peut produire `ACTION_REQUIRED`. Une étape interne non terminée produit `WAITING`. Une dépendance non satisfaite produit une attente. Un `JourneyBlocker` actif produit `BLOCKED`. Aucun second blocker n’est persisté.
+
+### Requirements
+
+Le kernel `requirements` et les évaluations propriétaires restent la vérité. Readiness ne crée pas de `ReadinessRequirement` et n’utilise pas de `GenericForeignKey` universel. Le contributeur Services lit les `ServiceRequirementAssessment` matérialisées et leurs conséquences canoniques ; les actions concrètes restent représentées par JourneyStep ou PaymentObligation lorsque ces domaines les portent.
+
+### Payments
+
+Seules les `PaymentObligation` réellement rattachées à la Journey contribuent. `satisfied` et `waived` satisfont la préparation. Une obligation `pending` due par le bénéficiaire peut demander une action ; une obligation en traitement ou due par un tiers produit une attente. Readiness ne touche ni allocation, ledger, custody, Settlement, Payout ni provider.
+
+### Capacity
+
+Capacity ne devient applicable que si le workflow possède déjà une réservation canonique. Une réservation active/engagée satisfait la condition. Une capacité globale ensuite épuisée ne retire pas arbitrairement la préparation d’un participant qui possède déjà son droit.
+
+### Access
+
+Access est le droit ; `AccessCredential` n’est qu’une représentation. Readiness ne teste jamais l’existence d’un QR. Un Access existant et valide peut satisfaire la condition ; un Access pending peut produire `WAITING`. L’absence d’Access n’est pas, à elle seule, une erreur : les Journeys qui n’en exigent pas restent applicables.
+
+### Occurrence
+
+Une Journey sans Occurrence est valide et n’est pas pénalisée. Lorsqu’une Occurrence existe, M1 vérifie seulement les faits canoniques nécessaires, notamment qu’elle ne soit pas annulée. M1 ne fait ni routing, ni météo, ni trafic, ni ETA, ni geofencing.
+
+## Dépendances et performance
+
+`journeys` ne dépend pas de Payments, Services, Events ou Transport pour calculer READY. Le package `readiness` est la couche de composition qui peut lire ces domaines.
+
+`readiness.selectors.readiness_queryset()` regroupe `select_related` et `prefetch_related` afin que le resolver soit query-free après préchargement. `/me/` charge un nombre borné de Journeys candidates puis les résout en batch ; aucun état Readiness persistant ou cache métier n’est introduit pour masquer un N+1.
+
+## Permissions et disclosure
+
+La projection participant vérifie le bénéficiaire côté serveur. Un autre utilisateur ne peut pas résoudre la Readiness personnelle d’une Journey qui ne lui appartient pas. Les checks publics n’exposent que des intitulés et raisons déjà appropriés au participant ; descriptions de blockers, notes de review et métadonnées internes ne sont pas remontées.
+
+## Web, API et extensions
+
+Le resolver est indépendant des templates et peut être consommé par le web actuel, une API, l’Automation future ou un client mobile. M1 ajoute seulement une synthèse compacte à `/me/` et au détail Journey.
+
+Les futurs contributeurs M2 peuvent ajouter, sans modifier le resolver central, des checks tels que `form_response_required` ou `resource_acknowledgement_required`. Les tâches Mature ultérieures pourront enrichir la compréhension spatio-temporelle ou automatiser les réactions aux Domain Events, sans créer aujourd’hui un événement `readiness.changed` à chaque lecture.
+
+## Migrations
+
+M1 n’ajoute aucun modèle et aucune migration. READY reste entièrement dérivé.
