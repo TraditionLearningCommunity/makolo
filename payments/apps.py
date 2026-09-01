@@ -19,5 +19,9 @@ class PaymentsConfig(AppConfig):
                 "PAYMENTS_WEBHOOK_SECRET",
                 "",
             )
+        # F4 models live in a dedicated module to keep the F1-F3 model file
+        # stable while remaining registered under the canonical payments app.
+        from . import f4_models  # noqa: F401
         from . import commerce_bridge  # noqa: F401
         from . import financial_signals  # noqa: F401
+        from . import f4_signals  # noqa: F401
