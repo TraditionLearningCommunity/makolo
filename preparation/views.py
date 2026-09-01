@@ -14,9 +14,7 @@ from .models import ActivityResource, ResourceKind, ResourceVisibility
 from .services import can_view_resource, create_resource, publish_resource, replace_resource
 
 
-class ResourceDownloadView(LoginRequiredMixin, View):
-    login_url = "core:login"
-
+class ResourceDownloadView(View):
     def get(self, request, resource_id):
         resource = get_object_or_404(ActivityResource.objects.select_related("activity", "occurrence"), pk=resource_id)
         if resource.kind != ResourceKind.FILE or not resource.file or not can_view_resource(request.user, resource):
