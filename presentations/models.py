@@ -61,10 +61,10 @@ class _ImmutablePublishedVersion(models.Model):
     def save(self, *args, **kwargs):
         if self.pk and not self._state.adding:
             previous = type(self).objects.filter(pk=self.pk).values("status", *self.immutable_fields).first()
-            if previous and previous["status"] == VersionStatus.PUBLISHED:
+            if previous and previous["status"] in {VersionStatus.PUBLISHED, VersionStatus.RETIRED, VersionStatus.SUSPENDED}:
                 for field in self.immutable_fields:
                     if previous[field] != getattr(self, field):
-                        raise ValidationError("Une version publiée est immuable.")
+                        raise ValidationError("Une version publiée reste immuable après publication, retrait ou suspension.")
         if self.status == VersionStatus.PUBLISHED and self.published_at is None:
             self.published_at = timezone.now()
         self.full_clean()
@@ -84,7 +84,7 @@ class PresentationTemplateVersion(_ImmutablePublishedVersion):
         super().clean()
         if self.version_number < 1:
             raise ValidationError({"version_number": "La version doit être positive."})
-        if self.status in {VersionStatus.SUBMITTED, VersionStatus.PUBLISHED}:
+        if self.status in {VersionStatus.SUBMITTED, VersionStatus.PUBLISHED, VersionStatus.RETIRED}:
             from .manifests.validation import validate_manifest
             validate_manifest(self.manifest)
 
@@ -102,7 +102,12 @@ class PresentationTheme(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [models.CheckConstraint(condition=~Q(owner_profile__isnull=False, owner_space__isnull=False), name="mps_theme_single_owner")]
+        constraints = [
+            models.CheckConstraint(condition=~Q(owner_profile__isnull=False, owner_space__isnull=False), name="mps_theme_single_owner"),
+            models.UniqueConstraint(fields=["owner_profile", "slug"], condition=Q(owner_profile__isnull=False), name="mps_theme_profile_slug_unique"),
+            models.UniqueConstraint(fields=["owner_space", "slug"], condition=Q(owner_space__isnull=False), name="mps_theme_space_slug_unique"),
+            models.UniqueConstraint(fields=["slug"], condition=Q(provenance=Provenance.MAKOLO), name="mps_theme_makolo_slug_unique"),
+        ]
 
     def clean(self):
         super().clean()
@@ -131,8 +136,9 @@ class PresentationThemeVersion(_ImmutablePublishedVersion):
         super().clean()
         if self.version_number < 1:
             raise ValidationError({"version_number": "La version doit être positive."})
-        from .themes import validate_theme_tokens
-        validate_theme_tokens(self.tokens)
+        if self.status != VersionStatus.SUSPENDED:
+            from .themes import validate_theme_tokens
+            validate_theme_tokens(self.tokens)
 
 
 class ActivityPresentation(models.Model):
@@ -175,3 +181,6 @@ class ActivityPresentation(models.Model):
         if self.state == PresentationState.PUBLISHED and self.published_at is None:
             self.published_at = timezone.now()
         return super().save(*args, **kwargs)
+
+
+from .library_models import PresentationTemplateModeration, SpacePresentationDefault  # noqa: E402,F401
