@@ -30,7 +30,7 @@ from readiness.selectors import participant_readiness_queryset
 from requirements.contracts import RequirementAssessmentState
 from services.models import OpportunityPolicy, ServiceKind, ServiceRequirementStepLink
 from services.requirement_services import assess_requirement
-from services.services import create_service_details, create_service_journey
+from services.services import create_service_details, create_service_journey, submit_service_journey
 
 
 User = get_user_model()
@@ -282,6 +282,7 @@ class ServiceReadinessTests(TestCase):
             beneficiary=beneficiary,
             opportunity=opportunity,
         )
+        journey = submit_service_journey(journey=journey, actor=beneficiary)
         assessment = journey.service_context.requirement_assessments.get()
 
         initial = resolve_journey_readiness(
