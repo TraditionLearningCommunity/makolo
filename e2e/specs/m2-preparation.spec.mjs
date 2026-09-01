@@ -10,6 +10,8 @@ test('M2 participant completes required form, updates readiness and sees authori
   await expect(nextAction).toBeVisible();
   await nextAction.click();
 
+  await expect(page.getByRole('heading', { name: 'Action requise', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Ouvrir', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Informations de préparation E2E', exact: true })).toBeVisible();
   await page.getByLabel('Point de rendez-vous préféré').fill('Accueil principal');
   await page.getByRole('button', { name: 'Soumettre', exact: true }).click();
@@ -29,7 +31,7 @@ test('M2 participant completes required form, updates readiness and sees authori
 test('M2 operator creates draft, publishes and requests a form from the Activity console', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
   await page.goto('/spaces/makolo-e2e-events/activities/');
-  await page.getByRole('link', { name: 'Réservation sur place E2E', exact: true }).first().click();
+  await page.getByRole('link').filter({ hasText: 'Réservation sur place E2E' }).first().click();
   await page.getByRole('link', { name: 'Questionnaires', exact: true }).click();
 
   await expect(page.getByText('Questionnaire opérateur E2E', { exact: true })).toBeVisible();
