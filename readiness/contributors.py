@@ -185,8 +185,7 @@ def service_requirements_contributor(journey, viewer, now):
         elif assessment.status == RequirementAssessmentState.PENDING:
             checks.append(_check(key, "requirements", ReadinessCheckState.WAITING, "requirement_pending", requirement.title))
         elif assessment.status == RequirementAssessmentState.UNASSESSED:
-            action = NextAction("complete_requirement", requirement.title, source="requirements")
-            checks.append(_check(key, "requirements", ReadinessCheckState.ACTION_REQUIRED, "requirement_action_required", requirement.title, action=action))
+            checks.append(_check(key, "requirements", ReadinessCheckState.WAITING, "requirement_unassessed", requirement.title))
         else:
             checks.append(_check(key, "requirements", ReadinessCheckState.BLOCKING, "requirement_unsatisfied", requirement.title, blocking=True))
     if not checks:
