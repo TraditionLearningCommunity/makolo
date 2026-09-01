@@ -87,7 +87,7 @@ class Migration(migrations.Migration):
                 ("form_version", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="requests", to="questionnaires.formversion")),
                 ("journey", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="form_requests", to="journeys.journey")),
             ],
-            options={"ordering": ["journey", "created_at", "id"], "indexes": [models.Index(fields=["journey", "status"], name="questionnaire_req_journey_status_idx")]},
+            options={"ordering": ["journey", "created_at", "id"], "indexes": [models.Index(fields=["journey", "status"], name="qnr_req_journey_status_idx")]},
         ),
         migrations.AddConstraint(model_name="formrequest", constraint=models.UniqueConstraint(fields=("journey", "form_version"), name="questionnaire_request_journey_version_unique")),
         migrations.CreateModel(
@@ -104,7 +104,7 @@ class Migration(migrations.Migration):
                 ("request", models.OneToOneField(on_delete=django.db.models.deletion.PROTECT, related_name="response", to="questionnaires.formrequest")),
                 ("respondent", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="form_responses", to=settings.AUTH_USER_MODEL)),
             ],
-            options={"indexes": [models.Index(fields=["respondent", "status"], name="questionnaire_resp_user_status_idx")]},
+            options={"indexes": [models.Index(fields=["respondent", "status"], name="qnr_resp_user_status_idx")]},
         ),
         migrations.CreateModel(
             name="FormAnswer",
