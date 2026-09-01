@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
+import preparation.models
 import preparation.storage
 
 
@@ -25,7 +26,7 @@ class Migration(migrations.Migration):
                 ("kind", models.CharField(choices=[("text", "Texte / instructions"), ("url", "Lien externe"), ("file", "Fichier")], max_length=16)),
                 ("text_content", models.TextField(blank=True)),
                 ("external_url", models.URLField(blank=True, max_length=1000)),
-                ("file", models.FileField(blank=True, max_length=500, null=True, storage=preparation.storage.PrivateResourceStorage(), upload_to="preparation.models.resource_upload_to")),
+                ("file", models.FileField(blank=True, max_length=500, null=True, storage=preparation.storage.PrivateResourceStorage(), upload_to=preparation.models.resource_upload_to)),
                 ("mime_type", models.CharField(blank=True, max_length=180)),
                 ("size", models.PositiveBigIntegerField(blank=True, null=True)),
                 ("content_hash", models.CharField(blank=True, max_length=64)),
@@ -49,6 +50,13 @@ class Migration(migrations.Migration):
                 ],
             },
         ),
-        migrations.AddConstraint(model_name="activityresource", constraint=models.UniqueConstraint(fields=("activity", "occurrence", "key", "version"), name="prep_resource_scope_key_version_unique")),
+        migrations.AddConstraint(
+            model_name="activityresource",
+            constraint=models.UniqueConstraint(fields=("activity", "key", "version"), condition=models.Q(("occurrence__isnull", True)), name="prep_resource_activity_key_ver_unique"),
+        ),
+        migrations.AddConstraint(
+            model_name="activityresource",
+            constraint=models.UniqueConstraint(fields=("occurrence", "key", "version"), condition=models.Q(("occurrence__isnull", False)), name="prep_resource_occ_key_ver_unique"),
+        ),
         migrations.AddConstraint(model_name="activityresource", constraint=models.CheckConstraint(condition=models.Q(("version__gte", 1)), name="prep_resource_version_positive")),
     ]
