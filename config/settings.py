@@ -24,8 +24,16 @@ INSTALLED_APPS = [
     "trust.apps.TrustConfig",
 ]
 
-MAP_TILE_URL = os.environ.get("MAP_TILE_URL", "https://tile.openstreetmap.org/{z}/{x}/{y}.png").strip()
-MAP_TILE_ATTRIBUTION = os.environ.get("MAP_TILE_ATTRIBUTION", '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>').strip()
+# MapLibre is the renderer. Tile data remains an explicit, replaceable runtime
+# configuration and does not require a Mapbox/Google token.
+MAP_TILE_URL = os.environ.get(
+    "MAP_TILE_URL",
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+).strip()
+MAP_TILE_ATTRIBUTION = os.environ.get(
+    "MAP_TILE_ATTRIBUTION",
+    '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+).strip()
 try:
     MAP_TILE_MAX_ZOOM = int(os.environ.get("MAP_TILE_MAX_ZOOM", "19"))
 except ValueError as exc:
@@ -38,7 +46,21 @@ if _tile_url.scheme not in {"http", "https"} or not _tile_url.netloc:
     raise ImproperlyConfigured("MAP_TILE_URL doit être une URL HTTP(S) absolue.")
 _tile_origin = f"{_tile_url.scheme}://{_tile_url.netloc}"
 
-MAKOLO_CONTENT_SECURITY_POLICY = "; ".join([
-    "default-src 'self'", "base-uri 'self'", f"connect-src 'self' {_tile_origin}", "font-src 'self'", "form-action 'self'", "frame-ancestors 'none'", "frame-src 'none'", f"img-src 'self' data: blob: {_tile_origin}", "media-src 'self' blob:", "object-src 'none'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "worker-src 'self' blob:",
-])
+MAKOLO_CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "base-uri 'self'",
+        f"connect-src 'self' {_tile_origin}",
+        "font-src 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "frame-src 'none'",
+        f"img-src 'self' data: blob: {_tile_origin}",
+        "media-src 'self' blob:",
+        "object-src 'none'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "worker-src 'self' blob:",
+    ]
+)
 MAKOLO_PERMISSIONS_POLICY = "camera=(self), microphone=(), geolocation=(self)"

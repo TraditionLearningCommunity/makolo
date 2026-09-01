@@ -92,8 +92,10 @@ class SystemRoleCode:
     OPPORTUNITY_CURATOR = "opportunity-curator"
     SPACE_OWNER = "space-owner"
     SPACE_ADMIN = "space-admin"
+    # Historical Python contract kept as the Space-scoped Activity portfolio role.
     ACTIVITY_MANAGER = "space-activity-manager"
     SPACE_ACTIVITY_MANAGER = ACTIVITY_MANAGER
+    # Local Activity-scoped roles.
     ACTIVITY_LOCAL_MANAGER = "activity-manager"
     ACTIVITY_SCANNER = "activity-scanner"
     ACTIVITY_OPERATIONS_MANAGER = "activity-operations-manager"
@@ -172,10 +174,32 @@ SPACE_PERMISSION_CODES = {
     and value not in ACTIVITY_PERMISSION_CODES
 }
 
-STANDARD_PLATFORM_ROLE_CODES = {SystemRoleCode.PLATFORM_ADMIN, SystemRoleCode.OPPORTUNITY_CURATOR}
-STANDARD_SPACE_ROLE_CODES = {SystemRoleCode.SPACE_OWNER, SystemRoleCode.SPACE_ADMIN, SystemRoleCode.ACTIVITY_MANAGER, SystemRoleCode.FINANCE, SystemRoleCode.MARKETING, SystemRoleCode.ACCESS_MANAGER}
-STANDARD_GROUP_ROLE_CODES = {SystemRoleCode.GROUP_OWNER, SystemRoleCode.GROUP_ADMIN, SystemRoleCode.GROUP_MODERATOR}
-STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER, SystemRoleCode.ACTIVITY_SCANNER, SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER, SystemRoleCode.ACTIVITY_FINANCE, SystemRoleCode.ACTIVITY_SERVICE_MANAGER, SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR, SystemRoleCode.ACTIVITY_SERVICE_REVIEWER}
+STANDARD_PLATFORM_ROLE_CODES = {
+    SystemRoleCode.PLATFORM_ADMIN,
+    SystemRoleCode.OPPORTUNITY_CURATOR,
+}
+STANDARD_SPACE_ROLE_CODES = {
+    SystemRoleCode.SPACE_OWNER,
+    SystemRoleCode.SPACE_ADMIN,
+    SystemRoleCode.ACTIVITY_MANAGER,
+    SystemRoleCode.FINANCE,
+    SystemRoleCode.MARKETING,
+    SystemRoleCode.ACCESS_MANAGER,
+}
+STANDARD_GROUP_ROLE_CODES = {
+    SystemRoleCode.GROUP_OWNER,
+    SystemRoleCode.GROUP_ADMIN,
+    SystemRoleCode.GROUP_MODERATOR,
+}
+STANDARD_ACTIVITY_ROLE_CODES = {
+    SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+    SystemRoleCode.ACTIVITY_SCANNER,
+    SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+    SystemRoleCode.ACTIVITY_FINANCE,
+    SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+    SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
+    SystemRoleCode.ACTIVITY_SERVICE_REVIEWER,
+}
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
     "owner": SystemRoleCode.SPACE_OWNER,
@@ -185,4 +209,6 @@ LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
     "marketing": SystemRoleCode.MARKETING,
     "scanner_manager": SystemRoleCode.ACCESS_MANAGER,
 }
-SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE = {value: key for key, value in LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.items()}
+SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE = {
+    value: key for key, value in LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.items()
+}
