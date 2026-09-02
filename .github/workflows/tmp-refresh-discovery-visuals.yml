@@ -10,6 +10,7 @@ permissions:
   contents: write
   actions: read
 
+# Temporary same-branch helper; deleted before merge.
 jobs:
   refresh:
     if: ${{ github.head_ref == 'fix/discovery-map-before-results' }}
