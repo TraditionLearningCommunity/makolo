@@ -108,7 +108,7 @@ class ActionMemoryQ3Tests(TestCase):
         grant_activity_role(
             profile=self.owner,
             activity=self.activity,
-            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            role=SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
         )
         journey = create_journey(
             initiated_by=beneficiary,
@@ -159,7 +159,7 @@ class ActionMemoryQ3Tests(TestCase):
         grant_activity_role(
             profile=self.owner,
             activity=self.activity,
-            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            role=SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
         )
         external = ExternalBeneficiary.objects.create(display_name="Bénéficiaire externe", created_by=self.owner)
         journey = create_journey_for_holder(
@@ -207,11 +207,17 @@ class ActionMemoryQ3Tests(TestCase):
 
     def test_freshness_uses_only_explicit_expiration_facts(self):
         expired_asset = self._asset(title="Expiré")
-        expired = self._version(expired_asset, expires_at=timezone.localdate() - timedelta(days=1))
+        expired = self._version(
+            expired_asset,
+            expires_at=timezone.localdate() - timedelta(days=1),
+        )
         unknown_asset = self._asset(title="Sans politique")
         unknown = self._version(unknown_asset)
         current_asset = self._asset(title="Non expiré")
-        current = self._version(current_asset, expires_at=timezone.localdate() + timedelta(days=1))
+        current = self._version(
+            current_asset,
+            expires_at=timezone.localdate() + timedelta(days=1),
+        )
 
         candidates = {item.source_id: item for item in action_memory_for_journey(actor=self.owner, journey=self.current)}
 
@@ -304,7 +310,11 @@ class ActionMemoryQ3Tests(TestCase):
             sensitivity=JourneyArtifactSensitivity.RESTRICTED,
         )
 
-        candidate = next(item for item in action_memory_for_journey(actor=self.owner, journey=self.current) if item.source_id == str(artifact.pk))
+        candidate = next(
+            item
+            for item in action_memory_for_journey(actor=self.owner, journey=self.current)
+            if item.source_id == str(artifact.pk)
+        )
 
         self.assertEqual(candidate.sensitivity, JourneyArtifactSensitivity.RESTRICTED)
         self.assertTrue(candidate.confirmation_required)
