@@ -27,6 +27,8 @@ class TrustedReuseReasonCode(str, Enum):
     PROOF_TYPE_MATCH = "reuse.proof_type_match"
     LIBRARY_KIND_MATCH = "reuse.library_kind_match"
     JOURNEY_KIND_MATCH = "reuse.journey_kind_match"
+    SENSITIVITY_NOT_ALLOWED = "reuse.sensitivity_not_allowed"
+    RESTRICTED_NOT_ALLOWED = "reuse.restricted_not_allowed"
     SENSITIVITY_CONFIRMATION = "reuse.sensitivity_confirmation"
     RESTRICTED_CONFIRMATION = "reuse.restricted_confirmation"
     CURRENT_REQUIREMENT = "reuse.current_requirement"
