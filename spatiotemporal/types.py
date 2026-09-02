@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from geography.value_objects import GeoPoint
 
 
-class TemporalState(StrEnum):
+class TemporalState(str, Enum):
     UPCOMING = "upcoming"
     SOON = "soon"
     ACTIVE = "active"
@@ -16,12 +16,12 @@ class TemporalState(StrEnum):
     CANCELLED = "cancelled"
 
 
-class HazardClass(StrEnum):
+class HazardClass(str, Enum):
     INTERNAL = "internal"
     EXTERNAL = "external"
 
 
-class HazardSeverity(StrEnum):
+class HazardSeverity(str, Enum):
     INFO = "info"
     NOTICE = "notice"
     WARNING = "warning"
