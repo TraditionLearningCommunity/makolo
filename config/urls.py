@@ -32,6 +32,8 @@ urlpatterns = [
     path("api/v1/loyalty/", include("loyalty.api.urls")),
     path("api/v1/operations/", include("operations.api.urls")),
     path("api/v1/discovery/", include("discovery.api.urls")),
+    path("api/v1/social/", include("social.api_urls")),
+    path("api/v1/goals/", include("goals.api_urls")),
     path("api/v1/growth/", include("growth.api.urls")),
     path("g/", include("growth.public_urls")),
     path("o/", include("organizations.public_urls")),
@@ -61,6 +63,8 @@ urlpatterns = [
     path("loyalty/", include("loyalty.urls")),
     path("operations/", include("operations.urls")),
     path("journeys/", include("journeys.urls")),
+    path("", include("social.urls")),
+    path("", include("goals.urls")),
     path("", include("core.urls")),
 ]
 
