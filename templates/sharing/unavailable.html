@@ -1,0 +1,5 @@
+{% extends 'base/app.html' %}
+{% block title %}Partage indisponible | Makolo{% endblock %}
+{% block content %}
+<div style="max-width:42rem;margin:2.5rem auto"><section class="mk-panel" style="padding:1.5rem"><p style="color:var(--mk-subtle);font-size:.875rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em">Partage Makolo</p><h1 class="mk-page-title" style="margin-top:.75rem">Ce partage n’est plus disponible.</h1><p class="mk-page-copy" style="margin-top:1rem">Le lien est invalide, a été désactivé, a expiré ou son contenu n’est plus accessible publiquement.</p><a class="mk-btn mk-btn-primary" style="margin-top:1.5rem" href="{% url 'core:home' %}">Aller sur Makolo</a></section></div>
+{% endblock %}

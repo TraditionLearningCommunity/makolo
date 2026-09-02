@@ -1,0 +1,71 @@
+{% extends 'base/app.html' %}
+{% block title %}Partager un parcours | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5 pb-10">
+  <a href="{% url 'core:participant-journey-detail' journey.pk %}" class="mk-btn mk-btn-ghost">← Retour à ma démarche</a>
+  <section class="mk-panel p-5 sm:p-7">
+    <span class="mk-kicker">Repartir d’un chemin déjà préparé</span>
+    <h1 class="mk-page-title mt-2">Permettre à quelqu’un de repartir de mon parcours</h1>
+    <p class="mk-page-copy mt-3">Makolo partage la structure utile de votre parcours, jamais vos données personnelles ni les droits que vous avez acquis.</p>
+    {% if sent_to %}<div role="status" class="mk-panel mt-5 p-4"><p class="font-bold">Parcours envoyé à {{ sent_to }}.</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">La personne recevra sa propre Journey si elle choisit d’utiliser ce parcours.</p></div>{% endif %}
+    {% if error %}<p role="alert" class="mt-5 font-bold" style="color:var(--mk-coral,#FF704D)">{{ error }}</p>{% endif %}
+  </section>
+
+  {% if not unshareable %}
+  <section class="mk-panel p-5 sm:p-6">
+    <h2 class="text-lg font-extrabold">Ce qui sera partagé</h2>
+    <div class="mt-4 grid gap-3 sm:grid-cols-3">
+      <div class="mk-panel p-4"><p class="text-2xl font-extrabold">{{ counts.REUSABLE|default:0 }}</p><p class="text-sm" style="color:var(--mk-muted)">éléments réutilisables</p></div>
+      <div class="mk-panel p-4"><p class="text-2xl font-extrabold">{{ counts.PERSONALIZE|default:0 }}</p><p class="text-sm" style="color:var(--mk-muted)">à personnaliser</p></div>
+      <div class="mk-panel p-4"><p class="text-2xl font-extrabold">{{ counts.REVALIDATE|default:0 }}</p><p class="text-sm" style="color:var(--mk-muted)">à revalider</p></div>
+    </div>
+    <ul class="mt-4 space-y-2 text-sm">
+      <li>✓ Structure et ordre des étapes du plan canonique</li>
+      <li>✓ Dépendances structurelles entre étapes</li>
+      <li>✓ Références aux formulaires nécessaires, sans réponses</li>
+      <li>✓ Références aux ressources publiques autorisées</li>
+    </ul>
+  </section>
+
+  <section class="mk-panel p-5 sm:p-6">
+    <h2 class="text-lg font-extrabold">Ce qui ne sera pas partagé</h2>
+    <ul class="mt-4 space-y-2 text-sm" style="color:var(--mk-muted)">
+      <li>— Réponses personnelles aux formulaires</li>
+      <li>— Notes privées ou internes</li>
+      <li>— Documents personnels et documents d’identité</li>
+      <li>— Paiements, reçus et statuts « payé »</li>
+      <li>— Accès, billets, QR et credentials</li>
+      <li>— Assignments, blockers personnels, validations et décisions</li>
+    </ul>
+    <p class="mt-4 text-xs" style="color:var(--mk-subtle)">Cette prévisualisation est produite par la même politique serveur que le snapshot envoyé.</p>
+  </section>
+
+  <section class="mk-panel p-5 sm:p-6">
+    <h2 class="text-lg font-extrabold">Choisir la personne Makolo</h2>
+    <form method="get" class="mt-4 flex flex-col gap-3 sm:flex-row" role="search">
+      <label class="sr-only" for="journey-share-person">Rechercher une personne Makolo</label>
+      <input id="journey-share-person" class="mk-input flex-1" type="search" name="q" value="{{ query }}" placeholder="Nom ou identifiant public" autocomplete="off">
+      <button class="mk-btn mk-btn-secondary" type="submit">Rechercher</button>
+    </form>
+    {% if query and not candidates %}<p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucun profil disponible pour cette recherche.</p>{% endif %}
+    {% if candidates %}
+      <form method="post" class="mt-4 space-y-3">{% csrf_token %}
+        <fieldset><legend class="sr-only">Destinataire</legend>
+          <div class="space-y-2">
+          {% for profile in candidates %}
+            <label class="mk-panel flex cursor-pointer items-center gap-3 p-3">
+              <input type="radio" name="recipient_id" value="{{ profile.pk }}" required>
+              <span><strong>{{ profile.user.full_name|default:profile.user.username }}</strong><br><span class="text-xs" style="color:var(--mk-muted)">@{{ profile.user.username }}</span></span>
+            </label>
+          {% endfor %}
+          </div>
+        </fieldset>
+        <button class="mk-btn mk-btn-primary" type="submit">Confirmer et envoyer ce parcours</button>
+      </form>
+    {% endif %}
+  </section>
+  {% else %}
+  <section class="mk-panel p-5"><p class="font-bold">Ce parcours n’est pas réutilisable dans son état actuel.</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">Vous pouvez revenir à votre démarche et partager l’opportunité séparément lorsqu’elle est disponible.</p></section>
+  {% endif %}
+</div>
+{% endblock %}
