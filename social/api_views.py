@@ -7,9 +7,11 @@ from rest_framework.views import APIView
 from activities.models import Activity
 from discovery.recommendations import build_activity_recommendations
 from groups.models import Group
+from trust.models import ReportCategory
 
 from .action_stream import build_action_stream
 from .models import Contribution, ContributionKind
+from .reporting import report_contribution_to_trust
 from .services import create_contribution, share_activity_to_group
 
 
@@ -26,7 +28,11 @@ class ActionStreamAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        page = build_action_stream(request.user, offset=request.query_params.get("offset", 0), limit=request.query_params.get("limit", 20))
+        page = build_action_stream(
+            request.user,
+            offset=request.query_params.get("offset", 0),
+            limit=request.query_params.get("limit", 20),
+        )
         return Response({
             "items": [{
                 "key": item.key,
@@ -47,7 +53,10 @@ class RecommendationsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        results = build_activity_recommendations(request.user, limit=request.query_params.get("limit", 12))
+        results = build_activity_recommendations(
+            request.user,
+            limit=request.query_params.get("limit", 12),
+        )
         return Response({"results": [{
             "activity": _activity_payload(item.activity),
             "vertical": item.vertical,
@@ -62,7 +71,12 @@ class GroupContributionAPIView(APIView):
     def post(self, request, group_id):
         group = get_object_or_404(Group, pk=group_id)
         try:
-            contribution = create_contribution(actor=request.user, kind=ContributionKind.DISCUSSION, body=request.data.get("body", ""), group=group)
+            contribution = create_contribution(
+                actor=request.user,
+                kind=ContributionKind.DISCUSSION,
+                body=request.data.get("body", ""),
+                group=group,
+            )
         except (ValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(contribution.pk), "status": contribution.status}, status=201)
@@ -75,7 +89,12 @@ class GroupShareAPIView(APIView):
         group = get_object_or_404(Group, pk=group_id)
         activity = get_object_or_404(Activity, pk=request.data.get("activity_id"))
         try:
-            contribution = share_activity_to_group(actor=request.user, group=group, activity=activity, body=request.data.get("body", ""))
+            contribution = share_activity_to_group(
+                actor=request.user,
+                group=group,
+                activity=activity,
+                body=request.data.get("body", ""),
+            )
         except (ValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(contribution.pk), "activity_id": str(activity.pk)}, status=201)
@@ -87,7 +106,35 @@ class ReplyAPIView(APIView):
     def post(self, request, contribution_id):
         parent = get_object_or_404(Contribution, pk=contribution_id)
         try:
-            reply = create_contribution(actor=request.user, kind=ContributionKind.DISCUSSION, body=request.data.get("body", ""), parent=parent)
+            reply = create_contribution(
+                actor=request.user,
+                kind=ContributionKind.DISCUSSION,
+                body=request.data.get("body", ""),
+                parent=parent,
+            )
         except (ValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(reply.pk), "parent_id": str(parent.pk)}, status=201)
+
+
+class ContributionReportAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, contribution_id):
+        contribution = get_object_or_404(
+            Contribution.objects.select_related("group", "space", "activity", "occurrence"),
+            pk=contribution_id,
+        )
+        category = request.data.get("category", ReportCategory.CONDUCT_ISSUE)
+        if category not in ReportCategory.values:
+            return Response({"detail": "Catégorie de signalement inconnue."}, status=400)
+        try:
+            report = report_contribution_to_trust(
+                actor=request.user,
+                contribution=contribution,
+                description=request.data.get("description", ""),
+                category=category,
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            return _error(exc)
+        return Response({"report_id": str(report.pk), "status": report.status}, status=201)

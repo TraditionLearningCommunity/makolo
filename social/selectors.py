@@ -1,8 +1,9 @@
 from django.core.exceptions import PermissionDenied
+from django.db.models import Prefetch
 
+from authorization.constants import PermissionCode
 from groups.models import GroupMembership, GroupMembershipStatus
 from groups.services import has_group_permission
-from authorization.constants import PermissionCode
 
 from .models import Contribution, ContributionStatus
 from .services import can_view_contribution
@@ -12,14 +13,21 @@ SOCIAL_QUERY_LIMIT = 120
 
 
 def _base_contributions():
-    return Contribution.objects.select_related(
-        "author_profile",
-        "space",
-        "group",
-        "activity",
-        "occurrence",
-        "parent",
-    ).filter(status=ContributionStatus.PUBLISHED)
+    published_replies = Contribution.objects.filter(
+        status=ContributionStatus.PUBLISHED
+    ).select_related("author_profile")
+    return (
+        Contribution.objects.select_related(
+            "author_profile",
+            "space",
+            "group",
+            "activity",
+            "occurrence",
+            "parent",
+        )
+        .prefetch_related(Prefetch("replies", queryset=published_replies))
+        .filter(status=ContributionStatus.PUBLISHED)
+    )
 
 
 def group_contributions(*, viewer, group, limit=50):
