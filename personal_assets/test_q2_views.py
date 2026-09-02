@@ -4,10 +4,12 @@ from django.test import TestCase
 from django.urls import reverse
 
 from activities.models import Activity
-from journeys.collaboration_models import JourneyArtifactKind
+from journeys.collaboration_models import JourneyArtifactKind, JourneyArtifactSensitivity
+from journeys.collaboration_services import create_artifact
 from journeys.models import WorkflowKind
 from journeys.services import create_journey
 
+from .models import PersonalAsset
 from .services import create_personal_asset, create_personal_asset_version
 
 
@@ -36,6 +38,22 @@ class Q2LibraryViewTests(TestCase):
         self.assertNotContains(self.client.get(reverse("personal_assets:list")), "Mon CV")
         self.assertEqual(self.client.get(reverse("personal_assets:detail", args=[self.asset.pk])).status_code, 404)
 
+    def test_upload_and_new_version_endpoints_preserve_history(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("personal_assets:add"),
+            {"title": "Attestation", "kind": JourneyArtifactKind.CERTIFICATE, "sensitivity": JourneyArtifactSensitivity.NORMAL, "file": pdf_upload(b"initial")},
+        )
+        self.assertEqual(response.status_code, 302)
+        created = PersonalAsset.objects.get(controller=self.owner, title="Attestation")
+        v1 = created.versions.get(version=1)
+        response = self.client.post(reverse("personal_assets:add-version", args=[created.pk]), {"file": pdf_upload(b"replacement")})
+        self.assertEqual(response.status_code, 302)
+        v2 = created.versions.get(version=2)
+        self.assertEqual(v2.supersedes_id, v1.pk)
+        self.assertNotEqual(v2.content_hash, v1.content_hash)
+        self.assertTrue(created.versions.filter(pk=v1.pk).exists())
+
     def test_download_is_private_and_idor_safe(self):
         self.client.force_login(self.owner)
         response = self.client.get(reverse("personal_assets:download", args=[self.version.pk]))
@@ -50,6 +68,27 @@ class Q2LibraryViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.journey.artifacts.count(), 1)
         self.assertEqual(self.journey.artifacts.get().content_hash, self.version.content_hash)
+
+    def test_save_artifact_endpoint_creates_library_version_with_provenance(self):
+        artifact = create_artifact(
+            journey=self.journey,
+            uploaded_file=pdf_upload(b"journey-copy"),
+            uploaded_by=self.owner,
+            kind=JourneyArtifactKind.CERTIFICATE,
+            title="Depuis Journey",
+            sensitivity=JourneyArtifactSensitivity.SENSITIVE,
+        )
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("personal_assets:save-artifact", args=[artifact.pk]),
+            {"mode": "new", "title": "Copie Journey", "kind": JourneyArtifactKind.CERTIFICATE},
+        )
+        self.assertEqual(response.status_code, 302)
+        created = PersonalAsset.objects.get(controller=self.owner, title="Copie Journey")
+        version = created.versions.get()
+        self.assertEqual(version.source_journey_artifact_id, artifact.pk)
+        self.assertEqual(version.content_hash, artifact.content_hash)
+        self.assertEqual(created.sensitivity, JourneyArtifactSensitivity.SENSITIVE)
 
     def test_archive_removes_asset_from_main_list_without_deleting_versions(self):
         self.client.force_login(self.owner)
