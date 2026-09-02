@@ -5,7 +5,6 @@ from django.urls import include, path
 
 from core.api.views import HealthAPIView, ReadinessAPIView
 
-
 handler403 = "core.error_views.error_403"
 handler404 = "core.error_views.error_404"
 handler500 = "core.error_views.error_500"
@@ -32,6 +31,8 @@ urlpatterns = [
     path("api/v1/loyalty/", include("loyalty.api.urls")),
     path("api/v1/operations/", include("operations.api.urls")),
     path("api/v1/discovery/", include("discovery.api.urls")),
+    path("api/v1/social/", include("social.api_urls")),
+    path("api/v1/goals/", include("goals.api_urls")),
     path("api/v1/growth/", include("growth.api.urls")),
     path("g/", include("growth.public_urls")),
     path("o/", include("organizations.public_urls")),
@@ -61,12 +62,13 @@ urlpatterns = [
     path("loyalty/", include("loyalty.urls")),
     path("operations/", include("operations.urls")),
     path("journeys/", include("journeys.urls")),
+    path("", include("social.urls")),
+    path("", include("goals.urls")),
     path("", include("core.urls")),
 ]
 
 if getattr(settings, "IS_E2E", False):
     from core.e2e_views import synthetic_server_error
     urlpatterns.append(path("__e2e__/error/500/", synthetic_server_error, name="e2e-error-500"))
-
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
