@@ -6,15 +6,26 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from access.models import Access
 from accounts.models import UserProfile
 from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
+from authorization.models import Mandate
+from commerce.models import CommerceOrder
+from journeys.models import Journey
 from notifications.models import Notification
+from opportunities.models import (
+    Opportunity,
+    OpportunityKind,
+    OpportunityPublicationStatus,
+    OpportunityRevision,
+)
+from payments.models import Payment
 
 from .models import ShareDelivery, ShareIntent, ShareLink, ShareStatus
 from .services import (
+    accept_share_delivery,
     create_direct_activity_share,
-    decline_share_delivery,
-    resolve_delivery_for_recipient,
+    create_direct_opportunity_share,
     revoke_share_link,
 )
 
@@ -65,6 +76,30 @@ class SharingP2DirectTests(TestCase):
             timezone="Africa/Lubumbashi",
             status=OccurrenceStatus.SCHEDULED,
         )
+        self.opportunity = Opportunity.objects.create(
+            kind=OpportunityKind.SCHOLARSHIP,
+            created_by=self.sender,
+        )
+        self.revision = OpportunityRevision.objects.create(
+            opportunity=self.opportunity,
+            version=1,
+            title="Bourse Makolo P2",
+            summary="Une opportunité directe P2.",
+            issuer_name="Fondation Makolo",
+            timezone="Africa/Lubumbashi",
+            created_by=self.sender,
+        )
+        self.revision.published_at = timezone.now()
+        self.revision._allow_publication = True
+        self.revision.save(update_fields=["published_at"])
+        self.opportunity.publication_status = OpportunityPublicationStatus.PUBLISHED
+        self.opportunity.current_revision = self.revision
+        self.opportunity.published_at = self.revision.published_at
+        self.opportunity._allow_lifecycle_transition = True
+        self.opportunity.save(
+            update_fields=["publication_status", "current_revision", "published_at", "updated_at"]
+        )
+        self.opportunity.refresh_from_db()
 
     def direct(self, *, intent=ShareIntent.VIEW):
         return create_direct_activity_share(
@@ -75,12 +110,48 @@ class SharingP2DirectTests(TestCase):
             intent=intent,
         )
 
+    def business_counts(self):
+        return {
+            "journeys": Journey.objects.count(),
+            "orders": CommerceOrder.objects.count(),
+            "payments": Payment.objects.count(),
+            "accesses": Access.objects.count(),
+            "mandates": Mandate.objects.count(),
+        }
+
     def test_direct_share_uses_delivery_profile_and_not_external_link(self):
         created = self.direct()
         self.assertEqual(created.delivery.recipient, self.recipient_profile)
         self.assertEqual(created.delivery.envelope, created.envelope)
         self.assertFalse(ShareLink.objects.filter(envelope=created.envelope).exists())
-        self.assertEqual(ShareDelivery.objects.filter(envelope=created.envelope, recipient=self.recipient_profile).count(), 1)
+        self.assertEqual(
+            ShareDelivery.objects.filter(
+                envelope=created.envelope,
+                recipient=self.recipient_profile,
+            ).count(),
+            1,
+        )
+
+    def test_opportunity_direct_share_preserves_revision_and_has_no_external_link(self):
+        created = create_direct_opportunity_share(
+            created_by=self.sender,
+            recipient=self.recipient_profile,
+            opportunity_revision=self.revision,
+            intent=ShareIntent.START_JOURNEY,
+        )
+        self.assertEqual(
+            created.envelope.opportunity_subject.opportunity_revision_id,
+            self.revision.pk,
+        )
+        self.assertEqual(created.delivery.recipient, self.recipient_profile)
+        self.assertFalse(ShareLink.objects.filter(envelope=created.envelope).exists())
+
+        self.client.force_login(self.recipient)
+        response = self.client.get(
+            reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.revision.title)
 
     def test_self_share_and_inactive_recipient_are_rejected(self):
         with self.assertRaises(ValidationError):
@@ -128,11 +199,14 @@ class SharingP2DirectTests(TestCase):
         self.activity.visibility = ActivityVisibility.PRIVATE
         self.activity.save(update_fields=["visibility", "updated_at"])
         self.client.force_login(self.recipient)
-        response = self.client.get(reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk}))
+        response = self.client.get(
+            reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk})
+        )
         self.assertEqual(response.status_code, 404)
 
-    def test_accept_and_decline_are_post_only_and_mutually_exclusive(self):
+    def test_accept_and_decline_are_post_only_mutually_exclusive_and_create_no_rights(self):
         accepted = self.direct(intent=ShareIntent.PARTICIPATE).delivery
+        before = self.business_counts()
         self.client.force_login(self.recipient)
         accept_url = reverse("sharing:delivery-accept", kwargs={"delivery_id": accepted.pk})
         self.assertEqual(self.client.get(accept_url).status_code, 405)
@@ -141,6 +215,7 @@ class SharingP2DirectTests(TestCase):
         accepted.refresh_from_db()
         self.assertIsNotNone(accepted.accepted_at)
         self.assertIsNone(accepted.declined_at)
+        self.assertEqual(self.business_counts(), before)
 
         declined = self.direct().delivery
         decline_url = reverse("sharing:delivery-decline", kwargs={"delivery_id": declined.pk})
@@ -149,8 +224,8 @@ class SharingP2DirectTests(TestCase):
         declined.refresh_from_db()
         self.assertIsNotNone(declined.declined_at)
         self.assertIsNone(declined.accepted_at)
+        self.assertEqual(self.business_counts(), before)
         with self.assertRaises(ValidationError):
-            from .services import accept_share_delivery
             accept_share_delivery(delivery_id=declined.pk, user=self.recipient)
 
     def test_revoked_envelope_makes_delivery_unusable(self):
@@ -159,7 +234,9 @@ class SharingP2DirectTests(TestCase):
         created.envelope.refresh_from_db()
         self.assertEqual(created.envelope.status, ShareStatus.REVOKED)
         self.client.force_login(self.recipient)
-        response = self.client.get(reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk}))
+        response = self.client.get(
+            reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk})
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_profile_search_does_not_expose_email(self):
