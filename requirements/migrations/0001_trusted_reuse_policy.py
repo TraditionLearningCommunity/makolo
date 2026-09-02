@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("key", models.SlugField(max_length=80)),
                 ("source_type", models.CharField(choices=[("library", "Ma Bibliothèque"), ("journey_artifact", "JourneyArtifact historique"), ("proof", "Proof Trust")], max_length=24)),
-                ("artifact_kind", models.CharField(blank=True, choices=[("cv", "CV"), ("cover_letter", "Lettre de motivation"), ("certificate", "Certificat"), ("transcript", "Relevé"), ("recommendation", "Recommandation"), ("identity_document", "Document d’identité"), ("form", "Formulaire"), ("payment_receipt", "Reçu de paiement"), ("other", "Autre")], max_length=32)),
+                ("artifact_kind", models.CharField(blank=True, max_length=32)),
                 ("proof_type", models.CharField(blank=True, choices=[("journey_completed", "Journey accomplie"), ("participation_confirmed", "Participation confirmée"), ("access_used", "Accès utilisé"), ("service_completed", "Service complété")], max_length=32)),
                 ("require_not_expired", models.BooleanField(default=True)),
                 ("max_age_days", models.PositiveIntegerField(blank=True, null=True)),
