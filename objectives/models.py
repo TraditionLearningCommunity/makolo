@@ -3,7 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 
 
 class DossierLifecycle(models.TextChoices):
@@ -122,3 +122,86 @@ class DossierJourneyLink(models.Model):
             models.Index(fields=["dossier", "is_active"], name="dossier_link_active_idx"),
             models.Index(fields=["journey", "is_active"], name="journey_dossier_active_idx"),
         ]
+
+
+class DossierJourneyDependencyState(models.TextChoices):
+    ACTIVE = "active", "Active"
+    WAIVED = "waived", "Levée"
+    REMOVED = "removed", "Retirée"
+
+
+class DossierJourneyDependency(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dossier = models.ForeignKey(Dossier, on_delete=models.CASCADE, related_name="journey_dependencies")
+    dependent_link = models.ForeignKey(
+        DossierJourneyLink,
+        on_delete=models.PROTECT,
+        related_name="dependencies_as_dependent",
+    )
+    required_link = models.ForeignKey(
+        DossierJourneyLink,
+        on_delete=models.PROTECT,
+        related_name="dependencies_as_required",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="dossier_journey_dependencies_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(
+        max_length=16,
+        choices=DossierJourneyDependencyState.choices,
+        default=DossierJourneyDependencyState.ACTIVE,
+    )
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="dossier_journey_dependencies_closed",
+        null=True,
+        blank=True,
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+    waiver_reason = models.CharField(max_length=280, blank=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(dependent_link=F("required_link")),
+                name="dossier_dependency_distinct_links",
+            ),
+            models.UniqueConstraint(
+                fields=["dossier", "dependent_link", "required_link"],
+                condition=Q(state=DossierJourneyDependencyState.ACTIVE),
+                name="dossier_dependency_one_active_pair",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["dossier", "state"], name="dossier_dependency_state_idx"),
+            models.Index(fields=["dependent_link", "state"], name="dossier_dep_dependent_idx"),
+            models.Index(fields=["required_link", "state"], name="dossier_dep_required_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.dependent_link_id and self.required_link_id and self.dependent_link_id == self.required_link_id:
+            errors["required_link"] = "Une démarche ne peut pas dépendre d’elle-même."
+        if self.dossier_id and self.dependent_link_id and self.dependent_link.dossier_id != self.dossier_id:
+            errors["dependent_link"] = "La démarche dépendante doit appartenir à ce Dossier."
+        if self.dossier_id and self.required_link_id and self.required_link.dossier_id != self.dossier_id:
+            errors["required_link"] = "La démarche requise doit appartenir à ce Dossier."
+        if self.state == DossierJourneyDependencyState.ACTIVE:
+            if self.dependent_link_id and not self.dependent_link.is_active:
+                errors["dependent_link"] = "La démarche dépendante doit être activement liée au Dossier."
+            if self.required_link_id and not self.required_link.is_active:
+                errors["required_link"] = "La démarche requise doit être activement liée au Dossier."
+        if self.state == DossierJourneyDependencyState.WAIVED and not (self.waiver_reason or "").strip():
+            errors["waiver_reason"] = "Une raison est requise pour lever ce prérequis."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)

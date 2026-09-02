@@ -18,7 +18,31 @@
     </div>
   </section>
 
+  <section style="margin-top:2rem;"><h2>Dépendances entre démarches</h2>
+    <div style="display:grid;gap:.75rem;">
+      {% for dependency in dependencies %}
+        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
+          <strong>{{ dependency.dependent_link.journey.activity.title }}</strong>
+          nécessite <strong>{{ dependency.required_link.journey.activity.title }}</strong>.
+          <div><small>
+            {% if dependency.state == dependency_waived_state %}Levé
+            {% elif dependency.is_satisfied %}Prérequis satisfait
+            {% else %}Prérequis à satisfaire{% endif %}
+          </small></div>
+          {% if can_manage and dependency.state == dependency_active_state %}
+            <form method="post" action="{% url 'objectives:dossier-remove-dependency' dossier.id dependency.id %}" style="margin-top:.75rem;display:inline;">{% csrf_token %}<button type="submit">Retirer</button></form>
+            <form method="post" action="{% url 'objectives:dossier-waive-dependency' dossier.id dependency.id %}" style="margin-top:.75rem;">{% csrf_token %}{{ waiver_form.as_p }}<button type="submit">Lever le prérequis</button></form>
+          {% endif %}
+        </article>
+      {% empty %}<p>Aucune dépendance visible.</p>{% endfor %}
+    </div>
+  </section>
+
   {% if can_manage %}
+    <section style="margin-top:2rem;"><h2>Ajouter une dépendance</h2>
+      <form method="post" action="{% url 'objectives:dossier-add-dependency' dossier.id %}">{% csrf_token %}{{ dependency_form.as_p }}<button type="submit">Ajouter</button></form>
+    </section>
+
     <section style="margin-top:2rem;"><h2>Lier une démarche</h2>
       <form method="post" action="{% url 'objectives:dossier-link-journey' dossier.id %}">{% csrf_token %}{{ link_form.as_p }}<button type="submit">Lier</button></form>
     </section>

@@ -5,8 +5,8 @@ from authorization.services import space_ids_with_permission
 from journeys.models import Journey
 from organizations.models import Organization
 
-from .models import DossierLifecycle
-from .selectors import linkable_journeys_for_profile
+from .models import DossierJourneyLink, DossierLifecycle
+from .selectors import dependency_candidates_for_profile, linkable_journeys_for_profile
 from .services import ALLOWED_LIFECYCLE_TRANSITIONS
 
 
@@ -37,6 +37,24 @@ class DossierJourneyLinkForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["journey"].queryset = linkable_journeys_for_profile(actor, dossier=dossier)
         self.fields["journey"].label_from_instance = lambda journey: journey.activity.title
+
+
+class DossierDependencyForm(forms.Form):
+    dependent_link = forms.ModelChoiceField(label="Démarche dépendante", queryset=DossierJourneyLink.objects.none())
+    required_link = forms.ModelChoiceField(label="Démarche requise", queryset=DossierJourneyLink.objects.none())
+
+    def __init__(self, *args, actor, dossier, **kwargs):
+        super().__init__(*args, **kwargs)
+        queryset = dependency_candidates_for_profile(actor, dossier)
+        label = lambda link: link.journey.activity.title
+        self.fields["dependent_link"].queryset = queryset
+        self.fields["required_link"].queryset = queryset
+        self.fields["dependent_link"].label_from_instance = label
+        self.fields["required_link"].label_from_instance = label
+
+
+class DossierDependencyWaiverForm(forms.Form):
+    reason = forms.CharField(label="Raison", max_length=280, widget=forms.TextInput())
 
 
 class DossierLifecycleForm(forms.Form):

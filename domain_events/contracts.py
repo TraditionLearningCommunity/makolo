@@ -37,6 +37,9 @@ class DomainEventType:
     DOSSIER_JOURNEY_LINKED = "dossier.journey_linked"
     DOSSIER_JOURNEY_UNLINKED = "dossier.journey_unlinked"
     DOSSIER_LIFECYCLE_CHANGED = "dossier.lifecycle_changed"
+    DOSSIER_JOURNEY_DEPENDENCY_ADDED = "dossier.journey_dependency_added"
+    DOSSIER_JOURNEY_DEPENDENCY_REMOVED = "dossier.journey_dependency_removed"
+    DOSSIER_JOURNEY_DEPENDENCY_WAIVED = "dossier.journey_dependency_waived"
 
     FORM_REQUESTED = "form.requested"
     FORM_SUBMITTED = "form.submitted"
