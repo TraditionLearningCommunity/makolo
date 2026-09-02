@@ -40,12 +40,18 @@ REASON_LABELS = {
     "group_relevance": "Partagée dans l'un de vos Groupes",
     "bookmarked_similar_activity": "Similaire à une Activity enregistrée",
     "past_activity_interest": "Basé sur votre historique d'actions",
+    "capacity_released": "Une capacité vient de se libérer",
+    "nearby_now": "Disponible près de votre origine choisie",
+    "leave_soon": "Votre prochaine action temporelle approche",
 }
 REASON_WEIGHTS = {
     "following_space": 50,
     "group_relevance": 45,
     "bookmarked_similar_activity": 25,
     "past_activity_interest": 20,
+    "capacity_released": 70,
+    "nearby_now": 30,
+    "leave_soon": 80,
 }
 
 
@@ -97,11 +103,13 @@ def _visible_activity_queryset():
     )
 
 
-def build_activity_recommendations(profile, *, limit=12):
+def build_activity_recommendations(profile, *, limit=12, context=None):
     """Bounded, deterministic and explainable Activity-first recommendations.
 
     Private facts only select coarse privacy-safe reason codes. Followers, likes,
-    views and content volume never participate in ranking.
+    views and content volume never participate in ranking. M6 contributes bounded
+    candidate/reason facts through the same engine; it does not create a second
+    recommendation system.
     """
     if not getattr(profile, "is_authenticated", False):
         return []
@@ -166,6 +174,18 @@ def build_activity_recommendations(profile, *, limit=12):
                 add([activity], "bookmarked_similar_activity")
             if vertical in history_verticals:
                 add([activity], "past_activity_interest")
+
+    from spatiotemporal.opportunities import recommendation_reason_map
+
+    m6_reason_map = recommendation_reason_map(
+        profile,
+        origin=(context or {}).get("origin"),
+        limit=CANDIDATE_LIMIT_PER_SOURCE,
+    )
+    if m6_reason_map:
+        for activity in _visible_activity_queryset().filter(pk__in=m6_reason_map):
+            for reason_code in sorted(m6_reason_map[activity.pk]):
+                add([activity], reason_code)
 
     ranked = []
     for row in candidates.values():

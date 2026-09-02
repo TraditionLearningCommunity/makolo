@@ -41,7 +41,7 @@ class ActionStreamPage:
     has_more: bool
 
 
-def build_action_stream(profile, *, offset=0, limit=20, at=None):
+def build_action_stream(profile, *, offset=0, limit=20, at=None, context=None):
     if not getattr(profile, "is_authenticated", False):
         return ActionStreamPage(items=(), offset=0, limit=limit, has_more=False)
     at = at or timezone.now()
@@ -162,7 +162,11 @@ def build_action_stream(profile, *, offset=0, limit=20, at=None):
             cta_url=cta_url,
         ))
 
-    for recommendation in build_activity_recommendations(profile, limit=STREAM_SOURCE_LIMIT):
+    for recommendation in build_activity_recommendations(
+        profile,
+        limit=STREAM_SOURCE_LIMIT,
+        context=context,
+    ):
         merge(ActionStreamItem(
             key=f"activity:{recommendation.activity.pk}",
             kind="recommendation",
@@ -173,6 +177,29 @@ def build_action_stream(profile, *, offset=0, limit=20, at=None):
             reasons=tuple(reason.label for reason in recommendation.reasons),
             cta_label=recommendation.cta_label,
             cta_url=recommendation.cta_url,
+        ))
+
+    # Journey-specific M6 items remain private to this profile. They are never
+    # persisted as social contributions and only use an origin explicitly
+    # supplied in the caller context.
+    from spatiotemporal.stream import personal_action_projections
+
+    for projection in personal_action_projections(
+        profile,
+        origin=(context or {}).get("origin"),
+        at=at,
+        limit=5,
+    ):
+        merge(ActionStreamItem(
+            key=projection.key,
+            kind="journey_action",
+            occurred_at=projection.occurred_at,
+            title=projection.title,
+            summary=projection.summary,
+            activity=projection.activity,
+            reasons=(projection.reason_code,),
+            cta_label=projection.cta_label,
+            cta_url=projection.cta_url,
         ))
 
     ordered = sorted(items.values(), key=lambda item: (item.occurred_at, item.key), reverse=True)
