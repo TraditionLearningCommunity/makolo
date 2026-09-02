@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -17,6 +18,17 @@ ADVICE_PRIORITY = {
     "information": 20,
 }
 
+SUPPORTED_CANONICAL_CHANGES = {
+    "occurrence_delayed",
+    "place_changed",
+    "gate_changed",
+    "instructions_changed",
+}
+
+
+def significant_delay_minutes():
+    return int(getattr(settings, "SPATIOTEMPORAL_SIGNIFICANT_DELAY_MINUTES", 15))
+
 
 def _active_access(journey):
     if journey is None:
@@ -24,9 +36,61 @@ def _active_access(journey):
     return next(iter(journey.accesses.all()), None)
 
 
-def get_hazards(*, occurrence, journey=None, mobility=None, now=None):
+def hazards_from_canonical_changes(changes, *, occurrence, journey=None, now=None):
+    """Translate known before/after facts into hazards without storing a copy.
+
+    Callers must already know the canonical change (for example from a domain
+    event or an operator update transaction). M6 never reconstructs fake history.
+    """
     now = now or timezone.now()
     hazards = []
+    for change in changes or ():
+        kind = str(change.get("kind") or "")
+        if kind not in SUPPORTED_CANONICAL_CHANGES:
+            continue
+        source_key = str(change.get("source_key") or f"{kind}:{occurrence.pk}")
+        audience = str(change.get("audience") or ("specific_journey" if journey else "participants"))
+        if kind == "occurrence_delayed":
+            minutes = max(0, int(change.get("delay_minutes") or 0))
+            if minutes <= 0:
+                continue
+            severity = (
+                HazardSeverity.WARNING
+                if minutes >= significant_delay_minutes()
+                else HazardSeverity.NOTICE
+            )
+            summary = str(change.get("summary") or f"L’occurrence est retardée de {minutes} min.")
+        elif kind == "place_changed":
+            severity = HazardSeverity.WARNING
+            summary = str(change.get("summary") or "Le lieu de l’occurrence a changé. Vérifiez la nouvelle destination.")
+        elif kind == "gate_changed":
+            severity = HazardSeverity.NOTICE
+            summary = str(change.get("summary") or "Le point d’accès a changé. Vérifiez les nouvelles instructions.")
+        else:
+            severity = HazardSeverity.NOTICE
+            summary = str(change.get("summary") or "Une instruction importante a été modifiée.")
+        hazards.append(Hazard(
+            key=f"canonical_change:{source_key}",
+            kind=kind,
+            hazard_class=HazardClass.INTERNAL,
+            severity=severity,
+            audience=audience,
+            summary=summary,
+            observed_at=change.get("observed_at") or now,
+            ends_at=change.get("ends_at"),
+            source=str(change.get("source") or "canonical_change"),
+        ))
+    return tuple(hazards)
+
+
+def get_hazards(*, occurrence, journey=None, mobility=None, changes=(), now=None):
+    now = now or timezone.now()
+    hazards = list(hazards_from_canonical_changes(
+        changes,
+        occurrence=occurrence,
+        journey=journey,
+        now=now,
+    ))
     if occurrence.status == OccurrenceStatus.CANCELLED:
         hazards.append(Hazard(
             key=f"occurrence_cancelled:{occurrence.pk}",
@@ -127,7 +191,7 @@ def get_action_advices(*, occurrence, journey=None, mobility=None, hazards=(), n
         ))
 
     for hazard in hazards:
-        if hazard.kind in {"traffic_delay", "severe_weather"}:
+        if hazard.kind in {"traffic_delay", "severe_weather", "place_changed", "occurrence_delayed"}:
             advices.append(ActionAdvice(
                 kind="warning",
                 priority=ADVICE_PRIORITY["warning"],
@@ -135,6 +199,16 @@ def get_action_advices(*, occurrence, journey=None, mobility=None, hazards=(), n
                 summary=hazard.summary,
                 observed_at=hazard.observed_at,
                 action_url=mobility.itinerary_url if mobility else "",
+                source_key=hazard.key,
+            ))
+        elif hazard.kind in {"gate_changed", "instructions_changed"}:
+            advices.append(ActionAdvice(
+                kind="information",
+                priority=ADVICE_PRIORITY["information"],
+                reason_code=hazard.kind,
+                summary=hazard.summary,
+                observed_at=hazard.observed_at,
+                action_url=reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}) if journey else "",
                 source_key=hazard.key,
             ))
 
