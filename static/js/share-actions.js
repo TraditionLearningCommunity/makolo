@@ -88,7 +88,7 @@
       try {
         const payload = await shareData();
         if (qrImage) qrImage.src = payload.qr_url;
-        qrPanel?.classList.remove('hidden');
+        if (qrPanel) qrPanel.hidden = false;
         setFeedback('QR de partage prêt.');
       } catch (_error) {
         setFeedback('Impossible de générer le QR de partage.');
