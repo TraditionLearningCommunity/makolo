@@ -4,6 +4,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import render
 from django.utils.text import slugify
 
+from sharing.analytics import emit_artifact_exported
 from sharing.document_services import export_decision_for_artifact
 
 
@@ -19,11 +20,7 @@ EXTENSION_BY_MIME = {
 
 @login_required(login_url="core:login")
 def download_artifact(request, artifact_id):
-    artifact, decision = export_decision_for_artifact(
-        actor=request.user,
-        artifact_id=artifact_id,
-        channel="download",
-    )
+    artifact, decision = export_decision_for_artifact(actor=request.user, artifact_id=artifact_id, channel="download")
     if decision.requires_warning and request.GET.get("confirm") != "1":
         return render(request, "sharing/export_warning.html", {"artifact": artifact})
     extension = EXTENSION_BY_MIME.get(artifact.mime_type, "")
@@ -32,12 +29,8 @@ def download_artifact(request, artifact_id):
         handle = artifact.file.open("rb")
     except (FileNotFoundError, OSError) as exc:
         raise Http404("Document indisponible.") from exc
-    response = FileResponse(
-        handle,
-        as_attachment=True,
-        filename=filename,
-        content_type=artifact.mime_type,
-    )
+    emit_artifact_exported(artifact=artifact, channel="download")
+    response = FileResponse(handle, as_attachment=True, filename=filename, content_type=artifact.mime_type)
     response["X-Content-Type-Options"] = "nosniff"
     response["Cache-Control"] = "private, no-store"
     return response
