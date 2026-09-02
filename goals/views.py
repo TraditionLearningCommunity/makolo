@@ -2,12 +2,12 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
 
-from .models import PersonalGoal, PersonalGoalStatus, PersonalGoalType
+from .models import PersonalGoal, PersonalGoalType
 from .selectors import goal_progresses, goals_for_profile
 from .services import create_personal_goal, evaluate_goals, set_goal_status
 
@@ -52,6 +52,10 @@ class GoalStatusView(LoginRequiredMixin, View):
         goal = get_object_or_404(PersonalGoal, pk=pk)
         try:
             set_goal_status(actor=request.user, goal=goal, status=request.POST.get("status", ""))
-        except Exception as exc:
+        except PermissionDenied:
+            raise PermissionDenied("Cet objectif personnel ne vous appartient pas.")
+        except ValidationError as exc:
             messages.error(request, str(exc))
+        else:
+            messages.success(request, "Objectif mis à jour.")
         return redirect("goals:list")
