@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<main style="max-width:760px;margin:0 auto;padding:1rem;">
+  <p><a href="{% url 'objectives:dossier-list' %}">← Dossiers</a></p>
+  <p style="margin:0;color:#5232DB;font-weight:700;">Objectif composé</p>
+  <h1>{{ dossier.title }}</h1>
+  {% if dossier.description %}<p>{{ dossier.description }}</p>{% endif %}
+  <p>{{ dossier.get_lifecycle_display }}{% if dossier.deadline %} · échéance {{ dossier.deadline }}{% endif %}</p>
+
+  <section style="margin-top:2rem;"><h2>Démarches visibles</h2>
+    <div style="display:grid;gap:.75rem;">
+      {% for link in links %}
+        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
+          <strong>{{ link.journey.activity.title }}</strong><br><small>{{ link.journey.get_status_display }}</small>
+          <form method="post" action="{% url 'objectives:dossier-unlink-journey' dossier.id link.journey.id %}" style="margin-top:.75rem;">{% csrf_token %}<button type="submit">Retirer du Dossier</button></form>
+        </article>
+      {% empty %}<p>Aucune démarche visible liée.</p>{% endfor %}
+    </div>
+  </section>
+
+  <section style="margin-top:2rem;"><h2>Lier une démarche</h2>
+    <form method="post" action="{% url 'objectives:dossier-link-journey' dossier.id %}">{% csrf_token %}{{ link_form.as_p }}<button type="submit">Lier</button></form>
+  </section>
+
+  <section style="margin-top:2rem;"><h2>Cycle de vie</h2>
+    <form method="post" action="{% url 'objectives:dossier-lifecycle' dossier.id %}">{% csrf_token %}{{ lifecycle_form.as_p }}<button type="submit">Mettre à jour</button></form>
+  </section>
+</main>
+{% endblock %}

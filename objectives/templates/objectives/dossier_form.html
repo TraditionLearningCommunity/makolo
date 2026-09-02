@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<main style="max-width:680px;margin:0 auto;padding:1rem;">
+  <p><a href="{% url 'objectives:dossier-list' %}">← Dossiers</a></p>
+  <h1>Nouvel objectif</h1>
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Créer le Dossier</button></form>
+</main>
+{% endblock %}

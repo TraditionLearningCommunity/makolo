@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "sharing.apps.SharingConfig",
     "social.apps.SocialConfig",
     "goals.apps.GoalsConfig",
+    "objectives.apps.ObjectivesConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime

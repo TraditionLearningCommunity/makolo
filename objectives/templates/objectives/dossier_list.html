@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<main style="max-width:760px;margin:0 auto;padding:1rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+    <div><p style="margin:0;color:#5232DB;font-weight:700;">Objectifs</p><h1 style="margin:.25rem 0;">Mes Dossiers</h1></div>
+    <a href="{% url 'objectives:dossier-create' %}">Créer</a>
+  </div>
+  <div style="display:grid;gap:.75rem;margin-top:1rem;">
+    {% for dossier in dossiers %}
+      <a href="{% url 'objectives:dossier-detail' dossier.id %}" style="display:block;padding:1rem;border:1px solid #ddd;border-radius:16px;text-decoration:none;color:inherit;">
+        <strong>{{ dossier.title }}</strong><br><span>{{ dossier.active_journey_count }} démarche{{ dossier.active_journey_count|pluralize }}</span> · <span>{{ dossier.get_lifecycle_display }}</span>
+      </a>
+    {% empty %}<p>Aucun Dossier accessible.</p>{% endfor %}
+  </div>
+</main>
+{% endblock %}
