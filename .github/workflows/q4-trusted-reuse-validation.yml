@@ -6,6 +6,10 @@ on:
       - capital/q4-trusted-reuse-hardening
   workflow_dispatch:
 
+concurrency:
+  group: q4-trusted-reuse-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -41,6 +45,31 @@ jobs:
       - name: Run touched-domain regressions
         run: |
           python manage.py test journeys.tests trust.tests requirements services.test_task34a_requirements
+
+  q4-full-django:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: q4-ci-full-django-local-validation-key
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Check model and migrations
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+      - name: Run full Django test suite
+        run: python manage.py test
 
   q4-postgresql:
     runs-on: ubuntu-latest
