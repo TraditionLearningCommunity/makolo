@@ -1,0 +1,48 @@
+{% extends 'base/app.html' %}
+{% block title %}Partage Makolo{% endblock %}
+{% block extra_meta %}
+<meta name="description" content="Un contenu Makolo vous a été partagé.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Partage Makolo">
+<meta property="og:description" content="Un contenu Makolo vous a été partagé.">
+<meta property="og:site_name" content="Makolo">
+{% endblock %}
+{% block content %}
+<div style="max-width:48rem;margin:0 auto 2.5rem">
+  <section class="mk-panel" style="padding:1.5rem">
+    <p style="color:var(--mk-subtle);font-size:.875rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em">Partage direct Makolo</p>
+    {% if subject_kind == 'journey' %}
+      <p style="margin-top:.75rem;font-weight:700">{{ sender_name }} vous permet de repartir de son parcours.</p>
+    {% else %}
+      <p style="margin-top:.75rem;font-weight:700">{{ sender_name }} vous a partagé ce contenu.</p>
+    {% endif %}
+    <h1 class="mk-page-title" style="margin-top:.75rem">{{ page_title }}</h1>
+    {% if page_description %}<p class="mk-page-copy" style="margin-top:1rem">{{ page_description }}</p>{% endif %}
+    {% if occurrence %}<div class="mk-panel" style="padding:1rem;margin-top:1rem"><p style="font-weight:700">{{ occurrence.label|default:'Occurrence partagée' }}</p><p style="color:var(--mk-muted);font-size:.875rem">{{ occurrence.start_at|date:'d/m/Y H:i' }}</p></div>{% endif %}
+    {% if subject_kind == 'journey' %}
+      <div class="mk-panel" style="padding:1rem;margin-top:1rem">
+        <p style="font-weight:800">Ce que Makolo peut préparer pour vous</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.75rem;margin-top:.75rem">
+          <div><strong style="font-size:1.4rem">{{ journey_reuse.counts.REUSABLE|default:0 }}</strong><p style="font-size:.8rem;color:var(--mk-muted)">réutilisables</p></div>
+          <div><strong style="font-size:1.4rem">{{ journey_reuse.counts.PERSONALIZE|default:0 }}</strong><p style="font-size:.8rem;color:var(--mk-muted)">à personnaliser</p></div>
+          <div><strong style="font-size:1.4rem">{{ journey_reuse.counts.REVALIDATE|default:0 }}</strong><p style="font-size:.8rem;color:var(--mk-muted)">à revalider</p></div>
+        </div>
+        {% if journey_reuse.stale or journey_reuse.form_revalidation or journey_reuse.resource_revalidation %}<p style="margin-top:.75rem;color:var(--mk-muted);font-size:.875rem">Le parcours reste utile, mais certains éléments ont changé depuis son partage et seront actualisés avec les sources canoniques actuelles.</p>{% endif %}
+      </div>
+    {% endif %}
+    {% if delivery.declined_at %}
+      <p style="margin-top:1.5rem;color:var(--mk-muted);font-weight:700">Vous avez ignoré ce partage.</p>
+    {% else %}
+      <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-top:1.75rem">
+        {% if actionable %}
+          <form method="post" action="{{ accept_url }}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">{{ cta_label }}</button></form>
+        {% else %}
+          <a class="mk-btn mk-btn-primary" href="{{ go_url }}">{{ cta_label }}</a>
+        {% endif %}
+        <form method="post" action="{{ decline_url }}">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Ignorer</button></form>
+      </div>
+    {% endif %}
+  </section>
+  <section class="mk-panel" style="padding:1.25rem;margin-top:1.5rem"><h2 style="font-weight:800">Le partage ne transfère aucun droit</h2><p style="margin-top:.5rem;color:var(--mk-muted);font-size:.875rem">Vous utilisez toujours vos propres permissions, démarches, accès et paiements Makolo. Les réponses, documents privés, validations et décisions de l’expéditeur ne sont pas repris.</p></section>
+</div>
+{% endblock %}
