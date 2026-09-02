@@ -1,0 +1,42 @@
+name: Q4 workspace link
+
+on:
+  push:
+    branches:
+      - capital/q4-trusted-reuse-hardening
+    paths:
+      - .github/workflows/q4-workspace-link.yml
+
+permissions:
+  contents: write
+
+jobs:
+  insert-link:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: capital/q4-trusted-reuse-hardening
+      - name: Add contextual Trusted Reuse entry point
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("templates/services/participant_workspace.html")
+          text = path.read_text()
+          needle = "{% if row.steps %}"
+          insert = "<div class=\"mt-3\"><a class=\"mk-btn mk-btn-secondary\" href=\"{% url 'services:participant-trusted-reuse' journey.pk row.assessment.pk %}\">Voir ce que Makolo peut réutiliser</a></div>"
+          if insert in text:
+              raise SystemExit(0)
+          if needle not in text:
+              raise SystemExit("Expected participant requirement insertion point not found")
+          text = text.replace(needle, insert + needle, 1)
+          path.write_text(text)
+          PY
+      - name: Commit workspace entry point
+        run: |
+          if git diff --quiet -- templates/services/participant_workspace.html; then exit 0; fi
+          git config user.name "Gilbert243"
+          git config user.email "gilbert.bemwiz@fitforpurpose.tech"
+          git add templates/services/participant_workspace.html
+          git commit -m "Q4: expose Trusted Reuse from participant requirements"
+          git push origin HEAD:capital/q4-trusted-reuse-hardening
