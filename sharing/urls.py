@@ -1,5 +1,11 @@
 from django.urls import path
 
+from .document_views import (
+    InboundCaptureAbsorbView,
+    InboundCaptureCreateView,
+    InboundCaptureDetailView,
+    InboundCaptureDiscardView,
+)
 from .views import (
     ActivityShareCreateView,
     JourneyReuseShareView,
@@ -23,6 +29,10 @@ urlpatterns = [
     path("s/<slug:token>/go/", ShareActionView.as_view(), name="action"),
     path("s/<slug:token>/qr.png", ShareQRView.as_view(), name="qr"),
     path("sharing/people/search/", ProfileSearchView.as_view(), name="profile-search"),
+    path("sharing/import/", InboundCaptureCreateView.as_view(), name="inbound-create"),
+    path("sharing/import/<uuid:capture_id>/", InboundCaptureDetailView.as_view(), name="inbound-detail"),
+    path("sharing/import/<uuid:capture_id>/absorb/", InboundCaptureAbsorbView.as_view(), name="inbound-absorb"),
+    path("sharing/import/<uuid:capture_id>/discard/", InboundCaptureDiscardView.as_view(), name="inbound-discard"),
     path(
         "sharing/journey/<uuid:journey_id>/reuse/",
         JourneyReuseShareView.as_view(),
