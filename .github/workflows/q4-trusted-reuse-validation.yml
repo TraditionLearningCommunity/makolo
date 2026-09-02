@@ -34,10 +34,10 @@ jobs:
           python manage.py makemigrations --check --dry-run
       - name: Run Q4 contracts and Trusted Reuse first
         run: |
-          python manage.py test requirements.test_q4_trusted_reuse_policy services.test_q4_trusted_reuse services.test_q4_trusted_reuse_audit services.test_q4_trusted_reuse_permissions services.test_q4_trusted_reuse_ui services.test_q4_trusted_reuse_concurrency
+          python manage.py test requirements.test_q4_trusted_reuse_policy services.test_q4_trusted_reuse services.test_q4_trusted_reuse_audit services.test_q4_trusted_reuse_permissions services.test_q4_trusted_reuse_ambiguity services.test_q4_trusted_reuse_ui services.test_q4_trusted_reuse_concurrency
       - name: Run Q1 Q2 Q3 Q4 train regressions
         run: |
-          python manage.py test personal_assets requirements.test_q4_trusted_reuse_policy services.test_q4_trusted_reuse services.test_q4_trusted_reuse_audit services.test_q4_trusted_reuse_permissions services.test_q4_trusted_reuse_ui services.test_q4_trusted_reuse_concurrency
+          python manage.py test personal_assets requirements.test_q4_trusted_reuse_policy services.test_q4_trusted_reuse services.test_q4_trusted_reuse_audit services.test_q4_trusted_reuse_permissions services.test_q4_trusted_reuse_ambiguity services.test_q4_trusted_reuse_ui services.test_q4_trusted_reuse_concurrency
       - name: Run touched-domain regressions
         run: |
           python manage.py test journeys.tests trust.tests requirements services.test_task34a_requirements
@@ -87,7 +87,7 @@ jobs:
           python manage.py migrate --noinput
       - name: Run Q4 and train Q on PostgreSQL
         run: |
-          python manage.py test requirements.test_q4_trusted_reuse_policy services.test_q4_trusted_reuse services.test_q4_trusted_reuse_audit services.test_q4_trusted_reuse_permissions services.test_q4_trusted_reuse_ui services.test_q4_trusted_reuse_concurrency personal_assets
+          python manage.py test requirements.test_q4_trusted_reuse_policy services.test_q4_trusted_reuse services.test_q4_trusted_reuse_audit services.test_q4_trusted_reuse_permissions services.test_q4_trusted_reuse_ambiguity services.test_q4_trusted_reuse_ui services.test_q4_trusted_reuse_concurrency personal_assets
       - name: Reproduce and validate Trust PostgreSQL locking
         run: |
           python manage.py test trust.tests
