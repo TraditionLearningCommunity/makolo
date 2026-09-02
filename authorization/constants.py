@@ -3,6 +3,7 @@
 
 class PermissionCode:
     PLATFORM_MANAGE = "platform.manage"
+    PLATFORM_TRUST_REVIEW = "platform.trust.review"
     PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW = "platform.subscriptions.catalog.view"
     PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE = "platform.subscriptions.catalog.manage"
     PLATFORM_SUBSCRIPTIONS_VIEW = "platform.subscriptions.view"
@@ -15,6 +16,8 @@ class PermissionCode:
     OPPORTUNITIES_MERGE = "opportunities.merge"
     SPACE_VIEW = "space.view"
     SPACE_MANAGE = "space.manage"
+    SPACE_TRUST_VIEW = "space.trust.view"
+    SPACE_TRUST_MANAGE = "space.trust.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
     SPACE_OWNERSHIP_MANAGE = "space.ownership.manage"
     SPACE_GROUPS_VIEW = "space.groups.view"
@@ -110,6 +113,7 @@ class SystemRoleCode:
 
 PLATFORM_PERMISSION_CODES = {
     PermissionCode.PLATFORM_MANAGE,
+    PermissionCode.PLATFORM_TRUST_REVIEW,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW,

@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     "subscriptions.apps.SubscriptionsConfig",
     "questionnaires.apps.QuestionnairesConfig",
     "preparation.apps.PreparationConfig",
-    "presentations.apps.PresentationsConfig",
+    "trust.apps.TrustConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime

@@ -5,6 +5,7 @@ from django.urls import include, path
 
 from core.api.views import HealthAPIView, ReadinessAPIView
 
+
 handler403 = "core.error_views.error_403"
 handler404 = "core.error_views.error_404"
 handler500 = "core.error_views.error_500"
@@ -21,6 +22,7 @@ urlpatterns = [
     path("api/v1/notifications/", include("notifications.api.urls")),
     path("api/v1/questionnaires/", include("questionnaires.api_urls")),
     path("api/v1/preparation/", include("preparation.api_urls")),
+    path("api/v1/trust/", include("trust.api_urls")),
     path("api/v1/scanner/", include("scanner.api.urls")),
     path("api/v1/analytics/", include("analytics_app.api.urls")),
     path("api/v1/partners/", include("partners.api.urls")),
@@ -36,7 +38,6 @@ urlpatterns = [
     path("account/", include("accounts.web_urls")),
     path("subscription/", include("subscriptions.web_urls")),
     path("activities/", include("activities.urls")),
-    path("presentation/", include("presentations.urls")),
     path("spaces/", include("organizations.urls")),
     path("groups/", include("groups.urls")),
     path("autopilot/", include("automation.urls")),
@@ -52,6 +53,7 @@ urlpatterns = [
     path("notifications/", include("notifications.urls")),
     path("questionnaires/", include("questionnaires.urls")),
     path("preparation/", include("preparation.urls")),
+    path("trust/", include("trust.urls")),
     path("analytics/", include("analytics_app.urls")),
     path("partners/", include("partners.urls")),
     path("crm/", include("crm.urls")),
