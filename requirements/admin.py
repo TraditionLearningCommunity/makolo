@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import RequirementReusePolicy
+from .models import RequirementReuseApplication, RequirementReusePolicy
 
 
 @admin.register(RequirementReusePolicy)
@@ -19,3 +19,20 @@ class RequirementReusePolicyAdmin(admin.ModelAdmin):
         if obj is not None and obj.requirement.revision.published_at is not None:
             return False
         return super().has_delete_permission(request, obj=obj)
+
+
+@admin.register(RequirementReuseApplication)
+class RequirementReuseApplicationAdmin(admin.ModelAdmin):
+    list_display = ("assessment", "source_type", "policy", "decision", "applied_by", "applied_at")
+    list_filter = ("source_type", "decision", "confirmation_confirmed")
+    search_fields = ("policy__key",)
+    readonly_fields = [field.name for field in RequirementReuseApplication._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
