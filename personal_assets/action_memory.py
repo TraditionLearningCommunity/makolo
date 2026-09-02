@@ -315,7 +315,10 @@ def _journey_artifact_candidates(*, actor, current_journey, subject, historical_
             continue
         uses = {
             str(use.journey_artifact_id): use
-            for use in PersonalAssetUse.objects.filter(journey_artifact__in=artifacts)
+            for use in PersonalAssetUse.objects.filter(
+                journey_artifact__in=artifacts,
+                asset_version__asset__controller=actor,
+            )
             .select_related("asset_version")
             .order_by("used_at", "id")
         }

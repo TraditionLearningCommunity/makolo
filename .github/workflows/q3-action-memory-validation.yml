@@ -37,6 +37,7 @@ jobs:
         run: >-
           python manage.py test
           personal_assets.test_q3_action_memory
+          personal_assets.test_q3_provenance_privacy
           personal_assets.test_q3_views
       - name: Run Personal Action Capital Q1/Q2/Q3 regression suite
         run: python manage.py test personal_assets
