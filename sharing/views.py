@@ -13,6 +13,7 @@ from django.views.generic import TemplateView
 from activities.models import Activity, Occurrence
 from core.participant_selectors import participant_state_context
 from discovery.presentation import build_discovery_item, presenter_for
+from discovery.search import public_occurrences
 from opportunities.models import Opportunity
 
 from .models import ShareIntent, ShareSubjectType
@@ -149,9 +150,7 @@ class ShareLandingView(TemplateView):
                     participant_context=participant_state_context(self.request.user, [occurrence]),
                 )
             title = item.title if item else activity.title
-            description = (
-                item.summary if item else (activity.short_description or activity.description[:320])
-            )
+            description = item.summary if item else (activity.short_description or activity.description[:320])
             base.update(
                 {
                     "subject_kind": "activity",
@@ -161,11 +160,7 @@ class ShareLandingView(TemplateView):
                     "item": item,
                     "page_title": title,
                     "page_description": description or "Une Activity Makolo vous a été partagée.",
-                    "cta_label": (
-                        "Participer"
-                        if envelope.intent == ShareIntent.PARTICIPATE
-                        else "Voir l’activité"
-                    ),
+                    "cta_label": "Participer" if envelope.intent == ShareIntent.PARTICIPATE else "Voir dans Makolo",
                 }
             )
             return base
@@ -180,11 +175,7 @@ class ShareLandingView(TemplateView):
                 "revision_changed": shared_revision.pk != current_revision.pk,
                 "page_title": current_revision.title,
                 "page_description": current_revision.summary or "Une Opportunity Makolo vous a été partagée.",
-                "cta_label": (
-                    "Obtenir de l’aide"
-                    if envelope.intent == ShareIntent.START_JOURNEY
-                    else "Découvrir l’opportunité"
-                ),
+                "cta_label": "Obtenir de l’aide" if envelope.intent == ShareIntent.START_JOURNEY else "Découvrir l’opportunité",
             }
         )
         return base
@@ -221,7 +212,10 @@ class ShareActionView(View):
             return redirect(item.cta_url or item.url)
         if occurrence is not None:
             return redirect(presenter_for(occurrence).url(occurrence))
-        return redirect("presentations:public-activity", activity_id=activity.pk)
+        first_occurrence = public_occurrences().filter(activity_id=activity.pk).order_by("start_at", "id").first()
+        if first_occurrence is not None:
+            return redirect(presenter_for(first_occurrence).url(first_occurrence))
+        return redirect("discovery:home")
 
     def _opportunity_action(self, envelope):
         _, opportunity, _, _ = resolve_opportunity_share_subject(envelope)

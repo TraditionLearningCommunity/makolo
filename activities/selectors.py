@@ -68,7 +68,6 @@ def occurrence_with_places(pk):
 
 
 def primary_place_for_occurrence(occurrence):
-    """Return the canonical primary Place for one Occurrence, if any."""
     cached = getattr(occurrence, "_prefetched_objects_cache", {}).get("place_links")
     if cached is not None:
         link = next((row for row in cached if row.role == OccurrencePlaceRole.PRIMARY), None)

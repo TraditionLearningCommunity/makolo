@@ -16,7 +16,8 @@ class PrivateArtifactStorage(FileSystemStorage):
 
     def __init__(self):
         location = Path(settings.MEDIA_ROOT).parent / "private_media"
-        super().__init__(location=location, base_url=None)
+        super().__init__(location=location, base_url="")
+        self.base_url = None
 
     def url(self, name):
         raise ValueError("Les artifacts Journey privés n'ont pas d'URL publique.")
