@@ -16,7 +16,12 @@ from .operator_views import (
     ServiceStepCompleteView,
     ServiceStepStartView,
 )
-from .participant_views import ParticipantArtifactUploadView, ParticipantArtifactVersionView, ParticipantExternalPaymentEvidenceView
+from .participant_views import (
+    ParticipantArtifactUploadView,
+    ParticipantArtifactVersionView,
+    ParticipantExternalPaymentEvidenceView,
+    ParticipantTrustedReuseView,
+)
 from .views import ServiceCatalogView, ServiceIntakeView, ServiceStartView
 
 app_name = "services"
@@ -39,6 +44,7 @@ urlpatterns = [
     path("operator/artifacts/<uuid:artifact_pk>/download/", ServiceArtifactDownloadView.as_view(), name="operator-artifact-download"),
     path("<uuid:pk>/start/", ServiceStartView.as_view(), name="start"),
     path("journeys/<uuid:pk>/intake/", ServiceIntakeView.as_view(), name="intake"),
+    path("journeys/<uuid:pk>/requirements/<uuid:assessment_pk>/trusted-reuse/", ParticipantTrustedReuseView.as_view(), name="participant-trusted-reuse"),
     path("journeys/<uuid:pk>/artifacts/new/", ParticipantArtifactUploadView.as_view(), name="participant-artifact-upload"),
     path("artifacts/<uuid:artifact_pk>/new-version/", ParticipantArtifactVersionView.as_view(), name="participant-artifact-version"),
     path("journeys/<uuid:pk>/payments/<uuid:obligation_pk>/evidence/", ParticipantExternalPaymentEvidenceView.as_view(), name="participant-payment-evidence"),
