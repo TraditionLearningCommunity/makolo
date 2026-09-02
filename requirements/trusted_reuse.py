@@ -17,6 +17,7 @@ class TrustedReuseDecisionCode(str, Enum):
 
 class TrustedReuseReasonCode(str, Enum):
     NO_POLICY = "reuse.no_policy"
+    POLICY_AMBIGUOUS = "reuse.policy_ambiguous"
     SOURCE_NOT_ALLOWED = "reuse.source_not_allowed"
     SUBJECT_MISMATCH = "reuse.subject_mismatch"
     KIND_MISMATCH = "reuse.kind_mismatch"
