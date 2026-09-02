@@ -88,12 +88,13 @@ class InboundCapture(models.Model):
         has_url = bool((self.source_url or "").strip())
         has_text = bool((self.text or "").strip())
         has_file = bool(self.file)
-        if self.source_kind == InboundCaptureSourceKind.URL and not has_url:
-            errors["source_url"] = "Un lien est obligatoire."
-        elif self.source_kind == InboundCaptureSourceKind.TEXT and not has_text:
-            errors["text"] = "Le texte ne peut pas être vide."
-        elif self.source_kind == InboundCaptureSourceKind.FILE and not has_file:
-            errors["file"] = "Un fichier est obligatoire."
+        if self.status == InboundCaptureStatus.PENDING:
+            if self.source_kind == InboundCaptureSourceKind.URL and not has_url:
+                errors["source_url"] = "Un lien est obligatoire."
+            elif self.source_kind == InboundCaptureSourceKind.TEXT and not has_text:
+                errors["text"] = "Le texte ne peut pas être vide."
+            elif self.source_kind == InboundCaptureSourceKind.FILE and not has_file:
+                errors["file"] = "Un fichier est obligatoire."
         if self.status == InboundCaptureStatus.ABSORBED:
             if not self.absorbed_at or bool(self.absorbed_artifact_id) == bool(self.absorbed_note_id):
                 errors["status"] = "Une Capture absorbée doit pointer vers exactement un résultat canonique."
