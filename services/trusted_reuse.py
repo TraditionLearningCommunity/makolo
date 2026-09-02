@@ -21,9 +21,9 @@ from personal_assets.action_memory import (
 )
 from personal_assets.models import PersonalAssetUse, PersonalAssetVersion
 from personal_assets.services import save_journey_artifact_to_library, use_personal_asset_version_in_journey
-from requirements.models import RequirementReusePolicy, RequirementReuseSource
+from requirements.models import RequirementReuseApplication, RequirementReusePolicy, RequirementReuseSource
 from requirements.trusted_reuse import TrustedReuseDecision, TrustedReuseDecisionCode, TrustedReuseReasonCode
-from trust.models import ProofStatus
+from trust.models import Proof, ProofStatus
 
 from .models import ServiceRequirementAssessment
 from .requirement_services import SATISFIED_REQUIREMENT_STATUSES, submit_requirement_evidence
@@ -44,6 +44,26 @@ def _relevant_date(value) -> date | None:
         return timezone.localdate(value) if timezone.is_aware(value) else value.date()
     if isinstance(value, date):
         return value
+    return None
+
+
+def _source_date_for_candidate(candidate) -> date | None:
+    """Return only a canonical source date suitable for an explicit age policy.
+
+    Q3's ``relevant_at`` may deliberately fall back to object creation time for
+    presentation. Q4 must not reinterpret that fallback as an issuance date.
+    """
+
+    source = _enum_value(candidate.source)
+    if source == ActionMemorySource.LIBRARY.value:
+        issued_at = PersonalAssetVersion.objects.filter(pk=candidate.source_id).values_list("issued_at", flat=True).first()
+        return issued_at
+    if source == ActionMemorySource.JOURNEY_ARTIFACT.value:
+        uploaded_at = JourneyArtifact.objects.filter(pk=candidate.source_id).values_list("uploaded_at", flat=True).first()
+        return _relevant_date(uploaded_at)
+    if source == ActionMemorySource.PROOF.value:
+        issued_at = Proof.objects.filter(pk=candidate.source_id).values_list("issued_at", flat=True).first()
+        return _relevant_date(issued_at)
     return None
 
 
@@ -91,10 +111,11 @@ def _policies_for_source(assessment, candidate):
 
 
 def evaluate_trusted_reuse(*, assessment, candidate: ActionMemoryCandidate, actor, observed_at=None):
-    """Pure contextual evaluation of one Action Memory candidate.
+    """Evaluate one current Action Memory candidate without any business mutation.
 
-    The evaluator reads current canonical context but performs no mutation and never
-    opens a document payload. It has no title matching, fuzzy matching or score.
+    Reads are allowed so the decision can use canonical policy and source facts.
+    The evaluator never opens file payloads, never changes an Assessment, and uses
+    no title matching, fuzzy matching or score.
     """
 
     if not getattr(actor, "is_authenticated", False) or getattr(actor, "pk", None) is None:
@@ -215,7 +236,7 @@ def evaluate_trusted_reuse(*, assessment, candidate: ActionMemoryCandidate, acto
             )
 
     if policy.max_age_days is not None:
-        source_date = _relevant_date(candidate.relevant_at)
+        source_date = _source_date_for_candidate(candidate)
         if source_date is None:
             return _decision(
                 assessment=assessment,
@@ -298,8 +319,9 @@ def trusted_reuse_decisions_for_assessment(*, assessment, actor, observed_at=Non
 @dataclass(frozen=True)
 class TrustedReuseApplicationResult:
     decision: TrustedReuseDecision
-    journey_artifact_id: str
-    evidence_id: str
+    application_id: str
+    journey_artifact_id: str | None
+    evidence_id: str | None
     source_asset_version_id: str | None
 
 
@@ -319,12 +341,73 @@ def _existing_target_use(*, version, journey):
     )
 
 
+def _existing_application(*, assessment, source, source_id):
+    queryset = RequirementReuseApplication.objects.filter(assessment=assessment)
+    if source == RequirementReuseSource.LIBRARY:
+        return queryset.filter(source_asset_version_id=source_id).select_related("materialized_artifact", "evidence").first()
+    if source == RequirementReuseSource.JOURNEY_ARTIFACT:
+        return queryset.filter(source_journey_artifact_id=source_id).select_related("materialized_artifact", "evidence").first()
+    if source == RequirementReuseSource.PROOF:
+        return queryset.filter(source_proof_id=source_id).first()
+    return None
+
+
+def _result_from_application(application, decision):
+    source_version_id = application.source_asset_version_id or application.intermediate_asset_version_id
+    return TrustedReuseApplicationResult(
+        decision=decision,
+        application_id=str(application.pk),
+        journey_artifact_id=str(application.materialized_artifact_id) if application.materialized_artifact_id else None,
+        evidence_id=str(application.evidence_id) if application.evidence_id else None,
+        source_asset_version_id=str(source_version_id) if source_version_id else None,
+    )
+
+
+def _create_application(
+    *,
+    assessment,
+    policy,
+    candidate,
+    decision,
+    actor,
+    confirmed,
+    source_asset_version=None,
+    source_journey_artifact=None,
+    source_proof=None,
+    intermediate_asset_version=None,
+    materialized_artifact=None,
+    evidence=None,
+):
+    return RequirementReuseApplication.objects.create(
+        assessment=assessment,
+        policy=policy,
+        source_type=_enum_value(candidate.source),
+        source_asset_version=source_asset_version,
+        source_journey_artifact=source_journey_artifact,
+        source_proof=source_proof,
+        intermediate_asset_version=intermediate_asset_version,
+        decision=_enum_value(decision.decision),
+        reason_codes=[_enum_value(reason) for reason in decision.reasons],
+        freshness=decision.freshness or "",
+        sensitivity=decision.sensitivity or "",
+        source_status=candidate.status or "",
+        source_version=candidate.source_version,
+        confirmation_confirmed=bool(confirmed),
+        materialization_path=decision.materialization_path or "",
+        materialized_artifact=materialized_artifact,
+        evidence=evidence,
+        applied_by=actor,
+        observed_at=decision.observed_at,
+    )
+
+
 @transaction.atomic
 def apply_trusted_reuse(*, assessment, actor, candidate_source, candidate_source_id, confirmed=False):
-    """Revalidate and explicitly apply an acceptable document candidate.
+    """Revalidate current facts then apply only through canonical owner services.
 
-    Proof policies are evaluable, but Services currently has no canonical direct
-    Proof evidence relation. Q4 refuses to forge a JourneyArtifact for a Proof.
+    Documents are materialized through Q2 then submitted as Services Evidence. Proof
+    candidates are never converted into files: an acceptable Proof creates only the
+    minimal append-only Requirement reuse audit and leaves Assessment review unchanged.
     """
 
     if not getattr(actor, "is_authenticated", False) or getattr(actor, "pk", None) is None:
@@ -370,12 +453,39 @@ def apply_trusted_reuse(*, assessment, actor, candidate_source, candidate_source
         raise ValidationError("Ce candidat n’est plus réutilisable dans le contexte courant.")
     if decision.confirmation_required and confirmed is not True:
         raise ValidationError("Une confirmation explicite est requise avant toute transmission de cet élément.")
+    policy = RequirementReusePolicy.objects.get(pk=decision.policy_id, requirement=assessment.requirement)
+
+    existing_application = _existing_application(
+        assessment=assessment,
+        source=source,
+        source_id=candidate.source_id,
+    )
+    if existing_application is not None:
+        return _result_from_application(existing_application, decision)
+
     if source == ActionMemorySource.PROOF.value:
-        raise ValidationError(
-            "Cette Proof est contextuellement reconnue, mais Services ne possède pas de canal d’Evidence Proof direct ; aucune mutation n’a été effectuée."
+        proof = Proof.objects.select_for_update(of=("self",)).order_by().filter(
+            pk=candidate.source_id,
+            subject_profile_id=journey.beneficiary_id,
+            status=ProofStatus.ACTIVE,
+        ).first()
+        if proof is None:
+            raise ValidationError("Cette Proof n’est plus active dans le contexte courant.")
+        application = _create_application(
+            assessment=assessment,
+            policy=policy,
+            candidate=candidate,
+            decision=decision,
+            actor=actor,
+            confirmed=confirmed,
+            source_proof=proof,
         )
+        return _result_from_application(application, decision)
 
     source_version = None
+    source_artifact = None
+    primary_source_version = None
+    intermediate_version = None
     if source == ActionMemorySource.LIBRARY.value:
         source_version = (
             PersonalAssetVersion.objects.select_for_update(of=("self",))
@@ -390,6 +500,7 @@ def apply_trusted_reuse(*, assessment, actor, candidate_source, candidate_source
         )
         if source_version is None:
             raise PermissionDenied("La version de Bibliothèque n’est plus disponible.")
+        primary_source_version = source_version
     elif source == ActionMemorySource.JOURNEY_ARTIFACT.value:
         if _enum_value(candidate.materialization_path) != ActionMemoryMaterializationPath.JOURNEY_ARTIFACT_TO_PERSONAL_ASSET.value:
             raise PermissionDenied("Cet Artifact historique ne possède pas de chemin de réutilisation autorisé.")
@@ -414,6 +525,7 @@ def apply_trusted_reuse(*, assessment, actor, candidate_source, candidate_source
                 journey_artifact=source_artifact,
                 subject_profile=journey.beneficiary,
             )
+        intermediate_version = source_version
     else:
         raise ValidationError("Source Trusted Reuse non prise en charge.")
 
@@ -429,9 +541,17 @@ def apply_trusted_reuse(*, assessment, actor, candidate_source, candidate_source
             kind=candidate.kind,
         )
     evidence = submit_requirement_evidence(assessment=assessment, artifact=artifact, actor=actor)
-    return TrustedReuseApplicationResult(
+    application = _create_application(
+        assessment=assessment,
+        policy=policy,
+        candidate=candidate,
         decision=decision,
-        journey_artifact_id=str(artifact.pk),
-        evidence_id=str(evidence.pk),
-        source_asset_version_id=str(source_version.pk),
+        actor=actor,
+        confirmed=confirmed,
+        source_asset_version=primary_source_version,
+        source_journey_artifact=source_artifact,
+        intermediate_asset_version=intermediate_version,
+        materialized_artifact=artifact,
+        evidence=evidence,
     )
+    return _result_from_application(application, decision)
