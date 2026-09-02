@@ -64,6 +64,18 @@ class TrustedReusePolicyContractTests(TestCase):
         with self.assertRaises(ValidationError):
             policy.delete()
 
+    def test_published_policy_cannot_be_bulk_deleted(self):
+        policy = RequirementReusePolicy.objects.create(
+            requirement=self.requirement,
+            key="cv-bulk-delete-guard",
+            source_type=RequirementReuseSource.LIBRARY,
+            artifact_kind="cv",
+        )
+        OpportunityRevision.objects.filter(pk=self.revision.pk).update(published_at=timezone.now())
+        with self.assertRaises(ValidationError):
+            RequirementReusePolicy.objects.filter(pk=policy.pk).delete()
+        self.assertTrue(RequirementReusePolicy.objects.filter(pk=policy.pk).exists())
+
     def test_decision_contract_is_explainable_not_scored(self):
         decision = TrustedReuseDecision(
             requirement_id=str(self.requirement.pk),
