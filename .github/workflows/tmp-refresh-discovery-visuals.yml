@@ -1,0 +1,51 @@
+name: Temporary Discovery Visual Refresh
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [synchronize]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  refresh:
+    if: ${{ github.head_ref == 'fix/discovery-map-before-results' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Download authoritative CI visual diagnostics
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl --fail --location \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/9839065601/zip" \
+            --output /tmp/discovery-visuals.zip
+          mkdir -p /tmp/discovery-visuals
+          unzip -q /tmp/discovery-visuals.zip -d /tmp/discovery-visuals
+          light_actual="$(find /tmp/discovery-visuals -type f -name 'discovery-nearby-light-desktop-actual.png' -print -quit)"
+          dark_actual="$(find /tmp/discovery-visuals -type f -name 'discovery-nearby-dark-desktop-actual.png' -print -quit)"
+          test -n "${light_actual}"
+          test -n "${dark_actual}"
+          cp "${light_actual}" e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-light-desktop-chromium-desktop-linux.png
+          cp "${dark_actual}" e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png
+      - name: Commit intended visual baselines
+        run: |
+          git add \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-light-desktop-chromium-desktop-linux.png \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png
+          if git diff --cached --quiet; then
+            echo "Visual baselines already match."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Test: update nearby Discovery visual baselines"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
