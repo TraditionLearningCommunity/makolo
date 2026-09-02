@@ -1,0 +1,107 @@
+name: Q3 Action Memory validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+
+permissions:
+  contents: read
+
+jobs:
+  q3-targeted:
+    if: ${{ github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-q3-targeted-secret-key-not-used-in-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Check Q3 has no missing migrations
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+      - name: Run Q3 Action Memory tests first
+        run: >-
+          python manage.py test
+          personal_assets.test_q3_action_memory
+          personal_assets.test_q3_views
+      - name: Run Personal Action Capital Q1/Q2/Q3 regression suite
+        run: python manage.py test personal_assets
+      - name: Run relevant Journey, Trust, Requirements and Readiness regressions
+        run: >-
+          python manage.py test
+          journeys.tests
+          trust.tests
+          requirements
+          opportunities.test_task34a_requirements_kernel_consumer
+          services.test_task34a_requirements
+          readiness
+
+  q3-postgresql:
+    if: ${{ github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_ci_q3
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: makolo-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_ci_q3"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-q3-postgresql-secret-key-not-used-in-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_ci_q3
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: makolo-ci-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Check and migrate PostgreSQL
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --noinput
+      - name: Run Personal Action Capital Q1/Q2/Q3 on PostgreSQL
+        run: python manage.py test personal_assets
+      - name: Run relevant authorization and Journey collaboration on PostgreSQL
+        run: >-
+          python manage.py test
+          authorization.test_journey_access_scope
+          journeys.tests
+          trust.tests
+          requirements
+          services.test_task34a_requirements
