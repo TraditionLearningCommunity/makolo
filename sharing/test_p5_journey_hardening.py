@@ -29,9 +29,21 @@ User = get_user_model()
 
 
 def build_journey_share_fixture(*, suffix):
-    sender = User.objects.create_user(username=f"p5-race-sender-{suffix}", password="pass")
-    recipient = User.objects.create_user(username=f"p5-race-recipient-{suffix}", password="pass")
-    replacement = User.objects.create_user(username=f"p5-race-replacement-{suffix}", password="pass")
+    sender = User.objects.create_user(
+        username=f"p5-race-sender-{suffix}",
+        email=f"p5-race-sender-{suffix}@example.test",
+        password="pass",
+    )
+    recipient = User.objects.create_user(
+        username=f"p5-race-recipient-{suffix}",
+        email=f"p5-race-recipient-{suffix}@example.test",
+        password="pass",
+    )
+    replacement = User.objects.create_user(
+        username=f"p5-race-replacement-{suffix}",
+        email=f"p5-race-replacement-{suffix}@example.test",
+        password="pass",
+    )
     sender_profile = UserProfile.objects.create(user=sender, searchable=True)
     recipient_profile = UserProfile.objects.create(user=recipient, searchable=True)
     UserProfile.objects.create(user=replacement, searchable=True)
