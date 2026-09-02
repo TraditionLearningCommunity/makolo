@@ -20,12 +20,7 @@ from journeys.collaboration_models import (
     JourneyNoteVisibility,
     JourneyStep,
 )
-from journeys.collaboration_services import (
-    SAFE_MIME_TYPES,
-    create_artifact,
-    create_note,
-    validate_artifact_upload,
-)
+from journeys.collaboration_services import create_artifact, create_note, validate_artifact_upload
 from journeys.models import Journey
 
 from .inbound_models import InboundCapture, InboundCaptureSourceKind, InboundCaptureStatus
@@ -99,7 +94,11 @@ def _normalize_url(value):
     value = (value or "").strip()
     if not value or len(value) > 2048:
         raise ValidationError("URL invalide ou trop longue.")
-    parts = urlsplit(value)
+    try:
+        parts = urlsplit(value)
+        port = parts.port
+    except ValueError as exc:
+        raise ValidationError("URL invalide.") from exc
     if parts.scheme.lower() not in {"http", "https"} or not parts.hostname:
         raise ValidationError("Seules les URL http et https sont acceptées.")
     if parts.username or parts.password:
@@ -111,11 +110,23 @@ def _normalize_url(value):
         address = ipaddress.ip_address(host)
     except ValueError:
         address = None
-    if address and (address.is_private or address.is_loopback or address.is_link_local or address.is_reserved):
+    if address and (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+        or address.is_unspecified
+        or address.is_multicast
+    ):
         raise ValidationError("Cette adresse réseau n’est pas acceptée.")
     netloc = host
-    if parts.port:
-        netloc = f"{host}:{parts.port}"
+    if port:
+        if ":" in host:
+            netloc = f"[{host}]:{port}"
+        else:
+            netloc = f"{host}:{port}"
+    elif ":" in host:
+        netloc = f"[{host}]"
     return urlunsplit((parts.scheme.lower(), netloc, parts.path or "", parts.query or "", ""))
 
 
