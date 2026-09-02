@@ -12,6 +12,7 @@ from .trusted_reuse import apply_trusted_reuse, evaluate_trusted_reuse
 
 class TrustedReuseAuditQ4Tests(TrustedReuseQ4Tests.__bases__[0]):
     setUp = TrustedReuseQ4Tests.setUp
+    _add_requirement = TrustedReuseQ4Tests._add_requirement
     _assessment = TrustedReuseQ4Tests._assessment
     _asset_version = TrustedReuseQ4Tests._asset_version
     _candidate = TrustedReuseQ4Tests._candidate
