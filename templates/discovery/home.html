@@ -47,10 +47,20 @@
 
     {% if search_errors %}<section class="mk-panel border-l-4 p-4" role="alert"><p class="font-bold">Recherche à corriger</p>{% for error in search_errors %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ error }}</p>{% endfor %}</section>{% endif %}
 
-    <section class="flex flex-wrap items-end justify-between gap-3"><div><span class="mk-kicker">Résultats</span><h2 class="mt-2 text-2xl font-extrabold tracking-[-.04em]" aria-live="polite">{{ result_count }} résultat{{ result_count|pluralize }}</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Les horaires des activités planifiées sont affichés dans leur heure locale.</p></div>{% if nearby_active and map_items %}<div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-btn mk-btn-secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-btn mk-btn-ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>{% endif %}</section>
+    {% if nearby_active and map_items %}
+    <section class="space-y-3" aria-label="Contexte géographique de la recherche">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div><span class="mk-kicker">Autour de vous</span><p class="mt-2 text-sm font-semibold" style="color:var(--mk-muted)">Rayon {{ filters.radius_km|default:'10' }} km · {{ result_count }} résultat{{ result_count|pluralize }}</p></div>
+            <div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-btn mk-btn-secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-btn mk-btn-ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>
+        </div>
+        <section id="discovery-map-panel" class="hidden lg:block" aria-label="Carte des résultats"><div class="sticky top-24 overflow-hidden rounded-3xl border" style="position:static;border-color:var(--mk-border);background:var(--mk-surface-solid)"><div id="discovery-map" class="h-[62vh] min-h-[420px] w-full" style="height:clamp(220px,30vw,340px);min-height:0" aria-label="Carte MapLibre des résultats"></div><p id="discovery-map-fallback" class="hidden p-4 text-sm" style="color:var(--mk-muted)" role="status">La carte n’est pas disponible. La liste reste entièrement utilisable.</p></div></section>
+    </section>
+    {% endif %}
+
+    <section class="flex flex-wrap items-end justify-between gap-3"><div><span class="mk-kicker">Résultats</span><h2 class="mt-2 text-2xl font-extrabold tracking-[-.04em]" aria-live="polite">{{ result_count }} résultat{{ result_count|pluralize }}</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Les horaires des activités planifiées sont affichés dans leur heure locale.</p></div></section>
 
     <div class="grid gap-5 {% if nearby_active and map_items %}lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]{% endif %}">
-        <section id="discovery-list-panel" aria-label="Résultats de découverte" class="space-y-3">
+        <section id="discovery-list-panel" aria-label="Résultats de découverte" class="space-y-3"{% if nearby_active and map_items %} style="grid-column:1 / -1"{% endif %}>
             {% for item in service_items %}
             <article id="discovery-service-{{ item.service_id }}" data-discovery-result="service-{{ item.service_id }}" class="mk-panel p-5 transition sm:p-6">
                 <div class="flex flex-wrap items-start justify-between gap-3"><div><span class="mk-badge">{{ item.vertical_label }}</span><span class="ml-2 text-xs font-semibold" style="color:var(--mk-muted)">{{ item.service_kind }}</span>{% if item.opportunity_title %}<span class="ml-2 mk-badge mk-badge-brand">Pour {{ item.opportunity_title }}</span>{% endif %}</div><span class="mk-badge mk-badge-success">Disponible</span></div>
@@ -74,8 +84,6 @@
             {% if not service_items and not items %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucun résultat ne correspond à votre recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Modifiez les filtres ou revenez à Tout pour découvrir autre chose.</p><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4">Voir tout</a></div>{% endif %}
             {% if page_obj.paginator.num_pages > 1 %}<nav class="flex items-center justify-between gap-3 pt-2" aria-label="Pagination des résultats">{% if page_obj.has_previous %}<a class="mk-btn mk-btn-secondary" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Précédent</a>{% else %}<span></span>{% endif %}<span class="text-xs" style="color:var(--mk-muted)">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="mk-btn mk-btn-secondary" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Suivant</a>{% endif %}</nav>{% endif %}
         </section>
-
-        {% if nearby_active and map_items %}<section id="discovery-map-panel" class="hidden lg:block" aria-label="Carte des résultats"><div class="sticky top-24 overflow-hidden rounded-3xl border" style="border-color:var(--mk-border);background:var(--mk-surface-solid)"><div id="discovery-map" class="h-[62vh] min-h-[420px] w-full" aria-label="Carte MapLibre des résultats"></div><p id="discovery-map-fallback" class="hidden p-4 text-sm" style="color:var(--mk-muted)" role="status">La carte n’est pas disponible. La liste reste entièrement utilisable.</p></div></section>{% endif %}
     </div>
 </div>
 {% if nearby_active and map_items %}{{ map_items|json_script:"discovery-map-data" }}{{ map_config|json_script:"discovery-map-config" }}{% endif %}

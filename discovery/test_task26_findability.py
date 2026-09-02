@@ -113,7 +113,7 @@ class Task26FindabilityTests(TestCase):
         self.client.post(reverse("discovery:bookmark-toggle", args=[event.pk]))
         self.assertTrue(ActivityBookmark.objects.filter(user=self.participant, activity=activity).exists())
 
-    def test_discovery_is_list_first_and_map_is_nearby_only(self):
+    def test_discovery_map_precedes_nearby_results_and_is_nearby_only(self):
         self.activity_occurrence("Carte contextuelle", place=self.near_place)
         response = self.client.get(reverse("discovery:home"))
         self.assertEqual(response.status_code, 200)
@@ -126,7 +126,12 @@ class Task26FindabilityTests(TestCase):
         )
         self.assertTrue(nearby.context["nearby_active"])
         self.assertContains(nearby, 'id="discovery-map"')
+        self.assertContains(nearby, "Autour de vous")
         self.assertContains(nearby, "km")
+        self.assertLess(
+            nearby.content.index(b'id="discovery-map"'),
+            nearby.content.index(b'id="discovery-list-panel"'),
+        )
 
     def test_proximity_ordering_is_distance_first(self):
         near_activity, near = self.activity_occurrence(
