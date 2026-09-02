@@ -68,10 +68,10 @@ class Q2ControlledReuseTests(TestCase):
             use_personal_asset_version_in_journey(actor=self.other, personal_asset_version=self.v1, journey=self.other_journey)
 
     def test_journey_write_permission_is_still_required_for_non_beneficiary(self):
-        manager_asset = create_personal_asset(controller=self.manager, subject_profile=self.manager, title="Manager CV", kind=JourneyArtifactKind.CV)
-        manager_v1 = create_personal_asset_version(actor=self.manager, asset=manager_asset, uploaded_file=pdf_upload(b"manager"))
+        other_asset = create_personal_asset(controller=self.other, subject_profile=self.other, title="Other CV", kind=JourneyArtifactKind.CV)
+        other_v1 = create_personal_asset_version(actor=self.other, asset=other_asset, uploaded_file=pdf_upload(b"other"))
         with self.assertRaises(PermissionDenied):
-            use_personal_asset_version_in_journey(actor=self.manager, personal_asset_version=manager_v1, journey=self.journey)
+            use_personal_asset_version_in_journey(actor=self.other, personal_asset_version=other_v1, journey=self.journey)
 
     def test_journey_to_library_preserves_source_and_does_not_mutate_artifact(self):
         artifact = create_artifact(
