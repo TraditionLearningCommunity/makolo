@@ -183,17 +183,23 @@ def _sender_name(user):
 def _delivery_message(envelope):
     if envelope.subject_type == ShareSubjectType.OPPORTUNITY:
         return "opportunité"
+    if envelope.subject_type == ShareSubjectType.JOURNEY:
+        return "parcours"
     return "activité"
 
 
 def _create_delivery(*, envelope, recipient):
     delivery = ShareDelivery.objects.create(envelope=envelope, recipient=recipient)
+    if envelope.subject_type == ShareSubjectType.JOURNEY:
+        message = f"{_sender_name(envelope.created_by)} vous permet de repartir de son parcours."
+    else:
+        message = f"{_sender_name(envelope.created_by)} vous a partagé une {_delivery_message(envelope)}."
     create_notification(
         recipient=recipient.user,
         kind=NotificationKind.SYSTEM,
         category=NotificationCategory.SERVICE,
         title="Un partage Makolo pour vous",
-        message=f"{_sender_name(envelope.created_by)} vous a partagé une {_delivery_message(envelope)}.",
+        message=message,
         action_url=reverse("sharing:delivery", kwargs={"delivery_id": delivery.pk}),
         dedup_key=f"sharing-delivery:{delivery.pk}",
         metadata={"share_delivery_id": str(delivery.pk)},
@@ -291,8 +297,14 @@ def resolve_delivery_for_recipient(*, delivery_id, user, mark_opened=False):
         raise ShareUnavailable
     if delivery.envelope.subject_type == ShareSubjectType.ACTIVITY:
         resolve_activity_share_subject(delivery.envelope)
-    else:
+    elif delivery.envelope.subject_type == ShareSubjectType.OPPORTUNITY:
         resolve_opportunity_share_subject(delivery.envelope)
+    elif delivery.envelope.subject_type == ShareSubjectType.JOURNEY:
+        from .journey_reuse import resolve_journey_share_subject
+
+        resolve_journey_share_subject(delivery.envelope)
+    else:
+        raise ShareUnavailable
     if mark_opened and delivery.opened_at is None:
         now = timezone.now()
         ShareDelivery.objects.filter(pk=delivery.pk, opened_at__isnull=True).update(opened_at=now)
@@ -303,6 +315,8 @@ def resolve_delivery_for_recipient(*, delivery_id, user, mark_opened=False):
 @transaction.atomic
 def accept_share_delivery(*, delivery_id, user):
     delivery = resolve_delivery_for_recipient(delivery_id=delivery_id, user=user)
+    if delivery.envelope.subject_type == ShareSubjectType.JOURNEY:
+        raise ValidationError("Utilisez l’acceptation Journey dédiée pour ce partage.")
     if delivery.declined_at:
         raise ValidationError("Ce partage a déjà été ignoré.")
     if delivery.accepted_at is None:

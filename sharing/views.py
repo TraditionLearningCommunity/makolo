@@ -16,8 +16,16 @@ from activities.models import Activity, Occurrence
 from core.participant_selectors import participant_state_context
 from discovery.presentation import build_discovery_item, presenter_for
 from discovery.search import public_occurrences_for_activities
+from journeys.models import Journey
 from opportunities.models import Opportunity
 
+from .journey_reuse import (
+    accept_journey_share,
+    build_journey_share_snapshot,
+    create_direct_journey_share,
+    evaluate_journey_share,
+    resolve_journey_share_subject,
+)
 from .models import ShareIntent, ShareSubjectType
 from .services import (
     ShareUnavailable,
@@ -70,6 +78,24 @@ def _recipient_from_request(request):
         UserProfile.objects.select_related("user").filter(user__is_active=True),
         pk=recipient_id,
     )
+
+
+def _recipient_candidates(request):
+    query = (request.GET.get("q") or "").strip()
+    if len(query) < 2:
+        return query, []
+    profiles = (
+        UserProfile.objects.select_related("user")
+        .filter(user__is_active=True, searchable=True)
+        .exclude(user=request.user)
+        .filter(
+            Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__username__icontains=query)
+        )
+        .order_by("user__first_name", "user__last_name", "user__username")[:8]
+    )
+    return query, list(profiles)
 
 
 class ActivityShareCreateView(LoginRequiredMixin, View):
@@ -163,6 +189,78 @@ class OpportunityShareCreateView(LoginRequiredMixin, View):
         return JsonResponse(_share_payload(created, title=revision.title, text=revision.summary))
 
 
+class JourneyReuseShareView(LoginRequiredMixin, View):
+    login_url = "core:login"
+    template_name = "sharing/journey_reuse_preview.html"
+
+    def _journey(self, request, journey_id):
+        return get_object_or_404(
+            Journey.objects.select_related(
+                "activity",
+                "occurrence",
+                "beneficiary",
+                "initiated_by",
+                "service_context",
+                "service_context__service_plan_template",
+                "service_context__opportunity",
+                "service_context__opportunity_revision",
+            ),
+            pk=journey_id,
+        )
+
+    def _context(self, request, journey, *, error="", sent_to=""):
+        snapshot = build_journey_share_snapshot(journey=journey, actor=request.user)
+        query, candidates = _recipient_candidates(request)
+        return {
+            "journey": journey,
+            "snapshot": snapshot,
+            "counts": snapshot["counts"],
+            "excluded_policy": snapshot["excluded_policy"],
+            "query": query,
+            "candidates": candidates,
+            "error": error,
+            "sent_to": sent_to,
+        }
+
+    def get(self, request, journey_id):
+        journey = self._journey(request, journey_id)
+        try:
+            context = self._context(request, journey)
+        except PermissionDenied:
+            return render(request, "sharing/unavailable.html", status=403)
+        except ValidationError as exc:
+            return render(
+                request,
+                self.template_name,
+                {"journey": journey, "error": _validation_message(exc), "unshareable": True},
+                status=400,
+            )
+        return render(request, self.template_name, context)
+
+    def post(self, request, journey_id):
+        journey = self._journey(request, journey_id)
+        recipient = _recipient_from_request(request)
+        if recipient is None:
+            try:
+                context = self._context(request, journey, error="Choisissez une personne Makolo.")
+            except (PermissionDenied, ValidationError) as exc:
+                return render(request, self.template_name, {"journey": journey, "error": _validation_message(exc)}, status=400)
+            return render(request, self.template_name, context, status=400)
+        try:
+            create_direct_journey_share(created_by=request.user, recipient=recipient, journey=journey)
+            context = self._context(
+                request,
+                journey,
+                sent_to=recipient.user.full_name or recipient.user.username,
+            )
+        except PermissionDenied:
+            return render(request, "sharing/unavailable.html", status=403)
+        except ValidationError as exc:
+            context = {"journey": journey, "error": _validation_message(exc)}
+            return render(request, self.template_name, context, status=400)
+        return render(request, self.template_name, context)
+
+
 class ProfileSearchView(LoginRequiredMixin, View):
     login_url = "core:login"
 
@@ -238,21 +336,23 @@ class ShareLandingView(TemplateView):
                 }
             )
             return base
-        subject, opportunity, shared_revision, current_revision = resolve_opportunity_share_subject(envelope)
-        base.update(
-            {
-                "subject_kind": "opportunity",
-                "subject": subject,
-                "opportunity": opportunity,
-                "shared_revision": shared_revision,
-                "revision": current_revision,
-                "revision_changed": shared_revision.pk != current_revision.pk,
-                "page_title": current_revision.title,
-                "page_description": current_revision.summary or "Une Opportunity Makolo vous a été partagée.",
-                "cta_label": "Obtenir de l’aide" if envelope.intent == ShareIntent.START_JOURNEY else "Découvrir l’opportunité",
-            }
-        )
-        return base
+        if envelope.subject_type == ShareSubjectType.OPPORTUNITY:
+            subject, opportunity, shared_revision, current_revision = resolve_opportunity_share_subject(envelope)
+            base.update(
+                {
+                    "subject_kind": "opportunity",
+                    "subject": subject,
+                    "opportunity": opportunity,
+                    "shared_revision": shared_revision,
+                    "revision": current_revision,
+                    "revision_changed": shared_revision.pk != current_revision.pk,
+                    "page_title": current_revision.title,
+                    "page_description": current_revision.summary or "Une Opportunity Makolo vous a été partagée.",
+                    "cta_label": "Obtenir de l’aide" if envelope.intent == ShareIntent.START_JOURNEY else "Découvrir l’opportunité",
+                }
+            )
+            return base
+        raise ShareUnavailable
 
 
 class ShareActionView(View):
@@ -290,11 +390,13 @@ def _redirect_to_subject(request, envelope):
         if first_occurrence is not None:
             return redirect(presenter_for(first_occurrence).url(first_occurrence))
         return redirect("discovery:home")
-    _, opportunity, _, _ = resolve_opportunity_share_subject(envelope)
-    if envelope.intent == ShareIntent.START_JOURNEY:
-        destination = reverse("services:list")
-        return redirect(f"{destination}?{urlencode({'opportunity': opportunity.pk})}")
-    return redirect("opportunities:detail", pk=opportunity.pk)
+    if envelope.subject_type == ShareSubjectType.OPPORTUNITY:
+        _, opportunity, _, _ = resolve_opportunity_share_subject(envelope)
+        if envelope.intent == ShareIntent.START_JOURNEY:
+            destination = reverse("services:list")
+            return redirect(f"{destination}?{urlencode({'opportunity': opportunity.pk})}")
+        return redirect("opportunities:detail", pk=opportunity.pk)
+    raise ShareUnavailable
 
 
 class ShareDeliveryLandingView(LoginRequiredMixin, View):
@@ -316,10 +418,15 @@ class ShareDeliveryLandingView(LoginRequiredMixin, View):
 
     def _context(self, request, delivery):
         envelope = delivery.envelope
+        sender_name = (
+            (envelope.created_by.full_name or envelope.created_by.username)
+            if envelope.created_by
+            else "Une personne"
+        )
         context = {
             "delivery": delivery,
             "envelope": envelope,
-            "sender_name": envelope.created_by.full_name or envelope.created_by.username if envelope.created_by else "Une personne",
+            "sender_name": sender_name,
             "accept_url": reverse("sharing:delivery-accept", kwargs={"delivery_id": delivery.pk}),
             "decline_url": reverse("sharing:delivery-decline", kwargs={"delivery_id": delivery.pk}),
             "go_url": reverse("sharing:delivery-go", kwargs={"delivery_id": delivery.pk}),
@@ -336,7 +443,7 @@ class ShareDeliveryLandingView(LoginRequiredMixin, View):
                     "cta_label": "Participer" if envelope.intent == ShareIntent.PARTICIPATE else "Voir",
                 }
             )
-        else:
+        elif envelope.subject_type == ShareSubjectType.OPPORTUNITY:
             _, opportunity, _, revision = resolve_opportunity_share_subject(envelope)
             context.update(
                 {
@@ -348,6 +455,21 @@ class ShareDeliveryLandingView(LoginRequiredMixin, View):
                     "cta_label": "Commencer" if envelope.intent == ShareIntent.START_JOURNEY else "Découvrir",
                 }
             )
+        elif envelope.subject_type == ShareSubjectType.JOURNEY:
+            subject, source_journey = resolve_journey_share_subject(envelope)
+            evaluation = evaluate_journey_share(subject)
+            context.update(
+                {
+                    "subject_kind": "journey",
+                    "source_journey": source_journey,
+                    "page_title": source_journey.activity.title,
+                    "page_description": f"{sender_name} vous permet de repartir d’un chemin déjà préparé.",
+                    "cta_label": "Utiliser ce parcours",
+                    "journey_reuse": evaluation,
+                }
+            )
+        else:
+            raise ShareUnavailable
         context["actionable"] = envelope.intent != ShareIntent.VIEW
         return context
 
@@ -358,6 +480,8 @@ class ShareDeliveryGoView(LoginRequiredMixin, View):
     def get(self, request, delivery_id):
         try:
             delivery = resolve_delivery_for_recipient(delivery_id=delivery_id, user=request.user)
+            if delivery.envelope.subject_type == ShareSubjectType.JOURNEY:
+                return redirect("sharing:delivery", delivery_id=delivery.pk)
             return _redirect_to_subject(request, delivery.envelope)
         except PermissionDenied:
             return render(request, "sharing/unavailable.html", status=403)
@@ -370,6 +494,10 @@ class ShareDeliveryAcceptView(LoginRequiredMixin, View):
 
     def post(self, request, delivery_id):
         try:
+            delivery = resolve_delivery_for_recipient(delivery_id=delivery_id, user=request.user)
+            if delivery.envelope.subject_type == ShareSubjectType.JOURNEY:
+                result = accept_journey_share(delivery_id=delivery_id, user=request.user)
+                return redirect("core:participant-journey-detail", pk=result.journey.pk)
             delivery = accept_share_delivery(delivery_id=delivery_id, user=request.user)
             return _redirect_to_subject(request, delivery.envelope)
         except PermissionDenied:
@@ -397,8 +525,10 @@ class ShareQRView(View):
             envelope = resolve_share_link(token)
             if envelope.subject_type == ShareSubjectType.ACTIVITY:
                 resolve_activity_share_subject(envelope)
-            else:
+            elif envelope.subject_type == ShareSubjectType.OPPORTUNITY:
                 resolve_opportunity_share_subject(envelope)
+            else:
+                raise ShareUnavailable
         except ShareUnavailable as exc:
             raise Http404 from exc
         image = qrcode.make(share_public_url(token))

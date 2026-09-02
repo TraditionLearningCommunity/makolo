@@ -21,6 +21,7 @@ class ShareStatus(models.TextChoices):
 class ShareSubjectType(models.TextChoices):
     ACTIVITY = "activity", "Activity"
     OPPORTUNITY = "opportunity", "Opportunity"
+    JOURNEY = "journey", "Journey"
 
 
 class ShareEnvelope(models.Model):
@@ -209,3 +210,97 @@ class OpportunityShareSubject(models.Model):
 
     def __str__(self):
         return str(self.opportunity_revision or "Opportunity indisponible")
+
+
+class JourneyShareSubject(models.Model):
+    """Immutable, allowlist-first transport projection for a reusable Journey share."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    envelope = models.OneToOneField(
+        ShareEnvelope,
+        on_delete=models.CASCADE,
+        related_name="journey_subject",
+    )
+    source_journey = models.ForeignKey(
+        "journeys.Journey",
+        on_delete=models.SET_NULL,
+        related_name="share_subjects",
+        null=True,
+        blank=True,
+    )
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.envelope_id and self.envelope.subject_type != ShareSubjectType.JOURNEY:
+            errors["envelope"] = "L’enveloppe doit cibler une Journey."
+        if not isinstance(self.snapshot, dict):
+            errors["snapshot"] = "Le snapshot Journey doit être un objet JSON structuré."
+        elif self.snapshot.get("schema_version") != 1:
+            errors["snapshot"] = "Version de snapshot Journey non supportée."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            previous = JourneyShareSubject.objects.filter(pk=self.pk).values(
+                "envelope_id", "source_journey_id", "snapshot"
+            ).first()
+            current = {
+                "envelope_id": self.envelope_id,
+                "source_journey_id": self.source_journey_id,
+                "snapshot": self.snapshot,
+            }
+            if previous and previous != current:
+                raise ValidationError("Un snapshot Journey partagé est immuable. Créez un nouveau partage.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Journey share {self.source_journey_id or 'source indisponible'}"
+
+
+class JourneyShareAcceptance(models.Model):
+    """Functional provenance and idempotence boundary for Journey materialization."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    delivery = models.OneToOneField(
+        ShareDelivery,
+        on_delete=models.PROTECT,
+        related_name="journey_acceptance",
+    )
+    resulting_journey = models.OneToOneField(
+        "journeys.Journey",
+        on_delete=models.PROTECT,
+        related_name="share_origin",
+    )
+    accepted_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-accepted_at", "id"]
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            previous = JourneyShareAcceptance.objects.filter(pk=self.pk).values(
+                "delivery_id", "resulting_journey_id", "accepted_at"
+            ).first()
+            current = {
+                "delivery_id": self.delivery_id,
+                "resulting_journey_id": self.resulting_journey_id,
+                "accepted_at": self.accepted_at,
+            }
+            if previous and previous != current:
+                raise ValidationError("Une acceptation Journey est un lien d’audit immuable.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Une acceptation Journey auditée ne peut pas être supprimée.")
+
+    def __str__(self):
+        return f"{self.delivery_id} → {self.resulting_journey_id}"
