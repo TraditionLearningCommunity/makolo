@@ -22,7 +22,7 @@ User = get_user_model()
 @override_settings(MAKOLO_PUBLIC_BASE_URL="https://makolo.example")
 class SharingP5HardeningTests(TestCase):
     def setUp(self):
-        cache.clear(); self.sender = User.objects.create_user(username="p5-sender", password="pass"); self.recipient = User.objects.create_user(username="p5-recipient", password="pass"); self.other = User.objects.create_user(username="p5-other", password="pass")
+        cache.clear(); self.sender = User.objects.create_user(username="p5-sender", email="p5-sender@example.test", password="pass"); self.recipient = User.objects.create_user(username="p5-recipient", email="p5-recipient@example.test", password="pass"); self.other = User.objects.create_user(username="p5-other", email="p5-other@example.test", password="pass")
         self.sender_profile = UserProfile.objects.create(user=self.sender, searchable=True); self.recipient_profile = UserProfile.objects.create(user=self.recipient, searchable=True); self.other_profile = UserProfile.objects.create(user=self.other, searchable=True)
         self.activity = Activity.objects.create(owner_profile=self.sender, created_by=self.sender, title="P5 Activity", status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC)
         start = timezone.now() + timedelta(days=3); self.occurrence = Occurrence.objects.create(activity=self.activity, start_at=start, end_at=start + timedelta(hours=1), timezone="Africa/Lubumbashi", status=OccurrenceStatus.SCHEDULED)
@@ -41,7 +41,7 @@ class SharingP5HardeningTests(TestCase):
         profiles = [self.recipient_profile, self.other_profile]
         for index in range(12):
             if index >= len(profiles):
-                user = User.objects.create_user(username=f"p5-target-{index}", password="pass"); profiles.append(UserProfile.objects.create(user=user, searchable=True))
+                user = User.objects.create_user(username=f"p5-target-{index}", email=f"p5-target-{index}@example.test", password="pass"); profiles.append(UserProfile.objects.create(user=user, searchable=True))
             self.assertEqual(self.client.post(url, {"recipient_id": profiles[index].pk}).status_code, 200)
         response = self.client.post(url, {"recipient_id": profiles[-1].pk}); self.assertEqual(response.status_code, 429); self.assertIn("Réessayez", response.json()["error"])
 
