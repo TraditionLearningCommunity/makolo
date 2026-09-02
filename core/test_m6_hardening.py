@@ -21,6 +21,7 @@ from organizations.models import Organization
 from services.models import ServiceDetails, ServiceKind
 from transport.models import TransportMode, TransportRoute, TransportService
 
+from spatiotemporal.automation import reevaluate_journey_hazards
 from spatiotemporal.context import get_journey_spatiotemporal_context
 from spatiotemporal.hazards import get_action_advices, hazards_from_canonical_changes
 from spatiotemporal.notifications import notify_significant_journey_hazards
@@ -138,6 +139,18 @@ class M6HardeningTests(TestCase):
         self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 1)
         self.assertNotIn("latitude", first[0].metadata)
         self.assertNotIn("longitude", first[0].metadata)
+
+    def test_autopilot_adapter_is_bounded_and_idempotent(self):
+        activity, occurrence = self._activity_occurrence("Autopilot cancellation")
+        self._journey(activity, occurrence)
+        Occurrence.objects.filter(pk=occurrence.pk).update(status=OccurrenceStatus.CANCELLED)
+
+        first = reevaluate_journey_hazards(now=self.now, limit=10)
+        second = reevaluate_journey_hazards(now=self.now + timedelta(minutes=1), limit=10)
+
+        self.assertEqual(first["journeys_checked"], 1)
+        self.assertEqual(second["journeys_checked"], 1)
+        self.assertEqual(Notification.objects.filter(recipient=self.user).count(), 1)
 
     def test_event_service_transport_and_generic_activity_use_same_m6_projection(self):
         event_activity, event_occurrence = self._activity_occurrence("M6 Event")
