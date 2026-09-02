@@ -1,16 +1,19 @@
+from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.test import TestCase
 from django.utils import timezone
 
-from opportunities.models import Opportunity, OpportunityKind, OpportunityRequirement, OpportunityRequirementKind, OpportunityRevision
 from requirements.models import RequirementReusePolicy, RequirementReuseSource
 from requirements.trusted_reuse import TrustedReuseDecision, TrustedReuseDecisionCode, TrustedReuseReasonCode
 
 
 class TrustedReusePolicyContractTests(TestCase):
     def setUp(self):
-        opportunity = Opportunity.objects.create(kind=OpportunityKind.JOB)
+        Opportunity = apps.get_model("opportunities", "Opportunity")
+        OpportunityRevision = apps.get_model("opportunities", "OpportunityRevision")
+        OpportunityRequirement = apps.get_model("opportunities", "OpportunityRequirement")
+        opportunity = Opportunity.objects.create(kind="job")
         self.revision = OpportunityRevision.objects.create(
             opportunity=opportunity,
             version=1,
@@ -20,7 +23,7 @@ class TrustedReusePolicyContractTests(TestCase):
         )
         self.requirement = OpportunityRequirement.objects.create(
             revision=self.revision,
-            kind=OpportunityRequirementKind.DOCUMENT,
+            kind="document",
             title="Pièce documentaire",
         )
 
@@ -60,7 +63,7 @@ class TrustedReusePolicyContractTests(TestCase):
             source_type=RequirementReuseSource.LIBRARY,
             artifact_kind="cv",
         )
-        OpportunityRevision.objects.filter(pk=self.revision.pk).update(published_at=timezone.now())
+        self.revision.__class__.objects.filter(pk=self.revision.pk).update(published_at=timezone.now())
         policy.refresh_from_db()
         with self.assertRaises(ValidationError):
             policy.delete()
@@ -72,7 +75,7 @@ class TrustedReusePolicyContractTests(TestCase):
             source_type=RequirementReuseSource.LIBRARY,
             artifact_kind="cv",
         )
-        OpportunityRevision.objects.filter(pk=self.revision.pk).update(published_at=timezone.now())
+        self.revision.__class__.objects.filter(pk=self.revision.pk).update(published_at=timezone.now())
         # QuerySet.delete() owns an internal atomic block without a savepoint.
         # Isolate the expected signal exception so Django's TestCase transaction
         # remains usable for the assertion that the protected row still exists.
