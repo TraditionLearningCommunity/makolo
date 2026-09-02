@@ -63,7 +63,9 @@ class TrustLifecycleNotificationTests(TrustFixtureMixin, TestCase):
         revoke_proof(proof=proof, actor=self.staff, reason="source corrected")
 
         payload = " ".join(
-            Notification.objects.filter(recipient=self.participant).values_list("title", "message")
+            text
+            for row in Notification.objects.filter(recipient=self.participant).values_list("title", "message")
+            for text in row
         )
         self.assertNotIn("PRIVATE REPORT BODY", payload)
         self.assertNotIn("PRIVATE DISPUTE NOTE", payload)
