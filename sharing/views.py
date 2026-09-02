@@ -13,7 +13,7 @@ from django.views.generic import TemplateView
 from activities.models import Activity, Occurrence
 from core.participant_selectors import participant_state_context
 from discovery.presentation import build_discovery_item, presenter_for
-from discovery.search import public_occurrences
+from discovery.search import public_occurrences_for_activities
 from opportunities.models import Opportunity
 
 from .models import ShareIntent, ShareSubjectType
@@ -212,7 +212,7 @@ class ShareActionView(View):
             return redirect(item.cta_url or item.url)
         if occurrence is not None:
             return redirect(presenter_for(occurrence).url(occurrence))
-        first_occurrence = public_occurrences().filter(activity_id=activity.pk).order_by("start_at", "id").first()
+        first_occurrence = public_occurrences_for_activities([activity.pk]).first()
         if first_occurrence is not None:
             return redirect(presenter_for(first_occurrence).url(first_occurrence))
         return redirect("discovery:home")
