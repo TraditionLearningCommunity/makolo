@@ -8,7 +8,7 @@ from activities.models import Activity
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_space_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
-from organizations.models import Organization, OrganizationMembership
+from organizations.models import Organization, Team, TeamMembership
 
 from .forms import DossierLifecycleForm
 from .models import DossierJourneyLink, DossierLifecycle
@@ -58,7 +58,8 @@ class D1DossierFoundationTests(TestCase):
     def test_space_dossier_requires_mandate_membership_alone_is_not_authority(self):
         space = Organization.objects.create(name="Espace D1", created_by=self.owner)
         member = User.objects.create_user(username="d1-member", email="d1-member@example.test", password="StrongPass2026!")
-        OrganizationMembership.objects.create(organization=space, user=member, role="admin")
+        team = Team.objects.create(organization=space, name="Équipe D1", is_default=True)
+        TeamMembership.objects.create(team=team, user=member)
         with self.assertRaises(PermissionDenied):
             create_dossier(actor=member, owning_space=space, title="Interdit")
         grant_space_role(profile=self.owner, space=space, role=SystemRoleCode.SPACE_ADMIN, granted_by=self.owner)
@@ -97,6 +98,6 @@ class D1DossierFoundationTests(TestCase):
 
     def test_lifecycle_form_rejects_transition_outside_service_graph(self):
         dossier = create_dossier(actor=self.owner, owner_profile=self.owner, title="Lifecycle")
-        set_dossier_lifecycle(actor=self.owner, dossier=dossier, lifecycle=DossierLifecycle.ARCHIVED)
+        dossier = set_dossier_lifecycle(actor=self.owner, dossier=dossier, lifecycle=DossierLifecycle.ARCHIVED)
         form = DossierLifecycleForm({"lifecycle": DossierLifecycle.ACTIVE}, dossier=dossier)
         self.assertFalse(form.is_valid())
