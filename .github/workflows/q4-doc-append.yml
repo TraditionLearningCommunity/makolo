@@ -1,0 +1,139 @@
+name: Q4 architecture documentation append
+
+on:
+  push:
+    branches:
+      - capital/q4-trusted-reuse-hardening
+    paths:
+      - .github/workflows/q4-doc-append.yml
+
+permissions:
+  contents: write
+
+jobs:
+  append-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: capital/q4-trusted-reuse-hardening
+      - name: Append Q4 architecture and reconciliation checklist
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("docs/architecture/personal-action-capital.md")
+          text = path.read_text()
+          text = text.replace("# Personal Action Capital — Q1/Q2/Q3\n", "# Personal Action Capital — Q1/Q2/Q3/Q4\n", 1)
+          marker = "\n## Q4 — Trusted Reuse + Security / Hardening\n"
+          if marker not in text:
+              text += r'''
+
+## Q4 — Trusted Reuse + Security / Hardening
+
+Q4 starts from validated Q3 HEAD `3b740fe145b4001e29a89865ce52da1bd26bfbc4`. It remains stacked on Q3 and does not import Sharing or any commit from `main`.
+
+Trusted Reuse implements the contextual question **« parmi ce que Makolo connaît déjà, qu’est-ce qui est explicitement acceptable pour cette condition précise ? »**. No source has universal validity. Q4 consumes Q3 `ActionMemoryCandidate`; it does not create a second Action Memory or a parallel Requirement engine.
+
+### Policy ownership and persistence
+
+The acceptance policy belongs to the Requirement layer. `requirements.RequirementReusePolicy` is linked explicitly to one versioned `OpportunityRequirement`, not to `personal_assets`. It declares only structured facts needed by Q4: allowed source type, exact `JourneyArtifactKind` or exact `ProofType`, intrinsic-expiration requirement, optional explicit `max_age_days`, sensitive/restricted confirmation allowances, and whether human review remains required.
+
+Policies are immutable once the parent Opportunity revision is published. Changing acceptance semantics requires a new Requirement revision rather than rewriting history. Q4 deliberately does not use Requirement titles, descriptions, file names, fuzzy matching, embeddings or scores.
+
+Q4 adds two additive migrations in the new `requirements` migration stream:
+
+- `0001_trusted_reuse_policy` — contextual acceptance policy;
+- `0002_trusted_reuse_application` — privacy-safe append-only application audit.
+
+### Decision contract
+
+`requirements.trusted_reuse.TrustedReuseDecision` is a frozen, explainable result carrying Requirement/Assessment identity, exact candidate source identity, policy identity/key, decision, reason codes, freshness, sensitivity, confirmation requirement, materialization path and `observed_at`.
+
+Decision states are `NOT_APPLICABLE`, `UNKNOWN`, `NOT_ACCEPTABLE`, `ACCEPTABLE` and `ACCEPTABLE_WITH_CONFIRMATION`. `UNKNOWN` is a successful safety outcome when the repository lacks enough explicit policy or freshness facts.
+
+Stable reason codes include `reuse.no_policy`, `reuse.source_not_allowed`, `reuse.subject_mismatch`, `reuse.kind_mismatch`, `reuse.expired`, `reuse.not_expired`, `reuse.freshness_unknown`, `reuse.freshness_within_window`, `reuse.too_old`, `reuse.proof_revoked`, `reuse.proof_type_match`, `reuse.library_kind_match`, `reuse.journey_kind_match`, sensitivity/restricted allow-or-confirmation reasons, `reuse.current_requirement`, `reuse.historical_requirement`, `reuse.permission_denied`, `reuse.human_review_required` and `reuse.confirmation_required`.
+
+### Evaluation vs application
+
+`evaluate_trusted_reuse()` is read-only. It reloads current Assessment/Journey context, reuses canonical Journey authorization, verifies exact subject identity, selects only explicit policies, applies exact type/source/freshness/sensitivity rules and never opens file payloads or changes Assessment/Evidence/Readiness.
+
+`apply_trusted_reuse()` is transactionally separate. It locks the current Assessment, revalidates authentication, Journey write authority, Journey terminal state, current Requirement revision, existing Assessment state, Action Memory visibility, exact source identity/version, policy, freshness, Proof status and confirmation. A decision computed earlier is never trusted blindly.
+
+### Freshness
+
+Q4 preserves Q3 intrinsic freshness and may additionally apply a Requirement-declared age window. Intrinsic expiration and contextual age are separate facts. `max_age_days` uses a canonical source date only: Library `issued_at`, JourneyArtifact `uploaded_at`, or Proof `issued_at`. Q3 presentation fallback dates are not silently promoted into an issuance fact. Missing required source date yields `UNKNOWN`, not a guessed age.
+
+### Documents and materialization
+
+For a Library document, Q4 uses the exact current `PersonalAssetVersion`, then the existing Q2 `use_personal_asset_version_in_journey()` snapshot service. For a historical JourneyArtifact, Q4 follows the explicit Q3/Q2 path `JourneyArtifact → PersonalAssetVersion → target JourneyArtifact`; an old artifact is never linked directly as Evidence in another Journey.
+
+After materialization, Services `submit_requirement_evidence()` creates or reuses canonical `ServiceRequirementEvidence`. Trusted Reuse never calls `assess_requirement(... SATISFIED ...)`. Human-review policy remains visible in the decision and the normal owner-domain evidence/review lifecycle continues.
+
+### Proof support
+
+A Trust `Proof` remains a fact, never a file. Exact active `ProofType` can be accepted by policy. Revoked Proof is rejected on every evaluation/apply revalidation. Because `ServiceRequirementEvidence` is document/JourneyArtifact-specific, Q4 does not forge a JourneyArtifact for Proof. Instead an explicitly applied acceptable Proof creates only the minimal Requirement-owned audit and leaves the Assessment unchanged for the canonical downstream workflow.
+
+### Subject, authorization and confirmation
+
+Exact subject matching supports both Profile and `ExternalBeneficiary`. Controller remains the Library authorization root; subject never gains control. Current-Journey assignment does not reveal historical memory. Action Memory visibility, target-Journey authority, evidence submission and Requirement review remain distinct authorization layers.
+
+`SENSITIVE` and `RESTRICTED` sources are reusable only if the explicit policy permits their use with confirmation. Apply requires an explicit server-validated confirmation and then rechecks the exact candidate and permissions. GET/preview never transmits a payload.
+
+### Audit and privacy
+
+`RequirementReuseApplication` is append-only and owned by Requirements. It records canonical IDs/relations, policy, decision/reason codes, observed freshness/sensitivity/status/version, confirmation, actor/timestamps and resulting artifact/evidence when applicable. It intentionally stores no filename, storage URL/path, document content, extracted text or duplicate content hash.
+
+For document reuse, the complete audit remains reconstructable through the application row plus `PersonalAssetUse`, target JourneyArtifact and `ServiceRequirementEvidence`. For Proof, the application row records the exact Proof and observed status without producing fake document evidence.
+
+### TOCTOU, idempotence and concurrency
+
+Apply reconstructs Action Memory and re-evaluates all relevant facts under the current transaction. Archived assets, superseded/current-version changes, crossed expiration, revoked Proof, replaced Requirement revision, completed Assessment, closed Journey or removed permission block the mutation. Source v1 remains the exact source after later Library v2 creation.
+
+Per-Assessment/source uniqueness on `RequirementReuseApplication`, existing Q2 provenance/Evidence uniqueness and an Assessment row lock make retry idempotence explicit. PostgreSQL concurrency validation runs two simultaneous applies and requires convergence to one application, one materialization and one Evidence.
+
+### Trust PostgreSQL hardening
+
+Q4 preserves Trust transaction locks while scoping three nullable-join locks to `select_for_update(of=("self",))`. This avoids PostgreSQL attempting `FOR UPDATE` on the nullable side of `LEFT OUTER JOIN` while retaining the intended lock on `VerificationClaim` or `Report` itself.
+
+### Participant UX
+
+Services participant Requirements expose **« Voir ce que Makolo peut réutiliser »**. The contextual page uses product language: usable here, expired, freshness cannot be proven, source/type not accepted, revoked attestation, human review required, or confirmation required. Technical reason codes, policy IDs and scores are not presented. An explicit document POST may copy and submit Evidence; Proof remains a distinct attestation path.
+
+### Trusted Reuse vs Action Memory, Readiness and Sharing
+
+Action Memory answers what authorized history exists; Trusted Reuse answers contextual acceptability. Readiness remains a projection and gains no persisted Q4 state. Sharing remains outside Q4 ancestry: share/envelope/delivery/reuse-plan visibility is never treated as Requirement acceptance, PersonalAsset authority, Proof authority or Mandate.
+
+### Q final reconciliation checklist
+
+After Q4 is frozen, reconciliation must compare the exact HEAD Q4 with the **then-current** `main`; it must not rewrite Q4 ancestry. Review and compose at minimum:
+
+- `config/settings.py` — `personal_assets`, `requirements`, `sharing` app wiring and migration state;
+- `config/urls.py` and `services/urls.py` — Q routes plus current Sharing/Services routes;
+- global navigation and participant templates;
+- `templates/journeys/participant_journey_detail.html`;
+- `templates/services/participant_workspace.html` — Q3/Q4 Library/Action Memory/Trusted Reuse UI vs Sharing changes;
+- `personal_assets/` Q1-Q3 and Q4 consumers;
+- `requirements/` policy/application migrations and current horizontal contracts;
+- `services/trusted_reuse.py`, canonical evidence services, and current `services/reuse_services.py` from Sharing — keep their semantics separate;
+- Trust selectors/services, including the PostgreSQL lock hardening;
+- Readiness resolver/contributors without adding persisted Q state;
+- Sharing P1-P5, especially Journey reuse/inbound capture, without promoting Sharing into authority;
+- Domain Events — reuse existing owner events before adding any new event;
+- frontend source files and committed compiled assets;
+- all migration dependency graphs and fresh SQLite/PostgreSQL migration plans;
+- beta seed, CI workflows and full Django suite.
+
+Future smoke tests after reconciliation must cover visitor, authenticated participant, Library controller, controller ≠ subject, ExternalBeneficiary, Journey collaborator, Services operator, staff, Activity/Occurrence, Journey, Personal Assets, Action Memory, Trusted Reuse, Requirements, Proof, Readiness, Sharing, Access, Commerce/Payment when implicated, and absence of HTTP 500.
+
+The next train action after Q4 is **final Q reconciliation with current main and one controlled integration**, not Q5.
+'''
+          path.write_text(text)
+          PY
+      - name: Commit Q4 documentation
+        run: |
+          if git diff --quiet -- docs/architecture/personal-action-capital.md; then exit 0; fi
+          git config user.name "Gilbert243"
+          git config user.email "gilbert.bemwiz@fitforpurpose.tech"
+          git add docs/architecture/personal-action-capital.md
+          git commit -m "Q4: document Trusted Reuse and final reconciliation"
+          git push origin HEAD:capital/q4-trusted-reuse-hardening
