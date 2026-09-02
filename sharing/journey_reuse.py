@@ -155,6 +155,7 @@ def build_journey_share_snapshot(*, journey, actor):
 @transaction.atomic
 def create_direct_journey_share(*, created_by, recipient, journey, expires_at=None):
     _validate_direct_participants(created_by=created_by, recipient=recipient)
+    _require_shareable_source(journey, created_by)
     duplicate = _recent_duplicate_delivery(
         created_by=created_by, recipient=recipient, subject_type=ShareSubjectType.JOURNEY,
         intent=ShareIntent.START_JOURNEY, journey_id=journey.pk,
