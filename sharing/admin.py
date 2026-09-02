@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import ActivityShareSubject, OpportunityShareSubject, ShareEnvelope, ShareLink
+from .models import (
+    ActivityShareSubject,
+    OpportunityShareSubject,
+    ShareDelivery,
+    ShareEnvelope,
+    ShareLink,
+)
 
 
 @admin.register(ShareEnvelope)
@@ -28,6 +34,13 @@ class ShareLinkAdmin(admin.ModelAdmin):
     list_display = ("envelope", "token_fingerprint", "created_at")
     readonly_fields = ("envelope", "token_fingerprint", "created_at")
     fields = ("envelope", "token_fingerprint", "created_at")
+
+
+@admin.register(ShareDelivery)
+class ShareDeliveryAdmin(admin.ModelAdmin):
+    list_display = ("envelope", "recipient", "delivered_at", "opened_at", "accepted_at", "declined_at")
+    readonly_fields = ("envelope", "recipient", "delivered_at", "opened_at", "accepted_at", "declined_at")
+    search_fields = ("recipient__user__username", "recipient__user__first_name", "recipient__user__last_name")
 
 
 @admin.register(ActivityShareSubject)
