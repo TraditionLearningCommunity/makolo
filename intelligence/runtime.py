@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
 
 from .capabilities import IntelligenceCapability
@@ -31,11 +32,7 @@ def build_runtime_registry(*, capability: IntelligenceCapability, space=None, pr
         connection = route.connection
         try:
             secret = get_provider_secret(connection=connection)
-        except (ValueError, Exception) as exc:
-            # Credential/key-store failures make this route unusable. The gateway
-            # will continue with remaining routes or deterministic fallback.
-            if exc.__class__.__name__ == "ImproperlyConfigured":
-                continue
+        except (ValueError, ImproperlyConfigured):
             continue
         model = route.model.strip() or connection.default_model
         if connection.protocol == ProviderProtocol.OPENAI_COMPATIBLE:
