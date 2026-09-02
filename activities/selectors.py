@@ -3,7 +3,13 @@ from django.utils import timezone
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission
 
-from .models import Activity, ActivityStatus, Occurrence, OccurrencePlaceRole
+from .models import (
+    Activity,
+    ActivityStatus,
+    ActivityVisibility,
+    Occurrence,
+    OccurrencePlaceRole,
+)
 
 
 def activities_for_space(space):
@@ -29,6 +35,18 @@ def manageable_activities(profile):
     return queryset.filter(pk__in=ids)
 
 
+def publicly_visible_activities():
+    """Canonical public relay scope for an Activity outside an authenticated authority context."""
+    return (
+        Activity.objects.filter(
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        .exclude(space__verification_status="suspended")
+        .select_related("space", "owner_profile", "created_by")
+    )
+
+
 def occurrences_for_activity(activity):
     return Occurrence.objects.filter(activity=activity).prefetch_related("place_links__place")
 
@@ -50,7 +68,6 @@ def occurrence_with_places(pk):
 
 
 def primary_place_for_occurrence(occurrence):
-    """Return the canonical primary Place for one Occurrence, if any."""
     cached = getattr(occurrence, "_prefetched_objects_cache", {}).get("place_links")
     if cached is not None:
         link = next((row for row in cached if row.role == OccurrencePlaceRole.PRIMARY), None)
