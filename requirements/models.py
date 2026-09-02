@@ -5,7 +5,6 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
-from journeys.collaboration_models import JourneyArtifactKind
 from trust.models import ProofType
 
 
@@ -22,6 +21,11 @@ class RequirementReusePolicy(models.Model):
     which exact source/type can be considered by Trusted Reuse for this one
     OpportunityRequirement. The linked OpportunityRevision provides policy
     versioning: once published, both Requirement and policy are immutable.
+
+    ``artifact_kind`` deliberately stores the exact canonical source token without
+    importing the Journey domain into the horizontal Requirements kernel. Source
+    adapters are responsible for supplying canonical tokens; evaluation remains an
+    exact equality comparison and never falls back to title/description matching.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -32,7 +36,7 @@ class RequirementReusePolicy(models.Model):
     )
     key = models.SlugField(max_length=80)
     source_type = models.CharField(max_length=24, choices=RequirementReuseSource.choices)
-    artifact_kind = models.CharField(max_length=32, choices=JourneyArtifactKind.choices, blank=True)
+    artifact_kind = models.CharField(max_length=32, blank=True)
     proof_type = models.CharField(max_length=32, choices=ProofType.choices, blank=True)
     require_not_expired = models.BooleanField(default=True)
     max_age_days = models.PositiveIntegerField(null=True, blank=True)
