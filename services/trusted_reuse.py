@@ -184,6 +184,14 @@ def evaluate_trusted_reuse(*, assessment, candidate: ActionMemoryCandidate, acto
             reasons=(TrustedReuseReasonCode.KIND_MISMATCH, TrustedReuseReasonCode.CURRENT_REQUIREMENT),
             observed_at=observed_at,
         )
+    if len(exact_policies) != 1:
+        return _decision(
+            assessment=assessment,
+            candidate=candidate,
+            code=TrustedReuseDecisionCode.UNKNOWN,
+            reasons=(TrustedReuseReasonCode.POLICY_AMBIGUOUS, TrustedReuseReasonCode.CURRENT_REQUIREMENT),
+            observed_at=observed_at,
+        )
     policy = exact_policies[0]
     source = _enum_value(candidate.source)
     reasons = [TrustedReuseReasonCode.CURRENT_REQUIREMENT]
