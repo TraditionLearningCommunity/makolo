@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "trust.apps.TrustConfig",
     "social.apps.SocialConfig",
     "goals.apps.GoalsConfig",
+    "personal_assets.apps.PersonalAssetsConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime
