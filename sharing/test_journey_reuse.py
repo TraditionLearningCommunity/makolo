@@ -423,7 +423,7 @@ class JourneyReuseP3Tests(TestCase):
 
     def test_delivery_ui_shows_honest_reuse_language(self):
         created = self.direct_share()
-        self.client.login(username=self.recipient.username, password=self.password)
+        self.client.force_login(self.recipient)
         response = self.client.get(f"/shares/{created.delivery.pk}/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Utiliser ce parcours")

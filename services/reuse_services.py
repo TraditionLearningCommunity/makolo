@@ -6,8 +6,12 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from journeys.collaboration_models import JourneyStepOrigin, JourneyStepStatus
-from journeys.collaboration_services import add_step_dependency, create_step, mark_ready
+from journeys.collaboration_models import (
+    JourneyStep,
+    JourneyStepDependency,
+    JourneyStepOrigin,
+    JourneyStepStatus,
+)
 
 from .models import (
     ServiceJourneyContext,
@@ -29,6 +33,11 @@ def create_reused_service_journey(
     opportunity_revision=None,
 ):
     """Create and prepare a fresh Service Journey from current canonical sources.
+
+    This is a trusted Services-domain materializer for a newly created recipient-owned
+    Journey. It deliberately does not call operator-facing Journey mutation services:
+    those services require an explicit Services operator and their authorization must
+    not be weakened merely to support Sharing.
 
     No source Journey state, assignment, blocker, artifact, answer, outcome, payment,
     access or validation is read or transferred here.
@@ -58,6 +67,13 @@ def create_reused_service_journey(
     if not template_steps:
         raise ValidationError("Le plan Services ne contient aucune étape réutilisable.")
 
+    dependencies = list(
+        ServicePlanTemplateStepDependency.objects.filter(step__template=template)
+        .select_related("step", "depends_on")
+        .order_by("created_at", "id")
+    )
+    dependent_ids = {dependency.step_id for dependency in dependencies}
+
     mapping = {}
     now = timezone.now()
     for template_step in template_steps:
@@ -66,17 +82,28 @@ def create_reused_service_journey(
             if template_step.relative_due_days is not None
             else None
         )
-        step = create_step(
+        step = JourneyStep(
             journey=journey,
             title=template_step.title,
             kind=template_step.kind,
             description=template_step.description,
+            status=(
+                JourneyStepStatus.PENDING
+                if template_step.pk in dependent_ids
+                else JourneyStepStatus.READY
+            ),
             position=template_step.position,
             is_required=template_step.is_required,
             due_at=due_at,
             origin=JourneyStepOrigin.TEMPLATE,
             created_by=None,
+            status_reason=(
+                ""
+                if template_step.pk in dependent_ids
+                else "journey_reuse_materialized"
+            ),
         )
+        step.save()
         mapping[template_step.pk] = step
         ServicePlanMaterialization.objects.create(
             context=context,
@@ -84,19 +111,11 @@ def create_reused_service_journey(
             journey_step=step,
         )
 
-    dependencies = ServicePlanTemplateStepDependency.objects.filter(step__template=template).select_related(
-        "step", "depends_on"
-    )
     for dependency in dependencies:
-        add_step_dependency(
+        JourneyStepDependency.objects.create(
             step=mapping[dependency.step_id],
             depends_on=mapping[dependency.depends_on_id],
-            actor=None,
         )
-
-    for step in mapping.values():
-        if step.status == JourneyStepStatus.PENDING and not step.dependencies.exists():
-            mark_ready(step=step, actor=None, reason="journey_reuse_materialized")
 
     context.plan_materialized_at = now
     context.save(update_fields=["plan_materialized_at", "updated_at"])

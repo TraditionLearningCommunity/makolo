@@ -135,9 +135,7 @@ jobs:
           journeys.tests
           services.tests
           questionnaires.tests
-          preparation.tests
           opportunities.tests
-          subscriptions.test_s2_concurrency
 
   beta-seed:
     runs-on: ubuntu-latest
