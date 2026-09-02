@@ -19,14 +19,18 @@ from geography.models import Place
 from geography.value_objects import GeoPoint
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization
-
-from .context import get_journey_spatiotemporal_context
-from .hazards import get_action_advices, get_hazards
-from .mobility import get_mobility_context
-from .opportunities import get_last_minute_candidates
-from .providers import NoOpTrafficProvider, NoOpWeatherProvider, ProviderRegistry, RoutingProvider
-from .temporal import get_temporal_context
-from .types import RouteEstimate, TemporalState
+from spatiotemporal.context import get_journey_spatiotemporal_context
+from spatiotemporal.hazards import get_action_advices, get_hazards
+from spatiotemporal.mobility import get_mobility_context
+from spatiotemporal.opportunities import get_last_minute_candidates
+from spatiotemporal.providers import (
+    NoOpTrafficProvider,
+    NoOpWeatherProvider,
+    ProviderRegistry,
+    RoutingProvider,
+)
+from spatiotemporal.temporal import get_temporal_context
+from spatiotemporal.types import RouteEstimate, TemporalState
 
 
 User = get_user_model()
