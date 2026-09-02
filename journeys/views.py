@@ -17,7 +17,7 @@ EXTENSION_BY_MIME = {
 }
 
 
-@login_required
+@login_required(login_url="core:login")
 def download_artifact(request, artifact_id):
     artifact, decision = export_decision_for_artifact(
         actor=request.user,
