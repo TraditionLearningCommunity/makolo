@@ -140,7 +140,7 @@ def decide_verification(
     valid_until=None,
 ) -> VerificationClaim:
     _require_platform_reviewer(actor)
-    locked = VerificationClaim.objects.select_for_update().select_related("subject_space").get(pk=claim.pk)
+    locked = VerificationClaim.objects.select_for_update(of=("self",)).select_related("subject_space").get(pk=claim.pk)
     if locked.requested_by_id == actor.pk or locked.subject_profile_id == actor.pk:
         raise PermissionDenied("Une personne ne peut pas valider sa propre vérification.")
     target = VerificationStatus.VERIFIED if verified else VerificationStatus.REJECTED
@@ -173,7 +173,7 @@ def decide_verification(
 @transaction.atomic
 def revoke_verification(*, claim, actor, reason_code, private_note="") -> VerificationClaim:
     _require_platform_reviewer(actor)
-    locked = VerificationClaim.objects.select_for_update().select_related("subject_space").get(pk=claim.pk)
+    locked = VerificationClaim.objects.select_for_update(of=("self",)).select_related("subject_space").get(pk=claim.pk)
     if locked.status == VerificationStatus.REVOKED:
         return locked
     if locked.status != VerificationStatus.VERIFIED:
@@ -337,7 +337,7 @@ def resolve_report(*, report, actor, resolution_code, dismissed=False, private_n
 @transaction.atomic
 def open_dispute(*, report, actor) -> Dispute:
     _require_platform_reviewer(actor)
-    locked_report = Report.objects.select_for_update().select_related("journey", "activity", "space", "reporter").get(pk=report.pk)
+    locked_report = Report.objects.select_for_update(of=("self",)).select_related("journey", "activity", "space", "reporter").get(pk=report.pk)
     existing = Dispute.objects.select_for_update().filter(report=locked_report).first()
     if existing:
         return existing
