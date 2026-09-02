@@ -46,7 +46,7 @@ test('M4 verification, verified-experience feedback and Proof remain contextual'
   await openTrustJourneyFromHistory(page);
   await page.getByRole('link', { name: 'Voir mon attestation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Vérification', exact: true })).toBeVisible();
-  await expect(page.getByText('Journey accomplie', { exact: true })).toBeVisible();
+  await expect(page.locator('p').filter({ hasText: 'Type : Journey accomplie' })).toBeVisible();
 
   await page.goto('/trust/spaces/makolo-e2e-events/');
   await expect(page.getByText(/1 expériences sur 365 jours/)).toBeVisible();
