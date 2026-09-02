@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 from django.utils import timezone
@@ -11,8 +13,6 @@ from personal_assets.action_memory import ActionMemorySource
 from .models import ServiceRequirementEvidence
 from .test_q4_trusted_reuse import TrustedReuseQ4Tests
 from .trusted_reuse import apply_trusted_reuse, evaluate_trusted_reuse
-
-User = TrustedReuseQ4Tests.curator.field.model if hasattr(TrustedReuseQ4Tests, "curator") else None
 
 
 class TrustedReusePermissionWithdrawalQ4Tests(TestCase):
@@ -43,7 +43,7 @@ class TrustedReusePermissionWithdrawalQ4Tests(TestCase):
         _, version = self._asset_version(
             controller=collaborator,
             subject=self.beneficiary,
-            expires_at=timezone.localdate() + timezone.timedelta(days=30),
+            expires_at=timezone.localdate() + timedelta(days=30),
             text=b"permission-withdrawal",
         )
         assessment = self._assessment(self.doc_requirement)
