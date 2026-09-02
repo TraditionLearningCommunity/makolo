@@ -143,6 +143,30 @@ jobs:
           services.tests
           questionnaires.tests
           opportunities.tests
+      - name: Run Subscription PostgreSQL regressions triggered by P5 domains
+        run: >-
+          python manage.py test
+          subscriptions.tests
+          subscriptions.test_s2_runtime
+          subscriptions.test_s2_grant_regressions
+          subscriptions.test_s3_eligibility
+          subscriptions.test_s3_requirement_validation
+          requirements
+          subscriptions.test_s4_transitions
+          subscriptions.test_s4_validation
+          subscriptions.test_s4_payment_bridge
+          subscriptions.test_s4_preview
+          subscriptions.test_s5_security_events
+          subscriptions.test_s5_authorized_facade
+          notifications
+          automation
+          domain_events
+          authorization
+          subscriptions.test_s6_product_ux
+          subscriptions.test_s6_performance
+          analytics_app.test_subscription_analytics
+          subscriptions.test_s2_concurrency
+          subscriptions.test_s4_concurrency
 
   beta-seed:
     runs-on: ubuntu-latest
