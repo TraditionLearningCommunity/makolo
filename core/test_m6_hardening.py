@@ -19,6 +19,7 @@ from journeys.models import Journey, JourneyStatus, WorkflowKind
 from notifications.models import Notification
 from organizations.models import Organization
 from services.models import ServiceDetails, ServiceKind
+from transport.models import TransportMode, TransportRoute, TransportService
 
 from spatiotemporal.context import get_journey_spatiotemporal_context
 from spatiotemporal.hazards import get_action_advices, hazards_from_canonical_changes
@@ -138,25 +139,40 @@ class M6HardeningTests(TestCase):
         self.assertNotIn("latitude", first[0].metadata)
         self.assertNotIn("longitude", first[0].metadata)
 
-    def test_event_service_and_generic_activity_use_same_m6_projection(self):
+    def test_event_service_transport_and_generic_activity_use_same_m6_projection(self):
         event_activity, event_occurrence = self._activity_occurrence("M6 Event")
         Event.objects.create(activity=event_activity)
+
         service_activity, service_occurrence = self._activity_occurrence("M6 Service")
         ServiceDetails.objects.create(
             activity=service_activity,
             service_kind=ServiceKind.OTHER,
         )
+
+        route = TransportRoute.objects.create(
+            space=self.space,
+            code="M6-MULTI-VERTICAL",
+            name="M6 multi-vertical route",
+        )
+        transport_activity, transport_occurrence = self._activity_occurrence("M6 Transport")
+        TransportService.objects.create(
+            activity=transport_activity,
+            route=route,
+            mode=TransportMode.ROAD,
+        )
+
         generic_activity, generic_occurrence = self._activity_occurrence("M6 Generic")
 
         contexts = []
         for activity, occurrence, workflow in (
             (event_activity, event_occurrence, WorkflowKind.REGISTRATION),
             (service_activity, service_occurrence, WorkflowKind.SERVICE),
+            (transport_activity, transport_occurrence, WorkflowKind.RESERVATION),
             (generic_activity, generic_occurrence, WorkflowKind.REGISTRATION),
         ):
             journey = self._journey(activity, occurrence, workflow=workflow)
             contexts.append(get_journey_spatiotemporal_context(journey, now=self.now))
 
-        self.assertEqual([context["spatial"].place.pk for context in contexts], [self.place.pk] * 3)
+        self.assertEqual([context["spatial"].place.pk for context in contexts], [self.place.pk] * 4)
         self.assertTrue(all(context["temporal"].starts_in == timedelta(hours=2) for context in contexts))
         self.assertTrue(all(context["mobility"].status == "destination_only" for context in contexts))
