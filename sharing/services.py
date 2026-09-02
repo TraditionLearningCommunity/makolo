@@ -12,8 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import UserProfile
-from activities.models import Occurrence
-from activities.selectors import publicly_visible_activities
+from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence
 from discovery.search import get_public_occurrence
 from domain_events.contracts import DomainEventType
 from notifications.models import NotificationCategory, NotificationKind
@@ -72,6 +71,13 @@ def _validate_expiry(expires_at):
         raise ValidationError({"expires_at": "L’expiration doit être future."})
 
 
+def _public_activities():
+    return Activity.objects.filter(
+        status=ActivityStatus.PUBLISHED,
+        visibility=ActivityVisibility.PUBLIC,
+    ).exclude(space__verification_status="suspended")
+
+
 def _create_envelope(*, created_by, subject_type, intent, expires_at=None):
     _validate_expiry(expires_at)
     return ShareEnvelope.objects.create(
@@ -95,7 +101,7 @@ def _validate_activity(*, activity, occurrence, intent):
         raise ValidationError({"intent": "Participer exige une Occurrence précise."})
     if occurrence is not None and occurrence.activity_id != activity.pk:
         raise ValidationError({"occurrence": "L’Occurrence doit appartenir à l’Activity partagée."})
-    if not publicly_visible_activities().filter(pk=activity.pk).exists():
+    if not _public_activities().filter(pk=activity.pk).exists():
         raise ValidationError("Cette Activity n’est pas partageable.")
     if occurrence is not None:
         try:
@@ -303,7 +309,7 @@ def resolve_activity_share_subject(envelope):
         raise ShareUnavailable from exc
     if subject.activity_id is None:
         raise ShareUnavailable
-    activity = publicly_visible_activities().filter(pk=subject.activity_id).first()
+    activity = _public_activities().filter(pk=subject.activity_id).first()
     if activity is None:
         raise ShareUnavailable
     occurrence = None
