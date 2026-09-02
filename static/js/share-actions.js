@@ -18,16 +18,23 @@
 
   const bindShare = (root) => {
     const createUrl = root.dataset.createUrl;
+    const searchUrl = root.dataset.profileSearchUrl;
     const form = root.querySelector('form');
     const csrf = form?.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
     const intent = form?.querySelector('input[name="intent"]')?.value || '';
     const nativeButton = root.querySelector('[data-share-native]');
     const copyButton = root.querySelector('[data-share-copy]');
     const qrButton = root.querySelector('[data-share-qr-button]');
+    const internalButton = root.querySelector('[data-share-internal]');
+    const internalPanel = root.querySelector('[data-share-internal-panel]');
+    const personSearch = root.querySelector('[data-share-person-search]');
+    const personResults = root.querySelector('[data-share-person-results]');
     const qrPanel = root.querySelector('[data-share-qr-panel]');
     const qrImage = root.querySelector('[data-share-qr]');
     const feedback = root.querySelector('[data-share-feedback]');
     let shareDataPromise = null;
+    let searchTimer = null;
+    let sendingRecipient = null;
 
     if (!createUrl || !form) return;
     if (!navigator.share && nativeButton) nativeButton.hidden = true;
@@ -36,11 +43,15 @@
       if (feedback) feedback.textContent = message;
     };
 
-    const shareData = () => {
-      if (shareDataPromise) return shareDataPromise;
+    const bodyFor = (recipientId = '') => {
       const body = new URLSearchParams();
       if (intent) body.set('intent', intent);
-      shareDataPromise = fetch(createUrl, {
+      if (recipientId) body.set('recipient_id', recipientId);
+      return body;
+    };
+
+    const postShare = async (recipientId = '') => {
+      const response = await fetch(createUrl, {
         method: 'POST',
         credentials: 'same-origin',
         headers: {
@@ -48,17 +59,85 @@
           'X-CSRFToken': csrf,
           'X-Requested-With': 'XMLHttpRequest',
         },
-        body: body.toString(),
-      }).then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'share-failed');
-        return payload;
-      }).catch((error) => {
+        body: bodyFor(recipientId).toString(),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'share-failed');
+      return payload;
+    };
+
+    const shareData = () => {
+      if (shareDataPromise) return shareDataPromise;
+      shareDataPromise = postShare().catch((error) => {
         shareDataPromise = null;
         throw error;
       });
       return shareDataPromise;
     };
+
+    const renderPeople = (results) => {
+      if (!personResults) return;
+      personResults.replaceChildren();
+      results.forEach((person) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'mk-btn mk-btn-secondary';
+        button.setAttribute('role', 'option');
+        button.style.justifyContent = 'space-between';
+        button.textContent = person.username && person.username !== person.name
+          ? `${person.name} · @${person.username}`
+          : person.name;
+        button.addEventListener('click', async () => {
+          if (sendingRecipient) return;
+          sendingRecipient = person.id;
+          button.disabled = true;
+          setFeedback(`Envoi à ${person.name}…`);
+          try {
+            await postShare(person.id);
+            setFeedback('Partage envoyé.');
+            if (internalPanel) internalPanel.hidden = true;
+            if (personSearch) personSearch.value = '';
+            personResults.replaceChildren();
+          } catch (error) {
+            setFeedback(error.message || 'Impossible d’envoyer ce partage.');
+          } finally {
+            sendingRecipient = null;
+            button.disabled = false;
+          }
+        });
+        personResults.appendChild(button);
+      });
+      if (!results.length) setFeedback('Aucun Profil correspondant.');
+    };
+
+    internalButton?.addEventListener('click', () => {
+      if (!internalPanel) return;
+      internalPanel.hidden = !internalPanel.hidden;
+      if (!internalPanel.hidden) personSearch?.focus();
+    });
+
+    personSearch?.addEventListener('input', () => {
+      window.clearTimeout(searchTimer);
+      const query = personSearch.value.trim();
+      if (query.length < 2) {
+        personResults?.replaceChildren();
+        setFeedback('Saisissez au moins 2 caractères.');
+        return;
+      }
+      searchTimer = window.setTimeout(async () => {
+        try {
+          const response = await fetch(`${searchUrl}?q=${encodeURIComponent(query)}`, {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+          if (!response.ok) throw new Error('search-failed');
+          const payload = await response.json();
+          renderPeople(payload.results || []);
+        } catch (_error) {
+          setFeedback('Impossible de rechercher des Profils pour le moment.');
+        }
+      }, 220);
+    });
 
     nativeButton?.addEventListener('click', async () => {
       try {

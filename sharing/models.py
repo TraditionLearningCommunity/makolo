@@ -97,6 +97,52 @@ class ShareLink(models.Model):
         return f"ShareLink {self.token_fingerprint}"
 
 
+class ShareDelivery(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    envelope = models.ForeignKey(
+        ShareEnvelope,
+        on_delete=models.CASCADE,
+        related_name="deliveries",
+    )
+    recipient = models.ForeignKey(
+        "accounts.UserProfile",
+        on_delete=models.CASCADE,
+        related_name="share_deliveries_received",
+    )
+    delivered_at = models.DateTimeField(auto_now_add=True)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    declined_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-delivered_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["envelope", "recipient"],
+                name="sharing_delivery_unique_recipient",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(accepted_at__isnull=True) | models.Q(declined_at__isnull=True),
+                name="sharing_delivery_not_accept_and_decline",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["recipient", "delivered_at"], name="sharing_delivery_recipient_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.accepted_at and self.declined_at:
+            raise ValidationError("Un partage ne peut pas être accepté et ignoré à la fois.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.envelope} → {self.recipient}"
+
+
 class ActivityShareSubject(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     envelope = models.OneToOneField(

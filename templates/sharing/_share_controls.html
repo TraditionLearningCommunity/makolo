@@ -1,11 +1,18 @@
-<div class="mk-panel" data-makolo-share data-create-url="{{ create_url }}" data-share-title="{{ share_title }}" data-share-text="{{ share_text|default:'Un contenu Makolo vous a été partagé.' }}" style="padding:1rem">
+<div class="mk-panel" data-makolo-share data-create-url="{{ create_url }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ share_title }}" data-share-text="{{ share_text|default:'Un contenu Makolo vous a été partagé.' }}" style="padding:1rem">
   <form hidden aria-hidden="true">{% csrf_token %}{% if share_intent %}<input type="hidden" name="intent" value="{{ share_intent }}">{% endif %}</form>
   <details>
     <summary class="mk-btn mk-btn-secondary" style="cursor:pointer"><span aria-hidden="true">↗</span> Partager</summary>
     <div role="group" aria-label="Options de partage" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem">
-      <button type="button" class="mk-btn mk-btn-primary" data-share-native>Partager avec…</button>
+      <button type="button" class="mk-btn mk-btn-primary" data-share-internal>Envoyer dans Makolo</button>
+      <button type="button" class="mk-btn mk-btn-secondary" data-share-native>Partager avec…</button>
       <button type="button" class="mk-btn mk-btn-secondary" data-share-copy>Copier le lien</button>
       <button type="button" class="mk-btn mk-btn-ghost" data-share-qr-button>Afficher le QR</button>
+    </div>
+    <div data-share-internal-panel hidden style="margin-top:1rem">
+      <label for="share-person-{{ create_url|slugify }}" style="display:block;font-size:.875rem;font-weight:700">Rechercher une personne Makolo</label>
+      <input id="share-person-{{ create_url|slugify }}" type="search" autocomplete="off" class="mk-input" data-share-person-search placeholder="Nom ou identifiant public" style="margin-top:.5rem;width:100%">
+      <div data-share-person-results role="listbox" aria-label="Profils Makolo" style="display:grid;gap:.5rem;margin-top:.75rem"></div>
+      <p style="margin-top:.5rem;color:var(--mk-muted);font-size:.75rem">Seuls le nom de présentation et l’identifiant public sont affichés.</p>
     </div>
     <p role="status" aria-live="polite" data-share-feedback style="margin-top:.75rem;color:var(--mk-muted);font-size:.875rem;font-weight:600"></p>
     <div data-share-qr-panel hidden style="margin-top:1rem;text-align:center">

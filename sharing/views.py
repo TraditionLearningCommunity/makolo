@@ -3,13 +3,15 @@ from urllib.parse import urlencode
 
 import qrcode
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
+from accounts.models import UserProfile
 from activities.models import Activity, Occurrence
 from core.participant_selectors import participant_state_context
 from discovery.presentation import build_discovery_item, presenter_for
@@ -19,9 +21,14 @@ from opportunities.models import Opportunity
 from .models import ShareIntent, ShareSubjectType
 from .services import (
     ShareUnavailable,
+    accept_share_delivery,
     create_activity_share,
+    create_direct_activity_share,
+    create_direct_opportunity_share,
     create_opportunity_share,
+    decline_share_delivery,
     resolve_activity_share_subject,
+    resolve_delivery_for_recipient,
     resolve_opportunity_share_subject,
     resolve_share_link,
     share_public_url,
@@ -44,8 +51,25 @@ def _share_payload(created, *, title, text):
     }
 
 
+def _direct_payload(created):
+    return {
+        "message": "Partage envoyé.",
+        "delivery_url": reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk}),
+    }
+
+
 def _requested_intent(request, *, default):
     return (request.POST.get("intent") or default).strip()
+
+
+def _recipient_from_request(request):
+    recipient_id = (request.POST.get("recipient_id") or "").strip()
+    if not recipient_id:
+        return None
+    return get_object_or_404(
+        UserProfile.objects.select_related("user").filter(user__is_active=True),
+        pk=recipient_id,
+    )
 
 
 class ActivityShareCreateView(LoginRequiredMixin, View):
@@ -53,20 +77,25 @@ class ActivityShareCreateView(LoginRequiredMixin, View):
 
     def post(self, request, activity_id):
         activity = get_object_or_404(Activity, pk=activity_id)
+        recipient = _recipient_from_request(request)
         try:
+            if recipient:
+                created = create_direct_activity_share(
+                    created_by=request.user,
+                    recipient=recipient,
+                    activity=activity,
+                    intent=_requested_intent(request, default=ShareIntent.VIEW),
+                )
+                return JsonResponse(_direct_payload(created))
             created = create_activity_share(
                 created_by=request.user,
                 activity=activity,
                 intent=_requested_intent(request, default=ShareIntent.VIEW),
             )
-        except ValidationError as exc:
+        except (ValidationError, PermissionDenied) as exc:
             return JsonResponse({"error": _validation_message(exc)}, status=400)
         return JsonResponse(
-            _share_payload(
-                created,
-                title=activity.title,
-                text=activity.short_description or activity.description,
-            )
+            _share_payload(created, title=activity.title, text=activity.short_description or activity.description)
         )
 
 
@@ -75,14 +104,24 @@ class OccurrenceShareCreateView(LoginRequiredMixin, View):
 
     def post(self, request, occurrence_id):
         occurrence = get_object_or_404(Occurrence.objects.select_related("activity"), pk=occurrence_id)
+        recipient = _recipient_from_request(request)
         try:
+            if recipient:
+                created = create_direct_activity_share(
+                    created_by=request.user,
+                    recipient=recipient,
+                    activity=occurrence.activity,
+                    occurrence=occurrence,
+                    intent=_requested_intent(request, default=ShareIntent.VIEW),
+                )
+                return JsonResponse(_direct_payload(created))
             created = create_activity_share(
                 created_by=request.user,
                 activity=occurrence.activity,
                 occurrence=occurrence,
                 intent=_requested_intent(request, default=ShareIntent.VIEW),
             )
-        except ValidationError as exc:
+        except (ValidationError, PermissionDenied) as exc:
             return JsonResponse({"error": _validation_message(exc)}, status=400)
         return JsonResponse(
             _share_payload(
@@ -103,21 +142,56 @@ class OpportunityShareCreateView(LoginRequiredMixin, View):
         )
         if opportunity.current_revision is None:
             return JsonResponse({"error": "Cette Opportunity n’est pas partageable."}, status=400)
+        recipient = _recipient_from_request(request)
         try:
+            if recipient:
+                created = create_direct_opportunity_share(
+                    created_by=request.user,
+                    recipient=recipient,
+                    opportunity_revision=opportunity.current_revision,
+                    intent=_requested_intent(request, default=ShareIntent.START_JOURNEY),
+                )
+                return JsonResponse(_direct_payload(created))
             created = create_opportunity_share(
                 created_by=request.user,
                 opportunity_revision=opportunity.current_revision,
                 intent=_requested_intent(request, default=ShareIntent.START_JOURNEY),
             )
-        except ValidationError as exc:
+        except (ValidationError, PermissionDenied) as exc:
             return JsonResponse({"error": _validation_message(exc)}, status=400)
         revision = opportunity.current_revision
-        return JsonResponse(
-            _share_payload(
-                created,
-                title=revision.title,
-                text=revision.summary,
+        return JsonResponse(_share_payload(created, title=revision.title, text=revision.summary))
+
+
+class ProfileSearchView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def get(self, request):
+        query = (request.GET.get("q") or "").strip()
+        if len(query) < 2:
+            return JsonResponse({"results": []})
+        profiles = (
+            UserProfile.objects.select_related("user")
+            .filter(user__is_active=True, searchable=True)
+            .exclude(user=request.user)
+            .filter(
+                Q(user__first_name__icontains=query)
+                | Q(user__last_name__icontains=query)
+                | Q(user__username__icontains=query)
             )
+            .order_by("user__first_name", "user__last_name", "user__username")[:8]
+        )
+        return JsonResponse(
+            {
+                "results": [
+                    {
+                        "id": str(profile.pk),
+                        "name": profile.user.full_name or profile.user.username,
+                        "username": profile.user.username,
+                    }
+                    for profile in profiles
+                ]
+            }
         )
 
 
@@ -193,13 +267,13 @@ class ShareActionView(View):
             next_url = reverse("sharing:action", kwargs={"token": token})
             return redirect(f"{reverse('core:login')}?{urlencode({'next': next_url})}")
         try:
-            if envelope.subject_type == ShareSubjectType.ACTIVITY:
-                return self._activity_action(request, envelope)
-            return self._opportunity_action(envelope)
+            return _redirect_to_subject(request, envelope)
         except ShareUnavailable as exc:
             raise Http404 from exc
 
-    def _activity_action(self, request, envelope):
+
+def _redirect_to_subject(request, envelope):
+    if envelope.subject_type == ShareSubjectType.ACTIVITY:
         _, activity, occurrence = resolve_activity_share_subject(envelope)
         if envelope.intent == ShareIntent.PARTICIPATE:
             if occurrence is None:
@@ -216,13 +290,105 @@ class ShareActionView(View):
         if first_occurrence is not None:
             return redirect(presenter_for(first_occurrence).url(first_occurrence))
         return redirect("discovery:home")
+    _, opportunity, _, _ = resolve_opportunity_share_subject(envelope)
+    if envelope.intent == ShareIntent.START_JOURNEY:
+        destination = reverse("services:list")
+        return redirect(f"{destination}?{urlencode({'opportunity': opportunity.pk})}")
+    return redirect("opportunities:detail", pk=opportunity.pk)
 
-    def _opportunity_action(self, envelope):
-        _, opportunity, _, _ = resolve_opportunity_share_subject(envelope)
-        if envelope.intent == ShareIntent.START_JOURNEY:
-            destination = reverse("services:list")
-            return redirect(f"{destination}?{urlencode({'opportunity': opportunity.pk})}")
-        return redirect("opportunities:detail", pk=opportunity.pk)
+
+class ShareDeliveryLandingView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def get(self, request, delivery_id):
+        try:
+            delivery = resolve_delivery_for_recipient(
+                delivery_id=delivery_id,
+                user=request.user,
+                mark_opened=True,
+            )
+            context = self._context(request, delivery)
+        except PermissionDenied:
+            return render(request, "sharing/unavailable.html", status=403)
+        except ShareUnavailable:
+            return render(request, "sharing/unavailable.html", status=404)
+        return render(request, "sharing/delivery.html", context)
+
+    def _context(self, request, delivery):
+        envelope = delivery.envelope
+        context = {
+            "delivery": delivery,
+            "envelope": envelope,
+            "sender_name": envelope.created_by.full_name or envelope.created_by.username if envelope.created_by else "Une personne",
+            "accept_url": reverse("sharing:delivery-accept", kwargs={"delivery_id": delivery.pk}),
+            "decline_url": reverse("sharing:delivery-decline", kwargs={"delivery_id": delivery.pk}),
+            "go_url": reverse("sharing:delivery-go", kwargs={"delivery_id": delivery.pk}),
+        }
+        if envelope.subject_type == ShareSubjectType.ACTIVITY:
+            _, activity, occurrence = resolve_activity_share_subject(envelope)
+            context.update(
+                {
+                    "subject_kind": "activity",
+                    "activity": activity,
+                    "occurrence": occurrence,
+                    "page_title": activity.title,
+                    "page_description": activity.short_description or activity.description[:320],
+                    "cta_label": "Participer" if envelope.intent == ShareIntent.PARTICIPATE else "Voir",
+                }
+            )
+        else:
+            _, opportunity, _, revision = resolve_opportunity_share_subject(envelope)
+            context.update(
+                {
+                    "subject_kind": "opportunity",
+                    "opportunity": opportunity,
+                    "revision": revision,
+                    "page_title": revision.title,
+                    "page_description": revision.summary,
+                    "cta_label": "Commencer" if envelope.intent == ShareIntent.START_JOURNEY else "Découvrir",
+                }
+            )
+        context["actionable"] = envelope.intent != ShareIntent.VIEW
+        return context
+
+
+class ShareDeliveryGoView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def get(self, request, delivery_id):
+        try:
+            delivery = resolve_delivery_for_recipient(delivery_id=delivery_id, user=request.user)
+            return _redirect_to_subject(request, delivery.envelope)
+        except PermissionDenied:
+            return render(request, "sharing/unavailable.html", status=403)
+        except ShareUnavailable:
+            return render(request, "sharing/unavailable.html", status=404)
+
+
+class ShareDeliveryAcceptView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, delivery_id):
+        try:
+            delivery = accept_share_delivery(delivery_id=delivery_id, user=request.user)
+            return _redirect_to_subject(request, delivery.envelope)
+        except PermissionDenied:
+            return render(request, "sharing/unavailable.html", status=403)
+        except (ShareUnavailable, ValidationError):
+            return render(request, "sharing/unavailable.html", status=404)
+
+
+class ShareDeliveryDeclineView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, delivery_id):
+        try:
+            decline_share_delivery(delivery_id=delivery_id, user=request.user)
+        except PermissionDenied:
+            return render(request, "sharing/unavailable.html", status=403)
+        except (ShareUnavailable, ValidationError):
+            return render(request, "sharing/unavailable.html", status=404)
+        return redirect("notifications:list")
 
 
 class ShareQRView(View):
