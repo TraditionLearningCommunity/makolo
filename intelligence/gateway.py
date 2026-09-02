@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .contracts import IntelligenceRequest, IntelligenceResult
-from .exceptions import IntelligenceError
+from .exceptions import IntelligenceError, InvalidProviderResult
 from .registry import IntelligenceRegistry, get_intelligence_registry
 
 
@@ -21,9 +23,18 @@ class IntelligenceGateway:
             except IntelligenceError as exc:
                 last_reason = exc.__class__.__name__
                 continue
+
+            if not isinstance(result, IntelligenceResult):
+                last_reason = InvalidProviderResult.__name__
+                continue
+
             if result.available:
+                if not result.provider_key:
+                    result = replace(result, provider_key=provider.key)
                 return result
+
             last_reason = result.reason or last_reason
+
         return IntelligenceResult.unavailable(last_reason)
 
 
