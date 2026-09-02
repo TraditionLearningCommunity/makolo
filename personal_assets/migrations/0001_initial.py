@@ -3,8 +3,8 @@ import uuid
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
-import journeys.collaboration_models
 import journeys.storage
+import personal_assets.models
 
 
 class Migration(migrations.Migration):
@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("version", models.PositiveIntegerField(default=1)),
-                ("file", models.FileField(max_length=500, storage=journeys.storage.private_artifact_storage, upload_to=journeys.collaboration_models.journey_artifact_upload_to)),
+                ("file", models.FileField(max_length=500, storage=journeys.storage.private_artifact_storage, upload_to=personal_assets.models.personal_asset_version_upload_to)),
                 ("mime_type", models.CharField(max_length=180)),
                 ("size", models.PositiveBigIntegerField()),
                 ("content_hash", models.CharField(max_length=64)),
@@ -49,10 +49,10 @@ class Migration(migrations.Migration):
             ],
             options={"ordering": ["asset", "version", "created_at"]},
         ),
-        migrations.AddConstraint(model_name="personalasset", constraint=models.CheckConstraint(condition=models.Q(models.Q(("subject_external_beneficiary__isnull", True), ("subject_profile__isnull", False)), models.Q(("subject_external_beneficiary__isnull", False), ("subject_profile__isnull", True)), _connector="OR"), name="personal_asset_subject_xor")),
+        migrations.AddConstraint(model_name="personalasset", constraint=models.CheckConstraint(condition=(models.Q(subject_profile__isnull=False, subject_external_beneficiary__isnull=True) | models.Q(subject_profile__isnull=True, subject_external_beneficiary__isnull=False)), name="personal_asset_subject_xor")),
         migrations.AddIndex(model_name="personalasset", index=models.Index(fields=["controller", "archived_at"], name="pers_asset_ctrl_arch_idx")),
         migrations.AddConstraint(model_name="personalassetversion", constraint=models.UniqueConstraint(fields=("asset", "version"), name="personal_asset_version_unique")),
-        migrations.AddConstraint(model_name="personalassetversion", constraint=models.CheckConstraint(condition=models.Q(("version__gte", 1)), name="personal_asset_version_positive")),
+        migrations.AddConstraint(model_name="personalassetversion", constraint=models.CheckConstraint(condition=models.Q(version__gte=1), name="personal_asset_version_positive")),
         migrations.AddIndex(model_name="personalassetversion", index=models.Index(fields=["asset", "version"], name="pers_asset_ver_idx")),
         migrations.AddIndex(model_name="personalassetversion", index=models.Index(fields=["content_hash"], name="pers_asset_hash_idx")),
     ]
