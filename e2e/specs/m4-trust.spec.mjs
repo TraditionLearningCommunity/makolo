@@ -24,7 +24,7 @@ test('M4 verification, verified-experience feedback and Proof remain contextual'
   await expect(page.getByText(/Vérifiée/).first()).toBeVisible();
 
   await login(page, 'participant@e2e.makolo.test');
-  await page.goto('/me/journeys/');
+  await page.goto('/me/history/');
   await page.getByRole('link').filter({ hasText: 'Trust expérience E2E' }).first().click();
   await expect(page.getByRole('link', { name: 'Donner mon retour', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Voir mon attestation', exact: true })).toBeVisible();
@@ -36,7 +36,7 @@ test('M4 verification, verified-experience feedback and Proof remain contextual'
   await page.getByRole('button', { name: 'Envoyer mon retour', exact: true }).click();
   await expect(page.getByText('Votre retour d’expérience vérifiée a été enregistré.', { exact: true })).toBeVisible();
 
-  await page.goto('/me/journeys/');
+  await page.goto('/me/history/');
   await page.getByRole('link').filter({ hasText: 'Trust expérience E2E' }).first().click();
   await page.getByRole('link', { name: 'Voir mon attestation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Vérification', exact: true })).toBeVisible();
