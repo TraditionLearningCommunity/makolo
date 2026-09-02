@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.test import TestCase
 from django.utils import timezone
 
@@ -72,8 +73,12 @@ class TrustedReusePolicyContractTests(TestCase):
             artifact_kind="cv",
         )
         OpportunityRevision.objects.filter(pk=self.revision.pk).update(published_at=timezone.now())
+        # QuerySet.delete() owns an internal atomic block without a savepoint.
+        # Isolate the expected signal exception so Django's TestCase transaction
+        # remains usable for the assertion that the protected row still exists.
         with self.assertRaises(ValidationError):
-            RequirementReusePolicy.objects.filter(pk=policy.pk).delete()
+            with transaction.atomic():
+                RequirementReusePolicy.objects.filter(pk=policy.pk).delete()
         self.assertTrue(RequirementReusePolicy.objects.filter(pk=policy.pk).exists())
 
     def test_decision_contract_is_explainable_not_scored(self):
