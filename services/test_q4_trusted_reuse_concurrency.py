@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from threading import Barrier
 from unittest import skipUnless
 
@@ -28,7 +29,7 @@ class TrustedReuseConcurrencyPostgresTests(TransactionTestCase):
     _active_proof = TrustedReuseQ4Tests._active_proof
 
     def test_two_simultaneous_applies_create_one_materialization_and_one_evidence(self):
-        _, version = self._asset_version(expires_at=timezone.localdate() + timezone.timedelta(days=30))
+        _, version = self._asset_version(expires_at=timezone.localdate() + timedelta(days=30))
         assessment = self._assessment(self.doc_requirement)
         actor_id = self.beneficiary.pk
         assessment_id = assessment.pk
