@@ -1,0 +1,174 @@
+name: Q4 checkpoint validation
+
+on:
+  push:
+    branches:
+      - capital/q4-trusted-reuse-hardening
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-django:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: q4-full-django-checkpoint-key
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+          npm ci
+      - name: Build and verify frontend artifacts
+        run: |
+          npm run build
+          git diff --exit-code -- package-lock.json static/dist
+          git status --porcelain -- package-lock.json static/dist | tee /tmp/q4-frontend-status.txt
+          test ! -s /tmp/q4-frontend-status.txt
+          npm run check:runtime-deps
+      - name: Django and production checks
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --noinput
+      - name: Production security check
+        env:
+          DJANGO_ENV: production
+          DJANGO_DEBUG: "False"
+          DJANGO_SECRET_KEY: "q4-production-security-check-only-long-random-looking-secret-not-real"
+          DJANGO_ALLOWED_HOSTS: makolo.example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://makolo.example.test
+          MAKOLO_PUBLIC_BASE_URL: https://makolo.example.test
+          PAYMENTS_WEBHOOK_SECRET: q4-production-webhook-check-secret
+          DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+          DJANGO_SECURE_HSTS_PRELOAD: "True"
+        run: python manage.py check --deploy --fail-level WARNING
+      - name: Collect and validate static manifest
+        env:
+          DJANGO_ENV: production
+          DJANGO_DEBUG: "False"
+          DJANGO_SECRET_KEY: "q4-production-static-check-only-long-random-looking-secret-not-real"
+          DJANGO_ALLOWED_HOSTS: makolo.example.test
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://makolo.example.test
+          MAKOLO_PUBLIC_BASE_URL: https://makolo.example.test
+          PAYMENTS_WEBHOOK_SECRET: q4-production-webhook-check-secret
+          DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+          DJANGO_SECURE_HSTS_PRELOAD: "True"
+        run: |
+          rm -rf staticfiles
+          python manage.py collectstatic --noinput
+          python scripts/validate_static_manifest.py
+      - name: Run full Django test suite
+        run: python manage.py test
+
+  fresh-sqlite-beta-seed:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: q4-beta-sqlite-checkpoint-key
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DB_PATH: /tmp/makolo-q4-beta.sqlite3
+      MAKOLO_DEMO_PASSWORD: q4-beta-seed-password-not-production
+      BETA_AS_OF: "2026-08-21"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Fresh SQLite beta seed
+        run: |
+          rm -f "$DJANGO_DB_PATH"
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --plan
+          python manage.py migrate --noinput
+          python manage.py migrate --check
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+      - name: Verify seed idempotence and integrity
+        run: |
+          before="$(python manage.py shell -c 'from journeys.models import Journey; from services.models import ServiceSubmission; print(f"{Journey.objects.count()}:{ServiceSubmission.objects.count()}")' | tail -n 1)"
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+          after="$(python manage.py shell -c 'from journeys.models import Journey; from services.models import ServiceSubmission; print(f"{Journey.objects.count()}:{ServiceSubmission.objects.count()}")' | tail -n 1)"
+          test "$before" = "$after"
+          test "$(sqlite3 "$DJANGO_DB_PATH" 'PRAGMA integrity_check;')" = "ok"
+
+  fresh-postgresql-beta-seed:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_q4_beta
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: q4-beta-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_q4_beta"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: q4-beta-postgresql-checkpoint-key
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_q4_beta
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: q4-beta-postgres-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+      MAKOLO_DEMO_PASSWORD: q4-beta-seed-password-not-production
+      BETA_AS_OF: "2026-08-21"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Fresh PostgreSQL beta seed
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --plan
+          python manage.py migrate --noinput
+          python manage.py migrate --check
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+      - name: Verify PostgreSQL seed idempotence
+        run: |
+          before="$(python manage.py shell -c 'from journeys.models import Journey; from services.models import ServiceSubmission; print(f"{Journey.objects.count()}:{ServiceSubmission.objects.count()}")' | tail -n 1)"
+          python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
+          python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
+          after="$(python manage.py shell -c 'from journeys.models import Journey; from services.models import ServiceSubmission; print(f"{Journey.objects.count()}:{ServiceSubmission.objects.count()}")' | tail -n 1)"
+          test "$before" = "$after"
