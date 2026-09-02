@@ -62,6 +62,13 @@ class PersonalAssetVersion(models.Model):
     content_hash = models.CharField(max_length=64)
     issued_at = models.DateField(null=True, blank=True)
     expires_at = models.DateField(null=True, blank=True)
+    source_journey_artifact = models.ForeignKey(
+        "journeys.JourneyArtifact",
+        on_delete=models.PROTECT,
+        related_name="saved_personal_asset_versions",
+        null=True,
+        blank=True,
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_personal_asset_versions")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -100,3 +107,15 @@ class PersonalAssetVersion(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Une version de Ma Bibliothèque ne peut pas être supprimée silencieusement.")
+
+
+class PersonalAssetUse(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    asset_version = models.ForeignKey(PersonalAssetVersion, on_delete=models.PROTECT, related_name="journey_uses")
+    journey_artifact = models.OneToOneField("journeys.JourneyArtifact", on_delete=models.PROTECT, related_name="personal_asset_use")
+    used_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="personal_asset_uses")
+    used_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-used_at", "id"]
+        indexes = [models.Index(fields=["asset_version", "used_at"], name="pers_asset_use_ver_idx")]
