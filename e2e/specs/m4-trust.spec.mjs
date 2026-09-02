@@ -2,6 +2,14 @@ import { test, expect } from '../fixtures/makolo.mjs';
 import { login, logout } from '../helpers/auth.mjs';
 
 
+async function openTrustJourneyFromHistory(page) {
+  await page.goto('/me/history/');
+  const historyItem = page.locator('article').filter({ hasText: 'Trust expérience E2E' }).first();
+  await expect(historyItem.getByRole('heading', { name: 'Trust expérience E2E', exact: true })).toBeVisible();
+  await historyItem.getByRole('link', { name: 'Voir la démarche', exact: true }).click();
+}
+
+
 test('M4 verification, verified-experience feedback and Proof remain contextual', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
   await page.goto('/trust/spaces/makolo-e2e-events/verification/request/');
@@ -24,8 +32,7 @@ test('M4 verification, verified-experience feedback and Proof remain contextual'
   await expect(page.getByText(/Vérifiée/).first()).toBeVisible();
 
   await login(page, 'participant@e2e.makolo.test');
-  await page.goto('/me/history/');
-  await page.getByRole('link').filter({ hasText: 'Trust expérience E2E' }).first().click();
+  await openTrustJourneyFromHistory(page);
   await expect(page.getByRole('link', { name: 'Donner mon retour', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Voir mon attestation', exact: true })).toBeVisible();
 
@@ -36,8 +43,7 @@ test('M4 verification, verified-experience feedback and Proof remain contextual'
   await page.getByRole('button', { name: 'Envoyer mon retour', exact: true }).click();
   await expect(page.getByText('Votre retour d’expérience vérifiée a été enregistré.', { exact: true })).toBeVisible();
 
-  await page.goto('/me/history/');
-  await page.getByRole('link').filter({ hasText: 'Trust expérience E2E' }).first().click();
+  await openTrustJourneyFromHistory(page);
   await page.getByRole('link', { name: 'Voir mon attestation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Vérification', exact: true })).toBeVisible();
   await expect(page.getByText('Journey accomplie', { exact: true })).toBeVisible();
