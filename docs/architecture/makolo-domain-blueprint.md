@@ -1,12 +1,16 @@
 # Makolo — Domain Blueprint
 
 > **Statut : canonique pour la cible d'architecture.** Ce document fixe les concepts, frontières et invariants qui doivent guider les prochaines migrations. Il ne décrit pas un schéma Django déjà implémenté et ne remplace pas les contrats de sécurité existants tant que les migrations correspondantes ne sont pas terminées.
+>
+> La cible stratégique post-noyau, les 18 capacités retenues et leur regroupement en trains P→U sont répertoriés dans [`strategic-action-roadmap.md`](strategic-action-roadmap.md). Ce blueprint reste la source de vérité des frontières et invariants ; la roadmap décrit **ce que Makolo veut ensuite rendre possible** sans transformer chaque capacité produit en bounded context.
 
 ## 1. Vision et contraintes
 
 Makolo a d'abord été construit comme une plateforme événementielle multi-organisateurs, avec `Event`, `TicketType`, `TicketOrder` et `Ticket` au centre d'un socle déjà riche : organisations, paiements, scanner, CRM, promotions, automatisations et analytics.
 
 La cible est plus large : **Makolo marche pour vous.** Le produit orchestre à distance les démarches qui imposeraient autrement un déplacement physique inutile, afin que l'utilisateur se déplace idéalement seulement lorsque sa présence devient réellement nécessaire.
+
+Cette cible s'étend désormais au-delà de la préparation d'une Journey individuelle : Makolo doit progressivement capitaliser ce qui a déjà été préparé, orchestrer des objectifs composés entre plusieurs acteurs et accompagner l'exécution réelle d'une Occurrence, toujours par composition des domaines canoniques.
 
 Cela couvre notamment un concert, une conférence, une cérémonie, une inscription, une réservation, une invitation et, à terme, un trajet. Le paiement est une capacité utilisable par une Démarche, pas la finalité du produit.
 
@@ -389,6 +393,16 @@ Le système actuel sépare déjà correctement `is_staff` des rôles d'organisat
 
 L'ownership `Activity.owner_profile` ou `Activity.space` ne constitue pas un raccourci autour de `can()`. Lorsqu'un Profil crée personnellement une Activity, son autorité locale est matérialisée par un Mandat Activity ; un manager délégué reçoit de même un Mandat Activity. TeamMembership ou GroupMembership seules ne donnent aucune capacité de gestion.
 
+### Contexte d'action
+
+Les futures surfaces transversales (Dossier, Accueil contextuel, Occurrence Live) doivent distinguer :
+
+- **acteur** : le Profil humain qui agit ;
+- **contexte d'autorité** : en son nom ou pour quelle portée/Espace il agit ;
+- **bénéficiaire** : pour qui l'action produit le résultat.
+
+Ces trois dimensions peuvent être différentes. Elles ne justifient pas un type utilisateur global « participant » ou « organisateur » et ne doivent pas contourner la résolution Permission/Role/Mandate.
+
 ### Rôles standards
 
 Makolo doit fournir des rôles système lisibles (Administrateur d'Espace, Responsable activité, Finance, Marketing, Responsable accès, Responsable inscriptions, etc.). Ils remplacent progressivement les `TextChoices` figés comme source d'autorité.
@@ -672,6 +686,12 @@ Stabiliser les adapters de vocabulaire, composants et APIs qui présentent chaqu
 
 Recomposer les données demo multi-domaines, répéter les parcours complets, vérifier backups/PostgreSQL/PostGIS puis déployer progressivement.
 
+### 15. Trains stratégiques post-noyau P→U
+
+**Dépend de** : état réel du noyau Mature et des domaines canoniques consommés par chaque train.
+
+La livraison des capacités stratégiques post-noyau suit [`strategic-action-roadmap.md`](strategic-action-roadmap.md). Les 18 capacités n'impliquent pas 18 chantiers ni 18 apps ; elles sont regroupées en trains autonomes P→U et doivent être implémentées par composition, avec réconciliation du `main` réel avant intégration de chaque train complet.
+
 ---
 
 ## 14. Décisions externes / infrastructure
@@ -710,6 +730,17 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 17. **La géolocalisation est minimisée.** Une position ponctuelle de découverte n'est pas un historique de déplacements.
 18. **Ne pas conserver un modèle historique uniquement par peur de casser la bêta.** La migration doit être progressive et testée, mais la compatibilité est un pont, pas la cible.
 19. **Une nouvelle Activity possède exactement un opérateur logique : un Profil ou un Espace.** `created_by` conserve la provenance du Profil humain et ne constitue pas l'autorité ; celle-ci reste portée par les Mandats.
+20. **Une capacité produit n'est pas automatiquement un bounded context.** Les futures capacités P→U doivent réutiliser les domaines canoniques, projections et services avant d'ajouter des modèles.
+21. **Le contexte d'action distingue acteur, contexte d'autorité et bénéficiaire.** Aucun type utilisateur global participant/organisateur ne remplace ces relations.
+22. **Dossier orchestre plusieurs Journeys ; il ne possède pas de copies de Payment, Access, Capacity, JourneyStep ou Artifact.**
+23. **Projet est un horizon durable ; Dossier est un objectif actif.** Ni l'un ni l'autre ne doit devenir un task manager générique.
+24. **Bibliothèque, Action Memory et Trusted Reuse sont distincts.** Posséder/retrouver un élément ne signifie pas qu'il satisfait un Requirement.
+25. **Prepared Start, Collective Readiness et Operational Readiness restent des projections composées tant qu'aucun fait métier propriétaire ne justifie un état persistant.**
+26. **Live Queue n'est pas la Waitlist.** La première organise le tour de passage ; la seconde attend une disponibilité/capacité.
+27. **Placement répond à « où ? » ; Capacity répond à « combien ? ».**
+28. **Occurrence Live compose le réel et les domaines existants ; il n'est pas une seconde source de vérité opérationnelle.**
+29. **L'Accueil contextuel est une projection de ce qui compte maintenant, pas un FeedItem métier générique.**
+30. **Ripple n'a aucune définition canonique tant qu'une décision explicite ne l'établit pas.**
 
 ---
 
@@ -804,23 +835,25 @@ Il n'est pas nécessaire d'attendre la fin de l'UX Services ou le release gate T
 
 ### Invariants supplémentaires
 
-20. **Subscription appartient exactement à Profile XOR Space.**
-21. **Une Activity consomme les Entitlements de son opérateur logique ; une verticale ne possède pas sa propre Subscription.**
-22. **Permission, Entitlement et Requirement sont trois concepts différents.**
-23. **Un plan commercial configurable ne devient jamais une branche conditionnelle codée dans une verticale.**
-24. **Une PlanVersion publiée est immuable et une transition pinne sa version.**
-25. **Eligibility est dérivée à la demande ; une consultation ne crée pas d'Assessments persistants.**
-26. **Requirements généralise la mécanique sans relations métier polymorphes opaques.**
-27. **Les évaluateurs configurables sont déclarés par le code ; le Staff n'exécute aucun code arbitraire depuis la DB.**
-28. **Un downgrade de capacité ne supprime jamais automatiquement les données métier existantes.**
-29. **Payment et Verification restent leurs domaines canoniques ; Subscription les compose.**
-30. **Subscription n'utilise pas Journey comme workflow générique de changement de plan.**
+31. **Subscription appartient exactement à Profile XOR Space.**
+32. **Une Activity consomme les Entitlements de son opérateur logique ; une verticale ne possède pas sa propre Subscription.**
+33. **Permission, Entitlement et Requirement sont trois concepts différents.**
+34. **Un plan commercial configurable ne devient jamais une branche conditionnelle codée dans une verticale.**
+35. **Une PlanVersion publiée est immuable et une transition pinne sa version.**
+36. **Eligibility est dérivée à la demande ; une consultation ne crée pas d'Assessments persistants.**
+37. **Requirements généralise la mécanique sans relations métier polymorphes opaques.**
+38. **Les évaluateurs configurables sont déclarés par le code ; le Staff n'exécute aucun code arbitraire depuis la DB.**
+39. **Un downgrade de capacité ne supprime jamais automatiquement les données métier existantes.**
+40. **Payment et Verification restent leurs domaines canoniques ; Subscription les compose.**
+41. **Subscription n'utilise pas Journey comme workflow générique de changement de plan.**
 
 ---
 
 ## Lecture avec l'architecture existante
 
 Tant que les migrations ci-dessus ne sont pas réalisées, [`authorization-boundaries.md`](authorization-boundaries.md) reste la référence opérationnelle des permissions actuellement exécutées par le code. Le présent blueprint définit **où ces frontières doivent converger**, pas une autorisation déjà disponible dans le runtime.
+
+Pour la cible post-noyau et les trains P→U, [`strategic-action-roadmap.md`](strategic-action-roadmap.md) est la référence de planification canonique. Elle ne remplace pas les spécifications détaillées de chaque domaine et doit toujours être relue avec le code réel du `main`.
 
 Pour Subscriptions/Entitlements/Requirements, [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md) est la spécification détaillée de référence. Pour Services/Opportunity, [`services-opportunities.md`](services-opportunities.md) reste la spécification verticale détaillée ; [`services-implementation-plan.md`](services-implementation-plan.md) fixe désormais l'extraction Requirements comme T34A avant toute implémentation Subscription.
 
