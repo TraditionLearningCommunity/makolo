@@ -6,6 +6,10 @@ on:
       - capital/q4-trusted-reuse-hardening
   workflow_dispatch:
 
+concurrency:
+  group: q4-checkpoint-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
