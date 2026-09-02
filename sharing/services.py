@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from dataclasses import dataclass
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -14,10 +15,12 @@ from accounts.models import UserProfile
 from activities.models import Occurrence
 from activities.selectors import publicly_visible_activities
 from discovery.search import get_public_occurrence
+from domain_events.contracts import DomainEventType
 from notifications.models import NotificationCategory, NotificationKind
 from notifications.services import create_notification
 from opportunities.selectors import published_opportunities
 
+from .analytics import emit_share_event
 from .models import (
     ActivityShareSubject,
     OpportunityShareSubject,
@@ -33,6 +36,7 @@ from .models import (
 ACTIVITY_INTENTS = {ShareIntent.VIEW, ShareIntent.PARTICIPATE}
 OPPORTUNITY_INTENTS = {ShareIntent.VIEW, ShareIntent.START_JOURNEY}
 TOKEN_BYTES = 32
+DIRECT_DUPLICATE_WINDOW = timedelta(seconds=30)
 
 
 class ShareUnavailable(Exception):
@@ -132,11 +136,17 @@ def _create_opportunity_envelope(*, created_by, opportunity_revision, intent=Sha
         intent=intent,
         expires_at=expires_at,
     )
-    OpportunityShareSubject.objects.create(
-        envelope=envelope,
-        opportunity_revision=opportunity_revision,
-    )
+    OpportunityShareSubject.objects.create(envelope=envelope, opportunity_revision=opportunity_revision)
     return envelope
+
+
+def _emit_created(envelope, *, channel):
+    emit_share_event(
+        event_type=DomainEventType.SHARE_CREATED,
+        envelope=envelope,
+        idempotency_suffix="created",
+        channel=channel,
+    )
 
 
 @transaction.atomic
@@ -148,7 +158,9 @@ def create_activity_share(*, created_by, activity, occurrence=None, intent=Share
         intent=intent,
         expires_at=expires_at,
     )
-    return CreatedShare(envelope=envelope, raw_token=_attach_link(envelope))
+    raw_token = _attach_link(envelope)
+    _emit_created(envelope, channel="external_link")
+    return CreatedShare(envelope=envelope, raw_token=raw_token)
 
 
 @transaction.atomic
@@ -159,7 +171,9 @@ def create_opportunity_share(*, created_by, opportunity_revision, intent=ShareIn
         intent=intent,
         expires_at=expires_at,
     )
-    return CreatedShare(envelope=envelope, raw_token=_attach_link(envelope))
+    raw_token = _attach_link(envelope)
+    _emit_created(envelope, channel="external_link")
+    return CreatedShare(envelope=envelope, raw_token=raw_token)
 
 
 def _validate_direct_participants(*, created_by, recipient):
@@ -205,31 +219,71 @@ def _create_delivery(*, envelope, recipient):
         metadata={"share_delivery_id": str(delivery.pk)},
         queue_email=False,
     )
+    emit_share_event(
+        event_type=DomainEventType.SHARE_DELIVERED,
+        envelope=envelope,
+        idempotency_suffix=f"delivered:{delivery.pk}",
+        recipient_id=recipient.pk,
+        channel="direct_makolo" if envelope.subject_type != ShareSubjectType.JOURNEY else "journey_reuse",
+    )
     return delivery
+
+
+def _recent_duplicate_delivery(*, created_by, recipient, subject_type, intent, activity_id=None, occurrence_id=None, revision_id=None, journey_id=None):
+    cutoff = timezone.now() - DIRECT_DUPLICATE_WINDOW
+    qs = ShareDelivery.objects.select_related("envelope").filter(
+        recipient=recipient,
+        delivered_at__gte=cutoff,
+        envelope__created_by=created_by,
+        envelope__subject_type=subject_type,
+        envelope__intent=intent,
+        envelope__status=ShareStatus.ACTIVE,
+    )
+    if subject_type == ShareSubjectType.ACTIVITY:
+        qs = qs.filter(envelope__activity_subject__activity_id=activity_id, envelope__activity_subject__occurrence_id=occurrence_id)
+    elif subject_type == ShareSubjectType.OPPORTUNITY:
+        qs = qs.filter(envelope__opportunity_subject__opportunity_revision_id=revision_id)
+    elif subject_type == ShareSubjectType.JOURNEY:
+        qs = qs.filter(envelope__journey_subject__source_journey_id=journey_id)
+    return qs.order_by("-delivered_at").first()
 
 
 @transaction.atomic
 def create_direct_activity_share(*, created_by, recipient, activity, occurrence=None, intent=ShareIntent.VIEW, expires_at=None):
     _validate_direct_participants(created_by=created_by, recipient=recipient)
-    envelope = _create_activity_envelope(
+    occurrence = _validate_activity(activity=activity, occurrence=occurrence, intent=intent)
+    duplicate = _recent_duplicate_delivery(
         created_by=created_by,
-        activity=activity,
-        occurrence=occurrence,
+        recipient=recipient,
+        subject_type=ShareSubjectType.ACTIVITY,
         intent=intent,
-        expires_at=expires_at,
+        activity_id=activity.pk,
+        occurrence_id=occurrence.pk if occurrence else None,
     )
+    if duplicate:
+        return CreatedDirectShare(envelope=duplicate.envelope, delivery=duplicate)
+    envelope = _create_envelope(created_by=created_by, subject_type=ShareSubjectType.ACTIVITY, intent=intent, expires_at=expires_at)
+    ActivityShareSubject.objects.create(envelope=envelope, activity=activity, occurrence=occurrence)
+    _emit_created(envelope, channel="direct_makolo")
     return CreatedDirectShare(envelope=envelope, delivery=_create_delivery(envelope=envelope, recipient=recipient))
 
 
 @transaction.atomic
 def create_direct_opportunity_share(*, created_by, recipient, opportunity_revision, intent=ShareIntent.VIEW, expires_at=None):
     _validate_direct_participants(created_by=created_by, recipient=recipient)
-    envelope = _create_opportunity_envelope(
+    _validate_opportunity(opportunity_revision=opportunity_revision, intent=intent)
+    duplicate = _recent_duplicate_delivery(
         created_by=created_by,
-        opportunity_revision=opportunity_revision,
+        recipient=recipient,
+        subject_type=ShareSubjectType.OPPORTUNITY,
         intent=intent,
-        expires_at=expires_at,
+        revision_id=opportunity_revision.pk,
     )
+    if duplicate:
+        return CreatedDirectShare(envelope=duplicate.envelope, delivery=duplicate)
+    envelope = _create_envelope(created_by=created_by, subject_type=ShareSubjectType.OPPORTUNITY, intent=intent, expires_at=expires_at)
+    OpportunityShareSubject.objects.create(envelope=envelope, opportunity_revision=opportunity_revision)
+    _emit_created(envelope, channel="direct_makolo")
     return CreatedDirectShare(envelope=envelope, delivery=_create_delivery(envelope=envelope, recipient=recipient))
 
 
@@ -301,13 +355,18 @@ def resolve_delivery_for_recipient(*, delivery_id, user, mark_opened=False):
         resolve_opportunity_share_subject(delivery.envelope)
     elif delivery.envelope.subject_type == ShareSubjectType.JOURNEY:
         from .journey_reuse import resolve_journey_share_subject
-
         resolve_journey_share_subject(delivery.envelope)
     else:
         raise ShareUnavailable
     if mark_opened and delivery.opened_at is None:
         now = timezone.now()
-        ShareDelivery.objects.filter(pk=delivery.pk, opened_at__isnull=True).update(opened_at=now)
+        if ShareDelivery.objects.filter(pk=delivery.pk, opened_at__isnull=True).update(opened_at=now):
+            emit_share_event(
+                event_type=DomainEventType.SHARE_OPENED,
+                envelope=delivery.envelope,
+                idempotency_suffix=f"opened:{delivery.pk}",
+                recipient_id=profile.pk,
+            )
         delivery.opened_at = now
     return delivery
 
@@ -322,6 +381,12 @@ def accept_share_delivery(*, delivery_id, user):
     if delivery.accepted_at is None:
         delivery.accepted_at = timezone.now()
         delivery.save(update_fields=["accepted_at"])
+        emit_share_event(
+            event_type=DomainEventType.SHARE_ACCEPTED,
+            envelope=delivery.envelope,
+            idempotency_suffix=f"accepted:{delivery.pk}",
+            recipient_id=delivery.recipient_id,
+        )
     return delivery
 
 
@@ -333,16 +398,19 @@ def decline_share_delivery(*, delivery_id, user):
     if delivery.declined_at is None:
         delivery.declined_at = timezone.now()
         delivery.save(update_fields=["declined_at"])
+        emit_share_event(
+            event_type=DomainEventType.SHARE_DECLINED,
+            envelope=delivery.envelope,
+            idempotency_suffix=f"declined:{delivery.pk}",
+            recipient_id=delivery.recipient_id,
+        )
     return delivery
 
 
 @transaction.atomic
 def revoke_share_link(*, envelope, actor=None):
     if actor is not None:
-        allowed = bool(
-            getattr(actor, "is_authenticated", False)
-            and (getattr(actor, "is_staff", False) or envelope.created_by_id == actor.pk)
-        )
+        allowed = bool(getattr(actor, "is_authenticated", False) and (getattr(actor, "is_staff", False) or envelope.created_by_id == actor.pk))
         if not allowed:
             raise PermissionDenied("Vous ne pouvez pas révoquer ce partage.")
     if envelope.status == ShareStatus.REVOKED:
@@ -350,4 +418,9 @@ def revoke_share_link(*, envelope, actor=None):
     envelope.status = ShareStatus.REVOKED
     envelope.revoked_at = timezone.now()
     envelope.save(update_fields=["status", "revoked_at", "updated_at"])
+    emit_share_event(
+        event_type=DomainEventType.SHARE_REVOKED,
+        envelope=envelope,
+        idempotency_suffix="revoked",
+    )
     return envelope
