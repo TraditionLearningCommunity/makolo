@@ -1,6 +1,6 @@
 # Makolo — Strategic Action Roadmap
 
-> **Statut : canonique pour la cible produit/architecture après le noyau Mature.** Ce document complète [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md). Il répertorie les capacités stratégiques retenues, explique comment elles se composent avec les domaines canoniques et les regroupe en trains d'implémentation. Il **ne décrit pas le runtime déjà livré** : le code, les migrations et les tests du `main` courant restent la vérité sur ce qui existe effectivement.
+> **Statut : canonique pour la cible produit/architecture après le noyau Mature.** Ce document complète [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md). Il répertorie les capacités stratégiques retenues, explique comment elles se composent avec les domaines canoniques et les regroupe en trains d'implémentation. Le séquencement de clôture M7→M10 et le handoff vers le programme mobile A sont définis dans [`mature-program-roadmap.md`](mature-program-roadmap.md). Il **ne décrit pas le runtime déjà livré** : le code, les migrations et les tests du `main` courant restent la vérité sur ce qui existe effectivement.
 
 ## 1. Intention
 
@@ -209,20 +209,20 @@ Les vérités canoniques restent notamment `Activity`, `Occurrence`, `Journey`, 
 - **Type** : extension d'expérience et de résilience.
 - **Problème** : les informations essentielles peuvent devenir indisponibles précisément au moment où la connectivité se dégrade.
 - **Promesse** : **« Les éléments essentiels restent disponibles dans les limites du contrat de sécurité. »**
-- **Mécanisme** : paquet local borné de données nécessaires : instructions, contexte, représentation d'Access compatible, placement et documents explicitement choisis. Le vrai scanner offline reste un problème séparé plus exigeant.
+- **Mécanisme** : T prépare le contrat backend/offline-ready : données nécessaires, provenance, sensibilité, expiration, révocation et éventuelle synchronisation sûre. Le stockage local natif, le background sync OS et le vrai protocole scanner offline appartiennent au programme mobile **A4** ; T ne les réimplémente pas dans Django ou le navigateur.
 - **Domaines** : Access, Occurrence, ActivityResource, Bibliothèque/JourneyArtifact, Placement.
 - **Défensibilité** : fiabilité de l'expérience dans des environnements réels difficiles.
-- **Train** : **T**.
+- **Train** : **T** pour les contrats backend/web ; **A4** pour les garanties natives/offline spécialisées.
 
 ### 18. Accueil contextuel — ce qui compte maintenant
 
 - **Type** : convergence UX, pas bounded context.
 - **Problème** : un accueil générique oblige l'utilisateur à chercher la prochaine action ; un feed générique optimise l'attention plutôt que l'accomplissement.
 - **Promesse** : **« Ouvrez Makolo et voyez ce qui mérite votre attention maintenant, personnellement ou pour l'Espace dans lequel vous agissez. »**
-- **Mécanisme** : projection hiérarchisée de Readiness/NextAction, Dossiers, Journeys, Assignments, Occurrences, Hazards M6, Notifications et opérations autorisées.
+- **Mécanisme** : projection hiérarchisée de Readiness/NextAction, Dossiers, Journeys, Assignments, Occurrences, Hazards M6, Notifications et opérations autorisées. R construit les règles/projections de préparation ; **M8 compose la surface web Cockpit** et le mobile la consomme ensuite sans créer une seconde vérité.
 - **Domaines** : Readiness, M5/M6, Journey, Dossier, Occurrence, authorization, Notifications.
 - **Défensibilité** : capacité à déterminer la prochaine action utile à partir de faits structurés.
-- **Train** : **R**, puis enrichissement **T**.
+- **Train** : **R**, puis composition web **M8** et enrichissement opérationnel **T**.
 
 ## 4. Trains d'implémentation
 
@@ -232,9 +232,9 @@ Les 18 capacités sont regroupées en six trains stratégiques. Un train peut ê
 |---|---|---|
 | **P — Sharing** | Faire circuler l'action | Sharing P1→P5 |
 | **Q — Capital d'action personnel** | Ne plus recommencer | Bibliothèque, Action Memory, fondation Trusted Reuse |
-| **R — Préparation intelligente** | Savoir ce qui est prêt et anticiper | Prepared Start, Proactive Preparation, Accueil contextuel |
+| **R — Préparation intelligente** | Savoir ce qui est prêt et anticiper | Prepared Start, Proactive Preparation, contrats de l'Accueil contextuel |
 | **S — Objectifs & collaboration** | Accomplir des objectifs composés, seul ou ensemble | Dossier, Projet, Structured Handoff, Collective Readiness |
-| **T — Occurrence Operations** | Préparer et orchestrer le réel | Operational Readiness, Occurrence Live, Placement, Live Queue, Checkpoints/Flow, Offline Action Pack |
+| **T — Occurrence Operations** | Préparer et orchestrer le réel | Operational Readiness, Occurrence Live, Placement, Live Queue, Checkpoints/Flow, contrats Offline Action Pack |
 | **U — Intelligence cumulative** | Faire apprendre les actions précédentes aux suivantes | Proven Paths, Trusted Reuse avancé, analytics d'action/opérations |
 
 ### Train P
@@ -263,17 +263,15 @@ intégration unique de Q
 
 Q reste autonome de P : il peut lire les contrats Sharing pour éviter une collision architecturale, mais ne dépend pas d'une branche P non intégrée.
 
-### Trains R et S
+### Trains R, S et T
 
-Après les fondations Q, R et S peuvent avancer largement en parallèle. R exploite Requirements/Readiness/Memory ; S exploite Journey/Assignments/Mandates et introduit le contenant d'objectif composé.
+Le diagramme de dépendances ci-dessous reste conceptuel. **Le séquencement de livraison par défaut est défini par [`mature-program-roadmap.md`](mature-program-roadmap.md)** : après la convergence P+Q et M7, R puis S puis T-core doivent être stabilisés avant le gate d'assemblage M8 si ces capacités font partie du premier web Mature.
 
-### Train T
-
-T peut préparer `Operational Readiness` et `Placement` dès que le contrat de contexte d'action est clair. Il réutilise le scanner canonique, AccessUse, Capacity, M6 spatio-temporel et les permissions existantes au lieu de reconstruire un système terrain parallèle.
+Des branches peuvent se chevaucher uniquement lorsqu'un audit de collision démontre une indépendance réelle ; le parallélisme maximal n'est plus le défaut.
 
 ### Train U
 
-U doit être construit lorsque suffisamment de données réelles existent. Proven Paths et l'intelligence opérationnelle ne doivent pas prétendre apprendre de la démo comme s'il s'agissait d'une population représentative.
+U doit être construit lorsque suffisamment de données réelles existent. Proven Paths et l'intelligence opérationnelle ne doivent pas prétendre apprendre de la démo comme s'il s'agissait d'une population représentative. **U ne bloque pas M8, M10 ni le programme mobile.**
 
 ## 5. Dépendances principales
 
@@ -294,7 +292,7 @@ R — Préparation    S — Objectifs & collaboration
        U — Intelligence cumulative
 ```
 
-Cette figure exprime les dépendances conceptuelles, pas une obligation de sérialiser toutes les branches.
+Cette figure exprime les dépendances conceptuelles entre capacités. Elle ne remplace pas les gates de livraison M7→M10 définis dans `mature-program-roadmap.md`.
 
 ## 6. Contexte d'action transversal
 
@@ -442,3 +440,35 @@ Pour P, Q et les trains similaires :
 - aucune suppression/affaiblissement de test pour obtenir du vert.
 
 Chaque train doit documenter son état réel, ses SHA/checkpoints et ses limites dans sa documentation d'implémentation ; cette roadmap conserve uniquement la cible stable.
+
+## 17. Coordination avec Makolo Mature et le programme mobile
+
+La colonne vertébrale de clôture est définie dans [`mature-program-roadmap.md`](mature-program-roadmap.md).
+
+Ordre de référence actuel :
+
+```text
+P + Q intégrés
+      ↓
+M7 — Interoperability / Connections / Extensions
+      ↓
+R — Préparation intelligente
+      ↓
+S — Dossiers / Projets / collaboration
+      ↓
+T-core — Occurrence Operations backend/web
+      ↓
+M8 — Mature Web Experience
+      ↓
+M9 — Hardening & Quality Gate
+      ↓
+M10 — Production Readiness & Mobile Handoff
+      ↓
+A1→A4 — Mobile natif
+```
+
+M8 est donc un **gate d'assemblage** : il doit consommer les capacités structurantes destinées au premier web Mature au lieu d'être immédiatement suivi d'un second redesign pour intégrer R/S/T.
+
+U reste non bloquant et peut mûrir avec les données réelles après la Release Candidate.
+
+Les capacités réellement spécifiques au device — push natif, biométrie, caméra/scanner natif, share sheet, contacts système, GPS background, geofencing, widgets, Live Activities, background tasks et protocole scanner offline — restent dans le programme A. Les règles métier qu'elles consomment restent côté backend Makolo.
