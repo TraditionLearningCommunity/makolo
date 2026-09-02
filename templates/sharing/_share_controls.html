@@ -1,0 +1,16 @@
+<div class="mk-panel" data-makolo-share data-create-url="{{ create_url }}" data-share-title="{{ share_title }}" data-share-text="{{ share_text|default:'Un contenu Makolo vous a été partagé.' }}" style="padding:1rem">
+  <form hidden aria-hidden="true">{% csrf_token %}{% if share_intent %}<input type="hidden" name="intent" value="{{ share_intent }}">{% endif %}</form>
+  <details>
+    <summary class="mk-btn mk-btn-secondary" style="cursor:pointer"><span aria-hidden="true">↗</span> Partager</summary>
+    <div role="group" aria-label="Options de partage" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem">
+      <button type="button" class="mk-btn mk-btn-primary" data-share-native>Partager avec…</button>
+      <button type="button" class="mk-btn mk-btn-secondary" data-share-copy>Copier le lien</button>
+      <button type="button" class="mk-btn mk-btn-ghost" data-share-qr-button>Afficher le QR</button>
+    </div>
+    <p role="status" aria-live="polite" data-share-feedback style="margin-top:.75rem;color:var(--mk-muted);font-size:.875rem;font-weight:600"></p>
+    <div data-share-qr-panel hidden style="margin-top:1rem;text-align:center">
+      <img data-share-qr alt="QR du lien de partage Makolo" style="width:12rem;height:12rem;margin:auto;border-radius:1rem;background:white;padding:.5rem">
+      <p style="margin-top:.5rem;color:var(--mk-muted);font-size:.75rem">Ce QR contient uniquement le lien de partage Makolo.</p>
+    </div>
+  </details>
+</div>
