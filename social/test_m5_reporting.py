@@ -17,9 +17,21 @@ User = get_user_model()
 
 class M5ReportingBridgeTests(TestCase):
     def setUp(self):
-        self.member = User.objects.create_user(username="m5-report-member", password="StrongPass2026!")
-        self.outsider = User.objects.create_user(username="m5-report-outsider", password="StrongPass2026!")
-        self.owner = User.objects.create_user(username="m5-report-owner", password="StrongPass2026!")
+        self.member = User.objects.create_user(
+            username="m5-report-member",
+            email="m5-report-member@example.test",
+            password="StrongPass2026!",
+        )
+        self.outsider = User.objects.create_user(
+            username="m5-report-outsider",
+            email="m5-report-outsider@example.test",
+            password="StrongPass2026!",
+        )
+        self.owner = User.objects.create_user(
+            username="m5-report-owner",
+            email="m5-report-owner@example.test",
+            password="StrongPass2026!",
+        )
         self.space = Organization.objects.create(name="M5 Reporting Space", created_by=self.owner, public_profile=True)
         self.group = Group.objects.create(name="M5 Reporting Group", owner_profile=self.owner, created_by=self.owner)
         GroupMembership.objects.create(group=self.group, profile=self.member, status=GroupMembershipStatus.ACTIVE)

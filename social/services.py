@@ -150,6 +150,9 @@ def create_contribution(
     if group is not None and space is None and group.space_id:
         space = group.space
 
+    if not any((space, group, activity, occurrence)):
+        raise ValidationError({"activity": "Une Contribution doit être ancrée dans un contexte Makolo."})
+
     _require_publish_permission(
         actor=actor,
         kind=kind,
