@@ -46,7 +46,11 @@ class SharingP5HardeningTests(TestCase):
         response = self.client.post(url, {"recipient_id": profiles[-1].pk}); self.assertEqual(response.status_code, 429); self.assertIn("Réessayez", response.json()["error"])
 
     def test_authenticated_delivery_open_projects_private_analytics_without_sensitive_payload(self):
-        created = create_direct_activity_share(created_by=self.sender, recipient=self.recipient_profile, activity=self.activity, occurrence=self.occurrence); self.client.force_login(self.recipient); self.assertEqual(self.client.get(reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk})).status_code, 200)
+        created = create_direct_activity_share(created_by=self.sender, recipient=self.recipient_profile, activity=self.activity, occurrence=self.occurrence)
+        self.client.force_login(self.recipient)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.get(reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk}))
+        self.assertEqual(response.status_code, 200)
         events = DomainEventOutbox.objects.filter(source_id=str(created.envelope.pk)).order_by("occurred_at"); self.assertTrue(events.filter(event_type=DomainEventType.SHARE_CREATED).exists()); self.assertTrue(events.filter(event_type=DomainEventType.SHARE_DELIVERED).exists()); self.assertTrue(events.filter(event_type=DomainEventType.SHARE_OPENED).exists())
         serialized = json.dumps(list(events.values_list("payload", flat=True)), sort_keys=True)
         for secret in ("SECRET_FORM_ANSWER", "SECRET_PRIVATE_NOTE", "SECRET_PAYMENT_REF", "SECRET_ACCESS_CREDENTIAL", "SECRET_CAPTURE_TEXT"): self.assertNotIn(secret, serialized)
