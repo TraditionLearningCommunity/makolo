@@ -36,8 +36,16 @@ def pdf(name="cv.pdf"):
 
 class P4DocumentTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="p4-owner", password="pass")
-        self.other = User.objects.create_user(username="p4-other", password="pass")
+        self.owner = User.objects.create_user(
+            username="p4-owner",
+            email="p4-owner@makolo.test",
+            password="pass",
+        )
+        self.other = User.objects.create_user(
+            username="p4-other",
+            email="p4-other@makolo.test",
+            password="pass",
+        )
         self.activity = Activity.objects.create(title="Bourse P4", created_by=self.owner, owner_profile=self.owner)
         self.journey = Journey.objects.create(
             initiated_by=self.owner,

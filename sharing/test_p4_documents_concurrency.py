@@ -49,7 +49,11 @@ class P4InboundConcurrencyTests(TransactionTestCase):
     serialized_rollback = True
 
     def setUp(self):
-        self.owner = User.objects.create_user(username="p4-concurrency-owner", password="x")
+        self.owner = User.objects.create_user(
+            username="p4-concurrency-owner",
+            email="p4-concurrency-owner@makolo.test",
+            password="x",
+        )
         activity = Activity.objects.create(
             owner_profile=self.owner,
             created_by=self.owner,
