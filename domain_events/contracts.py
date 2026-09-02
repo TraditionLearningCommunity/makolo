@@ -40,6 +40,8 @@ class DomainEventType:
     DOSSIER_JOURNEY_DEPENDENCY_ADDED = "dossier.journey_dependency_added"
     DOSSIER_JOURNEY_DEPENDENCY_REMOVED = "dossier.journey_dependency_removed"
     DOSSIER_JOURNEY_DEPENDENCY_WAIVED = "dossier.journey_dependency_waived"
+    DOSSIER_ASSIGNMENT_ADDED = "dossier.assignment_added"
+    DOSSIER_ASSIGNMENT_REMOVED = "dossier.assignment_removed"
 
     FORM_REQUESTED = "form.requested"
     FORM_SUBMITTED = "form.submitted"
@@ -48,7 +50,7 @@ class DomainEventType:
     RESOURCE_REPLACED = "resource.replaced"
 
     OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
-    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"
+    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source_changed"
     OPPORTUNITY_WITHDRAWN = "opportunity.withdrawn"
     OPPORTUNITY_MERGED = "opportunity.merged"
     SERVICE_OPPORTUNITY_REVISION_ADOPTED = "service.opportunity_revision.adopted"

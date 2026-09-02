@@ -7,13 +7,38 @@
   {% if dossier.description %}<p>{{ dossier.description }}</p>{% endif %}
   <p>{{ dossier.get_lifecycle_display }}{% if dossier.deadline %} · échéance {{ dossier.deadline }}{% endif %}</p>
 
+  <section style="margin-top:2rem;"><h2>Collaboration</h2>
+    {% if dossier.owner_profile_id %}<p><strong>{{ dossier.owner_profile.get_full_name|default:dossier.owner_profile.username }}</strong> — Porteur du dossier</p>{% else %}<p><strong>{{ dossier.owning_space.name }}</strong> — Espace porteur</p>{% endif %}
+    <div style="display:grid;gap:.75rem;">
+      {% for assignment in assignments %}
+        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
+          <strong>{{ assignment.assignee.get_full_name|default:assignment.assignee.username }}</strong> — Coordination
+          {% if can_manage %}<form method="post" action="{% url 'objectives:dossier-unassign' dossier.id assignment.id %}" style="margin-top:.75rem;">{% csrf_token %}<button type="submit">Retirer la responsabilité</button></form>{% endif %}
+        </article>
+      {% empty %}<p>Aucun responsable de coordination désigné.</p>{% endfor %}
+    </div>
+    {% if can_manage %}<form method="post" action="{% url 'objectives:dossier-assign' dossier.id %}" style="margin-top:1rem;">{% csrf_token %}{{ assignment_form.as_p }}<button type="submit">Désigner un responsable</button></form>{% endif %}
+  </section>
+
+  {% if can_manage_authority %}
+  <section style="margin-top:2rem;"><h2>Accès au dossier</h2>
+    <p><small>Les accès au Dossier n’accordent aucun accès automatique aux démarches liées.</small></p>
+    <div style="display:grid;gap:.75rem;">
+      {% for mandate in authority_mandates %}
+        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
+          <strong>{{ mandate.profile.get_full_name|default:mandate.profile.username }}</strong> — {{ mandate.role.name }}
+          <form method="post" action="{% url 'objectives:dossier-revoke-authority' dossier.id mandate.id %}" style="margin-top:.75rem;">{% csrf_token %}<button type="submit">Révoquer cet accès</button></form>
+        </article>
+      {% empty %}<p>Aucun accès direct délégué sur ce Dossier.</p>{% endfor %}
+    </div>
+    <form method="post" action="{% url 'objectives:dossier-grant-authority' dossier.id %}" style="margin-top:1rem;">{% csrf_token %}{{ authority_form.as_p }}<button type="submit">Accorder l’accès</button></form>
+  </section>
+  {% endif %}
+
   <section style="margin-top:2rem;"><h2>Démarches visibles</h2>
     <div style="display:grid;gap:.75rem;">
       {% for link in links %}
-        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
-          <strong>{{ link.journey.activity.title }}</strong><br><small>{{ link.journey.get_status_display }}</small>
-          {% if can_manage %}<form method="post" action="{% url 'objectives:dossier-unlink-journey' dossier.id link.journey.id %}" style="margin-top:.75rem;">{% csrf_token %}<button type="submit">Retirer du Dossier</button></form>{% endif %}
-        </article>
+        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;"><strong>{{ link.journey.activity.title }}</strong><br><small>{{ link.journey.get_status_display }}</small>{% if can_manage %}<form method="post" action="{% url 'objectives:dossier-unlink-journey' dossier.id link.journey.id %}" style="margin-top:.75rem;">{% csrf_token %}<button type="submit">Retirer du Dossier</button></form>{% endif %}</article>
       {% empty %}<p>Aucune démarche visible liée.</p>{% endfor %}
     </div>
   </section>
@@ -21,35 +46,15 @@
   <section style="margin-top:2rem;"><h2>Dépendances entre démarches</h2>
     <div style="display:grid;gap:.75rem;">
       {% for dependency in dependencies %}
-        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
-          <strong>{{ dependency.dependent_link.journey.activity.title }}</strong>
-          nécessite <strong>{{ dependency.required_link.journey.activity.title }}</strong>.
-          <div><small>
-            {% if dependency.state == dependency_waived_state %}Levé
-            {% elif dependency.is_satisfied %}Prérequis satisfait
-            {% else %}Prérequis à satisfaire{% endif %}
-          </small></div>
-          {% if can_manage and dependency.state == dependency_active_state %}
-            <form method="post" action="{% url 'objectives:dossier-remove-dependency' dossier.id dependency.id %}" style="margin-top:.75rem;display:inline;">{% csrf_token %}<button type="submit">Retirer</button></form>
-            <form method="post" action="{% url 'objectives:dossier-waive-dependency' dossier.id dependency.id %}" style="margin-top:.75rem;">{% csrf_token %}{{ waiver_form.as_p }}<button type="submit">Lever le prérequis</button></form>
-          {% endif %}
-        </article>
+        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;"><strong>{{ dependency.dependent_link.journey.activity.title }}</strong> nécessite <strong>{{ dependency.required_link.journey.activity.title }}</strong>.<div><small>{% if dependency.state == dependency_waived_state %}Levé{% elif dependency.is_satisfied %}Prérequis satisfait{% else %}Prérequis à satisfaire{% endif %}</small></div>{% if can_manage and dependency.state == dependency_active_state %}<form method="post" action="{% url 'objectives:dossier-remove-dependency' dossier.id dependency.id %}" style="margin-top:.75rem;display:inline;">{% csrf_token %}<button type="submit">Retirer</button></form><form method="post" action="{% url 'objectives:dossier-waive-dependency' dossier.id dependency.id %}" style="margin-top:.75rem;">{% csrf_token %}{{ waiver_form.as_p }}<button type="submit">Lever le prérequis</button></form>{% endif %}</article>
       {% empty %}<p>Aucune dépendance visible.</p>{% endfor %}
     </div>
   </section>
 
   {% if can_manage %}
-    <section style="margin-top:2rem;"><h2>Ajouter une dépendance</h2>
-      <form method="post" action="{% url 'objectives:dossier-add-dependency' dossier.id %}">{% csrf_token %}{{ dependency_form.as_p }}<button type="submit">Ajouter</button></form>
-    </section>
-
-    <section style="margin-top:2rem;"><h2>Lier une démarche</h2>
-      <form method="post" action="{% url 'objectives:dossier-link-journey' dossier.id %}">{% csrf_token %}{{ link_form.as_p }}<button type="submit">Lier</button></form>
-    </section>
-
-    <section style="margin-top:2rem;"><h2>Cycle de vie</h2>
-      <form method="post" action="{% url 'objectives:dossier-lifecycle' dossier.id %}">{% csrf_token %}{{ lifecycle_form.as_p }}<button type="submit">Mettre à jour</button></form>
-    </section>
+    <section style="margin-top:2rem;"><h2>Ajouter une dépendance</h2><form method="post" action="{% url 'objectives:dossier-add-dependency' dossier.id %}">{% csrf_token %}{{ dependency_form.as_p }}<button type="submit">Ajouter</button></form></section>
+    <section style="margin-top:2rem;"><h2>Lier une démarche</h2><form method="post" action="{% url 'objectives:dossier-link-journey' dossier.id %}">{% csrf_token %}{{ link_form.as_p }}<button type="submit">Lier</button></form></section>
+    <section style="margin-top:2rem;"><h2>Cycle de vie</h2><form method="post" action="{% url 'objectives:dossier-lifecycle' dossier.id %}">{% csrf_token %}{{ lifecycle_form.as_p }}<button type="submit">Mettre à jour</button></form></section>
   {% endif %}
 </main>
 {% endblock %}
