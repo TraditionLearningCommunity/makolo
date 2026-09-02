@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2B176E">
     <title>{% block title %}Makolo{% endblock %}</title>
-    {% block extra_meta %}{% endblock %}
     {% include 'partials/brand_head.html' %}
 
     <script src="{% static 'js/theme-preference.js' %}"></script>
@@ -17,7 +16,6 @@
     <link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}">
     <script defer src="{% static 'dist/makolo.js' %}"></script>
-    <script defer src="{% static 'js/share-actions.js' %}"></script>
     {% block extra_css %}{% endblock %}
 </head>
 <body class="min-h-full" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
