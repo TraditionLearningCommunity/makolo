@@ -6,7 +6,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import DossierCreateForm, DossierJourneyLinkForm, DossierLifecycleForm
 from .selectors import dossier_for_profile, dossiers_for_profile, visible_linked_journeys
-from .services import create_dossier, link_journey, set_dossier_lifecycle, unlink_journey
+from .services import can_manage_dossier, create_dossier, link_journey, set_dossier_lifecycle, unlink_journey
 
 
 def _visible_dossier_or_404(profile, dossier_id):
@@ -41,12 +41,18 @@ def dossier_create(request):
 @login_required
 def dossier_detail(request, dossier_id):
     dossier = _visible_dossier_or_404(request.user, dossier_id)
+    can_manage = can_manage_dossier(request.user, dossier)
     links = visible_linked_journeys(request.user, dossier)
-    link_form = DossierJourneyLinkForm(actor=request.user, dossier=dossier)
     return render(
         request,
         "objectives/dossier_detail.html",
-        {"dossier": dossier, "links": links, "link_form": link_form, "lifecycle_form": DossierLifecycleForm()},
+        {
+            "dossier": dossier,
+            "links": links,
+            "can_manage": can_manage,
+            "link_form": DossierJourneyLinkForm(actor=request.user, dossier=dossier) if can_manage else None,
+            "lifecycle_form": DossierLifecycleForm(dossier=dossier) if can_manage else None,
+        },
     )
 
 
@@ -64,7 +70,7 @@ def dossier_link_journey(request, dossier_id):
 @require_POST
 def dossier_unlink_journey(request, dossier_id, journey_id):
     dossier = _visible_dossier_or_404(request.user, dossier_id)
-    link = dossier.journey_links.filter(journey_id=journey_id, is_active=True).select_related("journey").first()
+    link = visible_linked_journeys(request.user, dossier).filter(journey_id=journey_id).first()
     if link is None:
         raise Http404
     unlink_journey(actor=request.user, dossier=dossier, journey=link.journey)
@@ -75,7 +81,7 @@ def dossier_unlink_journey(request, dossier_id, journey_id):
 @require_POST
 def dossier_lifecycle(request, dossier_id):
     dossier = _visible_dossier_or_404(request.user, dossier_id)
-    form = DossierLifecycleForm(request.POST)
+    form = DossierLifecycleForm(request.POST, dossier=dossier)
     if form.is_valid():
         set_dossier_lifecycle(actor=request.user, dossier=dossier, lifecycle=form.cleaned_data["lifecycle"])
     return redirect("objectives:dossier-detail", dossier_id=dossier.pk)

@@ -7,6 +7,7 @@ from organizations.models import Organization
 
 from .models import DossierLifecycle
 from .selectors import linkable_journeys_for_profile
+from .services import ALLOWED_LIFECYCLE_TRANSITIONS
 
 
 class DossierCreateForm(forms.Form):
@@ -39,4 +40,14 @@ class DossierJourneyLinkForm(forms.Form):
 
 
 class DossierLifecycleForm(forms.Form):
-    lifecycle = forms.ChoiceField(label="État", choices=DossierLifecycle.choices)
+    lifecycle = forms.ChoiceField(label="État")
+
+    def __init__(self, *args, dossier, **kwargs):
+        super().__init__(*args, **kwargs)
+        allowed = {dossier.lifecycle, *ALLOWED_LIFECYCLE_TRANSITIONS[dossier.lifecycle]}
+        self.fields["lifecycle"].choices = [
+            (value, label)
+            for value, label in DossierLifecycle.choices
+            if value in allowed
+        ]
+        self.fields["lifecycle"].initial = dossier.lifecycle

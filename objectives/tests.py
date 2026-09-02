@@ -10,6 +10,7 @@ from authorization.services import grant_space_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, OrganizationMembership
 
+from .forms import DossierLifecycleForm
 from .models import DossierJourneyLink, DossierLifecycle
 from .selectors import visible_linked_journeys
 from .services import create_dossier, link_journey, set_dossier_lifecycle, unlink_journey
@@ -93,3 +94,9 @@ class D1DossierFoundationTests(TestCase):
         response = self.client.get(reverse("objectives:dossier-detail", args=[dossier.pk]))
         self.assertContains(response, self.activity.title)
         self.assertNotContains(response, self.private_activity.title)
+
+    def test_lifecycle_form_rejects_transition_outside_service_graph(self):
+        dossier = create_dossier(actor=self.owner, owner_profile=self.owner, title="Lifecycle")
+        set_dossier_lifecycle(actor=self.owner, dossier=dossier, lifecycle=DossierLifecycle.ARCHIVED)
+        form = DossierLifecycleForm({"lifecycle": DossierLifecycle.ACTIVE}, dossier=dossier)
+        self.assertFalse(form.is_valid())
