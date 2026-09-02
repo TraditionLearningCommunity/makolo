@@ -1,0 +1,38 @@
+{% extends 'base/app.html' %}
+{% load tz %}
+{% block title %}{{ page_title }} | Makolo{% endblock %}
+{% block extra_meta %}
+<meta name="description" content="{{ page_description|truncatechars:220 }}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:description" content="{{ page_description|truncatechars:220 }}">
+<meta property="og:url" content="{{ share_url }}">
+<meta property="og:site_name" content="Makolo">
+{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6 pb-10">
+  <section class="mk-participant-hero px-5 py-7 sm:px-7 sm:py-9">
+    <p class="text-sm font-black uppercase tracking-wide" style="color:var(--mk-subtle)">Partagé via Makolo</p>
+    <h1 class="mk-page-title mt-3">{{ page_title }}</h1>
+    {% if page_description %}<p class="mk-page-copy mt-4">{{ page_description }}</p>{% endif %}
+    {% if subject_kind == 'activity' and item %}
+      <div class="mt-6 grid gap-3 sm:grid-cols-2">
+        <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="text-xs font-bold uppercase tracking-wide" style="color:var(--mk-subtle)">Quand ?</p><p class="mt-2 font-bold">{% timezone item.timezone %}{{ item.start_at|date:'l d F Y · H:i' }}{% endtimezone %}</p><p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ item.timezone }}</p></div>
+        <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="text-xs font-bold uppercase tracking-wide" style="color:var(--mk-subtle)">Contexte</p><p class="mt-2 font-bold">{{ occurrence.label|default:'Occurrence partagée' }}</p>{% if item.place %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ item.place.name }} · {{ item.place.locality }}</p>{% endif %}</div>
+      </div>
+      {% if item.price.label %}<p class="mt-4 font-extrabold">{{ item.price.label }}</p>{% endif %}
+    {% elif subject_kind == 'activity' %}
+      <p class="mt-4 text-sm font-semibold" style="color:var(--mk-muted)">{{ activity.operator_display_name }}</p>
+    {% else %}
+      <div class="mt-5 flex flex-wrap gap-2"><span class="mk-badge">{{ opportunity.get_kind_display }}</span><span class="mk-badge">v{{ revision.version }}</span></div>
+      <p class="mt-3 font-semibold">{{ revision.issuer_name }}</p>
+      {% if revision_changed %}<p class="mt-4 rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border)">Cette Opportunity a été mise à jour depuis la création de ce partage. Makolo vous montre la version publiée actuelle.</p>{% endif %}
+    {% endif %}
+    <div class="mt-7 flex flex-wrap items-center gap-3">
+      <a class="mk-btn mk-btn-primary" href="{{ action_url }}">{{ cta_label }}</a>
+      <a class="mk-btn mk-btn-secondary" href="{% url 'core:home' %}">Découvrir Makolo</a>
+    </div>
+  </section>
+  <section class="mk-panel p-5"><h2 class="font-extrabold">Un partage ne transfère aucun droit</h2><p class="mt-2 text-sm" style="color:var(--mk-muted)">Ce lien transmet uniquement un contexte et une possibilité d’action. Il ne transmet ni session, ni permission, ni paiement, ni réservation, ni droit d’accès de la personne qui l’a partagé.</p></section>
+</div>
+{% endblock %}

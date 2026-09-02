@@ -9,7 +9,8 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
-from activities.models import Activity, ActivityVisibility
+from activities.models import Activity
+from activities.selectors import publicly_visible_activities
 from authorization.constants import PermissionCode
 from authorization.services import can
 from core.participant_presentation import vocabulary_for
@@ -111,9 +112,7 @@ class ActivityPresentationPreviewView(ActivityPresentationAuthorityMixin, View):
 
 class PublicActivityPresentationView(View):
     def get(self, request, activity_id):
-        activity = get_object_or_404(Activity.objects.select_related("space", "owner_profile"), pk=activity_id)
-        if activity.visibility != ActivityVisibility.PUBLIC:
-            raise Http404
+        activity = get_object_or_404(publicly_visible_activities(), pk=activity_id)
         resolved = resolve_presentation(activity=activity, purpose=PresentationPurpose.PUBLIC_PAGE)
         context = build_activity_context(activity=activity, occurrence=_occurrence(activity), editorial=resolved.binding.editorial_data if resolved.binding else {})
         html = render_presentation(manifest=resolved.manifest, theme_tokens=resolved.theme_tokens, context=context, surface="web")

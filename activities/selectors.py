@@ -3,7 +3,13 @@ from django.utils import timezone
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission
 
-from .models import Activity, ActivityStatus, Occurrence, OccurrencePlaceRole
+from .models import (
+    Activity,
+    ActivityStatus,
+    ActivityVisibility,
+    Occurrence,
+    OccurrencePlaceRole,
+)
 
 
 def activities_for_space(space):
@@ -27,6 +33,18 @@ def manageable_activities(profile):
     if ids is None:
         return queryset
     return queryset.filter(pk__in=ids)
+
+
+def publicly_visible_activities():
+    """Canonical public relay scope for an Activity outside an authenticated authority context."""
+    return (
+        Activity.objects.filter(
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        .exclude(space__verification_status="suspended")
+        .select_related("space", "owner_profile", "created_by")
+    )
 
 
 def occurrences_for_activity(activity):
