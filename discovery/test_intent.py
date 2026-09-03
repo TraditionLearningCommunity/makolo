@@ -2,10 +2,13 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from accounts.models import UserProfile
 from geography.models import Place
+from intelligence.capabilities import IntelligenceCapability
 from intelligence.contracts import IntelligenceResult
 
 from .intelligence import interpret_with_intelligence
@@ -191,9 +194,36 @@ class DiscoveryIntentTests(TestCase):
         resolved = interpret_with_intelligence(intent, gateway=gateway)
         self.assertEqual(resolved, intent)
 
+    def test_intelligence_cannot_override_deterministic_constraint(self):
+        intent = resolve_discovery_intent({"q": "concert gospel à Kolwezi demain"})
+        gateway = Mock()
+        gateway.execute.return_value = IntelligenceResult(
+            available=True,
+            output={"vertical": "transport", "place": "Kolwezi", "when": "tomorrow", "text": "gospel"},
+        )
+        resolved = interpret_with_intelligence(intent, gateway=gateway)
+        self.assertEqual(resolved, intent)
+
     def test_deterministic_intent_never_calls_intelligence(self):
         intent = resolve_discovery_intent({"q": "Je veux voyager à Kolwezi demain matin"})
         gateway = Mock()
         resolved = interpret_with_intelligence(intent, gateway=gateway)
         self.assertEqual(resolved, intent)
         gateway.execute.assert_not_called()
+
+    @patch("discovery.intelligence.IntelligenceGateway")
+    @patch("discovery.intelligence.build_runtime_registry")
+    def test_authenticated_user_is_resolved_to_user_profile_for_runtime_scope(self, build_registry, gateway_class):
+        user = get_user_model().objects.create_user(username="intent-profile", password="unused")
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        build_registry.return_value = Mock()
+        gateway_class.return_value.execute.return_value = IntelligenceResult.unavailable()
+        intent = resolve_discovery_intent({"q": "quelque chose de calme avec mes amis"})
+
+        resolved = interpret_with_intelligence(intent, profile=user)
+
+        self.assertEqual(resolved, intent)
+        build_registry.assert_called_once_with(
+            capability=IntelligenceCapability.STRUCTURED_GENERATE,
+            profile=profile,
+        )
