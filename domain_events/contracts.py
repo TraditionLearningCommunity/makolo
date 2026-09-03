@@ -10,6 +10,11 @@ class DomainEventType:
     PLACEMENT_ASSIGNED = "placement.assigned"
     PLACEMENT_CHANGED = "placement.changed"
     PLACEMENT_UNASSIGNED = "placement.unassigned"
+    CHECKPOINT_OPENED = "checkpoint.opened"
+    CHECKPOINT_PAUSED = "checkpoint.paused"
+    CHECKPOINT_CLOSED = "checkpoint.closed"
+    CHECKPOINT_ASSIGNMENT_CHANGED = "checkpoint.assignment_changed"
+    CHECKPOINT_OBSERVED = "checkpoint.observed"
 
     ORGANIZATION_TEAM_MEMBERSHIP_CHANGED = "organization.team_membership.changed"
 
@@ -58,8 +63,8 @@ class DomainEventType:
     RESOURCE_PUBLISHED = "resource.published"
     RESOURCE_REPLACED = "resource.replaced"
 
-    OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
-    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"
+    OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision_published"
+    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source_changed"
     OPPORTUNITY_WITHDRAWN = "opportunity.withdrawn"
     OPPORTUNITY_MERGED = "opportunity.merged"
     SERVICE_OPPORTUNITY_REVISION_ADOPTED = "service.opportunity_revision.adopted"
