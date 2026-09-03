@@ -149,6 +149,7 @@ def interpret_discovery_text(raw_text: str, *, base: DiscoveryIntent | None = No
     intent = base or DiscoveryIntent()
     text = raw_text
     constraints = list(intent.constraints)
+    explicit_count = len(constraints)
     values = {
         "vertical": intent.vertical,
         "place": intent.place,
@@ -206,6 +207,10 @@ def interpret_discovery_text(raw_text: str, *, base: DiscoveryIntent | None = No
         radius_km = radius_km or "10"
         constraints.append(AppliedConstraint("nearby", radius_km, f"Autour de moi · {radius_km} km", ConstraintSource.INTERPRETED))
         text = _remove_match(text, match)
+
+    interpreted_count = len(constraints) - explicit_count
+    if explicit_count == 0 and interpreted_count < 2:
+        return DiscoveryIntent(raw_text=raw_text, text=raw_text)
 
     # Keep all unresolved language as classic Discovery text instead of guessing.
     text = re.sub(r"\s+", " ", text).strip(" ,;:-")
