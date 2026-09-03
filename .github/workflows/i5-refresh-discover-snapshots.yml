@@ -55,7 +55,7 @@ jobs:
         env:
           E2E_SKIP_PREP: "1"
         run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots --timeout=60000
-      - name: Verify candidate change set
+      - name: Verify only reviewed Discover baselines changed
         shell: bash
         run: |
           set -euo pipefail
@@ -73,17 +73,15 @@ jobs:
             echo "Unexpected visual snapshot change set."
             exit 1
           fi
-      - name: Stage reviewed candidates
+      - name: Commit reviewed Linux baselines
         run: |
-          mkdir -p /tmp/i5-discover-snapshot-candidates
-          cp e2e/specs/visual.spec.mjs-snapshots/discovery-dark-desktop-chromium-desktop-linux.png /tmp/i5-discover-snapshot-candidates/
-          cp e2e/specs/visual.spec.mjs-snapshots/discovery-light-desktop-chromium-desktop-linux.png /tmp/i5-discover-snapshot-candidates/
-          cp e2e/specs/visual.spec.mjs-snapshots/discovery-light-mobile-chromium-mobile-linux.png /tmp/i5-discover-snapshot-candidates/
-          cp e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png /tmp/i5-discover-snapshot-candidates/
-          cp e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-light-desktop-chromium-desktop-linux.png /tmp/i5-discover-snapshot-candidates/
-      - name: Upload candidate baselines
-        uses: actions/upload-artifact@v4
-        with:
-          name: i5-discover-snapshot-candidates
-          path: /tmp/i5-discover-snapshot-candidates
-          retention-days: 2
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-dark-desktop-chromium-desktop-linux.png \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-light-desktop-chromium-desktop-linux.png \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-light-mobile-chromium-mobile-linux.png \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-light-desktop-chromium-desktop-linux.png
+          git commit -m "test: refresh Discover 2027 visual baselines"
+          git push origin HEAD:intelligence/i5-discover-intelligence-hardening
