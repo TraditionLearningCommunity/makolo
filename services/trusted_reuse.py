@@ -91,14 +91,20 @@ def evaluate_trusted_reuse(*, assessment, candidate: ActionMemoryCandidate, acto
         subject_type = ActionMemorySubjectType.EXTERNAL_BENEFICIARY
         subject_id = journey.external_beneficiary_id
 
+    policies = tuple(
+        RequirementReusePolicy.objects.filter(requirement_id=assessment.requirement_id).order_by("key", "id")
+    )
+    source_date = _source_date_for_candidate(candidate) if any(policy.max_age_days is not None for policy in policies) else None
+
     return evaluate_trusted_reuse_candidate(
         requirement=assessment.requirement,
         candidate=candidate,
         expected_subject_type=subject_type,
         expected_subject_id=subject_id,
-        source_date=_source_date_for_candidate(candidate),
+        source_date=source_date,
         assessment_id=assessment.pk,
         observed_at=observed_at,
+        policies=policies,
         current_requirement=(assessment.requirement.revision_id == assessment.context.opportunity_revision_id),
     )
 
