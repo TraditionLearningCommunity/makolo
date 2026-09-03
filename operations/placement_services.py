@@ -117,6 +117,14 @@ def _ensure_unit_available(unit):
         raise ValidationError({"unit": "Cette unité exclusive est déjà affectée."})
 
 
+def _save_assignment(assignment, conflict_message):
+    try:
+        with transaction.atomic():
+            assignment.save()
+    except IntegrityError as exc:
+        raise ValidationError(conflict_message) from exc
+
+
 @transaction.atomic
 def assign_placement(*, actor, plan, unit, profile=None, external_beneficiary=None):
     subject = _subject_kwargs(profile=profile, external_beneficiary=external_beneficiary)
@@ -130,10 +138,7 @@ def assign_placement(*, actor, plan, unit, profile=None, external_beneficiary=No
 
     assignment = PlacementAssignment(plan=plan, unit=unit, assigned_by=actor, **subject)
     assignment.full_clean()
-    try:
-        assignment.save()
-    except IntegrityError as exc:
-        raise ValidationError("Le placement actif est entré en conflit avec une autre affectation.") from exc
+    _save_assignment(assignment, "Le placement actif est entré en conflit avec une autre affectation.")
     _emit_assigned(assignment)
     return assignment
 
@@ -175,10 +180,7 @@ def move_placement(*, actor, assignment, unit):
         assigned_at=now,
     )
     new_assignment.full_clean()
-    try:
-        new_assignment.save()
-    except IntegrityError as exc:
-        raise ValidationError("Le déplacement est entré en conflit avec une autre affectation.") from exc
+    _save_assignment(new_assignment, "Le déplacement est entré en conflit avec une autre affectation.")
     _emit_changed(current, new_assignment)
     return new_assignment
 
