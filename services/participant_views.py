@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views import View
@@ -12,6 +12,8 @@ from payments.selectors import obligations_visible_to
 from .participant_forms import ExternalPaymentEvidenceForm, ParticipantArtifactUploadForm, ParticipantArtifactVersionForm
 from .participant_services import submit_external_payment_evidence_with_receipt
 from .selectors import service_artifacts_visible_to, service_journeys_visible_to
+from .trusted_reuse import apply_trusted_reuse
+from .trusted_reuse_ui import trusted_reuse_options_for_assessment
 
 
 class _ParticipantServiceJourneyMixin(LoginRequiredMixin):
@@ -22,6 +24,63 @@ class _ParticipantServiceJourneyMixin(LoginRequiredMixin):
         if journey is None:
             raise Http404
         return journey
+
+
+class ParticipantTrustedReuseView(_ParticipantServiceJourneyMixin, View):
+    template_name = "services/participant_trusted_reuse.html"
+
+    def _assessment(self, journey, assessment_pk):
+        try:
+            context = journey.service_context
+        except Exception as exc:
+            raise Http404 from exc
+        assessment = (
+            context.requirement_assessments.select_related("requirement", "requirement__revision", "context", "context__journey")
+            .filter(pk=assessment_pk)
+            .first()
+        )
+        if assessment is None:
+            raise Http404
+        return assessment
+
+    def get(self, request, pk, assessment_pk):
+        journey = self.participant_journey(request, pk)
+        assessment = self._assessment(journey, assessment_pk)
+        options = trusted_reuse_options_for_assessment(assessment=assessment, actor=request.user)
+        return render(
+            request,
+            self.template_name,
+            {"journey": journey, "assessment": assessment, "options": options},
+        )
+
+    def post(self, request, pk, assessment_pk):
+        journey = self.participant_journey(request, pk)
+        assessment = self._assessment(journey, assessment_pk)
+        source = (request.POST.get("candidate_source") or "").strip()
+        source_id = (request.POST.get("candidate_source_id") or "").strip()
+        if not source or not source_id:
+            messages.error(request, "Cet élément ne peut pas être réutilisé.")
+            return redirect("services:participant-trusted-reuse", pk=journey.pk, assessment_pk=assessment.pk)
+        try:
+            apply_trusted_reuse(
+                assessment=assessment,
+                actor=request.user,
+                candidate_source=source,
+                candidate_source_id=source_id,
+                confirmed=request.POST.get("confirmed") == "yes",
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            safe_messages = getattr(exc, "messages", None)
+            messages.error(
+                request,
+                safe_messages[0] if safe_messages else "L’état a changé : Makolo a revalidé la condition et n’a rien transmis.",
+            )
+            return redirect("services:participant-trusted-reuse", pk=journey.pk, assessment_pk=assessment.pk)
+        messages.success(
+            request,
+            "Le document a été copié dans cette démarche et soumis comme preuve à examiner. La condition n’est pas automatiquement validée.",
+        )
+        return redirect("core:participant-journey-detail", pk=journey.pk)
 
 
 class ParticipantArtifactUploadView(_ParticipantServiceJourneyMixin, View):

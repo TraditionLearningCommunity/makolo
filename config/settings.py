@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "goals.apps.GoalsConfig",
     "intelligence.apps.IntelligenceConfig",
     "objectives.apps.ObjectivesConfig",
+    "personal_assets.apps.PersonalAssetsConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime
