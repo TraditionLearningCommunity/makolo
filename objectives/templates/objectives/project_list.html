@@ -1,0 +1,15 @@
+{% extends "base/app.html" %}
+{% block content %}
+<main style="max-width:760px;margin:0 auto;padding:1rem;">
+  <header style="display:flex;justify-content:space-between;gap:1rem;align-items:center;">
+    <div><p style="margin:0;color:#5232DB;font-weight:700;">Initiatives durables</p><h1>Projets</h1></div>
+    <a href="{% url 'objectives:project-create' %}">Nouveau projet</a>
+  </header>
+  <p><a href="{% url 'objectives:dossier-list' %}">Voir les Dossiers</a></p>
+  <div style="display:grid;gap:.75rem;">
+    {% for project in projects %}
+      <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;"><a href="{% url 'objectives:project-detail' project.id %}"><strong>{{ project.title }}</strong></a><br><small>{{ project.get_lifecycle_display }}</small></article>
+    {% empty %}<p>Aucun Projet visible.</p>{% endfor %}
+  </div>
+</main>
+{% endblock %}
