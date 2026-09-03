@@ -11,6 +11,16 @@ from intelligence.exceptions import CapabilityUnsupported, InvalidProviderResult
 from .base import IntelligenceProvider
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _open_url(request, *, timeout):
+    opener = urllib.request.build_opener(_NoRedirectHandler())
+    return opener.open(request, timeout=timeout)
+
+
 class OpenAICompatibleProvider(IntelligenceProvider):
     capabilities = frozenset(
         {
@@ -39,7 +49,7 @@ class OpenAICompatibleProvider(IntelligenceProvider):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+            with _open_url(request, timeout=self.timeout_seconds) as response:
                 body = response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             if exc.code in {401, 403}:
