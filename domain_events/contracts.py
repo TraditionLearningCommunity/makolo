@@ -43,6 +43,12 @@ class DomainEventType:
     DOSSIER_ASSIGNMENT_ADDED = "dossier.assignment_added"
     DOSSIER_ASSIGNMENT_REMOVED = "dossier.assignment_removed"
 
+    PROJECT_CREATED = "project.created"
+    PROJECT_LIFECYCLE_CHANGED = "project.lifecycle_changed"
+    PROJECT_DOSSIER_LINKED = "project.dossier_linked"
+    PROJECT_DOSSIER_UNLINKED = "project.dossier_unlinked"
+    PROJECT_DOSSIER_MOVED = "project.dossier_moved"
+
     FORM_REQUESTED = "form.requested"
     FORM_SUBMITTED = "form.submitted"
     FORM_REOPENED = "form.reopened"
