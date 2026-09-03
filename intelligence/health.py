@@ -2,14 +2,20 @@ from __future__ import annotations
 
 from time import monotonic
 
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.utils import timezone
 
 from .capabilities import IntelligenceCapability
 from .contracts import IntelligenceRequest
 from .credentials import get_provider_secret
-from .exceptions import ProviderUnavailable
-from .models import ProviderConnection, ProviderHealth, ProviderProtocol
+from .exceptions import IntelligenceError, ProviderUnavailable
+from .models import (
+    ProviderConnection,
+    ProviderHealth,
+    ProviderProtocol,
+    ProviderScope,
+    _validate_external_provider_url,
+)
 from .providers.openai_compatible import OpenAICompatibleProvider
 
 
@@ -17,6 +23,8 @@ def test_provider_connection(connection: ProviderConnection) -> str:
     started = monotonic()
     status = ProviderHealth.UNKNOWN
     try:
+        if connection.scope in {ProviderScope.SPACE, ProviderScope.PROFILE}:
+            _validate_external_provider_url(connection.base_url)
         secret = get_provider_secret(connection=connection)
         if connection.protocol != ProviderProtocol.OPENAI_COMPATIBLE:
             status = ProviderHealth.UNAVAILABLE
@@ -41,7 +49,7 @@ def test_provider_connection(connection: ProviderConnection) -> str:
             if str(exc) == "invalid_credentials"
             else ProviderHealth.UNAVAILABLE
         )
-    except (ValueError, ImproperlyConfigured):
+    except (IntelligenceError, ValidationError, ValueError, ImproperlyConfigured):
         status = ProviderHealth.UNAVAILABLE
 
     connection.health_status = status
