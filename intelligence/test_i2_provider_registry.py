@@ -17,6 +17,7 @@ from .models import (
     ProviderScope,
     _validate_external_provider_url,
 )
+from .providers.openai_compatible import _NoRedirectHandler
 from .runtime import build_runtime_registry
 
 
@@ -76,7 +77,7 @@ class IntelligenceProviderRegistryTests(TestCase):
                 build_runtime_registry(capability=IntelligenceCapability.STRUCTURED_GENERATE)
             )
             with patch(
-                "urllib.request.urlopen",
+                "intelligence.providers.openai_compatible._open_url",
                 return_value=_FakeResponse(
                     {"choices": [{"message": {"content": '{"vertical":"transport"}'}}]}
                 ),
@@ -101,7 +102,7 @@ class IntelligenceProviderRegistryTests(TestCase):
             gateway = IntelligenceGateway(
                 build_runtime_registry(capability=IntelligenceCapability.STRUCTURED_GENERATE)
             )
-            with patch("urllib.request.urlopen", side_effect=TimeoutError("slow provider")):
+            with patch("intelligence.providers.openai_compatible._open_url", side_effect=TimeoutError("slow provider")):
                 result = gateway.execute(
                     IntelligenceRequest(
                         capability=IntelligenceCapability.STRUCTURED_GENERATE,
@@ -110,6 +111,10 @@ class IntelligenceProviderRegistryTests(TestCase):
                 )
         self.assertFalse(result.available)
         self.assertEqual(result.reason, "ProviderUnavailable")
+
+    def test_provider_redirects_are_not_followed(self):
+        handler = _NoRedirectHandler()
+        self.assertIsNone(handler.redirect_request(None, None, 302, "Found", {}, "http://127.0.0.1/internal"))
 
     def test_non_platform_endpoint_policy_rejects_local_or_insecure_urls(self):
         for url in (
