@@ -90,6 +90,22 @@ _SCAFFOLD_WORDS = {
     "trouver", "aller", "faire", "pour", "vers", "à", "a", "au", "aux", "un", "une",
     "des", "le", "la", "les",
 }
+_STRUCTURED_PARAM_KEYS = (
+    "place",
+    "city",
+    "when",
+    "period",
+    "vertical",
+    "price",
+    "radius_km",
+    "lat",
+    "lon",
+    "date",
+    "date_from",
+    "date_to",
+    "ordering",
+    "timezone",
+)
 
 
 def _remove_match(text: str, match: re.Match[str]) -> str:
@@ -249,4 +265,7 @@ def interpret_discovery_text(raw_text: str, *, base: DiscoveryIntent | None = No
 
 def resolve_discovery_intent(params: Mapping[str, str]) -> DiscoveryIntent:
     base = intent_from_params(params)
+    has_structured_filters = any((params.get(key) or "").strip() for key in _STRUCTURED_PARAM_KEYS)
+    if has_structured_filters:
+        return base
     return interpret_discovery_text(base.raw_text, base=base)
