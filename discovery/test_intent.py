@@ -1,6 +1,4 @@
-from datetime import datetime
 from unittest.mock import patch
-from zoneinfo import ZoneInfo
 
 from django.test import TestCase
 
@@ -9,9 +7,6 @@ from geography.models import Place
 from .intent import ConstraintSource, intent_from_params, resolve_discovery_intent
 from .intent_search import search_discovery_intent
 from .search import DiscoverySearchResult
-
-
-LUB = ZoneInfo("Africa/Lubumbashi")
 
 
 class DiscoveryIntentTests(TestCase):
@@ -68,16 +63,12 @@ class DiscoveryIntentTests(TestCase):
         self.assertEqual(intent.radius_km, "")
 
     @patch("discovery.intent_search.search_occurrences")
-    def test_day_period_filters_canonical_search_results(self, search_occurrences):
-        morning = type("Item", (), {"start_at": datetime(2026, 9, 4, 8, 30, tzinfo=LUB)})()
-        evening = type("Item", (), {"start_at": datetime(2026, 9, 4, 20, 0, tzinfo=LUB)})()
+    def test_adapter_passes_day_period_to_canonical_search(self, search_occurrences):
         search_occurrences.return_value = DiscoverySearchResult(
-            items=[morning, evening],
-            timezone_name="Africa/Lubumbashi",
-            total=2,
-            nearby_active=False,
+            items=[], timezone_name="Africa/Lubumbashi", total=0, nearby_active=False
         )
         intent = resolve_discovery_intent({"q": "demain matin"})
-        result = search_discovery_intent(intent)
-        self.assertEqual(result.items, [morning])
-        self.assertEqual(result.total, 1)
+        search_discovery_intent(intent)
+        params = search_occurrences.call_args.args[0]
+        self.assertEqual(params["when"], "tomorrow")
+        self.assertEqual(params["period"], "morning")
