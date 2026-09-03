@@ -2,9 +2,10 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from access.models import AccessUseResult
+from access.models import Access, AccessUseResult
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
+from journeys.models import Journey
 
 from .models import CheckpointAssignment, CheckpointObservation, CheckpointStatus, OccurrenceCheckpoint
 from .permissions import user_can_manage_activity_operations
@@ -16,6 +17,7 @@ _ALLOWED_TRANSITIONS = {
     CheckpointStatus.PAUSED: {CheckpointStatus.OPEN, CheckpointStatus.CLOSED},
     CheckpointStatus.CLOSED: set(),
 }
+_INELIGIBLE_JOURNEY_STATUSES = {"rejected", "cancelled", "expired"}
 
 
 def _require_manage(actor, checkpoint):
@@ -143,6 +145,27 @@ def _subject_kwargs(*, profile=None, external_beneficiary=None):
     return {"profile": profile, "external_beneficiary": external_beneficiary}
 
 
+def _beneficiary_is_expected(*, checkpoint, profile=None, external_beneficiary=None):
+    journey_filters = {
+        "activity": checkpoint.occurrence.activity,
+        "occurrence": checkpoint.occurrence,
+    }
+    access_filters = {
+        "activity": checkpoint.occurrence.activity,
+        "occurrence": checkpoint.occurrence,
+    }
+    if profile is not None:
+        journey_filters["beneficiary"] = profile
+        access_filters["beneficiary"] = profile
+    else:
+        journey_filters["external_beneficiary"] = external_beneficiary
+        access_filters["external_beneficiary"] = external_beneficiary
+    return (
+        Journey.objects.filter(**journey_filters).exclude(status__in=_INELIGIBLE_JOURNEY_STATUSES).exists()
+        or Access.objects.filter(**access_filters).exists()
+    )
+
+
 def _validate_access_use(*, checkpoint, access_use, profile=None, external_beneficiary=None):
     if access_use.result != AccessUseResult.ACCEPTED:
         raise ValidationError({"access_use": "Seul un AccessUse accepté peut confirmer un passage de checkpoint."})
@@ -155,6 +178,16 @@ def _validate_access_use(*, checkpoint, access_use, profile=None, external_benef
         raise ValidationError({"access_use": "Le bénéficiaire Profile de l’AccessUse ne correspond pas."})
     if external_beneficiary is not None and access.external_beneficiary_id != external_beneficiary.pk:
         raise ValidationError({"access_use": "Le bénéficiaire externe de l’AccessUse ne correspond pas."})
+
+
+def _retry_matches_subject(retry, *, profile=None, external_beneficiary=None, access_use=None):
+    if profile is not None and retry.profile_id != profile.pk:
+        return False
+    if external_beneficiary is not None and retry.external_beneficiary_id != external_beneficiary.pk:
+        return False
+    if access_use is not None and retry.access_use_id not in {None, access_use.pk}:
+        return False
+    return True
 
 
 @transaction.atomic
@@ -177,14 +210,16 @@ def observe_checkpoint(
     _require_manage(actor, current)
     if not current.active or current.status != CheckpointStatus.OPEN:
         raise ValidationError({"checkpoint": "Le checkpoint doit être actif et ouvert pour enregistrer un passage."})
+    if not _beneficiary_is_expected(checkpoint=current, **subject):
+        raise ValidationError({"beneficiary": "Ce bénéficiaire n’est pas lié à cette Occurrence."})
     if access_use is not None:
         _validate_access_use(checkpoint=current, access_use=access_use, **subject)
 
     if source and client_reference:
         retry = CheckpointObservation.objects.filter(source=source, client_reference=client_reference).first()
         if retry:
-            if retry.checkpoint_id != current.pk:
-                raise ValidationError({"client_reference": "Cette référence idempotente est déjà utilisée ailleurs."})
+            if retry.checkpoint_id != current.pk or not _retry_matches_subject(retry, access_use=access_use, **subject):
+                raise ValidationError({"client_reference": "Cette référence idempotente est déjà utilisée dans un autre contexte."})
             return retry
 
     existing = CheckpointObservation.objects.filter(checkpoint=current, **subject).first()
