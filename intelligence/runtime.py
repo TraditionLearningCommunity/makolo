@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models import Q
 
 from .capabilities import IntelligenceCapability
 from .credentials import get_provider_secret
-from .models import IntelligenceRoute, ProviderHealth, ProviderProtocol, ProviderScope
+from .models import (
+    IntelligenceRoute,
+    ProviderHealth,
+    ProviderProtocol,
+    ProviderScope,
+    _validate_external_provider_url,
+)
 from .providers.openai_compatible import OpenAICompatibleProvider
 from .registry import IntelligenceRegistry
 
@@ -30,6 +36,11 @@ def build_runtime_registry(*, capability: IntelligenceCapability, space=None, pr
     providers = []
     for route in routes:
         connection = route.connection
+        if connection.scope in {ProviderScope.SPACE, ProviderScope.PROFILE}:
+            try:
+                _validate_external_provider_url(connection.base_url)
+            except ValidationError:
+                continue
         try:
             secret = get_provider_secret(connection=connection)
         except (ValueError, ImproperlyConfigured):
