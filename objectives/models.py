@@ -134,3 +134,70 @@ class DossierJourneyDependency(models.Model):
 
     def save(self, *args, **kwargs):
         self.full_clean(); return super().save(*args, **kwargs)
+
+
+class ProjectLifecycle(models.TextChoices):
+    DRAFT = "draft", "Brouillon"
+    ACTIVE = "active", "Actif"
+    COMPLETED = "completed", "Terminé"
+    CANCELLED = "cancelled", "Annulé"
+    ARCHIVED = "archived", "Archivé"
+
+
+class Project(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=220)
+    description = models.TextField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_projects")
+    owner_profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owned_projects", null=True, blank=True)
+    owning_space = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="projects", null=True, blank=True)
+    starts_on = models.DateField(null=True, blank=True)
+    ends_on = models.DateField(null=True, blank=True)
+    lifecycle = models.CharField(max_length=16, choices=ProjectLifecycle.choices, default=ProjectLifecycle.DRAFT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "id"]
+        constraints = [
+            models.CheckConstraint(condition=(Q(owner_profile__isnull=False) & Q(owning_space__isnull=True)) | (Q(owner_profile__isnull=True) & Q(owning_space__isnull=False)), name="project_exactly_one_owner_context"),
+            models.CheckConstraint(condition=Q(starts_on__isnull=True) | Q(ends_on__isnull=True) | Q(starts_on__lte=F("ends_on")), name="project_valid_horizon"),
+        ]
+        indexes = [models.Index(fields=["owner_profile", "lifecycle"], name="project_owner_lifecycle_idx"), models.Index(fields=["owning_space", "lifecycle"], name="project_space_lifecycle_idx")]
+
+    def clean(self):
+        super().clean(); self.title = (self.title or "").strip(); self.description = (self.description or "").strip(); errors = {}
+        if not self.title: errors["title"] = "Le titre du Projet est obligatoire."
+        if bool(self.owner_profile_id) == bool(self.owning_space_id): errors["owner_profile"] = "Un Projet doit être porté par exactement un Profile ou un Espace."
+        if self.starts_on and self.ends_on and self.starts_on > self.ends_on: errors["ends_on"] = "La fin du Projet ne peut pas précéder son début."
+        if errors: raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if self.pk and not self._state.adding and not getattr(self, "_allow_lifecycle_transition", False):
+            previous = Project.objects.filter(pk=self.pk).values_list("lifecycle", flat=True).first()
+            if previous is not None and previous != self.lifecycle: raise ValidationError({"lifecycle": "Utilisez le service de transition Project pour changer cet état."})
+        result = super().save(*args, **kwargs); self._allow_lifecycle_transition = False; return result
+
+
+class ProjectDossierLink(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name="dossier_links")
+    dossier = models.ForeignKey(Dossier, on_delete=models.PROTECT, related_name="project_links")
+    linked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="project_dossier_links_created")
+    linked_at = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+    removed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="project_dossier_links_removed", null=True, blank=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["linked_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["project", "dossier"], condition=Q(is_active=True), name="project_dossier_active_pair_unique"),
+            models.UniqueConstraint(fields=["dossier"], condition=Q(is_active=True), name="dossier_one_active_project"),
+        ]
+        indexes = [models.Index(fields=["project", "is_active"], name="project_dossier_active_idx"), models.Index(fields=["dossier", "is_active"], name="dossier_project_active_idx")]
+
+    def clean(self):
+        super().clean()
+        if not self.is_active and not self.removed_at: raise ValidationError({"removed_at": "Un rattachement retiré doit conserver sa date de retrait."})
