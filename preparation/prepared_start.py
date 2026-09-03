@@ -12,8 +12,7 @@ from django.utils import timezone
 
 from journeys.models import ExternalBeneficiary
 from opportunities.models import Opportunity, OpportunityPublicationStatus, OpportunityRequirement, OpportunityRevision
-from personal_assets.action_memory import ActionMemorySubjectType
-from personal_assets.prepared_memory import prepared_action_memory_for_subject
+from personal_assets.action_memory import ActionMemorySubjectType, action_memory_for_subject
 from readiness.types import NextAction, ReadinessCheck, ReadinessCheckState, ReadinessResult, ReadinessStatus
 from requirements.contracts import RequirementAssessmentState
 from requirements.models import RequirementReusePolicy
@@ -261,14 +260,14 @@ def _requirement_result(*, requirement, memory, context, observed_at):
     decisions = tuple(
         evaluate_trusted_reuse_candidate(
             requirement=requirement,
-            candidate=item.candidate,
+            candidate=candidate,
             expected_subject_type=_subject_type(context),
             expected_subject_id=context.subject_id,
-            source_date=item.source_date,
+            source_date=candidate.source_date,
             observed_at=observed_at,
             policies=policies,
         )
-        for item in memory
+        for candidate in memory
     )
     state, reason_code = _preparation_state(policies=policies, decisions=decisions)
     visible_decisions = tuple(
@@ -357,7 +356,7 @@ def prepared_start_for_revision(
     if revision.published_at is None:
         raise ValidationError("Prepared Start exige une OpportunityRevision publiée.")
 
-    memory = prepared_action_memory_for_subject(actor=actor, subject=subject, observed_at=observed_at)
+    memory = action_memory_for_subject(actor=actor, subject=subject, observed_at=observed_at)
     requirements = tuple(
         _requirement_result(requirement=requirement, memory=memory, context=context, observed_at=observed_at)
         for requirement in revision.requirements.all()
