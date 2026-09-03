@@ -115,7 +115,7 @@ class D5ProjectTests(TestCase):
         link_dossier_to_project(actor=self.alice, project=project, dossier=dossier)
         payloads = [call.kwargs["payload"] for call in emit.call_args_list]
         self.assertIn({"project_id": str(project.pk)}, payloads)
-        link_payload = next(payload for payload in payloads if payload.get("dossier_id") == str(dossier.pk))
+        link_payload = next(payload for payload in payloads if payload.get("project_id") == str(project.pk) and payload.get("dossier_id") == str(dossier.pk))
         self.assertEqual(set(link_payload), {"project_id", "dossier_id", "link_id"})
         for payload in payloads:
             self.assertNotIn("title", payload); self.assertNotIn("description", payload); self.assertNotIn("readiness", payload)
