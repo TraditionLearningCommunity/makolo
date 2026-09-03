@@ -24,8 +24,8 @@ def readiness(status, action=None):
 
 class D4CollectiveReadinessTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="d4-owner", password="StrongPass2026!")
-        self.other = User.objects.create_user(username="d4-other", password="StrongPass2026!")
+        self.owner = User.objects.create_user(username="d4-owner", email="d4-owner@example.test", password="StrongPass2026!")
+        self.other = User.objects.create_user(username="d4-other", email="d4-other@example.test", password="StrongPass2026!")
         self.dossier = create_dossier(actor=self.owner, owner_profile=self.owner, title="Obtenir la bourse de Junior")
 
     def make_link(self, title, *, actor=None, beneficiary=None, status=JourneyStatus.DRAFT):
