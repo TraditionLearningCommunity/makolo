@@ -54,7 +54,7 @@ jobs:
       - name: Refresh visual snapshots
         env:
           E2E_SKIP_PREP: "1"
-        run: npx playwright test e2e/specs/visual.spec.mjs --update-snapshots
+        run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots
       - name: Verify only approved Discover baselines changed
         shell: bash
         run: |
