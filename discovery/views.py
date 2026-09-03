@@ -20,6 +20,7 @@ from .models import ActivityBookmark
 from .presentation import build_discovery_item, presenter_for
 from .search import get_public_occurrence, public_occurrences_for_activities, search_occurrences
 from .services import build_recommendations, build_trending, public_discovery_events
+from .telemetry import record_search
 from .unified import public_service_discovery_items
 
 
@@ -74,6 +75,7 @@ def _query_without_page(request):
     params = request.GET.copy()
     params.pop("page", None)
     params.pop("focus", None)
+    params.pop("_correction", None)
     return params.urlencode()
 
 
@@ -100,6 +102,7 @@ class DiscoveryHomeView(TemplateView):
             errors = list(exc.messages)
         items = result.items
         service_items = public_service_discovery_items(search_params, profile=self.request.user)
+        result_count = result.total + len(service_items)
         page_obj = Paginator(items, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
         filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
@@ -112,6 +115,15 @@ class DiscoveryHomeView(TemplateView):
                 for item in page_obj.object_list
                 if (payload := item.to_map_dict()) is not None
             ]
+        record_search(
+            result_count=result_count,
+            constraint_count=len(intent.constraints),
+            vertical=intent.vertical,
+            nearby_active=nearby_active,
+            had_query=bool((self.request.GET.get("q") or "").strip()),
+            correction_key=self.request.GET.get("_correction", ""),
+            error_count=len(errors),
+        )
         context.update(
             {
                 "items": page_obj.object_list,
@@ -122,7 +134,7 @@ class DiscoveryHomeView(TemplateView):
                 "applied_constraints": intent.constraints,
                 "search_errors": errors,
                 "search_timezone": result.timezone_name,
-                "result_count": result.total + len(service_items),
+                "result_count": result_count,
                 "place_suggestions": _place_suggestions(items),
                 "nearby_active": nearby_active,
                 "map_items": map_items,
