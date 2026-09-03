@@ -64,8 +64,6 @@ class EventAccessGate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # An Event may gain several Occurrences; a gate therefore has no single
-        # generic Event date to order by. Event scoping + priority is stable.
         ordering = ["event_id", "priority", "name"]
         constraints = [
             models.UniqueConstraint(
@@ -122,6 +120,14 @@ class ScannerAssignment(models.Model):
         related_name="scanner_assignments",
         null=True,
         blank=True,
+    )
+    checkpoint = models.ForeignKey(
+        "operations.OccurrenceCheckpoint",
+        on_delete=models.PROTECT,
+        related_name="scanner_assignments",
+        null=True,
+        blank=True,
+        help_text="Contexte opérationnel optionnel; ne confère aucune autorité Scanner ou Operations.",
     )
     event = models.ForeignKey(
         Event,
@@ -206,12 +212,23 @@ class ScannerAssignment(models.Model):
         errors = {}
         if self.occurrence_id and not self.activity_id:
             self.activity_id = self.occurrence.activity_id
+        if self.checkpoint_id:
+            checkpoint_occurrence = self.checkpoint.occurrence
+            if not self.occurrence_id:
+                self.occurrence_id = checkpoint_occurrence.pk
+            if not self.activity_id:
+                self.activity_id = checkpoint_occurrence.activity_id
         if self.event_id and not self.activity_id and self.event.activity_id:
             self.activity_id = self.event.activity_id
         if not self.activity_id and not self.event_id:
             errors["activity"] = "Une Activity est obligatoire pour une nouvelle affectation scanner."
         if self.occurrence_id and self.activity_id and self.occurrence.activity_id != self.activity_id:
             errors["occurrence"] = "Cette Occurrence appartient à une autre Activity."
+        if self.checkpoint_id:
+            if self.checkpoint.occurrence.activity_id != self.activity_id:
+                errors["checkpoint"] = "Ce checkpoint appartient à une autre Activity."
+            if self.occurrence_id and self.checkpoint.occurrence_id != self.occurrence_id:
+                errors["checkpoint"] = "Ce checkpoint appartient à une autre Occurrence."
         if self.event_id and self.activity_id and self.event.activity_id:
             if self.event.activity_id != self.activity_id:
                 errors["event"] = "Cet Event projette une autre Activity."
