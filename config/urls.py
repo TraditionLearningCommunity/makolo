@@ -65,6 +65,7 @@ urlpatterns = [
     path("operations/", include("operations.urls")),
     path("journeys/", include("journeys.urls")),
     path("objectives/", include("objectives.urls")),
+    path("library/", include("personal_assets.urls")),
     path("", include("sharing.urls")),
     path("", include("social.urls")),
     path("", include("goals.urls")),

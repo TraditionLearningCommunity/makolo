@@ -1,0 +1,47 @@
+{% extends "base/app.html" %}
+{% block title %}Réutiliser ce que vous avez déjà · Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:px-6">
+  <div>
+    <a class="text-sm font-semibold" href="{% url 'core:participant-journey-detail' journey.pk %}">← Retour à la démarche</a>
+    <h1 class="mt-3 text-2xl font-extrabold">Vous avez peut-être déjà ce qu’il faut</h1>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ assessment.requirement.title }}</p>
+  </div>
+  {% if options %}
+    <div class="space-y-4">
+      {% for option in options %}
+        <article class="mk-panel p-5">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <strong>{{ option.candidate.title }}</strong>
+              <p class="mt-1 text-xs" style="color:var(--mk-muted)">
+                {% if option.candidate.source.value == 'library' %}Ma Bibliothèque{% elif option.candidate.source.value == 'journey_artifact' %}Ancienne démarche{% else %}Attestation Makolo{% endif %}
+                {% if option.candidate.source_version %} · version {{ option.candidate.source_version }}{% endif %}
+              </p>
+            </div>
+            {% if option.decision.acceptable %}<span class="mk-badge mk-badge-brand">Utilisable ici</span>{% else %}<span class="mk-badge">À vérifier</span>{% endif %}
+          </div>
+          <p class="mt-3 text-sm">{{ option.message }}</p>
+          {% if option.decision.confirmation_required %}<p class="mt-2 text-sm font-semibold">Cet élément est sensible ou restreint : rien n’est joint sans votre confirmation.</p>{% endif %}
+          {% if option.can_apply %}
+            <form method="post" class="mt-4 space-y-3">
+              {% csrf_token %}
+              <input type="hidden" name="candidate_source" value="{{ option.candidate.source.value }}">
+              <input type="hidden" name="candidate_source_id" value="{{ option.candidate.source_id }}">
+              {% if option.decision.confirmation_required %}
+                <label class="flex gap-2 text-sm"><input type="checkbox" name="confirmed" value="yes" required><span>Je confirme que Makolo peut copier cet élément dans cette démarche et le joindre comme preuve à examiner.</span></label>
+              {% endif %}
+              <button class="mk-btn mk-btn-primary" type="submit">{% if option.decision.confirmation_required %}Utiliser et joindre ce document{% else %}Utiliser ce document{% endif %}</button>
+            </form>
+          {% elif option.candidate.source.value == 'proof' and option.decision.acceptable %}
+            <p class="mt-3 text-xs" style="color:var(--mk-muted)">Aucune copie de fichier n’est créée. Cette attestation reste distincte d’un document.</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="mk-panel p-6"><p>Makolo n’a trouvé aucun élément antérieur que vous êtes autorisé à examiner pour cette condition.</p></div>
+  {% endif %}
+  <div class="mk-panel p-5"><p class="text-sm">Si Makolo ne peut pas conclure, vous pouvez continuer normalement en ajoutant un document ou en suivant les étapes prévues. Aucune condition n’est automatiquement marquée comme satisfaite.</p></div>
+</div>
+{% endblock %}

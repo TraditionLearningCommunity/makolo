@@ -5,3 +5,6 @@ class RequirementsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "requirements"
     verbose_name = "Requirements"
+
+    def ready(self):
+        from . import signals  # noqa: F401
