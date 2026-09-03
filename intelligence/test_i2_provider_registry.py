@@ -83,6 +83,26 @@ class IntelligenceProviderRegistryTests(TestCase):
         self.assertEqual(result.output, {"vertical": "transport"})
         self.assertEqual(result.model, "test-model")
 
+    def test_provider_timeout_is_controlled_unavailability(self):
+        IntelligenceRoute.objects.create(
+            capability=IntelligenceCapability.STRUCTURED_GENERATE.value,
+            connection=self.connection,
+        )
+        with patch.dict(os.environ, {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "unit-test-master-key"}):
+            set_provider_secret(connection=self.connection, secret="sk-example-secret-1234")
+            gateway = IntelligenceGateway(
+                build_runtime_registry(capability=IntelligenceCapability.STRUCTURED_GENERATE)
+            )
+            with patch("urllib.request.urlopen", side_effect=TimeoutError("slow provider")):
+                result = gateway.execute(
+                    IntelligenceRequest(
+                        capability=IntelligenceCapability.STRUCTURED_GENERATE,
+                        input={"text": "voyager demain"},
+                    )
+                )
+        self.assertFalse(result.available)
+        self.assertEqual(result.reason, "ProviderUnavailable")
+
     def test_missing_master_key_keeps_runtime_route_unavailable(self):
         IntelligenceRoute.objects.create(
             capability=IntelligenceCapability.TEXT_GENERATE.value,
