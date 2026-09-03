@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ipaddress
 import uuid
+from urllib.parse import urlparse
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -25,6 +27,21 @@ class ProviderHealth(models.TextChoices):
     DEGRADED = "degraded", "Dégradé"
     UNAVAILABLE = "unavailable", "Indisponible"
     INVALID_CREDENTIALS = "invalid_credentials", "Clé invalide"
+
+
+def _validate_external_provider_url(value: str) -> None:
+    parsed = urlparse(value)
+    hostname = (parsed.hostname or "").rstrip(".").lower()
+    if parsed.scheme != "https" or not hostname:
+        raise ValidationError("Une connexion Espace ou Profil doit utiliser une URL HTTPS publique.")
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        raise ValidationError("Les adresses locales ne sont pas autorisées pour une connexion Espace ou Profil.")
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        return
+    if not address.is_global:
+        raise ValidationError("Les adresses privées, locales ou réservées ne sont pas autorisées pour cette connexion.")
 
 
 class ProviderConnection(models.Model):
@@ -85,6 +102,8 @@ class ProviderConnection(models.Model):
             raise ValidationError("Une connexion Profil doit cibler exactement un Profil.")
         if self.timeout_seconds < 1:
             raise ValidationError({"timeout_seconds": "Le timeout doit être positif."})
+        if self.scope in {ProviderScope.SPACE, ProviderScope.PROFILE}:
+            _validate_external_provider_url(self.base_url)
 
     def __str__(self):
         return self.name
