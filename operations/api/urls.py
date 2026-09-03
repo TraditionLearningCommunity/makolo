@@ -1,5 +1,13 @@
 from django.urls import path
 
+from operations.checkpoint_api import (
+    CheckpointAssignmentDetailAPIView,
+    CheckpointAssignmentsAPIView,
+    CheckpointObservationsAPIView,
+    CheckpointStatusAPIView,
+    MyOccurrenceCheckpointsAPIView,
+    OperatorOccurrenceCheckpointsAPIView,
+)
 from operations.placement_api import (
     MyOccurrencePlacementsAPIView,
     OperatorOccurrencePlacementPlansAPIView,
@@ -32,6 +40,36 @@ urlpatterns = [
     path("incidents/<uuid:pk>/", OperationsIncidentDetailAPIView.as_view(), name="incident-detail"),
     path("moderation/", ModerationCasesAPIView.as_view(), name="moderation"),
     path("workers/", WorkerHealthAPIView.as_view(), name="workers"),
+    path(
+        "occurrences/<uuid:occurrence_id>/checkpoints/me/",
+        MyOccurrenceCheckpointsAPIView.as_view(),
+        name="occurrence-checkpoints-me",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/checkpoints/",
+        OperatorOccurrenceCheckpointsAPIView.as_view(),
+        name="occurrence-checkpoints",
+    ),
+    path(
+        "checkpoints/<uuid:checkpoint_id>/status/",
+        CheckpointStatusAPIView.as_view(),
+        name="checkpoint-status",
+    ),
+    path(
+        "checkpoints/<uuid:checkpoint_id>/assignments/",
+        CheckpointAssignmentsAPIView.as_view(),
+        name="checkpoint-assignments",
+    ),
+    path(
+        "checkpoint-assignments/<uuid:assignment_id>/",
+        CheckpointAssignmentDetailAPIView.as_view(),
+        name="checkpoint-assignment-detail",
+    ),
+    path(
+        "checkpoints/<uuid:checkpoint_id>/observations/",
+        CheckpointObservationsAPIView.as_view(),
+        name="checkpoint-observations",
+    ),
     path(
         "occurrences/<uuid:occurrence_id>/placements/me/",
         MyOccurrencePlacementsAPIView.as_view(),
