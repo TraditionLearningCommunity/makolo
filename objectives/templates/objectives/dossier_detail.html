@@ -7,6 +7,8 @@
   {% if dossier.description %}<p>{{ dossier.description }}</p>{% endif %}
   <p>{{ dossier.get_lifecycle_display }}{% if dossier.deadline %} · échéance {{ dossier.deadline }}{% endif %}</p>
 
+  {% if project or can_manage_project_context %}<section style="margin-top:2rem;padding:1rem;border:1px solid #ddd;border-radius:16px;"><h2>Projet</h2>{% if project %}<p><a href="{% url 'objectives:project-detail' project.id %}">{{ project.title }}</a></p>{% else %}<p>Aucun Projet visible.</p>{% endif %}{% if can_manage_project_context %}<form method="post" action="{% url 'objectives:dossier-project' dossier.id %}">{% csrf_token %}{{ project_form.as_p }}<button type="submit">Mettre à jour le Projet</button></form>{% endif %}</section>{% endif %}
+
   <section style="margin-top:2rem;padding:1rem;border:1px solid #ddd;border-radius:16px;">
     <h2>Avancement</h2>
     <p><strong>{{ collective_readiness.status_label }}</strong></p>
