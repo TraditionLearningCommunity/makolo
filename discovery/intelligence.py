@@ -15,6 +15,14 @@ _ALLOWED_VERTICALS = {"event", "transport", "service", "other"}
 _ALLOWED_WHEN = {"today", "tomorrow", "week", "weekend", "upcoming"}
 _ALLOWED_PERIODS = {"morning", "afternoon", "evening"}
 _ALLOWED_PRICE = {"free", "paid"}
+_SYSTEM_PROMPT = (
+    "Return one JSON object for Makolo discovery with only these string fields: "
+    "vertical, place, when, period, price, text. "
+    "Allowed values: vertical event|transport|service|other; "
+    "when today|tomorrow|week|weekend|upcoming; "
+    "period morning|afternoon|evening; price free|paid. "
+    "Use empty strings when unknown and do not invent facts."
+)
 
 
 def _text(value) -> str:
@@ -94,7 +102,12 @@ def interpret_with_intelligence(intent: DiscoveryIntent, *, profile=None, gatewa
         gateway = IntelligenceGateway(registry=registry)
     request = IntelligenceRequest(
         capability=IntelligenceCapability.STRUCTURED_GENERATE,
-        input={"text": intent.raw_text},
+        input={
+            "messages": [
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": intent.raw_text},
+            ]
+        },
         metadata={"feature": "discovery_interpret"},
     )
     result = gateway.execute(request)
