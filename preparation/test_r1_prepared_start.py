@@ -14,7 +14,7 @@ from access.models import Access
 from activities.models import Activity
 from authorization.constants import SystemRoleCode
 from journeys.collaboration_models import JourneyArtifact, JourneyArtifactKind, JourneyArtifactSensitivity
-from journeys.models import Journey, WorkflowKind
+from journeys.models import ExternalBeneficiary, Journey, WorkflowKind
 from objectives.services import assign_dossier, create_dossier, grant_dossier_authority
 from opportunities.models import (
     Opportunity,
@@ -114,9 +114,12 @@ class PreparedStartR1Tests(TestCase):
         title="CV principal",
     ):
         subject = subject or self.actor
+        subject_profile = None if isinstance(subject, ExternalBeneficiary) else subject
+        subject_external_beneficiary = subject if isinstance(subject, ExternalBeneficiary) else None
         asset = PersonalAsset.objects.create(
             controller=self.actor,
-            subject_profile=subject,
+            subject_profile=subject_profile,
+            subject_external_beneficiary=subject_external_beneficiary,
             kind=kind,
             title=title,
             sensitivity=sensitivity,
@@ -126,7 +129,7 @@ class PreparedStartR1Tests(TestCase):
             version=1,
             file=SimpleUploadedFile("r1.pdf", b"%PDF-1.4\nr1"),
             mime_type="application/pdf",
-            size=12,
+            size=11,
             content_hash="a" * 64,
             issued_at=issued_at,
             expires_at=expires_at,
@@ -170,31 +173,44 @@ class PreparedStartR1Tests(TestCase):
         self.assertFalse(ServiceRequirementAssessment.objects.exists())
         self.assertFalse(RequirementReuseApplication.objects.exists())
 
-    def test_confirmation_and_human_review_are_not_reported_as_requirement_satisfied(self):
+    def test_confirmation_and_human_review_use_exact_structured_kinds(self):
         revision = self._draft_revision()
-        sensitive_requirement = self._requirement(revision, title="CV sensible")
-        review_requirement = self._requirement(revision, title="CV à revoir")
-        self._policy(sensitive_requirement, sensitive=True, human_review=False, key="sensitive")
-        self._policy(review_requirement, human_review=True, key="review")
+        sensitive_requirement = self._requirement(revision, title="Document sensible")
+        review_requirement = self._requirement(revision, title="Certificat à revoir")
+        self._policy(
+            sensitive_requirement,
+            artifact_kind=JourneyArtifactKind.CV,
+            sensitive=True,
+            human_review=False,
+            key="sensitive-cv",
+        )
+        self._policy(
+            review_requirement,
+            artifact_kind=JourneyArtifactKind.CERTIFICATE,
+            human_review=True,
+            key="review-certificate",
+        )
         self._publish(revision)
         self._library_version(
+            kind=JourneyArtifactKind.CV,
             sensitivity=JourneyArtifactSensitivity.SENSITIVE,
             expires_at=timezone.localdate() + timedelta(days=90),
-            title="CV sensible",
+            title="Nom sans importance pour le matching",
         )
         self._library_version(
+            kind=JourneyArtifactKind.CERTIFICATE,
             sensitivity=JourneyArtifactSensitivity.NORMAL,
             expires_at=timezone.localdate() + timedelta(days=90),
-            title="CV normal",
+            title="Autre libellé sans importance",
         )
 
         result = prepared_start_for_revision(actor=self.actor, revision=revision)
         by_title = {item.title: item for item in result.requirements}
 
-        self.assertEqual(by_title["CV sensible"].preparation_state, PreparedRequirementState.CONFIRMATION_REQUIRED)
-        self.assertEqual(by_title["CV sensible"].assessment_state, RequirementAssessmentState.UNASSESSED)
-        self.assertEqual(by_title["CV à revoir"].preparation_state, PreparedRequirementState.REVIEW_REQUIRED)
-        self.assertEqual(by_title["CV à revoir"].assessment_state, RequirementAssessmentState.UNASSESSED)
+        self.assertEqual(by_title["Document sensible"].preparation_state, PreparedRequirementState.CONFIRMATION_REQUIRED)
+        self.assertEqual(by_title["Document sensible"].assessment_state, RequirementAssessmentState.UNASSESSED)
+        self.assertEqual(by_title["Certificat à revoir"].preparation_state, PreparedRequirementState.REVIEW_REQUIRED)
+        self.assertEqual(by_title["Certificat à revoir"].assessment_state, RequirementAssessmentState.UNASSESSED)
         self.assertEqual(result.readiness.status, ReadinessStatus.ACTION_REQUIRED)
 
     def test_no_policy_is_unknown_while_explicit_policy_with_no_candidate_is_missing(self):
@@ -265,6 +281,25 @@ class PreparedStartR1Tests(TestCase):
 
         self.assertEqual(item.preparation_state, PreparedRequirementState.MISSING)
         self.assertIn(TrustedReuseReasonCode.PROOF_REVOKED.value, item.reason_codes)
+
+    def test_external_beneficiary_uses_only_controller_owned_library_facts(self):
+        revision = self._draft_revision()
+        requirement = self._requirement(revision, title="CV bénéficiaire externe")
+        self._policy(requirement, human_review=False)
+        self._publish(revision)
+        beneficiary = ExternalBeneficiary.objects.create(display_name="Bénéficiaire externe", created_by=self.actor)
+        version = self._library_version(
+            subject=beneficiary,
+            expires_at=timezone.localdate() + timedelta(days=90),
+        )
+
+        result = prepared_start_for_revision(actor=self.actor, subject=beneficiary, revision=revision)
+
+        self.assertEqual(result.context.subject_type, "external_beneficiary")
+        self.assertEqual(result.requirements[0].preparation_state, PreparedRequirementState.READY)
+        self.assertEqual(result.requirements[0].reuse_options[0].candidate_source_id, str(version.pk))
+        with self.assertRaises(PermissionDenied):
+            prepared_start_for_revision(actor=self.other, subject=beneficiary, revision=revision)
 
     def test_revision_n_remains_exact_after_n_plus_one_and_revalidation_detects_newer(self):
         revision_n = self._draft_revision(title="Version N")
