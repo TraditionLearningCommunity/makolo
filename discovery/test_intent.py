@@ -1,12 +1,14 @@
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from geography.models import Place
+from intelligence.contracts import IntelligenceResult
 
+from .intelligence import interpret_with_intelligence
 from .intent import ConstraintSource, intent_from_params, resolve_discovery_intent
 from .intent_search import search_discovery_intent
 from .search import DiscoverySearchResult, resolve_time_window
@@ -146,3 +148,52 @@ class DiscoveryIntentTests(TestCase):
         params = search_occurrences.call_args.args[0]
         self.assertEqual(params["when"], "tomorrow")
         self.assertEqual(params["period"], "morning")
+
+    def test_intelligence_accepts_only_validated_canonical_constraints(self):
+        intent = resolve_discovery_intent({"q": "une sortie calme demain à Kolwezi"})
+        gateway = Mock()
+        gateway.execute.return_value = IntelligenceResult(
+            available=True,
+            output={
+                "vertical": "event",
+                "place": "Kolwezi",
+                "when": "tomorrow",
+                "period": "evening",
+                "price": "",
+                "text": "calme",
+            },
+        )
+        resolved = interpret_with_intelligence(intent, gateway=gateway)
+        self.assertEqual(resolved.vertical, "event")
+        self.assertEqual(resolved.place, "Kolwezi")
+        self.assertEqual(resolved.when, "tomorrow")
+        self.assertEqual(resolved.period, "evening")
+        self.assertEqual(resolved.text, "calme")
+        self.assertTrue(all(item.source == ConstraintSource.INTERPRETED for item in resolved.constraints))
+
+    def test_intelligence_rejects_invented_place_and_falls_back(self):
+        intent = resolve_discovery_intent({"q": "une sortie à Atlantis demain"})
+        gateway = Mock()
+        gateway.execute.return_value = IntelligenceResult(
+            available=True,
+            output={"vertical": "event", "place": "Atlantis", "when": "tomorrow", "text": ""},
+        )
+        resolved = interpret_with_intelligence(intent, gateway=gateway)
+        self.assertEqual(resolved, intent)
+
+    def test_intelligence_rejects_ambiguous_period_and_falls_back(self):
+        intent = resolve_discovery_intent({"q": "quelque chose le week-end matin"})
+        gateway = Mock()
+        gateway.execute.return_value = IntelligenceResult(
+            available=True,
+            output={"vertical": "event", "when": "weekend", "period": "morning", "text": ""},
+        )
+        resolved = interpret_with_intelligence(intent, gateway=gateway)
+        self.assertEqual(resolved, intent)
+
+    def test_deterministic_intent_never_calls_intelligence(self):
+        intent = resolve_discovery_intent({"q": "Je veux voyager à Kolwezi demain matin"})
+        gateway = Mock()
+        resolved = interpret_with_intelligence(intent, gateway=gateway)
+        self.assertEqual(resolved, intent)
+        gateway.execute.assert_not_called()
