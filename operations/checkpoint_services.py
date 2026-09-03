@@ -20,11 +20,16 @@ _ALLOWED_TRANSITIONS = {
 _INELIGIBLE_JOURNEY_STATUSES = {"rejected", "cancelled", "expired"}
 
 
-def _require_manage(actor, checkpoint):
+def _require_authority(actor, checkpoint, authority_check=None):
     if not actor or not actor.is_authenticated:
         raise PermissionDenied("Authentification requise.")
-    if not user_can_manage_activity_operations(actor, checkpoint.occurrence.activity):
-        raise PermissionDenied("Vous n’avez pas l’autorité Operations requise pour cette Activity.")
+    allowed = (
+        authority_check(actor, checkpoint)
+        if authority_check is not None
+        else user_can_manage_activity_operations(actor, checkpoint.occurrence.activity)
+    )
+    if not allowed:
+        raise PermissionDenied("Vous n’avez pas l’autorité requise pour cette opération de checkpoint.")
 
 
 def _event_scope(checkpoint):
@@ -56,7 +61,7 @@ def transition_checkpoint(*, actor, checkpoint, target_status):
         .select_related("occurrence", "occurrence__activity", "occurrence__activity__space")
         .get(pk=checkpoint.pk)
     )
-    _require_manage(actor, current)
+    _require_authority(actor, current)
     if target_status not in _ALLOWED_TRANSITIONS[current.status]:
         raise ValidationError({"status": f"Transition invalide: {current.status} → {target_status}."})
     current.status = target_status
@@ -93,7 +98,7 @@ def assign_checkpoint_operator(*, actor, checkpoint, profile):
         .select_related("occurrence", "occurrence__activity", "occurrence__activity__space")
         .get(pk=checkpoint.pk)
     )
-    _require_manage(actor, current_checkpoint)
+    _require_authority(actor, current_checkpoint)
     existing = CheckpointAssignment.objects.select_for_update().filter(
         checkpoint=current_checkpoint, profile=profile, ended_at__isnull=True
     ).first()
@@ -123,7 +128,7 @@ def end_checkpoint_assignment(*, actor, assignment):
         .select_related("checkpoint", "checkpoint__occurrence", "checkpoint__occurrence__activity", "checkpoint__occurrence__activity__space")
         .get(pk=assignment.pk)
     )
-    _require_manage(actor, current.checkpoint)
+    _require_authority(actor, current.checkpoint)
     if current.ended_at is None:
         current.ended_at = timezone.now()
         current.save(update_fields=["ended_at"])
@@ -200,6 +205,7 @@ def observe_checkpoint(
     source="operator",
     client_reference="",
     access_use=None,
+    authority_check=None,
 ):
     subject = _subject_kwargs(profile=profile, external_beneficiary=external_beneficiary)
     current = (
@@ -207,7 +213,7 @@ def observe_checkpoint(
         .select_related("occurrence", "occurrence__activity", "occurrence__activity__space")
         .get(pk=checkpoint.pk)
     )
-    _require_manage(actor, current)
+    _require_authority(actor, current, authority_check=authority_check)
     if not current.active or current.status != CheckpointStatus.OPEN:
         raise ValidationError({"checkpoint": "Le checkpoint doit être actif et ouvert pour enregistrer un passage."})
     if not _beneficiary_is_expected(checkpoint=current, **subject):
