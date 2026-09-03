@@ -7,6 +7,7 @@ from authorization.selectors import current_mandates
 from authorization.services import activity_ids_with_permission, dossier_ids_with_permission, space_ids_with_permission
 from journeys.models import Journey
 from organizations.models import TeamMembershipStatus
+from readiness.selectors import readiness_queryset
 
 from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink
 
@@ -48,6 +49,15 @@ def _visible_link_filter(profile):
 def visible_linked_journeys(profile, dossier):
     if not getattr(profile, "is_authenticated", False): return DossierJourneyLink.objects.none()
     return DossierJourneyLink.objects.filter(dossier=dossier, is_active=True).filter(_visible_link_filter(profile)).select_related("journey", "journey__activity", "journey__occurrence", "journey__beneficiary", "journey__external_beneficiary", "linked_by").order_by("linked_at", "id")
+
+
+def visible_linked_journey_ids(profile, dossier):
+    return visible_linked_journeys(profile, dossier).values_list("journey_id", flat=True)
+
+
+def readiness_journeys_for_dossier(dossier):
+    queryset = Journey.objects.filter(dossier_links__dossier=dossier, dossier_links__is_active=True).order_by("dossier_links__linked_at", "dossier_links__id")
+    return readiness_queryset(queryset)
 
 
 def linkable_journeys_for_profile(profile, dossier=None):

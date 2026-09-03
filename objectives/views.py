@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import DossierAssignmentForm, DossierAuthorityGrantForm, DossierCreateForm, DossierDependencyForm, DossierDependencyWaiverForm, DossierJourneyLinkForm, DossierLifecycleForm
 from .models import DossierAssignment, DossierJourneyDependencyState
+from .readiness import resolve_dossier_readiness
 from .selectors import active_assignments_for_dossier, current_dossier_authority_mandates, dossier_for_profile, dossiers_for_profile, visible_dependencies_for_profile, visible_linked_journeys
 from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, create_dossier, dependency_is_satisfied, grant_dossier_authority, link_journey, remove_dependency, revoke_dossier_authority, set_dossier_lifecycle, unassign_dossier, unlink_journey, waive_dependency
 
@@ -43,6 +44,7 @@ def dossier_detail(request, dossier_id):
     for dependency in dependencies: dependency.is_satisfied = dependency_is_satisfied(dependency)
     return render(request, "objectives/dossier_detail.html", {
         "dossier": dossier, "links": links, "dependencies": dependencies, "assignments": active_assignments_for_dossier(dossier),
+        "collective_readiness": resolve_dossier_readiness(dossier, viewer=request.user),
         "authority_mandates": current_dossier_authority_mandates(dossier) if can_manage_authority else None,
         "dependency_active_state": DossierJourneyDependencyState.ACTIVE, "dependency_waived_state": DossierJourneyDependencyState.WAIVED,
         "can_manage": can_manage, "can_manage_authority": can_manage_authority,
