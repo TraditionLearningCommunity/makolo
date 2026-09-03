@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import time
+from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
 
@@ -12,7 +12,7 @@ from .search import DiscoverySearchResult, search_occurrences
 _PERIOD_WINDOWS = {
     DayPeriod.MORNING.value: (time(5, 0), time(12, 0)),
     DayPeriod.AFTERNOON.value: (time(12, 0), time(18, 0)),
-    DayPeriod.EVENING.value: (time(18, 0), time(23, 59, 59, 999999)),
+    DayPeriod.EVENING.value: (time(18, 0), time.max),
 }
 
 
@@ -23,16 +23,12 @@ def _apply_period(result: DiscoverySearchResult, intent: DiscoveryIntent) -> Dis
     if window is None:
         raise ValidationError("Période de journée invalide.")
     start, end = window
+    zone = ZoneInfo(result.timezone_name)
     items = []
     for item in result.items:
-        local_start = item.start_at
-        if getattr(local_start, "tzinfo", None) is not None:
-            # search_occurrences already resolved the business timezone. Items keep
-            # canonical datetimes; converting through Django is unnecessary here.
-            local_time = local_start.timetz().replace(tzinfo=None)
-        else:
-            local_time = local_start.time()
-        if start <= local_time < end:
+        local_start = item.start_at.astimezone(zone) if item.start_at.tzinfo is not None else item.start_at
+        local_time = local_start.time().replace(tzinfo=None)
+        if start <= local_time <= end:
             items.append(item)
     return DiscoverySearchResult(
         items=items,
