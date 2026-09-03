@@ -7,6 +7,9 @@ class DomainEventType:
     OCCURRENCE_RESCHEDULED = "occurrence.rescheduled"
     OCCURRENCE_CANCELLED = "occurrence.cancelled"
     OCCURRENCE_REOPENED = "occurrence.reopened"
+    PLACEMENT_ASSIGNED = "placement.assigned"
+    PLACEMENT_CHANGED = "placement.changed"
+    PLACEMENT_UNASSIGNED = "placement.unassigned"
 
     ORGANIZATION_TEAM_MEMBERSHIP_CHANGED = "organization.team_membership.changed"
 
