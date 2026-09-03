@@ -64,6 +64,9 @@ class PermissionCode:
     ACTIVITY_SERVICES_NOTES_INTERNAL = "activity.services.notes.internal"
     ACTIVITY_SERVICES_OUTCOMES_MANAGE = "activity.services.outcomes.manage"
     ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY = "activity.services.payment_evidence.verify"
+    DOSSIER_VIEW = "dossier.view"
+    DOSSIER_MANAGE = "dossier.manage"
+    DOSSIER_AUTHORITY_MANAGE = "dossier.authority.manage"
     ORDERS_VIEW = "orders.view"
     TICKETS_VIEW = "tickets.view"
     FINANCE_VIEW = "finance.view"
@@ -92,10 +95,8 @@ class SystemRoleCode:
     OPPORTUNITY_CURATOR = "opportunity-curator"
     SPACE_OWNER = "space-owner"
     SPACE_ADMIN = "space-admin"
-    # Historical Python contract kept as the Space-scoped Activity portfolio role.
     ACTIVITY_MANAGER = "space-activity-manager"
     SPACE_ACTIVITY_MANAGER = ACTIVITY_MANAGER
-    # Local Activity-scoped roles.
     ACTIVITY_LOCAL_MANAGER = "activity-manager"
     ACTIVITY_SCANNER = "activity-scanner"
     ACTIVITY_OPERATIONS_MANAGER = "activity-operations-manager"
@@ -103,6 +104,9 @@ class SystemRoleCode:
     ACTIVITY_SERVICE_MANAGER = "activity-service-manager"
     ACTIVITY_SERVICE_FACILITATOR = "activity-service-facilitator"
     ACTIVITY_SERVICE_REVIEWER = "activity-service-reviewer"
+    DOSSIER_VIEWER = "dossier-viewer"
+    DOSSIER_MANAGER = "dossier-manager"
+    DOSSIER_ADMIN = "dossier-admin"
     FINANCE = "finance"
     MARKETING = "marketing"
     ACCESS_MANAGER = "access-manager"
@@ -112,103 +116,51 @@ class SystemRoleCode:
 
 
 PLATFORM_PERMISSION_CODES = {
-    PermissionCode.PLATFORM_MANAGE,
-    PermissionCode.PLATFORM_TRUST_REVIEW,
-    PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW,
-    PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE,
-    PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW,
-    PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE,
-    PermissionCode.PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE,
-    PermissionCode.PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE,
-    PermissionCode.OPPORTUNITIES_MANAGE,
-    PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS,
-    PermissionCode.OPPORTUNITIES_SOURCES_VERIFY,
-    PermissionCode.OPPORTUNITIES_MERGE,
+    PermissionCode.PLATFORM_MANAGE, PermissionCode.PLATFORM_TRUST_REVIEW,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW, PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW, PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE,
+    PermissionCode.PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE, PermissionCode.PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE,
+    PermissionCode.OPPORTUNITIES_MANAGE, PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS,
+    PermissionCode.OPPORTUNITIES_SOURCES_VERIFY, PermissionCode.OPPORTUNITIES_MERGE,
 }
 GROUP_PERMISSION_CODES = {
-    PermissionCode.GROUP_VIEW,
-    PermissionCode.GROUP_MANAGE,
-    PermissionCode.GROUP_MEMBERS_VIEW,
-    PermissionCode.GROUP_MEMBERS_MANAGE,
-    PermissionCode.GROUP_INVITATIONS_MANAGE,
-    PermissionCode.GROUP_SNAPSHOTS_CREATE,
-    PermissionCode.GROUP_OWNERSHIP_MANAGE,
+    PermissionCode.GROUP_VIEW, PermissionCode.GROUP_MANAGE, PermissionCode.GROUP_MEMBERS_VIEW,
+    PermissionCode.GROUP_MEMBERS_MANAGE, PermissionCode.GROUP_INVITATIONS_MANAGE,
+    PermissionCode.GROUP_SNAPSHOTS_CREATE, PermissionCode.GROUP_OWNERSHIP_MANAGE,
 }
 ACTIVITY_PERMISSION_CODES = {
-    PermissionCode.ACTIVITY_VIEW,
-    PermissionCode.ACTIVITY_MANAGE,
-    PermissionCode.ACTIVITY_REQUESTS_VIEW,
-    PermissionCode.ACTIVITY_REQUESTS_DECIDE,
-    PermissionCode.ACTIVITY_ACCESS_VIEW,
-    PermissionCode.ACTIVITY_ACCESS_MANAGE,
-    PermissionCode.ACTIVITY_ACCESS_SCAN,
-    PermissionCode.ACTIVITY_OPERATIONS_VIEW,
-    PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
-    PermissionCode.ACTIVITY_COMMERCE_VIEW,
-    PermissionCode.ACTIVITY_COMMERCE_MANAGE,
-    PermissionCode.ACTIVITY_CAPACITY_VIEW,
-    PermissionCode.ACTIVITY_CAPACITY_MANAGE,
-    PermissionCode.ACTIVITY_FINANCE_VIEW,
-    PermissionCode.ACTIVITY_FINANCE_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_CONFIGURE,
-    PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
-    PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED,
-    PermissionCode.ACTIVITY_SERVICES_CASES_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_ASSIGNMENTS_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_STEPS_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_BLOCKERS_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_VIEW,
-    PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_RESTRICTED_VIEW,
-    PermissionCode.ACTIVITY_SERVICES_REVIEWS_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_NOTES_INTERNAL,
-    PermissionCode.ACTIVITY_SERVICES_OUTCOMES_MANAGE,
-    PermissionCode.ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY,
+    PermissionCode.ACTIVITY_VIEW, PermissionCode.ACTIVITY_MANAGE, PermissionCode.ACTIVITY_REQUESTS_VIEW,
+    PermissionCode.ACTIVITY_REQUESTS_DECIDE, PermissionCode.ACTIVITY_ACCESS_VIEW, PermissionCode.ACTIVITY_ACCESS_MANAGE,
+    PermissionCode.ACTIVITY_ACCESS_SCAN, PermissionCode.ACTIVITY_OPERATIONS_VIEW, PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
+    PermissionCode.ACTIVITY_COMMERCE_VIEW, PermissionCode.ACTIVITY_COMMERCE_MANAGE,
+    PermissionCode.ACTIVITY_CAPACITY_VIEW, PermissionCode.ACTIVITY_CAPACITY_MANAGE,
+    PermissionCode.ACTIVITY_FINANCE_VIEW, PermissionCode.ACTIVITY_FINANCE_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_CONFIGURE, PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
+    PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED, PermissionCode.ACTIVITY_SERVICES_CASES_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_ASSIGNMENTS_MANAGE, PermissionCode.ACTIVITY_SERVICES_STEPS_MANAGE,
+    PermissionCode.ACTIVITY_SERVICES_BLOCKERS_MANAGE, PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_VIEW,
+    PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_MANAGE, PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_RESTRICTED_VIEW,
+    PermissionCode.ACTIVITY_SERVICES_REVIEWS_MANAGE, PermissionCode.ACTIVITY_SERVICES_NOTES_INTERNAL,
+    PermissionCode.ACTIVITY_SERVICES_OUTCOMES_MANAGE, PermissionCode.ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY,
+}
+DOSSIER_PERMISSION_CODES = {
+    PermissionCode.DOSSIER_VIEW, PermissionCode.DOSSIER_MANAGE, PermissionCode.DOSSIER_AUTHORITY_MANAGE,
 }
 SPACE_PERMISSION_CODES = {
-    value
-    for name, value in PermissionCode.__dict__.items()
-    if name.isupper()
-    and value not in PLATFORM_PERMISSION_CODES
-    and value not in GROUP_PERMISSION_CODES
-    and value not in ACTIVITY_PERMISSION_CODES
+    value for name, value in PermissionCode.__dict__.items()
+    if name.isupper() and value not in PLATFORM_PERMISSION_CODES and value not in GROUP_PERMISSION_CODES
+    and value not in ACTIVITY_PERMISSION_CODES and value not in DOSSIER_PERMISSION_CODES
 }
 
-STANDARD_PLATFORM_ROLE_CODES = {
-    SystemRoleCode.PLATFORM_ADMIN,
-    SystemRoleCode.OPPORTUNITY_CURATOR,
-}
-STANDARD_SPACE_ROLE_CODES = {
-    SystemRoleCode.SPACE_OWNER,
-    SystemRoleCode.SPACE_ADMIN,
-    SystemRoleCode.ACTIVITY_MANAGER,
-    SystemRoleCode.FINANCE,
-    SystemRoleCode.MARKETING,
-    SystemRoleCode.ACCESS_MANAGER,
-}
-STANDARD_GROUP_ROLE_CODES = {
-    SystemRoleCode.GROUP_OWNER,
-    SystemRoleCode.GROUP_ADMIN,
-    SystemRoleCode.GROUP_MODERATOR,
-}
-STANDARD_ACTIVITY_ROLE_CODES = {
-    SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
-    SystemRoleCode.ACTIVITY_SCANNER,
-    SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
-    SystemRoleCode.ACTIVITY_FINANCE,
-    SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
-    SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
-    SystemRoleCode.ACTIVITY_SERVICE_REVIEWER,
-}
+STANDARD_PLATFORM_ROLE_CODES = {SystemRoleCode.PLATFORM_ADMIN, SystemRoleCode.OPPORTUNITY_CURATOR}
+STANDARD_SPACE_ROLE_CODES = {SystemRoleCode.SPACE_OWNER, SystemRoleCode.SPACE_ADMIN, SystemRoleCode.ACTIVITY_MANAGER, SystemRoleCode.FINANCE, SystemRoleCode.MARKETING, SystemRoleCode.ACCESS_MANAGER}
+STANDARD_GROUP_ROLE_CODES = {SystemRoleCode.GROUP_OWNER, SystemRoleCode.GROUP_ADMIN, SystemRoleCode.GROUP_MODERATOR}
+STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER, SystemRoleCode.ACTIVITY_SCANNER, SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER, SystemRoleCode.ACTIVITY_FINANCE, SystemRoleCode.ACTIVITY_SERVICE_MANAGER, SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR, SystemRoleCode.ACTIVITY_SERVICE_REVIEWER}
+STANDARD_DOSSIER_ROLE_CODES = {SystemRoleCode.DOSSIER_VIEWER, SystemRoleCode.DOSSIER_MANAGER, SystemRoleCode.DOSSIER_ADMIN}
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
-    "owner": SystemRoleCode.SPACE_OWNER,
-    "admin": SystemRoleCode.SPACE_ADMIN,
-    "event_manager": SystemRoleCode.ACTIVITY_MANAGER,
-    "finance": SystemRoleCode.FINANCE,
-    "marketing": SystemRoleCode.MARKETING,
-    "scanner_manager": SystemRoleCode.ACCESS_MANAGER,
+    "owner": SystemRoleCode.SPACE_OWNER, "admin": SystemRoleCode.SPACE_ADMIN,
+    "event_manager": SystemRoleCode.ACTIVITY_MANAGER, "finance": SystemRoleCode.FINANCE,
+    "marketing": SystemRoleCode.MARKETING, "scanner_manager": SystemRoleCode.ACCESS_MANAGER,
 }
-SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE = {
-    value: key for key, value in LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.items()
-}
+SYSTEM_ROLE_TO_LEGACY_ORGANIZATION_ROLE = {value: key for key, value in LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE.items()}
