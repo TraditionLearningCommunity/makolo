@@ -36,11 +36,6 @@ class D6ProjectHardeningTests(TestCase):
             email="d6-bob@example.test",
             password="StrongPass2026!",
         )
-        self.carol = User.objects.create_user(
-            username="d6-carol",
-            email="d6-carol@example.test",
-            password="StrongPass2026!",
-        )
 
     def test_unauthorized_lifecycle_change_is_rejected_and_unchanged(self):
         project = create_project(actor=self.alice, owner_profile=self.alice, title="Projet privé")
@@ -97,35 +92,28 @@ class D6ProjectHardeningTests(TestCase):
         )
         source = create_project(actor=self.bob, owning_space=source_space, title="Source")
         target = create_project(actor=self.alice, owning_space=target_space, title="Target")
-        dossier = create_dossier(actor=self.alice, owner_profile=self.alice, title="Dossier")
-        old_link = link_dossier_to_project(actor=self.bob, project=source, dossier=dossier) if False else None
-
-        # A platform-independent setup path is used: Alice owns the Dossier, while
-        # Bob alone manages the source Project. Bob can establish the historical
-        # source link only after receiving temporary Dossier authority through the
-        # canonical Space model, then that authority is absent for Alice at move time.
-        dossier_space = Organization.objects.create(name="D6 Dossier Space", created_by=self.bob)
-        grant_space_role(
-            profile=self.bob,
-            space=dossier_space,
-            role=SystemRoleCode.SPACE_ADMIN,
-            granted_by=self.bob,
-        )
-        dossier = create_dossier(actor=self.bob, owning_space=dossier_space, title="Dossier Space")
+        dossier = create_dossier(actor=self.bob, owning_space=source_space, title="Dossier")
         old_link = link_dossier_to_project(actor=self.bob, project=source, dossier=dossier)
         grant_space_role(
             profile=self.alice,
-            space=dossier_space,
+            space=source_space,
             role=SystemRoleCode.SPACE_ADMIN,
             granted_by=self.bob,
         )
+
+        # Alice can now manage the Dossier and target, but not the source Project
+        # would be false if source authority came only from the same Space. Revoke
+        # that ambiguity by using a personal source Project instead.
+        personal_source = create_project(actor=self.bob, owner_profile=self.bob, title="Personal Source")
+        unlink_dossier_from_project(actor=self.bob, project=source, dossier=dossier)
+        old_link = link_dossier_to_project(actor=self.bob, project=personal_source, dossier=dossier)
 
         with self.assertRaises(PermissionDenied):
             move_dossier_to_project(actor=self.alice, dossier=dossier, target_project=target)
 
         old_link.refresh_from_db()
         self.assertTrue(old_link.is_active)
-        self.assertEqual(old_link.project, source)
+        self.assertEqual(old_link.project, personal_source)
 
     def test_direct_uuid_and_post_do_not_bypass_project_authority(self):
         project = create_project(actor=self.alice, owner_profile=self.alice, title="Projet privé")
@@ -156,7 +144,7 @@ class D6ProjectHardeningTests(TestCase):
         source = create_project(actor=self.alice, owner_profile=self.alice, title="Source")
         target = create_project(actor=self.alice, owner_profile=self.alice, title="Target")
         dossier = create_dossier(actor=self.alice, owner_profile=self.alice, title="Dossier")
-        link = link_dossier_to_project(actor=self.alice, project=source, dossier=dossier)
+        link_dossier_to_project(actor=self.alice, project=source, dossier=dossier)
         emit.reset_mock()
 
         set_project_lifecycle(actor=self.alice, project=source, lifecycle=ProjectLifecycle.ACTIVE)
@@ -210,17 +198,18 @@ class D6ProjectHardeningTests(TestCase):
         for call in (lifecycle_call, move_call, unlink_call):
             self.assertTrue(forbidden_keys.isdisjoint(call.kwargs["payload"]))
 
-    @patch("objectives.services.emit_domain_event", side_effect=RuntimeError("event failure"))
-    def test_move_rolls_back_link_history_if_event_write_fails(self, _emit):
+    def test_move_rolls_back_link_history_if_event_write_fails(self):
         source = create_project(actor=self.alice, owner_profile=self.alice, title="Source")
         target = create_project(actor=self.alice, owner_profile=self.alice, title="Target")
         dossier = create_dossier(actor=self.alice, owner_profile=self.alice, title="Dossier")
+        old_link = link_dossier_to_project(actor=self.alice, project=source, dossier=dossier)
 
-        with patch("objectives.services.emit_domain_event"):
-            old_link = link_dossier_to_project(actor=self.alice, project=source, dossier=dossier)
-
-        with self.assertRaises(RuntimeError):
-            move_dossier_to_project(actor=self.alice, dossier=dossier, target_project=target)
+        with patch(
+            "objectives.services.emit_domain_event",
+            side_effect=RuntimeError("event failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                move_dossier_to_project(actor=self.alice, dossier=dossier, target_project=target)
 
         old_link.refresh_from_db()
         self.assertTrue(old_link.is_active)
