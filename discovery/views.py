@@ -14,6 +14,7 @@ from django.views.generic import ListView, TemplateView
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.participant_selectors import participant_state_context
 
+from .intent import resolve_discovery_intent
 from .models import ActivityBookmark
 from .presentation import build_discovery_item, presenter_for
 from .search import get_public_occurrence, public_occurrences_for_activities, search_occurrences
@@ -28,6 +29,7 @@ DISCOVERY_FILTER_KEYS = (
     "place",
     "city",
     "when",
+    "period",
     "vertical",
     "price",
     "radius_km",
@@ -84,19 +86,22 @@ class DiscoveryHomeView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         errors = []
-        vertical = (self.request.GET.get("vertical") or "").strip().lower()
+        intent = resolve_discovery_intent(self.request.GET)
+        search_params = intent.to_search_params()
+        vertical = intent.vertical
         try:
             result = _empty_occurrence_result() if vertical == "service" else search_occurrences(
-                self.request.GET, profile=self.request.user
+                search_params, profile=self.request.user
             )
         except ValidationError as exc:
             result = _empty_occurrence_result()
             errors = list(exc.messages)
         items = result.items
-        service_items = public_service_discovery_items(self.request.GET, profile=self.request.user)
+        service_items = public_service_discovery_items(search_params, profile=self.request.user)
         page_obj = Paginator(items, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
         filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
+        filters["period"] = intent.period
         nearby_active = bool(result.nearby_active)
         map_items = []
         if nearby_active:
@@ -111,6 +116,8 @@ class DiscoveryHomeView(TemplateView):
                 "service_items": service_items,
                 "page_obj": page_obj,
                 "filters": filters,
+                "discovery_intent": intent,
+                "applied_constraints": intent.constraints,
                 "search_errors": errors,
                 "search_timezone": result.timezone_name,
                 "result_count": result.total + len(service_items),
