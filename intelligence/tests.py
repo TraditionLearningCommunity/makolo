@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import SimpleTestCase
 
 from .capabilities import IntelligenceCapability
@@ -121,3 +123,19 @@ class IntelligenceFoundationTests(SimpleTestCase):
         )
         self.assertFalse(result.available)
         self.assertEqual(result.reason, "capability_not_configured")
+
+    @patch("intelligence.gateway.record_invocation")
+    def test_gateway_telemetry_never_receives_request_payload(self, record_invocation):
+        gateway = IntelligenceGateway(IntelligenceRegistry(providers=[EchoProvider()]))
+        gateway.execute(
+            IntelligenceRequest(
+                capability=IntelligenceCapability.STRUCTURED_GENERATE,
+                input={"text": "raw-private-prompt-marker"},
+                metadata={"feature": "discovery_interpret"},
+            )
+        )
+        self.assertTrue(record_invocation.called)
+        for call in record_invocation.call_args_list:
+            payload = repr(call.kwargs)
+            self.assertNotIn("raw-private-prompt-marker", payload)
+            self.assertNotIn("input", call.kwargs)
