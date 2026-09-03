@@ -103,17 +103,17 @@ Le resolver est indépendant des templates et peut être consommé par le web ac
 
 Les tâches Mature ultérieures pourront ajouter un `resource_acknowledgement_required` seulement si une vraie obligation de lecture est modélisée, ou enrichir la compréhension spatio-temporelle, sans créer un événement `readiness.changed` à chaque lecture.
 
-## Extensions stratégiques P→U
+## Extensions stratégiques R / D / O
 
-[`strategic-action-roadmap.md`](strategic-action-roadmap.md) réutilise explicitement la philosophie Readiness pour trois futures projections :
+[`strategic-action-roadmap.md`](strategic-action-roadmap.md) réutilise explicitement la philosophie Readiness pour trois projections stratégiques :
 
-- **Prepared Start** : expliquer ce qui est déjà prêt avant qu'une Journey complète soit matérialisée, lorsque Requirements et contexte permettent une évaluation légitime ;
-- **Collective Readiness** : agréger des états autorisés pour un Dossier/Groupe/Espace sans exposer les détails individuels inutiles ;
-- **Operational Readiness** : projeter si une Occurrence est opérationnellement prête à partir d'Access, Capacity, Scanner/Assignments, Resources et futures capacités Placement/Flow.
+- **R — Prepared Start** : expliquer ce qui est déjà prêt avant qu'une Journey complète soit matérialisée, lorsque Requirements et contexte permettent une évaluation légitime ;
+- **D — Collective Readiness** : agréger des états autorisés pour un Dossier/Groupe/Espace sans exposer les détails individuels inutiles ;
+- **O — Operational Readiness** : projeter si une Occurrence est opérationnellement prête à partir d'Access, Capacity, Scanner/Assignments, Resources et capacités Placement/Flow.
 
 Ces trois usages **ne créent pas automatiquement de modèle persistant** `PreparedStartState`, `CollectiveReadinessState` ou `OperationalReadinessState`. Ils doivent d'abord composer les faits canoniques et conserver les mêmes principes : résultat explicable, `NextAction`, disclosure minimale, aucune mutation métier depuis le resolver.
 
-L'Accueil contextuel peut consommer ces projections, mais ne devient pas la source de vérité de Readiness.
+L'Accueil contextuel M8 peut consommer ces projections, mais ne devient pas la source de vérité de Readiness.
 
 ## Migrations
 
