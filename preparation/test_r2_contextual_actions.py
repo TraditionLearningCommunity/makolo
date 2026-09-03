@@ -721,8 +721,16 @@ class R2DossierAdapterTests(SimpleTestCase):
 
 class R2PermissionBoundaryTests(TestCase):
     def test_m1_permission_gate_fails_before_r2_can_compose_another_beneficiary(self):
-        beneficiary = User.objects.create_user(username="r2-beneficiary", password="StrongPass2026!")
-        outsider = User.objects.create_user(username="r2-outsider", password="StrongPass2026!")
+        beneficiary = User.objects.create_user(
+            username="r2-beneficiary",
+            email="r2-beneficiary@makolo.test",
+            password="StrongPass2026!",
+        )
+        outsider = User.objects.create_user(
+            username="r2-outsider",
+            email="r2-outsider@makolo.test",
+            password="StrongPass2026!",
+        )
         activity = Activity.objects.create(
             owner_profile=beneficiary,
             created_by=beneficiary,
@@ -739,7 +747,11 @@ class R2PermissionBoundaryTests(TestCase):
             resolve_journey_readiness(journey, viewer=outsider)
 
     def test_authorized_participant_projection_can_be_composed_without_extra_queries(self):
-        beneficiary = User.objects.create_user(username="r2-owner", password="StrongPass2026!")
+        beneficiary = User.objects.create_user(
+            username="r2-owner",
+            email="r2-owner@makolo.test",
+            password="StrongPass2026!",
+        )
         activity = Activity.objects.create(
             owner_profile=beneficiary,
             created_by=beneficiary,
