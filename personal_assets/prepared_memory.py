@@ -66,7 +66,7 @@ def _library_candidates(*, actor, subject, subject_ref, observed_at):
     assets = assets.prefetch_related(
         Prefetch(
             "versions",
-            queryset=PersonalAssetVersion.objects.order_by("-version", "-created_at", "id"),
+            queryset=PersonalAssetVersion.objects.select_related("source_journey_artifact").order_by("-version", "-created_at", "id"),
             to_attr="prepared_versions",
         )
     ).order_by("created_at", "id")
