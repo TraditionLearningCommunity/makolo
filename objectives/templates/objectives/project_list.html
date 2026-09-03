@@ -1,0 +1,15 @@
+{% extends "base/app.html" %}
+{% block content %}
+<div style="max-width:760px;margin:0 auto;padding:1rem;">
+  <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+    <div><p style="margin:0;color:#5232DB;font-weight:700;">Initiatives durables</p><h1>Projets</h1></div>
+    <a class="mk-btn mk-btn-primary" href="{% url 'objectives:project-create' %}">Créer un Projet</a>
+  </div>
+  <p><a class="mk-btn mk-btn-ghost" href="{% url 'objectives:dossier-list' %}">Voir les Dossiers</a></p>
+  <div style="display:grid;gap:.75rem;">
+    {% for project in projects %}
+      <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;"><a href="{% url 'objectives:project-detail' project.id %}"><strong>{{ project.title }}</strong></a><br><small>{{ project.get_lifecycle_display }}</small></article>
+    {% empty %}<div class="mk-empty" style="padding:1rem;"><p>Aucun Projet visible.</p><p style="margin-top:.5rem;"><a class="mk-btn mk-btn-secondary" href="{% url 'objectives:project-create' %}">Créer votre premier Projet</a></p></div>{% endfor %}
+  </div>
+</div>
+{% endblock %}

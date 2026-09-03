@@ -1,0 +1,9 @@
+{% extends "base/app.html" %}
+{% block content %}
+<div style="max-width:680px;margin:0 auto;padding:1rem;">
+  <p><a class="mk-btn mk-btn-ghost" href="{% url 'objectives:dossier-list' %}">← Dossiers</a></p>
+  <p style="margin:1rem 0 0;color:#5232DB;font-weight:700;">Objectif composé</p>
+  <h1>Nouveau Dossier</h1>
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Créer le Dossier</button></form>
+</div>
+{% endblock %}

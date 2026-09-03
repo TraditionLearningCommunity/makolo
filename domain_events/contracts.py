@@ -33,6 +33,22 @@ class DomainEventType:
     JOURNEY_ARTIFACT_REVIEW_REQUESTED = "journey.artifact.review_requested"
     JOURNEY_ARTIFACT_REVIEW_COMPLETED = "journey.artifact.review_completed"
 
+    DOSSIER_CREATED = "dossier.created"
+    DOSSIER_JOURNEY_LINKED = "dossier.journey_linked"
+    DOSSIER_JOURNEY_UNLINKED = "dossier.journey_unlinked"
+    DOSSIER_LIFECYCLE_CHANGED = "dossier.lifecycle_changed"
+    DOSSIER_JOURNEY_DEPENDENCY_ADDED = "dossier.journey_dependency_added"
+    DOSSIER_JOURNEY_DEPENDENCY_REMOVED = "dossier.journey_dependency_removed"
+    DOSSIER_JOURNEY_DEPENDENCY_WAIVED = "dossier.journey_dependency_waived"
+    DOSSIER_ASSIGNMENT_ADDED = "dossier.assignment_added"
+    DOSSIER_ASSIGNMENT_REMOVED = "dossier.assignment_removed"
+
+    PROJECT_CREATED = "project.created"
+    PROJECT_LIFECYCLE_CHANGED = "project.lifecycle_changed"
+    PROJECT_DOSSIER_LINKED = "project.dossier_linked"
+    PROJECT_DOSSIER_UNLINKED = "project.dossier_unlinked"
+    PROJECT_DOSSIER_MOVED = "project.dossier_moved"
+
     FORM_REQUESTED = "form.requested"
     FORM_SUBMITTED = "form.submitted"
     FORM_REOPENED = "form.reopened"
