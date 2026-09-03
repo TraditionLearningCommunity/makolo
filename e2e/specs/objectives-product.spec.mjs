@@ -45,18 +45,18 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   await expect(page.getByRole('link', { name: 'Dossiers & Projets' })).toBeVisible();
   await page.getByRole('link', { name: 'Créer un Dossier' }).click();
 
-  await page.getByLabel('Objectif', { exact: true }).fill('Préparer le départ D6 bis');
-  await page.getByLabel('Contexte', { exact: true }).fill('Smoke test produit du train Objectives.');
+  await page.getByLabel(/^Objectif\s*:$/).fill('Préparer le départ D6 bis');
+  await page.getByLabel(/^Contexte\s*:$/).fill('Smoke test produit du train Objectives.');
   await page.getByRole('button', { name: 'Créer le Dossier' }).click();
   await expect(page.getByRole('heading', { name: 'Préparer le départ D6 bis' })).toBeVisible();
   const dossierUrl = page.url();
 
-  const journeySelect = page.getByLabel('Démarche', { exact: true });
+  const journeySelect = page.getByLabel(/^Démarche\s*:$/);
   await journeySelect.selectOption({ label: 'Accompagnement Services V1 E2E' });
   await page.getByRole('button', { name: 'Lier la démarche' }).click();
   await expect(page.getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Démarche', { exact: true }).selectOption({ label: 'Inscription communautaire E2E' });
+  await page.getByLabel(/^Démarche\s*:$/).selectOption({ label: 'Inscription communautaire E2E' });
   await page.getByRole('button', { name: 'Lier la démarche' }).click();
   await expect(page.getByText('Inscription communautaire E2E', { exact: true })).toBeVisible();
 
@@ -66,7 +66,7 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   await expect(page.getByText(/Accompagnement Services V1 E2E.*nécessite.*Inscription communautaire E2E/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Avancement' })).toBeVisible();
 
-  const nativeJourneySelect = page.getByLabel('Démarche', { exact: true });
+  const nativeJourneySelect = page.getByLabel(/^Démarche\s*:$/);
   await nativeJourneySelect.focus();
   await expect(nativeJourneySelect).toBeFocused();
   await page.keyboard.press('Tab');
@@ -74,12 +74,12 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   await expectNoSeriousAxeViolations(page);
 
   await page.goto('/objectives/projects/new/');
-  await page.getByLabel('Titre', { exact: true }).fill('Projet D6 bis E2E');
-  await page.getByLabel('Contexte', { exact: true }).fill('Horizon durable du smoke Objectives.');
+  await page.getByLabel(/^Titre\s*:$/).fill('Projet D6 bis E2E');
+  await page.getByLabel(/^Contexte\s*:$/).fill('Horizon durable du smoke Objectives.');
   await page.getByRole('button', { name: 'Créer le Projet' }).click();
   await expect(page.getByRole('heading', { name: 'Projet D6 bis E2E' })).toBeVisible();
 
-  await page.getByLabel('Dossier', { exact: true }).selectOption({ label: 'Préparer le départ D6 bis' });
+  await page.getByLabel(/^Dossier\s*:$/).selectOption({ label: 'Préparer le départ D6 bis' });
   await page.getByRole('button', { name: 'Rattacher le Dossier' }).click();
   await expect(page.getByText('Préparer le départ D6 bis', { exact: true })).toBeVisible();
 
@@ -94,18 +94,18 @@ test('authorized Space owner can create Space Dossier and Project', async ({ pag
   await login(page, 'owner@e2e.makolo.test');
 
   await page.goto('/objectives/new/');
-  await page.getByLabel('Objectif', { exact: true }).fill('Dossier Espace D6 bis');
+  await page.getByLabel(/^Objectif\s*:$/).fill('Dossier Espace D6 bis');
   await page.getByLabel('Espace porteur').selectOption({ label: 'Makolo E2E Events' });
   await page.getByRole('button', { name: 'Créer le Dossier' }).click();
   await expect(page.getByRole('heading', { name: 'Dossier Espace D6 bis' })).toBeVisible();
 
   await page.goto('/objectives/projects/new/');
-  await page.getByLabel('Titre', { exact: true }).fill('Projet Espace D6 bis');
+  await page.getByLabel(/^Titre\s*:$/).fill('Projet Espace D6 bis');
   await page.getByLabel('Espace porteur').selectOption({ label: 'Makolo E2E Events' });
   await page.getByRole('button', { name: 'Créer le Projet' }).click();
   await expect(page.getByRole('heading', { name: 'Projet Espace D6 bis' })).toBeVisible();
 
-  await page.getByLabel('Dossier', { exact: true }).selectOption({ label: 'Dossier Espace D6 bis' });
+  await page.getByLabel(/^Dossier\s*:$/).selectOption({ label: 'Dossier Espace D6 bis' });
   await page.getByRole('button', { name: 'Rattacher le Dossier' }).click();
   await expect(page.getByText('Dossier Espace D6 bis', { exact: true })).toBeVisible();
 });
@@ -113,12 +113,12 @@ test('authorized Space owner can create Space Dossier and Project', async ({ pag
 test('membership alone is not Dossier authority and Dossier access does not reveal a private Journey', async ({ page }) => {
   await login(page, 'staff@e2e.makolo.test');
   await page.goto('/objectives/new/');
-  await page.getByLabel('Objectif', { exact: true }).fill('Dossier confidentiel D6 bis');
+  await page.getByLabel(/^Objectif\s*:$/).fill('Dossier confidentiel D6 bis');
   await page.getByLabel('Espace porteur').selectOption({ label: 'Makolo E2E Services' });
   await page.getByRole('button', { name: 'Créer le Dossier' }).click();
   const dossierUrl = page.url();
 
-  await page.getByLabel('Démarche', { exact: true }).selectOption({ label: 'Accompagnement Services V1 E2E' });
+  await page.getByLabel(/^Démarche\s*:$/).selectOption({ label: 'Accompagnement Services V1 E2E' });
   await page.getByRole('button', { name: 'Lier la démarche' }).click();
   await expect(page.getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
 
@@ -130,7 +130,7 @@ test('membership alone is not Dossier authority and Dossier access does not reve
   await page.context().clearCookies();
   await login(page, 'staff@e2e.makolo.test');
   await page.goto(dossierUrl);
-  const collaborator = page.getByLabel('Collaborateur', { exact: true });
+  const collaborator = page.getByLabel(/^Collaborateur\s*:$/);
   await collaborator.selectOption({ label: 'Service Same-Space' });
   await selectFirstRealOption(page.getByLabel('Niveau d’accès'));
   await page.getByRole('button', { name: 'Accorder l’accès' }).click();
@@ -155,7 +155,7 @@ test('@mobile Objectives Dossier and Project surfaces remain touch-usable withou
 
   await page.getByRole('link', { name: 'Créer un Dossier' }).click();
   await expectNoHorizontalOverflow(page);
-  await page.getByLabel('Objectif', { exact: true }).fill('Dossier mobile D6 bis');
+  await page.getByLabel(/^Objectif\s*:$/).fill('Dossier mobile D6 bis');
   await page.getByRole('button', { name: 'Créer le Dossier' }).click();
   await expect(page.getByRole('heading', { name: 'Dossier mobile D6 bis' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
