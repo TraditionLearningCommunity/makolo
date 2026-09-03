@@ -18,7 +18,7 @@ def get_operator_placement_plans(user, occurrence):
             Prefetch(
                 "assignments",
                 queryset=PlacementAssignment.objects.filter(ended_at__isnull=True).select_related(
-                    "unit", "profile", "external_beneficiary", "assigned_by"
+                    "plan", "unit", "unit__parent", "profile", "external_beneficiary", "assigned_by"
                 ),
                 to_attr="active_assignments",
             ),
