@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -30,35 +29,6 @@ from .requirement_services import SATISFIED_REQUIREMENT_STATUSES, submit_require
 
 def _enum_value(value):
     return getattr(value, "value", value)
-
-
-def _relevant_date(value) -> date | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return timezone.localdate(value) if timezone.is_aware(value) else value.date()
-    if isinstance(value, date):
-        return value
-    return None
-
-
-def _source_date_for_candidate(candidate) -> date | None:
-    """Return only a canonical source date suitable for an explicit age policy.
-
-    Q3's ``relevant_at`` may deliberately fall back to object creation time for
-    presentation. Q4 must not reinterpret that fallback as an issuance date.
-    """
-
-    source = _enum_value(candidate.source)
-    if source == ActionMemorySource.LIBRARY.value:
-        return PersonalAssetVersion.objects.filter(pk=candidate.source_id).values_list("issued_at", flat=True).first()
-    if source == ActionMemorySource.JOURNEY_ARTIFACT.value:
-        uploaded_at = JourneyArtifact.objects.filter(pk=candidate.source_id).values_list("uploaded_at", flat=True).first()
-        return _relevant_date(uploaded_at)
-    if source == ActionMemorySource.PROOF.value:
-        issued_at = Proof.objects.filter(pk=candidate.source_id).values_list("issued_at", flat=True).first()
-        return _relevant_date(issued_at)
-    return None
 
 
 def evaluate_trusted_reuse(*, assessment, candidate: ActionMemoryCandidate, actor, observed_at=None):
@@ -94,14 +64,12 @@ def evaluate_trusted_reuse(*, assessment, candidate: ActionMemoryCandidate, acto
     policies = tuple(
         RequirementReusePolicy.objects.filter(requirement_id=assessment.requirement_id).order_by("key", "id")
     )
-    source_date = _source_date_for_candidate(candidate) if any(policy.max_age_days is not None for policy in policies) else None
-
     return evaluate_trusted_reuse_candidate(
         requirement=assessment.requirement,
         candidate=candidate,
         expected_subject_type=subject_type,
         expected_subject_id=subject_id,
-        source_date=source_date,
+        source_date=candidate.source_date,
         assessment_id=assessment.pk,
         observed_at=observed_at,
         policies=policies,
