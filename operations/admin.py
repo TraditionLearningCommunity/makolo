@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import ModerationCase, OperationsAuditLog, OperationsIncident, WorkerHeartbeat
+from .models import (
+    ModerationCase,
+    OperationsAuditLog,
+    OperationsIncident,
+    PlacementAssignment,
+    PlacementPlan,
+    PlacementUnit,
+    WorkerHeartbeat,
+)
 
 
 @admin.register(OperationsIncident)
@@ -38,6 +46,37 @@ class OperationsIncidentAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("created_at", "updated_at", "acknowledged_at", "resolved_at")
     list_select_related = ("organization", "activity", "occurrence", "event", "assigned_to")
+
+
+@admin.register(PlacementPlan)
+class PlacementPlanAdmin(admin.ModelAdmin):
+    list_display = ("label", "key", "occurrence", "required", "active", "updated_at")
+    list_filter = ("required", "active")
+    search_fields = ("label", "key", "occurrence__label", "occurrence__activity__title")
+    raw_id_fields = ("occurrence",)
+
+
+@admin.register(PlacementUnit)
+class PlacementUnitAdmin(admin.ModelAdmin):
+    list_display = ("label", "key", "plan", "kind", "parent", "exclusive", "active", "position")
+    list_filter = ("exclusive", "active", "kind")
+    search_fields = ("label", "key", "plan__label", "plan__occurrence__activity__title")
+    raw_id_fields = ("plan", "parent")
+
+
+@admin.register(PlacementAssignment)
+class PlacementAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("plan", "unit", "beneficiary_display_name", "assigned_by", "assigned_at", "ended_at")
+    list_filter = ("plan", "ended_at")
+    search_fields = (
+        "unit__label",
+        "profile__username",
+        "profile__first_name",
+        "profile__last_name",
+        "external_beneficiary__display_name",
+    )
+    raw_id_fields = ("plan", "unit", "profile", "external_beneficiary", "assigned_by")
+    readonly_fields = ("assigned_at", "ended_at")
 
 
 @admin.register(ModerationCase)
