@@ -11,16 +11,16 @@ test('discovery finds Event and Transport by place and date @firefox', async ({ 
   await expect(page.getByText('Discovery Private E2E')).toHaveCount(0);
   await expect(page.locator('#discovery-map')).toHaveCount(0);
 
-  await page.getByLabel('Catégorie').selectOption('transport');
-  await page.getByRole('button', { name: 'Rechercher' }).click();
+  await page.getByLabel('Type').selectOption('transport');
+  await page.getByRole('button', { name: 'Appliquer' }).click();
   await expect(page.getByRole('heading', { name: 'Lubumbashi → Kolwezi E2E' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Discovery Event E2E' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Réserver' }).first().click();
   await expect(page).toHaveURL(/\/transport\/departures\//);
   await page.goBack();
 
-  await page.getByLabel('Catégorie').selectOption('event');
-  await page.getByRole('button', { name: 'Rechercher' }).click();
+  await page.getByLabel('Type').selectOption('event');
+  await page.getByRole('button', { name: 'Appliquer' }).click();
   await expect(page.getByRole('heading', { name: 'Discovery Event E2E' })).toBeVisible();
   await page.getByRole('link', { name: /S’inscrire|Voir l’événement/ }).first().click();
   await expect(page).toHaveURL(/\/events\//);
@@ -36,7 +36,7 @@ test('global search focuses Discovery and Activity favorite stays independent', 
   await expect(page.locator('#discover-query')).toBeFocused();
 
   await page.locator('#discover-query').fill('Lubumbashi → Kolwezi E2E');
-  await page.getByRole('button', { name: 'Rechercher' }).click();
+  await page.getByRole('button', { name: 'Découvrir' }).click();
   const transport = page.locator('article').filter({ hasText: 'Lubumbashi → Kolwezi E2E' }).first();
   await expect(transport).toBeVisible();
   const remove = transport.getByRole('button', { name: 'Retirer des favoris' });
