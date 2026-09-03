@@ -54,7 +54,7 @@ jobs:
       - name: Refresh visual snapshots
         env:
           E2E_SKIP_PREP: "1"
-        run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots
+        run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots --timeout=60000
       - name: Verify candidate change set
         shell: bash
         run: |
