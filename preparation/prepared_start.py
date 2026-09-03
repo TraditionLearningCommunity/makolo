@@ -13,7 +13,7 @@ from django.utils import timezone
 from journeys.models import ExternalBeneficiary
 from opportunities.models import Opportunity, OpportunityPublicationStatus, OpportunityRequirement, OpportunityRevision
 from personal_assets.action_memory import ActionMemorySubjectType
-from personal_assets.prepared_memory import PreparedActionMemoryCandidate, prepared_action_memory_for_subject
+from personal_assets.prepared_memory import prepared_action_memory_for_subject
 from readiness.types import NextAction, ReadinessCheck, ReadinessCheckState, ReadinessResult, ReadinessStatus
 from requirements.contracts import RequirementAssessmentState
 from requirements.models import RequirementReusePolicy
@@ -205,15 +205,19 @@ def _preparation_state(*, policies, decisions):
     ]
     if direct:
         return PreparedRequirementState.READY, PREPARED_READY_REASON
+
+    # When several acceptable candidates exist, prefer an explicit user action over
+    # waiting on human review. This mirrors Readiness priority ACTION_REQUIRED > WAITING.
+    if any(decision.confirmation_required for decision in acceptable):
+        return PreparedRequirementState.CONFIRMATION_REQUIRED, PREPARED_CONFIRM_REASON
+
     review = [
         decision
         for decision in acceptable
-        if not decision.confirmation_required and TrustedReuseReasonCode.HUMAN_REVIEW_REQUIRED in decision.reasons
+        if TrustedReuseReasonCode.HUMAN_REVIEW_REQUIRED in decision.reasons
     ]
     if review:
         return PreparedRequirementState.REVIEW_REQUIRED, PREPARED_REVIEW_REASON
-    if acceptable:
-        return PreparedRequirementState.CONFIRMATION_REQUIRED, PREPARED_CONFIRM_REASON
     if not policies or any(decision.decision == TrustedReuseDecisionCode.UNKNOWN for decision in decisions):
         return PreparedRequirementState.UNKNOWN, PREPARED_UNKNOWN_REASON
     return PreparedRequirementState.MISSING, PREPARED_MISSING_REASON
