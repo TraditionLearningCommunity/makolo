@@ -14,6 +14,7 @@ from django.views.generic import ListView, TemplateView
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.participant_selectors import participant_state_context
 
+from .intelligence import interpret_with_intelligence
 from .intent import resolve_discovery_intent
 from .models import ActivityBookmark
 from .presentation import build_discovery_item, presenter_for
@@ -87,6 +88,7 @@ class DiscoveryHomeView(TemplateView):
         context = super().get_context_data(**kwargs)
         errors = []
         intent = resolve_discovery_intent(self.request.GET)
+        intent = interpret_with_intelligence(intent, profile=self.request.user)
         search_params = intent.to_search_params()
         vertical = intent.vertical
         try:
@@ -208,7 +210,7 @@ class BookmarkListView(LoginRequiredMixin, ListView):
         context["bookmarked_activity_ids"] = set(activity_ids)
         return context
 
-
+    
 class BookmarkToggleView(LoginRequiredMixin, View):
     login_url = "core:login"
 
@@ -222,25 +224,12 @@ class BookmarkToggleView(LoginRequiredMixin, View):
                 pk=activity_id,
             )
         else:
-            event = get_object_or_404(public_discovery_events(), pk=event_id)
-            activity = event.activity
+            occurrence = get_public_occurrence(event_id)
+            activity = occurrence.activity
         bookmark, created = ActivityBookmark.objects.get_or_create(user=request.user, activity=activity)
-        if created:
-            messages.success(request, "Activité ajoutée à vos favoris.")
-        else:
+        if not created:
             bookmark.delete()
-            messages.info(request, "Activité retirée de vos favoris.")
+            messages.success(request, "Retiré de vos favoris.")
+        else:
+            messages.success(request, "Ajouté à vos favoris.")
         return redirect(request.POST.get("next") or "discovery:home")
-
-
-class MyEventsView(LoginRequiredMixin, View):
-    """Compatibility route for the retired Event-only participant hub."""
-
-    login_url = "core:login"
-
-    def get(self, request):
-        messages.info(
-            request,
-            "Retrouvez désormais vos démarches, accès, activités organisées et favoris dans les espaces dédiés.",
-        )
-        return redirect("core:participant-home")
