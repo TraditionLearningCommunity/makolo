@@ -9,7 +9,7 @@ from access.models import Access, AccessUse, AccessUseResult
 from activities.models import Activity, Occurrence
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
-from journeys.models import ExternalBeneficiary
+from journeys.models import ExternalBeneficiary, Journey, JourneyStatus, WorkflowKind
 
 from .checkpoint_selectors import next_checkpoint, ordered_checkpoints
 from .checkpoint_services import (
@@ -67,11 +67,27 @@ class O2CheckpointTests(TestCase):
         self.external = ExternalBeneficiary.objects.create(
             display_name="Externe O2", email="external-o2@example.test", created_by=self.owner
         )
+        Journey.objects.create(
+            initiated_by=self.participant,
+            beneficiary=self.participant,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+        Journey.objects.create(
+            initiated_by=self.owner,
+            external_beneficiary=self.external,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.INVITATION,
+            status=JourneyStatus.CONFIRMED,
+        )
 
     def test_checkpoint_order_key_scope_and_default_status(self):
         self.assertEqual(list(ordered_checkpoints(occurrence=self.occurrence)), [self.first, self.optional, self.second])
         self.assertEqual(self.first.status, CheckpointStatus.PLANNED)
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             OccurrenceCheckpoint.objects.create(occurrence=self.occurrence, key="welcome", label="Duplicate")
         OccurrenceCheckpoint.objects.create(occurrence=self.other_occurrence, key="welcome", label="Allowed")
 
@@ -166,6 +182,14 @@ class O2CheckpointTests(TestCase):
             client_reference="retry-1",
         )
         self.assertEqual(observation.pk, retry.pk)
+        with self.assertRaises(ValidationError):
+            observe_checkpoint(
+                actor=self.manager,
+                checkpoint=self.first,
+                external_beneficiary=self.external,
+                source="scanner",
+                client_reference="retry-1",
+            )
 
     def test_access_use_cross_occurrence_and_wrong_beneficiary_are_rejected(self):
         open_checkpoint(actor=self.manager, checkpoint=self.first)
@@ -198,6 +222,11 @@ class O2CheckpointTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             observe_checkpoint(actor=self.manager, checkpoint=self.first, profile=self.participant, access_use=wrong_use)
+
+    def test_unrelated_beneficiary_is_rejected(self):
+        open_checkpoint(actor=self.manager, checkpoint=self.first)
+        with self.assertRaises(ValidationError):
+            observe_checkpoint(actor=self.manager, checkpoint=self.first, profile=self.other_participant)
 
     def test_external_beneficiary_observation(self):
         open_checkpoint(actor=self.manager, checkpoint=self.first)
