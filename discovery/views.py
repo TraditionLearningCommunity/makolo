@@ -210,7 +210,7 @@ class BookmarkListView(LoginRequiredMixin, ListView):
         context["bookmarked_activity_ids"] = set(activity_ids)
         return context
 
-    
+
 class BookmarkToggleView(LoginRequiredMixin, View):
     login_url = "core:login"
 
@@ -224,12 +224,25 @@ class BookmarkToggleView(LoginRequiredMixin, View):
                 pk=activity_id,
             )
         else:
-            occurrence = get_public_occurrence(event_id)
-            activity = occurrence.activity
+            event = get_object_or_404(public_discovery_events(), pk=event_id)
+            activity = event.activity
         bookmark, created = ActivityBookmark.objects.get_or_create(user=request.user, activity=activity)
-        if not created:
-            bookmark.delete()
-            messages.success(request, "Retiré de vos favoris.")
+        if created:
+            messages.success(request, "Activité ajoutée à vos favoris.")
         else:
-            messages.success(request, "Ajouté à vos favoris.")
+            bookmark.delete()
+            messages.info(request, "Activité retirée de vos favoris.")
         return redirect(request.POST.get("next") or "discovery:home")
+
+
+class MyEventsView(LoginRequiredMixin, View):
+    """Compatibility route for the retired Event-only participant hub."""
+
+    login_url = "core:login"
+
+    def get(self, request):
+        messages.info(
+            request,
+            "Retrouvez désormais vos démarches, accès, activités organisées et favoris dans les espaces dédiés.",
+        )
+        return redirect("core:participant-home")
