@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - objectives/d6-hardening
+      - objectives/d6-*
   pull_request:
     branches:
       - main
