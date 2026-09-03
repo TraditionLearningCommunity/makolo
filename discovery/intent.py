@@ -85,10 +85,24 @@ _VERTICAL_PATTERNS = (
 )
 _FREE_PATTERN = re.compile(r"\b(?:gratuit|gratuite|gratuitement)\b", re.IGNORECASE)
 _NEARBY_PATTERN = re.compile(r"\b(?:autour de moi|près de moi|pres de moi|à proximité|a proximite)\b", re.IGNORECASE)
+_SCAFFOLD_WORDS = {
+    "je", "moi", "veux", "voudrais", "aimerais", "souhaite", "cherche", "recherche",
+    "trouver", "aller", "faire", "pour", "vers", "à", "a", "au", "aux", "un", "une",
+    "des", "le", "la", "les",
+}
 
 
 def _remove_match(text: str, match: re.Match[str]) -> str:
     return (text[: match.start()] + " " + text[match.end() :]).strip()
+
+
+def _clean_scaffolding(text: str) -> str:
+    words = []
+    for token in text.split():
+        normalized = token.strip(" ,;:-'’").casefold()
+        if normalized and normalized not in _SCAFFOLD_WORDS:
+            words.append(token.strip(" ,;:-'’"))
+    return " ".join(word for word in words if word).strip()
 
 
 def _resolve_place(text: str):
@@ -212,8 +226,7 @@ def interpret_discovery_text(raw_text: str, *, base: DiscoveryIntent | None = No
     if explicit_count == 0 and interpreted_count < 2:
         return DiscoveryIntent(raw_text=raw_text, text=raw_text)
 
-    # Keep all unresolved language as classic Discovery text instead of guessing.
-    text = re.sub(r"\s+", " ", text).strip(" ,;:-")
+    text = _clean_scaffolding(text)
     return DiscoveryIntent(
         raw_text=raw_text,
         text=text,
