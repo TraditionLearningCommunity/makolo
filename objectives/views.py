@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required as django_login_required
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -10,6 +10,9 @@ from .models import DossierAssignment, DossierJourneyDependencyState
 from .readiness import resolve_dossier_readiness
 from .selectors import active_assignments_for_dossier, active_project_for_dossier, current_dossier_authority_mandates, dossier_for_profile, dossiers_for_profile, project_for_profile, projects_for_profile, visible_dependencies_for_profile, visible_dossiers_for_project, visible_linked_journeys, visible_project_for_dossier
 from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, can_manage_project, create_dossier, create_project, dependency_is_satisfied, grant_dossier_authority, link_dossier_to_project, link_journey, move_dossier_to_project, remove_dependency, revoke_dossier_authority, set_dossier_lifecycle, set_project_lifecycle, unassign_dossier, unlink_dossier_from_project, unlink_journey, waive_dependency
+
+
+login_required = django_login_required(login_url="core:login")
 
 
 def _visible_dossier_or_404(profile, dossier_id):
