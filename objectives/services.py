@@ -10,7 +10,7 @@ from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 from journeys.models import JourneyStatus
 
-from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink, DossierLifecycle
+from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink, DossierLifecycle, Project, ProjectDossierLink, ProjectLifecycle
 
 
 ALLOWED_LIFECYCLE_TRANSITIONS = {
@@ -20,6 +20,15 @@ ALLOWED_LIFECYCLE_TRANSITIONS = {
     DossierLifecycle.CANCELLED: {DossierLifecycle.ARCHIVED},
     DossierLifecycle.ARCHIVED: set(),
 }
+
+PROJECT_LIFECYCLE_TRANSITIONS = {
+    ProjectLifecycle.DRAFT: {ProjectLifecycle.ACTIVE, ProjectLifecycle.CANCELLED, ProjectLifecycle.ARCHIVED},
+    ProjectLifecycle.ACTIVE: {ProjectLifecycle.COMPLETED, ProjectLifecycle.CANCELLED, ProjectLifecycle.ARCHIVED},
+    ProjectLifecycle.COMPLETED: {ProjectLifecycle.ARCHIVED},
+    ProjectLifecycle.CANCELLED: {ProjectLifecycle.ARCHIVED},
+    ProjectLifecycle.ARCHIVED: set(),
+}
+PROJECT_LINKABLE_LIFECYCLES = {ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE}
 
 
 def _require_authenticated(actor):
@@ -52,6 +61,22 @@ def can_manage_dossier_authority(actor, dossier):
     return can(actor, PermissionCode.DOSSIER_AUTHORITY_MANAGE, dossier=dossier)
 
 
+def can_view_project(actor, project):
+    if not getattr(actor, "is_authenticated", False): return False
+    if can(actor, PermissionCode.PLATFORM_MANAGE): return True
+    if project.owner_profile_id == actor.pk: return True
+    if project.owning_space_id:
+        return can(actor, PermissionCode.SPACE_VIEW, space=project.owning_space) or can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space)
+    return False
+
+
+def can_manage_project(actor, project):
+    if not getattr(actor, "is_authenticated", False): return False
+    if can(actor, PermissionCode.PLATFORM_MANAGE): return True
+    if project.owner_profile_id == actor.pk: return True
+    return bool(project.owning_space_id and can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space))
+
+
 def can_use_journey_for_dossier(actor, journey):
     if not getattr(actor, "is_authenticated", False): return False
     if journey.beneficiary_id == actor.pk or journey.initiated_by_id == actor.pk: return True
@@ -65,11 +90,18 @@ def _emit(*, event_type, dossier, idempotency_key, payload, source_type="objecti
     return emit_domain_event(event_type=event_type, source_type=source_type, source_id=source_id or dossier.pk, idempotency_key=idempotency_key, space_id=dossier.owning_space_id, payload=payload)
 
 
+def _emit_project(*, event_type, project, idempotency_key, payload, source_type="objectives.Project", source_id=None):
+    return emit_domain_event(event_type=event_type, source_type=source_type, source_id=source_id or project.pk, idempotency_key=idempotency_key, space_id=project.owning_space_id, payload=payload)
+
+
 def _dependency_payload(dependency):
     return {"dossier_id": str(dependency.dossier_id), "dependency_id": str(dependency.pk), "dependent_journey_id": str(dependency.dependent_link.journey_id), "required_journey_id": str(dependency.required_link.journey_id)}
 
 
 def _locked_dossier(dossier): return Dossier.objects.select_for_update().select_related("owner_profile", "owning_space").get(pk=dossier.pk)
+
+
+def _locked_project(project): return Project.objects.select_for_update().select_related("owner_profile", "owning_space").get(pk=project.pk)
 
 
 def _locked_link(*, dossier, link):
@@ -95,6 +127,11 @@ def _require_dependency_authority(actor, dossier, dependency):
         raise PermissionDenied("Cette dépendance n’est pas autorisée dans ce contexte.")
 
 
+def _require_project_link_authority(actor, project, dossier):
+    if not can_manage_project(actor, project): raise PermissionDenied("Autorité de gestion du Projet requise.")
+    if not can_manage_dossier(actor, dossier): raise PermissionDenied("Autorité de gestion du Dossier requise.")
+
+
 @transaction.atomic
 def create_dossier(*, actor, title, description="", owner_profile=None, owning_space=None, deadline=None):
     _require_authenticated(actor)
@@ -105,6 +142,21 @@ def create_dossier(*, actor, title, description="", owner_profile=None, owning_s
     dossier = Dossier(title=title, description=description, created_by=actor, owner_profile=owner_profile, owning_space=owning_space, deadline=deadline); dossier.save()
     _emit(event_type=DomainEventType.DOSSIER_CREATED, dossier=dossier, idempotency_key=f"dossier:{dossier.pk}:created", payload={"dossier_id": str(dossier.pk), "owning_space_id": str(dossier.owning_space_id or "")})
     return dossier
+
+
+@transaction.atomic
+def create_project(*, actor, title, description="", owner_profile=None, owning_space=None, starts_on=None, ends_on=None):
+    _require_authenticated(actor)
+    if bool(owner_profile) == bool(owning_space): raise ValidationError("Choisissez exactement un porteur personnel ou Espace.")
+    if owner_profile is not None:
+        if owner_profile.pk != actor.pk and not can(actor, PermissionCode.PLATFORM_MANAGE): raise PermissionDenied("Un Projet personnel doit être créé pour soi-même.")
+    elif not can(actor, PermissionCode.SPACE_MANAGE, space=owning_space): raise PermissionDenied("Autorité de gestion de l’Espace requise.")
+    project = Project(title=title, description=description, created_by=actor, owner_profile=owner_profile, owning_space=owning_space, starts_on=starts_on, ends_on=ends_on)
+    project.save()
+    payload = {"project_id": str(project.pk)}
+    if project.owning_space_id: payload["owning_space_id"] = str(project.owning_space_id)
+    _emit_project(event_type=DomainEventType.PROJECT_CREATED, project=project, idempotency_key=f"project:{project.pk}:created", payload=payload)
+    return project
 
 
 @transaction.atomic
@@ -231,3 +283,62 @@ def set_dossier_lifecycle(*, actor, dossier, lifecycle):
     if lifecycle == DossierLifecycle.COMPLETED and DossierJourneyDependency.objects.filter(dossier=dossier, state=DossierJourneyDependencyState.ACTIVE).exclude(required_link__journey__status=JourneyStatus.FULFILLED).exists(): raise ValidationError("Le Dossier contient encore un prérequis actif non satisfait.")
     dossier.lifecycle = lifecycle; dossier._allow_lifecycle_transition = True; dossier.save(update_fields=["lifecycle", "updated_at"])
     _emit(event_type=DomainEventType.DOSSIER_LIFECYCLE_CHANGED, dossier=dossier, idempotency_key=f"dossier:{dossier.pk}:lifecycle:{previous}:{lifecycle}:{dossier.updated_at.isoformat()}", payload={"dossier_id": str(dossier.pk), "previous": previous, "current": lifecycle}); return dossier
+
+
+@transaction.atomic
+def link_dossier_to_project(*, actor, project, dossier):
+    _require_authenticated(actor); dossier = _locked_dossier(dossier); project = _locked_project(project)
+    _require_project_link_authority(actor, project, dossier)
+    if project.lifecycle not in PROJECT_LINKABLE_LIFECYCLES: raise ValidationError("Ce Projet n’accepte plus de nouveaux Dossiers.")
+    current = ProjectDossierLink.objects.select_for_update().filter(dossier=dossier, is_active=True).select_related("project").first()
+    if current:
+        if current.project_id == project.pk: return current
+        raise ValidationError("Ce Dossier appartient déjà à un autre Projet actif. Utilisez le déplacement de Projet.")
+    try: link = ProjectDossierLink.objects.create(project=project, dossier=dossier, linked_by=actor)
+    except IntegrityError as exc: raise ValidationError("Ce Dossier appartient déjà à un Projet actif.") from exc
+    _emit_project(event_type=DomainEventType.PROJECT_DOSSIER_LINKED, project=project, source_type="objectives.ProjectDossierLink", source_id=link.pk, idempotency_key=f"project-dossier-link:{link.pk}:linked", payload={"project_id": str(project.pk), "dossier_id": str(dossier.pk), "link_id": str(link.pk)})
+    return link
+
+
+@transaction.atomic
+def unlink_dossier_from_project(*, actor, project, dossier):
+    _require_authenticated(actor); dossier = _locked_dossier(dossier); project = _locked_project(project)
+    _require_project_link_authority(actor, project, dossier)
+    link = ProjectDossierLink.objects.select_for_update().filter(project=project, dossier=dossier, is_active=True).first()
+    if link is None: return ProjectDossierLink.objects.filter(project=project, dossier=dossier).order_by("-linked_at").first()
+    link.is_active = False; link.removed_by = actor; link.removed_at = timezone.now(); link.save(update_fields=["is_active", "removed_by", "removed_at"])
+    _emit_project(event_type=DomainEventType.PROJECT_DOSSIER_UNLINKED, project=project, source_type="objectives.ProjectDossierLink", source_id=link.pk, idempotency_key=f"project-dossier-link:{link.pk}:unlinked", payload={"project_id": str(project.pk), "dossier_id": str(dossier.pk), "link_id": str(link.pk)})
+    return link
+
+
+@transaction.atomic
+def move_dossier_to_project(*, actor, dossier, target_project):
+    _require_authenticated(actor); dossier = _locked_dossier(dossier); target_project = _locked_project(target_project)
+    if not can_manage_dossier(actor, dossier): raise PermissionDenied("Autorité de gestion du Dossier requise.")
+    if not can_manage_project(actor, target_project): raise PermissionDenied("Autorité de gestion du Projet cible requise.")
+    if target_project.lifecycle not in PROJECT_LINKABLE_LIFECYCLES: raise ValidationError("Le Projet cible n’accepte plus de nouveaux Dossiers.")
+    current = ProjectDossierLink.objects.select_for_update().select_related("project__owner_profile", "project__owning_space").filter(dossier=dossier, is_active=True).first()
+    if current and current.project_id == target_project.pk: return current
+    source_project = None
+    if current:
+        source_project = current.project
+        if not can_manage_project(actor, source_project): raise PermissionDenied("Autorité de gestion du Projet source requise.")
+        current.is_active = False; current.removed_by = actor; current.removed_at = timezone.now(); current.save(update_fields=["is_active", "removed_by", "removed_at"])
+    try: new_link = ProjectDossierLink.objects.create(project=target_project, dossier=dossier, linked_by=actor)
+    except IntegrityError as exc: raise ValidationError("Le Dossier n’a pas pu être déplacé vers ce Projet.") from exc
+    _emit_project(event_type=DomainEventType.PROJECT_DOSSIER_MOVED, project=target_project, source_type="objectives.ProjectDossierLink", source_id=new_link.pk, idempotency_key=f"project-dossier-link:{new_link.pk}:moved", payload={"dossier_id": str(dossier.pk), "source_project_id": str(source_project.pk) if source_project else "", "target_project_id": str(target_project.pk)})
+    return new_link
+
+
+@transaction.atomic
+def set_project_lifecycle(*, actor, project, lifecycle):
+    _require_authenticated(actor); project = _locked_project(project)
+    if not can_manage_project(actor, project): raise PermissionDenied("Autorité de gestion du Projet requise.")
+    lifecycle = str(lifecycle)
+    if lifecycle not in ProjectLifecycle.values: raise ValidationError("Lifecycle Projet inconnu.")
+    previous = project.lifecycle
+    if previous == lifecycle: return project
+    if lifecycle not in PROJECT_LIFECYCLE_TRANSITIONS[previous]: raise ValidationError(f"Transition Projet interdite: {previous} → {lifecycle}.")
+    project.lifecycle = lifecycle; project._allow_lifecycle_transition = True; project.save(update_fields=["lifecycle", "updated_at"])
+    _emit_project(event_type=DomainEventType.PROJECT_LIFECYCLE_CHANGED, project=project, idempotency_key=f"project:{project.pk}:lifecycle:{previous}:{lifecycle}:{project.updated_at.isoformat()}", payload={"project_id": str(project.pk), "previous": previous, "current": lifecycle})
+    return project
