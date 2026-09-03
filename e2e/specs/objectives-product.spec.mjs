@@ -29,6 +29,10 @@ async function selectFirstRealOption(select) {
   await select.selectOption(value);
 }
 
+function visibleJourneysSection(page) {
+  return page.getByRole('heading', { name: 'Démarches visibles' }).locator('..');
+}
+
 test('visitor cannot open private Objectives surfaces', async ({ page }) => {
   await page.goto('/objectives/');
   await expect(page).toHaveURL(/\/login\/\?next=/);
@@ -54,11 +58,11 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   const journeySelect = page.getByLabel(/^Démarche\s*:$/);
   await journeySelect.selectOption({ label: 'Accompagnement Services V1 E2E' });
   await page.getByRole('button', { name: 'Lier la démarche' }).click();
-  await expect(page.getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
+  await expect(visibleJourneysSection(page).getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
 
   await page.getByLabel(/^Démarche\s*:$/).selectOption({ label: 'Inscription communautaire E2E' });
   await page.getByRole('button', { name: 'Lier la démarche' }).click();
-  await expect(page.getByText('Inscription communautaire E2E', { exact: true })).toBeVisible();
+  await expect(visibleJourneysSection(page).getByText('Inscription communautaire E2E', { exact: true })).toBeVisible();
 
   await page.getByLabel('Démarche dépendante').selectOption({ label: 'Accompagnement Services V1 E2E' });
   await page.getByLabel('Démarche requise').selectOption({ label: 'Inscription communautaire E2E' });
@@ -120,7 +124,7 @@ test('membership alone is not Dossier authority and Dossier access does not reve
 
   await page.getByLabel(/^Démarche\s*:$/).selectOption({ label: 'Accompagnement Services V1 E2E' });
   await page.getByRole('button', { name: 'Lier la démarche' }).click();
-  await expect(page.getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
+  await expect(visibleJourneysSection(page).getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
 
   await page.context().clearCookies();
   await login(page, 'service.same-space@e2e.makolo.test');
@@ -140,8 +144,8 @@ test('membership alone is not Dossier authority and Dossier access does not reve
   response = await page.goto(dossierUrl);
   expect(response?.status()).toBe(200);
   await expect(page.getByRole('heading', { name: 'Dossier confidentiel D6 bis' })).toBeVisible();
-  await expect(page.getByText('Accompagnement Services V1 E2E', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Aucune démarche visible liée.')).toBeVisible();
+  await expect(visibleJourneysSection(page).getByText('Accompagnement Services V1 E2E', { exact: true })).toHaveCount(0);
+  await expect(visibleJourneysSection(page).getByText('Aucune démarche visible liée.')).toBeVisible();
   await expectNoSeriousAxeViolations(page);
 });
 
