@@ -23,10 +23,26 @@ User = get_user_model()
 class O1PlacementTests(TestCase):
     def setUp(self):
         self.now = timezone.now()
-        self.owner = User.objects.create_user(username="o1-owner", password="test-password")
-        self.operator = User.objects.create_user(username="o1-operator", password="test-password")
-        self.participant = User.objects.create_user(username="o1-participant", password="test-password")
-        self.other_participant = User.objects.create_user(username="o1-other", password="test-password")
+        self.owner = User.objects.create_user(
+            username="o1-owner",
+            email="o1-placement-owner@example.test",
+            password="test-password",
+        )
+        self.operator = User.objects.create_user(
+            username="o1-operator",
+            email="o1-placement-operator@example.test",
+            password="test-password",
+        )
+        self.participant = User.objects.create_user(
+            username="o1-participant",
+            email="o1-placement-participant@example.test",
+            password="test-password",
+        )
+        self.other_participant = User.objects.create_user(
+            username="o1-other",
+            email="o1-placement-other@example.test",
+            password="test-password",
+        )
         self.activity = Activity.objects.create(
             owner_profile=self.owner,
             created_by=self.owner,
@@ -306,7 +322,11 @@ class O1PlacementTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_api_rejects_profile_not_linked_to_occurrence(self):
-        outsider = User.objects.create_user(username="o1-outsider", password="test-password")
+        outsider = User.objects.create_user(
+            username="o1-outsider",
+            email="o1-placement-outsider@example.test",
+            password="test-password",
+        )
         self.client.force_login(self.operator)
         response = self.client.post(
             reverse("operations_api:placement-assignments", args=[self.plan.pk]),
