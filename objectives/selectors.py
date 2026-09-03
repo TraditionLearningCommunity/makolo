@@ -9,7 +9,7 @@ from journeys.models import Journey
 from organizations.models import TeamMembershipStatus
 from readiness.selectors import readiness_queryset
 
-from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink
+from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink, Project, ProjectDossierLink
 
 
 User = get_user_model()
@@ -29,6 +29,46 @@ def dossiers_for_profile(profile):
 
 
 def dossier_for_profile(profile, dossier_id): return dossiers_for_profile(profile).get(pk=dossier_id)
+
+
+def manageable_dossiers_for_profile(profile):
+    if not getattr(profile, "is_authenticated", False): return Dossier.objects.none()
+    manage_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_MANAGE)
+    dossier_ids = dossier_ids_with_permission(profile, PermissionCode.DOSSIER_MANAGE)
+    queryset = Dossier.objects.select_related("owner_profile", "owning_space")
+    if manage_spaces is None or dossier_ids is None: return queryset
+    return queryset.filter(Q(owner_profile=profile) | Q(owning_space_id__in=manage_spaces) | Q(pk__in=dossier_ids)).distinct()
+
+
+def projects_for_profile(profile):
+    if not getattr(profile, "is_authenticated", False): return Project.objects.none()
+    view_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_VIEW)
+    manage_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_MANAGE)
+    queryset = Project.objects.select_related("owner_profile", "owning_space", "created_by")
+    if view_spaces is None or manage_spaces is None: return queryset
+    space_ids = set(view_spaces) | set(manage_spaces)
+    return queryset.filter(Q(owner_profile=profile) | Q(owning_space_id__in=space_ids)).distinct()
+
+
+def project_for_profile(profile, project_id): return projects_for_profile(profile).get(pk=project_id)
+
+
+def active_project_dossier_links(project):
+    return ProjectDossierLink.objects.filter(project=project, is_active=True).select_related("dossier", "dossier__owner_profile", "dossier__owning_space", "linked_by").order_by("linked_at", "id")
+
+
+def visible_dossiers_for_project(profile, project):
+    visible_ids = dossiers_for_profile(profile).values_list("pk", flat=True)
+    return Dossier.objects.filter(project_links__project=project, project_links__is_active=True, pk__in=visible_ids).select_related("owner_profile", "owning_space", "created_by").distinct().order_by("project_links__linked_at", "project_links__id")
+
+
+def active_project_for_dossier(dossier):
+    link = ProjectDossierLink.objects.filter(dossier=dossier, is_active=True).select_related("project", "project__owner_profile", "project__owning_space").first()
+    return link.project if link else None
+
+
+def visible_project_for_dossier(profile, dossier):
+    return projects_for_profile(profile).filter(dossier_links__dossier=dossier, dossier_links__is_active=True).first()
 
 
 def journey_is_visible_to_profile(profile, journey):
