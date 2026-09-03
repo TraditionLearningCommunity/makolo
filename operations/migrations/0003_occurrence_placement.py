@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 import django.db.models.deletion
 from django.db import migrations, models
+from django.db.models import Q
 import django.utils.timezone
 
 
@@ -147,7 +148,8 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="placementassignment",
             constraint=models.CheckConstraint(
-                condition=(models.Q(external_beneficiary__isnull=True, profile__isnull=False) | models.Q(external_beneficiary__isnull=False, profile__isnull=True)),
+                condition=(Q(profile__isnull=False) & Q(external_beneficiary__isnull=True))
+                | (Q(profile__isnull=True) & Q(external_beneficiary__isnull=False)),
                 name="ops_place_one_subject_ck",
             ),
         ),
