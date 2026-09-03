@@ -2,13 +2,21 @@ import json
 import os
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from .capabilities import IntelligenceCapability
 from .contracts import IntelligenceRequest
 from .credentials import get_provider_secret, set_provider_secret
 from .gateway import IntelligenceGateway
-from .models import IntelligenceRoute, ProviderConnection, ProviderHealth, ProviderProtocol, ProviderScope
+from .models import (
+    IntelligenceRoute,
+    ProviderConnection,
+    ProviderHealth,
+    ProviderProtocol,
+    ProviderScope,
+    _validate_external_provider_url,
+)
 from .runtime import build_runtime_registry
 
 
@@ -102,6 +110,29 @@ class IntelligenceProviderRegistryTests(TestCase):
                 )
         self.assertFalse(result.available)
         self.assertEqual(result.reason, "ProviderUnavailable")
+
+    def test_non_platform_endpoint_policy_rejects_local_or_insecure_urls(self):
+        for url in (
+            "http://provider.example.test/v1",
+            "https://localhost/v1",
+            "https://127.0.0.1/v1",
+            "https://10.0.0.5/v1",
+            "https://169.254.169.254/latest",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(ValidationError):
+                    _validate_external_provider_url(url)
+        _validate_external_provider_url("https://provider.example.test/v1")
+
+    def test_platform_scope_can_keep_explicit_internal_provider(self):
+        connection = ProviderConnection(
+            name="Internal platform model",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="http://127.0.0.1:8080/v1",
+            default_model="local-model",
+            scope=ProviderScope.PLATFORM,
+        )
+        connection.full_clean()
 
     def test_missing_master_key_keeps_runtime_route_unavailable(self):
         IntelligenceRoute.objects.create(
