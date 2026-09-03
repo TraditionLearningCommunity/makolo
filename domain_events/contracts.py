@@ -63,8 +63,8 @@ class DomainEventType:
     RESOURCE_PUBLISHED = "resource.published"
     RESOURCE_REPLACED = "resource.replaced"
 
-    OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision_published"
-    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source_changed"
+    OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
+    OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"
     OPPORTUNITY_WITHDRAWN = "opportunity.withdrawn"
     OPPORTUNITY_MERGED = "opportunity.merged"
     SERVICE_OPPORTUNITY_REVISION_ADOPTED = "service.opportunity_revision.adopted"
