@@ -1,8 +1,18 @@
 {% extends 'base/app.html' %}
-{% load static tz %}
+{% load static tz discovery_query %}
 {% block title %}Découvrir | Makolo{% endblock %}
 {% block extra_css %}{% if nearby_active and map_items %}<link rel="stylesheet" href="{% static 'dist/maplibre-gl.css' %}">{% endif %}{% endblock %}
 {% block content %}
+<template id="discover-tailwind-i3-compat">
+    <div class="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_auto]"></div>
+    <div class="mb-2 block text-xs font-bold"></div>
+    <div class="relative"><span class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2"></span></div>
+    <div class="!min-h-[50px] !pl-12"></div>
+    <div class="flex items-end"><span class="mk-btn mk-btn-primary min-h-[50px] w-full justify-center px-6"></span></div>
+    <div class="flex flex-wrap items-center gap-2"><span class="mk-btn mk-btn-secondary !w-auto"></span><span class="sr-only"></span></div>
+    <div class="group rounded-2xl border"><span class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold"></span><span class="h-4 w-4 transition group-open:rotate-180"></span></div>
+    <div class="grid gap-3 border-t p-4 sm:grid-cols-3"><span class="mb-1 block text-xs font-semibold"></span></div>
+</template>
 <div class="space-y-7 lg:space-y-9">
     {% include 'discovery/_participant_nav.html' %}
     <section class="mk-participant-hero px-5 py-7 sm:px-7 sm:py-9 lg:px-10 lg:py-11">
@@ -10,37 +20,56 @@
         <div class="relative max-w-3xl">
             <span class="mk-kicker">Découvrir</span>
             <h1 class="mk-page-title max-w-3xl">Que voulez-vous faire ?</h1>
-            <p class="mk-page-copy mt-4 text-[15px] sm:text-base">Trouvez au même endroit les événements, voyages, accompagnements et autres activités qui peuvent vous aider à avancer.</p>
+            <p class="mk-page-copy mt-4 text-[15px] sm:text-base">Écrivez ce que vous cherchez, choisissez une piste ou explorez librement. Makolo transforme votre intention en résultats que vous pouvez réellement utiliser.</p>
         </div>
 
         <form id="discovery-search-form" method="get" class="relative mt-7 space-y-3">
-            <div class="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_auto]">
-                <div>
-                    <label for="discover-query" class="mb-2 block text-xs font-bold" style="color:var(--mk-muted)">Rechercher</label>
-                    <div class="relative"><i data-lucide="search" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-query" name="q" value="{{ filters.q|default:'' }}" maxlength="120" placeholder="Événement, destination, accompagnement, lieu…" class="!min-h-[50px] !pl-12" autocomplete="off"></div>
+            <div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)">
+                <label for="discover-query" class="sr-only">Que voulez-vous faire ?</label>
+                <div class="relative">
+                    <i data-lucide="sparkles" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-brand)"></i>
+                    <input id="discover-query" name="q" value="{{ discovery_intent.raw_text|default:'' }}" maxlength="120" placeholder="Ex. Je veux voyager à Kolwezi demain matin" class="!min-h-[50px] !pl-12" autocomplete="off">
                 </div>
-                <div>
-                    <label for="discover-place" class="mb-2 block text-xs font-bold" style="color:var(--mk-muted)">Lieu</label>
-                    <div class="relative"><i data-lucide="map-pin" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="discover-place" name="place" value="{{ filters.place|default:filters.city|default:'' }}" maxlength="120" placeholder="Ville ou lieu" class="!min-h-[50px] !pl-12" list="discovery-place-suggestions" autocomplete="off"></div>
-                    <datalist id="discovery-place-suggestions">{% for suggestion in place_suggestions %}<option value="{{ suggestion }}">{% endfor %}</datalist>
-                </div>
-                <div>
-                    <label for="discover-when" class="mb-2 block text-xs font-bold" style="color:var(--mk-muted)">Quand</label>
-                    <select id="discover-when" name="when" class="!min-h-[50px]"><option value="upcoming">À venir</option><option value="today" {% if filters.when == 'today' %}selected{% endif %}>Aujourd’hui</option><option value="tomorrow" {% if filters.when == 'tomorrow' %}selected{% endif %}>Demain</option><option value="weekend" {% if filters.when == 'weekend' %}selected{% endif %}>Ce week-end</option><option value="week" {% if filters.when == 'week' %}selected{% endif %}>Cette semaine</option></select>
-                </div>
-                <div class="flex items-end"><button class="mk-btn mk-btn-primary min-h-[50px] w-full justify-center px-6"><i data-lucide="search" class="h-4 w-4"></i>Rechercher</button></div>
+                <div class="flex items-end"><button class="mk-btn mk-btn-primary min-h-[50px] w-full justify-center px-6" type="submit"><i data-lucide="arrow-right" class="h-4 w-4"></i>Découvrir</button></div>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
+
+            <div class="flex flex-wrap items-center gap-2" aria-label="Suggestions rapides">
+                <span class="text-xs font-bold" style="color:var(--mk-muted)">Choisir :</span>
                 <button id="discover-near-me" type="button" class="mk-btn mk-btn-secondary"><i data-lucide="locate-fixed" class="h-4 w-4"></i>Autour de moi</button>
-                <label for="discover-vertical" class="sr-only">Catégorie</label><select id="discover-vertical" name="vertical" class="!w-auto"><option value="">Tout</option><option value="event" {% if filters.vertical == 'event' %}selected{% endif %}>Événements</option><option value="transport" {% if filters.vertical == 'transport' %}selected{% endif %}>Voyager</option><option value="service" {% if filters.vertical == 'service' %}selected{% endif %}>Être accompagné</option><option value="other" {% if filters.vertical == 'other' %}selected{% endif %}>Autres</option></select>
-                <label for="discover-price" class="sr-only">Prix</label><select id="discover-price" name="price" class="!w-auto"><option value="">Tous les prix</option><option value="free" {% if filters.price == 'free' %}selected{% endif %}>Gratuit</option><option value="paid" {% if filters.price == 'paid' %}selected{% endif %}>Payant</option></select>
-                <label for="discover-radius" class="sr-only">Rayon</label><select id="discover-radius" name="radius_km" class="!w-auto"><option value="5" {% if filters.radius_km == '5' %}selected{% endif %}>5 km</option><option value="10" {% if filters.radius_km == '10' or not filters.radius_km %}selected{% endif %}>10 km</option><option value="25" {% if filters.radius_km == '25' %}selected{% endif %}>25 km</option><option value="50" {% if filters.radius_km == '50' %}selected{% endif %}>50 km</option></select>
-                <input id="discover-lat" type="hidden" name="lat" value="{{ filters.lat|default:'' }}"><input id="discover-lon" type="hidden" name="lon" value="{{ filters.lon|default:'' }}">
-                <span id="discover-geolocation-status" class="text-xs" style="color:var(--mk-muted)" role="status" aria-live="polite">{% if nearby_active %}Proximité active pour cette recherche.{% endif %}</span>
+                <a href="?when=today&period=evening" class="mk-btn mk-btn-secondary"><i data-lucide="moon-star" class="h-4 w-4"></i>Ce soir</a>
+                <a href="?vertical=transport" class="mk-btn mk-btn-secondary"><i data-lucide="bus-front" class="h-4 w-4"></i>Voyager</a>
+                <a href="?vertical=event" class="mk-btn mk-btn-secondary"><i data-lucide="calendar-days" class="h-4 w-4"></i>Événements</a>
+                <a href="?vertical=service" class="mk-btn mk-btn-secondary"><i data-lucide="hand-heart" class="h-4 w-4"></i>Être accompagné</a>
             </div>
-            <details class="group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)">
-                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold" style="color:var(--mk-muted)"><span class="flex items-center gap-2"><i data-lucide="calendar-range" class="h-4 w-4"></i>Date précise ou intervalle</span><i data-lucide="chevron-down" class="h-4 w-4 transition group-open:rotate-180"></i></summary>
-                <div class="grid gap-3 border-t p-4 sm:grid-cols-3" style="border-color:var(--mk-border)"><div><label for="discover-date" class="mb-1 block text-xs font-semibold">Date précise</label><input id="discover-date" type="date" name="date" value="{{ filters.date|default:'' }}"></div><div><label for="discover-date-from" class="mb-1 block text-xs font-semibold">Du</label><input id="discover-date-from" type="date" name="date_from" value="{{ filters.date_from|default:'' }}"></div><div><label for="discover-date-to" class="mb-1 block text-xs font-semibold">Au</label><input id="discover-date-to" type="date" name="date_to" value="{{ filters.date_to|default:'' }}"></div></div>
+
+            {% if applied_constraints %}
+            <div class="flex flex-wrap items-center gap-2" aria-label="Contraintes comprises par Makolo">
+                <span class="text-xs font-bold" style="color:var(--mk-muted)">Compris :</span>
+                {% for constraint in applied_constraints %}
+                    {% discovery_without discovery_intent constraint.key as remove_query %}
+                    <a href="?{{ remove_query }}" class="mk-badge mk-badge-brand" aria-label="Retirer {{ constraint.label }}">{{ constraint.label }} <i data-lucide="x" class="h-4 w-4"></i></a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <input id="discover-lat" type="hidden" name="lat" value="{{ filters.lat|default:'' }}">
+            <input id="discover-lon" type="hidden" name="lon" value="{{ filters.lon|default:'' }}">
+            <span id="discover-geolocation-status" class="text-xs" style="color:var(--mk-muted)" role="status" aria-live="polite">{% if nearby_active %}Proximité active pour cette recherche.{% endif %}</span>
+
+            <details class="group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)" {% if filters.place or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}open{% endif %}>
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold" style="color:var(--mk-muted)"><span class="flex items-center gap-2"><i data-lucide="sliders-horizontal" class="h-4 w-4"></i>Filtres</span><i data-lucide="chevron-down" class="h-4 w-4 transition group-open:rotate-180"></i></summary>
+                <div class="grid gap-3 border-t p-4 sm:grid-cols-3" style="border-color:var(--mk-border)">
+                    <div><label for="discover-place" class="mb-1 block text-xs font-semibold">Lieu</label><input id="discover-place" name="place" value="{{ filters.place|default:filters.city|default:'' }}" maxlength="120" placeholder="Ville ou lieu" list="discovery-place-suggestions" autocomplete="off"><datalist id="discovery-place-suggestions">{% for suggestion in place_suggestions %}<option value="{{ suggestion }}">{% endfor %}</datalist></div>
+                    <div><label for="discover-when" class="mb-1 block text-xs font-semibold">Quand</label><select id="discover-when" name="when"><option value="">À venir</option><option value="today" {% if filters.when == 'today' %}selected{% endif %}>Aujourd’hui</option><option value="tomorrow" {% if filters.when == 'tomorrow' %}selected{% endif %}>Demain</option><option value="weekend" {% if filters.when == 'weekend' %}selected{% endif %}>Ce week-end</option><option value="week" {% if filters.when == 'week' %}selected{% endif %}>Cette semaine</option></select></div>
+                    <div><label for="discover-period" class="mb-1 block text-xs font-semibold">Moment</label><select id="discover-period" name="period"><option value="">Toute la journée</option><option value="morning" {% if filters.period == 'morning' %}selected{% endif %}>Matin</option><option value="afternoon" {% if filters.period == 'afternoon' %}selected{% endif %}>Après-midi</option><option value="evening" {% if filters.period == 'evening' %}selected{% endif %}>Soir</option></select></div>
+                    <div><label for="discover-vertical" class="mb-1 block text-xs font-semibold">Type</label><select id="discover-vertical" name="vertical"><option value="">Tout</option><option value="event" {% if filters.vertical == 'event' %}selected{% endif %}>Événements</option><option value="transport" {% if filters.vertical == 'transport' %}selected{% endif %}>Voyager</option><option value="service" {% if filters.vertical == 'service' %}selected{% endif %}>Être accompagné</option><option value="other" {% if filters.vertical == 'other' %}selected{% endif %}>Autres</option></select></div>
+                    <div><label for="discover-price" class="mb-1 block text-xs font-semibold">Prix</label><select id="discover-price" name="price"><option value="">Tous les prix</option><option value="free" {% if filters.price == 'free' %}selected{% endif %}>Gratuit</option><option value="paid" {% if filters.price == 'paid' %}selected{% endif %}>Payant</option></select></div>
+                    <div><label for="discover-radius" class="mb-1 block text-xs font-semibold">Rayon autour de moi</label><select id="discover-radius" name="radius_km"><option value="5" {% if filters.radius_km == '5' %}selected{% endif %}>5 km</option><option value="10" {% if filters.radius_km == '10' or not filters.radius_km %}selected{% endif %}>10 km</option><option value="25" {% if filters.radius_km == '25' %}selected{% endif %}>25 km</option><option value="50" {% if filters.radius_km == '50' %}selected{% endif %}>50 km</option></select></div>
+                    <div><label for="discover-date" class="mb-1 block text-xs font-semibold">Date précise</label><input id="discover-date" type="date" name="date" value="{{ filters.date|default:'' }}"></div>
+                    <div><label for="discover-date-from" class="mb-1 block text-xs font-semibold">Du</label><input id="discover-date-from" type="date" name="date_from" value="{{ filters.date_from|default:'' }}"></div>
+                    <div><label for="discover-date-to" class="mb-1 block text-xs font-semibold">Au</label><input id="discover-date-to" type="date" name="date_to" value="{{ filters.date_to|default:'' }}"></div>
+                    <div class="flex items-end"><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-ghost">Réinitialiser</a><button type="submit" class="mk-btn mk-btn-secondary">Appliquer</button></div>
+                </div>
             </details>
         </form>
     </section>

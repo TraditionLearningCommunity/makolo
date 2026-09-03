@@ -1,0 +1,149 @@
+import json
+import os
+from unittest.mock import patch
+
+from django.core.exceptions import ValidationError
+from django.test import TestCase
+
+from .capabilities import IntelligenceCapability
+from .contracts import IntelligenceRequest
+from .credentials import get_provider_secret, set_provider_secret
+from .gateway import IntelligenceGateway
+from .models import (
+    IntelligenceRoute,
+    ProviderConnection,
+    ProviderHealth,
+    ProviderProtocol,
+    ProviderScope,
+    _validate_external_provider_url,
+)
+from .providers.openai_compatible import _NoRedirectHandler
+from .runtime import build_runtime_registry
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self):
+        return json.dumps(self.payload).encode("utf-8")
+
+
+class IntelligenceProviderRegistryTests(TestCase):
+    def setUp(self):
+        self.connection = ProviderConnection.objects.create(
+            name="Test provider",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://provider.example.test/v1",
+            default_model="test-model",
+            scope=ProviderScope.PLATFORM,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+
+    def test_credentials_are_encrypted_and_round_trip(self):
+        with patch.dict(os.environ, {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "unit-test-master-key"}):
+            credential = set_provider_secret(connection=self.connection, secret="sk-example-secret-1234")
+            self.assertNotIn("sk-example-secret-1234", credential.encrypted_secret)
+            self.assertNotEqual(credential.key_hint, "sk-example-secret-1234")
+            self.assertEqual(get_provider_secret(connection=self.connection), "sk-example-secret-1234")
+
+    def test_runtime_registry_uses_enabled_route_and_credential(self):
+        IntelligenceRoute.objects.create(
+            capability=IntelligenceCapability.STRUCTURED_GENERATE.value,
+            connection=self.connection,
+            priority=10,
+        )
+        with patch.dict(os.environ, {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "unit-test-master-key"}):
+            set_provider_secret(connection=self.connection, secret="sk-example-secret-1234")
+            registry = build_runtime_registry(capability=IntelligenceCapability.STRUCTURED_GENERATE)
+        self.assertEqual(len(registry.providers), 1)
+        self.assertEqual(registry.providers[0].model, "test-model")
+
+    def test_openai_compatible_structured_generation_is_validated(self):
+        IntelligenceRoute.objects.create(
+            capability=IntelligenceCapability.STRUCTURED_GENERATE.value,
+            connection=self.connection,
+        )
+        with patch.dict(os.environ, {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "unit-test-master-key"}):
+            set_provider_secret(connection=self.connection, secret="sk-example-secret-1234")
+            gateway = IntelligenceGateway(
+                build_runtime_registry(capability=IntelligenceCapability.STRUCTURED_GENERATE)
+            )
+            with patch(
+                "intelligence.providers.openai_compatible._open_url",
+                return_value=_FakeResponse(
+                    {"choices": [{"message": {"content": '{"vertical":"transport"}'}}]}
+                ),
+            ):
+                result = gateway.execute(
+                    IntelligenceRequest(
+                        capability=IntelligenceCapability.STRUCTURED_GENERATE,
+                        input={"text": "voyager demain"},
+                    )
+                )
+        self.assertTrue(result.available)
+        self.assertEqual(result.output, {"vertical": "transport"})
+        self.assertEqual(result.model, "test-model")
+
+    def test_provider_timeout_is_controlled_unavailability(self):
+        IntelligenceRoute.objects.create(
+            capability=IntelligenceCapability.STRUCTURED_GENERATE.value,
+            connection=self.connection,
+        )
+        with patch.dict(os.environ, {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "unit-test-master-key"}):
+            set_provider_secret(connection=self.connection, secret="sk-example-secret-1234")
+            gateway = IntelligenceGateway(
+                build_runtime_registry(capability=IntelligenceCapability.STRUCTURED_GENERATE)
+            )
+            with patch("intelligence.providers.openai_compatible._open_url", side_effect=TimeoutError("slow provider")):
+                result = gateway.execute(
+                    IntelligenceRequest(
+                        capability=IntelligenceCapability.STRUCTURED_GENERATE,
+                        input={"text": "voyager demain"},
+                    )
+                )
+        self.assertFalse(result.available)
+        self.assertEqual(result.reason, "ProviderUnavailable")
+
+    def test_provider_redirects_are_not_followed(self):
+        handler = _NoRedirectHandler()
+        self.assertIsNone(handler.redirect_request(None, None, 302, "Found", {}, "http://127.0.0.1/internal"))
+
+    def test_non_platform_endpoint_policy_rejects_local_or_insecure_urls(self):
+        for url in (
+            "http://provider.example.test/v1",
+            "https://localhost/v1",
+            "https://127.0.0.1/v1",
+            "https://10.0.0.5/v1",
+            "https://169.254.169.254/latest",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(ValidationError):
+                    _validate_external_provider_url(url)
+        _validate_external_provider_url("https://provider.example.test/v1")
+
+    def test_platform_scope_can_keep_explicit_internal_provider(self):
+        connection = ProviderConnection(
+            name="Internal platform model",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="http://127.0.0.1:8080/v1",
+            default_model="local-model",
+            scope=ProviderScope.PLATFORM,
+        )
+        connection.full_clean()
+
+    def test_missing_master_key_keeps_runtime_route_unavailable(self):
+        IntelligenceRoute.objects.create(
+            capability=IntelligenceCapability.TEXT_GENERATE.value,
+            connection=self.connection,
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            registry = build_runtime_registry(capability=IntelligenceCapability.TEXT_GENERATE)
+        self.assertEqual(registry.providers, [])
