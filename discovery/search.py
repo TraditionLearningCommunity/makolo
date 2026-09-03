@@ -30,6 +30,7 @@ MAX_TEXT_LENGTH = 120
 MAX_DATE_RANGE_DAYS = 120
 MAX_CANDIDATES = 500
 ALLOWED_RADIUS_KM = (5, 10, 25, 50)
+ALLOWED_PERIODS = {"morning", "afternoon", "evening"}
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,32 @@ def _day_window(day, zone):
     return start, start + timedelta(days=1)
 
 
+def _period_window(window, period, *, zone):
+    period = (period or "").strip().lower()
+    if not period:
+        return window
+    if period not in ALLOWED_PERIODS:
+        raise ValidationError("Période de journée invalide.")
+    if window is None:
+        raise ValidationError("Une période de journée exige aujourd’hui, demain ou une date précise.")
+    start, end = window
+    if end - start > timedelta(days=1):
+        raise ValidationError("Une période de journée ne peut pas être appliquée à plusieurs jours.")
+    day = start.astimezone(zone).date()
+    bounds = {
+        "morning": (time(5, 0), time(12, 0)),
+        "afternoon": (time(12, 0), time(18, 0)),
+        "evening": (time(18, 0), time.max),
+    }
+    start_time, end_time = bounds[period]
+    period_start = datetime.combine(day, start_time, tzinfo=zone)
+    if period == "evening":
+        period_end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=zone)
+    else:
+        period_end = datetime.combine(day, end_time, tzinfo=zone)
+    return max(start, period_start), min(end, period_end)
+
+
 def resolve_time_window(params, *, zone, now=None):
     now = now or timezone.now()
     local_today = now.astimezone(zone).date()
@@ -94,9 +121,10 @@ def resolve_time_window(params, *, zone, now=None):
     if raw_to and date_to is None:
         raise ValidationError("Date de fin invalide.")
 
+    window = None
     if exact:
-        return _day_window(exact, zone)
-    if date_from or date_to:
+        window = _day_window(exact, zone)
+    elif date_from or date_to:
         first = date_from or local_today
         last = date_to or first
         if last < first:
@@ -105,25 +133,25 @@ def resolve_time_window(params, *, zone, now=None):
             raise ValidationError(f"La plage de dates est limitée à {MAX_DATE_RANGE_DAYS} jours.")
         start = datetime.combine(first, time.min, tzinfo=zone)
         end = datetime.combine(last + timedelta(days=1), time.min, tzinfo=zone)
-        return start, end
-    if preset == "today":
-        return _day_window(local_today, zone)
-    if preset == "tomorrow":
-        return _day_window(local_today + timedelta(days=1), zone)
-    if preset == "week":
+        window = (start, end)
+    elif preset == "today":
+        window = _day_window(local_today, zone)
+    elif preset == "tomorrow":
+        window = _day_window(local_today + timedelta(days=1), zone)
+    elif preset == "week":
         monday = local_today - timedelta(days=local_today.weekday())
         start = datetime.combine(monday, time.min, tzinfo=zone)
-        return start, start + timedelta(days=7)
-    if preset == "weekend":
+        window = (start, start + timedelta(days=7))
+    elif preset == "weekend":
         days_until_saturday = (5 - local_today.weekday()) % 7
         saturday = local_today + timedelta(days=days_until_saturday)
         if local_today.weekday() == 6:
             saturday = local_today - timedelta(days=1)
         start = datetime.combine(saturday, time.min, tzinfo=zone)
-        return start, start + timedelta(days=2)
-    if preset not in {"", "upcoming"}:
+        window = (start, start + timedelta(days=2))
+    elif preset not in {"", "upcoming"}:
         raise ValidationError("Filtre temporel invalide.")
-    return None
+    return _period_window(window, params.get("period"), zone=zone)
 
 
 def _base_queryset(*, now):
