@@ -1,9 +1,9 @@
 {% extends "base/app.html" %}
 {% block content %}
-<main style="max-width:760px;margin:0 auto;padding:1rem;">
-  <p><a href="{% url 'objectives:project-list' %}">← Projets</a></p>
-  <p style="margin:0;color:#5232DB;font-weight:700;">Initiative durable</p>
-  <h1>Nouveau projet</h1>
-  <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Créer le projet</button></form>
-</main>
+<div style="max-width:760px;margin:0 auto;padding:1rem;">
+  <p><a class="mk-btn mk-btn-ghost" href="{% url 'objectives:project-list' %}">← Projets</a></p>
+  <p style="margin:1rem 0 0;color:#5232DB;font-weight:700;">Initiative durable</p>
+  <h1>Nouveau Projet</h1>
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Créer le Projet</button></form>
+</div>
 {% endblock %}

@@ -1,8 +1,8 @@
 {% extends "base/app.html" %}
 {% block content %}
-<main style="max-width:760px;margin:0 auto;padding:1rem;">
-  <p><a href="{% url 'objectives:project-list' %}">← Projets</a></p>
-  <p style="margin:0;color:#5232DB;font-weight:700;">Projet</p>
+<div style="max-width:760px;margin:0 auto;padding:1rem;">
+  <p><a class="mk-btn mk-btn-ghost" href="{% url 'objectives:project-list' %}">← Projets</a></p>
+  <p style="margin:1rem 0 0;color:#5232DB;font-weight:700;">Projet</p>
   <h1>{{ project.title }}</h1>
   {% if project.description %}<p>{{ project.description }}</p>{% endif %}
   <p>{{ project.get_lifecycle_display }}{% if project.starts_on or project.ends_on %} · {% if project.starts_on %}du {{ project.starts_on }}{% endif %}{% if project.ends_on %} au {{ project.ends_on }}{% endif %}{% endif %}</p>
@@ -14,15 +14,15 @@
       {% for row in dossier_rows %}
         <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
           <a href="{% url 'objectives:dossier-detail' row.dossier.id %}"><strong>{{ row.dossier.title }}</strong></a> — {{ row.readiness.status_label }}
-          {% if can_manage and row.can_manage %}<form method="post" action="{% url 'objectives:project-unlink-dossier' project.id row.dossier.id %}" style="margin-top:.75rem;">{% csrf_token %}<button type="submit">Retirer du Projet</button></form>{% endif %}
+          {% if can_manage and row.can_manage %}<form method="post" action="{% url 'objectives:project-unlink-dossier' project.id row.dossier.id %}" style="margin-top:.75rem;">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Retirer du Projet</button></form>{% endif %}
         </article>
       {% empty %}<p>Aucun Dossier visible dans ce Projet.</p>{% endfor %}
     </div>
   </section>
 
   {% if can_manage %}
-    <section style="margin-top:2rem;"><h2>Rattacher un Dossier</h2><form method="post" action="{% url 'objectives:project-link-dossier' project.id %}">{% csrf_token %}{{ link_form.as_p }}<button type="submit">Rattacher</button></form></section>
-    <section style="margin-top:2rem;"><h2>Cycle de vie</h2><form method="post" action="{% url 'objectives:project-lifecycle' project.id %}">{% csrf_token %}{{ lifecycle_form.as_p }}<button type="submit">Mettre à jour</button></form></section>
+    <section style="margin-top:2rem;"><h2>Rattacher un Dossier</h2><form method="post" action="{% url 'objectives:project-link-dossier' project.id %}">{% csrf_token %}{{ link_form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Rattacher le Dossier</button></form></section>
+    <section style="margin-top:2rem;"><h2>Cycle de vie</h2><form method="post" action="{% url 'objectives:project-lifecycle' project.id %}">{% csrf_token %}{{ lifecycle_form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Mettre à jour l’état</button></form></section>
   {% endif %}
-</main>
+</div>
 {% endblock %}

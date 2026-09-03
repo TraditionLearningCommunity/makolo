@@ -29,6 +29,7 @@ on:
   push:
     branches:
       - main
+      - objectives/d6-*
     paths:
       - "subscriptions/**"
       - "requirements/**"

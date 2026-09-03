@@ -92,7 +92,7 @@ Avant de figer M8, terminer les capacités structurantes que nous voulons réell
 
 ```text
 R — Préparation intelligente
-S — Objectifs & collaboration
+D — Dossiers, Projets & Collaboration
 T-core — Occurrence Operations backend/web
 ```
 
@@ -105,7 +105,7 @@ M7
       ↓
 R
       ↓
-S
+D
       ↓
 T-core
       ↓
@@ -211,7 +211,7 @@ Il compose notamment :
 - NextAction / Readiness / Forms / Resources / Requirements / Payment / Access pour une Journey active ;
 - M6 Temporal/Spatial/Mobility/Hazards lorsque l’Occurrence devient imminente ;
 - R pour Prepared Start et la priorisation contextuelle ;
-- S pour Dossiers/Projets et responsabilités lorsqu’ils sont actifs ;
+- D pour Dossiers/Projets et responsabilités lorsqu’ils sont actifs ;
 - T pour l’état opérationnel Jour J.
 
 **R possède les règles/projections de préparation ; M8 possède leur composition web.** Le train R ne doit donc pas construire un second Cockpit concurrent.
@@ -230,7 +230,7 @@ Les Space Consoles composent Team, Mandates, Forms, Resources, Presentation, Cap
 
 Le web desktop, tablette et navigateur mobile doit rester sérieusement utilisable même sans application native.
 
-## 7. R, S et T avant M8
+## 7. R, D et T avant M8
 
 ### R — Préparation intelligente
 
@@ -242,16 +242,16 @@ R construit :
 
 R réutilise M1 Readiness, M6, Domain Events, Notifications et Autopilot. Il ne recrée ni scheduler, ni `ReadinessState`, ni Cockpit persistant.
 
-### S — Objectifs & collaboration
+### D — Dossiers, Projets & Collaboration
 
-S construit Dossier, Projet et leurs mécanismes de collaboration/relations, en conservant :
+D livre Dossier, Projet et leurs mécanismes de collaboration/relations, en conservant :
 
 - Journey comme démarche individuelle ;
 - Assignment comme responsabilité ;
 - Mandate comme autorité ;
 - Payment, Access, Capacity, Artifact dans leurs domaines canoniques.
 
-S doit être stabilisé avant M8 si Dossiers/Projets doivent façonner la navigation Mature ; sinon M8 serait immédiatement à refaire.
+D doit être stabilisé avant M8 si Dossiers/Projets doivent façonner la navigation Mature ; sinon M8 serait immédiatement à refaire.
 
 ### T-core — Occurrence Operations
 
@@ -307,7 +307,7 @@ Le gate doit couvrir, selon les domaines présents dans `main` :
 - E2E social ;
 - E2E opérateur ;
 - E2E Sharing P ;
-- E2E Q/R/S/T si ces trains sont intégrés ;
+- E2E Q/R/D/T si ces trains sont intégrés ;
 - E2E interoperability M7 : Connection/scopes/action/revocation et Extension install/permission/action-event-UI/disable ;
 - IDOR, permissions serveur, Mandates, uploads privés, credentials, tokens provider, scopes extensions, webhooks, CSP/XSS/cache privacy ;
 - performance des projections critiques ;
@@ -325,7 +325,7 @@ La vraie cible de production doit être lue dans les décisions/configurations r
 
 M10 vérifie ce qui est réellement nécessaire autour de : deployment, environment configuration, static/media, database, workers/jobs, notifications, providers, observabilité, backups/restores, secrets et rollback.
 
-Le handoff mobile documente les contrats backend/API réellement disponibles. Il inclut les capacités qui ont effectivement été intégrées avant le gate, notamment : authentication/session, Profile, Cockpit, Discovery, Social, Sharing, Activities, Journeys, Readiness, Forms, Resources, Presentation, Trust, Goals/Loyalty, Spatiotemporal, Access, Commerce/Payment, Connections et, lorsqu’ils sont intégrés, Q/R/S/T.
+Le handoff mobile documente les contrats backend/API réellement disponibles. Il inclut les capacités qui ont effectivement été intégrées avant le gate, notamment : authentication/session, Profile, Cockpit, Discovery, Social, Sharing, Activities, Journeys, Readiness, Forms, Resources, Presentation, Trust, Goals/Loyalty, Spatiotemporal, Access, Commerce/Payment, Connections et, lorsqu’ils sont intégrés, Q/R/D/T.
 
 Principe de parity : aucune règle critique destinée au mobile ne doit n’exister que dans JavaScript ou un template web.
 

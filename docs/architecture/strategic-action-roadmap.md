@@ -96,43 +96,43 @@ Les vérités canoniques restent notamment `Activity`, `Occurrence`, `Journey`, 
 
 ### 6. Dossier — objectif actif composé
 
-- **Type** : nouveau concept majeur.
+- **Type** : concept livré par le train D.
 - **Problème** : un résultat réel peut exiger plusieurs Journeys, plusieurs personnes et des dépendances entre démarches ; une Journey géante ou des Journeys dispersées sont toutes deux mauvaises.
 - **Promesse** : **« Tout ce qui doit avancer vers ce résultat se trouve dans un même contexte d'accomplissement. »**
-- **Mécanisme** : composition de Journeys, bénéficiaires, collaborateurs, échéances, relations inter-Journeys et Readiness dérivée. Le Dossier ne duplique ni Step, Payment, Access, Capacity, Artifact ni Permission.
+- **Mécanisme** : orchestration de liens vers des Journeys, bénéficiaires, collaborateurs, échéances, dépendances inter-Journeys et Readiness dérivée. Le Dossier ne possède pas les Journeys et ne duplique ni Step, Payment, Access, Capacity, Artifact ni Permission.
 - **Domaines** : Journey, Profile/ExternalBeneficiary, Assignment, Mandate, Readiness, Activity/Opportunity et domaines enfants.
 - **Défensibilité** : compréhension structurée d'un résultat composé et collectif.
-- **Train** : **S**.
+- **Train** : **D**.
 
 ### 7. Projet — horizon durable
 
-- **Type** : nouveau concept complémentaire au Dossier.
+- **Type** : concept livré, complémentaire et optionnel au Dossier.
 - **Problème** : certains objectifs durent des mois/années et produisent plusieurs Dossiers sans être eux-mêmes une urgence opérationnelle.
 - **Promesse** : **« Gardez une direction durable sans transformer chaque objectif en Dossier permanent. »**
-- **Mécanisme** : regroupement d'intentions, jalons et Dossiers ; ne pas devenir un Trello/Notion bis.
+- **Mécanisme** : regroupement d'intentions et de Dossiers ; ne pas devenir un Trello/Notion bis et ne pas remplacer `PersonalGoal`.
 - **Domaines** : Profile, Space, Dossier et projections associées.
 - **Défensibilité** : continuité entre horizon long terme et exécution concrète.
-- **Train** : **S**.
+- **Train** : **D**.
 
 ### 8. Structured Handoff — responsabilité explicite
 
 - **Type** : convergence de capacités existantes.
 - **Problème** : dans une démarche collective, les blocages viennent souvent de l'incertitude sur qui doit agir et qui en a l'autorité.
 - **Promesse** : **« Chacun sait ce qu'il doit faire et pourquoi il peut le faire. »**
-- **Mécanisme** : JourneyAssignment/JourneyStepAssignment + Mandate/Permission. **Assignment = responsabilité ; Mandate = autorité.**
+- **Mécanisme** : DossierAssignment/JourneyAssignment selon le niveau concerné + Mandate/Permission. **Assignment = responsabilité ; Mandate = autorité.** Une Membership seule n'accorde pas cette autorité.
 - **Domaines** : Journey, JourneyStep, Assignment, authorization, Notifications, Dossier.
 - **Défensibilité** : orchestration liée à des processus métier, pas task manager générique.
-- **Train** : **S**.
+- **Train** : **D**.
 
 ### 9. Collective Readiness — sommes-nous prêts ensemble ?
 
-- **Type** : convergence Readiness + collectif.
+- **Type** : convergence Readiness + collectif livrée comme projection.
 - **Problème** : une équipe ou une famille doit comprendre son état global sans ouvrir chaque Journey ni exposer des détails sensibles.
 - **Promesse** : **« Voyez ce qui bloque le collectif sans exposer inutilement les personnes. »**
-- **Mécanisme** : agrégation privacy-safe de projections Readiness ; aucun `CollectiveReadinessState` persistant et aucune matérialisation massive de Journeys.
+- **Mécanisme** : agrégation privacy-safe et viewer-aware de projections Readiness ; aucun `CollectiveReadinessState` persistant et aucune matérialisation massive de Journeys.
 - **Domaines** : Readiness, Group, Dossier, Space, Journey, Requirements, Analytics.
 - **Défensibilité** : coordination de plusieurs parcours individuels avec disclosure contrôlée.
-- **Train** : **S**.
+- **Train** : **D**.
 
 ### 10. Trusted Reuse — réutilisation réellement acceptable
 
@@ -233,7 +233,7 @@ Les 18 capacités sont regroupées en six trains stratégiques. Un train peut ê
 | **P — Sharing** | Faire circuler l'action | Sharing P1→P5 |
 | **Q — Capital d'action personnel** | Ne plus recommencer | Bibliothèque, Action Memory, fondation Trusted Reuse |
 | **R — Préparation intelligente** | Savoir ce qui est prêt et anticiper | Prepared Start, Proactive Preparation, contrats de l'Accueil contextuel |
-| **S — Objectifs & collaboration** | Accomplir des objectifs composés, seul ou ensemble | Dossier, Projet, Structured Handoff, Collective Readiness |
+| **D — Dossiers, Projets & Collaboration** | Accomplir des objectifs composés, seul ou ensemble | Dossier, Projet, Structured Handoff, Collective Readiness |
 | **T — Occurrence Operations** | Préparer et orchestrer le réel | Operational Readiness, Occurrence Live, Placement, Live Queue, Checkpoints/Flow, contrats Offline Action Pack |
 | **U — Intelligence cumulative** | Faire apprendre les actions précédentes aux suivantes | Proven Paths, Trusted Reuse avancé, analytics d'action/opérations |
 
@@ -263,9 +263,31 @@ intégration unique de Q
 
 Q reste autonome de P : il peut lire les contrats Sharing pour éviter une collision architecturale, mais ne dépend pas d'une branche P non intégrée.
 
-### Trains R, S et T
+### Train D
 
-Le diagramme de dépendances ci-dessous reste conceptuel. **Le séquencement de livraison par défaut est défini par [`mature-program-roadmap.md`](mature-program-roadmap.md)** : après la convergence P+Q et M7, R puis S puis T-core doivent être stabilisés avant le gate d'assemblage M8 si ces capacités font partie du premier web Mature.
+Le train **D — Dossiers, Projets & Collaboration** est le train Objectives livré par checkpoints empilés :
+
+```text
+D1 — Dossier Foundation
+  ↓
+D2 — Cross-Journey Dependencies
+  ↓
+D3 — Collaboration & Dossier Authority
+  ↓
+D4 — Collective Readiness
+  ↓
+D5 — Project
+  ↓
+D6 — Technical hardening & closure validation
+  ↓
+D6_bis — Product closure: UX, mobile, accessibilité, terminologie, documentation et smoke tests
+```
+
+D ne remplace ni `PersonalGoal` ni les domaines canoniques qu'il orchestre. Sa future réconciliation avec le `main` réel reste une étape séparée après la fermeture du train.
+
+### Trains R, D et T
+
+Le diagramme de dépendances ci-dessous reste conceptuel. **Le séquencement de livraison par défaut est défini par [`mature-program-roadmap.md`](mature-program-roadmap.md)** : après la convergence P+Q et M7, R puis D puis T-core doivent être stabilisés avant le gate d'assemblage M8 si ces capacités font partie du premier web Mature.
 
 Des branches peuvent se chevaucher uniquement lorsqu'un audit de collision démontre une indépendance réelle ; le parallélisme maximal n'est plus le défaut.
 
@@ -282,7 +304,7 @@ Q — Capital personnel
         │
         ├──────────────┐
         ▼              ▼
-R — Préparation    S — Objectifs & collaboration
+R — Préparation    D — Dossiers, Projets & Collaboration
         │              │
         └───────┬──────┘
                 ▼
@@ -308,7 +330,7 @@ Ces trois dimensions peuvent désigner trois sujets différents.
 
 Une Assignment ne devient jamais une Permission. Une Membership ne devient jamais une autorité. L'interface peut proposer **Agir en mon nom** / **Pour l'Espace X**, mais le serveur revalide toujours la vraie autorité.
 
-## 7. Projet, Dossier, Journey, Step et Occurrence
+## 7. Projet, Dossier, Journey, Activity et exécution
 
 La granularité cible est :
 
@@ -316,11 +338,21 @@ La granularité cible est :
 |---|---|
 | Quelle direction durable poursuivons-nous ? | **Projet** |
 | Quel résultat actif doit maintenant avancer ? | **Dossier** |
-| Quelle démarche concrète suit un bénéficiaire dans un contexte Activity ? | **Journey** |
+| Quelle démarche concrète suit un bénéficiaire ? | **Journey** |
+| Quelle capacité ou offre canonique donne son contexte métier à cette démarche ? | **Activity** |
 | Quelle action précise fait avancer cette Journey ? | **JourneyStep** |
 | Que se passe-t-il réellement maintenant pour cette Activity ? | **Occurrence / Occurrence Live** |
 
-Le Dossier absorbe l'ancien besoin conceptuel d'un « Action Graph/Mission composée » séparé. Les relations `requires/enables/related` entre Journeys sont un mécanisme interne du Dossier tant qu'aucun gap futur ne justifie un domaine distinct.
+Le principe de fermeture du train D est : **Project contextualise ; Dossier orchestre ; Journey exécute ; Activity reste canonique.** Le Dossier absorbe l'ancien besoin conceptuel d'un « Action Graph/Mission composée » séparé. Les relations `requires/enables/related` entre liens de Journeys restent un mécanisme interne du Dossier tant qu'aucun gap futur ne justifie un domaine distinct.
+
+Invariants à préserver :
+
+- Project est optionnel et sa visibilité n'implique jamais celle des Dossiers ;
+- la visibilité d'un Dossier n'implique jamais celle des Journeys liées ;
+- l'autorité Dossier reste distincte de l'autorité Journey ;
+- Assignment exprime une responsabilité et ne remplace jamais Mandate/Permission ; Membership ne crée pas d'autorité ;
+- Collective Readiness reste dérivée, viewer-aware et privacy-safe ;
+- Dossier et Project ne dupliquent jamais Payment, Access, Capacity, Artifact, Requirement ni leurs transitions propriétaires.
 
 ## 8. Capital documentaire et preuves
 
@@ -454,7 +486,7 @@ M7 — Interoperability / Connections / Extensions
       ↓
 R — Préparation intelligente
       ↓
-S — Dossiers / Projets / collaboration
+D — Dossiers, Projets & Collaboration
       ↓
 T-core — Occurrence Operations backend/web
       ↓
@@ -467,7 +499,7 @@ M10 — Production Readiness & Mobile Handoff
 A1→A4 — Mobile natif
 ```
 
-M8 est donc un **gate d'assemblage** : il doit consommer les capacités structurantes destinées au premier web Mature au lieu d'être immédiatement suivi d'un second redesign pour intégrer R/S/T.
+M8 est donc un **gate d'assemblage** : il doit consommer les capacités structurantes destinées au premier web Mature au lieu d'être immédiatement suivi d'un second redesign pour intégrer R/D/T.
 
 U reste non bloquant et peut mûrir avec les données réelles après la Release Candidate.
 
