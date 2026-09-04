@@ -7,6 +7,7 @@ from django.utils import timezone
 from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
+from capacity.models import CapacityPool, CapacityReservation, CapacityReservationStatus
 from core.models import DomainEventOutbox
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from readiness import ReadinessCheck, ReadinessCheckState, ReadinessStatus, reduce_readiness_status
@@ -148,3 +149,27 @@ class O4OperationalReadinessTests(TestCase):
         result = resolve_operational_readiness(occurrence, observed_at=self.now)
         self.assertEqual(result.status, ReadinessStatus.ACTION_REQUIRED)
         self.assertTrue(any(check.reason_code == "queue_paused" for check in result.action_items))
+
+    def test_capacity_is_not_applicable_when_unused_and_overcommit_blocks(self):
+        occurrence = self.occurrence()
+        journey = self.journey(occurrence)
+        unused = resolve_operational_readiness(occurrence, observed_at=self.now)
+        capacity = next(check for check in unused.checks if check.key == "operations.capacity")
+        self.assertEqual(capacity.state, ReadinessCheckState.NOT_APPLICABLE)
+
+        pool = CapacityPool.objects.create(
+            activity=self.activity,
+            occurrence=occurrence,
+            label="Bus",
+            total_quantity=1,
+        )
+        CapacityReservation.objects.create(
+            pool=pool,
+            journey=journey,
+            quantity=2,
+            status=CapacityReservationStatus.COMMITTED,
+            committed_at=self.now,
+        )
+        result = resolve_operational_readiness(occurrence, observed_at=self.now)
+        self.assertEqual(result.status, ReadinessStatus.BLOCKED)
+        self.assertTrue(any(check.reason_code == "capacity_overcommitted" for check in result.blocking_items))
