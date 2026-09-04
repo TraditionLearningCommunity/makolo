@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 
+from access.models import Access
+from journeys.models import Journey
+
 from .models import CheckpointAssignment, CheckpointObservation, CheckpointStatus, OccurrenceCheckpoint
+
+
+INELIGIBLE_JOURNEY_STATUSES = {"rejected", "cancelled", "expired"}
 
 
 @dataclass(frozen=True)
@@ -19,6 +25,36 @@ def observations_for_beneficiary(*, occurrence, profile=None, external_beneficia
     filters = {"profile": profile} if profile is not None else {"external_beneficiary": external_beneficiary}
     return CheckpointObservation.objects.filter(checkpoint__occurrence=occurrence, **filters).select_related(
         "checkpoint", "observed_by", "access_use"
+    )
+
+
+def profile_is_checkpoint_beneficiary(profile, occurrence):
+    return (
+        Journey.objects.filter(
+            beneficiary=profile,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exclude(status__in=INELIGIBLE_JOURNEY_STATUSES).exists()
+        or Access.objects.filter(
+            beneficiary=profile,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exists()
+    )
+
+
+def external_beneficiary_is_checkpoint_beneficiary(external_beneficiary, occurrence):
+    return (
+        Journey.objects.filter(
+            external_beneficiary=external_beneficiary,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exclude(status__in=INELIGIBLE_JOURNEY_STATUSES).exists()
+        or Access.objects.filter(
+            external_beneficiary=external_beneficiary,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exists()
     )
 
 
