@@ -155,18 +155,43 @@ class AccountProfileView(LoginRequiredMixin, View):
         preferences, _ = NotificationPreference.objects.get_or_create(user=request.user)
         return profile, preferences
 
+    def _profile_forms(self, request, profile, *, bound_section=None):
+        forms = {}
+        for section in AccountProfileForm.SECTION_FIELDS:
+            kwargs = {
+                "instance": request.user,
+                "profile": profile,
+                "section": section,
+            }
+            if section == bound_section:
+                form = AccountProfileForm(request.POST, request.FILES, **kwargs)
+            else:
+                form = AccountProfileForm(**kwargs)
+            # The UI presents independent conceptual sections but keeps the
+            # historical single-save contract. HTML's form attribute lets
+            # these sectioned fields submit through one non-nested form.
+            for field in form.fields.values():
+                field.widget.attrs["form"] = "profile-master"
+            forms[section] = form
+        return forms
+
     def _context(
         self,
         request,
         profile,
-        profile_form,
         preferences_form,
         appearance_form=None,
+        *,
+        profile_forms=None,
+        profile_error="",
     ):
         if appearance_form is None:
             appearance_form = AppearancePreferencesForm(profile=profile)
+        if profile_forms is None:
+            profile_forms = self._profile_forms(request, profile)
         return {
-            "profile_form": profile_form,
+            "profile_forms": profile_forms,
+            "profile_error": profile_error,
             "preferences_form": preferences_form,
             "appearance_form": appearance_form,
             "deletion_blockers": get_account_deletion_blockers(request.user),
@@ -180,19 +205,19 @@ class AccountProfileView(LoginRequiredMixin, View):
             self._context(
                 request,
                 profile,
-                AccountProfileForm(instance=request.user, profile=profile),
                 NotificationPreferencesForm(instance=preferences),
             ),
         )
 
     def post(self, request):
         profile, preferences = self._objects(request)
-        section = request.POST.get("section", "profile")
+        section = request.POST.get("section", "presentation")
         appearance_form = None
+        profile_forms = self._profile_forms(request, profile)
+        profile_error = ""
 
         if section == "appearance":
             appearance_form = AppearancePreferencesForm(request.POST, profile=profile)
-            profile_form = AccountProfileForm(instance=request.user, profile=profile)
             preferences_form = NotificationPreferencesForm(instance=preferences)
             if appearance_form.is_valid():
                 appearance_form.save()
@@ -200,23 +225,35 @@ class AccountProfileView(LoginRequiredMixin, View):
                 return redirect(f"{reverse('account:profile')}#appearance")
         elif section == "notifications":
             preferences_form = NotificationPreferencesForm(request.POST, instance=preferences)
-            profile_form = AccountProfileForm(instance=request.user, profile=profile)
             if preferences_form.is_valid():
                 preferences_form.save()
                 messages.success(request, "Préférences de notification mises à jour.")
-                return redirect("account:profile")
-        else:
-            profile_form = AccountProfileForm(
+                return redirect(reverse("account:profile"))
+        elif section == "profile":
+            # Compatibility for the former all-in-one Profile form and clients.
+            legacy_form = AccountProfileForm(
                 request.POST,
                 request.FILES,
                 instance=request.user,
                 profile=profile,
             )
             preferences_form = NotificationPreferencesForm(instance=preferences)
-            if profile_form.is_valid():
-                profile_form.save()
+            if legacy_form.is_valid():
+                legacy_form.save()
                 messages.success(request, "Profil mis à jour.")
-                return redirect("account:profile")
+                return redirect(reverse("account:profile"))
+            profile_error = "Certaines informations du profil sont invalides."
+        elif section in AccountProfileForm.SECTION_FIELDS:
+            profile_forms = self._profile_forms(request, profile, bound_section=section)
+            preferences_form = NotificationPreferencesForm(instance=preferences)
+            section_form = profile_forms[section]
+            if section_form.is_valid():
+                section_form.save()
+                messages.success(request, "Profil mis à jour.")
+                return redirect(f"{reverse('account:profile')}#{section}")
+        else:
+            preferences_form = NotificationPreferencesForm(instance=preferences)
+            profile_error = "Section de profil inconnue."
 
         return render(
             request,
@@ -224,9 +261,10 @@ class AccountProfileView(LoginRequiredMixin, View):
             self._context(
                 request,
                 profile,
-                profile_form,
                 preferences_form,
                 appearance_form,
+                profile_forms=profile_forms,
+                profile_error=profile_error,
             ),
             status=400,
         )

@@ -8,7 +8,7 @@
         <div class="max-w-3xl">
             <span class="mk-kicker">Compte</span>
             <h1 class="mk-page-title">Mon profil</h1>
-            <p class="mk-page-copy mt-4 text-[15px]">Vos informations, votre sécurité et vos préférences.</p>
+            <p class="mk-page-copy mt-4 text-[15px]">Ajoutez vos informations progressivement, au moment où elles vous sont utiles.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary"><i data-lucide="key-round" class="h-4 w-4"></i>Mot de passe</a>
@@ -58,77 +58,123 @@
         </div>
     </section>
 
-    <form method="post" enctype="multipart/form-data" class="mk-panel p-5 sm:p-6 lg:p-7">
+    {% if profile_error %}<div class="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_error }}</div>{% endif %}
+
+    <form id="profile-master" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="section" value="profile">
+    </form>
+
+    <section id="presentation" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="user-round" class="h-5 w-5"></i></div>
-            <div><h2 class="text-xl font-extrabold tracking-[-.03em]">Informations personnelles</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Nom, coordonnées et profil public.</p></div>
+            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">1 · Présentation</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Présentez-vous à votre rythme</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Photo, courte présentation et profession. Rien n’est requis pour simplement utiliser Makolo.</p></div>
         </div>
-
-        {% if profile_form.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_form.non_field_errors }}</div>{% endif %}
-
+        {% if profile_forms.presentation.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.presentation.non_field_errors }}</div>{% endif %}
         <div class="mt-6 grid gap-5 md:grid-cols-2">
-            {% for field in profile_form %}
-            <div class="{% if field.name == 'bio' or field.name == 'address' or field.name == 'avatar' %}md:col-span-2{% endif %}">
-                {% if field.field.widget.input_type == 'checkbox' %}
-                <label class="flex items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">{{ field }}<span><span class="block text-sm font-bold">{{ field.label }}</span>{% if field.help_text %}<span class="mt-1 block text-xs" style="color:var(--mk-muted)">{{ field.help_text }}</span>{% endif %}</span></label>
-                {% else %}
-                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
-                {{ field }}
-                {% if field.help_text %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ field.help_text }}</p>{% endif %}
-                {% endif %}
-                {% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
+            <div class="md:col-span-2"><label for="{{ profile_forms.presentation.avatar.id_for_label }}" class="mb-2 block text-sm font-bold">{{ profile_forms.presentation.avatar.label }}</label>{{ profile_forms.presentation.avatar }}{% for error in profile_forms.presentation.avatar.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}</div>
+            <div class="md:col-span-2"><label for="{{ profile_forms.presentation.bio.id_for_label }}" class="mb-2 block text-sm font-bold">{{ profile_forms.presentation.bio.label }}</label>{{ profile_forms.presentation.bio }}{% for error in profile_forms.presentation.bio.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}</div>
+            <div><label for="{{ profile_forms.presentation.profession.id_for_label }}" class="mb-2 block text-sm font-bold">{{ profile_forms.presentation.profession.label }}</label>{{ profile_forms.presentation.profession }}{% for error in profile_forms.presentation.profession.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}</div>
+        </div>
+        <details class="mt-6 rounded-2xl border p-4" style="border-color:var(--mk-border)">
+            <summary class="cursor-pointer text-sm font-bold">Informations historiques de compatibilité</summary>
+            <p class="mt-2 text-xs leading-5" style="color:var(--mk-muted)">Ces champs restent modifiables pour les anciens profils. Ils ne créent pas d’Espace et ne définissent aucune responsabilité dans Makolo.</p>
+            <div class="mt-4 grid gap-5 md:grid-cols-2">
+                <div><label for="{{ profile_forms.presentation.company_name.id_for_label }}" class="mb-2 block text-sm font-bold">{{ profile_forms.presentation.company_name.label }}</label>{{ profile_forms.presentation.company_name }}{% if profile_forms.presentation.company_name.help_text %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ profile_forms.presentation.company_name.help_text }}</p>{% endif %}{% for error in profile_forms.presentation.company_name.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}</div>
+                <div><label for="{{ profile_forms.presentation.organization_name.id_for_label }}" class="mb-2 block text-sm font-bold">{{ profile_forms.presentation.organization_name.label }}</label>{{ profile_forms.presentation.organization_name }}{% if profile_forms.presentation.organization_name.help_text %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ profile_forms.presentation.organization_name.help_text }}</p>{% endif %}{% for error in profile_forms.presentation.organization_name.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}</div>
             </div>
-            {% endfor %}
-        </div>
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mon profil</button></div>
-    </form>
+        </details>
+    </section>
 
-    <form id="appearance" method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
-        {% csrf_token %}
-        <input type="hidden" name="section" value="appearance">
+    <section id="personal" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
-            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sun" class="h-5 w-5"></i></div>
-            <div><h2 class="text-xl font-extrabold tracking-[-.03em]">Apparence</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Le choix est enregistré sur votre compte. « Système » suit cet appareil.</p></div>
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="contact-round" class="h-5 w-5"></i></div>
+            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">2 · Informations personnelles</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Votre identité personnelle</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Ces informations sont connues de Makolo pour votre compte ; elles ne deviennent pas publiques automatiquement.</p></div>
         </div>
-        {% with current=appearance_form.appearance.value %}
-        <div class="mt-6 grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Apparence">
-            {% for value, label in appearance_form.fields.appearance.choices %}
-            <div class="flex items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
-                <input id="appearance-{{ value }}" type="radio" name="appearance" value="{{ value }}" aria-describedby="appearance-{{ value }}-help" {% if current == value %}checked{% endif %}>
-                <div class="min-w-0 flex-1">
-                    <label for="appearance-{{ value }}" class="flex cursor-pointer items-center text-sm font-bold" style="min-height:44px">{{ label }}</label>
-                    <p id="appearance-{{ value }}-help" class="text-xs" style="color:var(--mk-muted)">{% if value == 'system' %}Suit le réglage de l’appareil.{% elif value == 'light' %}Toujours en thème clair.{% else %}Toujours en thème sombre.{% endif %}</p>
+        {% if profile_forms.personal.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.personal.non_field_errors }}</div>{% endif %}
+        <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.personal %}</div>
+    </section>
+
+    <section id="contact" class="mk-panel p-5 sm:p-6 lg:p-7">
+        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="map-pin" class="h-5 w-5"></i></div>
+            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">3 · Coordonnées</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Coordonnées et localisation</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Ajoutez ces informations uniquement lorsqu’elles vous sont utiles. L’adresse précise reste privée.</p></div>
+        </div>
+        {% if profile_forms.contact.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.contact.non_field_errors }}</div>{% endif %}
+        <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.contact %}</div>
+    </section>
+
+    <section id="links" class="mk-panel p-5 sm:p-6 lg:p-7">
+        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="external-link" class="h-5 w-5"></i></div>
+            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">4 · Liens & réseaux</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Vos liens déclarés</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Site web, LinkedIn, Facebook, Instagram, TikTok, X et YouTube. Ces liens sont déclarés par vous : Makolo ne présente pas leur propriété comme vérifiée.</p></div>
+        </div>
+        {% if profile_forms.links.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.links.non_field_errors }}</div>{% endif %}
+        <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.links %}</div>
+    </section>
+
+    <section id="preferences" class="mk-panel p-5 sm:p-6 lg:p-7">
+        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sliders-horizontal" class="h-5 w-5"></i></div>
+            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">5 · Préférences</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Personnaliser mon expérience</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Langue, fuseau horaire, apparence et notifications peuvent évoluer indépendamment du reste du profil.</p></div>
+        </div>
+
+        <div class="mt-6 rounded-2xl border p-5" style="border-color:var(--mk-border)">
+            <h3 class="text-base font-extrabold">Langue et fuseau horaire</h3>
+            <div class="mt-4 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.preferences %}</div>
+        </div>
+
+        <form id="appearance" method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
+            {% csrf_token %}
+            <input type="hidden" name="section" value="appearance">
+            <h3 class="flex items-center gap-2 text-base font-extrabold"><i data-lucide="sun" class="h-5 w-5"></i>Apparence</h3>
+            <p class="mt-1 text-sm" style="color:var(--mk-muted)">« Système » suit le réglage de cet appareil.</p>
+            {% with current=appearance_form.appearance.value %}
+            <div class="mt-4 grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Apparence">
+                {% for value, label in appearance_form.fields.appearance.choices %}
+                <div class="flex items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
+                    <input id="appearance-{{ value }}" type="radio" name="appearance" value="{{ value }}" aria-describedby="appearance-{{ value }}-help" {% if current == value %}checked{% endif %}>
+                    <div class="min-w-0 flex-1"><label for="appearance-{{ value }}" class="flex cursor-pointer items-center text-sm font-bold" style="min-height:44px">{{ label }}</label><p id="appearance-{{ value }}-help" class="text-xs" style="color:var(--mk-muted)">{% if value == 'system' %}Suit le réglage de l’appareil.{% elif value == 'light' %}Toujours en thème clair.{% else %}Toujours en thème sombre.{% endif %}</p></div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
-        {% endwith %}
-        {% for error in appearance_form.appearance.errors %}<p class="mt-3 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer l’apparence</button></div>
-    </form>
+            {% endwith %}
+            {% for error in appearance_form.appearance.errors %}<p class="mt-3 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
+            <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer l’apparence</button></div>
+        </form>
 
-    <form method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
-        {% csrf_token %}
-        <input type="hidden" name="section" value="notifications">
-        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
-            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-pulse-soft);color:var(--mk-pulse-strong)"><i data-lucide="bell-ring" class="h-5 w-5"></i></div>
-            <div><h2 class="text-xl font-extrabold tracking-[-.03em]">Notifications</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Choisissez les alertes à recevoir et, si besoin, vos heures calmes.</p></div>
-        </div>
-        <div class="mt-6 grid gap-4 md:grid-cols-2">
-            {% for field in preferences_form %}
-            <div class="{% if field.name == 'quiet_hours_start' or field.name == 'quiet_hours_end' %}md:col-span-1{% endif %}">
-                {% if field.field.widget.input_type == 'checkbox' %}
-                <label class="flex items-center gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">{{ field }}<span class="text-sm font-bold">{{ field.label }}</span></label>
-                {% else %}
-                <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>{{ field }}
-                {% endif %}
-                {% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
+        <form method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
+            {% csrf_token %}
+            <input type="hidden" name="section" value="notifications">
+            <h3 class="flex items-center gap-2 text-base font-extrabold"><i data-lucide="bell-ring" class="h-5 w-5"></i>Notifications</h3>
+            <div class="mt-4 grid gap-4 md:grid-cols-2">
+                {% for field in preferences_form %}
+                <div>
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                    <label class="flex items-center gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">{{ field }}<span class="text-sm font-bold">{{ field.label }}</span></label>
+                    {% else %}
+                    <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>{{ field }}
+                    {% endif %}
+                    {% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+            <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer les notifications</button></div>
+        </form>
+    </section>
+
+    <section id="privacy" class="mk-panel p-5 sm:p-6 lg:p-7">
+        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="lock-keyhole" class="h-5 w-5"></i></div>
+            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">6 · Confidentialité</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Contrôler ma visibilité</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">La visibilité est distincte de la donnée personnelle connue de Makolo.</p></div>
         </div>
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer les notifications</button></div>
-    </form>
+        <div class="mt-5 rounded-2xl border p-4 text-sm leading-6" style="border-color:var(--mk-border);background:var(--mk-surface-subtle)">
+            <p class="font-bold">Privé par conception</p>
+            <p class="mt-1" style="color:var(--mk-muted)">E-mail, téléphone, date de naissance complète, adresse précise et coordonnées latitude/longitude ne sont pas rendus publics automatiquement par ces réglages.</p>
+        </div>
+        {% if profile_forms.privacy.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.privacy.non_field_errors }}</div>{% endif %}
+        <div class="mt-6 grid gap-4 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.privacy %}</div>
+        <div class="mt-7 flex justify-end"><button type="submit" form="profile-master" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mon profil</button></div>
+    </section>
 </div>
 {% endblock %}

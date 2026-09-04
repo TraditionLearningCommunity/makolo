@@ -52,7 +52,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "city", "address", "latitude", "longitude", "theme", "profile_completed",
             "public_profile", "searchable", "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "profile_completed", "created_at", "updated_at"]
 
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
@@ -173,8 +173,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "birth_date", "gender", "bio", "avatar_url", "language", "timezone", "is_active",
             "is_verified", "email_verified", "phone_verified", "is_organizer", "is_scanner_agent",
             "onboarding_completed", "onboarding_step", "last_seen", "website", "linkedin_url",
-            "facebook_url", "instagram_url", "x_url", "roles", "permission_groups", "profile",
-            "notification_preferences", "created_at", "updated_at",
+            "facebook_url", "instagram_url", "tiktok_url", "x_url", "youtube_url", "roles",
+            "permission_groups", "profile", "notification_preferences", "created_at", "updated_at",
         ]
         read_only_fields = fields
 
@@ -224,7 +224,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "first_name", "last_name", "phone", "bio", "avatar", "birth_date", "gender",
-            "website", "linkedin_url", "facebook_url", "instagram_url", "x_url", "language", "timezone",
+            "website", "linkedin_url", "facebook_url", "instagram_url", "tiktok_url", "x_url",
+            "youtube_url", "language", "timezone",
         ]
 
     def validate_avatar(self, value):
@@ -233,6 +234,68 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages) from exc
         return value
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        user = super().update(instance, validated_data)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        completed = profile.derive_profile_completed()
+        if profile.profile_completed != completed:
+            profile.profile_completed = completed
+            profile.save(update_fields=["profile_completed", "updated_at"])
+        return user
+
+
+class ProfileUpdateSerializer(UserUpdateSerializer):
+    """Private/self Profile editor spanning User and UserProfile storage."""
+
+    company_name = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
+    organization_name = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
+    profession = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
+    country = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=100)
+    city = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=100)
+    address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    public_profile = serializers.BooleanField(required=False)
+    searchable = serializers.BooleanField(required=False)
+
+    profile_fields = (
+        "company_name",
+        "organization_name",
+        "profession",
+        "country",
+        "city",
+        "address",
+        "public_profile",
+        "searchable",
+    )
+
+    class Meta(UserUpdateSerializer.Meta):
+        fields = [
+            *UserUpdateSerializer.Meta.fields,
+            "company_name",
+            "organization_name",
+            "profession",
+            "country",
+            "city",
+            "address",
+            "public_profile",
+            "searchable",
+        ]
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        profile_data = {}
+        for field_name in self.profile_fields:
+            if field_name in validated_data:
+                profile_data[field_name] = validated_data.pop(field_name)
+
+        user = super().update(instance, validated_data)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        for field_name, value in profile_data.items():
+            setattr(profile, field_name, value)
+        profile.profile_completed = profile.derive_profile_completed()
+        profile.save()
+        return user
 
 
 class PasswordForgotSerializer(serializers.Serializer):

@@ -94,22 +94,55 @@ class AccountDeleteForm(forms.Form):
 
 
 class AccountProfileForm(forms.ModelForm):
+    """Edit one progressive Profile section without overwriting the others."""
+
+    SECTION_FIELDS = {
+        "presentation": (
+            "avatar",
+            "bio",
+            "profession",
+            "company_name",
+            "organization_name",
+        ),
+        "personal": ("first_name", "last_name", "birth_date", "gender"),
+        "contact": ("phone", "country", "city", "address"),
+        "links": (
+            "website",
+            "linkedin_url",
+            "facebook_url",
+            "instagram_url",
+            "tiktok_url",
+            "x_url",
+            "youtube_url",
+        ),
+        "preferences": ("language", "timezone"),
+        "privacy": ("public_profile", "searchable"),
+    }
+
     company_name = forms.CharField(
         required=False,
-        label="Entreprise (information de profil)",
-        help_text="Information déclarative : ceci ne crée pas un Espace Makolo.",
+        label="Entreprise (information historique)",
+        help_text="Champ déclaratif conservé pour compatibilité. Ceci ne crée pas un Espace Makolo.",
     )
     organization_name = forms.CharField(
         required=False,
-        label="Organisation (information de profil)",
-        help_text="Information déclarative : la gestion collective passe par Mes Espaces.",
+        label="Organisation (information historique)",
+        help_text="Champ déclaratif conservé pour compatibilité. La gestion collective passe par Mes Espaces.",
     )
     profession = forms.CharField(required=False, label="Profession")
     country = forms.CharField(required=False, label="Pays")
     city = forms.CharField(required=False, label="Ville")
-    address = forms.CharField(required=False, label="Adresse", widget=forms.Textarea(attrs={"rows": 3}))
-    public_profile = forms.BooleanField(required=False, label="Profil public")
-    searchable = forms.BooleanField(required=False, label="Apparaître dans la recherche")
+    address = forms.CharField(required=False, label="Adresse précise", widget=forms.Textarea(attrs={"rows": 3}))
+    public_profile = forms.BooleanField(
+        required=False,
+        label="Autoriser un futur profil public",
+        help_text="Ce réglage n’expose jamais automatiquement votre e-mail, téléphone, date de naissance complète ou adresse précise.",
+    )
+    searchable = forms.BooleanField(
+        required=False,
+        label="Être trouvable dans Makolo",
+        help_text="Permet la recherche interne lorsque des fonctionnalités Makolo en ont besoin. Désactivé par défaut pour les nouveaux profils.",
+    )
     gender = forms.ChoiceField(required=False, choices=GenderCode.choices, label="Genre")
     language = forms.ChoiceField(choices=LanguageCode.choices, label="Langue")
     timezone = forms.ChoiceField(label="Fuseau horaire")
@@ -128,7 +161,9 @@ class AccountProfileForm(forms.ModelForm):
             "linkedin_url",
             "facebook_url",
             "instagram_url",
+            "tiktok_url",
             "x_url",
+            "youtube_url",
             "language",
             "timezone",
         ]
@@ -143,7 +178,9 @@ class AccountProfileForm(forms.ModelForm):
             "linkedin_url": "LinkedIn",
             "facebook_url": "Facebook",
             "instagram_url": "Instagram",
+            "tiktok_url": "TikTok",
             "x_url": "X / Twitter",
+            "youtube_url": "YouTube",
         }
         widgets = {
             "birth_date": forms.DateInput(attrs={"type": "date"}),
@@ -174,33 +211,46 @@ class AccountProfileForm(forms.ModelForm):
         "website": "url",
     }
 
-    def __init__(self, *args, profile=None, **kwargs):
+    def __init__(self, *args, profile=None, section=None, **kwargs):
         self.profile = profile
+        self.section = section
         super().__init__(*args, **kwargs)
+
+        if section is not None:
+            if section not in self.SECTION_FIELDS:
+                raise ValueError(f"Section Profile inconnue : {section}")
+            allowed = set(self.SECTION_FIELDS[section])
+            for field_name in tuple(self.fields):
+                if field_name not in allowed:
+                    self.fields.pop(field_name)
 
         if profile and not self.is_bound:
             for field_name in self.profile_fields:
-                self.initial[field_name] = getattr(profile, field_name)
+                if field_name in self.fields:
+                    self.initial[field_name] = getattr(profile, field_name)
 
-        timezone_choices = [(name, name) for name in sorted(available_timezones())]
-        self.fields["timezone"].choices = timezone_choices
+        if "timezone" in self.fields:
+            timezone_choices = [(name, name) for name in sorted(available_timezones())]
+            self.fields["timezone"].choices = timezone_choices
 
         # Preserve an unknown historical gender/language value in the edit form
         # without offering it for new profiles. The user can explicitly replace
         # it with a supported canonical value.
         if self.instance and self.instance.pk:
-            gender_values = {value for value, _ in GenderCode.choices}
-            if self.instance.gender and self.instance.gender not in gender_values:
-                self.fields["gender"].choices = [
-                    (self.instance.gender, f"Valeur historique : {self.instance.gender}"),
-                    *GenderCode.choices,
-                ]
-            language_values = {value for value, _ in LanguageCode.choices}
-            if self.instance.language and self.instance.language not in language_values:
-                self.fields["language"].choices = [
-                    (self.instance.language, f"Valeur historique : {self.instance.language}"),
-                    *LanguageCode.choices,
-                ]
+            if "gender" in self.fields:
+                gender_values = {value for value, _ in GenderCode.choices}
+                if self.instance.gender and self.instance.gender not in gender_values:
+                    self.fields["gender"].choices = [
+                        (self.instance.gender, f"Valeur historique : {self.instance.gender}"),
+                        *GenderCode.choices,
+                    ]
+            if "language" in self.fields:
+                language_values = {value for value, _ in LanguageCode.choices}
+                if self.instance.language and self.instance.language not in language_values:
+                    self.fields["language"].choices = [
+                        (self.instance.language, f"Valeur historique : {self.instance.language}"),
+                        *LanguageCode.choices,
+                    ]
 
         for field_name, field in self.fields.items():
             widget = field.widget
@@ -221,10 +271,15 @@ class AccountProfileForm(forms.ModelForm):
     @transaction.atomic
     def save(self, commit=True):
         user = super().save(commit=commit)
-        profile = self.profile or UserProfile.objects.get_or_create(user=user)[0]
+        profile = self.profile
+        if profile is None:
+            if not commit and user.pk is None:
+                raise ValueError("Un profil existant est requis pour save(commit=False).")
+            profile = UserProfile.objects.get_or_create(user=user)[0]
         for field_name in self.profile_fields:
-            setattr(profile, field_name, self.cleaned_data.get(field_name))
-        profile.profile_completed = bool(user.first_name and user.last_name and profile.city)
+            if field_name in self.cleaned_data:
+                setattr(profile, field_name, self.cleaned_data[field_name])
+        profile.profile_completed = profile.derive_profile_completed()
         if commit:
             profile.save()
         self.profile = profile
