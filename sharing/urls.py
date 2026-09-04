@@ -6,6 +6,7 @@ from .document_views import (
     InboundCaptureDetailView,
     InboundCaptureDiscardView,
 )
+from .passport_views import MyPassportView, ProfilePassportView, SpacePassportView
 from .views import (
     ActivityShareCreateView,
     JourneyReuseShareView,
@@ -25,6 +26,9 @@ from .views import (
 app_name = "sharing"
 
 urlpatterns = [
+    path("passport/me/", MyPassportView.as_view(), name="passport-me"),
+    path("passport/profile/<uuid:profile_id>/", ProfilePassportView.as_view(), name="passport-profile"),
+    path("passport/spaces/<slug:slug>/", SpacePassportView.as_view(), name="passport-space"),
     path("s/<slug:token>/", ShareLandingView.as_view(), name="landing"),
     path("s/<slug:token>/go/", ShareActionView.as_view(), name="action"),
     path("s/<slug:token>/qr.png", ShareQRView.as_view(), name="qr"),
