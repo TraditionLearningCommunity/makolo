@@ -53,6 +53,27 @@ def _checkpoint_payload(checkpoint):
     }
 
 
+def _observation_payload(observation):
+    beneficiary = observation.profile or observation.external_beneficiary
+    display_name = (
+        (observation.profile.get_full_name().strip() or observation.profile.username)
+        if observation.profile_id
+        else observation.external_beneficiary.display_name
+    )
+    return {
+        "id": observation.pk,
+        "checkpoint_id": observation.checkpoint_id,
+        "beneficiary": {
+            "type": "profile" if observation.profile_id else "external_beneficiary",
+            "id": observation.profile_id or observation.external_beneficiary_id,
+            "display_name": display_name,
+        },
+        "observed_at": observation.observed_at,
+        "observed_by_id": observation.observed_by_id,
+        "access_use_id": observation.access_use_id,
+    }
+
+
 def _operator_checkpoint(user, checkpoint_id, *, manage=False):
     checkpoint = OccurrenceCheckpoint.objects.select_related(
         "occurrence", "occurrence__activity", "occurrence__activity__space"
@@ -198,6 +219,15 @@ class CheckpointAssignmentDetailAPIView(APIView):
 class CheckpointObservationsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request, checkpoint_id):
+        checkpoint = _operator_checkpoint(request.user, checkpoint_id, manage=False)
+        if checkpoint is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        observations = checkpoint.observations.select_related(
+            "profile", "external_beneficiary", "observed_by", "access_use"
+        ).order_by("-observed_at", "id")
+        return Response([_observation_payload(observation) for observation in observations])
+
     def post(self, request, checkpoint_id):
         checkpoint = _operator_checkpoint(request.user, checkpoint_id, manage=True)
         if checkpoint is None:
@@ -231,16 +261,4 @@ class CheckpointObservationsAPIView(APIView):
             )
         except DjangoValidationError as exc:
             _raise_drf_validation(exc)
-        return Response(
-            {
-                "id": observation.pk,
-                "checkpoint_id": observation.checkpoint_id,
-                "beneficiary": {
-                    "type": "profile" if observation.profile_id else "external_beneficiary",
-                    "id": observation.profile_id or observation.external_beneficiary_id,
-                },
-                "observed_at": observation.observed_at,
-                "access_use_id": observation.access_use_id,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(_observation_payload(observation), status=status.HTTP_201_CREATED)
