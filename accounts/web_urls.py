@@ -1,5 +1,7 @@
 from django.urls import path
 
+from topics.web_views import ProfileInterestSettingsView
+
 from .web_views import (
     AccountDeleteView,
     AccountPasswordChangeView,
@@ -19,6 +21,7 @@ app_name = "account"
 urlpatterns = [
     path("register/", AccountRegistrationView.as_view(), name="register"),
     path("profile/", AccountProfileView.as_view(), name="profile"),
+    path("interests/", ProfileInterestSettingsView.as_view(), name="interests"),
     path("switch/", AccountSwitcherView.as_view(), name="switcher"),
     path("switch/add/", AddAccountView.as_view(), name="add-account"),
     path("switch/<uuid:user_id>/", SwitchRememberedAccountView.as_view(), name="switch-account"),
