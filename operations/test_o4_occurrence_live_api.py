@@ -29,6 +29,7 @@ from spatiotemporal.providers import (
     reset_provider_registry,
     set_provider_registry,
 )
+from spatiotemporal.types import HazardSeverity, WeatherSignal
 
 from .models import (
     CheckpointAssignment,
@@ -51,6 +52,20 @@ class UnavailableWeatherProvider(WeatherProvider):
 
     def weather_context(self, *, place, at, observed_at):
         raise ProviderUnavailable("weather unavailable")
+
+
+class WarningWeatherProvider(WeatherProvider):
+    key = "warning-weather"
+
+    def weather_context(self, *, place, at, observed_at):
+        return WeatherSignal(
+            kind="heavy_rain",
+            severity=HazardSeverity.WARNING,
+            source=self.key,
+            observed_at=observed_at,
+            expires_at=observed_at + timedelta(minutes=15),
+            summary="Forte pluie sur la fenêtre de déplacement.",
+        )
 
 
 class O4OccurrenceLiveAPITests(TestCase):
@@ -195,6 +210,21 @@ class O4OccurrenceLiveAPITests(TestCase):
         reset_provider_registry()
         super().tearDown()
 
+    def _attach_primary_place(self):
+        place = Place.objects.create(
+            name="O4 Live Place",
+            country_code="CD",
+            latitude="-4.325000",
+            longitude="15.322000",
+            timezone="Africa/Kinshasa",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.occurrence,
+            place=place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        return place
+
     def test_participant_live_is_personal_minimal_and_queue_aware(self):
         self.client.force_login(self.participant)
         before = DomainEventOutbox.objects.count()
@@ -292,18 +322,7 @@ class O4OccurrenceLiveAPITests(TestCase):
         self.assertEqual(payload["next_action"]["reason"], "occurrence_completed")
 
     def test_m6_provider_unavailable_does_not_break_live_projection_or_fake_hazard(self):
-        place = Place.objects.create(
-            name="O4 Live Place",
-            country_code="CD",
-            latitude="-4.325000",
-            longitude="15.322000",
-            timezone="Africa/Kinshasa",
-        )
-        OccurrencePlace.objects.create(
-            occurrence=self.occurrence,
-            place=place,
-            role=OccurrencePlaceRole.PRIMARY,
-        )
+        place = self._attach_primary_place()
         set_provider_registry(
             ProviderRegistry(
                 routing=NoOpRoutingProvider(),
@@ -316,6 +335,32 @@ class O4OccurrenceLiveAPITests(TestCase):
         response = self.client.get(reverse("operations_api:occurrence-live", args=[self.occurrence.pk]))
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(payload["spatial"]["place"]["name"], "O4 Live Place")
+        self.assertEqual(payload["spatial"]["place"]["name"], place.name)
         self.assertEqual(payload["spatial"]["hazards"], [])
         self.assertEqual(payload["spatial"]["mobility"]["status"], "destination_only")
+
+    def test_m6_warning_hazard_is_composed_with_provenance(self):
+        self._attach_primary_place()
+        set_provider_registry(
+            ProviderRegistry(
+                routing=NoOpRoutingProvider(),
+                traffic=NoOpTrafficProvider(),
+                weather=WarningWeatherProvider(),
+            )
+        )
+
+        self.client.force_login(self.participant)
+        response = self.client.get(reverse("operations_api:occurrence-live", args=[self.occurrence.pk]))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload["spatial"]["hazards"]), 1)
+        hazard = payload["spatial"]["hazards"][0]
+        self.assertEqual(hazard["kind"], "severe_weather")
+        self.assertEqual(hazard["severity"], "warning")
+        self.assertEqual(hazard["source"], WarningWeatherProvider.key)
+        spatial_readiness = next(
+            row for row in payload["operational_readiness"]["contributors"] if row["key"] == "operations.spatial"
+        )
+        self.assertEqual(spatial_readiness["state"], "action_required")
+        self.assertEqual(spatial_readiness["reason"], "spatial_hazard_present")
+        self.assertEqual(spatial_readiness["source"], "m6.hazards")
