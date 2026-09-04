@@ -7,6 +7,11 @@ from django.db.models import Q
 from django.utils import timezone
 
 
+CREDENTIAL_HISTORY_DELETE_ERROR = (
+    "Un Credential délivré appartient à l’historique Trust et ne peut pas être supprimé."
+)
+
+
 class CredentialType(models.TextChoices):
     PARTICIPATION = "participation", "Attestation de participation"
     COMPLETION = "completion", "Certificat de complétion"
@@ -18,6 +23,13 @@ class CredentialStatus(models.TextChoices):
     REVOKED = "revoked", "Révoquée"
 
 
+class CredentialQuerySet(models.QuerySet):
+    def delete(self):
+        # Refuse before Django's deletion Collector enters its atomic block.
+        # This protects bulk/admin deletion without poisoning caller transactions.
+        raise ValidationError(CREDENTIAL_HISTORY_DELETE_ERROR)
+
+
 class Credential(models.Model):
     """Issuer-backed attestation over canonical Makolo business sources.
 
@@ -25,6 +37,8 @@ class Credential(models.Model):
     and JourneyArtifact (a versioned Journey document). Its issuer is captured
     at issuance from the source Activity's canonical logical operator.
     """
+
+    objects = CredentialQuerySet.as_manager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -224,4 +238,4 @@ class Credential(models.Model):
         return result
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Un Credential délivré appartient à l’historique Trust et ne peut pas être supprimé.")
+        raise ValidationError(CREDENTIAL_HISTORY_DELETE_ERROR)
