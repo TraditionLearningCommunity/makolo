@@ -6,6 +6,7 @@ from accounts.api.permissions import user_has_role
 from activities.models import Activity, Occurrence
 from events.activity_bridge import sync_event_core
 from events.models import Event
+from operations.models import OccurrenceCheckpoint
 from scanner.models import EventAccessGate, ScanLog, ScannerAssignment
 from scanner.permissions import (
     user_can_manage_activity_scanner_assignments,
@@ -105,6 +106,13 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    checkpoint_id = serializers.PrimaryKeyRelatedField(
+        source="checkpoint",
+        queryset=OccurrenceCheckpoint.objects.select_related("occurrence", "occurrence__activity"),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
     agent = ScannerUserSerializer(read_only=True)
     agent_id = serializers.PrimaryKeyRelatedField(
         source="agent",
@@ -130,6 +138,7 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
             "event_id",
             "activity_id",
             "occurrence_id",
+            "checkpoint_id",
             "agent",
             "agent_id",
             "access_gate",
@@ -151,9 +160,8 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        # Activity/Occurrence can be derived from the legacy Event bridge only
-        # after field parsing. Database constraints plus validate() enforce the
-        # same uniqueness without DRF requiring the derived fields too early.
+        # Activity/Occurrence can be derived from Event or Checkpoint only
+        # after field parsing. Validation below preserves the canonical scope.
         validators = []
 
     def validate(self, attrs):
@@ -162,10 +170,26 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
         event = attrs.get("event", getattr(instance, "event", None))
         activity = attrs.get("activity", getattr(instance, "activity", None))
         occurrence = attrs.get("occurrence", getattr(instance, "occurrence", None))
+        checkpoint = attrs.get("checkpoint", getattr(instance, "checkpoint", None))
         agent = attrs.get("agent", getattr(instance, "agent", None))
         access_gate = attrs.get("access_gate", getattr(instance, "access_gate", None))
         valid_from = attrs.get("valid_from", getattr(instance, "valid_from", None))
         valid_until = attrs.get("valid_until", getattr(instance, "valid_until", None))
+
+        if checkpoint is not None:
+            checkpoint_occurrence = checkpoint.occurrence
+            if occurrence is not None and occurrence.pk != checkpoint_occurrence.pk:
+                raise serializers.ValidationError(
+                    {"checkpoint_id": "Ce checkpoint appartient à une autre Occurrence."}
+                )
+            if activity is not None and activity.pk != checkpoint_occurrence.activity_id:
+                raise serializers.ValidationError(
+                    {"checkpoint_id": "Ce checkpoint appartient à une autre Activity."}
+                )
+            occurrence = checkpoint_occurrence
+            activity = checkpoint_occurrence.activity
+            attrs["occurrence"] = occurrence
+            attrs["activity"] = activity
 
         if event is not None:
             if agent is not None and not (
@@ -200,6 +224,10 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
                 )
                 if occurrence is not None:
                     attrs["occurrence"] = occurrence
+            elif occurrence.activity_id != event.activity_id:
+                raise serializers.ValidationError(
+                    {"occurrence_id": "Cette Occurrence ne correspond pas à l’Event."}
+                )
 
         if activity is None:
             raise serializers.ValidationError(
@@ -208,6 +236,10 @@ class ScannerAssignmentSerializer(serializers.ModelSerializer):
         if occurrence is not None and occurrence.activity_id != activity.pk:
             raise serializers.ValidationError(
                 {"occurrence_id": "Cette Occurrence appartient à une autre Activity."}
+            )
+        if checkpoint is not None and occurrence is not None and checkpoint.occurrence_id != occurrence.pk:
+            raise serializers.ValidationError(
+                {"checkpoint_id": "Ce checkpoint appartient à une autre Occurrence."}
             )
         if valid_from and valid_until and valid_until <= valid_from:
             raise serializers.ValidationError(

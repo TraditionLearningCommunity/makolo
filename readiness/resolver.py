@@ -5,17 +5,50 @@ from journeys.models import JourneyStatus
 
 from . import contributors  # noqa: F401 - registers built-in contributors
 from . import questionnaire_contributor  # noqa: F401 - registers M2 contributor
-from .registry import registry
+from .registry import DEFAULT_CONTEXT, registry
 from .types import ReadinessCheckState, ReadinessResult, ReadinessStatus
 
 
-def _status_for(checks, *, journey, now):
+def reduce_readiness_status(checks):
     if any(check.state == ReadinessCheckState.BLOCKING for check in checks):
         return ReadinessStatus.BLOCKED
     if any(check.state == ReadinessCheckState.ACTION_REQUIRED for check in checks):
         return ReadinessStatus.ACTION_REQUIRED
     if any(check.state == ReadinessCheckState.WAITING for check in checks):
         return ReadinessStatus.WAITING
+    return ReadinessStatus.READY
+
+
+def resolve_readiness(
+    subject,
+    *,
+    context=DEFAULT_CONTEXT,
+    viewer=None,
+    observed_at=None,
+    status_resolver=None,
+    next_action_states=(ReadinessCheckState.ACTION_REQUIRED,),
+):
+    observed_at = observed_at or timezone.now()
+    checks = []
+    for contributor in registry.all(context=context):
+        checks.extend(contributor(subject, viewer, observed_at))
+    status = status_resolver(checks, subject, observed_at) if status_resolver else reduce_readiness_status(checks)
+    next_action = next(
+        (
+            check.next_action
+            for state in next_action_states
+            for check in checks
+            if check.state == state and check.next_action
+        ),
+        None,
+    )
+    return ReadinessResult(status=status, checks=tuple(checks), next_action=next_action, observed_at=observed_at)
+
+
+def _journey_status_for(checks, journey, now):
+    status = reduce_readiness_status(checks)
+    if status != ReadinessStatus.READY:
+        return status
     if journey.status == JourneyStatus.FULFILLED:
         occurrence = journey.occurrence
         future_occurrence = bool(occurrence and occurrence.end_at and occurrence.end_at > now)
@@ -29,19 +62,16 @@ def _status_for(checks, *, journey, now):
 
 
 def resolve_journey_readiness(journey, *, viewer=None, observed_at=None):
-    observed_at = observed_at or timezone.now()
     if viewer is not None:
         if not getattr(viewer, "is_authenticated", False) or journey.beneficiary_id != getattr(viewer, "pk", None):
             raise PermissionDenied("Cette projection Readiness n’est pas visible pour ce participant.")
-    checks = []
-    for contributor in registry.all():
-        checks.extend(contributor(journey, viewer, observed_at))
-    status = _status_for(checks, journey=journey, now=observed_at)
-    next_action = next(
-        (check.next_action for check in checks if check.state == ReadinessCheckState.ACTION_REQUIRED and check.next_action),
-        None,
+    return resolve_readiness(
+        journey,
+        context=DEFAULT_CONTEXT,
+        viewer=viewer,
+        observed_at=observed_at,
+        status_resolver=_journey_status_for,
     )
-    return ReadinessResult(status=status, checks=tuple(checks), next_action=next_action, observed_at=observed_at)
 
 
 def resolve_many(journeys, *, viewer=None, observed_at=None):

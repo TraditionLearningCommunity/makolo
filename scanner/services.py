@@ -11,6 +11,8 @@ from django.utils import timezone
 from access.models import AccessStatus, AccessUseResult
 from access.services import resolve_access_credential, validate_access, validate_access_credential
 from events.models import Event, EventStatus
+from operations.checkpoint_services import observe_checkpoint
+from operations.models import CheckpointStatus, OccurrenceCheckpoint
 from tickets.journey_access_bridge import sync_ticket_access
 from tickets.models import QR_SIGNING_SALT, Ticket, TicketStatus
 
@@ -116,6 +118,32 @@ def _scanner_authority(event):
     return lambda controller, access: user_can_scan_event(controller, event)
 
 
+def _checkpoint_authority(event, assignment):
+    return lambda actor, checkpoint: bool(
+        assignment
+        and assignment.agent_id == actor.pk
+        and assignment.checkpoint_id == checkpoint.pk
+        and user_can_scan_event(actor, event)
+    )
+
+
+def _observe_checkpoint_for_access(*, outcome, event, actor, assignment, client_reference):
+    if outcome.result != AccessUseResult.ACCEPTED or outcome.use is None:
+        return None
+    if assignment is None or not assignment.checkpoint_id or outcome.access is None:
+        return None
+    return observe_checkpoint(
+        actor=actor,
+        checkpoint=assignment.checkpoint,
+        profile=outcome.access.beneficiary,
+        external_beneficiary=outcome.access.external_beneficiary,
+        source="scanner-checkpoint",
+        client_reference=client_reference,
+        access_use=outcome.use,
+        authority_check=_checkpoint_authority(event, assignment),
+    )
+
+
 def _log_access_outcome(
     *,
     outcome,
@@ -129,12 +157,21 @@ def _log_access_outcome(
     effective_gate,
     metadata,
 ):
-    # AccessUse is the canonical record of the control. ScanLog keeps the Event
-    # operational projection and the QR fingerprint, never the raw credential.
+    # AccessUse is the canonical record of the control. A successful checkpoint
+    # passage is a separate Operations fact linked to that accepted AccessUse.
+    observation = _observe_checkpoint_for_access(
+        outcome=outcome,
+        event=event,
+        actor=actor,
+        assignment=assignment,
+        client_reference=client_reference,
+    )
     operational_metadata = dict(metadata or {})
     operational_metadata["access_result"] = outcome.result
     if outcome.use is not None:
         operational_metadata["access_use_id"] = str(outcome.use.pk)
+    if observation is not None:
+        operational_metadata["checkpoint_observation_id"] = str(observation.pk)
     return _create_log(
         event=event,
         scanner=actor,
@@ -177,6 +214,13 @@ def scan_ticket(
         raise PermissionDenied("Vous n’êtes pas autorisé à scanner cet événement.")
 
     assignment = get_active_assignment(actor, event)
+    if assignment and assignment.checkpoint_id:
+        checkpoint = (
+            OccurrenceCheckpoint.objects.select_for_update(of=("self",))
+            .select_related("occurrence", "occurrence__activity")
+            .get(pk=assignment.checkpoint_id)
+        )
+        assignment.checkpoint = checkpoint
     token = (token or "").strip()
     client_reference = (client_reference or "").strip()[:64]
     gate = (gate or "").strip()[:120]
@@ -186,6 +230,21 @@ def scan_ticket(
     if existing:
         return _outcome_from_log(existing)
 
+    if assignment and assignment.checkpoint_id:
+        checkpoint = assignment.checkpoint
+        if not checkpoint.active or checkpoint.status != CheckpointStatus.OPEN:
+            return _create_log(
+                event=event,
+                scanner=actor,
+                assignment=assignment,
+                access_gate=effective_gate,
+                result=ScanResult.GATE_UNAVAILABLE,
+                message=f"Le checkpoint {checkpoint.label} n’est pas ouvert.",
+                token=token,
+                client_reference=client_reference,
+                gate=gate,
+                metadata=metadata,
+            )
     if effective_gate and not effective_gate.is_active:
         return _create_log(
             event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
@@ -211,6 +270,12 @@ def scan_ticket(
         return _create_log(
             event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
             result=ScanResult.EVENT_UNAVAILABLE, message="Cet événement n’a pas d’occurrence contrôlable.", token=token,
+            client_reference=client_reference, gate=gate, metadata=metadata,
+        )
+    if assignment and assignment.checkpoint_id and assignment.checkpoint.occurrence_id != occurrence.pk:
+        return _create_log(
+            event=event, scanner=actor, assignment=assignment, access_gate=effective_gate,
+            result=ScanResult.GATE_UNAVAILABLE, message="Le checkpoint scanner ne correspond pas à cette occurrence.", token=token,
             client_reference=client_reference, gate=gate, metadata=metadata,
         )
     authority_check = _scanner_authority(event)
