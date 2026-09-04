@@ -22,9 +22,8 @@ class Credential(models.Model):
     """Issuer-backed attestation over canonical Makolo business sources.
 
     Credential is deliberately distinct from Proof (a Makolo-established fact)
-    and JourneyArtifact (a versioned Journey document). The issuer is always the
-    canonical logical operator of the source Activity: exactly one Space or
-    Profile.
+    and JourneyArtifact (a versioned Journey document). Its issuer is captured
+    at issuance from the source Activity's canonical logical operator.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -50,10 +49,8 @@ class Credential(models.Model):
     )
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="issued_trust_credentials_audit",
-        null=True,
-        blank=True,
     )
     activity = models.ForeignKey(
         "activities.Activity",
@@ -81,7 +78,7 @@ class Credential(models.Model):
     issued_at = models.DateTimeField(default=timezone.now)
     revoked_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="revoked_trust_credentials",
         null=True,
         blank=True,
@@ -92,6 +89,7 @@ class Credential(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        app_label = "trust"
         ordering = ["-issued_at", "id"]
         constraints = [
             models.CheckConstraint(
@@ -101,6 +99,13 @@ class Credential(models.Model):
                 ),
                 name="trust_cred_exactly_one_issuer",
             ),
+            models.CheckConstraint(
+                condition=(
+                    Q(status=CredentialStatus.ISSUED, revoked_at__isnull=True, revoked_by__isnull=True)
+                    | Q(status=CredentialStatus.REVOKED, revoked_at__isnull=False)
+                ),
+                name="trust_cred_revocation_state",
+            ),
         ]
         indexes = [
             models.Index(fields=["subject_profile", "status"], name="trust_cred_subject_idx"),
@@ -108,6 +113,24 @@ class Credential(models.Model):
             models.Index(fields=["issuer_profile", "status"], name="trust_cred_profile_idx"),
             models.Index(fields=["public_id", "status"], name="trust_cred_public_idx"),
         ]
+
+    @property
+    def issuer_display_name(self):
+        if self.issuer_space_id:
+            return self.issuer_space.name
+        if self.issuer_profile_id:
+            full_name = self.issuer_profile.get_full_name().strip()
+            return full_name or self.issuer_profile.username
+        return ""
+
+    @property
+    def subject_display_name(self):
+        full_name = self.subject_profile.get_full_name().strip()
+        return full_name or self.subject_profile.username
+
+    @property
+    def verification_state(self):
+        return "revoked" if self.status == CredentialStatus.REVOKED else "valid"
 
     def clean(self):
         super().clean()
@@ -117,7 +140,10 @@ class Credential(models.Model):
         if not (self.title or "").strip():
             errors["title"] = "Le titre du Credential est obligatoire."
 
-        if self.activity_id:
+        # Validate the issuer against the current canonical owner only when the
+        # attestation is first issued. Later ownership changes must not rewrite
+        # historical issuer truth or prevent a controlled revocation.
+        if self._state.adding and self.activity_id:
             if self.activity.space_id:
                 if self.issuer_space_id != self.activity.space_id or self.issuer_profile_id:
                     errors["issuer_space"] = "L’émetteur doit être l’Espace opérateur canonique de l’Activity."
