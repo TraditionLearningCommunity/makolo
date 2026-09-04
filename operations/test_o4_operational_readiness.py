@@ -128,6 +128,14 @@ class O4OperationalReadinessTests(TestCase):
         self.assertEqual(result.status, ReadinessStatus.BLOCKED)
         self.assertTrue(any(check.reason_code == "assigned_operator_without_effective_authority" for check in result.blocking_items))
 
+        checkpoint.status = CheckpointStatus.PAUSED
+        checkpoint.save(update_fields=["status", "updated_at"])
+        paused = resolve_operational_readiness(occurrence, observed_at=self.now)
+        self.assertEqual(paused.status, ReadinessStatus.ACTION_REQUIRED)
+        self.assertTrue(any(check.reason_code == "assigned_operator_without_effective_authority" for check in paused.action_items))
+
+        checkpoint.status = CheckpointStatus.OPEN
+        checkpoint.save(update_fields=["status", "updated_at"])
         grant_activity_role(
             profile=self.operator,
             activity=self.activity,
@@ -138,6 +146,51 @@ class O4OperationalReadinessTests(TestCase):
         authorized = resolve_operational_readiness(occurrence, observed_at=self.now)
         authority = next(check for check in authorized.checks if check.key == "operations.authority")
         self.assertEqual(authority.state, ReadinessCheckState.SATISFIED)
+
+    def test_authority_is_evaluated_per_open_checkpoint(self):
+        occurrence = self.occurrence()
+        authorized_operator = User.objects.create_user(
+            username="o4-ready-authorized-operator",
+            email="o4-ready-authorized-operator@example.test",
+            password="pw",
+        )
+        grant_activity_role(
+            profile=authorized_operator,
+            activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            granted_by=self.owner,
+            source="o4-readiness-mixed-authority-test",
+        )
+        unauthorized_checkpoint = OccurrenceCheckpoint.objects.create(
+            occurrence=occurrence,
+            key="boarding-a",
+            label="Embarquement A",
+            required=True,
+            status=CheckpointStatus.OPEN,
+            position=1,
+        )
+        authorized_checkpoint = OccurrenceCheckpoint.objects.create(
+            occurrence=occurrence,
+            key="boarding-b",
+            label="Embarquement B",
+            required=True,
+            status=CheckpointStatus.OPEN,
+            position=2,
+        )
+        CheckpointAssignment.objects.create(
+            checkpoint=unauthorized_checkpoint,
+            profile=self.operator,
+            assigned_by=self.owner,
+        )
+        CheckpointAssignment.objects.create(
+            checkpoint=authorized_checkpoint,
+            profile=authorized_operator,
+            assigned_by=self.owner,
+        )
+
+        result = resolve_operational_readiness(occurrence, observed_at=self.now)
+        self.assertEqual(result.status, ReadinessStatus.BLOCKED)
+        self.assertTrue(any(check.reason_code == "assigned_operator_without_effective_authority" for check in result.blocking_items))
 
     def test_queue_is_not_applicable_when_unused_and_paused_is_explicit(self):
         occurrence = self.occurrence()
