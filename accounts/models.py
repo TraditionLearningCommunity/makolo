@@ -314,7 +314,17 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
         null=True
     )
 
+    tiktok_url = models.URLField(
+        blank=True,
+        null=True
+    )
+
     x_url = models.URLField(
+        blank=True,
+        null=True
+    )
+
+    youtube_url = models.URLField(
         blank=True,
         null=True
     )
@@ -430,6 +440,9 @@ class UserProfile(UUIDModel, TimeStampedModel):
         default="system"
     )
 
+    # Compatibility marker only. Its value is derived by Profile edit paths so
+    # future completion/progression work can replace the rule without treating
+    # this stored boolean as authoritative business truth.
     profile_completed = models.BooleanField(
         default=False
     )
@@ -439,8 +452,11 @@ class UserProfile(UUIDModel, TimeStampedModel):
     )
 
     searchable = models.BooleanField(
-        default=True
+        default=False
     )
+
+    def derive_profile_completed(self):
+        return bool(self.user.first_name and self.user.last_name and self.city)
 
     def __str__(self):
         return f"{self.user.email} Profile"
