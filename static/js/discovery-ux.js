@@ -20,15 +20,13 @@
 
     const meaningfulKeys = ['q', 'place', 'city', 'when', 'period', 'vertical', 'price', 'lat', 'lon', 'date', 'date_from', 'date_to'];
     const hasCriteria = meaningfulKeys.some((key) => (params.get(key) || '').trim());
-    if (hasCriteria) {
-      const actions = document.createElement('div');
-      actions.className = 'flex flex-wrap items-center gap-2';
+    const filterGrid = form.querySelector('details > div');
+    if (hasCriteria && filterGrid) {
       const link = document.createElement('a');
       link.className = 'mk-btn mk-btn-secondary';
       link.href = `/discover/watches/new/?${params.toString()}`;
       link.textContent = 'Enregistrer comme veille';
-      actions.appendChild(link);
-      form.appendChild(actions);
+      filterGrid.appendChild(link);
     }
   }
 
