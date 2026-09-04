@@ -3,8 +3,14 @@ from datetime import timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from access.models import Access
+from journeys.models import Journey
+
 from .models import OccurrenceQueue, QueueEntry, QueueEntryStatus
 from .permissions import user_can_view_activity_operations
+
+
+_INELIGIBLE_JOURNEY_STATUSES = {"rejected", "cancelled", "expired"}
 
 
 def queues_for_occurrence(*, occurrence):
@@ -16,6 +22,36 @@ def operator_queues_for_occurrence(*, user, occurrence):
     if not user_can_view_activity_operations(user, occurrence.activity):
         return queryset.none()
     return queryset
+
+
+def profile_is_queue_beneficiary(profile, occurrence):
+    return (
+        Journey.objects.filter(
+            beneficiary=profile,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exclude(status__in=_INELIGIBLE_JOURNEY_STATUSES).exists()
+        or Access.objects.filter(
+            beneficiary=profile,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exists()
+    )
+
+
+def external_beneficiary_is_queue_beneficiary(external_beneficiary, occurrence):
+    return (
+        Journey.objects.filter(
+            external_beneficiary=external_beneficiary,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exclude(status__in=_INELIGIBLE_JOURNEY_STATUSES).exists()
+        or Access.objects.filter(
+            external_beneficiary=external_beneficiary,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        ).exists()
+    )
 
 
 def active_entries(*, queue):
