@@ -79,6 +79,11 @@ class O3QueueAPITests(TestCase):
         self.assertEqual(served.status_code, 200)
         self.assertEqual(served.json()["status"], QueueEntryStatus.SERVED)
 
+    def test_call_empty_queue_returns_no_content(self):
+        self.client.force_login(self.operator)
+        response = self.client.post(reverse("operations_api:queue-call-next", args=[self.queue.pk]))
+        self.assertEqual(response.status_code, 204)
+
     def test_participant_can_enter_self_and_read_only_own_queue_state(self):
         self.client.force_login(self.participant)
         entered = self.client.post(
