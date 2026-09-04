@@ -285,6 +285,7 @@ jobs:
           notifications.test_manual_access_grants
           automation.test_domain_events
           automation.test_domain_event_concurrency
+          automation.test_r3_proactive_preparation
       - name: Run CRM, audiences and promotions PostgreSQL tests
         run: >-
           python manage.py test
