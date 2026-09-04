@@ -271,6 +271,11 @@ class G1ProfileApiTests(APITestCase):
 
 
 class G1ProfileMigrationTests(TransactionTestCase):
+    # Restrict TransactionTestCase's flush to accounts. The project has
+    # canonical system roles populated by data migrations in other apps; a
+    # global flush here would delete that migrated reference data for tests
+    # executed later in the same suite.
+    available_apps = ["accounts"]
     migrate_from = [("accounts", "0004_service_opportunity_notification_preferences")]
     migrate_to = [("accounts", "0005_profile_foundations")]
 
