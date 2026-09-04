@@ -2,39 +2,12 @@
 {% block title %}Centres d’intérêt | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
-    <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-            <span class="mk-kicker">Profil</span>
-            <h1 class="mk-page-title">Centres d’intérêt</h1>
-            <p class="mk-page-copy mt-3 text-[15px]">Choisissez progressivement ce qui vous intéresse pour rendre Discover plus pertinent.</p>
-        </div>
-        <a href="{% url 'account:profile' %}" class="mk-btn mk-btn-secondary"><i data-lucide="arrow-left" class="h-4 w-4"></i>Mon profil</a>
-    </section>
-
-    <form method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
-        {% csrf_token %}
-        <div class="rounded-2xl border p-4 text-sm leading-6" style="border-color:var(--mk-border);background:var(--mk-surface-muted);color:var(--mk-muted)">
-            Ces choix sont des déclarations explicites. Ils restent privés par défaut et ne sont jamais déduits automatiquement de vos recherches, favoris, participations ou historique.
-        </div>
-
-        {% if form.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
-        {% for error in form.topics.errors %}<p class="mt-4 text-sm font-semibold text-red-600">{{ error }}</p>{% endfor %}
-
-        <div class="mt-6 grid gap-3 sm:grid-cols-2">
-            {% for checkbox in form.topics %}
-            <label class="flex min-h-[50px] cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3" style="border-color:var(--mk-border)">
-                {{ checkbox.tag }}
-                <span class="text-sm font-bold">{{ checkbox.choice_label }}</span>
-            </label>
-            {% empty %}
-            <div class="sm:col-span-2 rounded-2xl border border-dashed p-5 text-sm" style="border-color:var(--mk-border);color:var(--mk-muted)">Aucun Topic actif n’est disponible pour le moment.</div>
-            {% endfor %}
-        </div>
-
-        <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p class="text-xs leading-5" style="color:var(--mk-subtle)">La visibilité publique est séparée de la personnalisation. G2 ne publie aucun Interest automatiquement.</p>
-            <button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mes centres d’intérêt</button>
-        </div>
-    </form>
+  <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><span class="mk-kicker">Profil</span><h1 class="mk-page-title">Centres d’intérêt</h1><p class="mk-page-copy mt-3 text-[15px]">Choisissez ce qui vous intéresse et décidez explicitement ce qui peut apparaître sur votre profil public.</p></div><a href="{% url 'account:profile' %}" class="mk-btn mk-btn-secondary">Mon profil</a></section>
+  <form method="post" class="mk-panel p-5 sm:p-6 lg:p-7">{% csrf_token %}
+    <div class="rounded-2xl border p-4 text-sm leading-6" style="border-color:var(--mk-border);background:var(--mk-surface-muted);color:var(--mk-muted)">Ces choix sont explicites et privés par défaut. Ils ne sont jamais déduits automatiquement de vos recherches, favoris, participations ou historique.</div>
+    <div class="mt-6"><h2 class="font-extrabold">Mes centres d’intérêt</h2><div class="mt-3 grid gap-3 sm:grid-cols-2">{{ form.topics }}</div></div>
+    <div class="mt-7 border-t pt-6" style="border-color:var(--mk-border)"><h2 class="font-extrabold">Afficher sur mon profil public</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Seuls les Interests cochés ici seront projetés publiquement, et uniquement lorsque votre profil public est activé.</p><div class="mt-3 grid gap-3 sm:grid-cols-2">{{ form.public_topics }}</div></div>
+    <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer mes centres d’intérêt</button></div>
+  </form>
 </div>
 {% endblock %}
