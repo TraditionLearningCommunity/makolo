@@ -260,7 +260,17 @@ class ProfileUpdateSerializer(UserUpdateSerializer):
     )
 
     class Meta(UserUpdateSerializer.Meta):
-        fields = [*UserUpdateSerializer.Meta.fields, *profile_fields]
+        fields = [
+            *UserUpdateSerializer.Meta.fields,
+            "company_name",
+            "organization_name",
+            "profession",
+            "country",
+            "city",
+            "address",
+            "public_profile",
+            "searchable",
+        ]
 
     @transaction.atomic
     def update(self, instance, validated_data):
