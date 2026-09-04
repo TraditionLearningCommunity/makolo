@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from .models import OccurrenceQueue, QueueEntry, QueueEntryStatus
 from .permissions import user_can_view_activity_operations
@@ -41,12 +44,24 @@ def queue_position(*, entry):
     return ahead + 1
 
 
-def queue_snapshot(*, queue):
-    counts = QueueEntry.objects.filter(queue=queue).aggregate(
+def queue_snapshot(*, queue, now=None):
+    now = now or timezone.now()
+    queryset = QueueEntry.objects.filter(queue=queue)
+    counts = queryset.aggregate(
         waiting=Count("id", filter=Q(status=QueueEntryStatus.WAITING)),
         called=Count("id", filter=Q(status=QueueEntryStatus.CALLED)),
         served=Count("id", filter=Q(status=QueueEntryStatus.SERVED)),
         expired=Count("id", filter=Q(status=QueueEntryStatus.EXPIRED)),
         cancelled=Count("id", filter=Q(status=QueueEntryStatus.CANCELLED)),
     )
+    served_rows = list(
+        queryset.filter(status=QueueEntryStatus.SERVED, served_at__isnull=False)
+        .values_list("entered_at", "served_at")
+    )
+    waits = [(served_at - entered_at).total_seconds() for entered_at, served_at in served_rows]
+    counts["served_last_hour"] = queryset.filter(
+        status=QueueEntryStatus.SERVED,
+        served_at__gte=now - timedelta(hours=1),
+    ).count()
+    counts["average_wait_seconds"] = round(sum(waits) / len(waits), 2) if waits else None
     return counts
