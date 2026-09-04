@@ -14,6 +14,15 @@ from operations.placement_api import (
     PlacementAssignmentDetailAPIView,
     PlacementAssignmentsAPIView,
 )
+from operations.queue_api import (
+    MyOccurrenceQueuesAPIView,
+    MyQueueEntryAPIView,
+    MyQueueEntryCancelAPIView,
+    OperatorOccurrenceQueuesAPIView,
+    QueueCallNextAPIView,
+    QueueEntriesAPIView,
+    QueueEntryActionAPIView,
+)
 
 from .views import (
     EventModerationAPIView,
@@ -40,6 +49,29 @@ urlpatterns = [
     path("incidents/<uuid:pk>/", OperationsIncidentDetailAPIView.as_view(), name="incident-detail"),
     path("moderation/", ModerationCasesAPIView.as_view(), name="moderation"),
     path("workers/", WorkerHealthAPIView.as_view(), name="workers"),
+    path(
+        "occurrences/<uuid:occurrence_id>/queues/me/",
+        MyOccurrenceQueuesAPIView.as_view(),
+        name="occurrence-queues-me",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/queues/",
+        OperatorOccurrenceQueuesAPIView.as_view(),
+        name="occurrence-queues",
+    ),
+    path("queues/<uuid:queue_id>/entries/", QueueEntriesAPIView.as_view(), name="queue-entries"),
+    path("queues/<uuid:queue_id>/entries/me/", MyQueueEntryAPIView.as_view(), name="queue-entry-me"),
+    path("queues/<uuid:queue_id>/call/", QueueCallNextAPIView.as_view(), name="queue-call-next"),
+    path(
+        "queue-entries/<uuid:entry_id>/<str:action>/",
+        QueueEntryActionAPIView.as_view(),
+        name="queue-entry-action",
+    ),
+    path(
+        "queue-entries/<uuid:entry_id>/me/cancel/",
+        MyQueueEntryCancelAPIView.as_view(),
+        name="queue-entry-me-cancel",
+    ),
     path(
         "occurrences/<uuid:occurrence_id>/checkpoints/me/",
         MyOccurrenceCheckpointsAPIView.as_view(),
