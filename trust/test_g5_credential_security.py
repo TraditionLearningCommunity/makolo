@@ -1,5 +1,6 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
+from django.urls import reverse
 
 from .credential_models import Credential, CredentialType
 from .credential_services import issue_credential, revoke_credential
@@ -45,3 +46,19 @@ class CredentialRevocationAuthorizationTests(CredentialFixtureMixin, TestCase):
             Credential.objects.bulk_update([self.credential], ["title"])
         self.credential.refresh_from_db()
         self.assertEqual(self.credential.title, original_title)
+
+    def test_public_verification_does_not_expose_internal_history_ids(self):
+        url = reverse(
+            "trust_api:credential-verify",
+            kwargs={"public_id": self.credential.public_id},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertNotIn("id", payload)
+        self.assertNotIn("id", payload["beneficiary"])
+        self.assertNotIn("id", payload["issuer"])
+        self.assertNotIn("id", payload["source"]["activity"])
+        self.assertNotIn("journey_id", payload["source"])
+        self.assertNotIn("revoked_by_id", payload)
+        self.assertNotIn("revoke_reason", payload)
