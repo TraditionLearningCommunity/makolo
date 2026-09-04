@@ -312,7 +312,9 @@ def delete_account(*, user, current_password: str):
     locked.linkedin_url = None
     locked.facebook_url = None
     locked.instagram_url = None
+    locked.tiktok_url = None
     locked.x_url = None
+    locked.youtube_url = None
     locked.metadata = {}
     locked.preferences = {}
     locked.settings_data = {}

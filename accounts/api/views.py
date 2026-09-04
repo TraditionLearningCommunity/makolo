@@ -26,6 +26,7 @@ from .serializers import (
     PasswordForgotSerializer,
     PasswordResetSerializer,
     PermissionGroupSerializer,
+    ProfileUpdateSerializer,
     RegisterSerializer,
     RoleSerializer,
     UserDetailSerializer,
@@ -136,7 +137,7 @@ class UpdateProfileAPIView(APIView):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def patch(self, request):
-        serializer = UserUpdateSerializer(
+        serializer = ProfileUpdateSerializer(
             request.user,
             data=request.data,
             partial=True,
