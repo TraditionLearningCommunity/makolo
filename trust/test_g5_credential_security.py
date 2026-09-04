@@ -1,7 +1,7 @@
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 
-from .credential_models import CredentialType
+from .credential_models import Credential, CredentialType
 from .credential_services import issue_credential, revoke_credential
 from .test_g5_credentials import CredentialFixtureMixin
 
@@ -25,3 +25,8 @@ class CredentialRevocationAuthorizationTests(CredentialFixtureMixin, TestCase):
                 actor=self.outsider,
                 reason="unauthorized retry",
             )
+
+    def test_queryset_delete_cannot_remove_credential_history(self):
+        with self.assertRaises(ValidationError):
+            Credential.objects.filter(pk=self.credential.pk).delete()
+        self.assertTrue(Credential.objects.filter(pk=self.credential.pk).exists())
