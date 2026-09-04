@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
             constraint=models.CheckConstraint(
                 condition=(
                     models.Q(("revoked_at__isnull", True), ("revoked_by__isnull", True), ("status", "issued"))
-                    | models.Q(("revoked_at__isnull", False), ("status", "revoked"))
+                    | models.Q(("revoked_at__isnull", False), ("revoked_by__isnull", False), ("status", "revoked"))
                 ),
                 name="trust_cred_revocation_state",
             ),
