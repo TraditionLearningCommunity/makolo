@@ -52,9 +52,12 @@
 
     {% if profile_error %}<div class="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_error }}</div>{% endif %}
 
-    <form id="presentation" method="post" enctype="multipart/form-data" class="mk-panel p-5 sm:p-6 lg:p-7">
+    <form id="profile-master" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        <input type="hidden" name="section" value="presentation">
+        <input type="hidden" name="section" value="profile">
+    </form>
+
+    <section id="presentation" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="user-round" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">1 · Présentation</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Présentez-vous à votre rythme</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Photo, courte présentation et profession. Rien n’est requis pour simplement utiliser Makolo.</p></div>
@@ -73,44 +76,34 @@
                 <div><label for="{{ profile_forms.presentation.organization_name.id_for_label }}" class="mb-2 block text-sm font-bold">{{ profile_forms.presentation.organization_name.label }}</label>{{ profile_forms.presentation.organization_name }}{% if profile_forms.presentation.organization_name.help_text %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ profile_forms.presentation.organization_name.help_text }}</p>{% endif %}{% for error in profile_forms.presentation.organization_name.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}</div>
             </div>
         </details>
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer la présentation</button></div>
-    </form>
+    </section>
 
-    <form id="personal" method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
-        {% csrf_token %}
-        <input type="hidden" name="section" value="personal">
+    <section id="personal" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="contact-round" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">2 · Informations personnelles</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Votre identité personnelle</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Ces informations sont connues de Makolo pour votre compte ; elles ne deviennent pas publiques automatiquement.</p></div>
         </div>
         {% if profile_forms.personal.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.personal.non_field_errors }}</div>{% endif %}
         <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.personal %}</div>
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer</button></div>
-    </form>
+    </section>
 
-    <form id="contact" method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
-        {% csrf_token %}
-        <input type="hidden" name="section" value="contact">
+    <section id="contact" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="map-pin" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">3 · Coordonnées</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Coordonnées et localisation</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Ajoutez ces informations uniquement lorsqu’elles vous sont utiles. L’adresse précise reste privée.</p></div>
         </div>
         {% if profile_forms.contact.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.contact.non_field_errors }}</div>{% endif %}
         <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.contact %}</div>
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer</button></div>
-    </form>
+    </section>
 
-    <form id="links" method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
-        {% csrf_token %}
-        <input type="hidden" name="section" value="links">
+    <section id="links" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="external-link" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">4 · Liens & réseaux</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Vos liens déclarés</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Site web, LinkedIn, Facebook, Instagram, TikTok, X et YouTube. Ces liens sont déclarés par vous : Makolo ne présente pas leur propriété comme vérifiée.</p></div>
         </div>
         {% if profile_forms.links.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.links.non_field_errors }}</div>{% endif %}
         <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.links %}</div>
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer les liens</button></div>
-    </form>
+    </section>
 
     <section id="preferences" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
@@ -118,13 +111,10 @@
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">5 · Préférences</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Personnaliser mon expérience</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Langue, fuseau horaire, apparence et notifications peuvent évoluer indépendamment du reste du profil.</p></div>
         </div>
 
-        <form method="post" class="mt-6 rounded-2xl border p-5" style="border-color:var(--mk-border)">
-            {% csrf_token %}
-            <input type="hidden" name="section" value="preferences">
+        <div class="mt-6 rounded-2xl border p-5" style="border-color:var(--mk-border)">
             <h3 class="text-base font-extrabold">Langue et fuseau horaire</h3>
             <div class="mt-4 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.preferences %}</div>
-            <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer</button></div>
-        </form>
+        </div>
 
         <form id="appearance" method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
             {% csrf_token %}
@@ -165,9 +155,7 @@
         </form>
     </section>
 
-    <form id="privacy" method="post" class="mk-panel p-5 sm:p-6 lg:p-7">
-        {% csrf_token %}
-        <input type="hidden" name="section" value="privacy">
+    <section id="privacy" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="lock-keyhole" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">6 · Confidentialité</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Contrôler ma visibilité</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">La visibilité est distincte de la donnée personnelle connue de Makolo.</p></div>
@@ -178,7 +166,7 @@
         </div>
         {% if profile_forms.privacy.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.privacy.non_field_errors }}</div>{% endif %}
         <div class="mt-6 grid gap-4 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.privacy %}</div>
-        <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer la confidentialité</button></div>
-    </form>
+        <div class="mt-7 flex justify-end"><button type="submit" form="profile-master" class="mk-btn mk-btn-primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mon profil</button></div>
+    </section>
 </div>
 {% endblock %}
