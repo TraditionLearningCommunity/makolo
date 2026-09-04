@@ -7,6 +7,10 @@ class TrustConfig(AppConfig):
     verbose_name = "Trust & Quality"
 
     def ready(self):
+        # Credential lives in a focused module to preserve the existing M4
+        # models file while remaining part of the canonical Trust app registry.
+        from . import credential_models  # noqa: F401
+
         # Trust evidence reuses the canonical private Journey artifact storage:
         # it lives outside MEDIA_ROOT and cannot expose a storage URL. The
         # assignment is paired with migration state so makemigrations sees the
