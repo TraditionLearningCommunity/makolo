@@ -235,6 +235,16 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(exc.messages) from exc
         return value
 
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        user = super().update(instance, validated_data)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        completed = profile.derive_profile_completed()
+        if profile.profile_completed != completed:
+            profile.profile_completed = completed
+            profile.save(update_fields=["profile_completed", "updated_at"])
+        return user
+
 
 class ProfileUpdateSerializer(UserUpdateSerializer):
     """Private/self Profile editor spanning User and UserProfile storage."""
