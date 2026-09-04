@@ -11,7 +11,7 @@ from journeys.models import Journey
 
 from .credential_models import Credential
 from .credential_selectors import credentials_for_profile, public_credential_by_id
-from .credential_services import issue_credential, revoke_credential
+from .credential_services import can_issue_credential, issue_credential, revoke_credential
 
 
 User = get_user_model()
@@ -27,21 +27,8 @@ def _error_response(exc):
 
 
 def credential_payload(credential, *, public=False):
-    issuer = (
-        {
-            "type": "space",
-            "id": str(credential.issuer_space_id),
-            "name": credential.issuer_display_name,
-        }
-        if credential.issuer_space_id
-        else {
-            "type": "profile",
-            "id": str(credential.issuer_profile_id),
-            "name": credential.issuer_display_name,
-        }
-    )
+    issuer_type = "space" if credential.issuer_space_id else "profile"
     payload = {
-        "id": str(credential.pk),
         "public_id": str(credential.public_id),
         "credential_type": credential.credential_type,
         "title": credential.title,
@@ -50,22 +37,36 @@ def credential_payload(credential, *, public=False):
         "verification_state": credential.verification_state,
         "issued_at": credential.issued_at,
         "revoked_at": credential.revoked_at,
-        "beneficiary": {
-            "id": str(credential.subject_profile_id),
-            "name": credential.subject_display_name,
+        "beneficiary": {"name": credential.subject_display_name},
+        "issuer": {
+            "type": issuer_type,
+            "name": credential.issuer_display_name,
         },
-        "issuer": issuer,
         "source": {
-            "activity": {
-                "id": str(credential.activity_id),
-                "title": credential.activity.title,
-            },
-            "occurrence_id": str(credential.occurrence_id) if credential.occurrence_id else None,
-            "journey_id": str(credential.journey_id) if credential.journey_id else None,
+            "activity": {"title": credential.activity.title},
+            "occurrence": (
+                {"label": credential.occurrence.label}
+                if credential.occurrence_id
+                else None
+            ),
         },
     }
     if not public:
-        payload["revoked_by_id"] = str(credential.revoked_by_id) if credential.revoked_by_id else None
+        payload["id"] = str(credential.pk)
+        payload["beneficiary"]["id"] = str(credential.subject_profile_id)
+        payload["issuer"]["id"] = str(
+            credential.issuer_space_id or credential.issuer_profile_id
+        )
+        payload["source"]["activity"]["id"] = str(credential.activity_id)
+        payload["source"]["occurrence_id"] = (
+            str(credential.occurrence_id) if credential.occurrence_id else None
+        )
+        payload["source"]["journey_id"] = (
+            str(credential.journey_id) if credential.journey_id else None
+        )
+        payload["revoked_by_id"] = (
+            str(credential.revoked_by_id) if credential.revoked_by_id else None
+        )
         payload["revoke_reason"] = credential.revoke_reason
     return payload
 
@@ -78,6 +79,13 @@ class ActivityCredentialIssueAPIView(APIView):
             Activity.objects.select_related("space", "owner_profile"),
             pk=activity_id,
         )
+        if not can_issue_credential(actor=request.user, activity=activity):
+            return _error_response(
+                PermissionDenied(
+                    "Un Mandate autorisant la gestion de cette Activity ou de son Trust est requis."
+                )
+            )
+
         subject_profile_id = request.data.get("subject_profile_id")
         if not subject_profile_id:
             return Response({"detail": ["subject_profile_id est requis."]}, status=HTTP_400_BAD_REQUEST)
