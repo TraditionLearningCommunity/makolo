@@ -70,7 +70,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(model_name="checkpointobservation", constraint=models.CheckConstraint(condition=(Q(profile__isnull=False) & Q(external_beneficiary__isnull=True)) | (Q(profile__isnull=True) & Q(external_beneficiary__isnull=False)), name="ops_checkpoint_obs_subject_ck")),
         migrations.AddConstraint(model_name="checkpointobservation", constraint=models.UniqueConstraint(condition=Q(profile__isnull=False), fields=("checkpoint", "profile"), name="ops_checkpoint_obs_profile_uq")),
         migrations.AddConstraint(model_name="checkpointobservation", constraint=models.UniqueConstraint(condition=Q(external_beneficiary__isnull=False), fields=("checkpoint", "external_beneficiary"), name="ops_checkpoint_obs_ext_uq")),
-        migrations.AddConstraint(model_name="checkpointobservation", constraint=models.UniqueConstraint(condition=~Q(source="") & ~Q(client_reference=""), fields=("source", "client_reference"), name="ops_checkpoint_obs_client_uq")),
+        migrations.AddConstraint(model_name="checkpointobservation", constraint=models.UniqueConstraint(condition=~Q(source="") & ~Q(client_reference=""), fields=("observed_by", "source", "client_reference"), name="ops_checkpoint_obs_client_uq")),
         migrations.AddIndex(model_name="checkpointobservation", index=models.Index(fields=["checkpoint", "observed_at"], name="ops_checkpoint_obs_idx")),
         migrations.AddIndex(model_name="checkpointobservation", index=models.Index(fields=["profile", "observed_at"], name="ops_checkpoint_obs_prof_idx")),
         migrations.AddIndex(model_name="checkpointobservation", index=models.Index(fields=["external_beneficiary", "observed_at"], name="ops_checkpoint_obs_ext_idx")),
