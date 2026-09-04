@@ -14,7 +14,16 @@ from journeys.models import ExternalBeneficiary, Journey, JourneyStatus, Workflo
 
 from .models import OccurrenceCheckpoint, OccurrenceQueue, QueueEntry, QueueEntryStatus, QueueStatus
 from .queue_selectors import queue_position, queue_snapshot
-from .queue_services import call_next, cancel_entry, enter_queue, expire_entry, serve_entry
+from .queue_services import (
+    call_next,
+    cancel_entry,
+    close_queue,
+    enter_queue,
+    expire_entry,
+    pause_queue,
+    resume_queue,
+    serve_entry,
+)
 
 
 User = get_user_model()
@@ -110,6 +119,16 @@ class O3LiveQueueTests(TestCase):
                 sequence=1,
                 entered_by=self.manager,
             ).full_clean()
+
+    def test_queue_lifecycle_is_simple_and_closed_is_terminal(self):
+        paused = pause_queue(actor=self.manager, queue=self.queue)
+        self.assertEqual(paused.status, QueueStatus.PAUSED)
+        reopened = resume_queue(actor=self.manager, queue=paused)
+        self.assertEqual(reopened.status, QueueStatus.OPEN)
+        closed = close_queue(actor=self.manager, queue=reopened)
+        self.assertEqual(closed.status, QueueStatus.CLOSED)
+        with self.assertRaises(ValidationError):
+            resume_queue(actor=self.manager, queue=closed)
 
     def test_fifo_enter_call_and_serve_are_deterministic(self):
         first = enter_queue(actor=self.manager, queue=self.queue, profile=self.first, client_reference="first")
