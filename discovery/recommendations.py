@@ -10,6 +10,7 @@ from activities.models import Activity, ActivityStatus, ActivityVisibility
 from groups.models import GroupMembership, GroupMembershipStatus
 from journeys.models import Journey, JourneyStatus
 from organizations.models import OrganizationFollow
+from topics.models import ActivityTopic, ProfileInterest
 
 from .models import ActivityBookmark
 
@@ -17,6 +18,8 @@ from .models import ActivityBookmark
 CANDIDATE_LIMIT_PER_SOURCE = 30
 RECOMMENDATION_LIMIT_MAX = 50
 SOURCE_DIVERSITY_CAP = 3
+DECLARED_INTEREST_REASON_PREFIX = "declared_interest:"
+DECLARED_INTEREST_WEIGHT = 35
 
 
 @dataclass(frozen=True)
@@ -53,6 +56,20 @@ REASON_WEIGHTS = {
     "nearby_now": 30,
     "leave_soon": 80,
 }
+
+
+def _reason_weight(code):
+    if code.startswith(DECLARED_INTEREST_REASON_PREFIX):
+        return DECLARED_INTEREST_WEIGHT
+    return REASON_WEIGHTS[code]
+
+
+def _reason_label(code, interest_labels):
+    if code.startswith(DECLARED_INTEREST_REASON_PREFIX):
+        topic_code = code[len(DECLARED_INTEREST_REASON_PREFIX):]
+        topic_label = interest_labels.get(topic_code, topic_code)
+        return f"Parce que {topic_label} fait partie de vos centres d’intérêt."
+    return REASON_LABELS[code]
 
 
 def _related(activity, name):
@@ -106,20 +123,42 @@ def _visible_activity_queryset():
 def build_activity_recommendations(profile, *, limit=12, context=None):
     """Bounded, deterministic and explainable Activity-first recommendations.
 
-    Private facts only select coarse privacy-safe reason codes. Followers, likes,
-    views and content volume never participate in ranking. M6 contributes bounded
-    candidate/reason facts through the same engine; it does not create a second
-    recommendation system.
+    Explicit ProfileInterest rows can select Activities classified with the same
+    canonical Topic, regardless of whether the interest is public. Bookmarks,
+    follows, history and other behavioral signals remain separate inputs and are
+    never converted into ProfileInterest rows.
     """
     if not getattr(profile, "is_authenticated", False):
         return []
     limit = max(1, min(int(limit), RECOMMENDATION_LIMIT_MAX))
     candidates = {}
+    interest_labels = {}
 
     def add(rows, reason_code):
         for activity in rows:
             row = candidates.setdefault(activity.pk, {"activity": activity, "reasons": set()})
             row["reasons"].add(reason_code)
+
+    declared_interests = list(
+        ProfileInterest.objects.filter(profile=profile, topic__is_active=True)
+        .select_related("topic")
+        .order_by("topic__label", "topic__code")[:CANDIDATE_LIMIT_PER_SOURCE]
+    )
+    if declared_interests:
+        topic_ids = [interest.topic_id for interest in declared_interests]
+        interest_labels = {interest.topic.code: interest.topic.label for interest in declared_interests}
+        matched_topics_by_activity = {}
+        topic_links = (
+            ActivityTopic.objects.filter(topic_id__in=topic_ids)
+            .values_list("activity_id", "topic__code")
+            .order_by("created_at", "id")[:CANDIDATE_LIMIT_PER_SOURCE]
+        )
+        for activity_id, topic_code in topic_links:
+            matched_topics_by_activity.setdefault(activity_id, set()).add(topic_code)
+        if matched_topics_by_activity:
+            for activity in _visible_activity_queryset().filter(pk__in=matched_topics_by_activity):
+                topic_code = sorted(matched_topics_by_activity[activity.pk])[0]
+                add([activity], f"{DECLARED_INTEREST_REASON_PREFIX}{topic_code}")
 
     followed_space_ids = list(
         OrganizationFollow.objects.filter(user=profile).values_list("organization_id", flat=True)[:CANDIDATE_LIMIT_PER_SOURCE]
@@ -191,10 +230,10 @@ def build_activity_recommendations(profile, *, limit=12, context=None):
     for row in candidates.values():
         activity = row["activity"]
         reasons = tuple(
-            RecommendationReason(code=code, label=REASON_LABELS[code])
-            for code in sorted(row["reasons"], key=lambda code: (-REASON_WEIGHTS[code], code))
+            RecommendationReason(code=code, label=_reason_label(code, interest_labels))
+            for code in sorted(row["reasons"], key=lambda code: (-_reason_weight(code), code))
         )
-        score = sum(REASON_WEIGHTS[reason.code] for reason in reasons)
+        score = sum(_reason_weight(reason.code) for reason in reasons)
         cta_label, cta_url = activity_destination(activity)
         ranked.append(RecommendationResult(
             activity=activity,

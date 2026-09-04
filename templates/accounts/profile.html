@@ -13,6 +13,7 @@
         <div class="flex flex-wrap gap-2">
             <a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary"><i data-lucide="key-round" class="h-4 w-4"></i>Mot de passe</a>
             <a href="{% url 'notifications:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="bell" class="h-4 w-4"></i>Notifications</a>
+            <a href="{% url 'account:interests' %}" class="mk-btn mk-btn-secondary"><i data-lucide="sparkles" class="h-4 w-4"></i>Centres d’intérêt</a>
             {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="building-2" class="h-4 w-4"></i>Mes Espaces</a>{% endif %}
         </div>
     </section>
@@ -48,6 +49,13 @@
             <div class="flex flex-wrap gap-2"><a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary">Changer le mot de passe</a><a href="{% url 'account:delete' %}" class="mk-btn mk-btn-ghost" style="color:var(--mk-danger)">Supprimer le compte</a></div>
         </div>
         {% if deletion_blockers %}<div class="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/[.07] p-4 text-sm"><p class="font-bold">Suppression indisponible</p><p class="mt-1 leading-6" style="color:var(--mk-muted)">Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif.</p></div>{% endif %}
+    </section>
+
+    <section class="mk-panel p-5 sm:p-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sparkles" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Centres d’intérêt</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Déclarez ce qui vous intéresse pour personnaliser Discover. Vos choix restent privés par défaut.</p></div></div>
+            <a href="{% url 'account:interests' %}" class="mk-btn mk-btn-primary">Gérer mes centres d’intérêt</a>
+        </div>
     </section>
 
     {% if profile_error %}<div class="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_error }}</div>{% endif %}
