@@ -63,6 +63,10 @@ def build_profile_activation_summary(user, *, profile=None):
     presentation_complete = _has_presentation_context(user, profile)
     public_applicable = bool(profile.public_profile)
     network_applicable = bool(profile.searchable or has_open_to)
+    network_complete = bool(
+        network_applicable
+        and (has_searchable_open_to if profile.searchable else has_open_to)
+    )
 
     steps = (
         ProfileActivationStep(
@@ -108,7 +112,7 @@ def build_profile_activation_summary(user, *, profile=None):
         ProfileActivationStep(
             key="network",
             label="Ouvert à",
-            complete=bool(network_applicable and has_searchable_open_to),
+            complete=network_complete,
             applicable=network_applicable,
             reason="Ce jalon n’existe que si vous choisissez d’être trouvable ou de déclarer pour quoi vous êtes ouvert à être sollicité.",
             next_copy="Indiquez pour quoi vous acceptez d’être sollicité.",
