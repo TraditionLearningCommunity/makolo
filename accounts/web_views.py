@@ -164,9 +164,15 @@ class AccountProfileView(LoginRequiredMixin, View):
                 "section": section,
             }
             if section == bound_section:
-                forms[section] = AccountProfileForm(request.POST, request.FILES, **kwargs)
+                form = AccountProfileForm(request.POST, request.FILES, **kwargs)
             else:
-                forms[section] = AccountProfileForm(**kwargs)
+                form = AccountProfileForm(**kwargs)
+            # The UI presents independent conceptual sections but keeps the
+            # historical single-save contract. HTML's form attribute lets
+            # these sectioned fields submit through one non-nested form.
+            for field in form.fields.values():
+                field.widget.attrs["form"] = "profile-master"
+            forms[section] = form
         return forms
 
     def _context(
