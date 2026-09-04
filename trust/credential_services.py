@@ -129,14 +129,14 @@ def revoke_credential(*, credential, actor, reason="") -> Credential:
         .select_related("activity__space", "activity__owner_profile")
         .get(pk=credential.pk)
     )
-    if locked.status == CredentialStatus.REVOKED:
-        return locked
     allowed = can_issue_credential(actor=actor, activity=locked.activity)
     allowed = allowed or (
         _authenticated(actor) and can(actor, PermissionCode.PLATFORM_TRUST_REVIEW)
     )
     if not allowed:
         raise PermissionDenied("Autorité de révocation du Credential requise.")
+    if locked.status == CredentialStatus.REVOKED:
+        return locked
 
     locked.status = CredentialStatus.REVOKED
     locked.revoked_by = actor
