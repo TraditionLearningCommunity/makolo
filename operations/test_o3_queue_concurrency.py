@@ -8,7 +8,8 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 from activities.models import Activity, Occurrence
-from authorization.constants import SystemRoleCode
+from authorization.constants import PermissionCode, SystemRoleCode
+from authorization.models import AuthorityScope, Permission, Role, RolePermission
 from authorization.services import grant_activity_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
@@ -17,6 +18,41 @@ from .queue_services import enter_queue
 
 
 User = get_user_model()
+
+
+def _ensure_operations_manager_role():
+    permissions = []
+    for code, name in (
+        (PermissionCode.ACTIVITY_OPERATIONS_VIEW, "Voir les opérations de cette activité"),
+        (PermissionCode.ACTIVITY_OPERATIONS_MANAGE, "Gérer les opérations de cette activité"),
+    ):
+        permission, _ = Permission.objects.update_or_create(
+            code=code,
+            defaults={
+                "name": name,
+                "description": "Fixture isolée du contrat Operations pour le test de concurrence O3.",
+                "domain": "operations",
+                "scope_type": AuthorityScope.ACTIVITY,
+                "is_system": True,
+                "is_active": True,
+            },
+        )
+        permissions.append(permission)
+
+    role, _ = Role.objects.update_or_create(
+        code=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+        is_system=True,
+        defaults={
+            "name": "Responsable Operations d’activité",
+            "description": "Fixture isolée du rôle Operations pour le test de concurrence O3.",
+            "scope_type": AuthorityScope.ACTIVITY,
+            "organization": None,
+            "is_active": True,
+        },
+    )
+    for permission in permissions:
+        RolePermission.objects.get_or_create(role=role, permission=permission)
+    return role
 
 
 class O3QueueConcurrencyTests(TransactionTestCase):
@@ -34,10 +70,11 @@ class O3QueueConcurrencyTests(TransactionTestCase):
             start_at=timezone.now() + timedelta(hours=1),
             end_at=timezone.now() + timedelta(hours=3),
         )
+        operations_role = _ensure_operations_manager_role()
         grant_activity_role(
             profile=self.manager,
             activity=self.activity,
-            role_code=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            role=operations_role,
             granted_by=self.owner,
             source="o3-concurrency-test",
         )
