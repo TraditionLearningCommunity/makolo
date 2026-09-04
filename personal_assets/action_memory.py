@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
@@ -18,7 +19,7 @@ from journeys.collaboration_services import (
     ensure_case_access,
     is_beneficiary,
 )
-from journeys.models import Journey
+from journeys.models import ExternalBeneficiary, Journey
 from trust.models import ProofStatus
 from trust.selectors import proofs_for_profile
 
@@ -128,6 +129,7 @@ class ActionMemoryCandidate:
     action: ActionMemoryAction
     materialization_path: ActionMemoryMaterializationPath
     observed_at: datetime
+    source_date: date | None = None
 
 
 def _authenticated(actor) -> bool:
@@ -145,10 +147,23 @@ def _subject_for_journey(journey) -> ActionMemorySubject:
     raise ValidationError("Action Memory exige une Journey avec un bénéficiaire explicite.")
 
 
-def _asset_matches_journey_subject(asset, journey) -> bool:
-    if journey.beneficiary_id:
-        return asset.subject_profile_id == journey.beneficiary_id
-    return asset.subject_external_beneficiary_id == journey.external_beneficiary_id
+def _subject_for_preparation(*, actor, subject):
+    User = get_user_model()
+    if isinstance(subject, User):
+        if subject.pk != actor.pk:
+            raise PermissionDenied("Prepared Action Memory n'ouvre pas l'historique d'un autre Profile.")
+        return ActionMemorySubject(ActionMemorySubjectType.PROFILE, str(subject.pk)), subject
+    if isinstance(subject, ExternalBeneficiary):
+        if subject.created_by_id != actor.pk:
+            raise PermissionDenied("Ce bénéficiaire externe n'appartient pas au périmètre contrôlé.")
+        return ActionMemorySubject(ActionMemorySubjectType.EXTERNAL_BENEFICIARY, str(subject.pk)), None
+    raise ValidationError("Prepared Action Memory exige un Profile ou ExternalBeneficiary explicite.")
+
+
+def _asset_matches_subject(asset, subject: ActionMemorySubject) -> bool:
+    if subject.subject_type == ActionMemorySubjectType.PROFILE:
+        return str(asset.subject_profile_id or "") == subject.source_id
+    return str(asset.subject_external_beneficiary_id or "") == subject.source_id
 
 
 def _freshness_for_version(version, *, observed_at):
@@ -196,13 +211,14 @@ def _can_materialize_library_version(*, actor, journey, sensitivity) -> bool:
     )
 
 
-def _library_candidates(*, actor, journey, subject, observed_at):
+def _library_candidates(*, actor, subject, observed_at, target_journey=None):
     candidates = []
     for asset in personal_assets_for_controller(actor):
-        if not _asset_matches_journey_subject(asset, journey):
+        if not _asset_matches_subject(asset, subject):
             continue
         version = (
             personal_asset_versions_for_controller(actor, asset)
+            .select_related("source_journey_artifact")
             .order_by("-version", "-created_at")
             .first()
         )
@@ -214,19 +230,21 @@ def _library_candidates(*, actor, journey, subject, observed_at):
             ActionMemorySource.LIBRARY,
             asset.sensitivity,
         )
-        can_use = _can_materialize_library_version(
-            actor=actor,
-            journey=journey,
-            sensitivity=asset.sensitivity,
+        can_use = (
+            True
+            if target_journey is None
+            else _can_materialize_library_version(
+                actor=actor,
+                journey=target_journey,
+                sensitivity=asset.sensitivity,
+            )
         )
         if freshness == ActionMemoryFreshness.EXPIRED or not can_use:
             action = ActionMemoryAction.REVIEW_LIBRARY
             materialization_path = ActionMemoryMaterializationPath.NONE
         else:
             action = ActionMemoryAction.USE_IN_JOURNEY
-            materialization_path = (
-                ActionMemoryMaterializationPath.PERSONAL_ASSET_VERSION_TO_JOURNEY_ARTIFACT
-            )
+            materialization_path = ActionMemoryMaterializationPath.PERSONAL_ASSET_VERSION_TO_JOURNEY_ARTIFACT
 
         source_artifact_id = version.source_journey_artifact_id
         provenance = ActionMemoryProvenance(
@@ -271,38 +289,39 @@ def _library_candidates(*, actor, journey, subject, observed_at):
                 action=action,
                 materialization_path=materialization_path,
                 observed_at=observed_at,
+                source_date=version.issued_at,
             )
         )
     return candidates
 
 
-def _historical_journeys(*, actor, journey):
-    queryset = (
-        Journey.objects.exclude(pk=journey.pk)
-        .select_related("activity", "beneficiary", "external_beneficiary")
-        .order_by("-updated_at", "-created_at", "id")
+def _historical_journeys(*, actor, subject, exclude_journey=None):
+    queryset = Journey.objects.select_related("activity", "beneficiary", "external_beneficiary").order_by(
+        "-updated_at", "-created_at", "id"
     )
-    if journey.beneficiary_id:
-        queryset = queryset.filter(beneficiary_id=journey.beneficiary_id)
-        if journey.beneficiary_id != getattr(actor, "pk", None):
+    if exclude_journey is not None:
+        queryset = queryset.exclude(pk=exclude_journey.pk)
+    if subject.subject_type == ActionMemorySubjectType.PROFILE:
+        queryset = queryset.filter(beneficiary_id=subject.source_id)
+        if str(getattr(actor, "pk", "")) != subject.source_id:
             queryset = queryset.filter(
                 assignments__profile_id=actor.pk,
                 assignments__status=JourneyAssignmentStatus.ACTIVE,
             )
     else:
         queryset = queryset.filter(
-            external_beneficiary_id=journey.external_beneficiary_id,
+            external_beneficiary_id=subject.source_id,
             assignments__profile_id=actor.pk,
             assignments__status=JourneyAssignmentStatus.ACTIVE,
         )
     return list(queryset.distinct())
 
 
-def _journey_artifact_candidates(*, actor, current_journey, subject, historical_journeys, observed_at):
+def _journey_artifact_candidates(*, actor, subject, historical_journeys, observed_at):
     candidates = []
     actor_is_subject = bool(
-        current_journey.beneficiary_id
-        and current_journey.beneficiary_id == getattr(actor, "pk", None)
+        subject.subject_type == ActionMemorySubjectType.PROFILE
+        and str(getattr(actor, "pk", "")) == subject.source_id
     )
     for historical_journey in historical_journeys:
         try:
@@ -339,15 +358,16 @@ def _journey_artifact_candidates(*, actor, current_journey, subject, historical_
                     code=ActionMemoryProvenanceCode.JOURNEY,
                     journey_id=str(historical_journey.pk),
                 )
-            action = (
-                ActionMemoryAction.SAVE_TO_LIBRARY
-                if actor_is_subject
-                else ActionMemoryAction.NONE
-            )
+            action = ActionMemoryAction.SAVE_TO_LIBRARY if actor_is_subject else ActionMemoryAction.NONE
             materialization_path = (
                 ActionMemoryMaterializationPath.JOURNEY_ARTIFACT_TO_PERSONAL_ASSET
                 if action == ActionMemoryAction.SAVE_TO_LIBRARY
                 else ActionMemoryMaterializationPath.NONE
+            )
+            source_date = (
+                timezone.localdate(artifact.uploaded_at)
+                if timezone.is_aware(artifact.uploaded_at)
+                else artifact.uploaded_at.date()
             )
             candidates.append(
                 ActionMemoryCandidate(
@@ -377,20 +397,21 @@ def _journey_artifact_candidates(*, actor, current_journey, subject, historical_
                     action=action,
                     materialization_path=materialization_path,
                     observed_at=observed_at,
+                    source_date=source_date,
                 )
             )
     return candidates
 
 
-def _proof_candidates(*, actor, current_journey, subject, historical_journeys, observed_at):
-    if current_journey.beneficiary_id is None:
+def _proof_candidates(*, actor, subject, subject_profile, historical_journeys, observed_at):
+    if subject.subject_type != ActionMemorySubjectType.PROFILE or subject_profile is None:
         return []
     historical_ids = [journey.pk for journey in historical_journeys]
     if not historical_ids:
         return []
-    actor_is_subject = current_journey.beneficiary_id == getattr(actor, "pk", None)
+    actor_is_subject = str(getattr(actor, "pk", "")) == subject.source_id
     candidates = []
-    proofs = proofs_for_profile(current_journey.beneficiary).filter(journey_id__in=historical_ids)
+    proofs = proofs_for_profile(subject_profile).filter(journey_id__in=historical_ids)
     for proof in proofs:
         try:
             ensure_case_access(actor, proof.journey, write=False)
@@ -398,6 +419,11 @@ def _proof_candidates(*, actor, current_journey, subject, historical_journeys, o
             continue
         active = proof.status == ProofStatus.ACTIVE
         action = ActionMemoryAction.VIEW_PROOF if actor_is_subject else ActionMemoryAction.NONE
+        source_date = (
+            timezone.localdate(proof.issued_at)
+            if timezone.is_aware(proof.issued_at)
+            else proof.issued_at.date()
+        )
         candidates.append(
             ActionMemoryCandidate(
                 source=ActionMemorySource.PROOF,
@@ -432,6 +458,7 @@ def _proof_candidates(*, actor, current_journey, subject, historical_journeys, o
                     else ActionMemoryMaterializationPath.NONE
                 ),
                 observed_at=observed_at,
+                source_date=source_date,
             )
         )
     return candidates
@@ -472,6 +499,35 @@ def _dedupe_explicit_snapshots(library_candidates, artifact_candidates):
     return result
 
 
+def _memory_for_subject(*, actor, subject, subject_profile, observed_at, exclude_journey=None, target_journey=None):
+    historical_journeys = _historical_journeys(
+        actor=actor,
+        subject=subject,
+        exclude_journey=exclude_journey,
+    )
+    library = _library_candidates(
+        actor=actor,
+        subject=subject,
+        observed_at=observed_at,
+        target_journey=target_journey,
+    )
+    artifacts = _journey_artifact_candidates(
+        actor=actor,
+        subject=subject,
+        historical_journeys=historical_journeys,
+        observed_at=observed_at,
+    )
+    artifacts = _dedupe_explicit_snapshots(library, artifacts)
+    proofs = _proof_candidates(
+        actor=actor,
+        subject=subject,
+        subject_profile=subject_profile,
+        historical_journeys=historical_journeys,
+        observed_at=observed_at,
+    )
+    return tuple((*library, *artifacts, *proofs))
+
+
 def action_memory_for_journey(*, actor, journey, observed_at=None):
     """Build the authorized Action Memory read model for one current Journey.
 
@@ -486,27 +542,36 @@ def action_memory_for_journey(*, actor, journey, observed_at=None):
     ensure_case_access(actor, journey, write=False)
     observed_at = observed_at or timezone.now()
     subject = _subject_for_journey(journey)
-    historical_journeys = _historical_journeys(actor=actor, journey=journey)
+    return _memory_for_subject(
+        actor=actor,
+        subject=subject,
+        subject_profile=journey.beneficiary if journey.beneficiary_id else None,
+        observed_at=observed_at,
+        exclude_journey=journey,
+        target_journey=journey,
+    )
 
-    library = _library_candidates(
+
+def action_memory_for_subject(*, actor, subject=None, observed_at=None):
+    """Build authorized Q3 candidate facts before a target Journey exists.
+
+    This read-only projection is intentionally conservative: a Profile may inspect
+    its own Action Memory; an ExternalBeneficiary is available only to its creator.
+    Historical Journey visibility remains governed by Journey assignments/access.
+    Target-Journey write permission is not guessed here and is revalidated later by
+    Q2/Q4 owner services when a real Journey exists.
+    """
+
+    if not _authenticated(actor):
+        raise PermissionDenied("Prepared Action Memory exige un Profile authentifié.")
+    observed_at = observed_at or timezone.now()
+    if not timezone.is_aware(observed_at):
+        raise ValidationError("observed_at doit être timezone-aware.")
+    subject = subject or actor
+    subject_ref, subject_profile = _subject_for_preparation(actor=actor, subject=subject)
+    return _memory_for_subject(
         actor=actor,
-        journey=journey,
-        subject=subject,
+        subject=subject_ref,
+        subject_profile=subject_profile,
         observed_at=observed_at,
     )
-    artifacts = _journey_artifact_candidates(
-        actor=actor,
-        current_journey=journey,
-        subject=subject,
-        historical_journeys=historical_journeys,
-        observed_at=observed_at,
-    )
-    artifacts = _dedupe_explicit_snapshots(library, artifacts)
-    proofs = _proof_candidates(
-        actor=actor,
-        current_journey=journey,
-        subject=subject,
-        historical_journeys=historical_journeys,
-        observed_at=observed_at,
-    )
-    return tuple((*library, *artifacts, *proofs))

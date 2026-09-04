@@ -27,6 +27,12 @@ class DossierNextAction:
     label: str
     url: str | None
     journey_id: object
+    # Optional technical identity is server-side projection metadata. Defaults keep
+    # the historical D contract source-compatible for existing callers/tests.
+    key: str = ""
+    source: str = ""
+    source_key: str = ""
+    reason_code: str = ""
 
 
 @dataclass(frozen=True)
@@ -70,7 +76,21 @@ def _project_next_action(journey, result, *, viewer):
     action = result.next_action
     if action is None or journey.beneficiary_id != getattr(viewer, "pk", None):
         return None
-    return DossierNextAction(label=action.label, url=action.url, journey_id=journey.pk)
+    # The M1 resolver returns the exact NextAction object from one visible check.
+    # Preserve that stable identity for downstream read models without exposing any
+    # additional Journey or hidden dependency data.
+    source_check = next((check for check in result.checks if check.next_action is action), None)
+    if source_check is None:
+        source_check = next((check for check in result.checks if check.next_action == action), None)
+    return DossierNextAction(
+        label=action.label,
+        url=action.url,
+        journey_id=journey.pk,
+        key=action.key,
+        source=action.source,
+        source_key=source_check.key if source_check is not None else "",
+        reason_code=source_check.reason_code if source_check is not None else "",
+    )
 
 
 def _collective_status(*, dossier, journey_results, unsatisfied_dependencies):

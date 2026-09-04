@@ -44,7 +44,7 @@ class TrustedReuseReasonCode(str, Enum):
 @dataclass(frozen=True)
 class TrustedReuseDecision:
     requirement_id: str
-    assessment_id: str
+    assessment_id: str | None
     candidate_source: str
     candidate_source_id: str
     policy_id: str | None
