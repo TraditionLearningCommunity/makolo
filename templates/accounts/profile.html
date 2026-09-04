@@ -80,7 +80,7 @@
         {% csrf_token %}
         <input type="hidden" name="section" value="personal">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
-            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="contact" class="h-5 w-5"></i></div>
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="contact-round" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">2 · Informations personnelles</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Votre identité personnelle</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Ces informations sont connues de Makolo pour votre compte ; elles ne deviennent pas publiques automatiquement.</p></div>
         </div>
         {% if profile_forms.personal.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.personal.non_field_errors }}</div>{% endif %}
@@ -104,7 +104,7 @@
         {% csrf_token %}
         <input type="hidden" name="section" value="links">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
-            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="link" class="h-5 w-5"></i></div>
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="external-link" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">4 · Liens & réseaux</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Vos liens déclarés</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Site web, LinkedIn, Facebook, Instagram, TikTok, X et YouTube. Ces liens sont déclarés par vous : Makolo ne présente pas leur propriété comme vérifiée.</p></div>
         </div>
         {% if profile_forms.links.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.links.non_field_errors }}</div>{% endif %}
@@ -126,10 +126,10 @@
             <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer</button></div>
         </form>
 
-        <form method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
+        <form id="appearance" method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
             {% csrf_token %}
             <input type="hidden" name="section" value="appearance">
-            <h3 class="text-base font-extrabold">Apparence</h3>
+            <h3 class="flex items-center gap-2 text-base font-extrabold"><i data-lucide="sun" class="h-5 w-5"></i>Apparence</h3>
             <p class="mt-1 text-sm" style="color:var(--mk-muted)">« Système » suit le réglage de cet appareil.</p>
             {% with current=appearance_form.appearance.value %}
             <div class="mt-4 grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Apparence">
@@ -148,7 +148,7 @@
         <form method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
             {% csrf_token %}
             <input type="hidden" name="section" value="notifications">
-            <h3 class="text-base font-extrabold">Notifications</h3>
+            <h3 class="flex items-center gap-2 text-base font-extrabold"><i data-lucide="bell-ring" class="h-5 w-5"></i>Notifications</h3>
             <div class="mt-4 grid gap-4 md:grid-cols-2">
                 {% for field in preferences_form %}
                 <div>
