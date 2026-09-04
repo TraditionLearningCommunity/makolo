@@ -9,6 +9,7 @@ from operations.checkpoint_api import (
     OperatorOccurrenceCheckpointsAPIView,
 )
 from operations.live_api import OccurrenceLiveAPIView, OccurrenceOperationalReadinessAPIView
+from operations.offline_api import OccurrenceOfflineActionPackAPIView
 from operations.placement_api import (
     MyOccurrencePlacementsAPIView,
     OperatorOccurrencePlacementPlansAPIView,
@@ -60,6 +61,11 @@ urlpatterns = [
         "occurrences/<uuid:occurrence_id>/live/",
         OccurrenceLiveAPIView.as_view(),
         name="occurrence-live",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/offline-action-pack/",
+        OccurrenceOfflineActionPackAPIView.as_view(),
+        name="occurrence-offline-action-pack",
     ),
     path(
         "occurrences/<uuid:occurrence_id>/queues/me/",
