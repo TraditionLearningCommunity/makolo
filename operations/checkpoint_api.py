@@ -10,7 +10,14 @@ from access.models import AccessUse
 from activities.models import Occurrence
 from journeys.models import ExternalBeneficiary
 
-from .checkpoint_selectors import active_checkpoint_assignments, next_checkpoint, observations_for_beneficiary, ordered_checkpoints
+from .checkpoint_selectors import (
+    active_checkpoint_assignments,
+    external_beneficiary_is_checkpoint_beneficiary,
+    next_checkpoint,
+    observations_for_beneficiary,
+    ordered_checkpoints,
+    profile_is_checkpoint_beneficiary,
+)
 from .checkpoint_services import (
     assign_checkpoint_operator,
     close_checkpoint,
@@ -22,7 +29,6 @@ from .checkpoint_services import (
 )
 from .models import CheckpointAssignment, OccurrenceCheckpoint
 from .permissions import user_can_manage_activity_operations, user_can_view_activity_operations
-from .placement_selectors import external_beneficiary_is_placement_candidate, profile_is_placement_candidate
 
 
 User = get_user_model()
@@ -110,7 +116,7 @@ class MyOccurrenceCheckpointsAPIView(APIView):
 
     def get(self, request, occurrence_id):
         occurrence = get_object_or_404(Occurrence.objects.select_related("activity"), pk=occurrence_id)
-        if not profile_is_placement_candidate(request.user, occurrence):
+        if not profile_is_checkpoint_beneficiary(request.user, occurrence):
             return Response(status=status.HTTP_404_NOT_FOUND)
         completed = {
             row.checkpoint_id: row
@@ -202,11 +208,11 @@ class CheckpointObservationsAPIView(APIView):
         external = None
         if serializer.validated_data.get("profile_id"):
             profile = get_object_or_404(User, pk=serializer.validated_data["profile_id"])
-            if not profile_is_placement_candidate(profile, checkpoint.occurrence):
+            if not profile_is_checkpoint_beneficiary(profile, checkpoint.occurrence):
                 raise serializers.ValidationError({"profile_id": "Ce Profile n’est pas un bénéficiaire de cette Occurrence."})
         else:
             external = get_object_or_404(ExternalBeneficiary, pk=serializer.validated_data["external_beneficiary_id"])
-            if not external_beneficiary_is_placement_candidate(external, checkpoint.occurrence):
+            if not external_beneficiary_is_checkpoint_beneficiary(external, checkpoint.occurrence):
                 raise serializers.ValidationError({"external_beneficiary_id": "Ce bénéficiaire externe n’est pas lié à cette Occurrence."})
         access_use = None
         if serializer.validated_data.get("access_use_id"):
