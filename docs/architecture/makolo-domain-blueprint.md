@@ -2,7 +2,7 @@
 
 > **Statut : canonique pour la cible d'architecture.** Ce document fixe les concepts, frontières et invariants qui doivent guider les prochaines migrations. Il ne décrit pas un schéma Django déjà implémenté et ne remplace pas les contrats de sécurité existants tant que les migrations correspondantes ne sont pas terminées.
 >
-> La cible stratégique post-noyau, les 18 capacités retenues et leur regroupement en trains P→U sont répertoriés dans [`strategic-action-roadmap.md`](strategic-action-roadmap.md). Ce blueprint reste la source de vérité des frontières et invariants ; la roadmap décrit **ce que Makolo veut ensuite rendre possible** sans transformer chaque capacité produit en bounded context.
+> La cible stratégique post-noyau, les 18 capacités retenues et leur regroupement en trains P→U sont répertoriés dans [`strategic-action-roadmap.md`](strategic-action-roadmap.md). Le programme transverse G — Profil, pertinence & réseau d'action — est défini dans [`profile-relevance-action-network.md`](profile-relevance-action-network.md). Ce blueprint reste la source de vérité des frontières et invariants ; les roadmaps décrivent **ce que Makolo veut ensuite rendre possible** sans transformer chaque capacité produit en bounded context.
 
 ## 1. Vision et contraintes
 
@@ -43,6 +43,13 @@ La migration doit réutiliser les capacités existantes, préserver les frontiè
 | **Accès** | Droit individuel acquis permettant à un Profil d'effectuer ou de recevoir ce qui a été accordé : embarquer, entrer, participer, accéder. | Billet, ticket, invitation, pass, badge, confirmation… selon le métier. |
 | **Lieu** | Emplacement physique précis : salle, agence, gare, point d'embarquement, bureau, rendez-vous. | Nom du lieu ou rôle métier : « point d'embarquement », « salle ». |
 | **Zone** | Périmètre géographique : quartier, ville, province, campus, rayon, polygone métier. | Ville, zone desservie, secteur, rayon… |
+| **Topic** | Sujet canonique transversal servant notamment à classer les Interests explicites et les Activities. | « Centre d'intérêt », thème, catégorie transversale selon le contexte. |
+| **Interest** | Déclaration explicite d'un Profil vers un Topic : ce qui l'intéresse. | « Centres d'intérêt ». Ne pas l'inférer silencieusement du comportement. |
+| **Open to / Ouvert à** | Déclaration volontaire indiquant les types de sollicitations qu'un Profil accepte potentiellement. | « Ouvert à… », « Disponible pour… ». Ce n'est ni une compétence prouvée ni un Interest. |
+| **Veille** | Requête Discovery privée, structurée et rejouable que Makolo doit continuer à rechercher. | « Veille », « Enregistrer cette recherche ». Ne pas employer « Intention » comme concept canonique. |
+| **Proof** | Fait atomique que Trust permet à Makolo d'établir. | « Preuve », « fait vérifié » selon la portée. |
+| **Credential Trust** | Attestation/certification délivrée par un émetteur métier identifié et vérifiable/révocable selon Trust. | « Attestation », « certificat ». À distinguer d'`AccessCredential`. |
+| **Passeport Makolo** | Projection/export contrôlé d'un Profil ou d'un Espace à partir de faits canoniques et de sélections autorisées. | « Passeport Makolo ». Ce n'est ni une carte d'identité légale ni une nouvelle vérité métier. |
 
 ### Concept interne vs vocabulaire métier
 
@@ -62,9 +69,11 @@ Exemple : une `Access` issue d'une `Journey` liée à une `Occurrence` de transp
 
 **Ne possède pas** : un rôle métier global « organisateur », « finance » ou « scanner ». Les flags historiques de ce type sont des compatibilités à retirer progressivement.
 
+Le Profil conserve une seule identité canonique. Sa représentation publique est une projection contrôlée, pas un second modèle `PublicProfile`. Les données nécessaires à la personnalisation privée ne deviennent pas publiques par simple existence.
+
 **Cycle essentiel** : création → vérifications éventuelles → actif/verrouillé/désactivé → anonymisation/suppression selon les règles futures.
 
-**Relations** : Équipes, Groupes, Mandats, Activités personnelles, Démarches, Accès, Vérifications.
+**Relations** : Équipes, Groupes, Mandats, Activités personnelles, Démarches, Accès, Vérifications, Interests, Open to et projections autorisées.
 
 ### Espace
 
@@ -130,6 +139,15 @@ Les règles de résolution doivent être explicites : un Mandat Espace peut donn
 La cible doit permettre au moins des vérifications de Profil, d'Espace et d'autorité administrative sans faire croire qu'une marque « Vérifié par Makolo » garantit les produits ou services de l'entité.
 
 Les preuves, décisions de revue, reviewer, dates et portée de la vérification doivent être auditables. Les documents sensibles ne doivent pas devenir des métadonnées génériques.
+
+Trust distingue notamment :
+
+- `Proof` : fait atomique établi par Makolo ;
+- `Credential` Trust : attestation délivrée par un émetteur métier ;
+- `AccessCredential` : représentation/secret d'un droit d'accès ;
+- `JourneyArtifact` : artefact individuel d'une Journey.
+
+Ces responsabilités ne doivent pas être fusionnées sous un unique concept de « certificat » ou « credential » générique.
 
 ### Activité
 
@@ -247,7 +265,8 @@ La cible doit rester modulaire sans créer une app par nom du glossaire.
 | `organizations` | Espace et Équipes | Conserver `Organization` techniquement pendant la migration ; le frontend et la doc domaine parlent d'Espace. Ajouter les concepts d'équipe ici lorsque la migration commence. |
 | `authorization` | Permission, Rôle, RolePermission, Mandat, résolution d'autorité | Nouvelle frontière dédiée. Migrer progressivement `accounts.Role`, `PermissionGroup`, `OrganizationRole` et les checks statiques vers ce noyau. |
 | `groups` | Groupes, memberships et éligibilités collectives | Nouvelle app car le Groupe n'est ni CRM Audience ni Équipe. Les audiences CRM peuvent consommer les Groupes sans en être la source de vérité. |
-| `trust` | Vérifications de Profil/Espace/autorité et preuves | Nouvelle app lorsque la migration Trust commence ; récupérer les responsabilités de `VerificationDocument` et `OrganizationVerificationStatus` sans GFK opaque. |
+| `trust` | Vérifications de Profil/Espace/autorité, Proofs et Credentials délivrés | Conserver les responsabilités de Trust distinctes d'AccessCredential et JourneyArtifact ; éviter GFK opaque. |
+| `topics` | vocabulaire canonique Topic, ProfileInterest et relations de classification transversale | Réutiliser ce vocabulaire avant de créer des taxonomies parallèles dans les verticales. |
 | `geography` | Lieu, Zone, géométrie, géocodage abstrait | Nouvelle app. Fournit des objets géographiques réutilisables aux autres domaines. |
 | `activities` | Activité, Occurrence, taxonomie commune, relations communes vers lieux/zones | Nouveau noyau transversal. |
 | `journeys` | Démarche, Demande, workflow contrôlé et transitions | Nouvelle app. Ne doit pas absorber Payment ni Access. |
@@ -256,6 +275,7 @@ La cible doit rester modulaire sans créer une app par nom du glossaire.
 | `payments` | Paiements, refunds, événements provider, idempotence | Conserver l'app, remplacer à terme sa dépendance obligatoire à `TicketOrder` par une relation au commerce/Démarche explicite. |
 | `events` | **Verticale événementielle** : données spécifiques concerts/conférences/cérémonies | Conserver l'app comme spécialisation par composition au-dessus d'Activity/Occurrence. |
 | `transport` | **Verticale transport** : route, origine/destination, arrêts, classe/service, contraintes transport | Nouvelle app seulement au moment du Transport MVP. |
+| `discovery` | exploration, bookmarks/favoris, recommandations explicables et Veilles exécutables | Conserver Veille comme requête privée persistante ; ne pas en faire Dossier, Journey ou Intention. |
 | `notifications`, `crm`, `promotions`, `automation`, `analytics_app`, `growth`, `partners`, `loyalty` | Capacités transversales | Généraliser progressivement leurs références d'Event/Ticket vers Space/Activity/Occurrence/Journey/Access/Offer selon le sens métier. |
 
 ### Choix clé : conserver `Organization` techniquement au début
@@ -425,6 +445,8 @@ L'implémentation exacte viendra dans la migration. Les domaines continuent à u
 
 La matrice actuelle Finance/Marketing/Event Manager/Scanner reste un minimum de sécurité. La généralisation ne doit pas donner à un rôle « activity.manage » accès par défaut aux références financières, PII CRM ou données de contrôle d'accès. Les Permissions restent fines par domaine.
 
+La même règle s'applique à la découvrabilité G : une donnée connue de Makolo ou utilisée en personnalisation privée ne devient pas automatiquement un filtre de recherche de personnes pour un tiers.
+
 ### Compatibilité
 
 Pendant la transition :
@@ -583,7 +605,7 @@ Cette cible n'implique pas d'utiliser immédiatement un service public Nominatim
 | `OrganizationRole` | `TextChoices` figé et uniquement scope Organization | Role + Permission + Mandate | Mapper chaque rôle actuel à un rôle système et permissions atomiques. |
 | `Event` | Mélange identité d'activité, occurrence unique, calendrier, lieu, capacité et verticale | Activity + Occurrence + EventDetails | Backfill 1 Activity + 1 Occurrence par Event existant ; Event devient adaptateur/verticale. |
 | `EventVenue` | Lieu lié au seul événement, mélange physique/online | Place + configuration online d'Occurrence | Migrer les lieux physiques ; sortir les URLs online du domaine géographique. |
-| `EventCategory` | Taxonomie nommée événement | ActivityCategory/taxonomie | Généraliser les catégories réellement transversales ; garder des taxonomies verticales si nécessaire. |
+| `EventCategory` | Taxonomie nommée événement | Topic / taxonomie Activity transversale | Réutiliser `Topic` pour les thèmes réellement transversaux ; garder des taxonomies verticales si le sens diffère. |
 | `TicketType` | Mélange offre, prix, quota/capacité et vocabulaire billet | Offer + CapacityPool/allocation + présentation verticale | Introduire commerce progressivement ; préserver snapshots et compteurs pendant migration. |
 | `TicketOrder` | Processus limité à achat billet | Journey + Order commercial optionnel | Chaque commande existante devient une Démarche de workflow achat immédiat et garde un Order/snapshot commercial. |
 | `TicketOrderItem` | Ligne spécifique TicketType | OrderLine → Offer | Migrer snapshots prix/devise/quantité sans recalcul historique. |
@@ -692,6 +714,12 @@ Recomposer les données demo multi-domaines, répéter les parcours complets, v�
 
 La livraison des capacités stratégiques post-noyau suit [`strategic-action-roadmap.md`](strategic-action-roadmap.md). Les 18 capacités n'impliquent pas 18 chantiers ni 18 apps ; elles sont regroupées en trains autonomes P→U et doivent être implémentées par composition, avec réconciliation du `main` réel avant intégration de chaque train complet.
 
+### 16. Programme G — Profil, pertinence & réseau d'action
+
+**Dépend de** : Profile, Activity, Discovery, Trust et, selon la tâche, Objectives, capital d'action et Notifications.
+
+Le programme G suit [`profile-relevance-action-network.md`](profile-relevance-action-network.md). Il ne crée pas un nouveau bounded context global. G1–G5 ont stabilisé Profile, Topics/Interests, Profil public/Open to, Veille et Credential Trust. G6–G8 composent ces fondations en Passeport, réseau bilatéral et activation progressive ; G9 assemble la personnalisation et les notifications explicables.
+
 ---
 
 ## 14. Décisions externes / infrastructure
@@ -730,7 +758,7 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 17. **La géolocalisation est minimisée.** Une position ponctuelle de découverte n'est pas un historique de déplacements.
 18. **Ne pas conserver un modèle historique uniquement par peur de casser la bêta.** La migration doit être progressive et testée, mais la compatibilité est un pont, pas la cible.
 19. **Une nouvelle Activity possède exactement un opérateur logique : un Profil ou un Espace.** `created_by` conserve la provenance du Profil humain et ne constitue pas l'autorité ; celle-ci reste portée par les Mandats.
-20. **Une capacité produit n'est pas automatiquement un bounded context.** Les futures capacités P→U doivent réutiliser les domaines canoniques, projections et services avant d'ajouter des modèles.
+20. **Une capacité produit n'est pas automatiquement un bounded context.** Les futures capacités P→U et G doivent réutiliser les domaines canoniques, projections et services avant d'ajouter des modèles.
 21. **Le contexte d'action distingue acteur, contexte d'autorité et bénéficiaire.** Aucun type utilisateur global participant/organisateur ne remplace ces relations.
 22. **Dossier orchestre plusieurs Journeys ; il ne possède pas de copies de Payment, Access, Capacity, JourneyStep ou Artifact.**
 23. **Projet est un horizon durable ; Dossier est un objectif actif.** Ni l'un ni l'autre ne doit devenir un task manager générique.
@@ -741,6 +769,17 @@ Ces validations **ne bloquent pas ce blueprint**. Elles doivent être traitées 
 28. **Occurrence Live compose le réel et les domaines existants ; il n'est pas une seconde source de vérité opérationnelle.**
 29. **L'Accueil contextuel est une projection de ce qui compte maintenant, pas un FeedItem métier générique.**
 30. **Ripple n'a aucune définition canonique tant qu'une décision explicite ne l'établit pas.**
+31. **Un seul Profile, plusieurs projections.** La projection publique ne devient pas un second agrégat d'identité.
+32. **La collecte de données Profile est progressive et justifiée par un usage compréhensible.**
+33. **Interest, Follow, Favorite, Open to, Veille, Dossier et Journey restent distincts.**
+34. **Un signal comportemental n'écrit pas silencieusement un Interest explicite.**
+35. **Un Interest utilisé pour personnaliser n'est pas automatiquement public.**
+36. **Une Veille est privée et exécutable ; elle n'est ni une note libre ni une Intention canonique.**
+37. **`public_profile` et `searchable` expriment deux consentements différents.**
+38. **Donnée disponible ne signifie pas critère de recherche autorisé.**
+39. **Proof, Credential Trust, JourneyArtifact et AccessCredential restent séparés.**
+40. **Le Passeport Makolo est une projection/export et ne devient pas une nouvelle source de vérité.**
+41. **Makolo ne produit pas un score universel de valeur, employabilité ou compétence humaine.**
 
 ---
 
@@ -835,17 +874,65 @@ Il n'est pas nécessaire d'attendre la fin de l'UX Services ou le release gate T
 
 ### Invariants supplémentaires
 
-31. **Subscription appartient exactement à Profile XOR Space.**
-32. **Une Activity consomme les Entitlements de son opérateur logique ; une verticale ne possède pas sa propre Subscription.**
-33. **Permission, Entitlement et Requirement sont trois concepts différents.**
-34. **Un plan commercial configurable ne devient jamais une branche conditionnelle codée dans une verticale.**
-35. **Une PlanVersion publiée est immuable et une transition pinne sa version.**
-36. **Eligibility est dérivée à la demande ; une consultation ne crée pas d'Assessments persistants.**
-37. **Requirements généralise la mécanique sans relations métier polymorphes opaques.**
-38. **Les évaluateurs configurables sont déclarés par le code ; le Staff n'exécute aucun code arbitraire depuis la DB.**
-39. **Un downgrade de capacité ne supprime jamais automatiquement les données métier existantes.**
-40. **Payment et Verification restent leurs domaines canoniques ; Subscription les compose.**
-41. **Subscription n'utilise pas Journey comme workflow générique de changement de plan.**
+42. **Subscription appartient exactement à Profile XOR Space.**
+43. **Une Activity consomme les Entitlements de son opérateur logique ; une verticale ne possède pas sa propre Subscription.**
+44. **Permission, Entitlement et Requirement sont trois concepts différents.**
+45. **Un plan commercial configurable ne devient jamais une branche conditionnelle codée dans une verticale.**
+46. **Une PlanVersion publiée est immuable et une transition pinne sa version.**
+47. **Eligibility est dérivée à la demande ; une consultation ne crée pas d'Assessments persistants.**
+48. **Requirements généralise la mécanique sans relations métier polymorphes opaques.**
+49. **Les évaluateurs configurables sont déclarés par le code ; le Staff n'exécute aucun code arbitraire depuis la DB.**
+50. **Un downgrade de capacité ne supprime jamais automatiquement les données métier existantes.**
+51. **Payment et Verification restent leurs domaines canoniques ; Subscription les compose.**
+52. **Subscription n'utilise pas Journey comme workflow générique de changement de plan.**
+
+---
+
+## 17. Extension canonique — Programme G
+
+La spécification détaillée du programme G est [`profile-relevance-action-network.md`](profile-relevance-action-network.md). Cette section fixe seulement les frontières qui doivent être respectées par toute implémentation G.
+
+### Profil d'action
+
+Le Profile reste le sujet personnel canonique. Il peut avoir une projection publique, des Interests, des déclarations `Open to`, des Veilles et des exports Passeport, mais aucun de ces objets ne devient un second compte ou une seconde identité.
+
+La collecte des données doit rester progressive. Une donnée privée peut être utilisée pour une action ou une personnalisation autorisée sans être rendue publique.
+
+### Interest, Follow, Favorite, Open to, Veille
+
+Ces concepts répondent à des questions différentes :
+
+```text
+Interest = qu'est-ce qui m'intéresse ?
+Follow   = quelle source veux-je suivre ?
+Favorite = quel objet précis veux-je conserver ?
+Open to  = pour quoi puis-je être sollicité ?
+Veille   = que doit continuer à rechercher Makolo ?
+```
+
+Aucun raccourci automatique ne doit transformer l'un en l'autre.
+
+### Veille et Dossier
+
+Une Veille peut exister sans Dossier. Un Dossier peut exister sans Veille. Une Veille rattachée à un Dossier reste un outil de découverte/recherche ; le Dossier reste l'objectif actif.
+
+Makolo ne possède pas de concept canonique `Intention` entre Interest/Veille et Dossier.
+
+### Passeport Makolo
+
+Le Passeport compose Profile/Space, données explicitement autorisées, Activities, Proofs, Credentials et autres faits sélectionnés. Il peut être public, complet, thématique ou personnalisé selon le contrat livré.
+
+Il ne possède pas les faits qu'il présente. Si un Credential est révoqué ou qu'une projection n'est plus autorisée, le système de vérification doit refléter la vérité actuelle selon le contrat d'export retenu.
+
+### Réseau bilatéral
+
+Makolo doit permettre aux personnes de trouver des possibilités et, lorsque les Profiles l'autorisent, aux Spaces/organisateurs de trouver des personnes pertinentes.
+
+Cette découvrabilité repose d'abord sur `searchable`, `Open to`, données publiques et faits autorisés. Les Veilles, Dossiers, données sensibles et comportements privés ne deviennent jamais des filtres tiers par défaut.
+
+### Personnalisation explicable
+
+Les recommandations et notifications G peuvent composer Profile, Interests, Follow, Geography, Veilles, Dossiers/Journeys, capital d'action et historique autorisé. Elles doivent pouvoir exposer des raisons principales compréhensibles et ne doivent pas réécrire les déclarations explicites de l'utilisateur.
 
 ---
 
@@ -854,6 +941,8 @@ Il n'est pas nécessaire d'attendre la fin de l'UX Services ou le release gate T
 Tant que les migrations ci-dessus ne sont pas réalisées, [`authorization-boundaries.md`](authorization-boundaries.md) reste la référence opérationnelle des permissions actuellement exécutées par le code. Le présent blueprint définit **où ces frontières doivent converger**, pas une autorisation déjà disponible dans le runtime.
 
 Pour la cible post-noyau et les trains P→U, [`strategic-action-roadmap.md`](strategic-action-roadmap.md) est la référence de planification canonique. Elle ne remplace pas les spécifications détaillées de chaque domaine et doit toujours être relue avec le code réel du `main`.
+
+Pour le programme G, [`profile-relevance-action-network.md`](profile-relevance-action-network.md) est la spécification canonique des distinctions Profile/Interest/Open to/Veille/Credential/Passeport et du réseau bilatéral. `mature-program-roadmap.md` en fixe le séquencement avec Makolo Mature.
 
 Pour Subscriptions/Entitlements/Requirements, [`subscriptions-entitlements-requirements.md`](subscriptions-entitlements-requirements.md) est la spécification détaillée de référence. Pour Services/Opportunity, [`services-opportunities.md`](services-opportunities.md) reste la spécification verticale détaillée ; [`services-implementation-plan.md`](services-implementation-plan.md) fixe désormais l'extraction Requirements comme T34A avant toute implémentation Subscription.
 
