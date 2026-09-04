@@ -102,7 +102,7 @@ class Credential(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(status=CredentialStatus.ISSUED, revoked_at__isnull=True, revoked_by__isnull=True)
-                    | Q(status=CredentialStatus.REVOKED, revoked_at__isnull=False)
+                    | Q(status=CredentialStatus.REVOKED, revoked_at__isnull=False, revoked_by__isnull=False)
                 ),
                 name="trust_cred_revocation_state",
             ),
@@ -163,8 +163,11 @@ class Credential(models.Model):
             if self.occurrence_id and self.journey.occurrence_id and self.journey.occurrence_id != self.occurrence_id:
                 errors["occurrence"] = "L’Occurrence du Credential doit correspondre à celle de la Journey."
 
-        if self.status == CredentialStatus.REVOKED and not self.revoked_at:
-            errors["revoked_at"] = "Un Credential révoqué doit conserver sa date de révocation."
+        if self.status == CredentialStatus.REVOKED:
+            if not self.revoked_at:
+                errors["revoked_at"] = "Un Credential révoqué doit conserver sa date de révocation."
+            if not self.revoked_by_id:
+                errors["revoked_by"] = "Un Credential révoqué doit conserver l’acteur de la révocation."
         if self.status == CredentialStatus.ISSUED and any([self.revoked_by_id, self.revoked_at, self.revoke_reason]):
             errors["status"] = "Un Credential valide ne peut pas porter de métadonnées de révocation."
         if errors:
