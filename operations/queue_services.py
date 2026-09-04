@@ -12,6 +12,11 @@ from .permissions import user_can_manage_activity_operations
 
 
 _INELIGIBLE_JOURNEY_STATUSES = {"rejected", "cancelled", "expired"}
+_QUEUE_TRANSITIONS = {
+    QueueStatus.OPEN: {QueueStatus.PAUSED, QueueStatus.CLOSED},
+    QueueStatus.PAUSED: {QueueStatus.OPEN, QueueStatus.CLOSED},
+    QueueStatus.CLOSED: set(),
+}
 
 
 def _subject_kwargs(*, profile=None, external_beneficiary=None):
@@ -70,6 +75,33 @@ def _emit(entry, event_type):
             "sequence": entry.sequence,
         },
     )
+
+
+@transaction.atomic
+def transition_queue(*, actor, queue, target_status):
+    current = (
+        OccurrenceQueue.objects.select_for_update(of=("self",))
+        .select_related("occurrence", "occurrence__activity", "occurrence__activity__space", "checkpoint")
+        .get(pk=queue.pk)
+    )
+    _require_manage(actor, current)
+    if target_status not in _QUEUE_TRANSITIONS[current.status]:
+        raise ValidationError({"status": f"Transition invalide: {current.status} → {target_status}."})
+    current.status = target_status
+    current.save(update_fields=["status", "updated_at"])
+    return current
+
+
+def pause_queue(*, actor, queue):
+    return transition_queue(actor=actor, queue=queue, target_status=QueueStatus.PAUSED)
+
+
+def resume_queue(*, actor, queue):
+    return transition_queue(actor=actor, queue=queue, target_status=QueueStatus.OPEN)
+
+
+def close_queue(*, actor, queue):
+    return transition_queue(actor=actor, queue=queue, target_status=QueueStatus.CLOSED)
 
 
 @transaction.atomic
