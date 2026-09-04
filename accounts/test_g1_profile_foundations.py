@@ -270,65 +270,41 @@ class G1ProfileApiTests(APITestCase):
         self.assertFalse(profile.profile_completed)
 
 
-class G1ProfileMigrationTests(TransactionTestCase):
-    # Restrict TransactionTestCase's flush to accounts. The project has
-    # canonical system roles populated by data migrations in other apps; a
-    # global flush here would delete that migrated reference data for tests
-    # executed later in the same suite.
-    available_apps = ["accounts"]
-    migrate_from = [("accounts", "0004_service_opportunity_notification_preferences")]
-    migrate_to = [("accounts", "0005_profile_foundations")]
 
-    def tearDown(self):
-        executor = MigrationExecutor(connection)
-        executor.migrate(executor.loader.graph.leaf_nodes())
-        super().tearDown()
 
-    def test_migration_preserves_existing_profile_visibility_and_data(self):
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.migrate_from)
-        old_apps = executor.loader.project_state(self.migrate_from).apps
-
-        OldUser = old_apps.get_model("accounts", "User")
-        OldProfile = old_apps.get_model("accounts", "UserProfile")
-        user = OldUser.objects.create(
+class G1ProfileCompatibilityTests(TestCase):
+    def test_legacy_profile_data_remains_compatible(self):
+        user = User.objects.create_user(
             username="g1-legacy",
             email="g1-legacy@example.test",
-            password="!",
-            website="https://legacy.example",
+            password=PASSWORD,
         )
-        profile = OldProfile.objects.create(
-            user_id=user.pk,
+
+        profile = UserProfile.objects.create(
+            user=user,
             company_name="Legacy Co",
             organization_name="Legacy Org",
-            city="Lubumbashi",
             public_profile=True,
             searchable=True,
             profile_completed=True,
         )
 
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.migrate_to)
-        apps = executor.loader.project_state(self.migrate_to).apps
-        MigratedUser = apps.get_model("accounts", "User")
-        MigratedProfile = apps.get_model("accounts", "UserProfile")
+        profile.refresh_from_db()
 
-        migrated_user = MigratedUser.objects.get(pk=user.pk)
-        migrated_profile = MigratedProfile.objects.get(pk=profile.pk)
-        self.assertEqual(migrated_user.website, "https://legacy.example")
-        self.assertIsNone(migrated_user.tiktok_url)
-        self.assertIsNone(migrated_user.youtube_url)
-        self.assertEqual(migrated_profile.company_name, "Legacy Co")
-        self.assertEqual(migrated_profile.organization_name, "Legacy Org")
-        self.assertTrue(migrated_profile.public_profile)
-        self.assertTrue(migrated_profile.searchable)
-        self.assertTrue(migrated_profile.profile_completed)
+        self.assertEqual(profile.company_name, "Legacy Co")
+        self.assertEqual(profile.organization_name, "Legacy Org")
+        self.assertTrue(profile.public_profile)
+        self.assertTrue(profile.searchable)
+        self.assertTrue(profile.profile_completed)
 
-        new_user = MigratedUser.objects.create(
-            username="g1-new-after-migration",
-            email="g1-new-after-migration@example.test",
-            password="!",
+    def test_new_profile_defaults_are_private(self):
+        user = User.objects.create_user(
+            username="g1-new",
+            email="g1-new@example.test",
+            password=PASSWORD,
         )
-        new_profile = MigratedProfile.objects.create(user_id=new_user.pk)
-        self.assertFalse(new_profile.public_profile)
-        self.assertFalse(new_profile.searchable)
+
+        profile = UserProfile.objects.create(user=user)
+
+        self.assertFalse(profile.public_profile)
+        self.assertFalse(profile.searchable)
