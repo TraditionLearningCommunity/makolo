@@ -22,6 +22,7 @@ from operations.queue_api import (
     QueueCallNextAPIView,
     QueueEntriesAPIView,
     QueueEntryActionAPIView,
+    QueueStatusAPIView,
 )
 
 from .views import (
@@ -62,6 +63,7 @@ urlpatterns = [
     path("queues/<uuid:queue_id>/entries/", QueueEntriesAPIView.as_view(), name="queue-entries"),
     path("queues/<uuid:queue_id>/entries/me/", MyQueueEntryAPIView.as_view(), name="queue-entry-me"),
     path("queues/<uuid:queue_id>/call/", QueueCallNextAPIView.as_view(), name="queue-call-next"),
+    path("queues/<uuid:queue_id>/status/", QueueStatusAPIView.as_view(), name="queue-status"),
     path(
         "queue-entries/<uuid:entry_id>/<str:action>/",
         QueueEntryActionAPIView.as_view(),
