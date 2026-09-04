@@ -1,5 +1,5 @@
 {% for field in form %}
-<div class="{% if field.name == 'bio' or field.name == 'address' or field.name == 'avatar' %}md:col-span-2{% endif %}">
+<div class="{% if field.name == 'bio' or field.name == 'address' or field.name == 'avatar' %}md:col-span-2{% else %}md:col-span-1{% endif %}">
     {% if field.field.widget.input_type == 'checkbox' %}
     <label class="flex items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
         {{ field }}
