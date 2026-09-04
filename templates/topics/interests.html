@@ -22,7 +22,7 @@
 
         <div class="mt-6 grid gap-3 sm:grid-cols-2">
             {% for checkbox in form.topics %}
-            <label class="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3" style="border-color:var(--mk-border)">
+            <label class="flex min-h-[50px] cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3" style="border-color:var(--mk-border)">
                 {{ checkbox.tag }}
                 <span class="text-sm font-bold">{{ checkbox.choice_label }}</span>
             </label>
