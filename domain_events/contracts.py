@@ -15,6 +15,11 @@ class DomainEventType:
     CHECKPOINT_CLOSED = "checkpoint.closed"
     CHECKPOINT_ASSIGNMENT_CHANGED = "checkpoint.assignment_changed"
     CHECKPOINT_OBSERVED = "checkpoint.observed"
+    QUEUE_ENTERED = "queue.entered"
+    QUEUE_CALLED = "queue.called"
+    QUEUE_SERVED = "queue.served"
+    QUEUE_EXPIRED = "queue.expired"
+    QUEUE_CANCELLED = "queue.cancelled"
 
     ORGANIZATION_TEAM_MEMBERSHIP_CHANGED = "organization.team_membership.changed"
 
