@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-4xl space-y-6">
   <section class="mk-panel p-6 sm:p-8">
     <div class="flex items-start gap-5">
-      {% if profile_user.avatar %}<img src="{{ profile_user.avatar.url }}" alt="Avatar" class="h-20 w-20 rounded-3xl object-cover">{% else %}<div class="grid h-20 w-20 place-items-center rounded-3xl text-2xl font-extrabold text-white" style="background:var(--mk-brand)">{{ profile_user.username|first|upper }}</div>{% endif %}
+      {% if profile_user.avatar %}<img src="{{ profile_user.avatar.url }}" alt="Avatar" class="h-16 w-16 rounded-3xl object-cover">{% else %}<div class="grid h-16 w-16 place-items-center rounded-3xl text-2xl font-extrabold text-white" style="background:var(--mk-brand)">{{ profile_user.username|first|upper }}</div>{% endif %}
       <div class="min-w-0"><span class="mk-kicker">Profil Makolo</span><h1 class="mt-1 text-3xl font-extrabold tracking-[-.04em]">{% if profile_user.full_name %}{{ profile_user.full_name }}{% else %}{{ profile_user.username }}{% endif %}</h1>
       {% if profile_user.profile.profession %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ profile_user.profile.profession }}</p>{% endif %}
       {% if profile_user.profile.city or profile_user.profile.country %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ profile_user.profile.city }}{% if profile_user.profile.city and profile_user.profile.country %}, {% endif %}{{ profile_user.profile.country }}</p>{% endif %}</div>
