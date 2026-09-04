@@ -389,7 +389,11 @@ def operational_assignments_contributor(occurrence, viewer, now):
         if assignments:
             checks.append(_check(f"operations.assignments.{checkpoint.pk}", "operations.checkpoint_assignment", ReadinessCheckState.SATISFIED, "checkpoint_assignment_present", f"{checkpoint.label} possède une responsabilité opérationnelle active."))
             continue
-        state = ReadinessCheckState.BLOCKING if temporal.state == TemporalState.ACTIVE else ReadinessCheckState.ACTION_REQUIRED
+        state = (
+            ReadinessCheckState.BLOCKING
+            if temporal.state == TemporalState.ACTIVE and checkpoint.status == CheckpointStatus.OPEN
+            else ReadinessCheckState.ACTION_REQUIRED
+        )
         checks.append(
             _check(
                 f"operations.assignments.{checkpoint.pk}",
@@ -408,14 +412,32 @@ def operational_assignments_contributor(occurrence, viewer, now):
 def operational_authority_contributor(occurrence, viewer, now):
     temporal = get_temporal_context(occurrence, now=now)
     checkpoints = list(ordered_checkpoints(occurrence=occurrence).filter(required=True, status__in=[CheckpointStatus.OPEN, CheckpointStatus.PAUSED]))
-    assignments = [assignment for checkpoint in checkpoints for assignment in active_checkpoint_assignments(checkpoint=checkpoint)]
+    checkpoint_assignments = [
+        (checkpoint, list(active_checkpoint_assignments(checkpoint=checkpoint)))
+        for checkpoint in checkpoints
+    ]
+    assignments = [
+        assignment
+        for _, assignments_for_checkpoint in checkpoint_assignments
+        for assignment in assignments_for_checkpoint
+    ]
     if not assignments:
         return [_check("operations.authority", "authorization.mandate", ReadinessCheckState.NOT_APPLICABLE, "authority_assignment_not_applicable", "Aucune affectation active ne nécessite de vérification d’autorité.")]
     invalid = [assignment for assignment in assignments if not user_can_manage_activity_operations(assignment.profile, occurrence.activity)]
     if not invalid:
         return [_check("operations.authority", "authorization.mandate", ReadinessCheckState.SATISFIED, "assigned_operators_authorized", "Les opérateurs affectés disposent d’une autorité Operations effective.")]
-    valid_count = len(assignments) - len(invalid)
-    state = ReadinessCheckState.BLOCKING if temporal.state == TemporalState.ACTIVE and valid_count == 0 else ReadinessCheckState.ACTION_REQUIRED
+    invalid_ids = {assignment.pk for assignment in invalid}
+    blocking_open_checkpoint = any(
+        checkpoint.status == CheckpointStatus.OPEN
+        and assignments_for_checkpoint
+        and all(assignment.pk in invalid_ids for assignment in assignments_for_checkpoint)
+        for checkpoint, assignments_for_checkpoint in checkpoint_assignments
+    )
+    state = (
+        ReadinessCheckState.BLOCKING
+        if temporal.state == TemporalState.ACTIVE and blocking_open_checkpoint
+        else ReadinessCheckState.ACTION_REQUIRED
+    )
     return [
         _check(
             "operations.authority",
