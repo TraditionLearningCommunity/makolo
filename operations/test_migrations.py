@@ -26,6 +26,11 @@ class OperationsCanonicalIncidentMigrationTests(TransactionTestCase):
         ("operations", "0002_canonical_incident_scope"),
     ]
 
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
     def test_existing_event_incident_backfills_after_event_cutover(self):
         executor = MigrationExecutor(connection)
         executor.migrate(self.migrate_from)
