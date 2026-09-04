@@ -1,18 +1,19 @@
 # Makolo — Mature Program Roadmap
 
-> **Statut : canonique pour le séquencement de clôture Makolo Mature et le handoff mobile.** Ce document complète [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md), [`strategic-action-roadmap.md`](strategic-action-roadmap.md) et [`mature-experience-principles.md`](mature-experience-principles.md). Le code, les migrations, les tests et l'état GitHub du `main` courant restent la vérité sur ce qui est effectivement livré.
+> **Statut : canonique pour le séquencement de clôture Makolo Mature et le handoff mobile.** Ce document complète [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md), [`strategic-action-roadmap.md`](strategic-action-roadmap.md), [`profile-relevance-action-network.md`](profile-relevance-action-network.md) et [`mature-experience-principles.md`](mature-experience-principles.md). Le code, les migrations, les tests et l'état GitHub du `main` courant restent la vérité sur ce qui est effectivement livré.
 
 ## 1. Rôle de cette roadmap
 
-Makolo possède désormais trois lectures complémentaires de sa suite :
+Makolo possède désormais quatre lectures complémentaires de sa suite :
 
 - **stream M** : colonne vertébrale de maturité du produit, jusqu'au backend/web/API prêt pour le mobile ;
 - **trains stratégiques P/Q/R/D/O/U** : capacités produit qui enrichissent le produit par composition ;
+- **programme G** : profil d'action, pertinence, Veilles, portabilité des faits et réseau bilatéral ;
 - **M8-PRE** : piste d'audit et de contrats d'expérience qui prépare M8 sans devenir un nouveau bounded context.
 
 Ces lectures ne sont pas des files de tâches équivalentes ni un ordre alphabétique obligatoire.
 
-Le stream M fixe les gates de maturité et le handoff vers le mobile. Les trains stratégiques stabilisent les capacités internes que ces gates doivent assembler. M8-PRE prépare les contrats d'expérience nécessaires à l'assemblage web.
+Le stream M fixe les gates de maturité et le handoff vers le mobile. Les trains stratégiques stabilisent les capacités internes que ces gates doivent assembler. Le programme G transforme les fondations Profile/Discovery/Trust déjà présentes en identité d'action, pertinence explicable et découvrabilité consentie. M8-PRE prépare les contrats d'expérience nécessaires à l'assemblage web.
 
 Principe général :
 
@@ -53,7 +54,10 @@ R — Préparation intelligente
 D — Dossiers, Projets & Collaboration
 O — Occurrence Operations
 U — Intelligence cumulative
+G — Profil, pertinence & réseau d'action
 ```
+
+`G` est un programme transverse de maturation produit, pas un nouveau bounded context Django. Sa spécification canonique est [`profile-relevance-action-network.md`](profile-relevance-action-network.md).
 
 `S` n'est plus utilisé pour Dossier/Projet : le dépôt possède déjà le programme Subscription **S1→S6**.
 
@@ -93,6 +97,11 @@ intelligente       Operations
      │               │
      └───────┬───────┘
              │
+             ├──────────────► G — Profil / pertinence / réseau d'action
+             │                    G1–G5 ✅
+             │                    G6/G7/G8 en parallèle
+             │                    puis G9
+             │
       M8-PRE │ audit/contrats d'expérience en parallèle
              │
              ▼
@@ -109,25 +118,39 @@ intelligente       Operations
 U — Intelligence cumulative : hors chemin critique.
 ```
 
-Cette structure autorise un **vrai parallélisme de deux lignes métier**, comme deux développeurs travaillant sur des responsabilités distinctes :
+Cette structure autorise plusieurs lignes métier parallèles lorsque leurs responsabilités restent distinctes :
 
 - ligne A : `Q → R` ;
-- ligne B : `D → O`.
+- ligne B : `D → O` ;
+- ligne G : Profile/Topics/Discovery/Trust d'abord, puis Passeport/réseau bilatéral/activation, puis personnalisation croisée.
 
 M8-PRE peut être audité en parallèle. Les gros changements frontend globaux restent cependant réservés à M8.
 
 ## 5. Fenêtre de coordination actuelle
 
-Au moment de la décision qui a produit cette version de la roadmap :
+L'état GitHub actuel reste la vérité sur ce qui est réellement ouvert, mergé ou validé. À la date de cette révision documentaire, le programme G a déjà stabilisé dans `main` :
 
-- P est intégré dans `main` ;
-- Q poursuit sa fin de train autonome ;
-- D a commencé depuis le `main` sans dépendre de Q ;
-- R peut être audité et conçu pendant Q, mais son implémentation finale attend les contrats Q stabilisés ;
-- O peut être audité tôt, mais son implémentation doit bénéficier des contrats D suffisamment stabilisés autour d'acteur, contexte d'autorité, bénéficiaire et collaboration ;
-- M8-PRE peut démarrer par audit sans ouvrir un chantier média autonome.
+```text
+G1 ✅ Profile Foundations
+G2 ✅ Topics & Interests
+G3 ✅ Profil public + Ouvert à
+G4 ✅ Veille Makolo
+G5 ✅ Credentials / attestations délivrées
+```
 
-Cet état est un instantané de coordination : GitHub actuel reste la vérité pour savoir ce qui est réellement ouvert, mergé ou validé.
+La suite du programme est :
+
+```text
+G6 — Passeport Makolo
+G7 — Réseau bilatéral / découverte & sollicitation
+G8 — Activation progressive du Profil
+       ↓ consolidation
+G9 — Personnalisation croisée & notifications utiles
+```
+
+G6/G7/G8 peuvent avancer en parallèle depuis un `main` vert commun. G9 vient après leur consolidation car il compose les signaux et projections produits par les tâches précédentes.
+
+La doctrine détaillée des frontières G est dans [`profile-relevance-action-network.md`](profile-relevance-action-network.md).
 
 ### Pourquoi Q et D peuvent avancer en parallèle
 
@@ -178,6 +201,20 @@ Mais D doit clarifier suffisamment le contexte transversal :
 - responsabilités/collaboration.
 
 O peut ensuite projeter Occurrence Live et les opérations sans inventer un second modèle mental des rôles.
+
+### Pourquoi G précède l'assemblage final M8
+
+G fournit à M8 les contrats qui permettent de présenter une personne sans reconstruire un réseau social parallèle :
+
+- Profil public privacy-safe ;
+- Interests explicites ;
+- `Open to` volontaire ;
+- Veilles privées ;
+- Proof/Credential distingués ;
+- futur Passeport Makolo ;
+- futur réseau bilatéral et personnalisation explicable.
+
+M8 doit composer ces capacités dans l'expérience Mature. Il ne doit pas réinventer Profile, Interest, Veille, Passeport ou sollicitation comme de simples états frontend.
 
 ## 6. R — Préparation intelligente
 
@@ -262,7 +299,41 @@ Restent explicitement au programme mobile A4 :
 
 O ne doit pas improviser ces garanties dans Django ou le navigateur uniquement pour « cocher offline ».
 
-## 9. M8-PRE — préparation des contrats d'expérience
+## 9. G — Profil, pertinence & réseau d'action
+
+G transforme des fondations déjà existantes en boucle d'action utile sans créer un nouveau bounded context.
+
+Sa doctrine complète est dans [`profile-relevance-action-network.md`](profile-relevance-action-network.md).
+
+Le programme fixe notamment ces distinctions :
+
+```text
+Interest  = ce qui m'intéresse
+Follow    = la source que je veux suivre
+Favorite  = l'objet précis que je garde
+Open to   = les sollicitations que j'accepte
+Veille    = ce que Makolo continue à rechercher
+Dossier   = le résultat que j'ai décidé de poursuivre
+Journey   = la démarche concrète en cours
+Proof     = un fait que Makolo peut établir
+Credential Trust = une attestation délivrée
+Passeport Makolo = une projection/export contrôlé
+```
+
+Principes G :
+
+- un seul Profile, plusieurs projections ;
+- collecte progressive plutôt qu'onboarding exhaustif ;
+- Interests explicites sous contrôle utilisateur ;
+- Veilles privées et exécutables ;
+- `public_profile` distinct de `searchable` ;
+- donnée disponible ≠ critère de recherche autorisé ;
+- Proof, Credential Trust, JourneyArtifact et AccessCredential restent distincts ;
+- Passeport Makolo reste une projection, pas une vérité métier ;
+- le réseau bilatéral repose sur consentement, `Open to` et faits publics autorisés ;
+- engagement utile = action pertinente, pas temps passé dans un feed.
+
+## 10. M8-PRE — préparation des contrats d'expérience
 
 M8-PRE est une piste de préparation, **pas un nouveau train métier** et pas un bounded context.
 
@@ -299,17 +370,17 @@ Les situations humaines suivantes deviennent des scénarios d'acceptation transv
 - Une possibilité vient d'apparaître ;
 - J'ai accompli quelque chose.
 
-M8-PRE peut être audité pendant Q/D/R. Une petite fondation technique réellement isolée peut être livrée avant M8 si l'audit la justifie, mais les gros redesigns Accueil/Discover restent dans M8.
+M8-PRE peut être audité pendant les trains métier. Une petite fondation technique réellement isolée peut être livrée avant M8 si l'audit la justifie, mais les gros redesigns Accueil/Discover restent dans M8.
 
-## 10. M7 — Interoperability, Connections & Extension Platform
+## 11. M7 — Interoperability, Connections & Extension Platform
 
-M7 est le dernier grand chantier architectural de plateforme **après stabilisation des grandes capacités internes R et O** et avant l'assemblage UX Mature.
+M7 est le dernier grand chantier architectural de plateforme **après stabilisation des grandes capacités internes** et avant l'assemblage UX Mature.
 
 Question :
 
 > **Comment Makolo coopère-t-il avec des applications, comptes, providers et extensions externes sans perdre la propriété de ses domaines canoniques ?**
 
-Le déplacement de M7 après R/O est intentionnel : il vaut mieux exposer des capabilities, Actions et Events internes déjà mûrs que figer trop tôt une plateforme d'interopérabilité pendant que Prepared Start, Dossier ou Occurrence Operations changent encore le modèle mental du produit.
+Le déplacement de M7 après les grandes capacités internes est intentionnel : il vaut mieux exposer des capabilities, Actions et Events internes déjà mûrs que figer trop tôt une plateforme d'interopérabilité pendant que Prepared Start, Dossier, Occurrence Operations ou les contrats G changent encore le modèle mental du produit.
 
 ### Provider Registry
 
@@ -374,7 +445,7 @@ Les extensions utilisent APIs, Actions, Events, Webhooks et Scoped Data. Les UI 
 
 M7 ne construit pas : marketplace commerciale, billing d'extensions, revenue sharing, runtime mobile de plugins, Python/JavaScript arbitraire ou accès DB direct.
 
-## 11. M8 — Makolo Mature Web Experience
+## 12. M8 — Makolo Mature Web Experience
 
 M8 assemble le produit ; il ne crée pas un nouveau domaine métier.
 
@@ -397,6 +468,7 @@ Il compose notamment :
 - NextAction / Readiness / Forms / Resources / Requirements / Payment / Access pour une Journey active ;
 - Q/R pour Prepared Start et la préparation intelligente ;
 - D pour Dossiers/Projets et responsabilités ;
+- G pour Veilles, pertinence et prompts contextuels autorisés ;
 - M6 Temporal/Spatial/Mobility/Hazards lorsque l'Occurrence devient imminente ;
 - O pour l'état opérationnel Jour J ;
 - Notifications utiles et facts déjà autorisés.
@@ -420,9 +492,16 @@ M8 applique :
 - No Orphan Media ;
 - Bounded Exploration ;
 - reasons explicables ;
+- Interests et Veilles G sans transformer les signaux privés en exposition publique ;
 - pas d'infini artificiel.
 
-M5 reste la source des contrats sociaux/action existants ; M8 ne crée pas un second réseau social ni un nouveau `FeedItem` persistant.
+M5 reste la source des contrats sociaux/action existants ; G fournit le profil d'action et la pertinence ; M8 ne crée pas un second réseau social ni un nouveau `FeedItem` persistant.
+
+### Profile & Passeport
+
+M8 présente le Profile public, `Open to`, Interests publics et futur Passeport Makolo à partir des contrats G. La complétion du Profil et les prompts de collecte restent progressifs et expliquent leur bénéfice.
+
+Le Passeport n'est pas un CV auto-déclaratif ni une nouvelle base Trust : il compose les faits et sélections autorisés.
 
 ### Activity
 
@@ -444,7 +523,7 @@ L'Occurrence imminente ne doit plus ressembler à une fiche statique si le backe
 
 ### Réseau et Space Consoles
 
-M8 harmonise Groups, Contributions M5, Sharing P, Opportunities, Recommendations et les consoles Space sans transformer Discovery en liste de bounded contexts.
+M8 harmonise Groups, Contributions M5, Sharing P, Opportunities, Recommendations, G7 lorsqu'il est livré et les consoles Space sans transformer Discovery en liste de bounded contexts.
 
 Les Space Consoles composent Team, Mandates, Forms, Resources, Presentation, Capacity, Commerce, Payments, Access, Operations, Trust, CRM, Automation, Analytics, Connections et Extensions avec les permissions serveur existantes.
 
@@ -463,21 +542,22 @@ M8 échoue si :
 - Event reste implicitement propriétaire de la représentation générique ;
 - des médias orphelins deviennent le centre du produit ;
 - Discovery doit inventer artificiellement du contenu pour ne jamais se terminer ;
+- la projection publique ou le réseau bilatéral expose des données privées pour gagner en engagement ;
 - l'Occurrence imminente reste une fiche statique alors que les faits d'action existent.
 
-## 12. U — Intelligence cumulative hors chemin critique
+## 13. U — Intelligence cumulative hors chemin critique
 
 `U — Intelligence cumulative` ne bloque ni M7, ni M8, ni M10, ni le programme mobile.
 
 Proven Paths et l'intelligence cumulative doivent disposer d'assez de données réelles avant de tirer des conclusions crédibles.
 
-Les trains Q/R/D/O et M8 doivent toutefois instrumenter correctement les faits défendables : Domain Events, timestamps, causes, blockers, transitions, outcomes et analytics privacy-safe.
+Les trains Q/R/D/O, G et M8 doivent toutefois instrumenter correctement les faits défendables : Domain Events, timestamps, causes, blockers, transitions, outcomes et analytics privacy-safe.
 
 U pourra ensuite apprendre de l'action réelle plutôt que de données principalement démo.
 
 Watch time, likes, views et profondeur de scroll ne deviennent pas les signaux défendables centraux de U.
 
-## 13. M9 — Mature Hardening & Quality Gate
+## 14. M9 — Mature Hardening & Quality Gate
 
 M9 prouve que l'ensemble intégré avant M8 fonctionne comme un système cohérent.
 
@@ -486,10 +566,10 @@ Le gate doit couvrir, selon les domaines présents dans `main` :
 - E2E utilisateur : Discovery → Activity → Journey/Dossier → Preparation → READY → Commerce/Payment éventuel → Access → Occurrence → Scan → Feedback/Proof/History ;
 - E2E social/Sharing ;
 - E2E opérateur ;
-- E2E Q/R/D/O lorsqu'ils sont intégrés ;
+- E2E Q/R/D/O et G lorsqu'ils sont intégrés ;
 - E2E M7 : Connection/scopes/action/revocation et Extension install/permission/action-event-UI/disable ;
 - scénarios d'expérience M8 : Aujourd'hui, On fait quoi ?, Est-ce que tout est prêt ?, Il est temps d'y aller ;
-- IDOR, permissions serveur, Mandates, uploads privés, media visibility, credentials, tokens provider, scopes extensions, webhooks, CSP/XSS/cache privacy ;
+- IDOR, permissions serveur, Mandates, uploads privés, Profile/Veille/Passeport privacy, media visibility, credentials, tokens provider, scopes extensions, webhooks, CSP/XSS/cache privacy ;
 - performance des projections critiques ;
 - migrations base fraîche et historique, PostgreSQL, absence de migrations manquantes ;
 - accessibilité des parcours critiques, images, vidéo/audio si introduits, captions/alt text selon le contrat réel ;
@@ -497,7 +577,7 @@ Le gate doit couvrir, selon les domaines présents dans `main` :
 
 M9 ne doit pas devenir un chantier de features opportunistes.
 
-## 14. M10 — Closure, Production Readiness & Mobile Handoff
+## 15. M10 — Closure, Production Readiness & Mobile Handoff
 
 M10 produit la **Makolo Mature Core/Web Release Candidate**.
 
@@ -505,7 +585,7 @@ La vraie cible de production doit être lue dans les décisions/configurations r
 
 M10 vérifie ce qui est réellement nécessaire autour de : deployment, environment configuration, static/media, database, workers/jobs, notifications, providers, observabilité, backups/restores, secrets et rollback.
 
-Le handoff mobile documente les contrats backend/API réellement disponibles. Il inclut les capacités effectivement intégrées, notamment authentication/session, Profile, Accueil, Discover, Social, Sharing, Activities, Journeys, Dossiers/Projets si présents, Readiness, Forms, Resources, Presentation, Trust, Goals/Loyalty, Spatiotemporal, Access, Commerce/Payment, Connections et les contrats Q/R/D/O effectivement livrés.
+Le handoff mobile documente les contrats backend/API réellement disponibles. Il inclut les capacités effectivement intégrées, notamment authentication/session, Profile, Interests/Open to, Veilles, Passeport si livré, Accueil, Discover, Social, Sharing, Activities, Journeys, Dossiers/Projets si présents, Readiness, Forms, Resources, Presentation, Trust/Credentials, Goals/Loyalty, Spatiotemporal, Access, Commerce/Payment, Connections et les contrats Q/R/D/O/G effectivement livrés.
 
 Principe de parity : aucune règle critique destinée au mobile ne doit n'exister que dans JavaScript ou un template web.
 
@@ -513,7 +593,7 @@ Après M10, la phrase suivante doit être vraie :
 
 > **Makolo Mature est un produit complet backend + web + API même si aucune application mobile native n'existait jamais.**
 
-## 15. Programme A — mobile natif
+## 16. Programme A — mobile natif
 
 Le programme A commence seulement après M10.
 
@@ -546,7 +626,7 @@ Le mobile amplifie les rituels existants :
 - document → caméra ;
 - Occurrence Live → haptique/offline/push.
 
-## 16. Capacités réservées au mobile
+## 17. Capacités réservées au mobile
 
 Restent hors M1–M10 lorsqu'elles dépendent réellement du device :
 
@@ -567,7 +647,7 @@ Restent hors M1–M10 lorsqu'elles dépendent réellement du device :
 
 Les décisions métier nécessaires doivent cependant exister côté backend avant le client qui les consomme.
 
-## 17. Discipline de branches
+## 18. Discipline de branches
 
 Pour les grands streams :
 
@@ -586,14 +666,17 @@ main vert
 
 Les trains empilés comme Q — et D si son pilote retient cette stratégie — ne mergent pas nécessairement leurs checkpoints intermédiaires dans `main` : le checkpoint suivant part du précédent et le train complet est intégré une seule fois après réconciliation.
 
+Les tâches G parallélisées partent d'un même `main` vert lorsqu'elles n'ont pas de dépendance dure, restent sur des branches courtes et sont consolidées par vague avant la tâche dépendante suivante.
+
 Les trains parallèles doivent garder des surfaces propriétaires claires et éviter de reconstruire simultanément le frontend global.
 
 Pas de merge rouge, pas de test affaibli pour obtenir du vert, pas de duplication métier pour gagner du temps à court terme.
 
-## 18. Sources canoniques associées
+## 19. Sources canoniques associées
 
 - [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md) — frontières et invariants globaux ;
 - [`strategic-action-roadmap.md`](strategic-action-roadmap.md) — 18 capacités et trains P/Q/R/D/O/U ;
+- [`profile-relevance-action-network.md`](profile-relevance-action-network.md) — programme G, Profile/Interest/Open to/Veille/Passeport/réseau bilatéral ;
 - [`mature-experience-principles.md`](mature-experience-principles.md) — M8-PRE, Accueil/Discover, Sensory Discovery, No Orphan Media, Bounded Exploration et Action Rituals ;
 - [`readiness.md`](readiness.md) — Readiness dérivé ;
 - [`forms-resources.md`](forms-resources.md) — Forms, Resources et frontière JourneyArtifact ;
