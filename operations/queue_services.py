@@ -89,6 +89,8 @@ def enter_queue(
         .select_related("occurrence", "occurrence__activity", "occurrence__activity__space", "checkpoint")
         .get(pk=queue.pk)
     )
+    if not actor or not actor.is_authenticated:
+        raise PermissionDenied("Authentification requise.")
     if allow_self:
         if profile is None or actor.pk != profile.pk:
             raise PermissionDenied("Un participant ne peut entrer que lui-même dans une queue.")
@@ -129,7 +131,8 @@ def enter_queue(
         **subject,
     )
     try:
-        entry.save()
+        with transaction.atomic():
+            entry.save()
     except IntegrityError as exc:
         active = QueueEntry.objects.filter(queue=current, **subject, status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.CALLED]).first()
         if active:
@@ -204,6 +207,8 @@ def expire_entry(*, actor, entry):
 @transaction.atomic
 def cancel_entry(*, actor, entry, allow_self=False):
     current = _locked_entry(entry)
+    if not actor or not actor.is_authenticated:
+        raise PermissionDenied("Authentification requise.")
     if allow_self:
         if current.profile_id != actor.pk:
             raise PermissionDenied("Un participant ne peut annuler que sa propre entrée.")
