@@ -23,7 +23,6 @@ class TrustConfig(AppConfig):
 
         TrustEvidence._meta.get_field("file").storage = private_artifact_storage
 
-        # Register lifecycle notifications and the Credential history guard.
-        # Payloads are deliberately minimal: no evidence, report body, reviewer
-        # note or other sensitive content.
-        from . import credential_signals, signals  # noqa: F401
+        # Register lifecycle notifications. Payloads are deliberately minimal:
+        # no evidence, report body, reviewer note or other sensitive content.
+        from . import signals  # noqa: F401
