@@ -1,0 +1,12 @@
+{% extends 'base/app.html' %}
+{% block title %}Mes veilles | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6">
+  <div><span class="mk-kicker">Discovery</span><h1 class="mk-page-title">Mes veilles</h1><p class="mk-page-copy mt-2">Vos recherches enregistrées restent privées et rejouables.</p></div>
+  {% if watches %}<div class="space-y-3">{% for watch in watches %}
+    <a href="{% url 'discovery:watch-detail' watch.id %}" class="mk-panel block p-5 no-underline">
+      <div class="flex items-start justify-between gap-3"><div><h2 class="font-extrabold">{{ watch.name }}</h2>{% if watch.dossier %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">Dossier : {{ watch.dossier.title }}</p>{% endif %}</div><span class="mk-badge {% if watch.status == 'active' %}mk-badge-success{% endif %}">{{ watch.get_status_display }}</span></div>
+    </a>
+  {% endfor %}</div>{% else %}<section class="mk-panel p-6"><p>Aucune veille pour le moment. Lancez une recherche dans Découvrir puis enregistrez-la comme veille.</p><a class="mk-btn mk-btn-primary mt-4" href="{% url 'discovery:home' %}">Découvrir</a></section>{% endif %}
+</div>
+{% endblock %}
