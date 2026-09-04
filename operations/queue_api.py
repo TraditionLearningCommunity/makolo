@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from activities.models import Occurrence
 from journeys.models import ExternalBeneficiary
 
+from .checkpoint_selectors import profile_is_checkpoint_beneficiary
 from .models import OccurrenceCheckpoint, OccurrenceQueue, QueueEntry
 from .permissions import user_can_manage_activity_operations, user_can_view_activity_operations
 from .queue_selectors import active_entries, my_queue_entries, queue_position, queue_snapshot, queues_for_occurrence
@@ -148,11 +149,8 @@ class MyOccurrenceQueuesAPIView(APIView):
     def get(self, request, occurrence_id):
         occurrence = get_object_or_404(Occurrence.objects.select_related("activity"), pk=occurrence_id)
         entries = my_queue_entries(profile=request.user, occurrence=occurrence)
-        if not entries.exists():
-            from operations.checkpoint_selectors import profile_is_occurrence_beneficiary
-
-            if not profile_is_occurrence_beneficiary(request.user, occurrence):
-                return Response(status=status.HTTP_404_NOT_FOUND)
+        if not entries.exists() and not profile_is_checkpoint_beneficiary(request.user, occurrence):
+            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response([_entry_payload(entry, include_position=True) for entry in entries])
 
 
