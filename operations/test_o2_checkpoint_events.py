@@ -29,7 +29,13 @@ class O2CheckpointHistoryAndEventTests(TestCase):
         self.owner = User.objects.create_user(username="o2-event-owner", email="o2-event-owner@example.test", password="pw")
         self.manager = User.objects.create_user(username="o2-event-manager", email="o2-event-manager@example.test", password="pw")
         self.operator = User.objects.create_user(username="o2-event-operator", email="o2-event-operator@example.test", password="pw")
-        self.participant = User.objects.create_user(username="o2-event-participant", email="o2-event-participant@example.test", password="pw")
+        self.participant = User.objects.create_user(
+            username="o2-event-participant",
+            email="o2-event-participant@example.test",
+            password="pw",
+            first_name="O2",
+            last_name="Participant",
+        )
         self.activity = Activity.objects.create(owner_profile=self.owner, created_by=self.owner, title="O2 Events")
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
