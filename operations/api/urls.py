@@ -8,6 +8,7 @@ from operations.checkpoint_api import (
     MyOccurrenceCheckpointsAPIView,
     OperatorOccurrenceCheckpointsAPIView,
 )
+from operations.live_api import OccurrenceLiveAPIView, OccurrenceOperationalReadinessAPIView
 from operations.placement_api import (
     MyOccurrencePlacementsAPIView,
     OperatorOccurrencePlacementPlansAPIView,
@@ -50,6 +51,16 @@ urlpatterns = [
     path("incidents/<uuid:pk>/", OperationsIncidentDetailAPIView.as_view(), name="incident-detail"),
     path("moderation/", ModerationCasesAPIView.as_view(), name="moderation"),
     path("workers/", WorkerHealthAPIView.as_view(), name="workers"),
+    path(
+        "occurrences/<uuid:occurrence_id>/readiness/",
+        OccurrenceOperationalReadinessAPIView.as_view(),
+        name="occurrence-readiness",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/live/",
+        OccurrenceLiveAPIView.as_view(),
+        name="occurrence-live",
+    ),
     path(
         "occurrences/<uuid:occurrence_id>/queues/me/",
         MyOccurrenceQueuesAPIView.as_view(),
