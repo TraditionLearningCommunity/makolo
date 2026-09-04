@@ -1,0 +1,23 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ profile_user.full_name|default:profile_user.username }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6">
+  <section class="mk-panel p-6 sm:p-8">
+    <div class="flex items-start gap-5">
+      {% if profile_user.avatar %}<img src="{{ profile_user.avatar.url }}" alt="Avatar" class="h-16 w-16 rounded-3xl object-cover">{% else %}<div class="grid h-16 w-16 place-items-center rounded-3xl text-2xl font-extrabold text-white" style="background:var(--mk-brand)">{{ profile_user.username|first|upper }}</div>{% endif %}
+      <div class="min-w-0"><span class="mk-kicker">Profil Makolo</span><h1 class="mt-1 text-3xl font-extrabold tracking-[-.04em]">{% if profile_user.full_name %}{{ profile_user.full_name }}{% else %}{{ profile_user.username }}{% endif %}</h1>
+      {% if profile_user.profile.profession %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ profile_user.profile.profession }}</p>{% endif %}
+      {% if profile_user.profile.city or profile_user.profile.country %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ profile_user.profile.city }}{% if profile_user.profile.city and profile_user.profile.country %}, {% endif %}{{ profile_user.profile.country }}</p>{% endif %}</div>
+    </div>
+    {% if profile_user.bio %}<p class="mt-6 max-w-3xl leading-7">{{ profile_user.bio }}</p>{% endif %}
+  </section>
+
+  {% if open_to %}<section class="mk-panel p-6"><h2 class="text-xl font-extrabold">Ouvert à</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Types de sollicitations que cette personne accepte potentiellement.</p><div class="mt-4 flex flex-wrap gap-2">{% for row in open_to %}<span class="mk-badge mk-badge-brand">{{ row.get_kind_display }}{% if row.topic %} · {{ row.topic.label }}{% endif %}</span>{% endfor %}</div></section>{% endif %}
+
+  {% if public_interests %}<section class="mk-panel p-6"><h2 class="text-xl font-extrabold">Centres d’intérêt</h2><div class="mt-4 flex flex-wrap gap-2">{% for interest in public_interests %}<span class="mk-badge">{{ interest.topic.label }}</span>{% endfor %}</div></section>{% endif %}
+
+  {% if public_activities %}<section class="mk-panel p-6"><h2 class="text-xl font-extrabold">Activités publiques</h2><div class="mt-4 space-y-3">{% for activity in public_activities %}<div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="font-extrabold">{{ activity.title }}</p>{% if activity.short_description %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ activity.short_description }}</p>{% endif %}</div>{% endfor %}</div></section>{% endif %}
+
+  {% if declared_links %}<section class="mk-panel p-6"><h2 class="text-xl font-extrabold">Liens déclarés</h2><p class="mt-1 text-xs" style="color:var(--mk-subtle)">Makolo ne présente pas ces liens comme vérifiés.</p><div class="mt-4 flex flex-wrap gap-2">{% for label, url in declared_links %}<a href="{{ url }}" rel="nofollow noopener" class="mk-btn mk-btn-secondary">{{ label }}</a>{% endfor %}</div></section>{% endif %}
+</div>
+{% endblock %}
