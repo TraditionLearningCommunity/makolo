@@ -6,13 +6,29 @@ from django.urls import reverse
 from django.utils import timezone
 
 from access.models import Access, AccessStatus
-from activities.models import Activity, Occurrence, OccurrenceStatus
+from activities.models import (
+    Activity,
+    Occurrence,
+    OccurrencePlace,
+    OccurrencePlaceRole,
+    OccurrenceStatus,
+)
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from capacity.models import CapacityPool, CapacityReservation, CapacityReservationStatus
 from core.models import DomainEventOutbox
+from geography.models import Place
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization
+from spatiotemporal.providers import (
+    NoOpRoutingProvider,
+    NoOpTrafficProvider,
+    ProviderRegistry,
+    ProviderUnavailable,
+    WeatherProvider,
+    reset_provider_registry,
+    set_provider_registry,
+)
 
 from .models import (
     CheckpointAssignment,
@@ -28,6 +44,13 @@ from .models import (
 
 
 User = get_user_model()
+
+
+class UnavailableWeatherProvider(WeatherProvider):
+    key = "unavailable-weather"
+
+    def weather_context(self, *, place, at, observed_at):
+        raise ProviderUnavailable("weather unavailable")
 
 
 class O4OccurrenceLiveAPITests(TestCase):
@@ -168,6 +191,10 @@ class O4OccurrenceLiveAPITests(TestCase):
             source="o4-live-test",
         )
 
+    def tearDown(self):
+        reset_provider_registry()
+        super().tearDown()
+
     def test_participant_live_is_personal_minimal_and_queue_aware(self):
         self.client.force_login(self.participant)
         before = DomainEventOutbox.objects.count()
@@ -249,3 +276,46 @@ class O4OccurrenceLiveAPITests(TestCase):
         self.assertEqual(operator.json()["perspective"], "operator")
         operator_keys = {row["key"] for row in operator.json()["contributors"]}
         self.assertIn("operations.authority", operator_keys)
+
+    def test_after_phase_never_pushes_participant_to_live_action(self):
+        self.occurrence.status = OccurrenceStatus.COMPLETED
+        self.occurrence.start_at = self.now - timedelta(hours=3)
+        self.occurrence.end_at = self.now - timedelta(minutes=5)
+        self.occurrence.save(update_fields=["status", "start_at", "end_at", "updated_at"])
+
+        self.client.force_login(self.participant)
+        response = self.client.get(reverse("operations_api:occurrence-live", args=[self.occurrence.pk]))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["phase"], "after")
+        self.assertEqual(payload["next_action"]["type"], "none")
+        self.assertEqual(payload["next_action"]["reason"], "occurrence_completed")
+
+    def test_m6_provider_unavailable_does_not_break_live_projection_or_fake_hazard(self):
+        place = Place.objects.create(
+            name="O4 Live Place",
+            country_code="CD",
+            latitude="-4.325000",
+            longitude="15.322000",
+            timezone="Africa/Kinshasa",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.occurrence,
+            place=place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        set_provider_registry(
+            ProviderRegistry(
+                routing=NoOpRoutingProvider(),
+                traffic=NoOpTrafficProvider(),
+                weather=UnavailableWeatherProvider(),
+            )
+        )
+
+        self.client.force_login(self.participant)
+        response = self.client.get(reverse("operations_api:occurrence-live", args=[self.occurrence.pk]))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["spatial"]["place"]["name"], "O4 Live Place")
+        self.assertEqual(payload["spatial"]["hazards"], [])
+        self.assertEqual(payload["spatial"]["mobility"]["status"], "destination_only")
