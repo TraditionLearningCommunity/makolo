@@ -17,8 +17,16 @@ User = get_user_model()
 
 class DiscoveryWatchTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="watch-owner", password="StrongPass2026!")
-        self.other = User.objects.create_user(username="watch-other", password="StrongPass2026!")
+        self.owner = User.objects.create_user(
+            username="watch-owner",
+            email="watch-owner@example.test",
+            password="StrongPass2026!",
+        )
+        self.other = User.objects.create_user(
+            username="watch-other",
+            email="watch-other@example.test",
+            password="StrongPass2026!",
+        )
 
     def test_valid_watch_is_created_and_empty_criteria_are_rejected(self):
         before_dossiers = Dossier.objects.count()
