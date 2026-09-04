@@ -216,13 +216,13 @@ class AccountProfileView(LoginRequiredMixin, View):
             if appearance_form.is_valid():
                 appearance_form.save()
                 messages.success(request, "Apparence mise à jour.")
-                return redirect(f"{reverse('account:profile')}#preferences")
+                return redirect(f"{reverse('account:profile')}#appearance")
         elif section == "notifications":
             preferences_form = NotificationPreferencesForm(request.POST, instance=preferences)
             if preferences_form.is_valid():
                 preferences_form.save()
                 messages.success(request, "Préférences de notification mises à jour.")
-                return redirect(f"{reverse('account:profile')}#preferences")
+                return redirect(reverse("account:profile"))
         elif section == "profile":
             # Compatibility for the former all-in-one Profile form and clients.
             legacy_form = AccountProfileForm(
