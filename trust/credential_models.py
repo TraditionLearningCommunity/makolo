@@ -10,6 +10,9 @@ from django.utils import timezone
 CREDENTIAL_HISTORY_DELETE_ERROR = (
     "Un Credential délivré appartient à l’historique Trust et ne peut pas être supprimé."
 )
+CREDENTIAL_BULK_UPDATE_ERROR = (
+    "Un Credential délivré ne peut pas être modifié en masse ; utilisez les services Trust contrôlés."
+)
 
 
 class CredentialType(models.TextChoices):
@@ -28,6 +31,12 @@ class CredentialQuerySet(models.QuerySet):
         # Refuse before Django's deletion Collector enters its atomic block.
         # This protects bulk/admin deletion without poisoning caller transactions.
         raise ValidationError(CREDENTIAL_HISTORY_DELETE_ERROR)
+
+    def update(self, **kwargs):
+        raise ValidationError(CREDENTIAL_BULK_UPDATE_ERROR)
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError(CREDENTIAL_BULK_UPDATE_ERROR)
 
 
 class Credential(models.Model):
