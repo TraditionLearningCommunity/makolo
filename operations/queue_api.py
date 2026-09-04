@@ -13,7 +13,16 @@ from .checkpoint_selectors import profile_is_checkpoint_beneficiary
 from .models import OccurrenceCheckpoint, OccurrenceQueue, QueueEntry
 from .permissions import user_can_manage_activity_operations, user_can_view_activity_operations
 from .queue_selectors import active_entries, my_queue_entries, queue_position, queue_snapshot, queues_for_occurrence
-from .queue_services import call_next, cancel_entry, enter_queue, expire_entry, serve_entry
+from .queue_services import (
+    call_next,
+    cancel_entry,
+    close_queue,
+    enter_queue,
+    expire_entry,
+    pause_queue,
+    resume_queue,
+    serve_entry,
+)
 
 
 User = get_user_model()
@@ -107,6 +116,10 @@ class QueueEnterSerializer(serializers.Serializer):
 class SelfQueueEnterSerializer(serializers.Serializer):
     source = serializers.CharField(required=False, allow_blank=True, max_length=80, default="participant")
     client_reference = serializers.CharField(required=False, allow_blank=True, max_length=64, default="")
+
+
+class QueueStatusSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["pause", "resume", "close"])
 
 
 class OperatorOccurrenceQueuesAPIView(APIView):
@@ -226,6 +239,23 @@ class QueueCallNextAPIView(APIView):
         if entry is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(_entry_payload(entry))
+
+
+class QueueStatusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, queue_id):
+        queue = _operator_queue(request.user, queue_id, manage=True)
+        if queue is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = QueueStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        service = {"pause": pause_queue, "resume": resume_queue, "close": close_queue}[serializer.validated_data["action"]]
+        try:
+            queue = service(actor=request.user, queue=queue)
+        except DjangoValidationError as exc:
+            _raise_drf_validation(exc)
+        return Response(_queue_payload(queue))
 
 
 class QueueEntryActionAPIView(APIView):
