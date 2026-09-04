@@ -23,6 +23,24 @@ _SOURCE_KEYS = {
     "next_action": "operations.occurrence_live",
 }
 
+_OFFLINE_OMITTED_KEYS = {
+    "credential",
+    "credentials",
+    "email",
+    "itinerary_url",
+    "location_history",
+    "payment",
+    "payments",
+    "phone",
+    "phone_number",
+    "public_id",
+    "qr",
+    "qr_code",
+    "secret",
+    "token",
+    "url",
+}
+
 
 def offline_action_pack_freshness(*, occurrence, phase, generated_at, evaluated_at=None):
     """Return the client-visible freshness contract for a generated pack.
@@ -55,7 +73,22 @@ def offline_action_pack_freshness(*, occurrence, phase, generated_at, evaluated_
         "expires_at": expires_at,
         "stale": state != "fresh",
         "expired": state == "expired",
+        "refresh_required": state != "fresh",
     }
+
+
+def _sanitize_offline_value(value):
+    if isinstance(value, dict):
+        return {
+            key: _sanitize_offline_value(item)
+            for key, item in value.items()
+            if key.lower() not in _OFFLINE_OMITTED_KEYS
+        }
+    if isinstance(value, list):
+        return [_sanitize_offline_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_offline_value(item) for item in value]
+    return value
 
 
 def _provenance_payload(*, occurrence, live):
@@ -81,6 +114,7 @@ def resolve_offline_action_pack(*, occurrence, actor, generated_at=None, evaluat
     live = resolve_occurrence_live(occurrence=occurrence, actor=actor, observed_at=generated_at)
     if live is None:
         return None
+    snapshot = _sanitize_offline_value(live)
 
     return {
         "schema": OFFLINE_ACTION_PACK_SCHEMA,
@@ -93,6 +127,19 @@ def resolve_offline_action_pack(*, occurrence, actor, generated_at=None, evaluat
             evaluated_at=evaluated_at,
         ),
         "provenance": _provenance_payload(occurrence=occurrence, live=live),
+        "data_policy": {
+            "scope": "minimum_operational",
+            "viewer_aware": True,
+            "excluded_categories": [
+                "credentials",
+                "contact_details",
+                "payment_data",
+                "raw_qr",
+                "secrets",
+                "action_urls",
+                "location_history",
+            ],
+        },
         "execution_contract": {
             "offline_data_grants_authority": False,
             "server_revalidation_required": True,
@@ -105,7 +152,8 @@ def resolve_offline_action_pack(*, occurrence, actor, generated_at=None, evaluat
                 "checkpoint",
                 "queue",
                 "placement",
+                "capacity",
             ],
         },
-        "snapshot": live,
+        "snapshot": snapshot,
     }

@@ -6,6 +6,7 @@ from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 
 from .models import PlacementAssignment, PlacementPlan, PlacementUnit
+from .operation_guards import require_occurrence_live_actionable
 from .permissions import user_can_manage_activity_operations
 
 
@@ -130,6 +131,7 @@ def assign_placement(*, actor, plan, unit, profile=None, external_beneficiary=No
     subject = _subject_kwargs(profile=profile, external_beneficiary=external_beneficiary)
     plan, unit = _lock_plan_and_unit(plan_id=plan.pk, unit_id=unit.pk)
     _require_manage(actor, plan)
+    require_occurrence_live_actionable(plan.occurrence)
 
     active_filter = _active_subject_filter(**subject)
     if PlacementAssignment.objects.select_for_update().filter(plan=plan, **active_filter).exists():
@@ -162,6 +164,7 @@ def move_placement(*, actor, assignment, unit):
         raise ValidationError("Cette affectation est déjà terminée.")
     plan, target = _lock_plan_and_unit(plan_id=current.plan_id, unit_id=unit.pk)
     _require_manage(actor, plan)
+    require_occurrence_live_actionable(plan.occurrence)
     if target.pk == current.unit_id:
         return current
     _ensure_unit_available(target)

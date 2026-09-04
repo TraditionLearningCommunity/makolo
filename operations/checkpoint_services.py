@@ -8,6 +8,7 @@ from domain_events.services import emit_domain_event
 from journeys.models import Journey
 
 from .models import CheckpointAssignment, CheckpointObservation, CheckpointStatus, OccurrenceCheckpoint
+from .operation_guards import require_occurrence_live_actionable
 from .permissions import user_can_manage_activity_operations
 
 
@@ -62,6 +63,8 @@ def transition_checkpoint(*, actor, checkpoint, target_status):
         .get(pk=checkpoint.pk)
     )
     _require_authority(actor, current)
+    if target_status != CheckpointStatus.CLOSED:
+        require_occurrence_live_actionable(current.occurrence)
     if target_status not in _ALLOWED_TRANSITIONS[current.status]:
         raise ValidationError({"status": f"Transition invalide: {current.status} → {target_status}."})
     current.status = target_status
@@ -99,6 +102,7 @@ def assign_checkpoint_operator(*, actor, checkpoint, profile):
         .get(pk=checkpoint.pk)
     )
     _require_authority(actor, current_checkpoint)
+    require_occurrence_live_actionable(current_checkpoint.occurrence)
     existing = CheckpointAssignment.objects.select_for_update().filter(
         checkpoint=current_checkpoint, profile=profile, ended_at__isnull=True
     ).first()
@@ -214,6 +218,7 @@ def observe_checkpoint(
         .get(pk=checkpoint.pk)
     )
     _require_authority(actor, current, authority_check=authority_check)
+    require_occurrence_live_actionable(current.occurrence)
     if not current.active or current.status != CheckpointStatus.OPEN:
         raise ValidationError({"checkpoint": "Le checkpoint doit être actif et ouvert pour enregistrer un passage."})
     if not _beneficiary_is_expected(checkpoint=current, **subject):

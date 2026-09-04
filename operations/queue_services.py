@@ -8,6 +8,7 @@ from domain_events.services import emit_domain_event
 from journeys.models import Journey
 
 from .models import OccurrenceQueue, QueueEntry, QueueEntryStatus, QueueStatus
+from .operation_guards import require_occurrence_live_actionable
 from .permissions import user_can_manage_activity_operations
 
 
@@ -85,6 +86,8 @@ def transition_queue(*, actor, queue, target_status):
         .get(pk=queue.pk)
     )
     _require_manage(actor, current)
+    if target_status != QueueStatus.CLOSED:
+        require_occurrence_live_actionable(current.occurrence)
     if target_status not in _QUEUE_TRANSITIONS[current.status]:
         raise ValidationError({"status": f"Transition invalide: {current.status} → {target_status}."})
     current.status = target_status
@@ -128,6 +131,7 @@ def enter_queue(
             raise PermissionDenied("Un participant ne peut entrer que lui-même dans une queue.")
     else:
         _require_manage(actor, current)
+    require_occurrence_live_actionable(current.occurrence)
     if current.status != QueueStatus.OPEN:
         raise ValidationError({"queue": "La queue doit être ouverte pour accepter une entrée."})
     if not beneficiary_is_expected(queue=current, **subject):
@@ -182,6 +186,7 @@ def call_next(*, actor, queue):
         .get(pk=queue.pk)
     )
     _require_manage(actor, current)
+    require_occurrence_live_actionable(current.occurrence)
     if current.status != QueueStatus.OPEN:
         raise ValidationError({"queue": "La queue doit être ouverte pour appeler le prochain bénéficiaire."})
     entry = (
@@ -212,6 +217,7 @@ def _locked_entry(entry):
 def serve_entry(*, actor, entry):
     current = _locked_entry(entry)
     _require_manage(actor, current.queue)
+    require_occurrence_live_actionable(current.queue.occurrence)
     if current.status != QueueEntryStatus.CALLED:
         raise ValidationError({"status": "Seule une entrée appelée peut être servie."})
     current.status = QueueEntryStatus.SERVED

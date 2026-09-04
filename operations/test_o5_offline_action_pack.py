@@ -8,6 +8,7 @@ from django.utils import timezone
 from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, revoke_mandate
+from core.models import DomainEventOutbox
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization
 
@@ -119,7 +120,13 @@ class O5OfflineActionPackTests(TestCase):
             label="PRIVATE Seat 2",
             kind="seat",
         )
-        PlacementAssignment.objects.create(
+        self.move_unit = PlacementUnit.objects.create(
+            plan=self.plan,
+            key="seat-3",
+            label="Seat 3",
+            kind="seat",
+        )
+        self.participant_placement = PlacementAssignment.objects.create(
             plan=self.plan,
             unit=participant_unit,
             profile=self.participant,
@@ -144,19 +151,28 @@ class O5OfflineActionPackTests(TestCase):
         occurrence = occurrence or self.occurrence
         return self.client.get(reverse("operations_api:occurrence-offline-action-pack", args=[occurrence.pk]))
 
+    def _complete_occurrence(self):
+        self.occurrence.status = OccurrenceStatus.COMPLETED
+        self.occurrence.end_at = self.now
+        self.occurrence.save(update_fields=["status", "end_at", "updated_at"])
+
     def test_authorized_operator_gets_viewer_aware_pack(self):
+        before = DomainEventOutbox.objects.count()
         response = self._get_pack(self.operator)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
         payload = response.json()
         self.assertEqual(payload["schema"], "operations.offline_action_pack")
         self.assertEqual(payload["schema_version"], 1)
         self.assertEqual(payload["snapshot"]["perspective"], "operator")
         self.assertEqual(payload["snapshot"]["occurrence"]["id"], str(self.occurrence.pk))
         self.assertEqual(payload["freshness"]["state"], "fresh")
+        self.assertFalse(payload["freshness"]["refresh_required"])
         self.assertFalse(payload["execution_contract"]["offline_data_grants_authority"])
         self.assertTrue(payload["execution_contract"]["server_revalidation_required"])
         self.assertEqual(payload["execution_contract"]["revocation_policy"], "server_current_state")
         self.assertIn("operations.occurrence_live", payload["provenance"]["sources"])
+        self.assertEqual(DomainEventOutbox.objects.count(), before)
 
     def test_participant_pack_contains_only_own_operational_view(self):
         response = self._get_pack(self.participant)
@@ -196,24 +212,45 @@ class O5OfflineActionPackTests(TestCase):
         self.assertEqual(stale["state"], "stale")
         self.assertTrue(stale["stale"])
         self.assertFalse(stale["expired"])
+        self.assertTrue(stale["refresh_required"])
         self.assertEqual(expired["state"], "expired")
         self.assertTrue(expired["stale"])
         self.assertTrue(expired["expired"])
+        self.assertTrue(expired["refresh_required"])
 
-    def test_pack_has_no_sensitive_offline_payload(self):
+    def test_pack_has_no_sensitive_or_transport_only_fields(self):
         response = self._get_pack(self.participant)
         self.assertEqual(response.status_code, 200)
-        rendered = str(response.json()).lower()
-        for forbidden in (
-            "token",
-            "secret",
-            "qr",
+        payload = response.json()
+
+        def keys(value):
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    yield key.lower()
+                    yield from keys(item)
+            elif isinstance(value, list):
+                for item in value:
+                    yield from keys(item)
+
+        forbidden_keys = {
             "credential",
-            "phone",
+            "credentials",
+            "email",
+            "itinerary_url",
             "payment",
-            "private-other@example.test",
-        ):
-            self.assertNotIn(forbidden, rendered)
+            "payments",
+            "phone",
+            "phone_number",
+            "public_id",
+            "qr",
+            "qr_code",
+            "secret",
+            "token",
+            "url",
+        }
+        self.assertTrue(forbidden_keys.isdisjoint(set(keys(payload["snapshot"]))))
+        self.assertNotIn(self.other_participant.email, str(payload))
+        self.assertNotIn("PRIVATE Seat 2", str(payload))
 
     def test_server_mutation_revalidates_current_authority_after_pack_download(self):
         response = self._get_pack(self.operator)
@@ -229,6 +266,58 @@ class O5OfflineActionPackTests(TestCase):
         self.assertEqual(mutation.status_code, 404)
         self.queue.refresh_from_db()
         self.assertNotEqual(self.queue.status, "paused")
+
+    def test_server_mutations_revalidate_current_occurrence_after_pack_download(self):
+        response = self._get_pack(self.operator)
+        self.assertEqual(response.status_code, 200)
+        self._complete_occurrence()
+        self.client.force_login(self.operator)
+
+        queue_response = self.client.patch(
+            reverse("operations_api:queue-status", args=[self.queue.pk]),
+            data={"action": "pause"},
+            content_type="application/json",
+        )
+        checkpoint_response = self.client.patch(
+            reverse("operations_api:checkpoint-status", args=[self.checkpoint.pk]),
+            data={"action": "pause"},
+            content_type="application/json",
+        )
+        placement_response = self.client.patch(
+            reverse("operations_api:placement-assignment-detail", args=[self.participant_placement.pk]),
+            data={"unit_id": str(self.move_unit.pk)},
+            content_type="application/json",
+        )
+
+        self.assertEqual(queue_response.status_code, 400)
+        self.assertEqual(checkpoint_response.status_code, 400)
+        self.assertEqual(placement_response.status_code, 400)
+        self.queue.refresh_from_db()
+        self.checkpoint.refresh_from_db()
+        self.participant_placement.refresh_from_db()
+        self.assertNotEqual(self.queue.status, "paused")
+        self.assertNotEqual(self.checkpoint.status, "paused")
+        self.assertIsNone(self.participant_placement.ended_at)
+
+    def test_terminal_cleanup_remains_available_after_occurrence_end(self):
+        self._complete_occurrence()
+        self.client.force_login(self.operator)
+        queue_response = self.client.patch(
+            reverse("operations_api:queue-status", args=[self.queue.pk]),
+            data={"action": "close"},
+            content_type="application/json",
+        )
+        checkpoint_response = self.client.patch(
+            reverse("operations_api:checkpoint-status", args=[self.checkpoint.pk]),
+            data={"action": "close"},
+            content_type="application/json",
+        )
+        placement_response = self.client.delete(
+            reverse("operations_api:placement-assignment-detail", args=[self.participant_placement.pk])
+        )
+        self.assertEqual(queue_response.status_code, 200)
+        self.assertEqual(checkpoint_response.status_code, 200)
+        self.assertEqual(placement_response.status_code, 204)
 
     def test_historical_occurrence_without_operations_configuration_is_compatible(self):
         historical = Occurrence.objects.create(

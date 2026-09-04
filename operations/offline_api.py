@@ -20,4 +20,6 @@ class OccurrenceOfflineActionPackAPIView(APIView):
         payload = resolve_offline_action_pack(occurrence=occurrence, actor=request.user)
         if payload is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(payload)
+        response = Response(payload)
+        response["Cache-Control"] = "private, no-store"
+        return response
