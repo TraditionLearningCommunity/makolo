@@ -1,0 +1,3 @@
+{% extends 'base/app.html' %}
+{% block title %}Modifier {{ watch.name }} | Makolo{% endblock %}
+{% block content %}<div class="mx-auto max-w-2xl space-y-6"><div><span class="mk-kicker">Veille</span><h1 class="mk-page-title">Modifier</h1></div><form method="post" class="mk-panel space-y-4 p-6">{% csrf_token %}{{ form.non_field_errors }}{{ form.as_p }}<div class="flex gap-2"><button class="mk-btn mk-btn-primary" type="submit">Enregistrer</button><a class="mk-btn mk-btn-ghost" href="{% url 'discovery:watch-detail' watch.id %}">Annuler</a></div></form></div>{% endblock %}

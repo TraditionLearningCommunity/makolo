@@ -46,8 +46,9 @@ class UnifiedNavigationUxTests(TestCase):
             {"request": request, "space_console": None},
         )
 
+        discover_href = f'href="{reverse("discovery:home")}"'
         self.assertEqual(sidebar_html.count("Découvrir"), 2)
-        self.assertEqual(sidebar_html.count(reverse("discovery:home")), 2)
+        self.assertEqual(sidebar_html.count(discover_href), 2)
         self.assertNotIn("Découvrir", navigation_html)
 
     def test_personal_account_menu_contains_billing_entry(self):
