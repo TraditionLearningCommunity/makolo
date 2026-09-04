@@ -1,0 +1,6 @@
+{% extends 'base/app.html' %}
+{% block title %}Enregistrer une veille | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-6"><div><span class="mk-kicker">Discovery</span><h1 class="mk-page-title">Enregistrer comme veille</h1><p class="mk-page-copy mt-2">Makolo rejouera cette recherche avec les mêmes critères.</p></div>
+<form method="post" class="mk-panel space-y-4 p-6">{% csrf_token %}{{ form.criteria }}{{ form.non_field_errors }}<div>{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</div><div>{{ form.dossier.label_tag }}{{ form.dossier }}{{ form.dossier.errors }}<p class="mt-1 text-xs" style="color:var(--mk-muted)">Optionnel. Seuls vos Dossiers personnels sont proposés.</p></div>{% if form.criteria.errors %}<div>{{ form.criteria.errors }}</div>{% endif %}<div class="flex gap-2"><button class="mk-btn mk-btn-primary" type="submit">Enregistrer la veille</button><a class="mk-btn mk-btn-ghost" href="{% url 'discovery:home' %}">Annuler</a></div></form></div>
+{% endblock %}
