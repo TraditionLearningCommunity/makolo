@@ -11,7 +11,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
-from .checkpoint_services import open_checkpoint
+from .checkpoint_services import observe_checkpoint, open_checkpoint
 from .models import CheckpointObservation, OccurrenceCheckpoint
 
 
@@ -74,8 +74,28 @@ class O2CheckpointAPITests(TestCase):
         other_response = self.client.get(reverse("operations_api:occurrence-checkpoints-me", args=[self.other_occurrence.pk]))
         self.assertEqual(other_response.status_code, 404)
 
-    def test_operator_cannot_mutate_checkpoint_from_other_activity(self):
+    def test_operator_can_read_minimal_observations_without_email(self):
+        open_checkpoint(actor=self.operator, checkpoint=self.checkpoint)
+        observation = observe_checkpoint(
+            actor=self.operator,
+            checkpoint=self.checkpoint,
+            profile=self.participant,
+            source="operator",
+            client_reference="api-read",
+        )
         self.client.force_login(self.operator)
+        response = self.client.get(reverse("operations_api:checkpoint-observations", args=[self.checkpoint.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["id"], str(observation.pk))
+        self.assertEqual(response.json()[0]["beneficiary"]["type"], "profile")
+        self.assertNotIn(self.participant.email, str(response.json()))
+
+    def test_operator_cannot_read_or_mutate_checkpoint_from_other_activity(self):
+        self.client.force_login(self.operator)
+        read_response = self.client.get(
+            reverse("operations_api:checkpoint-observations", args=[self.other_checkpoint.pk])
+        )
+        self.assertEqual(read_response.status_code, 404)
         response = self.client.patch(
             reverse("operations_api:checkpoint-status", args=[self.other_checkpoint.pk]),
             {"action": "open"},
