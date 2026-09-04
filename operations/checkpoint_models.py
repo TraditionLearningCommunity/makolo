@@ -171,7 +171,7 @@ class CheckpointObservation(models.Model):
                 name="ops_checkpoint_obs_ext_uq",
             ),
             models.UniqueConstraint(
-                fields=["source", "client_reference"],
+                fields=["observed_by", "source", "client_reference"],
                 condition=~Q(source="") & ~Q(client_reference=""),
                 name="ops_checkpoint_obs_client_uq",
             ),
