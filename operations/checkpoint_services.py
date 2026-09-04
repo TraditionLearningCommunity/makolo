@@ -222,7 +222,11 @@ def observe_checkpoint(
         _validate_access_use(checkpoint=current, access_use=access_use, **subject)
 
     if source and client_reference:
-        retry = CheckpointObservation.objects.filter(source=source, client_reference=client_reference).first()
+        retry = CheckpointObservation.objects.filter(
+            observed_by=actor,
+            source=source,
+            client_reference=client_reference,
+        ).first()
         if retry:
             if retry.checkpoint_id != current.pk or not _retry_matches_subject(retry, access_use=access_use, **subject):
                 raise ValidationError({"client_reference": "Cette référence idempotente est déjà utilisée dans un autre contexte."})
