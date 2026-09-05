@@ -10,6 +10,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from access.models import AccessStatus
+from authorization.constants import PermissionCode
+from authorization.services import can, has_platform_authority
 from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
 from domain_events.contracts import DomainEventType
 from events.permissions import user_can_manage_event_finance
@@ -60,14 +62,12 @@ def _payment_actor_can_initiate(actor, order: TicketOrder) -> bool:
 def _commerce_payment_actor_can_initiate(actor, order: CommerceOrder) -> bool:
     if not getattr(actor, "is_authenticated", False):
         return False
-    return bool(getattr(actor, "is_staff", False) or order.buyer_id == actor.pk)
+    return order.buyer_id == actor.pk
 
 
 def _obligation_payment_actor_can_initiate(actor, obligation: PaymentObligation) -> bool:
     if not getattr(actor, "is_authenticated", False):
         return False
-    if getattr(actor, "is_staff", False):
-        return True
     if obligation.payer_profile_id:
         return obligation.payer_profile_id == actor.pk
     if obligation.payer_space_id:
@@ -79,14 +79,37 @@ def _obligation_payment_actor_can_initiate(actor, obligation: PaymentObligation)
     return False
 
 
+def _can_manage_financial_context(actor, *, commerce_order=None, obligation=None) -> bool:
+    if not getattr(actor, "is_authenticated", False):
+        return False
+    if has_platform_authority(actor):
+        return True
+    if commerce_order is not None:
+        activity = commerce_order.journey.activity
+        space = commerce_order.payee_space or activity.space
+        if space is not None and can(actor, PermissionCode.FINANCE_MANAGE, space):
+            return True
+        return can(actor, PermissionCode.ACTIVITY_FINANCE_MANAGE, activity=activity)
+    if obligation is not None:
+        if obligation.payee_platform:
+            return False
+        if obligation.payee_space_id and can(actor, PermissionCode.FINANCE_MANAGE, obligation.payee_space):
+            return True
+        if obligation.journey_id:
+            activity = obligation.journey.activity
+            if activity.space_id and can(actor, PermissionCode.FINANCE_MANAGE, activity.space):
+                return True
+            return can(actor, PermissionCode.ACTIVITY_FINANCE_MANAGE, activity=activity)
+    return False
+
+
 def _payment_actor_can_manage(actor, payment: Payment) -> bool:
     if payment.order_id:
         return user_can_manage_event_finance(actor, payment.order.event)
     if payment.commerce_order_id:
-        return bool(getattr(actor, "is_authenticated", False) and getattr(actor, "is_staff", False))
+        return _can_manage_financial_context(actor, commerce_order=payment.commerce_order)
     if payment.obligation_id:
-        # Provider/manual/refund management remains intentionally narrower than payer initiation.
-        return bool(getattr(actor, "is_authenticated", False) and getattr(actor, "is_staff", False))
+        return _can_manage_financial_context(actor, obligation=payment.obligation)
     return False
 
 
@@ -97,8 +120,8 @@ def _validate_provider(*, provider, actor, event=None):
     if provider == PaymentProvider.MANUAL:
         if event is not None:
             if not user_can_manage_event_finance(actor, event):
-                raise PermissionDenied("Seul un responsable finance, propriétaire, admin ou staff peut enregistrer un paiement manuel.")
-        elif not getattr(actor, "is_staff", False):
+                raise PermissionDenied("Seul un responsable finance autorisé peut enregistrer un paiement manuel.")
+        elif not has_platform_authority(actor):
             raise PermissionDenied("Un paiement manuel requiert une autorité financière explicite.")
     return adapter
 
@@ -479,7 +502,7 @@ def complete_sandbox_payment(*, payment: Payment, actor) -> Payment:
 def complete_manual_payment(*, payment: Payment, actor, provider_reference: str = "") -> Payment:
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "commerce_order", "obligation")
+        .select_related("order", "order__event__activity", "commerce_order__journey__activity", "commerce_order__payee_space", "obligation__journey__activity", "obligation__payee_space")
         .get(pk=payment.pk)
     )
     if payment.provider != PaymentProvider.MANUAL:
@@ -505,7 +528,7 @@ def refund_payment(*, payment: Payment, actor, reason: str = "", idempotency_key
 
     payment = (
         Payment.objects.select_for_update(of=("self",))
-        .select_related("order", "order__event__activity", "commerce_order", "obligation__journey__activity")
+        .select_related("order", "order__event__activity", "commerce_order__journey__activity", "commerce_order__payee_space", "obligation__journey__activity", "obligation__payee_space")
         .get(pk=payment.pk)
     )
     if not _payment_actor_can_manage(actor, payment):

@@ -8,8 +8,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import OrganizationMembership
-from organizations.permissions import FINANCE_ROLES
+from authorization.constants import PermissionCode
+from authorization.services import activity_ids_with_permission, has_platform_authority, space_ids_with_permission
 from payments.models import PaymentMethod, PaymentProvider
 from payments.selectors import get_payment_events_visible_to, get_payments_visible_to
 from payments.services import (
@@ -46,13 +46,13 @@ def _raise_service_error(exc):
 
 
 def _can_see_manual_provider(user):
-    if user.is_staff:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if has_platform_authority(user):
         return True
-    return OrganizationMembership.objects.filter(
-        user=user,
-        is_active=True,
-        role__in=FINANCE_ROLES,
-    ).exists()
+    space_ids = space_ids_with_permission(user, PermissionCode.FINANCE_MANAGE)
+    activity_ids = activity_ids_with_permission(user, PermissionCode.ACTIVITY_FINANCE_MANAGE)
+    return bool(space_ids) or bool(activity_ids)
 
 
 class PaymentConfigurationAPIView(APIView):

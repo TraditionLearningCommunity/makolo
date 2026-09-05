@@ -54,7 +54,7 @@ def apply_code_to_pending_order(*, order, actor, promotion_code):
     )
     if order.status != TicketOrderStatus.PENDING or order.is_expired:
         raise ValidationError("Seule une commande en attente et non expirée peut recevoir un code.")
-    if order.buyer_id != getattr(actor, "pk", None) and not getattr(actor, "is_staff", False):
+    if order.buyer_id != getattr(actor, "pk", None):
         raise PermissionDenied("Vous ne pouvez pas modifier cette commande.")
     if not order.commerce_order_id:
         raise ValidationError("Cette commande Event n’a pas de CommerceOrder canonique.")

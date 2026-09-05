@@ -1,6 +1,8 @@
 from django import forms
 from django.conf import settings
 
+from authorization.services import has_platform_authority
+
 from .models import PaymentMethod, PaymentProvider
 
 
@@ -16,7 +18,7 @@ class ObligationPaymentStartForm(forms.Form):
         choices = []
         if getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False):
             choices.append((PaymentProvider.SANDBOX, PaymentProvider.SANDBOX.label))
-        if user and getattr(user, "is_staff", False):
+        if user and has_platform_authority(user):
             choices.append((PaymentProvider.MANUAL, PaymentProvider.MANUAL.label))
         self.fields["provider"].choices = choices
         if len(choices) == 1:

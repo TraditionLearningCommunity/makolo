@@ -28,14 +28,19 @@ def user_can_access_ticket(user, ticket) -> bool:
 
 
 def user_can_access_waitlist_entry(user, entry) -> bool:
-    return bool(getattr(user, "is_authenticated", False) and (user.is_staff or entry.user_id == user.pk))
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if entry.user_id == user.pk:
+        return True
+    return user_can_manage_event(user, entry.ticket_type.event)
 
 
 def user_can_access_transfer(user, transfer) -> bool:
-    return bool(
-        getattr(user, "is_authenticated", False)
-        and (user.is_staff or transfer.sender_id == user.pk or transfer.recipient_id == user.pk)
-    )
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if transfer.sender_id == user.pk or transfer.recipient_id == user.pk:
+        return True
+    return user_can_manage_event(user, transfer.ticket.event)
 
 
 class IsTicketOrganizer(BasePermission):

@@ -5,6 +5,8 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from payments.models import (
     PaymentObligationProcessingMode,
     PaymentObligationReason,
@@ -433,6 +435,13 @@ class S4TransitionTests(TestCase):
             transition,
             suffix="waived",
             created_by=self.staff,
+        )
+        grant_activity_role(
+            profile=self.staff,
+            activity=obligation.journey.activity,
+            role=SystemRoleCode.ACTIVITY_FINANCE,
+            granted_by=self.profile,
+            source="subscription-s4-test",
         )
 
         link_transition_payment_obligation(

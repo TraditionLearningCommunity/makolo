@@ -22,8 +22,6 @@ def user_can_access_payment(user, payment) -> bool:
         return user_can_access_order(user, payment.order)
     if not payment.commerce_order_id:
         return False
-    if getattr(user, "is_staff", False):
-        return True
     order = payment.commerce_order
     if order.buyer_id == user.pk or payment.initiated_by_id == user.pk:
         return True
@@ -40,8 +38,6 @@ def user_can_manage_payment(user, payment) -> bool:
         return user_can_manage_event_finance(user, payment.order.event)
     if not payment.commerce_order_id:
         return False
-    if getattr(user, "is_staff", False):
-        return True
     space, activity = _commerce_payment_context(payment)
     if space is not None and can(user, PermissionCode.FINANCE_MANAGE, space):
         return True
