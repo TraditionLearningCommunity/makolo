@@ -1,0 +1,25 @@
+{% extends 'base/app.html' %}
+{% block title %}Mes besoins | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-6">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div><span class="mk-kicker">Réseau bilatéral</span><h1 class="mt-1 text-3xl font-extrabold tracking-[-.04em]">Mes besoins</h1><p class="mt-2 text-sm" style="color:var(--mk-muted)">Cherchez des Profiles uniquement à partir de signaux qu’ils ont autorisés pour la découverte.</p></div>
+    <a class="mk-btn mk-btn-secondary" href="{% url 'social:my-solicitations' %}">Mes sollicitations reçues</a>
+  </header>
+  <section class="mk-panel p-6">
+    <h2 class="text-xl font-extrabold">Créer un besoin</h2>
+    <p class="mt-1 text-sm" style="color:var(--mk-muted)">Laissez le Space vide pour agir dans votre contexte personnel. Un Space ou une Activity n’apparaît que si vous disposez d’une autorité canonique correspondante.</p>
+    <form method="post" class="mt-5 space-y-4">{% csrf_token %}{{ form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Créer le besoin</button></form>
+  </section>
+  <section class="space-y-3">
+    <h2 class="text-xl font-extrabold">Besoins existants</h2>
+    {% for need in needs %}
+      <a href="{% url 'social:need-detail' need.pk %}" class="mk-panel block p-5 transition hover:-translate-y-0.5">
+        <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="font-extrabold">{{ need.title }}</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ need.owner_display_name }} · {{ need.get_open_to_kind_display }}</p></div><span class="mk-badge {% if need.status == 'open' %}mk-badge-brand{% endif %}">{{ need.get_status_display }}</span></div>
+        {% if need.description %}<p class="mt-3 text-sm">{{ need.description }}</p>{% endif %}
+        <p class="mt-3 text-xs" style="color:var(--mk-subtle)">{{ need.solicitations.count }} sollicitation{{ need.solicitations.count|pluralize }}</p>
+      </a>
+    {% empty %}<div class="mk-panel p-6"><p style="color:var(--mk-muted)">Aucun besoin pour le moment.</p></div>{% endfor %}
+  </section>
+</div>
+{% endblock %}
