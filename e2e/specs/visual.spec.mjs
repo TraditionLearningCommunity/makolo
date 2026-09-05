@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { test, expect } from '../fixtures/makolo.mjs';
 import { login } from '../helpers/auth.mjs';
 
+// Discovery baselines deliberately cover the richer universal-card presentation;
+// update them only after reviewing the rendered CI artifacts, never by relaxing diff gates.
 const shot = async (page, name, options = {}) => {
   await expect(page).toHaveScreenshot(name, {
     fullPage: true,
