@@ -7,6 +7,8 @@ from django.urls import reverse
 
 from activities.models import ActivityStatus, ActivityVisibility
 from core.participant_presentation import resolve_participant_activity_state
+from core.participant_selectors import participant_state_context_for_activities
+from core.product_language import vocabulary_for
 from opportunities.selectors import published_opportunities
 from services.models import OpportunityPolicy, ServiceDetails
 
@@ -69,9 +71,15 @@ def public_service_discovery_items(params, *, profile=None):
         else:
             services = services.filter(activity_match | ~Q(opportunity_policy=OpportunityPolicy.NONE))
 
+    service_rows = list(services.distinct()[:SERVICE_RESULT_LIMIT])
+    participant_context = participant_state_context_for_activities(
+        profile,
+        [service.activity for service in service_rows],
+    )
     rows = []
-    for service in services.distinct()[:SERVICE_RESULT_LIMIT]:
+    for service in service_rows:
         activity = service.activity
+        vocabulary = vocabulary_for(activity=activity)
         contextual_opportunity = (
             opportunity if opportunity is not None and service.opportunity_policy != OpportunityPolicy.NONE else None
         )
@@ -82,8 +90,8 @@ def public_service_discovery_items(params, *, profile=None):
             profile=profile,
             activity=activity,
             occurrence=None,
-            context=None,
-            acquisition_label="Commencer l’accompagnement",
+            context=participant_context,
+            acquisition_label=vocabulary.primary_action,
             acquisition_url=start_url,
             detail_url=start_url,
         )
@@ -92,7 +100,7 @@ def public_service_discovery_items(params, *, profile=None):
                 "activity_id": str(activity.pk),
                 "service_id": str(service.pk),
                 "vertical": "service",
-                "vertical_label": "Accompagnement",
+                "vertical_label": vocabulary.activity_noun,
                 "title": activity.title,
                 "summary": activity.short_description or activity.description[:220],
                 "space_name": activity.operator_display_name,
