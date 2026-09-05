@@ -104,10 +104,10 @@ def _card_action_label(*, code: str, vertical: str, fallback: str) -> str:
     """Short card grammar derived from semantic action code, never parsed copy."""
     if code == "access":
         if vertical in {"event", "transport"}:
-            return "Mon billet"
+            return "Voir mon billet"
         if vertical == "service":
-            return "Ma confirmation"
-        return "Mon accès"
+            return "Voir ma confirmation"
+        return "Voir mon accès"
     if code == "buy":
         return "Acheter"
     if code == "request":
