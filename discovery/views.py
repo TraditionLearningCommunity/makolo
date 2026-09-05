@@ -14,6 +14,7 @@ from django.views.generic import ListView, TemplateView
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.participant_selectors import participant_state_context
 
+from .card_contract import present_occurrence_card, present_service_card
 from .intelligence import interpret_with_intelligence
 from .intent import resolve_discovery_intent
 from .models import ActivityBookmark
@@ -115,6 +116,21 @@ class DiscoveryHomeView(TemplateView):
                 for item in page_obj.object_list
                 if (payload := item.to_map_dict()) is not None
             ]
+        bookmarked_activity_ids = _bookmarked_activity_ids(self.request.user)
+        cards = [
+            present_occurrence_card(
+                item,
+                bookmarked=item.activity_id in bookmarked_activity_ids,
+            )
+            for item in page_obj.object_list
+        ]
+        service_cards = [
+            present_service_card(
+                item,
+                bookmarked=item["activity_id"] in bookmarked_activity_ids,
+            )
+            for item in service_items
+        ]
         record_search(
             result_count=result_count,
             constraint_count=len(intent.constraints),
@@ -128,6 +144,8 @@ class DiscoveryHomeView(TemplateView):
             {
                 "items": page_obj.object_list,
                 "service_items": service_items,
+                "cards": cards,
+                "service_cards": service_cards,
                 "page_obj": page_obj,
                 "filters": filters,
                 "discovery_intent": intent,
@@ -138,7 +156,7 @@ class DiscoveryHomeView(TemplateView):
                 "place_suggestions": _place_suggestions(items),
                 "nearby_active": nearby_active,
                 "map_items": map_items,
-                "bookmarked_activity_ids": _bookmarked_activity_ids(self.request.user),
+                "bookmarked_activity_ids": bookmarked_activity_ids,
                 "pagination_query": _query_without_page(self.request),
                 "map_config": {
                     "tile_url": settings.MAP_TILE_URL,
@@ -240,10 +258,10 @@ class BookmarkToggleView(LoginRequiredMixin, View):
             activity = event.activity
         bookmark, created = ActivityBookmark.objects.get_or_create(user=request.user, activity=activity)
         if created:
-            messages.success(request, "Activité ajoutée à vos favoris.")
+            messages.success(request, "Activité enregistrée.")
         else:
             bookmark.delete()
-            messages.info(request, "Activité retirée de vos favoris.")
+            messages.info(request, "Activité retirée de vos éléments enregistrés.")
         return redirect(request.POST.get("next") or "discovery:home")
 
 
@@ -255,6 +273,6 @@ class MyEventsView(LoginRequiredMixin, View):
     def get(self, request):
         messages.info(
             request,
-            "Retrouvez désormais vos démarches, accès, activités organisées et favoris dans les espaces dédiés.",
+            "Retrouvez désormais vos démarches, accès, activités organisées et éléments enregistrés dans les espaces dédiés.",
         )
         return redirect("core:participant-home")
