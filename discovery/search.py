@@ -22,6 +22,7 @@ from core.participant_selectors import participant_state_context
 from geography.models import Place, SpacePlace
 from geography.selectors import nearby_places
 from geography.value_objects import GeoPoint
+from groups.selectors import filter_queryset_by_activity_group_eligibility
 
 from .presentation import build_discovery_item, primary_place_for
 
@@ -172,6 +173,7 @@ def _base_queryset(*, now):
             "activity__owner_profile",
             "activity__event_vertical",
             "activity__event_vertical__category",
+            "activity__service_details",
             "activity__transport_service",
             "activity__transport_service__route",
             "transport_departure",
@@ -179,7 +181,9 @@ def _base_queryset(*, now):
         .prefetch_related(
             "place_links__place",
             Prefetch("offers", queryset=offers),
+            Prefetch("activity__offers", queryset=offers, to_attr="_discovery_activity_offers"),
             Prefetch("capacity_pools", queryset=pools),
+            "activity__occurrences",
             Prefetch("activity__space__space_places", queryset=space_places),
             "activity__transport_service__route__stops__place",
         )
@@ -241,8 +245,14 @@ def _apply_vertical(queryset, vertical):
         return queryset.filter(activity__event_vertical__isnull=False)
     if vertical == "transport":
         return queryset.filter(transport_departure__isnull=False)
+    if vertical == "service":
+        return queryset.filter(activity__service_details__isnull=False)
     if vertical == "other":
-        return queryset.filter(activity__event_vertical__isnull=True, transport_departure__isnull=True)
+        return queryset.filter(
+            activity__event_vertical__isnull=True,
+            activity__service_details__isnull=True,
+            transport_departure__isnull=True,
+        )
     raise ValidationError("Type d’activité invalide.")
 
 
@@ -300,6 +310,7 @@ def search_occurrences(params, *, profile=None, now=None):
     window = resolve_time_window(params, zone=zone, now=now)
     nearby = _parse_nearby(params)
     queryset = _base_queryset(now=now)
+    queryset = filter_queryset_by_activity_group_eligibility(queryset, profile)
     queryset = _apply_time(queryset, window)
     queryset = _apply_text(queryset, text)
     queryset = _apply_place(queryset, place_text)
