@@ -54,7 +54,7 @@
 
   <div class="mt-5 grid grid-cols-[1fr_minmax(120px,1.25fr)_1fr] items-stretch gap-2 border-t px-3 py-3 sm:px-5" style="border-color:var(--mk-border)" aria-label="Actions Makolo">
     {% if request.user.is_authenticated %}
-    <form method="post" action="{{ card.actions.save.url }}" class="min-w-0">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="mk-btn mk-btn-ghost min-h-11 w-full justify-center px-2 text-xs" aria-pressed="{% if card.actions.save.state == 'saved' %}true{% else %}false{% endif %}" aria-label="{{ card.actions.save.label }}">{% include 'discovery/_orbit_icon.html' with saved=card.actions.save.state|yesno:'saved,' size='20' %}<span>{{ card.actions.save.label }}</span></button></form>
+    <form method="post" action="{{ card.actions.save.url }}" class="min-w-0">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="mk-btn mk-btn-ghost min-h-11 w-full justify-center px-2 text-xs" aria-pressed="{% if card.actions.save.state == 'saved' %}true{% else %}false{% endif %}" aria-label="{{ card.actions.save.label }}">{% include 'discovery/_orbit_icon.html' with saved=card.actions.save.state size='20' %}<span>{{ card.actions.save.label }}</span></button></form>
     {% else %}
     <a href="{% url 'core:login' %}?next={{ request.get_full_path|urlencode }}" class="mk-btn mk-btn-ghost min-h-11 justify-center px-2 text-xs">{% include 'discovery/_orbit_icon.html' with size='20' %}<span>Enregistrer</span></a>
     {% endif %}
