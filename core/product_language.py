@@ -56,6 +56,8 @@ def vertical_for(activity):
         return "transport"
     if _has_related(activity, "event_vertical"):
         return "event"
+    if _has_related(activity, "service_details"):
+        return "service"
     return "generic"
 
 
@@ -144,12 +146,37 @@ def _transport_vocabulary(workflow):
     )
 
 
+def _service_vocabulary(workflow):
+    if workflow == WorkflowKind.ORDER_APPROVAL:
+        journey = ("Demande", "Voir ma demande", "Demander")
+    elif workflow == WorkflowKind.REGISTRATION:
+        journey = ("Inscription", "Voir mon inscription", "S’inscrire")
+    else:
+        journey = ("Accompagnement", "Voir mon accompagnement", "Commencer")
+    return ProductVocabulary(
+        vertical="service",
+        activity_noun="Accompagnement",
+        occurrence_noun="Étape",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande",
+        offer_noun="Tarif",
+        access_noun="Confirmation",
+        access_detail_label="Voir ma confirmation",
+        participant_noun="Participant",
+        operator_label="Proposé par",
+        primary_action=journey[2],
+    )
+
+
 def vocabulary_for(*, activity=None, workflow=None):
     vertical = vertical_for(activity)
     if vertical == "transport":
         return _transport_vocabulary(workflow)
     if vertical == "event":
         return _event_vocabulary(workflow)
+    if vertical == "service":
+        return _service_vocabulary(workflow)
     return _generic_vocabulary(workflow)
 
 
