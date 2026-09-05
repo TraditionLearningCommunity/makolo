@@ -128,7 +128,13 @@ def _next_viable_occurrences(activity_ids, *, now):
 
 
 def _viability_context(profile, activities, *, now):
-    """Resolve explicit viable facts in batches; no actionability score."""
+    """Resolve explicit viable facts in batches; no actionability score.
+
+    Event and Transport require a future structured realization. Service and
+    generic Activities remain Activity-first unless their owning domain exposes
+    a stronger realization requirement; C1 does not invent a global
+    Activity-versus-Occurrence rule.
+    """
     by_vertical = {"event": [], "transport": [], "service": [], "generic": []}
     for activity in activities:
         by_vertical.setdefault(vertical_for(activity), []).append(activity.pk)
@@ -138,6 +144,7 @@ def _viability_context(profile, activities, *, now):
     departures = next_public_departures_by_activity(by_vertical.get("transport", []), now=now)
 
     viable_ids = set(by_vertical.get("service", []))
+    viable_ids.update(by_vertical.get("generic", []))
     viable_ids.update(occurrences)
     viable_ids.update(departures)
     viable_ids &= eligible_activity_ids_for_profile(profile, viable_ids)
