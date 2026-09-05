@@ -100,6 +100,7 @@ class ProfileActivationUxTests(TestCase):
             last_name="Makolo",
         )
         self.profile = UserProfile.objects.create(user=self.user)
+        Topic.objects.filter(is_active=True).update(is_active=False)
         self.tech = Topic.objects.create(code="technology", label="Technologie")
         Topic.objects.create(code="music", label="Musique")
 
