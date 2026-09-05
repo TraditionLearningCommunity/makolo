@@ -82,9 +82,21 @@ class DiscoveryCardContractTests(TestCase):
         self.assertEqual(facts["capacity"], "42 places restantes")
         self.assertEqual(facts["distance"], "3.2 km")
         self.assertEqual(card.actions.save.label, "Enregistrer")
-        self.assertEqual(card.actions.primary.label, "Acheter")
+        self.assertEqual(card.actions.primary.code, "act")
+        self.assertEqual(card.actions.primary.label, "S’inscrire")
         self.assertEqual(card.actions.share.label, "Partager")
         self.assertFalse(any("intéress" in fact.value.lower() for fact in card.facts))
+
+    def test_paid_event_does_not_infer_buy_from_price(self):
+        participant = _participant_state(primary_action="S’inscrire")
+        card = present_occurrence_card(
+            _item(
+                participant=participant,
+                price=DiscoveryPrice(False, Decimal("25.00"), "USD", "À partir de 25 USD"),
+            )
+        )
+        self.assertEqual(card.actions.primary.code, "act")
+        self.assertEqual(card.actions.primary.label, "S’inscrire")
 
     def test_saved_state_is_private_personal_action_state_without_counter(self):
         card = present_occurrence_card(_item(), bookmarked=True)
