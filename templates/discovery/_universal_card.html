@@ -1,5 +1,19 @@
 <template id="discover-universal-card-tailwind-compat">
-  <span class="tracking-[-.025em] leading-6"></span>
+  <div class="mk-panel p-5 transition sm:p-6">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <span class="mk-badge ml-2 text-xs font-semibold mk-badge-brand mk-badge-success mk-badge-danger"></span>
+      <span class="flex items-center gap-2 mk-icon-btn h-4 w-4 fill-current"></span>
+    </div>
+    <h3 class="mt-4 text-lg font-extrabold tracking-[-.025em]"></h3>
+    <p class="mt-2 line-clamp-2 text-sm leading-6 font-semibold"></p>
+    <p class="mt-1 text-xs"></p>
+    <div class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+      <span class="inline-flex items-center gap-1.5"></span>
+    </div>
+    <div class="mt-5 flex flex-wrap gap-3 flex-col items-start items-center justify-between sm:flex-row sm:items-center sm:justify-between">
+      <span class="mk-btn mk-btn-primary mk-btn-secondary"></span>
+    </div>
+  </div>
 </template>
 <article id="discovery-card-{{ card.activity_id }}{% if card.occurrence_id %}-{{ card.occurrence_id }}{% endif %}" data-discovery-result="{% if card.occurrence_id %}{{ card.occurrence_id }}{% else %}service-{{ card.activity_id }}{% endif %}" class="mk-panel overflow-hidden transition">
   <a href="{{ card.url }}" class="block">
