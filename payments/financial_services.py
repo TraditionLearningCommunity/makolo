@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 
+from authorization.services import has_platform_authority
 from commerce.pricing import ChargeIncidence, FinancialComponentType, money
 
 from .models import (
@@ -100,9 +101,6 @@ def _commerce_specs(obligation):
         if amount == ZERO:
             continue
         incidence = component.get("incidence")
-        # Une charge d'incidence platform n'est ni ajoutée au payeur ni déduite
-        # du bénéficiaire par F1. Elle ne peut donc pas être inventée comme
-        # destination du payer_total en F3.
         if incidence == ChargeIncidence.PLATFORM.value:
             continue
         if incidence not in {ChargeIncidence.PAYER.value, ChargeIncidence.PAYEE.value}:
@@ -283,7 +281,6 @@ def recognize_payment_financials(*, payment):
     if payment.status != PaymentStatus.SUCCEEDED:
         return None
     if not payment.obligation_id:
-        # Compatibilité des très anciens Payments sans obligation F2.
         return None
     obligation = PaymentObligation.objects.select_for_update(of=("self",)).get(pk=payment.obligation_id)
     if payment.amount != obligation.amount or payment.currency != obligation.currency:
@@ -438,8 +435,8 @@ def record_refund_financials(*, refund):
 
 @transaction.atomic
 def record_financial_adjustment(*, obligation, economic_role, amount, currency, reason, idempotency_key, actor):
-    if not getattr(actor, "is_authenticated", False) or not getattr(actor, "is_staff", False):
-        raise PermissionDenied("Un ajustement financier manuel exige un staff Makolo.")
+    if not getattr(actor, "is_authenticated", False) or not has_platform_authority(actor):
+        raise PermissionDenied("Un ajustement financier manuel exige une autorité plateforme explicite.")
     if economic_role not in FinancialAllocationLineType.values:
         raise ValidationError("Rôle économique d’ajustement inconnu.")
     amount = _decimal_money(amount, label="adjustment.amount")
