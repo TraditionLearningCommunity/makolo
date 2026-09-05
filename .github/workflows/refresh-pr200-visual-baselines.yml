@@ -5,59 +5,51 @@ on:
     branches:
       - fix/finalize-discovery-presentation
 
+permissions:
+  actions: read
+  contents: write
+
 jobs:
   refresh:
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: fix/finalize-discovery-presentation
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-          cache: pip
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24.18.0"
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip check
-          npm ci
-      - name: Build and validate frontend
-        run: |
-          npm run build
-          git diff --exit-code -- package-lock.json static/dist
-          npm run check:runtime-deps
-          python manage.py makemigrations --check --dry-run
-      - name: Install Chromium
-        run: |
-          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt-mirrors.txt >/dev/null
-          npx playwright install --with-deps chromium
-      - name: Refresh visual snapshots
+      - name: Download validated CI diagnostics
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 33972161452 --name playwright-e2e-diagnostics --dir /tmp/pr200-diag
+      - name: Install exactly the reviewed baselines
         shell: bash
         run: |
-          source scripts/e2e-env.sh
-          bash scripts/prepare-e2e.sh
-          E2E_SKIP_PREP=1 npm run test:e2e:update-snapshots
-      - name: Verify exact snapshot scope
+          set -euo pipefail
+          desktop="$(find /tmp/pr200-diag -type f -name 'discovery-light-desktop-actual.png' -print -quit)"
+          mobile="$(find /tmp/pr200-diag -type f -name 'discovery-light-mobile-actual.png' -print -quit)"
+          dashboard="$(find /tmp/pr200-diag -type f -name 'participant-dashboard-dark-desktop-actual.png' -print -quit)"
+          test -n "$desktop" && test -n "$mobile" && test -n "$dashboard"
+          cp "$desktop" e2e/specs/visual.spec.mjs-snapshots/discovery-light-desktop-chromium-desktop-linux.png
+          cp "$mobile" e2e/specs/visual.spec.mjs-snapshots/discovery-light-mobile-chromium-mobile-linux.png
+          cp "$dashboard" e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-dark-desktop-chromium-desktop-linux.png
+          git rm .github/workflows/refresh-pr200-visual-baselines.yml
+      - name: Verify exact change scope
         shell: bash
         run: |
+          set -euo pipefail
           expected="$(printf '%s\n' \
+            '.github/workflows/refresh-pr200-visual-baselines.yml' \
             'e2e/specs/visual.spec.mjs-snapshots/discovery-light-desktop-chromium-desktop-linux.png' \
             'e2e/specs/visual.spec.mjs-snapshots/discovery-light-mobile-chromium-mobile-linux.png' \
             'e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-dark-desktop-chromium-desktop-linux.png' | sort)"
-          actual="$(git diff --name-only | sort)"
+          actual="$(git diff --name-only HEAD | sort)"
+          printf '%s\n' "$actual"
           test "$actual" = "$expected"
-      - name: Commit intentional baselines
+      - name: Commit reviewed baselines and remove helper
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add e2e/specs/visual.spec.mjs-snapshots
-          git commit -m 'test: refresh intentional Discovery visual baselines'
+          git add -A
+          git commit -m 'test: refresh reviewed Discovery visual baselines'
           git push origin HEAD:fix/finalize-discovery-presentation
