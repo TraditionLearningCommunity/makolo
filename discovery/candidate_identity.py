@@ -9,7 +9,8 @@ class CandidateKey:
 
     Identity comes from the canonical object. Provenance/reasons explain why a
     possibility was surfaced and never change this key. Related possibilities
-    from different families are not automatically duplicates.
+    from different families are not automatically duplicates. This is a
+    read-only value object, not a persisted Discovery domain model.
     """
 
     family: str
