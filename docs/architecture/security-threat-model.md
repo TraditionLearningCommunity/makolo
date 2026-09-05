@@ -55,16 +55,18 @@ Un identifiant, un bouton visible, un `is_staff`, une Membership ou une valeur e
 - Refund actuel est intégral : montant/devise proviennent du Payment canonique.
 - Webhook sandbox : signature HMAC avec `compare_digest`, event id unique, payload hash anti-confusion, payload persisté limité et aucune mutation métier ORM brute.
 - Payment / Refund / PaymentObligation / PaymentEvidence sont read-only dans Django Admin; CommerceOrder et CommerceOrderItem sont explicitement non ajoutables/modifiables/supprimables via admin.
+- Les écritures Offer via Django Admin exigent une autorité plateforme explicite en plus des permissions admin Django; le journal `LogEntry` natif de Django fournit la trace minimale de ces changements.
+- Waitlist/transferts privés et surfaces Scanner/Access ne confèrent aucun accès global au simple staff; l’accès reste propriétaire ou contextuel.
 - Les logs appliquent une redaction best-effort des mots de passe, tokens, secrets, signatures, cookies, bearer tokens et URLs de reset.
 
 ## Corrections pré-M7
 
-Le baseline retire les héritages historiques où `is_staff` ou une Membership pouvaient être utilisés comme autorité financière. Les paiements, remboursements, encaissements manuels et transitions d’obligation utilisent désormais les permissions/Mandates canoniques ou une autorité plateforme explicite. L’application d’une Promotion à une commande pending est liée au buyer de la commande.
+Le baseline retire les héritages historiques où `is_staff` ou une Membership pouvaient être utilisés comme autorité financière. Les paiements, remboursements, encaissements manuels et transitions d’obligation utilisent désormais les permissions/Mandates canoniques ou une autorité plateforme explicite. L’application d’une Promotion à une commande pending est liée au buyer de la commande. Les lectures privées waitlist/transfert et les vues de gestion Scanner/Access ne disposent plus d’un bypass staff. Les commandes transactionnelles sont immuables dans Django Admin et les écritures Offer y sont réservées à l’autorité plateforme explicite.
 
 ## Risques acceptés / différés
 
 - **M7** : contrats de signature/authentication/idempotence spécifiques à chaque futur provider/extension, isolation des credentials et lifecycle des connections.
-- **M9** : hardening systématique du repository, dependency scanning élargi, fuzzing, observabilité sécurité et revue exhaustive des uploads/endpoints non critiques.
+- **M9** : hardening systématique du repository, dependency scanning élargi, fuzzing, observabilité sécurité et revue exhaustive des uploads/endpoints non critiques. Les GitHub Actions actuellement référencées par tags majeurs plutôt que par SHA immuable relèvent aussi de ce hardening supply-chain.
 - **M10 / infra production** : WAF/CDN éventuel, politiques réseau, rotation/stockage opérationnel des secrets, sauvegarde/restauration, alerting et incident response.
 - **PSP réel** : contrôles propres au protocole, signature, retries, disputes, reconciliation, conformité et responsabilités PCI. Makolo ne stocke pas PAN/CVV dans ce baseline.
 - **Pentest externe** : validation indépendante avant exposition production appropriée.
