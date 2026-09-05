@@ -2,6 +2,7 @@ from django.urls import path
 
 from topics.web_views import ProfileInterestSettingsView, ProfileOpenToSettingsView
 
+from .activation_views import DismissProfileInterestPromptView, ProfileInterestQuickCaptureView
 from .public_views import PublicProfileView
 from .web_views import (
     AccountDeleteView, AccountPasswordChangeView, AccountProfileView, AccountRegistrationView,
@@ -15,6 +16,8 @@ urlpatterns = [
     path("register/", AccountRegistrationView.as_view(), name="register"),
     path("profile/", AccountProfileView.as_view(), name="profile"),
     path("interests/", ProfileInterestSettingsView.as_view(), name="interests"),
+    path("interests/quick-capture/", ProfileInterestQuickCaptureView.as_view(), name="interest-quick-capture"),
+    path("interests/prompt/dismiss/", DismissProfileInterestPromptView.as_view(), name="interest-prompt-dismiss"),
     path("open-to/", ProfileOpenToSettingsView.as_view(), name="open-to"),
     path("people/<uuid:profile_id>/", PublicProfileView.as_view(), name="public-profile"),
     path("switch/", AccountSwitcherView.as_view(), name="switcher"),
