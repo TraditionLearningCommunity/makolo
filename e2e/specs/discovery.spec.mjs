@@ -28,7 +28,7 @@ test('discovery finds Event and Transport by place and date @firefox', async ({ 
 });
 
 
-test('global search focuses Discovery and Activity favorite stays independent', async ({ page }) => {
+test('global search focuses Discovery and Activity save stays independent', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/me/');
   await page.getByRole('link', { name: 'Rechercher sur Makolo' }).click();
@@ -39,12 +39,12 @@ test('global search focuses Discovery and Activity favorite stays independent', 
   await page.getByRole('button', { name: 'Découvrir' }).click();
   const transport = page.locator('article').filter({ hasText: 'Lubumbashi → Kolwezi E2E' }).first();
   await expect(transport).toBeVisible();
-  const remove = transport.getByRole('button', { name: 'Retirer des favoris' });
+  const remove = transport.getByRole('button', { name: 'Enregistré' });
   if (await remove.count()) {
     await remove.click();
     await page.waitForLoadState('domcontentloaded');
   }
-  await page.locator('article').filter({ hasText: 'Lubumbashi → Kolwezi E2E' }).first().getByRole('button', { name: 'Enregistrer dans les favoris' }).click();
+  await page.locator('article').filter({ hasText: 'Lubumbashi → Kolwezi E2E' }).first().getByRole('button', { name: 'Enregistrer' }).click();
   await page.goto('/discover/bookmarks/');
   await expect(page.getByRole('heading', { name: 'Lubumbashi → Kolwezi E2E' })).toBeVisible();
 });
