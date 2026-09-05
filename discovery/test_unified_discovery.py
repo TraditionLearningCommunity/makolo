@@ -3,6 +3,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility
+from discovery.candidate_capabilities import requested_filter_keys
+from discovery.intent import AppliedConstraint, ConstraintSource
 from services.models import ServiceDetails, ServiceKind
 
 
@@ -62,3 +64,40 @@ class UnifiedDiscoveryServiceTests(TestCase):
         response = self.client.get(reverse("discovery:home"), {"vertical": "service"})
 
         self.assertContains(response, reverse("services:start", kwargs={"pk": self.service.pk}))
+
+    def test_general_search_does_not_inject_service_for_unsupported_filters(self):
+        cases = (
+            {"place": "Lubumbashi"},
+            {"when": "tomorrow"},
+            {"date": "2026-09-06"},
+            {"date_from": "2026-09-06", "date_to": "2026-09-10"},
+            {"price": "free"},
+            {"lat": "-11.6647", "lon": "27.4794", "radius_km": "10"},
+        )
+        for params in cases:
+            with self.subTest(params=params):
+                response = self.client.get(reverse("discovery:home"), params)
+                self.assertNotContains(response, "Accompagnement études internationales")
+
+    def test_explicit_service_filter_without_unsupported_constraint_keeps_service(self):
+        response = self.client.get(reverse("discovery:home"), {"vertical": "service"})
+        self.assertContains(response, "Accompagnement études internationales")
+        self.assertEqual(response.context["result_count"], 1)
+
+    def test_internal_default_constraint_is_not_treated_as_requested_filter(self):
+        requested = requested_filter_keys(
+            requested_params={},
+            constraints=(
+                AppliedConstraint("ordering", "soon", "Bientôt", ConstraintSource.DEFAULT),
+            ),
+        )
+        self.assertNotIn("ordering", requested)
+
+    def test_interpreted_constraint_is_treated_as_requested_filter(self):
+        requested = requested_filter_keys(
+            requested_params={"q": "demain"},
+            constraints=(
+                AppliedConstraint("when", "tomorrow", "Demain", ConstraintSource.INTERPRETED),
+            ),
+        )
+        self.assertIn("when", requested)

@@ -7,38 +7,123 @@ from django.urls import reverse
 
 from activities.models import ActivityStatus, ActivityVisibility
 from core.participant_presentation import resolve_participant_activity_state
-from opportunities.selectors import published_opportunities
+from opportunities.selectors import open_opportunities, upcoming_opportunities
 from services.models import OpportunityPolicy, ServiceDetails
 
+from .candidate_capabilities import family_can_satisfy_filters, requested_filter_keys
+from .candidate_identity import opportunity_candidate_key, service_activity_candidate_key
 
-SERVICE_RESULT_LIMIT = 24
+
+# Match the bounded Occurrence search envelope. Common Discovery pagination now
+# owns page sizing, so a page-sized family cap would truncate logical results
+# before composition and make page 2 inconsistent.
+DISCOVERY_FAMILY_CANDIDATE_LIMIT = 500
 OPPORTUNITY_CONTEXT_LIMIT = 1
 
 
-def _matching_opportunities(text):
-    if not text:
-        return []
-    return list(
-        published_opportunities()
-        .filter(
-            Q(current_revision__title__icontains=text)
-            | Q(current_revision__summary__icontains=text)
-            | Q(current_revision__issuer_name__icontains=text)
-            | Q(current_revision__application_instructions__icontains=text)
-        )[:OPPORTUNITY_CONTEXT_LIMIT]
+def _opportunity_text_filter(text):
+    return (
+        Q(current_revision__title__icontains=text)
+        | Q(current_revision__summary__icontains=text)
+        | Q(current_revision__issuer_name__icontains=text)
+        | Q(current_revision__application_instructions__icontains=text)
     )
 
 
-def public_service_discovery_items(params, *, profile=None):
-    """Project public Service Activities into Discover without changing domain models.
+def _matching_opportunities(text):
+    """Only immediately actionable Opportunities may contextualize Service intake."""
+    if not text:
+        return []
+    return list(open_opportunities().filter(_opportunity_text_filter(text))[:OPPORTUNITY_CONTEXT_LIMIT])
 
-    Opportunity remains contextual data: when a search matches a published
-    Opportunity, Discover proposes compatible accompaniment services and passes
-    the canonical Opportunity through the existing Service intake URL.
+
+def public_opportunity_discovery_items(
+    params,
+    *,
+    requested_params=None,
+    constraints=(),
+    now=None,
+):
+    """Project Opportunity directly without fabricating Activity or Occurrence.
+
+    Opportunity is the durable candidate identity; ``revision_id`` records the
+    published facts observed for this projection. Closed Opportunities are not
+    promoted as viable candidates. Upcoming Opportunities remain informative
+    and never imply that an application can start now.
+    """
+
+    if (params.get("vertical") or "").strip():
+        return []
+    text = (params.get("q") or "").strip()
+    if not text:
+        return []
+    requested = requested_filter_keys(
+        requested_params=params if requested_params is None else requested_params,
+        constraints=constraints,
+    )
+    if not family_can_satisfy_filters("opportunity", requested):
+        return []
+
+    rows = []
+    seen = set()
+    query = _opportunity_text_filter(text)
+    sources = (
+        ("open", open_opportunities(at=now).filter(query)),
+        ("upcoming", upcoming_opportunities(at=now).filter(query)),
+    )
+    for temporal_state, queryset in sources:
+        for opportunity in queryset[:DISCOVERY_FAMILY_CANDIDATE_LIMIT]:
+            key = opportunity_candidate_key(opportunity)
+            if key in seen:
+                continue
+            seen.add(key)
+            revision = opportunity.current_revision
+            rows.append(
+                {
+                    "candidate_family": key.family,
+                    "candidate_key": str(key),
+                    "opportunity_id": str(opportunity.pk),
+                    "revision_id": str(revision.pk),
+                    "temporal_state": temporal_state,
+                    "title": revision.title,
+                    "summary": revision.summary,
+                    "issuer_name": revision.issuer_name,
+                    "url": reverse("opportunities:detail", kwargs={"pk": opportunity.pk}),
+                    "cta_label": "Voir l’opportunité",
+                    "state_label": "Ouverte" if temporal_state == "open" else "À venir",
+                }
+            )
+            if len(rows) >= DISCOVERY_FAMILY_CANDIDATE_LIMIT:
+                return rows
+    return rows
+
+
+def public_service_discovery_items(
+    params,
+    *,
+    profile=None,
+    requested_params=None,
+    constraints=(),
+):
+    """Project public Service Activities into Discover without domain copies.
+
+    Candidate capabilities are evaluated against constraints actually requested
+    by the user/interpreter. Technical defaults in a later search mapping must
+    not silently remove Service candidates.
+
+    Opportunity remains contextual data for Service intake only when it is open
+    now. The Opportunity itself keeps an independent Discovery identity.
     """
 
     vertical = (params.get("vertical") or "").strip().lower()
     if vertical not in {"", "service"}:
+        return []
+
+    requested = requested_filter_keys(
+        requested_params=params if requested_params is None else requested_params,
+        constraints=constraints,
+    )
+    if not family_can_satisfy_filters("service_activity", requested):
         return []
 
     text = (params.get("q") or "").strip()
@@ -70,8 +155,13 @@ def public_service_discovery_items(params, *, profile=None):
             services = services.filter(activity_match | ~Q(opportunity_policy=OpportunityPolicy.NONE))
 
     rows = []
-    for service in services.distinct()[:SERVICE_RESULT_LIMIT]:
+    seen = set()
+    for service in services.distinct()[:DISCOVERY_FAMILY_CANDIDATE_LIMIT]:
         activity = service.activity
+        key = service_activity_candidate_key(activity)
+        if key in seen:
+            continue
+        seen.add(key)
         contextual_opportunity = (
             opportunity if opportunity is not None and service.opportunity_policy != OpportunityPolicy.NONE else None
         )
@@ -89,6 +179,8 @@ def public_service_discovery_items(params, *, profile=None):
         )
         rows.append(
             {
+                "candidate_family": key.family,
+                "candidate_key": str(key),
                 "activity_id": str(activity.pk),
                 "service_id": str(service.pk),
                 "vertical": "service",

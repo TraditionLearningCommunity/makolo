@@ -79,7 +79,7 @@
     {% if nearby_active and map_items %}
     <section class="space-y-3" aria-label="Contexte géographique de la recherche">
         <div class="flex flex-wrap items-end justify-between gap-3">
-            <div><span class="mk-kicker">Autour de vous</span><p class="mt-2 text-sm font-semibold" style="color:var(--mk-muted)">Rayon {{ filters.radius_km|default:'10' }} km · {{ result_count }} résultat{{ result_count|pluralize }}</p></div>
+            <div><span class="mk-kicker">Autour de vous</span><p class="mt-2 text-sm font-semibold" style="color:var(--mk-muted)">Rayon {{ filters.radius_km|default:'10' }} km · {{ mappable_result_count }} cartographiable{{ mappable_result_count|pluralize }} sur {{ result_count }} résultat{{ result_count|pluralize }}</p></div>
             <div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-btn mk-btn-secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-btn mk-btn-ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>
         </div>
         <section id="discovery-map-panel" class="hidden lg:block" aria-label="Carte des résultats"><div class="sticky top-24 overflow-hidden rounded-3xl border" style="position:static;border-color:var(--mk-border);background:var(--mk-surface-solid)"><div id="discovery-map" class="h-[62vh] min-h-[420px] w-full" style="height:clamp(220px,30vw,340px);min-height:0" aria-label="Carte MapLibre des résultats"></div><p id="discovery-map-fallback" class="hidden p-4 text-sm" style="color:var(--mk-muted)" role="status">La carte n’est pas disponible. La liste reste entièrement utilisable.</p></div></section>
@@ -91,7 +91,7 @@
     <div class="grid gap-5 {% if nearby_active and map_items %}lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]{% endif %}">
         <section id="discovery-list-panel" aria-label="Résultats de découverte" class="space-y-3"{% if nearby_active and map_items %} style="grid-column:1 / -1"{% endif %}>
             {% for item in service_items %}
-            <article id="discovery-service-{{ item.service_id }}" data-discovery-result="service-{{ item.service_id }}" class="mk-panel p-5 transition sm:p-6">
+            <article id="discovery-service-{{ item.service_id }}" data-discovery-result="{{ item.candidate_key }}" class="mk-panel p-5 transition sm:p-6">
                 <div class="flex flex-wrap items-start justify-between gap-3"><div><span class="mk-badge">{{ item.vertical_label }}</span><span class="ml-2 text-xs font-semibold" style="color:var(--mk-muted)">{{ item.service_kind }}</span>{% if item.opportunity_title %}<span class="ml-2 mk-badge mk-badge-brand">Pour {{ item.opportunity_title }}</span>{% endif %}</div><span class="mk-badge mk-badge-success">Disponible</span></div>
                 <h3 class="mt-4 text-lg font-extrabold tracking-[-.025em]"><a href="{{ item.url }}">{{ item.title }}</a></h3>
                 {% if item.summary %}<p class="mt-2 line-clamp-2 text-sm leading-6" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
@@ -99,8 +99,17 @@
             </article>
             {% endfor %}
 
+            {% for item in opportunity_items %}
+            <article id="discovery-opportunity-{{ item.opportunity_id }}" data-discovery-result="{{ item.candidate_key }}" class="mk-panel p-5 transition sm:p-6">
+                <div class="flex flex-wrap items-start justify-between gap-3"><div><span class="mk-badge">Opportunity</span>{% if item.issuer_name %}<span class="ml-2 text-xs font-semibold" style="color:var(--mk-muted)">{{ item.issuer_name }}</span>{% endif %}</div><span class="mk-badge {% if item.temporal_state == 'open' %}mk-badge-success{% else %}mk-badge-brand{% endif %}">{{ item.state_label }}</span></div>
+                <h3 class="mt-4 text-lg font-extrabold tracking-[-.025em]"><a href="{{ item.url }}">{{ item.title }}</a></h3>
+                {% if item.summary %}<p class="mt-2 line-clamp-2 text-sm leading-6" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
+                <div class="mt-5 flex justify-end"><a href="{{ item.url }}" class="mk-btn mk-btn-secondary">{{ item.cta_label }}<i data-lucide="arrow-right" class="h-4 w-4"></i></a></div>
+            </article>
+            {% endfor %}
+
             {% for item in items %}
-            <article id="discovery-result-{{ item.occurrence_id }}" data-discovery-result="{{ item.occurrence_id }}" class="mk-panel p-5 transition sm:p-6">
+            <article id="discovery-result-{{ item.occurrence_id }}" data-discovery-result="{{ item.candidate_key }}" class="mk-panel p-5 transition sm:p-6">
                 <div class="flex flex-wrap items-start justify-between gap-3"><div><span class="mk-badge">{{ item.vertical_label }}</span>{% if item.eyebrow %}<span class="ml-2 text-xs font-semibold" style="color:var(--mk-muted)">{{ item.eyebrow }}</span>{% endif %}{% if item.participant.label %}<span class="ml-2 mk-badge {% if item.participant.visual_variant == 'success' %}mk-badge-success{% elif item.participant.visual_variant == 'danger' %}mk-badge-danger{% elif item.participant.visual_variant == 'brand' %}mk-badge-brand{% endif %}">{{ item.participant.label }}</span>{% endif %}</div><div class="flex items-center gap-2"><span class="mk-badge {% if item.participant.availability == 'sold_out' or item.participant.availability == 'cancelled' %}mk-badge-danger{% elif item.participant.availability == 'unlimited' %}mk-badge-success{% endif %}">{{ item.participant.availability_label }}</span>{% if request.user.is_authenticated %}<form method="post" action="{% url 'discovery:activity-bookmark-toggle' item.activity_id %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="mk-icon-btn" aria-label="{% if item.activity_id in bookmarked_activity_ids %}Retirer des favoris{% else %}Enregistrer dans les favoris{% endif %}" title="{% if item.activity_id in bookmarked_activity_ids %}Retirer des favoris{% else %}Enregistrer{% endif %}"><i data-lucide="bookmark" class="h-4 w-4 {% if item.activity_id in bookmarked_activity_ids %}fill-current{% endif %}"></i></button></form>{% endif %}</div></div>
                 <h3 class="mt-4 text-lg font-extrabold tracking-[-.025em]"><a href="{{ item.url }}">{{ item.title }}</a></h3>
                 {% if item.summary %}<p class="mt-2 line-clamp-2 text-sm leading-6" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
@@ -110,7 +119,7 @@
             </article>
             {% endfor %}
 
-            {% if not service_items and not items %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucun résultat ne correspond à votre recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Modifiez les filtres ou revenez à Tout pour découvrir autre chose.</p><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4">Voir tout</a></div>{% endif %}
+            {% if not service_items and not opportunity_items and not items %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucun résultat ne correspond à votre recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Modifiez les filtres ou revenez à Tout pour découvrir autre chose.</p><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4">Voir tout</a></div>{% endif %}
             {% if page_obj.paginator.num_pages > 1 %}<nav class="flex items-center justify-between gap-3 pt-2" aria-label="Pagination des résultats">{% if page_obj.has_previous %}<a class="mk-btn mk-btn-secondary" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Précédent</a>{% else %}<span></span>{% endif %}<span class="text-xs" style="color:var(--mk-muted)">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="mk-btn mk-btn-secondary" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Suivant</a>{% endif %}</nav>{% endif %}
         </section>
     </div>

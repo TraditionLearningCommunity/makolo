@@ -11,9 +11,12 @@ from django.utils import timezone
 from activities.models import OccurrencePlaceRole
 from capacity.models import CapacityReservationStatus
 from commerce.models import OfferStatus
+from commerce.selectors import offer_applies_to_occurrence
 from core.participant_presentation import ParticipantActivityState, resolve_participant_activity_state
-from core.product_language import vocabulary_for
+from core.product_language import vertical_for, vocabulary_for
 from journeys.models import WorkflowKind
+
+from .candidate_identity import occurrence_candidate_key
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,8 @@ class DiscoveryAvailability:
 
 @dataclass(frozen=True)
 class DiscoveryItem:
+    candidate_family: str
+    candidate_key: str
     activity_id: str
     occurrence_id: str
     vertical: str
@@ -77,15 +82,11 @@ class DiscoveryItem:
         return payload
 
     def to_map_dict(self) -> dict[str, Any] | None:
-        """Return only the established public map contract.
-
-        Participant state intentionally stays out of MapLibre/API payloads. The
-        personalized state belongs to the authenticated list/detail presentation
-        and must not broaden the public discovery data surface.
-        """
+        """Return only the established public map contract."""
         if self.place is None or self.place.latitude is None or self.place.longitude is None:
             return None
         return {
+            "candidate_key": self.candidate_key,
             "activity_id": self.activity_id,
             "occurrence_id": self.occurrence_id,
             "vertical": self.vertical,
@@ -166,8 +167,19 @@ def _pool_remaining(pool, *, now):
 
 
 def _offers_for_occurrence(occurrence):
-    offers = _prefetched(occurrence, "offers")
-    return offers if offers is not None else list(occurrence.offers.select_related("capacity_pool"))
+    occurrence_offers = _prefetched(occurrence, "offers")
+    activity_offers = getattr(occurrence.activity, "_discovery_activity_offers", None)
+    if occurrence_offers is None or activity_offers is None:
+        from commerce.selectors import applicable_offers
+
+        return list(applicable_offers(occurrence=occurrence))
+    by_id = {offer.pk: offer for offer in activity_offers}
+    by_id.update({offer.pk: offer for offer in occurrence_offers})
+    return [
+        offer
+        for offer in by_id.values()
+        if offer_applies_to_occurrence(offer, occurrence)
+    ]
 
 
 def active_offers(occurrence, *, now=None):
@@ -241,6 +253,9 @@ class BasePresenter:
     def cta(self, occurrence, *, price, availability) -> str:
         return vocabulary_for(activity=occurrence.activity).primary_action
 
+    def can_present_offer(self, occurrence) -> bool:
+        return True
+
     def image_url(self, occurrence) -> str | None:
         return None
 
@@ -260,10 +275,22 @@ class EventPresenter(BasePresenter):
     def _event(self, occurrence):
         return occurrence.activity.event_vertical
 
+    def _is_primary(self, occurrence) -> bool:
+        primary = self._event(occurrence).primary_occurrence
+        return primary is not None and primary.pk == occurrence.pk
+
     def url(self, occurrence) -> str:
         return reverse("events:detail", args=[self._event(occurrence).slug])
 
+    def can_present_offer(self, occurrence) -> bool:
+        # Event checkout is still primary-occurrence. A secondary date must not
+        # inherit or imply an acquisition path until Ticketing becomes aware of
+        # the selected Occurrence.
+        return self._is_primary(occurrence)
+
     def cta(self, occurrence, *, price, availability) -> str:
+        if not self._is_primary(occurrence):
+            return "Voir l’événement"
         if availability.state == "sold_out" or price.minimum is None:
             return "Voir l’événement"
         workflow = WorkflowKind.REGISTRATION if price.is_free else WorkflowKind.PURCHASE
@@ -345,7 +372,11 @@ def build_discovery_item(
     presenter = presenter_for(occurrence)
     vocabulary = vocabulary_for(activity=occurrence.activity)
     place = presenter.primary_place(occurrence)
-    price = price_presentation(occurrence, now=now)
+    price = (
+        price_presentation(occurrence, now=now)
+        if presenter.can_present_offer(occurrence)
+        else DiscoveryPrice(False, None, None, None)
+    )
     availability = availability_presentation(occurrence, now=now)
     local_zone = ZoneInfo(occurrence.timezone)
     local_start = occurrence.start_at.astimezone(local_zone)
@@ -372,10 +403,13 @@ def build_discovery_item(
         detail_url=detail_url,
         now=now,
     )
+    candidate_key = occurrence_candidate_key(occurrence)
     return DiscoveryItem(
+        candidate_family=candidate_key.family,
+        candidate_key=str(candidate_key),
         activity_id=str(occurrence.activity_id),
         occurrence_id=str(occurrence.pk),
-        vertical=presenter.key,
+        vertical=vertical_for(occurrence.activity),
         vertical_label=vocabulary.activity_noun,
         title=occurrence.activity.title,
         summary=occurrence.activity.short_description or occurrence.activity.description[:220],

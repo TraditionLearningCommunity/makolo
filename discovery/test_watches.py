@@ -5,8 +5,10 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
+from activities.models import Activity, ActivityStatus, ActivityVisibility
 from journeys.models import Journey
 from objectives.models import Dossier
+from services.models import ServiceDetails, ServiceKind
 
 from .models import DiscoveryWatch, DiscoveryWatchStatus
 from .watches import execute_watch, normalize_watch_criteria
@@ -26,6 +28,16 @@ class DiscoveryWatchTests(TestCase):
             username="watch-other",
             email="watch-other@example.test",
             password="StrongPass2026!",
+        )
+        service_activity = Activity.objects.create(
+            owner_profile=self.owner,
+            title="Accompagnement Watch",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        ServiceDetails.objects.create(
+            activity=service_activity,
+            service_kind=ServiceKind.ORIENTATION,
         )
 
     def test_valid_watch_is_created_and_empty_criteria_are_rejected(self):
@@ -74,8 +86,34 @@ class DiscoveryWatchTests(TestCase):
             DiscoveryWatch.objects.create(owner=self.owner, name="Interdit", criteria={"q": "visa"}, dossier=foreign)
 
     def test_service_watch_rejects_filters_discovery_does_not_execute(self):
-        with self.assertRaises(ValidationError):
-            normalize_watch_criteria({"vertical": "service", "place": "Lubumbashi"})
+        cases = (
+            {"vertical": "service", "place": "Lubumbashi"},
+            {"vertical": "service", "when": "tomorrow"},
+            {"vertical": "service", "date": "2026-09-06"},
+            {"vertical": "service", "price": "free"},
+            {"vertical": "service", "lat": "-11.6647", "lon": "27.4794", "radius_km": "10"},
+        )
+        for criteria in cases:
+            with self.subTest(criteria=criteria), self.assertRaises(ValidationError):
+                normalize_watch_criteria(criteria)
+
+    def test_general_watch_does_not_inject_service_when_family_cannot_prove_filter(self):
+        cases = (
+            {"place": "Lubumbashi"},
+            {"when": "tomorrow"},
+            {"date": "2026-09-06"},
+            {"price": "free"},
+            {"lat": "-11.6647", "lon": "27.4794", "radius_km": "10"},
+        )
+        for criteria in cases:
+            with self.subTest(criteria=criteria):
+                result = execute_watch(criteria, profile=self.owner)
+                self.assertEqual(result.service_items, [])
+
+    def test_service_only_watch_remains_executable(self):
+        result = execute_watch({"vertical": "service"}, profile=self.owner)
+        self.assertEqual(len(result.service_items), 1)
+        self.assertEqual(result.service_items[0]["title"], "Accompagnement Watch")
 
     @patch("discovery.watches.public_service_discovery_items", return_value=[])
     @patch("discovery.watches.search_occurrences")
@@ -86,5 +124,9 @@ class DiscoveryWatchTests(TestCase):
         search.return_value.nearby_active = False
         result = execute_watch({"q": "concert", "vertical": "event"}, profile=self.owner)
         search.assert_called_once_with({"q": "concert", "vertical": "event"}, profile=self.owner, now=None)
-        services.assert_called_once_with({"q": "concert", "vertical": "event"}, profile=self.owner)
+        services.assert_called_once_with(
+            {"q": "concert", "vertical": "event"},
+            profile=self.owner,
+            requested_params={"q": "concert", "vertical": "event"},
+        )
         self.assertEqual(result.total, 0)
