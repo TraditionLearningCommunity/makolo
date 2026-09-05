@@ -20,7 +20,7 @@ from .presentation import build_discovery_item, presenter_for
 from .search import get_public_occurrence, public_occurrences_for_activities, search_occurrences
 from .services import build_recommendations, public_discovery_events
 from .telemetry import record_search
-from .unified import public_service_discovery_items
+from .unified import public_opportunity_discovery_items, public_service_discovery_items
 
 
 DISCOVERY_PAGE_SIZE = 24
@@ -82,6 +82,28 @@ def _empty_occurrence_result():
     return SimpleNamespace(items=[], timezone_name=settings.TIME_ZONE, total=0, nearby_active=False)
 
 
+def _combine_logical_candidates(*, service_items, opportunity_items, occurrence_items):
+    """Stable exact-identity composition before pagination.
+
+    Candidate identity identifies the real possibility; provenance explains why
+    it was surfaced. Related cross-family possibilities are not merged.
+    """
+    rows = []
+    seen = set()
+    for family, candidates in (
+        ("service_activity", service_items),
+        ("opportunity", opportunity_items),
+        ("occurrence", occurrence_items),
+    ):
+        for candidate in candidates:
+            key = candidate["candidate_key"] if isinstance(candidate, dict) else candidate.candidate_key
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append((family, key, candidate))
+    return rows
+
+
 class DiscoveryHomeView(TemplateView):
     template_name = "discovery/home.html"
 
@@ -99,15 +121,30 @@ class DiscoveryHomeView(TemplateView):
         except ValidationError as exc:
             result = _empty_occurrence_result()
             errors = list(exc.messages)
-        items = result.items
+        occurrence_items = result.items
         service_items = public_service_discovery_items(
             search_params,
             profile=self.request.user,
             requested_params=self.request.GET,
             constraints=intent.constraints,
         )
-        result_count = result.total + len(service_items)
-        page_obj = Paginator(items, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        opportunity_items = public_opportunity_discovery_items(
+            search_params,
+            requested_params=self.request.GET,
+            constraints=intent.constraints,
+        )
+        logical_candidates = _combine_logical_candidates(
+            service_items=service_items,
+            opportunity_items=opportunity_items,
+            occurrence_items=occurrence_items,
+        )
+        result_count = len(logical_candidates)
+        page_obj = Paginator(logical_candidates, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
+        page_rows = page_obj.object_list
+        page_service_items = [row[2] for row in page_rows if row[0] == "service_activity"]
+        page_opportunity_items = [row[2] for row in page_rows if row[0] == "opportunity"]
+        page_occurrence_items = [row[2] for row in page_rows if row[0] == "occurrence"]
+
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
         filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
         filters["period"] = intent.period
@@ -116,9 +153,14 @@ class DiscoveryHomeView(TemplateView):
         if nearby_active:
             map_items = [
                 payload
-                for item in page_obj.object_list
+                for item in page_occurrence_items
                 if (payload := item.to_map_dict()) is not None
             ]
+        mappable_result_count = sum(
+            1
+            for item in occurrence_items
+            if item.to_map_dict() is not None
+        )
         record_search(
             result_count=result_count,
             constraint_count=len(intent.constraints),
@@ -130,8 +172,9 @@ class DiscoveryHomeView(TemplateView):
         )
         context.update(
             {
-                "items": page_obj.object_list,
-                "service_items": service_items,
+                "items": page_occurrence_items,
+                "service_items": page_service_items,
+                "opportunity_items": page_opportunity_items,
                 "page_obj": page_obj,
                 "filters": filters,
                 "discovery_intent": intent,
@@ -139,8 +182,8 @@ class DiscoveryHomeView(TemplateView):
                 "search_errors": errors,
                 "search_timezone": result.timezone_name,
                 "result_count": result_count,
-                "mappable_result_count": len(map_items) if nearby_active else 0,
-                "place_suggestions": _place_suggestions(items),
+                "mappable_result_count": mappable_result_count,
+                "place_suggestions": _place_suggestions(occurrence_items),
                 "nearby_active": nearby_active,
                 "map_items": map_items,
                 "bookmarked_activity_ids": _bookmarked_activity_ids(self.request.user),
