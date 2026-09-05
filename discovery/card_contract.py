@@ -99,6 +99,23 @@ def _action_icon(code: str) -> str:
     }.get(code, "arrow-right")
 
 
+def _card_action_label(*, code: str, vertical: str, fallback: str) -> str:
+    """Short card grammar derived from semantic action code, never parsed copy."""
+    if code == "access":
+        if vertical in {"event", "transport"}:
+            return "Mon billet"
+        if vertical == "service":
+            return "Ma confirmation"
+        return "Mon accès"
+    if code == "buy":
+        return "Acheter"
+    if code == "request":
+        return "Demander"
+    if code == "pay" and fallback == "Reprendre le paiement":
+        return fallback
+    return fallback
+
+
 def _occurrence_facts(item) -> tuple[FactPresentation, ...]:
     facts: list[FactPresentation] = []
     local_start = item.local_start
@@ -143,7 +160,7 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
         primary = ActionPresentation(
             code=code,
             role="primary",
-            label=item.cta_label,
+            label=_card_action_label(code=code, vertical=item.vertical, fallback=item.cta_label),
             icon=_action_icon(code),
             state="available",
             url=item.cta_url,
@@ -201,7 +218,7 @@ def present_service_card(item: dict, *, bookmarked: bool = False) -> DiscoveryCa
         primary = ActionPresentation(
             code=code,
             role="primary",
-            label=item["cta_label"],
+            label=_card_action_label(code=code, vertical="service", fallback=item["cta_label"]),
             icon=_action_icon(code),
             state="available",
             url=item["cta_url"],
