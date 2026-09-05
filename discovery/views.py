@@ -13,6 +13,7 @@ from django.views.generic import ListView, TemplateView
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.participant_selectors import participant_state_context
 
+from .card_contract import present_occurrence_card, present_service_card
 from .intelligence import interpret_with_intelligence
 from .intent import resolve_discovery_intent
 from .models import ActivityBookmark
@@ -145,6 +146,23 @@ class DiscoveryHomeView(TemplateView):
         page_opportunity_items = [row[2] for row in page_rows if row[0] == "opportunity"]
         page_occurrence_items = [row[2] for row in page_rows if row[0] == "occurrence"]
 
+        bookmarked_activity_ids = _bookmarked_activity_ids(self.request.user)
+        bookmarked_activity_keys = {str(activity_id) for activity_id in bookmarked_activity_ids}
+        service_cards = [
+            present_service_card(
+                item,
+                bookmarked=str(item["activity_id"]) in bookmarked_activity_keys,
+            )
+            for item in page_service_items
+        ]
+        cards = [
+            present_occurrence_card(
+                item,
+                bookmarked=str(item.activity_id) in bookmarked_activity_keys,
+            )
+            for item in page_occurrence_items
+        ]
+
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
         filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
         filters["period"] = intent.period
@@ -175,6 +193,8 @@ class DiscoveryHomeView(TemplateView):
                 "items": page_occurrence_items,
                 "service_items": page_service_items,
                 "opportunity_items": page_opportunity_items,
+                "cards": cards,
+                "service_cards": service_cards,
                 "page_obj": page_obj,
                 "filters": filters,
                 "discovery_intent": intent,
@@ -186,7 +206,7 @@ class DiscoveryHomeView(TemplateView):
                 "place_suggestions": _place_suggestions(occurrence_items),
                 "nearby_active": nearby_active,
                 "map_items": map_items,
-                "bookmarked_activity_ids": _bookmarked_activity_ids(self.request.user),
+                "bookmarked_activity_ids": bookmarked_activity_ids,
                 "pagination_query": _query_without_page(self.request),
                 "map_config": {
                     "tile_url": settings.MAP_TILE_URL,
@@ -287,10 +307,10 @@ class BookmarkToggleView(LoginRequiredMixin, View):
             activity = event.activity
         bookmark, created = ActivityBookmark.objects.get_or_create(user=request.user, activity=activity)
         if created:
-            messages.success(request, "Activité ajoutée à vos favoris.")
+            messages.success(request, "Activité enregistrée.")
         else:
             bookmark.delete()
-            messages.info(request, "Activité retirée de vos favoris.")
+            messages.info(request, "Activité retirée de vos enregistrés.")
         return redirect(request.POST.get("next") or "discovery:home")
 
 
@@ -302,6 +322,6 @@ class MyEventsView(LoginRequiredMixin, View):
     def get(self, request):
         messages.info(
             request,
-            "Retrouvez désormais vos démarches, accès, activités organisées et favoris dans les espaces dédiés.",
+            "Retrouvez désormais vos démarches, accès, activités organisées et enregistrés dans les espaces dédiés.",
         )
         return redirect("core:participant-home")

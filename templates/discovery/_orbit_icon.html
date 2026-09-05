@@ -1,0 +1,11 @@
+<svg viewBox="0 0 24 24" width="{{ size|default:'20' }}" height="{{ size|default:'20' }}" aria-hidden="true" focusable="false">
+  {% if saved == 'saved' %}
+  <path d="M5.6 17.2a8.2 8.2 0 1 1 12.9-1.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="12" cy="12" r="3.2" fill="currentColor"/>
+  <circle cx="19.2" cy="17.5" r="1.55" fill="currentColor"/>
+  {% else %}
+  <path d="M5.2 17.6A8.7 8.7 0 0 1 16.9 5.1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M18.4 7.2a8.6 8.6 0 0 1 .2 7.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="19.3" cy="17.6" r="1.45" fill="currentColor"/>
+  {% endif %}
+</svg>

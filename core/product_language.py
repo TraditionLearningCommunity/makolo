@@ -189,8 +189,11 @@ def participant_state_copy(*, activity, state, workflow=None):
 
     vocabulary = vocabulary_for(activity=activity, workflow=workflow)
     if state == "access_valid":
-        label = "Votre billet est prêt" if vocabulary.vertical == "transport" else "Vous avez accès"
-        return label, vocabulary.access_detail_label
+        if vocabulary.vertical == "transport":
+            return "Votre billet est prêt", vocabulary.access_detail_label
+        if vocabulary.vertical == "service":
+            return "Tout est prêt", vocabulary.access_detail_label
+        return "Vous avez accès", vocabulary.access_detail_label
     if state == "access_used":
         return ("Billet utilisé" if vocabulary.vertical == "transport" else "Accès utilisé"), vocabulary.access_detail_label
     if state == "access_revoked":
