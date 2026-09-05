@@ -104,10 +104,10 @@ def _card_action_label(*, code: str, vertical: str, fallback: str) -> str:
     """Short card grammar derived from semantic action code, never parsed copy."""
     if code == "access":
         if vertical in {"event", "transport"}:
-            return "Voir mon billet"
+            return "Mon billet"
         if vertical == "service":
-            return "Voir ma confirmation"
-        return "Voir mon accès"
+            return "Ma confirmation"
+        return "Mon accès"
     if code == "buy":
         return "Acheter"
     if code == "request":
@@ -121,15 +121,7 @@ def _occurrence_facts(item) -> tuple[FactPresentation, ...]:
     facts: list[FactPresentation] = []
     local_start = item.local_start
     if local_start is not None:
-        facts.append(
-            FactPresentation(
-                code="when",
-                label="Quand",
-                value=f"{date_format(local_start, 'D d M')} · {local_start.strftime('%H:%M')}",
-                icon="calendar-clock",
-                priority=10,
-            )
-        )
+        facts.append(FactPresentation("when", "Quand", f"{date_format(local_start, 'D d M')} · {local_start.strftime('%H:%M')}", "calendar-clock", 10))
     if item.place is not None:
         place_value = item.place.name
         if item.place.locality and item.place.locality != item.place.name:
@@ -152,63 +144,23 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
     participant = item.participant
     code = _primary_action_code(participant.participant_state, None)
     if participant.participant_state == "none" and item.vertical == "transport":
-        # Transport has an established reservation contract. For other verticals,
-        # keep the canonical CTA copy instead of guessing a workflow from price or
-        # translated text. A semantic workflow code can be added when the domain
-        # exposes one explicitly.
         code = "reserve"
     primary = None
     if item.cta_label and item.cta_url:
-        primary = ActionPresentation(
-            code=code,
-            role="primary",
-            label=_card_action_label(code=code, vertical=item.vertical, fallback=item.cta_label),
-            icon=_action_icon(code),
-            state="available",
-            url=item.cta_url,
-            emphasis="primary",
-            enabled=participant.availability not in {"cancelled", "completed"},
-        )
+        primary = ActionPresentation(code=code, role="primary", label=_card_action_label(code=code, vertical=item.vertical, fallback=item.cta_label), icon=_action_icon(code), state="available", url=item.cta_url, emphasis="primary", enabled=participant.availability not in {"cancelled", "completed"})
     save_label = "Enregistré" if bookmarked else "Enregistrer"
     return DiscoveryCardPresentation(
-        activity_id=item.activity_id,
-        occurrence_id=item.occurrence_id,
+        activity_id=item.activity_id, occurrence_id=item.occurrence_id,
         presentation_kind=item.vertical if item.vertical in {"event", "transport"} else "generic",
-        vertical_label=item.vertical_label,
-        title=item.title,
-        summary=item.summary,
-        operator_label={"event": "Organisé par", "transport": "Opéré par"}.get(item.vertical, "Proposé par"),
-        operator_name=item.space_name,
-        representation=RepresentationPresentation(
-            kind="image" if item.image_url else ("route" if item.vertical == "transport" else "identity"),
-            image_url=item.image_url,
-            eyebrow=item.eyebrow,
-            route_label=item.eyebrow if item.vertical == "transport" else None,
-        ),
-        facts=_occurrence_facts(item),
-        participant_state=participant,
+        vertical_label=item.vertical_label, title=item.title, summary=item.summary,
+        operator_label={"event": "Organisé par", "transport": "Opéré par"}.get(item.vertical, "Proposé par"), operator_name=item.space_name,
+        representation=RepresentationPresentation(kind="image" if item.image_url else ("route" if item.vertical == "transport" else "identity"), image_url=item.image_url, eyebrow=item.eyebrow, route_label=item.eyebrow if item.vertical == "transport" else None),
+        facts=_occurrence_facts(item), participant_state=participant,
         actions=ParticipantActionSet(
-            save=ActionPresentation(
-                code="save",
-                role="save",
-                label=save_label,
-                icon="orbit",
-                state="saved" if bookmarked else "available",
-                url=reverse("discovery:activity-bookmark-toggle", args=[item.activity_id]),
-                emphasis="light",
-            ),
+            save=ActionPresentation(code="save", role="save", label=save_label, icon="orbit", state="saved" if bookmarked else "available", url=reverse("discovery:activity-bookmark-toggle", args=[item.activity_id]), emphasis="light"),
             primary=primary,
-            share=ActionPresentation(
-                code="share",
-                role="share",
-                label="Partager",
-                icon="share-2",
-                state="available",
-                url=reverse("sharing:create-occurrence", args=[item.occurrence_id]),
-                emphasis="light",
-            ),
-        ),
-        url=item.url,
+            share=ActionPresentation(code="share", role="share", label="Partager", icon="share-2", state="available", url=reverse("sharing:create-occurrence", args=[item.occurrence_id]), emphasis="light"),
+        ), url=item.url,
     )
 
 
@@ -219,48 +171,16 @@ def present_service_card(item: dict, *, bookmarked: bool = False) -> DiscoveryCa
         code = _primary_action_code(participant.participant_state, None)
         if participant.participant_state == "none":
             code = "start"
-        primary = ActionPresentation(
-            code=code,
-            role="primary",
-            label=_card_action_label(code=code, vertical="service", fallback=item["cta_label"]),
-            icon=_action_icon(code),
-            state="available",
-            url=item["cta_url"],
-            emphasis="primary",
-        )
+        primary = ActionPresentation(code=code, role="primary", label=_card_action_label(code=code, vertical="service", fallback=item["cta_label"]), icon=_action_icon(code), state="available", url=item["cta_url"], emphasis="primary")
     facts = [FactPresentation("kind", "Type", item.get("service_kind") or "Accompagnement", "list-checks", 10)]
     if item.get("opportunity_title"):
         facts.append(FactPresentation("context", "Contexte", item["opportunity_title"], "target", 20))
     return DiscoveryCardPresentation(
-        activity_id=item["activity_id"],
-        occurrence_id=None,
-        presentation_kind="service",
-        vertical_label=item["vertical_label"],
-        title=item["title"],
-        summary=item.get("summary") or "",
-        operator_label="Proposé par",
-        operator_name=item.get("space_name") or "",
-        representation=RepresentationPresentation(kind="service", eyebrow=item.get("service_kind")),
-        facts=tuple(facts),
-        participant_state=participant,
+        activity_id=item["activity_id"], occurrence_id=None, presentation_kind="service", vertical_label=item["vertical_label"], title=item["title"], summary=item.get("summary") or "", operator_label="Proposé par", operator_name=item.get("space_name") or "",
+        representation=RepresentationPresentation(kind="service", eyebrow=item.get("service_kind")), facts=tuple(facts), participant_state=participant,
         actions=ParticipantActionSet(
-            save=ActionPresentation(
-                code="save",
-                role="save",
-                label="Enregistré" if bookmarked else "Enregistrer",
-                icon="orbit",
-                state="saved" if bookmarked else "available",
-                url=reverse("discovery:activity-bookmark-toggle", args=[item["activity_id"]]),
-            ),
+            save=ActionPresentation(code="save", role="save", label="Enregistré" if bookmarked else "Enregistrer", icon="orbit", state="saved" if bookmarked else "available", url=reverse("discovery:activity-bookmark-toggle", args=[item["activity_id"]])),
             primary=primary,
-            share=ActionPresentation(
-                code="share",
-                role="share",
-                label="Partager",
-                icon="share-2",
-                state="available",
-                url=reverse("sharing:create-activity", args=[item["activity_id"]]),
-            ),
-        ),
-        url=item["url"],
+            share=ActionPresentation(code="share", role="share", label="Partager", icon="share-2", state="available", url=reverse("sharing:create-activity", args=[item["activity_id"]])),
+        ), url=item["url"],
     )
