@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_date
 
+from .candidate_capabilities import requested_filter_keys, unsupported_filters_for_family
 from .intent import resolve_discovery_intent
 from .search import (
     ALLOWED_PERIODS,
@@ -31,7 +32,6 @@ ALLOWED_WHEN = {"today", "tomorrow", "week", "weekend"}
 ALLOWED_VERTICALS = {"event", "transport", "service", "other"}
 ALLOWED_PRICES = {"free", "paid"}
 ALLOWED_ORDERINGS = {"soon", "proximity"}
-SERVICE_UNSUPPORTED_KEYS = {"place", "when", "period", "price", "lat", "lon", "date", "date_from", "date_to"}
 
 
 @dataclass(frozen=True)
@@ -109,15 +109,21 @@ def normalize_watch_criteria(criteria) -> dict[str, str]:
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValidationError("Timezone de Veille invalide.") from exc
 
+    result = {key: value for key, value in normalized.items() if value}
     if normalized["vertical"] == "service":
-        unsupported = [key for key in SERVICE_UNSUPPORTED_KEYS if normalized[key]]
-        if normalized["ordering"] == "proximity": unsupported.append("ordering")
+        unsupported = unsupported_filters_for_family(
+            "service_activity",
+            requested_filter_keys(requested_params=result),
+        )
         if unsupported:
-            raise ValidationError("La recherche Accompagnement n’exécute pas encore ces critères : " + ", ".join(sorted(set(unsupported))) + ".")
+            raise ValidationError(
+                "La recherche Accompagnement n’exécute pas encore ces critères : "
+                + ", ".join(unsupported)
+                + "."
+            )
 
     zone = search_timezone(place_text=normalized["place"] or None, timezone_name=normalized["timezone"] or None)
     resolve_time_window(normalized, zone=zone)
-    result = {key: value for key, value in normalized.items() if value}
     if not any(result.get(key) for key in WATCH_MEANINGFUL_KEYS):
         raise ValidationError("Une Veille doit contenir au moins un critère de recherche exécutable.")
     return result
@@ -147,5 +153,15 @@ def execute_watch(criteria, *, profile=None, now=None) -> WatchExecutionResult:
         occurrence_result = SimpleNamespace(items=[], timezone_name=settings.TIME_ZONE, total=0, nearby_active=False)
     else:
         occurrence_result = search_occurrences(criteria, profile=profile, now=now)
-    service_items = public_service_discovery_items(criteria, profile=profile)
-    return WatchExecutionResult(items=occurrence_result.items, service_items=service_items, timezone_name=occurrence_result.timezone_name, total=occurrence_result.total + len(service_items), nearby_active=occurrence_result.nearby_active)
+    service_items = public_service_discovery_items(
+        criteria,
+        profile=profile,
+        requested_params=criteria,
+    )
+    return WatchExecutionResult(
+        items=occurrence_result.items,
+        service_items=service_items,
+        timezone_name=occurrence_result.timezone_name,
+        total=occurrence_result.total + len(service_items),
+        nearby_active=occurrence_result.nearby_active,
+    )
