@@ -7,7 +7,6 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
-from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
@@ -19,7 +18,7 @@ from .intent import resolve_discovery_intent
 from .models import ActivityBookmark
 from .presentation import build_discovery_item, presenter_for
 from .search import get_public_occurrence, public_occurrences_for_activities, search_occurrences
-from .services import build_recommendations, build_trending, public_discovery_events
+from .services import build_recommendations, public_discovery_events
 from .telemetry import record_search
 from .unified import public_service_discovery_items
 
@@ -101,7 +100,12 @@ class DiscoveryHomeView(TemplateView):
             result = _empty_occurrence_result()
             errors = list(exc.messages)
         items = result.items
-        service_items = public_service_discovery_items(search_params, profile=self.request.user)
+        service_items = public_service_discovery_items(
+            search_params,
+            profile=self.request.user,
+            requested_params=self.request.GET,
+            constraints=intent.constraints,
+        )
         result_count = result.total + len(service_items)
         page_obj = Paginator(items, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
@@ -135,6 +139,7 @@ class DiscoveryHomeView(TemplateView):
                 "search_errors": errors,
                 "search_timezone": result.timezone_name,
                 "result_count": result_count,
+                "mappable_result_count": len(map_items) if nearby_active else 0,
                 "place_suggestions": _place_suggestions(items),
                 "nearby_active": nearby_active,
                 "map_items": map_items,
@@ -179,7 +184,6 @@ class ForYouView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["recommendations"] = build_recommendations(self.request.user, limit=24)
-        context["trending"] = build_trending(limit=12)
         context["bookmarked_activity_ids"] = _bookmarked_activity_ids(self.request.user)
         return context
 
