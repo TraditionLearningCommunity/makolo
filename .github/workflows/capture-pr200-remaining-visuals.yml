@@ -57,12 +57,12 @@ jobs:
         env:
           E2E_SKIP_PREP: "1"
         run: |
-          npx playwright test e2e/specs/visual.spec.mjs --project=chromium-desktop --grep 'representative light desktop surfaces|representative dark desktop surfaces' --update-snapshots || true
+          bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --project=chromium-desktop --grep 'representative light desktop surfaces|representative dark desktop surfaces' --update-snapshots
       - name: Refresh reviewed mobile baseline
         env:
           E2E_SKIP_PREP: "1"
         run: |
-          npx playwright test e2e/specs/visual.spec.mjs --project=chromium-mobile --grep 'representative mobile surfaces' --update-snapshots || true
+          bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --project=chromium-mobile --grep 'representative mobile surfaces' --update-snapshots
       - name: Verify reviewed scope and commit
         shell: bash
         run: |
@@ -73,13 +73,9 @@ jobs:
             'e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-light-desktop-chromium-desktop-linux.png'
             'e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png'
           )
-          for target in "${targets[@]}"; do
-            test -f "$target"
-            if git diff --quiet -- "$target"; then
-              echo "Expected reviewed baseline did not change: $target" >&2
-              exit 1
-            fi
-          done
+          expected="$(printf '%s\n' "${targets[@]}" | sort)"
+          actual="$(git diff --name-only -- e2e/specs/visual.spec.mjs-snapshots | sort)"
+          test "$actual" = "$expected"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- "${targets[@]}"
