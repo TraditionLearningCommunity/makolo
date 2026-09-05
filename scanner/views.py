@@ -1,7 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -182,7 +181,7 @@ class AccessGateListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     login_url = "core:login"
 
     def test_func(self):
-        return self.request.user.is_staff or get_manageable_events(self.request.user).exists()
+        return get_manageable_events(self.request.user).exists()
 
     def handle_no_permission(self):
         if self.request.user.is_authenticated:
@@ -190,8 +189,6 @@ class AccessGateListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return super().handle_no_permission()
 
     def get_queryset(self):
-        if self.request.user.is_staff:
-            return get_access_gates_visible_to(self.request.user)
         return get_access_gates_visible_to(self.request.user).filter(
             event__in=get_manageable_events(self.request.user)
         )
@@ -256,7 +253,7 @@ class ScannerAssignmentListView(LoginRequiredMixin, UserPassesTestMixin, ListVie
     login_url = "core:login"
 
     def test_func(self):
-        return self.request.user.is_staff or get_manageable_events(self.request.user).exists()
+        return get_manageable_events(self.request.user).exists()
 
     def handle_no_permission(self):
         if self.request.user.is_authenticated:
@@ -264,13 +261,9 @@ class ScannerAssignmentListView(LoginRequiredMixin, UserPassesTestMixin, ListVie
         return super().handle_no_permission()
 
     def get_queryset(self):
-        queryset = get_assignments_visible_to(self.request.user)
-        if self.request.user.is_staff:
-            return queryset
         manageable_events = get_manageable_events(self.request.user)
-        return queryset.filter(
-            Q(event__in=manageable_events)
-            | Q(activity__event_vertical__in=manageable_events)
+        return get_assignments_visible_to(self.request.user).filter(
+            event__in=manageable_events
         ).distinct()
 
 
@@ -281,7 +274,7 @@ class ScannerAssignmentCreateView(LoginRequiredMixin, UserPassesTestMixin, Creat
     login_url = "core:login"
 
     def test_func(self):
-        return self.request.user.is_staff or get_manageable_events(self.request.user).exists()
+        return get_manageable_events(self.request.user).exists()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -310,13 +303,9 @@ class ScannerAssignmentUpdateView(LoginRequiredMixin, UserPassesTestMixin, Updat
     login_url = "core:login"
 
     def get_queryset(self):
-        queryset = get_assignments_visible_to(self.request.user)
-        if self.request.user.is_staff:
-            return queryset
         manageable_events = get_manageable_events(self.request.user)
-        return queryset.filter(
-            Q(event__in=manageable_events)
-            | Q(activity__event_vertical__in=manageable_events)
+        return get_assignments_visible_to(self.request.user).filter(
+            event__in=manageable_events
         ).distinct()
 
     def test_func(self):
