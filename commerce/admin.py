@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from authorization.services import has_platform_authority
+
 from .models import CommerceOrder, CommerceOrderItem, Offer
 
 
@@ -10,6 +12,18 @@ class OfferAdmin(admin.ModelAdmin):
     search_fields = ("name", "activity__title", "source_key")
     list_select_related = ("activity", "occurrence", "capacity_pool")
     readonly_fields = ("created_at", "updated_at")
+
+    def _can_write(self, request):
+        return bool(request.user.is_authenticated and has_platform_authority(request.user))
+
+    def has_add_permission(self, request):
+        return self._can_write(request) and super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._can_write(request) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._can_write(request) and super().has_delete_permission(request, obj)
 
 
 class CommerceOrderItemInline(admin.TabularInline):
