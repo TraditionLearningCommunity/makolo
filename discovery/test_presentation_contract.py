@@ -41,6 +41,7 @@ def _item(*, participant=None, price=None, availability=None):
     now = timezone.now()
     activity_id = str(uuid.uuid4())
     occurrence_id = str(uuid.uuid4())
+    participant = participant or _participant_state()
     return DiscoveryItem(
         activity_id=activity_id,
         occurrence_id=occurrence_id,
@@ -63,9 +64,9 @@ def _item(*, participant=None, price=None, availability=None):
         distance_km=3.2,
         price=price or DiscoveryPrice(False, Decimal("20.00"), "USD", "À partir de 20 USD"),
         availability=availability or DiscoveryAvailability("available", "Disponible", 42),
-        participant=participant or _participant_state(),
-        cta_label=(participant or _participant_state()).primary_action,
-        cta_url=(participant or _participant_state()).primary_url,
+        participant=participant,
+        cta_label=participant.primary_action,
+        cta_url=participant.primary_url,
         url="/detail/",
         image_url=None,
         eyebrow="Concert",
@@ -109,6 +110,16 @@ class DiscoveryCardContractTests(TestCase):
         )
         capacity = next(fact for fact in card.facts if fact.code == "capacity")
         self.assertEqual(capacity.value, "Complet")
+
+    def test_terminal_states_disable_primary_action(self):
+        for availability in ("cancelled", "completed"):
+            with self.subTest(availability=availability):
+                participant = _participant_state(
+                    availability=availability,
+                    availability_label="Indisponible",
+                )
+                card = present_occurrence_card(_item(participant=participant))
+                self.assertFalse(card.actions.primary.enabled)
 
     def test_map_payload_keeps_participant_state_private(self):
         participant = _participant_state(
@@ -172,6 +183,17 @@ class DiscoveryPresentationWebTests(TestCase):
             response,
             reverse("discovery:activity-bookmark-toggle", args=[self.activity.pk]),
         )
+
+    def test_bookmark_toggle_saves_then_unsaves_canonical_activity_bookmark(self):
+        self.client.force_login(self.participant)
+        url = reverse("discovery:activity-bookmark-toggle", args=[self.activity.pk])
+        next_url = reverse("discovery:home")
+        first = self.client.post(url, {"next": next_url})
+        self.assertRedirects(first, next_url)
+        self.assertTrue(ActivityBookmark.objects.filter(user=self.participant, activity=self.activity).exists())
+        second = self.client.post(url, {"next": next_url})
+        self.assertRedirects(second, next_url)
+        self.assertFalse(ActivityBookmark.objects.filter(user=self.participant, activity=self.activity).exists())
 
     def test_home_and_discovery_remain_separate_with_explicit_progressive_navigation(self):
         self.client.force_login(self.participant)
