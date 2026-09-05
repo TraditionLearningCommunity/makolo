@@ -1,6 +1,7 @@
 from django import forms
 from django.conf import settings
 
+from authorization.services import has_platform_authority
 from events.permissions import user_can_manage_event
 
 from .models import PaymentMethod, PaymentProvider
@@ -49,7 +50,7 @@ class CommercePaymentStartForm(forms.Form):
         provider_choices = []
         if getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False):
             provider_choices.append((PaymentProvider.SANDBOX, PaymentProvider.SANDBOX.label))
-        if user and getattr(user, "is_staff", False):
+        if user and has_platform_authority(user):
             provider_choices.append((PaymentProvider.MANUAL, PaymentProvider.MANUAL.label))
         self.fields["provider"].choices = provider_choices
         if len(provider_choices) == 1:
