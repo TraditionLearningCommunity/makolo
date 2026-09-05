@@ -6,8 +6,8 @@ from django.db.models import Q
 from django.urls import reverse
 
 from activities.models import ActivityStatus, ActivityVisibility
+from core.participant_activity_context import participant_state_context_for_activities
 from core.participant_presentation import resolve_participant_activity_state
-from core.participant_selectors import participant_state_context_for_activities
 from core.product_language import vocabulary_for
 from opportunities.selectors import published_opportunities
 from services.models import OpportunityPolicy, ServiceDetails
