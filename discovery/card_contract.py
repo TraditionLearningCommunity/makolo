@@ -82,7 +82,7 @@ def _primary_action_code(participant_state: str, workflow: str | None) -> str:
         WorkflowKind.REGISTRATION: "register",
         WorkflowKind.ORDER_APPROVAL: "request",
         WorkflowKind.INVITATION: "request",
-    }.get(workflow, "start")
+    }.get(workflow, "act")
 
 
 def _action_icon(code: str) -> str:
@@ -96,6 +96,7 @@ def _action_icon(code: str) -> str:
         "continue": "path",
         "access": "pass",
         "go": "navigation",
+        "act": "arrow-right",
     }.get(code, "arrow-right")
 
 
@@ -150,11 +151,12 @@ def _occurrence_facts(item) -> tuple[FactPresentation, ...]:
 def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardPresentation:
     participant = item.participant
     code = _primary_action_code(participant.participant_state, None)
-    if participant.participant_state == "none":
-        if item.vertical == "transport":
-            code = "reserve"
-        elif item.vertical == "event":
-            code = "register" if item.price.is_free else "buy"
+    if participant.participant_state == "none" and item.vertical == "transport":
+        # Transport has an established reservation contract. For other verticals,
+        # keep the canonical CTA copy instead of guessing a workflow from price or
+        # translated text. A semantic workflow code can be added when the domain
+        # exposes one explicitly.
+        code = "reserve"
     primary = None
     if item.cta_label and item.cta_url:
         primary = ActionPresentation(
@@ -215,6 +217,8 @@ def present_service_card(item: dict, *, bookmarked: bool = False) -> DiscoveryCa
     primary = None
     if item.get("cta_label") and item.get("cta_url"):
         code = _primary_action_code(participant.participant_state, None)
+        if participant.participant_state == "none":
+            code = "start"
         primary = ActionPresentation(
             code=code,
             role="primary",
