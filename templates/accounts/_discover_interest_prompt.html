@@ -1,0 +1,27 @@
+{% if show_interest_prompt %}
+<section class="mx-auto mt-4 max-w-6xl rounded-3xl border p-5" style="border-color:var(--mk-border);background:var(--mk-surface-solid)" aria-labelledby="g8-interest-prompt-title">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="max-w-2xl">
+            <span class="mk-kicker">Discover personnalisé</span>
+            <h2 id="g8-interest-prompt-title" class="mt-2 text-lg font-extrabold tracking-[-.025em]">Rendez Discover plus pertinent.</h2>
+            <p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Quels sujets vous intéressent ? Ces choix sont explicites, privés par défaut et ne sont jamais déduits de votre historique.</p>
+        </div>
+        <form method="post" action="{% url 'account:interest-prompt-dismiss' %}">
+            {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="mk-btn mk-btn-ghost" aria-label="Fermer la suggestion de centres d’intérêt pour cette session"><i data-lucide="x" class="h-4 w-4"></i>Plus tard</button>
+        </form>
+    </div>
+    <form method="post" action="{% url 'account:interest-quick-capture' %}" class="mt-4">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <fieldset>
+            <legend class="sr-only">Choisir quelques centres d’intérêt</legend>
+            <div class="flex flex-wrap gap-2">
+                {% for topic in interest_prompt_topics %}
+                <label class="cursor-pointer rounded-full border px-3 py-2 text-sm font-bold" style="border-color:var(--mk-border)"><input type="checkbox" name="topics" value="{{ topic.pk }}" style="margin-right:.5rem">{{ topic.label }}</label>
+                {% endfor %}
+            </div>
+        </fieldset>
+        <div class="mt-4 flex flex-wrap items-center gap-3"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer mes intérêts</button><a href="{% url 'account:interests' %}" class="mk-btn mk-btn-secondary">Voir tous les sujets</a></div>
+    </form>
+</section>
+{% endif %}

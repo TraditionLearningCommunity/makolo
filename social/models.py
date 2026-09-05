@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
+from topics.models import OpenToKind
+
 
 class ContributionKind(models.TextChoices):
     UPDATE = "update", "Mise à jour officielle"
@@ -169,3 +171,180 @@ class Contribution(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()} — {self.author_profile}"
+
+
+class ActionNeedStatus(models.TextChoices):
+    OPEN = "open", "Ouvert"
+    CLOSED = "closed", "Fermé"
+
+
+class ActionNeed(models.Model):
+    """A lightweight bilateral-network need: "I am looking for people for this"."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="owned_action_needs",
+        null=True,
+        blank=True,
+    )
+    space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="action_needs",
+        null=True,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_action_needs",
+    )
+    title = models.CharField(max_length=220)
+    description = models.CharField(max_length=600, blank=True)
+    open_to_kind = models.CharField(max_length=32, choices=OpenToKind.choices)
+    topics = models.ManyToManyField("topics.Topic", related_name="action_needs", blank=True)
+    activity = models.ForeignKey(
+        "activities.Activity",
+        on_delete=models.PROTECT,
+        related_name="action_needs",
+        null=True,
+        blank=True,
+    )
+    opportunity = models.ForeignKey(
+        "opportunities.Opportunity",
+        on_delete=models.PROTECT,
+        related_name="action_needs",
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(max_length=16, choices=ActionNeedStatus.choices, default=ActionNeedStatus.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(owner_profile__isnull=False, space__isnull=True)
+                    | Q(owner_profile__isnull=True, space__isnull=False)
+                ),
+                name="social_action_need_single_owner",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["owner_profile", "status", "created_at"], name="social_need_profile_idx"),
+            models.Index(fields=["space", "status", "created_at"], name="social_need_space_idx"),
+            models.Index(fields=["status", "open_to_kind"], name="social_need_open_to_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        self.title = (self.title or "").strip()
+        self.description = (self.description or "").strip()
+        if bool(self.owner_profile_id) == bool(self.space_id):
+            errors["owner_profile"] = "Un besoin appartient soit à un Profile, soit à un Space, jamais aux deux."
+        if self.activity_id:
+            if self.owner_profile_id and self.activity.owner_profile_id != self.owner_profile_id:
+                errors["activity"] = "L'Activity doit appartenir au même Profile que le besoin."
+            if self.space_id and self.activity.space_id != self.space_id:
+                errors["activity"] = "L'Activity doit appartenir au même Space que le besoin."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if self.pk and not self._state.adding and not getattr(self, "_allow_status_transition", False):
+            previous = ActionNeed.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            if previous is not None and previous != self.status:
+                raise ValidationError({"status": "Utilisez le service ActionNeed pour changer cet état."})
+        result = super().save(*args, **kwargs)
+        self._allow_status_transition = False
+        return result
+
+    @property
+    def owner_display_name(self):
+        if self.space_id:
+            return self.space.name
+        if self.owner_profile_id:
+            return self.owner_profile.full_name or self.owner_profile.username
+        return ""
+
+    def __str__(self):
+        return self.title
+
+
+class ProfileSolicitationStatus(models.TextChoices):
+    PENDING = "pending", "En attente"
+    ACCEPTED = "accepted", "Acceptée"
+    DECLINED = "declined", "Refusée"
+    CANCELLED = "cancelled", "Annulée"
+
+
+class ProfileSolicitation(models.Model):
+    """Explicit presentation of one ActionNeed to one discoverable Profile."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    need = models.ForeignKey(ActionNeed, on_delete=models.PROTECT, related_name="solicitations")
+    recipient_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="received_profile_solicitations",
+    )
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="sent_profile_solicitations",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=ProfileSolicitationStatus.choices,
+        default=ProfileSolicitationStatus.PENDING,
+    )
+    message = models.CharField(max_length=500, blank=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["need", "recipient_profile"],
+                condition=Q(status=ProfileSolicitationStatus.PENDING),
+                name="social_solicitation_unique_pending",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["need", "status", "created_at"], name="social_sol_need_status_idx"),
+            models.Index(fields=["recipient_profile", "status", "created_at"], name="social_sol_recipient_idx"),
+            models.Index(fields=["sent_by", "status", "created_at"], name="social_sol_sender_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        self.message = (self.message or "").strip()
+        errors = {}
+        if self.need_id and self.need.owner_profile_id and self.need.owner_profile_id == self.recipient_profile_id:
+            errors["recipient_profile"] = "Un besoin personnel ne peut pas être sollicité auprès de son propre propriétaire."
+        if self._state.adding and self.need_id and self.need.status != ActionNeedStatus.OPEN:
+            errors["need"] = "Une nouvelle sollicitation exige un besoin ouvert."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if self.pk and not self._state.adding and not getattr(self, "_allow_status_transition", False):
+            previous = ProfileSolicitation.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            if previous is not None and previous != self.status:
+                raise ValidationError({"status": "Utilisez le service ProfileSolicitation pour répondre ou annuler."})
+        result = super().save(*args, **kwargs)
+        self._allow_status_transition = False
+        return result
+
+    def __str__(self):
+        return f"{self.need} → {self.recipient_profile} ({self.get_status_display()})"

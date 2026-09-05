@@ -1,0 +1,32 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ need.title }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-6">
+  <header class="mk-panel p-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div><a href="{% url 'social:needs' %}" class="text-sm font-bold" style="color:var(--mk-primary)">← Mes besoins</a><h1 class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ need.title }}</h1><p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ need.owner_display_name }} · recherche {{ need.get_open_to_kind_display }}</p></div>
+      <span class="mk-badge {% if need.status == 'open' %}mk-badge-brand{% endif %}">{{ need.get_status_display }}</span>
+    </div>
+    {% if need.description %}<p class="mt-4 max-w-3xl">{{ need.description }}</p>{% endif %}
+    {% if need.topics.all %}<div class="mt-4 flex flex-wrap gap-2">{% for topic in need.topics.all %}<span class="mk-badge">{{ topic.label }}</span>{% endfor %}</div>{% endif %}
+    <div class="mt-4 text-sm" style="color:var(--mk-muted)">{% if need.activity %}<p>Activity : {{ need.activity.title }}</p>{% endif %}{% if need.opportunity %}<p>Opportunity : {{ need.opportunity }}</p>{% endif %}</div>
+    {% if need.status == 'open' %}<form method="post" action="{% url 'social:need-close' need.pk %}" class="mt-5">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Fermer le besoin</button></form>{% endif %}
+  </header>
+
+  <section class="space-y-3">
+    <div class="flex items-end justify-between gap-3"><div><h2 class="text-xl font-extrabold">Profiles compatibles</h2><p class="text-sm" style="color:var(--mk-muted)">Aucun score humain : seulement des raisons explicables issues de données autorisées.</p></div><span class="mk-badge">{{ candidates|length }} résultat{{ candidates|length|pluralize }}</span></div>
+    {% for candidate in candidates %}
+      <article class="mk-panel p-5">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div><h3 class="text-lg font-extrabold">{{ candidate.display_name }}</h3>{% if candidate.city or candidate.country %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ candidate.city }}{% if candidate.city and candidate.country %}, {% endif %}{{ candidate.country }}</p>{% endif %}<a href="{% url 'account:public-profile' candidate.profile_id %}" class="mt-2 inline-block text-sm font-bold" style="color:var(--mk-primary)">Voir le Profil public</a></div>
+          <span class="mk-badge mk-badge-brand">{{ candidate.open_to_label }}</span>
+        </div>
+        <div class="mt-4"><p class="text-sm font-extrabold">Pertinente parce que :</p><ul class="mt-2 space-y-1 text-sm" style="color:var(--mk-muted)">{% for reason in candidate.reasons %}<li>✓ {{ reason }}</li>{% endfor %}</ul></div>
+        <form method="post" action="{% url 'social:need-solicit' need.pk candidate.profile_id %}" class="mt-4 flex flex-col gap-3 sm:flex-row">{% csrf_token %}<input class="min-w-0 flex-1 rounded-2xl border px-4 py-2" style="border-color:var(--mk-border);background:var(--mk-surface)" type="text" name="message" maxlength="500" placeholder="Message court optionnel"><button class="mk-btn mk-btn-primary" type="submit">Solliciter</button></form>
+      </article>
+    {% empty %}<div class="mk-panel p-6"><p style="color:var(--mk-muted)">{% if need.status == 'open' %}Aucun Profile actuellement découvrable pour ce besoin.{% else %}Le besoin est fermé ; la recherche est arrêtée.{% endif %}</p></div>{% endfor %}
+  </section>
+
+  <section class="space-y-3"><h2 class="text-xl font-extrabold">Sollicitations envoyées</h2>{% for solicitation in solicitations %}<article class="mk-panel p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div><p class="font-extrabold">{{ solicitation.recipient_profile.full_name|default:solicitation.recipient_profile.username }}</p>{% if solicitation.message %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ solicitation.message }}</p>{% endif %}</div><span class="mk-badge">{{ solicitation.get_status_display }}</span></div>{% if solicitation.status == 'pending' and solicitation.sent_by_id == request.user.id %}<form method="post" action="{% url 'social:solicitation-cancel' solicitation.pk %}" class="mt-3">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Annuler</button></form>{% endif %}</article>{% empty %}<div class="mk-panel p-6"><p style="color:var(--mk-muted)">Aucune sollicitation envoyée.</p></div>{% endfor %}</section>
+</div>
+{% endblock %}
