@@ -20,7 +20,7 @@
 <div class="space-y-7 lg:space-y-9">
     {% include 'discovery/_participant_nav.html' %}
     {% if request.user.is_authenticated %}
-    <div class="flex justify-start">
+    <div class="flex">
         <a href="{% url 'core:participant-home' %}" class="mk-btn mk-btn-ghost" aria-label="Revenir à Mon espace"><i data-lucide="arrow-up" class="h-4 w-4" aria-hidden="true"></i>Mon espace</a>
     </div>
     {% endif %}
