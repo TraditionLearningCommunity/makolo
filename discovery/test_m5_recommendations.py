@@ -1,8 +1,10 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from activities.models import Activity, ActivityStatus, ActivityVisibility
+from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
 from discovery.models import ActivityBookmark
 from discovery.recommendations import build_activity_recommendations
 from events.models import Event
@@ -25,12 +27,24 @@ class M5RecommendationTests(TestCase):
             status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC,
         )
         Event.objects.create(activity=self.event_activity, slug="m5-event-activity")
+        Occurrence.objects.create(
+            activity=self.event_activity,
+            start_at=timezone.now() + timedelta(days=2),
+            end_at=timezone.now() + timedelta(days=2, hours=2),
+            status=OccurrenceStatus.SCHEDULED,
+        )
 
         self.event_candidate = Activity.objects.create(
             space=self.space, created_by=self.owner, title="M5 Event Candidate",
             status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC,
         )
         Event.objects.create(activity=self.event_candidate, slug="m5-event-candidate")
+        Occurrence.objects.create(
+            activity=self.event_candidate,
+            start_at=timezone.now() + timedelta(days=3),
+            end_at=timezone.now() + timedelta(days=3, hours=2),
+            status=OccurrenceStatus.SCHEDULED,
+        )
 
         self.service_activity = Activity.objects.create(
             space=self.space, created_by=self.owner, title="M5 Service Candidate",
