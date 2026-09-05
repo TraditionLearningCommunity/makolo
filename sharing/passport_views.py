@@ -54,6 +54,12 @@ class PassportViewMixin(TemplateView):
     def get_topic_options(self):
         return ()
 
+    def has_custom_selection(self):
+        return any(
+            self.request.GET.getlist(name)
+            for name in ("activity", "proof", "credential", "include")
+        )
+
     def dispatch(self, request, *args, **kwargs):
         self.subject = self.get_subject()
         self.private_authorized = self.is_private_authorized()
@@ -73,6 +79,12 @@ class PassportViewMixin(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         projection = self.build_projection(self.variant)
+        show_selection_catalog = (
+            self.private_authorized
+            and self.variant == PASSPORT_CUSTOM
+            and not self.has_custom_selection()
+            and self.request.GET.get("download") != "1"
+        )
         context.update(
             {
                 "projection": projection,
@@ -80,7 +92,7 @@ class PassportViewMixin(TemplateView):
                 "can_use_private_variants": self.private_authorized,
                 "subject_is_public": self.subject_is_public(),
                 "topic_options": self.get_topic_options() if self.private_authorized else (),
-                "selection_catalog": self.get_selection_catalog() if self.private_authorized else None,
+                "selection_catalog": self.get_selection_catalog() if show_selection_catalog else None,
                 "selected_topic_codes": set(self.request.GET.getlist("topic")),
                 "download_url": self.get_download_url(),
             }
