@@ -3,15 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
+from django.utils import timezone
 
-from activities.models import Activity, ActivityStatus, ActivityVisibility
+from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
+from core.product_language import vertical_for
 from groups.models import GroupMembership, GroupMembershipStatus
+from groups.selectors import eligible_activity_ids_for_profile
 from journeys.models import Journey, JourneyStatus
 from organizations.models import OrganizationFollow
 from topics.models import ActivityTopic, ProfileInterest
+from transport.selectors import next_public_departure_for_activity, next_public_departures_by_activity
 
+from .candidate_identity import occurrence_candidate_key, service_activity_candidate_key
 from .models import ActivityBookmark
 
 
@@ -34,6 +38,7 @@ class RecommendationResult:
     reasons: tuple[RecommendationReason, ...]
     score: int
     vertical: str
+    candidate_key: str
     cta_label: str
     cta_url: str
 
@@ -47,6 +52,8 @@ REASON_LABELS = {
     "nearby_now": "Disponible près de votre origine choisie",
     "leave_soon": "Votre prochaine action temporelle approche",
 }
+# C1 deliberately preserves these deterministic weights as a baseline. They are
+# not the future Makolo Discovery ranking doctrine.
 REASON_WEIGHTS = {
     "following_space": 50,
     "group_relevance": 45,
@@ -72,40 +79,21 @@ def _reason_label(code, interest_labels):
     return REASON_LABELS[code]
 
 
-def _related(activity, name):
-    try:
-        return getattr(activity, name)
-    except ObjectDoesNotExist:
-        return None
-
-
 def activity_vertical(activity):
-    if _related(activity, "event_vertical") is not None:
-        return "event"
-    if _related(activity, "service_details") is not None:
-        return "service"
-    if _related(activity, "transport_service") is not None:
-        return "transport"
-    return "activity"
+    """Compatibility alias around the canonical vertical resolver."""
+    return vertical_for(activity)
 
 
-def activity_destination(activity):
-    event = _related(activity, "event_vertical")
-    if event is not None:
-        return "Voir", reverse("events:detail", kwargs={"slug": event.slug})
-    service = _related(activity, "service_details")
-    if service is not None:
-        return "Commencer", reverse("services:start", kwargs={"pk": service.pk})
-    transport = _related(activity, "transport_service")
-    if transport is not None:
-        departure = (
-            activity.occurrences.filter(transport_departure__isnull=False)
-            .select_related("transport_departure")
-            .order_by("start_at", "id")
-            .first()
-        )
+def activity_destination(activity, *, transport_departure=None):
+    vertical = vertical_for(activity)
+    if vertical == "event":
+        return "Voir", reverse("events:detail", kwargs={"slug": activity.event_vertical.slug})
+    if vertical == "service":
+        return "Commencer", reverse("services:start", kwargs={"pk": activity.service_details.pk})
+    if vertical == "transport":
+        departure = transport_departure or next_public_departure_for_activity(activity)
         if departure is not None:
-            return "Voir", reverse("transport:departure-detail", kwargs={"pk": departure.transport_departure.pk})
+            return "Voir", reverse("transport:departure-detail", kwargs={"pk": departure.pk})
         return "Voir", reverse("transport:search")
     query = urlencode({"q": activity.title})
     return "Voir", f"{reverse('discovery:home')}?{query}"
@@ -120,13 +108,59 @@ def _visible_activity_queryset():
     )
 
 
-def build_activity_recommendations(profile, *, limit=12, context=None):
-    """Bounded, deterministic and explainable Activity-first recommendations.
+def _next_viable_occurrences(activity_ids, *, now):
+    result = {}
+    if not activity_ids:
+        return result
+    occurrences = (
+        Occurrence.objects.filter(
+            activity_id__in=activity_ids,
+            activity__status=ActivityStatus.PUBLISHED,
+            activity__visibility=ActivityVisibility.PUBLIC,
+            status=OccurrenceStatus.SCHEDULED,
+            start_at__gt=now,
+        )
+        .order_by("activity_id", "start_at", "id")
+    )
+    for occurrence in occurrences:
+        result.setdefault(occurrence.activity_id, occurrence)
+    return result
 
-    Explicit ProfileInterest rows can select Activities classified with the same
-    canonical Topic, regardless of whether the interest is public. Bookmarks,
-    follows, history and other behavioral signals remain separate inputs and are
-    never converted into ProfileInterest rows.
+
+def _viability_context(profile, activities, *, now):
+    """Resolve explicit viable facts in batches; no actionability score."""
+    by_vertical = {"event": [], "transport": [], "service": [], "generic": []}
+    for activity in activities:
+        by_vertical.setdefault(vertical_for(activity), []).append(activity.pk)
+
+    occurrence_ids = by_vertical.get("event", []) + by_vertical.get("generic", [])
+    occurrences = _next_viable_occurrences(occurrence_ids, now=now)
+    departures = next_public_departures_by_activity(by_vertical.get("transport", []), now=now)
+
+    viable_ids = set(by_vertical.get("service", []))
+    viable_ids.update(occurrences)
+    viable_ids.update(departures)
+    viable_ids &= eligible_activity_ids_for_profile(profile, viable_ids)
+    return viable_ids, occurrences, departures
+
+
+def _candidate_key(activity, *, occurrence=None, departure=None):
+    vertical = vertical_for(activity)
+    if vertical == "service":
+        return str(service_activity_candidate_key(activity))
+    if vertical == "transport" and departure is not None:
+        return str(occurrence_candidate_key(departure.occurrence_id))
+    if occurrence is not None:
+        return str(occurrence_candidate_key(occurrence))
+    return f"activity:{activity.pk}"
+
+
+def build_activity_recommendations(profile, *, limit=12, context=None):
+    """Bounded, deterministic and explainable Activity-first baseline.
+
+    Candidate reasons are accumulated by Activity so multiple provenances enrich
+    one recommendation rather than creating duplicate cards. Before ranking, C1
+    requires a viable vertical-owned possibility and composes Group eligibility.
     """
     if not getattr(profile, "is_authenticated", False):
         return []
@@ -226,20 +260,33 @@ def build_activity_recommendations(profile, *, limit=12, context=None):
             for reason_code in sorted(m6_reason_map[activity.pk]):
                 add([activity], reason_code)
 
+    candidate_activities = [row["activity"] for row in candidates.values()]
+    now = timezone.now()
+    viable_ids, viable_occurrences, valid_departures = _viability_context(
+        profile,
+        candidate_activities,
+        now=now,
+    )
+
     ranked = []
     for row in candidates.values():
         activity = row["activity"]
+        if activity.pk not in viable_ids:
+            continue
         reasons = tuple(
             RecommendationReason(code=code, label=_reason_label(code, interest_labels))
             for code in sorted(row["reasons"], key=lambda code: (-_reason_weight(code), code))
         )
         score = sum(_reason_weight(reason.code) for reason in reasons)
-        cta_label, cta_url = activity_destination(activity)
+        departure = valid_departures.get(activity.pk)
+        occurrence = viable_occurrences.get(activity.pk)
+        cta_label, cta_url = activity_destination(activity, transport_departure=departure)
         ranked.append(RecommendationResult(
             activity=activity,
             reasons=reasons,
             score=score,
             vertical=activity_vertical(activity),
+            candidate_key=_candidate_key(activity, occurrence=occurrence, departure=departure),
             cta_label=cta_label,
             cta_url=cta_url,
         ))
