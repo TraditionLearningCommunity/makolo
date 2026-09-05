@@ -5,7 +5,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
-from authorization.services import can
+from authorization.services import can, has_platform_authority
 from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
 from domain_events.contracts import DomainEventType
 
@@ -16,7 +16,7 @@ from .models import Payment, PaymentMethod, PaymentProvider, PaymentStatus
 def can_record_manual_commerce_payment(actor, order):
     if not getattr(actor, "is_authenticated", False):
         return False
-    if getattr(actor, "is_staff", False):
+    if has_platform_authority(actor):
         return True
     activity = order.journey.activity
     space = order.payee_space or activity.space
