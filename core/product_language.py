@@ -56,22 +56,24 @@ def vertical_for(activity):
         return "transport"
     if _has_related(activity, "event_vertical"):
         return "event"
+    if _has_related(activity, "service_details"):
+        return "service"
     return "generic"
 
 
 def _generic_vocabulary(workflow):
     journey = {
-        WorkflowKind.PURCHASE: ("Achat", "Voir mon achat", "Voir le détail"),
-        WorkflowKind.ORDER_APPROVAL: ("Demande", "Voir ma demande", "Voir ma demande"),
+        WorkflowKind.PURCHASE: ("Achat", "Voir mon achat", "Acheter"),
+        WorkflowKind.ORDER_APPROVAL: ("Demande", "Voir ma demande", "Demander"),
         WorkflowKind.RESERVATION: ("Réservation", "Voir ma réservation", "Réserver"),
         WorkflowKind.REGISTRATION: ("Inscription", "Voir mon inscription", "S’inscrire"),
         WorkflowKind.INVITATION: ("Invitation", "Voir mon invitation", "Accepter l’invitation"),
-    }.get(workflow, ("Démarche", "Voir ma démarche", "Voir le détail"))
+    }.get(workflow, ("Démarche", "Voir ma démarche", "Commencer"))
     access = {
-        WorkflowKind.REGISTRATION: ("Confirmation", "Voir ma confirmation"),
-        WorkflowKind.INVITATION: ("Invitation", "Voir mon invitation"),
-        WorkflowKind.RESERVATION: ("Réservation", "Voir ma réservation"),
-    }.get(workflow, ("Accès", "Voir mon accès"))
+        WorkflowKind.REGISTRATION: ("Confirmation", "Ma confirmation"),
+        WorkflowKind.INVITATION: ("Invitation", "Mon invitation"),
+        WorkflowKind.RESERVATION: ("Réservation", "Ma réservation"),
+    }.get(workflow, ("Accès", "Mon accès"))
     return ProductVocabulary(
         vertical="generic",
         activity_noun="Activité",
@@ -91,22 +93,22 @@ def _generic_vocabulary(workflow):
 def _event_vocabulary(workflow):
     if workflow == WorkflowKind.INVITATION:
         journey = ("Invitation", "Voir mon invitation", "Accepter l’invitation")
-        access = ("Invitation", "Voir mon invitation")
+        access = ("Invitation", "Mon invitation")
     elif workflow == WorkflowKind.REGISTRATION:
         journey = ("Inscription", "Voir mon inscription", "S’inscrire")
-        access = ("Confirmation", "Voir ma confirmation")
+        access = ("Confirmation", "Ma confirmation")
     elif workflow == WorkflowKind.RESERVATION:
         journey = ("Réservation", "Voir ma réservation", "Réserver")
-        access = ("Billet", "Voir mon billet")
+        access = ("Billet", "Mon billet")
     elif workflow == WorkflowKind.PURCHASE:
-        journey = ("Achat de billet", "Voir mon achat", "Acheter le billet")
-        access = ("Billet", "Voir mon billet")
+        journey = ("Achat de billet", "Voir mon achat", "Acheter")
+        access = ("Billet", "Mon billet")
     elif workflow == WorkflowKind.ORDER_APPROVAL:
-        journey = ("Demande d’inscription", "Voir ma demande", "Voir ma demande")
-        access = ("Billet", "Voir mon billet")
+        journey = ("Demande d’inscription", "Voir ma demande", "Demander")
+        access = ("Billet", "Mon billet")
     else:
         journey = ("Démarche", "Voir ma démarche", "Voir l’événement")
-        access = ("Billet", "Voir mon billet")
+        access = ("Billet", "Mon billet")
     return ProductVocabulary(
         vertical="event",
         activity_noun="Événement",
@@ -125,7 +127,7 @@ def _event_vocabulary(workflow):
 
 def _transport_vocabulary(workflow):
     if workflow == WorkflowKind.PURCHASE:
-        journey = ("Achat de billet", "Voir mon voyage", "Acheter le billet")
+        journey = ("Achat de billet", "Voir mon voyage", "Acheter")
     else:
         journey = ("Réservation", "Voir ma réservation", "Réserver")
     return ProductVocabulary(
@@ -137,9 +139,32 @@ def _transport_vocabulary(workflow):
         request_noun="Demande",
         offer_noun="Tarif",
         access_noun="Billet",
-        access_detail_label="Voir mon billet",
+        access_detail_label="Mon billet",
         participant_noun="Voyageur",
         operator_label="Opéré par",
+        primary_action=journey[2],
+    )
+
+
+def _service_vocabulary(workflow):
+    if workflow == WorkflowKind.ORDER_APPROVAL:
+        journey = ("Demande", "Voir ma demande", "Demander")
+    elif workflow == WorkflowKind.REGISTRATION:
+        journey = ("Inscription", "Voir mon inscription", "S’inscrire")
+    else:
+        journey = ("Accompagnement", "Voir mon accompagnement", "Commencer")
+    return ProductVocabulary(
+        vertical="service",
+        activity_noun="Accompagnement",
+        occurrence_noun="Étape",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande",
+        offer_noun="Tarif",
+        access_noun="Confirmation",
+        access_detail_label="Ma confirmation",
+        participant_noun="Participant",
+        operator_label="Proposé par",
         primary_action=journey[2],
     )
 
@@ -150,6 +175,8 @@ def vocabulary_for(*, activity=None, workflow=None):
         return _transport_vocabulary(workflow)
     if vertical == "event":
         return _event_vocabulary(workflow)
+    if vertical == "service":
+        return _service_vocabulary(workflow)
     return _generic_vocabulary(workflow)
 
 
@@ -162,10 +189,15 @@ def participant_state_copy(*, activity, state, workflow=None):
 
     vocabulary = vocabulary_for(activity=activity, workflow=workflow)
     if state == "access_valid":
-        label = "Votre billet est prêt" if vocabulary.vertical == "transport" else "Vous avez accès"
+        if vocabulary.vertical in {"transport", "event"}:
+            label = "Votre billet est prêt"
+        elif vocabulary.vertical == "service":
+            label = "Tout est prêt"
+        else:
+            label = "Vous avez accès"
         return label, vocabulary.access_detail_label
     if state == "access_used":
-        return ("Billet utilisé" if vocabulary.vertical == "transport" else "Accès utilisé"), vocabulary.access_detail_label
+        return ("Billet utilisé" if vocabulary.vertical in {"transport", "event"} else "Accès utilisé"), vocabulary.access_detail_label
     if state == "access_revoked":
         return "Accès révoqué", vocabulary.access_detail_label
     if state == "access_cancelled":
@@ -179,7 +211,7 @@ def participant_state_copy(*, activity, state, workflow=None):
     if state == "capacity_held":
         return "Place retenue temporairement", vocabulary.journey_detail_label
     if state == "payment_pending":
-        return "Paiement en attente", "Reprendre le paiement"
+        return "Paiement requis", "Reprendre le paiement"
     if state == "order_pending":
         return "Commande en cours", vocabulary.journey_detail_label
     if state == "order_confirmed":
@@ -189,7 +221,7 @@ def participant_state_copy(*, activity, state, workflow=None):
     if state == "order_expired":
         return "Commande expirée", vocabulary.journey_detail_label
     if state == "journey_pending":
-        return "Démarche en cours", vocabulary.journey_detail_label
+        return "Démarche commencée", vocabulary.journey_detail_label
     return "", ""
 
 
