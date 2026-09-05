@@ -1,3 +1,6 @@
+<template id="discover-universal-card-tailwind-compat">
+  <span class="tracking-[-.025em] leading-6"></span>
+</template>
 <article id="discovery-card-{{ card.activity_id }}{% if card.occurrence_id %}-{{ card.occurrence_id }}{% endif %}" data-discovery-result="{% if card.occurrence_id %}{{ card.occurrence_id }}{% else %}service-{{ card.activity_id }}{% endif %}" class="mk-panel overflow-hidden transition">
   <a href="{{ card.url }}" class="block">
     {% if card.representation.image_url %}
