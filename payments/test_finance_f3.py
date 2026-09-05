@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from activities.models import Activity, Occurrence
+from authorization.services import ensure_platform_admin_mandate
 from commerce.models import Offer, OfferStatus, PaymentMode
 from commerce.pricing import ChargeIncidence, ChargeRule, FinancialComponentType
 from commerce.services import create_order
@@ -46,14 +47,13 @@ class FinanceF3Tests(TestCase):
         self.user = get_user_model().objects.create_user(
             username="finance-f3-user",
             email="finance-f3@example.com",
-            password="test-pass-2026",
         )
         self.staff = get_user_model().objects.create_user(
             username="finance-f3-staff",
             email="finance-f3-staff@example.com",
-            password="test-pass-2026",
             is_staff=True,
         )
+        ensure_platform_admin_mandate(self.staff)
         self.space = Organization.objects.create(name="Finance F3 Space", created_by=self.user)
         self.activity = Activity.objects.create(space=self.space, created_by=self.user, title="Finance F3")
         self.occurrence = Occurrence.objects.create(
@@ -216,7 +216,7 @@ class FinanceF3Tests(TestCase):
             LedgerEntry.objects.filter(pk=original.pk).update(amount=Decimal("99.00"))
         with self.assertRaises(PermissionDenied):
             record_financial_adjustment(obligation=obligation, economic_role=FinancialAllocationLineType.PLATFORM, amount=Decimal("-1.00"), currency="USD", reason="Correction", idempotency_key="no-staff", actor=self.user)
-        adjustment = record_financial_adjustment(obligation=obligation, economic_role=FinancialAllocationLineType.PLATFORM, amount=Decimal("-1.00"), currency="USD", reason="Correction auditée", idempotency_key="staff-1", actor=self.staff)
+        adjustment = record_financial_adjustment(obligation=obligation, economic_role=FinancialAllocationLineType.PLATFORM, amount=Decimal("-1.00"), currency="USD", reason="Correction auditée", idempotency_key="platform-1", actor=self.staff)
         self.assertEqual(adjustment.entry_type, LedgerEntryType.ADJUSTMENT)
         original.refresh_from_db()
         self.assertEqual(original.amount, Decimal("20.00"))
