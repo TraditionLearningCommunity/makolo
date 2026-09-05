@@ -53,7 +53,7 @@ class FinanceF3Tests(TestCase):
             email="finance-f3-staff@example.com",
             is_staff=True,
         )
-        ensure_platform_admin_mandate(self.staff)
+        ensure_platform_admin_mandate(profile=self.staff, source="pre-m7-test")
         self.space = Organization.objects.create(name="Finance F3 Space", created_by=self.user)
         self.activity = Activity.objects.create(space=self.space, created_by=self.user, title="Finance F3")
         self.occurrence = Occurrence.objects.create(
