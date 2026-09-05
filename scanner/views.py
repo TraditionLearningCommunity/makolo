@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -263,7 +264,8 @@ class ScannerAssignmentListView(LoginRequiredMixin, UserPassesTestMixin, ListVie
     def get_queryset(self):
         manageable_events = get_manageable_events(self.request.user)
         return get_assignments_visible_to(self.request.user).filter(
-            event__in=manageable_events
+            Q(event__in=manageable_events)
+            | Q(activity__event_vertical__in=manageable_events)
         ).distinct()
 
 
@@ -305,7 +307,8 @@ class ScannerAssignmentUpdateView(LoginRequiredMixin, UserPassesTestMixin, Updat
     def get_queryset(self):
         manageable_events = get_manageable_events(self.request.user)
         return get_assignments_visible_to(self.request.user).filter(
-            event__in=manageable_events
+            Q(event__in=manageable_events)
+            | Q(activity__event_vertical__in=manageable_events)
         ).distinct()
 
     def test_func(self):
