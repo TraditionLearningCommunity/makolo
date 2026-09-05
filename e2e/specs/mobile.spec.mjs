@@ -13,7 +13,7 @@ test('participant home, memory and Access QR stay usable on mobile @mobile', asy
   await expect(page.getByRole('heading', { name: /Que dois-je faire maintenant/i })).toBeVisible();
   await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Mes Groupes/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Mes favoris/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Enregistrés/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Mes Espaces/i })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
