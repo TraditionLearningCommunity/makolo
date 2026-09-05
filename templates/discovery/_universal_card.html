@@ -31,7 +31,7 @@
     {% elif card.representation.kind == 'service' %}
     <div class="p-5 sm:p-6">
       <div class="rounded-2xl border p-5" style="border-color:var(--mk-border);background:linear-gradient(135deg,color-mix(in srgb,var(--mk-brand) 9%,var(--mk-surface-solid)),var(--mk-surface-solid))">
-        <div class="flex items-center gap-3"><span class="grid place-items-center rounded-2xl border" style="width:44px;height:44px;border-color:var(--mk-border);background:var(--mk-surface-solid);color:var(--mk-brand)"><i data-lucide="route" class="h-5 w-5"></i></span><div><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle);letter-spacing:.08em">Accompagnement</p><p class="mt-1 font-bold">{{ card.representation.eyebrow|default:'Progression guidée' }}</p></div></div>
+        <div class="flex items-center gap-3"><span class="grid place-items-center rounded-2xl border" style="width:44px;height:44px;border-color:var(--mk-border);background:var(--mk-surface-solid);color:var(--mk-brand)"><i data-lucide="map-pin" class="h-5 w-5"></i></span><div><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle);letter-spacing:.08em">Accompagnement</p><p class="mt-1 font-bold">{{ card.representation.eyebrow|default:'Progression guidée' }}</p></div></div>
       </div>
     </div>
     {% endif %}
@@ -82,6 +82,6 @@
     <a href="{{ card.url }}" class="mk-btn mk-btn-secondary min-h-[50px] w-full justify-center">Voir le détail</a>
     {% endif %}
 
-    <a href="{{ card.actions.share.url }}" class="mk-btn mk-btn-ghost min-h-[50px] w-full justify-center"><i data-lucide="share-2" class="h-4 w-4" aria-hidden="true"></i><span>Partager</span></a>
+    <a href="{{ card.actions.share.url }}" class="mk-btn mk-btn-ghost min-h-[50px] w-full justify-center"><i data-lucide="send" class="h-4 w-4" aria-hidden="true"></i><span>Partager</span></a>
   </div>
 </article>
