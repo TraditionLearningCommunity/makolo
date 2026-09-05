@@ -1,4 +1,4 @@
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
@@ -6,6 +6,8 @@ from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.services import group_ids_with_permission, space_ids_with_permission
 
 from .models import (
+    ActivityGroupEligibility,
+    ActivityGroupEligibilityStatus,
     Group,
     GroupInvitation,
     GroupInvitationStatus,
@@ -87,3 +89,59 @@ def direct_group_role_codes(profile, group):
         .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
         .values_list("role__code", flat=True)
     )
+
+
+def filter_queryset_by_activity_group_eligibility(
+    queryset,
+    profile,
+    *,
+    activity_id_field="activity_id",
+):
+    """Compose Group eligibility into any Activity-scoped read queryset.
+
+    An Activity with no approved Group gate remains reachable. If at least one
+    approved Group gate exists, an authenticated Profile must have an active
+    membership in one of those approved Groups. No Discovery-owned eligibility
+    state is introduced.
+    """
+    approved = ActivityGroupEligibility.objects.filter(
+        activity_id=OuterRef(activity_id_field),
+        status=ActivityGroupEligibilityStatus.APPROVED,
+    )
+    queryset = queryset.annotate(_has_group_gate=Exists(approved))
+    if not getattr(profile, "is_authenticated", False):
+        return queryset.filter(_has_group_gate=False)
+    reachable = approved.filter(
+        group__memberships__profile=profile,
+        group__memberships__status=GroupMembershipStatus.ACTIVE,
+    )
+    return queryset.annotate(_group_reachable=Exists(reachable)).filter(
+        Q(_has_group_gate=False) | Q(_group_reachable=True)
+    )
+
+
+def eligible_activity_ids_for_profile(profile, activity_ids):
+    """Batch eligibility projection used by Activity-first recommendation reads."""
+    ids = set(activity_ids)
+    if not ids:
+        return set()
+    restricted = set(
+        ActivityGroupEligibility.objects.filter(
+            activity_id__in=ids,
+            status=ActivityGroupEligibilityStatus.APPROVED,
+        ).values_list("activity_id", flat=True)
+    )
+    if not restricted:
+        return ids
+    allowed = ids - restricted
+    if not getattr(profile, "is_authenticated", False):
+        return allowed
+    allowed.update(
+        ActivityGroupEligibility.objects.filter(
+            activity_id__in=restricted,
+            status=ActivityGroupEligibilityStatus.APPROVED,
+            group__memberships__profile=profile,
+            group__memberships__status=GroupMembershipStatus.ACTIVE,
+        ).values_list("activity_id", flat=True)
+    )
+    return allowed
