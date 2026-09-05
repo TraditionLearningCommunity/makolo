@@ -1,4 +1,4 @@
-name: Capture PR200 remaining visuals
+name: Commit reviewed PR200 visual baselines
 
 on:
   push:
@@ -6,10 +6,11 @@ on:
       - fix/finalize-discovery-presentation
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  capture:
+  commit-reviewed-baselines:
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -25,6 +26,8 @@ jobs:
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: fix/finalize-discovery-presentation
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -38,29 +41,51 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+          python -m pip check
           npm ci
           npm run build
+          git diff --exit-code -- package-lock.json static/dist
+          npm run check:runtime-deps
+          python manage.py makemigrations --check --dry-run
       - name: Install Chromium
         run: |
           printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt-mirrors.txt >/dev/null
           npx playwright install --with-deps chromium
       - name: Prepare deterministic E2E environment
         run: bash scripts/prepare-e2e.sh
-      - name: Capture remaining desktop baselines
+      - name: Refresh reviewed desktop baselines
         env:
           E2E_SKIP_PREP: "1"
         run: |
           npx playwright test e2e/specs/visual.spec.mjs --project=chromium-desktop --grep 'representative light desktop surfaces|representative dark desktop surfaces' --update-snapshots || true
-      - name: Capture remaining mobile baseline
+      - name: Refresh reviewed mobile baseline
         env:
           E2E_SKIP_PREP: "1"
         run: |
           npx playwright test e2e/specs/visual.spec.mjs --project=chromium-mobile --grep 'representative mobile surfaces' --update-snapshots || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pr200-remaining-visuals
-          path: |
-            e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-light-desktop-chromium-desktop-linux.png
-            e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png
-          if-no-files-found: error
-          retention-days: 2
+      - name: Verify reviewed scope and commit
+        shell: bash
+        run: |
+          targets=(
+            'e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-light-desktop-chromium-desktop-linux.png'
+            'e2e/specs/visual.spec.mjs-snapshots/discovery-dark-desktop-chromium-desktop-linux.png'
+            'e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-light-mobile-chromium-mobile-linux.png'
+            'e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-light-desktop-chromium-desktop-linux.png'
+            'e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png'
+          )
+          for target in "${targets[@]}"; do
+            test -f "$target"
+            if git diff --quiet -- "$target"; then
+              echo "Expected reviewed baseline did not change: $target" >&2
+              exit 1
+            fi
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${targets[@]}"
+          rm .github/workflows/capture-pr200-remaining-visuals.yml
+          git add .github/workflows/capture-pr200-remaining-visuals.yml
+          git diff --cached --name-only
+          test "$(git diff --cached --name-only | wc -l)" -eq 6
+          git commit -m 'test: accept reviewed Discovery presentation baselines'
+          git push origin HEAD:fix/finalize-discovery-presentation
