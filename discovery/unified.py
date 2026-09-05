@@ -14,8 +14,10 @@ from .candidate_capabilities import family_can_satisfy_filters, requested_filter
 from .candidate_identity import opportunity_candidate_key, service_activity_candidate_key
 
 
-SERVICE_RESULT_LIMIT = 24
-OPPORTUNITY_RESULT_LIMIT = 24
+# Match the bounded Occurrence search envelope. Common Discovery pagination now
+# owns page sizing, so a page-sized family cap would truncate logical results
+# before composition and make page 2 inconsistent.
+DISCOVERY_FAMILY_CANDIDATE_LIMIT = 500
 OPPORTUNITY_CONTEXT_LIMIT = 1
 
 
@@ -70,7 +72,7 @@ def public_opportunity_discovery_items(
         ("upcoming", upcoming_opportunities(at=now).filter(query)),
     )
     for temporal_state, queryset in sources:
-        for opportunity in queryset[:OPPORTUNITY_RESULT_LIMIT]:
+        for opportunity in queryset[:DISCOVERY_FAMILY_CANDIDATE_LIMIT]:
             key = opportunity_candidate_key(opportunity)
             if key in seen:
                 continue
@@ -91,7 +93,7 @@ def public_opportunity_discovery_items(
                     "state_label": "Ouverte" if temporal_state == "open" else "À venir",
                 }
             )
-            if len(rows) >= OPPORTUNITY_RESULT_LIMIT:
+            if len(rows) >= DISCOVERY_FAMILY_CANDIDATE_LIMIT:
                 return rows
     return rows
 
@@ -154,7 +156,7 @@ def public_service_discovery_items(
 
     rows = []
     seen = set()
-    for service in services.distinct()[:SERVICE_RESULT_LIMIT]:
+    for service in services.distinct()[:DISCOVERY_FAMILY_CANDIDATE_LIMIT]:
         activity = service.activity
         key = service_activity_candidate_key(activity)
         if key in seen:
