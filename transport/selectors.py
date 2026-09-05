@@ -38,6 +38,7 @@ def _departure_qs():
 
 
 def upcoming_departures(*, space=None, now=None):
+    """Canonical public, future and still-valid Transport departures."""
     now = now or timezone.now()
     qs = _departure_qs().filter(
         occurrence__start_at__gt=now,
@@ -47,6 +48,30 @@ def upcoming_departures(*, space=None, now=None):
         occurrence__activity__transport_service__route__active=True,
     )
     return qs.filter(occurrence__activity__space=space) if space else qs
+
+
+def next_public_departure_for_activity(activity, *, now=None):
+    return (
+        upcoming_departures(now=now)
+        .filter(occurrence__activity=activity)
+        .order_by("occurrence__start_at", "occurrence_id", "id")
+        .first()
+    )
+
+
+def next_public_departures_by_activity(activity_ids, *, now=None):
+    """Batch next-departure projection used by Discovery recommendations."""
+    ids = list(activity_ids)
+    if not ids:
+        return {}
+    result = {}
+    for departure in (
+        upcoming_departures(now=now)
+        .filter(occurrence__activity_id__in=ids)
+        .order_by("occurrence__activity_id", "occurrence__start_at", "occurrence_id", "id")
+    ):
+        result.setdefault(departure.occurrence.activity_id, departure)
+    return result
 
 
 def departures_for_route(route, *, now=None):
