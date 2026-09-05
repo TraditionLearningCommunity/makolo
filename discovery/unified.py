@@ -6,7 +6,9 @@ from django.db.models import Q
 from django.urls import reverse
 
 from activities.models import ActivityStatus, ActivityVisibility
+from core.participant_activity_context import participant_state_context_for_activities
 from core.participant_presentation import resolve_participant_activity_state
+from core.product_language import vocabulary_for
 from opportunities.selectors import open_opportunities, upcoming_opportunities
 from services.models import OpportunityPolicy, ServiceDetails
 
@@ -154,9 +156,15 @@ def public_service_discovery_items(
         else:
             services = services.filter(activity_match | ~Q(opportunity_policy=OpportunityPolicy.NONE))
 
+    service_rows = list(services.distinct()[:DISCOVERY_FAMILY_CANDIDATE_LIMIT])
+    participant_context = participant_state_context_for_activities(
+        profile,
+        [service.activity for service in service_rows],
+    )
+
     rows = []
     seen = set()
-    for service in services.distinct()[:DISCOVERY_FAMILY_CANDIDATE_LIMIT]:
+    for service in service_rows:
         activity = service.activity
         key = service_activity_candidate_key(activity)
         if key in seen:
@@ -168,12 +176,13 @@ def public_service_discovery_items(
         start_url = reverse("services:start", kwargs={"pk": service.pk})
         if contextual_opportunity is not None:
             start_url = f"{start_url}?{urlencode({'opportunity': contextual_opportunity.pk})}"
+        vocabulary = vocabulary_for(activity=activity)
         participant = resolve_participant_activity_state(
             profile=profile,
             activity=activity,
             occurrence=None,
-            context=None,
-            acquisition_label="Commencer l’accompagnement",
+            context=participant_context,
+            acquisition_label=vocabulary.primary_action,
             acquisition_url=start_url,
             detail_url=start_url,
         )
@@ -184,7 +193,7 @@ def public_service_discovery_items(
                 "activity_id": str(activity.pk),
                 "service_id": str(service.pk),
                 "vertical": "service",
-                "vertical_label": "Accompagnement",
+                "vertical_label": vocabulary.activity_noun,
                 "title": activity.title,
                 "summary": activity.short_description or activity.description[:220],
                 "space_name": activity.operator_display_name,
