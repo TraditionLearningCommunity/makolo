@@ -7,8 +7,10 @@ from django.urls import reverse
 
 from activities.models import ActivityStatus, ActivityVisibility
 from core.participant_presentation import resolve_participant_activity_state
-from opportunities.selectors import published_opportunities
+from opportunities.selectors import open_opportunities
 from services.models import OpportunityPolicy, ServiceDetails
+
+from .candidate_capabilities import family_can_satisfy_filters, requested_filter_keys
 
 
 SERVICE_RESULT_LIMIT = 24
@@ -16,10 +18,11 @@ OPPORTUNITY_CONTEXT_LIMIT = 1
 
 
 def _matching_opportunities(text):
+    """Only immediately actionable Opportunities may contextualize Service intake."""
     if not text:
         return []
     return list(
-        published_opportunities()
+        open_opportunities()
         .filter(
             Q(current_revision__title__icontains=text)
             | Q(current_revision__summary__icontains=text)
@@ -29,16 +32,32 @@ def _matching_opportunities(text):
     )
 
 
-def public_service_discovery_items(params, *, profile=None):
-    """Project public Service Activities into Discover without changing domain models.
+def public_service_discovery_items(
+    params,
+    *,
+    profile=None,
+    requested_params=None,
+    constraints=(),
+):
+    """Project public Service Activities into Discover without domain copies.
 
-    Opportunity remains contextual data: when a search matches a published
-    Opportunity, Discover proposes compatible accompaniment services and passes
-    the canonical Opportunity through the existing Service intake URL.
+    Candidate capabilities are evaluated against constraints actually requested
+    by the user/interpreter. Technical defaults in a later search mapping must
+    not silently remove Service candidates.
+
+    Opportunity remains contextual data for Service intake only when it is open
+    now. The Opportunity itself keeps an independent Discovery identity.
     """
 
     vertical = (params.get("vertical") or "").strip().lower()
     if vertical not in {"", "service"}:
+        return []
+
+    requested = requested_filter_keys(
+        requested_params=params if requested_params is None else requested_params,
+        constraints=constraints,
+    )
+    if not family_can_satisfy_filters("service_activity", requested):
         return []
 
     text = (params.get("q") or "").strip()
@@ -70,8 +89,12 @@ def public_service_discovery_items(params, *, profile=None):
             services = services.filter(activity_match | ~Q(opportunity_policy=OpportunityPolicy.NONE))
 
     rows = []
+    seen_activity_ids = set()
     for service in services.distinct()[:SERVICE_RESULT_LIMIT]:
         activity = service.activity
+        if activity.pk in seen_activity_ids:
+            continue
+        seen_activity_ids.add(activity.pk)
         contextual_opportunity = (
             opportunity if opportunity is not None and service.opportunity_policy != OpportunityPolicy.NONE else None
         )
@@ -89,6 +112,8 @@ def public_service_discovery_items(params, *, profile=None):
         )
         rows.append(
             {
+                "candidate_family": "service_activity",
+                "candidate_key": f"service_activity:{activity.pk}",
                 "activity_id": str(activity.pk),
                 "service_id": str(service.pk),
                 "vertical": "service",
