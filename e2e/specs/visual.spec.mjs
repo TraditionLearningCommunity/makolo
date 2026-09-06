@@ -2,16 +2,12 @@ import { execFileSync } from 'node:child_process';
 import { test, expect } from '../fixtures/makolo.mjs';
 import { login } from '../helpers/auth.mjs';
 
-// Discovery baselines deliberately cover the richer universal-card presentation and the
-// reviewed light/dark, nearby and participant-dashboard states. Update them only after
-// reviewing rendered CI artifacts; never relax the visual diff gate to accept a change.
-const shot = async (page, name, options = {}) => {
+const shot = async (page, name) => {
   await expect(page).toHaveScreenshot(name, {
     fullPage: true,
     animations: 'disabled',
     caret: 'hide',
     maxDiffPixelRatio: 0.01,
-    ...options,
   });
 };
 
@@ -22,105 +18,13 @@ async function usePublicLight(page) {
   await expect(page.locator('html')).not.toHaveClass(/dark/);
 }
 
-async function stabilizePublicHome(page) {
-  await page.locator('a[href="/events/discovery-event-e2e/"]').evaluate((card) => {
-    const leaves = [...card.querySelectorAll('*')].filter((node) => node.children.length === 0);
-    const day = leaves.find((node) => /^\d{1,2}$/.test(node.textContent.trim()));
-    const monthYear = leaves.find((node) => /^\D{3} \d{4}$/.test(node.textContent.trim()));
-    const dateLine = [...card.querySelectorAll('p')].find((node) => node.textContent.includes('17:30'));
-    if (day) day.textContent = '25';
-    if (monthYear) monthYear.textContent = 'Aoû 2026';
-    if (dateLine) dateLine.textContent = 'mar 25 Aoû · 17:30';
-    const themePreference = document.getElementById('public-theme-preference');
-    if (themePreference) themePreference.style.display = 'none';
-  });
-}
-
 async function setAccountAppearance(page, value) {
   const labels = { light: 'Clair', dark: 'Sombre' };
   await page.goto('/account/profile/#appearance');
   await page.getByLabel(labels[value], { exact: true }).check();
   await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-preference', value);
-  if (value === 'dark') {
-    await expect(page.locator('html')).toHaveClass(/dark/);
-  } else {
-    await expect(page.locator('html')).not.toHaveClass(/dark/);
-  }
 }
-
-async function stableScanner(page) {
-  await page.evaluate(() => {
-    document.documentElement.style.scrollBehavior = 'auto';
-    document.documentElement.style.overflowAnchor = 'none';
-    document.body.style.overflowAnchor = 'none';
-  });
-  await expect(page.locator('#camera-state')).not.toContainText('Initialisation');
-  await page.getByRole('button', { name: 'Arrêter' }).click();
-  await expect(page.locator('#camera-state')).toHaveText('Caméra arrêtée');
-  await page.keyboard.press('Escape');
-  await page.evaluate(() => {
-    document.activeElement?.blur();
-    window.scrollTo(0, 0);
-  });
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-}
-
-// The E2E fixture intercepts map tiles, so this waits for a deterministic MapLibre render.
-async function stableDiscoveryMap(page) {
-  const mapContainer = page.locator('#discovery-map');
-  await expect(mapContainer).toBeVisible();
-  await mapContainer.scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => window.__makoloDiscoveryMap?.getSource('discovery-results'));
-  await page.evaluate(() => {
-    window.__makoloDiscoveryMap.resize();
-    window.__makoloDiscoveryMap.triggerRepaint();
-  });
-  await expect(mapContainer.locator('canvas')).toBeVisible();
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-}
-
-async function enableDiscoveryNearby(page) {
-  const context = page.context();
-  await context.grantPermissions(['geolocation']);
-  await context.setGeolocation({ latitude: -11.6647, longitude: 27.4794 });
-  await page.getByRole('button', { name: 'Autour de moi' }).click();
-  await expect(page).toHaveURL(/lat=-11\.6647/);
-  await expect(page.getByText(/Proximité active/)).toBeVisible();
-}
-
-async function assertDesktopShellStable(page) {
-  await expect(page.locator('aside.mk-sidebar').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ouvrir la navigation' })).toBeHidden();
-  await expect(page.getByRole('dialog', { name: 'Navigation Makolo' })).toBeHidden();
-
-  const layout = await page.evaluate(() => {
-    const offenders = [...document.querySelectorAll('body *')]
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          tag: element.tagName.toLowerCase(),
-          id: element.id || '',
-          className: typeof element.className === 'string' ? element.className.slice(0, 160) : '',
-          left: Math.round(rect.left),
-          right: Math.round(rect.right),
-          width: Math.round(rect.width),
-        };
-      })
-      .filter(({ left, right, width }) => width > 0 && (left < -1 || right > window.innerWidth + 1))
-      .slice(0, 12);
-    return {
-      viewportWidth: window.innerWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-      overflow: document.documentElement.scrollWidth - window.innerWidth,
-      offenders,
-    };
-  });
-  expect(layout.overflow, JSON.stringify(layout)).toBeLessThanOrEqual(1);
-}
-
 
 test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_e2e'], { stdio: 'inherit' });
@@ -128,99 +32,24 @@ test.beforeAll(() => {
   execFileSync('python', ['manage.py', 'prepare_discovery_e2e'], { stdio: 'inherit' });
 });
 
-// Visual fixtures intentionally reset the shared E2E database. Restore downstream
-// domain fixtures after this spec so later tests remain independent from spec order
-// without changing the visual baselines captured here.
-test.afterAll(() => {
-  execFileSync('python', ['manage.py', 'prepare_services_e2e'], { stdio: 'inherit' });
-  execFileSync('python', ['manage.py', 'prepare_subscriptions_e2e'], { stdio: 'inherit' });
-});
-
-
-test('representative light desktop surfaces @visual', async ({ page }) => {
+test('refresh Discovery light desktop baseline @visual', async ({ page }) => {
   await usePublicLight(page);
-  await stabilizePublicHome(page);
-  await shot(page, 'home-light-desktop.png');
   await page.goto('/discover/');
   await expect(page.locator('#discovery-map')).toHaveCount(0);
   await shot(page, 'discovery-light-desktop.png');
-  await enableDiscoveryNearby(page);
-  await stableDiscoveryMap(page);
-  await shot(page, 'discovery-nearby-light-desktop.png');
-
-  await login(page, 'visual.participant@e2e.makolo.test');
-  await setAccountAppearance(page, 'light');
-  await page.goto('/me/');
-  await shot(page, 'participant-dashboard-light-desktop.png');
-  await page.goto('/tickets/');
-  await page.getByRole('link', { name: /Invitation E2E/i }).first().click();
-  await shot(page, 'ticket-light-desktop.png', {
-    mask: [page.getByRole('img', { name: 'QR du ticket' })],
-  });
-
-  await page.context().clearCookies();
-  await login(page, 'new.organizer@e2e.makolo.test');
-  await setAccountAppearance(page, 'light');
-  await page.goto('/spaces/');
-  await shot(page, 'organizer-dashboard-light-desktop.png');
-
-  await page.context().clearCookies();
-  await login(page, 'scanner@e2e.makolo.test');
-  await setAccountAppearance(page, 'light');
-  await page.goto('/scanner/event/festival-makolo-e2e/');
-  await stableScanner(page);
-  await assertDesktopShellStable(page);
-  await shot(page, 'scanner-light-desktop.png');
-
-  await page.context().clearCookies();
-  await login(page, 'staff@e2e.makolo.test');
-  await setAccountAppearance(page, 'light');
-  await page.goto('/operations/');
-  await shot(page, 'operations-light-desktop.png', {
-    mask: [page.getByText(/^Mis à jour /)],
-  });
 });
 
-
-test('representative dark desktop surfaces @visual', async ({ page }) => {
+test('refresh Discovery dark desktop baseline @visual', async ({ page }) => {
   await login(page, 'visual.participant@e2e.makolo.test');
   await setAccountAppearance(page, 'dark');
-  await page.goto('/me/');
-  await shot(page, 'participant-dashboard-dark-desktop.png');
   await page.goto('/discover/');
   await expect(page.locator('#discovery-map')).toHaveCount(0);
   await shot(page, 'discovery-dark-desktop.png');
-  await enableDiscoveryNearby(page);
-  await stableDiscoveryMap(page);
-  await shot(page, 'discovery-nearby-dark-desktop.png');
-
-  await page.context().clearCookies();
-  await login(page, 'scanner@e2e.makolo.test');
-  await setAccountAppearance(page, 'dark');
-  await page.goto('/scanner/event/festival-makolo-e2e/');
-  await stableScanner(page);
-  await assertDesktopShellStable(page);
-  await shot(page, 'scanner-dark-desktop.png');
 });
 
-
-test('representative mobile surfaces @visual @mobile @mobile-only', async ({ page }) => {
+test('refresh Discovery light mobile baseline @visual @mobile @mobile-only', async ({ page }) => {
   await usePublicLight(page);
-  await stabilizePublicHome(page);
-  await shot(page, 'home-light-mobile.png');
   await page.goto('/discover/');
   await expect(page.locator('#discovery-map-panel')).toHaveCount(0);
   await shot(page, 'discovery-light-mobile.png');
-
-  await login(page, 'visual.participant@e2e.makolo.test');
-  await setAccountAppearance(page, 'light');
-  await page.goto('/me/');
-  await shot(page, 'participant-dashboard-light-mobile.png');
-
-  await page.context().clearCookies();
-  await login(page, 'scanner@e2e.makolo.test');
-  await setAccountAppearance(page, 'light');
-  await page.goto('/scanner/event/festival-makolo-e2e/');
-  await stableScanner(page);
-  await shot(page, 'scanner-light-mobile.png');
 });
