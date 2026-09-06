@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -11,8 +11,19 @@ from authorization.services import can, grant_activity_role, grant_space_role, r
 from geography.models import Place
 from organizations.models import Organization
 
-from .models import Activity, OccurrencePlaceRole
-from .services import attach_occurrence_place, create_activity, create_occurrence
+from .models import (
+    Activity,
+    OccurrencePlaceRole,
+    OccurrenceScheduleFrequency,
+    OccurrenceTimingKind,
+)
+from .services import (
+    attach_occurrence_place,
+    create_activity,
+    create_occurrence,
+    create_occurrence_schedule,
+    materialize_occurrence_schedule,
+)
 
 
 User = get_user_model()
@@ -80,13 +91,7 @@ class ActivityCoreTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse("activities:create"),
-            {
-                "title": "Anniversaire privé",
-                "short_description": "",
-                "description": "",
-                "visibility": "private",
-                "organization": "",
-            },
+            {"title": "Anniversaire privé", "short_description": "", "description": "", "visibility": "private", "organization": ""},
         )
         self.assertRedirects(response, reverse("core:participant-home"))
         activity = Activity.objects.get(title="Anniversaire privé")
@@ -95,13 +100,7 @@ class ActivityCoreTests(TestCase):
 
         forbidden = self.client.post(
             reverse("activities:create"),
-            {
-                "title": "Forged Space",
-                "short_description": "",
-                "description": "",
-                "visibility": "private",
-                "organization": str(self.space.pk),
-            },
+            {"title": "Forged Space", "short_description": "", "description": "", "visibility": "private", "organization": str(self.space.pk)},
         )
         self.assertEqual(forbidden.status_code, 403)
         self.assertFalse(Activity.objects.filter(title="Forged Space").exists())
@@ -115,13 +114,7 @@ class ActivityCoreTests(TestCase):
         )
         allowed = self.client.post(
             reverse("activities:create"),
-            {
-                "title": "Space Activity",
-                "short_description": "",
-                "description": "",
-                "visibility": "private",
-                "organization": str(self.space.pk),
-            },
+            {"title": "Space Activity", "short_description": "", "description": "", "visibility": "private", "organization": str(self.space.pk)},
         )
         self.assertRedirects(allowed, reverse("core:participant-home"))
         space_activity = Activity.objects.get(title="Space Activity")
@@ -151,3 +144,51 @@ class ActivityCoreTests(TestCase):
         self.assertEqual(moved.place, second)
         self.assertNotIn("origin", OccurrencePlaceRole.values)
         self.assertNotIn("destination", OccurrencePlaceRole.values)
+
+
+class OccurrenceTemporalSchedulingTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="schedule-owner", email="schedule@example.test", password="StrongPass2026!")
+        self.activity = create_activity(owner_profile=self.user, created_by=self.user, title="Trajet récurrent")
+
+    def test_date_only_occurrence_never_fabricates_midnight(self):
+        occurrence = create_occurrence(
+            activity=self.activity,
+            start_date=date(2026, 10, 18),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            timezone="Africa/Lubumbashi",
+        )
+        self.assertEqual(occurrence.start_date, date(2026, 10, 18))
+        self.assertIsNone(occurrence.start_time)
+        self.assertIsNone(occurrence.start_at)
+
+    def test_weekly_schedule_materialization_is_idempotent(self):
+        schedule = create_occurrence_schedule(
+            activity=self.activity,
+            created_by=self.user,
+            frequency=OccurrenceScheduleFrequency.WEEKLY,
+            starts_on=date(2026, 9, 7),
+            ends_on=date(2026, 9, 13),
+            weekdays=(0, 2, 4),
+            start_time=time(9, 0),
+            timezone="Africa/Lubumbashi",
+        )
+        first = materialize_occurrence_schedule(schedule=schedule, through_date=date(2026, 9, 13))
+        second = materialize_occurrence_schedule(schedule=schedule, through_date=date(2026, 9, 13))
+        self.assertEqual([row.start_date for row in first], [date(2026, 9, 7), date(2026, 9, 9), date(2026, 9, 11)])
+        self.assertEqual(second, [])
+        self.assertEqual(self.activity.occurrences.filter(schedule=schedule).count(), 3)
+
+    def test_monthly_day_31_skips_months_without_day_31(self):
+        schedule = create_occurrence_schedule(
+            activity=self.activity,
+            created_by=self.user,
+            frequency=OccurrenceScheduleFrequency.MONTHLY,
+            starts_on=date(2027, 1, 31),
+            ends_on=date(2027, 3, 31),
+            month_day=31,
+            start_time=time(8, 0),
+            timezone="Africa/Lubumbashi",
+        )
+        rows = materialize_occurrence_schedule(schedule=schedule, through_date=date(2027, 3, 31))
+        self.assertEqual([row.start_date for row in rows], [date(2027, 1, 31), date(2027, 3, 31)])
