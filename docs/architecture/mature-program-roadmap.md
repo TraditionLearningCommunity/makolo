@@ -13,7 +13,7 @@ Makolo possède désormais quatre lectures complémentaires de sa suite :
 
 Ces lectures ne sont pas des files de tâches équivalentes ni un ordre alphabétique obligatoire.
 
-Le stream M fixe les gates de maturité et le handoff vers le mobile. Les trains stratégiques stabilisent les capacités internes que ces gates doivent assembler. Le programme G transforme les fondations Profile/Discovery/Trust déjà présentes en identité d'action, pertinence explicable et découvrabilité consentie. M8-PRE prépare les contrats d'expérience nécessaires à l'assemblage web.
+Le stream M fixe les gates de maturité et le handoff vers le mobile. Les trains stratégiques stabilisent les capacités internes que ces gates doivent assembler. Le programme G a transformé les fondations Profile/Discovery/Trust en identité d'action, pertinence explicable et découvrabilité consentie. M8-PRE prépare les derniers contrats d'expérience nécessaires à l'assemblage web.
 
 Principe général :
 
@@ -30,6 +30,7 @@ M3 ✅ Presentation System
 M4 ✅ Trust & Quality
 M5 ✅ Social Action Network & Useful Engagement
 M6 ✅ Spatiotemporal Intelligence, Hazards & Last-Minute
+M7 ✅ Interoperability, Connections & Extension Platform
 ```
 
 Frontières à préserver :
@@ -67,88 +68,51 @@ Les anciennes mentions documentaires `P→U`, `S — Objectifs & collaboration` 
 
 ## 4. Structure de clôture Mature
 
-La fermeture finale reste :
+La fermeture finale est désormais :
 
 ```text
-M7 — Interoperability, Connections & Extension Platform
+G ✅ terminé
+      ↓
+M7 ✅ Interoperability, Connections & Extension Platform
+      ↓
+Pré-M8 cleanup / contrats ciblés
+      ↓
 M8 — Makolo Mature Web Experience
+      ↓
 M9 — Mature Hardening & Quality Gate
+      ↓
 M10 — Mature Closure, Production Readiness & Mobile Handoff
+      ↓
 A — Mobile natif
-```
-
-Mais **M7 n'est plus le prochain chantier obligatoire immédiatement après M6**.
-
-M7 doit venir à la convergence, lorsque les grandes capacités internes que Makolo veut exposer sont suffisamment stables.
-
-La structure de référence devient :
-
-```text
-M1–M6 + P
-     │
-     ├───────────────┐
-     ▼               ▼
-Q — Capital        D — Dossiers /
-personnel          Projets / Collaboration
-     │               │
-     ▼               ▼
-R — Préparation    O — Occurrence
-intelligente       Operations
-     │               │
-     └───────┬───────┘
-             │
-             ├──────────────► G — Profil / pertinence / réseau d'action
-             │                    G1–G5 ✅
-             │                    G6/G7/G8 en parallèle
-             │                    puis G9
-             │
-      M8-PRE │ audit/contrats d'expérience en parallèle
-             │
-             ▼
-            M7
-             ↓
-            M8
-             ↓
-            M9
-             ↓
-           M10
-             ↓
-         A1 → A4
 
 U — Intelligence cumulative : hors chemin critique.
 ```
 
-Cette structure autorise plusieurs lignes métier parallèles lorsque leurs responsabilités restent distinctes :
+M7 est un point de convergence déjà intégré. M8 assemble maintenant l'expérience web Mature à partir des domaines et contrats stabilisés ; M9 durcit l'ensemble ; M10 prépare la release candidate et le handoff mobile.
 
-- ligne A : `Q → R` ;
-- ligne B : `D → O` ;
-- ligne G : Profile/Topics/Discovery/Trust d'abord, puis Passeport/réseau bilatéral/activation, puis personnalisation croisée.
-
-M8-PRE peut être audité en parallèle. Les gros changements frontend globaux restent cependant réservés à M8.
+Les travaux Pré-M8 restent courts et ciblés : ils ferment des reliquats de contrat qui ne justifient pas d'être transportés dans le redesign M8. Les gros changements frontend globaux restent réservés à M8.
 
 ## 5. Fenêtre de coordination actuelle
 
-L'état GitHub actuel reste la vérité sur ce qui est réellement ouvert, mergé ou validé. À la date de cette révision documentaire, le programme G a déjà stabilisé dans `main` :
+L'état GitHub courant reste la vérité sur ce qui est réellement ouvert, mergé ou validé. Le programme G est terminé et M7 est intégré.
+
+La personnalisation croisée et les notifications utiles anciennement décrites comme un chantier G9 ne constituent plus un train séparé. Elles sont absorbées par les capacités déjà livrées et, selon le sujet, par l'assemblage M8 ou le hardening M9.
+
+La séquence canonique restante est donc :
 
 ```text
-G1 ✅ Profile Foundations
-G2 ✅ Topics & Interests
-G3 ✅ Profil public + Ouvert à
-G4 ✅ Veille Makolo
-G5 ✅ Credentials / attestations délivrées
+M7 ✅
+ ↓
+M8
+ ↓
+M9
+ ↓
+M10
+ ↓
+A
+
+U — hors chemin critique
 ```
-
-La suite du programme est :
-
-```text
-G6 — Passeport Makolo
-G7 — Réseau bilatéral / découverte & sollicitation
-G8 — Activation progressive du Profil
-       ↓ consolidation
-G9 — Personnalisation croisée & notifications utiles
-```
-
-G6/G7/G8 peuvent avancer en parallèle depuis un `main` vert commun. G9 vient après leur consolidation car il compose les signaux et projections produits par les tâches précédentes.
 
 La doctrine détaillée des frontières G est dans [`profile-relevance-action-network.md`](profile-relevance-action-network.md).
 
@@ -211,8 +175,8 @@ G fournit à M8 les contrats qui permettent de présenter une personne sans reco
 - `Open to` volontaire ;
 - Veilles privées ;
 - Proof/Credential distingués ;
-- futur Passeport Makolo ;
-- futur réseau bilatéral et personnalisation explicable.
+- Passeport Makolo ;
+- réseau bilatéral et personnalisation explicable.
 
 M8 doit composer ces capacités dans l'expérience Mature. Il ne doit pas réinventer Profile, Interest, Veille, Passeport ou sollicitation comme de simples états frontend.
 
@@ -343,11 +307,13 @@ Sa doctrine complète est dans [`mature-experience-principles.md`](mature-experi
 
 Auditer M3 Presentation, Discovery, Event `cover_image`, Activity/Occurrence, ActivityResource, storage, uploads/validators, M5 Contribution, Sharing, M6 et le frontend actuel.
 
-### M8-P1 — Activity-first representation / media foundation si gap confirmé
+### M8-P1 — Activity-first representation
 
-Le code sait déjà afficher une image de découverte via la verticale Event. Cela ne fait pas d'Event le propriétaire générique de la représentation Makolo.
+La représentation Discovery est résolue à partir d'Activity/Occurrence et d'un contrat `RepresentationPresentation` réutilisable. Event peut contribuer `Event.cover_image`, Transport une représentation de route, Service une représentation contextuelle sans fausse Occurrence ; une Activity générique reste valide sans image.
 
-La direction est Activity-first. Un mécanisme média transversal n'est créé que si l'audit démontre qu'une relation/projection M3 ne suffit pas.
+Event conserve sa vérité contextuelle et ses contrats historiques, mais n'est pas propriétaire générique de la représentation Makolo.
+
+Aucun bounded context Media n'est introduit pour combler artificiellement l'absence d'image. Un mécanisme média transversal ne serait créé que si un besoin futur démontre qu'une relation/projection de Presentation ne suffit pas.
 
 Principe : **No Orphan Media**.
 
@@ -374,13 +340,13 @@ M8-PRE peut être audité pendant les trains métier. Une petite fondation techn
 
 ## 11. M7 — Interoperability, Connections & Extension Platform
 
-M7 est le dernier grand chantier architectural de plateforme **après stabilisation des grandes capacités internes** et avant l'assemblage UX Mature.
+M7 est intégré comme dernier grand chantier architectural de plateforme avant l'assemblage UX Mature.
 
 Question :
 
 > **Comment Makolo coopère-t-il avec des applications, comptes, providers et extensions externes sans perdre la propriété de ses domaines canoniques ?**
 
-Le déplacement de M7 après les grandes capacités internes est intentionnel : il vaut mieux exposer des capabilities, Actions et Events internes déjà mûrs que figer trop tôt une plateforme d'interopérabilité pendant que Prepared Start, Dossier, Occurrence Operations ou les contrats G changent encore le modèle mental du produit.
+Le positionnement de M7 après les grandes capacités internes était intentionnel : il expose des capabilities, Actions et Events internes déjà mûrs plutôt que de figer trop tôt une plateforme d'interopérabilité.
 
 ### Provider Registry
 
@@ -499,7 +465,7 @@ M5 reste la source des contrats sociaux/action existants ; G fournit le profil d
 
 ### Profile & Passeport
 
-M8 présente le Profile public, `Open to`, Interests publics et futur Passeport Makolo à partir des contrats G. La complétion du Profil et les prompts de collecte restent progressifs et expliquent leur bénéfice.
+M8 présente le Profile public, `Open to`, Interests publics et Passeport Makolo à partir des contrats G. La complétion du Profil et les prompts de collecte restent progressifs et expliquent leur bénéfice.
 
 Le Passeport n'est pas un CV auto-déclaratif ni une nouvelle base Trust : il compose les faits et sélections autorisés.
 
@@ -523,7 +489,7 @@ L'Occurrence imminente ne doit plus ressembler à une fiche statique si le backe
 
 ### Réseau et Space Consoles
 
-M8 harmonise Groups, Contributions M5, Sharing P, Opportunities, Recommendations, G7 lorsqu'il est livré et les consoles Space sans transformer Discovery en liste de bounded contexts.
+M8 harmonise Groups, Contributions M5, Sharing P, Opportunities, Recommendations, G7 et les consoles Space sans transformer Discovery en liste de bounded contexts.
 
 Les Space Consoles composent Team, Mandates, Forms, Resources, Presentation, Capacity, Commerce, Payments, Access, Operations, Trust, CRM, Automation, Analytics, Connections et Extensions avec les permissions serveur existantes.
 
