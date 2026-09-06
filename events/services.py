@@ -8,7 +8,6 @@ from activities.models import (
     ActivityStatus,
     OccurrencePlace,
     OccurrencePlaceRole,
-    OccurrenceScheduleFrequency,
     OccurrenceStatus,
     OccurrenceTimingKind,
 )
@@ -110,15 +109,13 @@ def _set_occurrence_place(*, event, occurrence, venue=UNSET):
     return None
 
 
-def _capacity_source_key(event, occurrence, *, legacy=False):
-    if legacy:
-        return f"event:{event.pk}:capacity"
+def _capacity_source_key(event, occurrence):
     return f"event:{event.pk}:occurrence:{occurrence.pk}:capacity"
 
 
-def _set_event_capacity(*, event, occurrence, total_quantity, legacy=False):
-    """Event vocabulary routed to an Occurrence-scoped canonical CapacityPool."""
-    source_key = _capacity_source_key(event, occurrence, legacy=legacy)
+def _set_event_capacity(*, event, occurrence, total_quantity):
+    """Event vocabulary routed to one Occurrence-scoped canonical CapacityPool."""
+    source_key = _capacity_source_key(event, occurrence)
     pool = CapacityPool.objects.select_for_update().filter(source_key=source_key).first()
     if pool is None:
         if total_quantity is None:
@@ -263,30 +260,13 @@ def create_event(
     elif capacity is not UNSET and not specs:
         raise ValidationError({"capacity": "Une capacité Event doit cibler une date précise."})
 
-    for index, spec in enumerate(specs):
+    for spec in specs:
         values = dict(spec)
         values.setdefault("timezone_name", timezone)
         values.setdefault("timing_kind", OccurrenceTimingKind.EXACT)
         if "capacity" not in values and capacity is not UNSET and len(specs) == 1:
             values["capacity"] = capacity
-        occurrence = add_event_occurrence(event=event, actor=actor, **values)
-        if index == 0 and values.get("capacity", UNSET) is not UNSET:
-            # Preserve the historic Event.capacity projection for one-date flows.
-            existing = CapacityPool.objects.filter(source_key=_capacity_source_key(event, occurrence)).first()
-            if existing:
-                legacy, _ = CapacityPool.objects.get_or_create(
-                    source_key=_capacity_source_key(event, occurrence, legacy=True),
-                    defaults={
-                        "activity": event.activity,
-                        "occurrence": occurrence,
-                        "label": "Capacité événement",
-                        "total_quantity": existing.total_quantity,
-                        "is_active": existing.is_active,
-                    },
-                )
-                if legacy.total_quantity != existing.total_quantity:
-                    legacy.total_quantity = existing.total_quantity
-                    legacy.save(update_fields=["total_quantity", "updated_at"])
+        add_event_occurrence(event=event, actor=actor, **values)
     return event
 
 
