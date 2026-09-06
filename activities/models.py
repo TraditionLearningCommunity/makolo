@@ -64,7 +64,7 @@ class Activity(models.Model):
     def _slug_scope(self):
         queryset = Activity.objects.exclude(pk=self.pk)
         if self.space_id:
-            return queryset.filter(space_id=self.space_id)
+            return queryset.filter(space_id=None).filter(space_id=self.space_id)
         if self.owner_profile_id:
             return queryset.filter(space_id=None, owner_profile_id=self.owner_profile_id)
         return queryset.filter(space_id=None, owner_profile_id=None)
@@ -216,8 +216,6 @@ class Occurrence(models.Model):
     end_date = models.DateField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     timing_kind = models.CharField(max_length=16, choices=OccurrenceTimingKind.choices, default=OccurrenceTimingKind.EXACT)
-    # Compatibility projection for existing exact-time consumers. Date-only and
-    # all-day Occurrences deliberately keep these NULL rather than invent 00:00.
     start_at = models.DateTimeField(null=True, blank=True)
     end_at = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=100, default="Africa/Lubumbashi", validators=[validate_timezone_name])
@@ -324,13 +322,13 @@ class Occurrence(models.Model):
         update_fields = kwargs.get("update_fields")
         if update_fields is not None:
             update_fields = set(update_fields)
-            structured_start = {"start_date", "start_time", "timing_kind"}
-            structured_end = {"end_date", "end_time", "timing_kind"}
-            if "start_at" in update_fields and not (update_fields & structured_start):
+            explicit_structured_start = update_fields & {"start_date", "start_time"}
+            explicit_structured_end = update_fields & {"end_date", "end_time"}
+            if "start_at" in update_fields and not explicit_structured_start:
                 self.start_date, self.start_time = self._local_parts_from_instant(self.start_at)
                 self.timing_kind = OccurrenceTimingKind.EXACT
                 update_fields.update({"start_date", "start_time", "timing_kind"})
-            if "end_at" in update_fields and not (update_fields & structured_end):
+            if "end_at" in update_fields and not explicit_structured_end:
                 self.end_date, self.end_time = self._local_parts_from_instant(self.end_at)
                 update_fields.update({"end_date", "end_time"})
             kwargs["update_fields"] = update_fields
