@@ -118,10 +118,9 @@ class TicketTypeListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
     def get_queryset(self):
         return (
-            TicketType.objects.select_related("event__activity", "offer", "capacity_pool")
+            TicketType.objects.select_related("event__activity", "offer__occurrence", "capacity_pool")
             .filter(event__in=get_manageable_events(self.request.user))
-            .order_by("event__activity__occurrences__start_at", "offer__unit_price", "name")
-            .distinct()
+            .order_by("offer__occurrence__start_date", "offer__occurrence__start_time", "offer__unit_price", "name")
         )
 
 
@@ -144,7 +143,7 @@ class TicketTypeCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         if not user_can_manage_event(self.request.user, event):
             raise PermissionDenied
         self.object = configure_ticket_type(actor=self.request.user, **form.cleaned_data)
-        messages.success(self.request, "Type de billet créé.")
+        messages.success(self.request, "Type de billet créé pour la séance sélectionnée.")
         return redirect(self.get_success_url())
 
     def get_success_url(self):
@@ -158,7 +157,7 @@ class TicketTypeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     login_url = "core:login"
 
     def get_queryset(self):
-        return TicketType.objects.select_related("event__activity", "offer", "capacity_pool")
+        return TicketType.objects.select_related("event__activity", "offer__occurrence", "capacity_pool")
 
     def test_func(self):
         return user_can_manage_event(self.request.user, self.get_object().event)
@@ -169,11 +168,12 @@ class TicketTypeUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return kwargs
 
     def form_valid(self, form):
+        values = dict(form.cleaned_data)
         self.object = configure_ticket_type(
             actor=self.request.user,
-            event=form.cleaned_data.pop("event"),
+            event=values.pop("event"),
             ticket_type=self.object,
-            **form.cleaned_data,
+            **values,
         )
         messages.success(self.request, "Type de billet mis à jour.")
         return redirect(self.get_success_url())
@@ -189,15 +189,36 @@ class EventTicketOrderView(LoginRequiredMixin, View):
     def _event(self, request, slug):
         return get_object_or_404(get_events_visible_to(request.user, for_detail=True), slug=slug)
 
-    def _ticket_types(self, event):
+    def _occurrence(self, request, event):
+        raw = request.GET.get("occurrence") or request.POST.get("occurrence")
+        queryset = event.activity.occurrences.filter(status="scheduled")
+        if raw:
+            return queryset.filter(pk=raw).first()
+        ticketed_ids = list(
+            event.ticket_types.filter(offer__occurrence__isnull=False)
+            .values_list("offer__occurrence_id", flat=True)
+            .distinct()[:2]
+        )
+        if len(ticketed_ids) == 1:
+            return queryset.filter(pk=ticketed_ids[0]).first()
+        return None
+
+    def _ticket_types(self, event, occurrence):
+        if occurrence is None:
+            return []
         return list(
-            event.ticket_types.select_related("offer", "capacity_pool")
-            .filter(offer__status="active", capacity_pool__is_active=True, is_public=True)
+            event.ticket_types.select_related("offer__occurrence", "capacity_pool")
+            .filter(
+                offer__occurrence=occurrence,
+                offer__status="active",
+                capacity_pool__is_active=True,
+                is_public=True,
+            )
             .order_by("offer__unit_price", "name")
         )
 
-    def _context(self, request, event, ticket_types=None):
-        ticket_types = ticket_types if ticket_types is not None else self._ticket_types(event)
+    def _context(self, request, event, occurrence, ticket_types=None):
+        ticket_types = ticket_types if ticket_types is not None else self._ticket_types(event, occurrence)
         active_entries = TicketWaitlistEntry.objects.filter(
             user=request.user,
             ticket_type__in=ticket_types,
@@ -212,6 +233,7 @@ class EventTicketOrderView(LoginRequiredMixin, View):
         referral = get_session_referral(request, event=event)
         return {
             "event": event,
+            "occurrence": occurrence,
             "ticket_types": ticket_types,
             "waitlist_eligible_ids": eligible_ids,
             "active_waitlist_type_ids": active_ids,
@@ -222,11 +244,19 @@ class EventTicketOrderView(LoginRequiredMixin, View):
 
     def get(self, request, event_slug):
         event = self._event(request, event_slug)
-        return render(request, self.template_name, self._context(request, event))
+        occurrence = self._occurrence(request, event)
+        if occurrence is None:
+            messages.info(request, "Choisissez d’abord la date / séance de l’événement.")
+            return redirect("events:detail", slug=event.slug)
+        return render(request, self.template_name, self._context(request, event, occurrence))
 
     def post(self, request, event_slug):
         event = self._event(request, event_slug)
-        ticket_types = self._ticket_types(event)
+        occurrence = self._occurrence(request, event)
+        if occurrence is None:
+            messages.error(request, "La date / séance de cette commande est obligatoire.")
+            return redirect("events:detail", slug=event.slug)
+        ticket_types = self._ticket_types(event, occurrence)
         selections = []
         for ticket_type in ticket_types:
             raw = request.POST.get(f"quantity_{ticket_type.pk}", "0")
@@ -251,7 +281,7 @@ class EventTicketOrderView(LoginRequiredMixin, View):
             attribute_order_from_campaign(order=order, request=request)
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
-            return render(request, self.template_name, self._context(request, event, ticket_types), status=400)
+            return render(request, self.template_name, self._context(request, event, occurrence, ticket_types), status=400)
 
         if order.canonical_status == "confirmed":
             messages.success(request, "Billets émis avec succès. Aucun paiement n’a été créé lorsque le total est gratuit.")
@@ -283,7 +313,7 @@ class TicketOrderPromotionApplyView(LoginRequiredMixin, View):
     def post(self, request, pk):
         order = get_object_or_404(get_orders_visible_to(request.user), pk=pk)
         try:
-            updated = apply_code_to_pending_order(
+            apply_code_to_pending_order(
                 order=order,
                 actor=request.user,
                 promotion_code=request.POST.get("promotion_code", ""),
@@ -327,7 +357,7 @@ class WaitlistJoinView(LoginRequiredMixin, View):
 
     def post(self, request, ticket_type_id):
         ticket_type = get_object_or_404(
-            TicketType.objects.select_related("event__activity", "offer", "capacity_pool"),
+            TicketType.objects.select_related("event__activity", "offer__occurrence", "capacity_pool"),
             pk=ticket_type_id,
         )
         quantity = request.POST.get("quantity", "1")
@@ -337,7 +367,10 @@ class WaitlistJoinView(LoginRequiredMixin, View):
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
             messages.success(request, f"Vous êtes sur la liste d’attente pour {entry.ticket_type.name}. Makolo vous préviendra automatiquement dès qu’une place sera réservée pour vous.")
-        return redirect("tickets:order-create", event_slug=ticket_type.event.slug)
+        url = reverse("tickets:order-create", kwargs={"event_slug": ticket_type.event.slug})
+        if ticket_type.offer.occurrence_id:
+            url = f"{url}?occurrence={ticket_type.offer.occurrence_id}"
+        return redirect(url)
 
 
 class WaitlistLeaveView(LoginRequiredMixin, View):
@@ -386,7 +419,10 @@ class TicketTransferCreateView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, pk):
-        ticket = get_object_or_404(Ticket.objects.select_related("event__activity", "owner", "access"), pk=pk)
+        ticket = get_object_or_404(
+            Ticket.objects.select_related("event__activity", "owner", "access", "ticket_type__offer__occurrence"),
+            pk=pk,
+        )
         try:
             transfer = create_ticket_transfer(
                 ticket=ticket,
