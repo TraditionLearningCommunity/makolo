@@ -12,7 +12,6 @@ from activities.models import (
     ActivityVisibility,
     OccurrencePlaceRole,
     OccurrenceStatus,
-    OccurrenceTimingKind,
 )
 
 from .validators import validate_event_cover
@@ -434,14 +433,21 @@ class Event(models.Model):
 
     @property
     def capacity(self):
+        """Legacy single-date projection; CapacityPool remains the only truth."""
         occurrence = self.primary_occurrence
         if occurrence is None:
             return None
         pool = self.activity.capacity_pools.filter(
             occurrence=occurrence,
             is_active=True,
-            source_key=f"event:{self.pk}:capacity",
+            source_key=f"event:{self.pk}:occurrence:{occurrence.pk}:capacity",
         ).first()
+        if pool is None:
+            pool = self.activity.capacity_pools.filter(
+                occurrence=occurrence,
+                is_active=True,
+                source_key=f"event:{self.pk}:capacity",
+            ).first()
         return pool.total_quantity if pool else None
 
     @property
