@@ -46,10 +46,10 @@ class ArrivalWindow:
 @dataclass(frozen=True, slots=True)
 class TemporalContext:
     now: datetime
-    starts_at: datetime
+    starts_at: datetime | None
     ends_at: datetime | None
     timezone: str
-    starts_in: timedelta
+    starts_in: timedelta | None
     ends_in: timedelta | None
     state: TemporalState
     arrival_window: ArrivalWindow | None = None
