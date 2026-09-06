@@ -358,7 +358,7 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
             Q(status=EventStatus.PUBLISHED)
             | Q(status=EventStatus.COMPLETED, updated_at__gte=completed_cutoff)
         )
-        .select_related("organizer", "organization", "automation_policy", "activity")
+        .select_related("activity", "activity__created_by", "activity__space", "automation_policy")
         .order_by("created_at")
     )
     for event in events:
