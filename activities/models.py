@@ -28,27 +28,9 @@ class ActivityVisibility(models.TextChoices):
 
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    space = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.PROTECT,
-        related_name="activities",
-        null=True,
-        blank=True,
-    )
-    owner_profile = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="owned_activities",
-        null=True,
-        blank=True,
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="created_activities",
-        null=True,
-        blank=True,
-    )
+    space = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="activities", null=True, blank=True)
+    owner_profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owned_activities", null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_activities", null=True, blank=True)
     title = models.CharField(max_length=220)
     slug = models.SlugField(max_length=240, blank=True)
     short_description = models.CharField(max_length=320, blank=True)
@@ -61,25 +43,10 @@ class Activity(models.Model):
     class Meta:
         ordering = ["title", "id"]
         constraints = [
-            models.CheckConstraint(
-                condition=~Q(space__isnull=False, owner_profile__isnull=False),
-                name="activities_single_logical_owner",
-            ),
-            models.UniqueConstraint(
-                fields=["space", "slug"],
-                condition=Q(space__isnull=False),
-                name="activities_space_slug_unique",
-            ),
-            models.UniqueConstraint(
-                fields=["owner_profile", "slug"],
-                condition=Q(owner_profile__isnull=False, space__isnull=True),
-                name="activities_profile_slug_unique",
-            ),
-            models.UniqueConstraint(
-                fields=["slug"],
-                condition=Q(space__isnull=True, owner_profile__isnull=True),
-                name="activities_legacy_slug_unique",
-            ),
+            models.CheckConstraint(condition=~Q(space__isnull=False, owner_profile__isnull=False), name="activities_single_logical_owner"),
+            models.UniqueConstraint(fields=["space", "slug"], condition=Q(space__isnull=False), name="activities_space_slug_unique"),
+            models.UniqueConstraint(fields=["owner_profile", "slug"], condition=Q(owner_profile__isnull=False, space__isnull=True), name="activities_profile_slug_unique"),
+            models.UniqueConstraint(fields=["slug"], condition=Q(space__isnull=True, owner_profile__isnull=True), name="activities_legacy_slug_unique"),
         ]
         indexes = [
             models.Index(fields=["space", "status"], name="activities_space_status_idx"),
@@ -90,13 +57,9 @@ class Activity(models.Model):
     def clean(self):
         super().clean()
         if self.space_id and self.owner_profile_id:
-            raise ValidationError(
-                "Une Activity appartient soit à un Profil, soit à un Espace, jamais aux deux."
-            )
+            raise ValidationError("Une Activity appartient soit à un Profil, soit à un Espace, jamais aux deux.")
         if not self.space_id and not self.owner_profile_id and self._state.adding:
-            raise ValidationError(
-                "Toute nouvelle Activity doit avoir un propriétaire logique explicite."
-            )
+            raise ValidationError("Toute nouvelle Activity doit avoir un propriétaire logique explicite.")
 
     def _slug_scope(self):
         queryset = Activity.objects.exclude(pk=self.pk)
@@ -180,13 +143,7 @@ class OccurrenceSchedule(models.Model):
     month = models.PositiveSmallIntegerField(null=True, blank=True)
     occurrence_status = models.CharField(max_length=20, choices=OccurrenceStatus.choices, default=OccurrenceStatus.SCHEDULED)
     status = models.CharField(max_length=16, choices=OccurrenceScheduleStatus.choices, default=OccurrenceScheduleStatus.ACTIVE)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="created_occurrence_schedules",
-        null=True,
-        blank=True,
-    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_occurrence_schedules", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -265,13 +222,7 @@ class Occurrence(models.Model):
     end_at = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=100, default="Africa/Lubumbashi", validators=[validate_timezone_name])
     status = models.CharField(max_length=20, choices=OccurrenceStatus.choices, default=OccurrenceStatus.DRAFT)
-    schedule = models.ForeignKey(
-        OccurrenceSchedule,
-        on_delete=models.SET_NULL,
-        related_name="generated_occurrences",
-        null=True,
-        blank=True,
-    )
+    schedule = models.ForeignKey(OccurrenceSchedule, on_delete=models.SET_NULL, related_name="generated_occurrences", null=True, blank=True)
     schedule_local_date = models.DateField(null=True, blank=True)
     places = models.ManyToManyField("geography.Place", through="OccurrencePlace", related_name="occurrences", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -282,11 +233,7 @@ class Occurrence(models.Model):
         constraints = [
             models.CheckConstraint(condition=~Q(timezone=""), name="activities_occ_timezone_present"),
             models.CheckConstraint(condition=Q(end_date__isnull=True) | Q(start_date__isnull=True) | Q(end_date__gte=models.F("start_date")), name="activities_occ_date_window"),
-            models.UniqueConstraint(
-                fields=["schedule", "schedule_local_date"],
-                condition=Q(schedule__isnull=False),
-                name="activities_occ_schedule_slot_unique",
-            ),
+            models.UniqueConstraint(fields=["schedule", "schedule_local_date"], condition=Q(schedule__isnull=False), name="activities_occ_schedule_slot_unique"),
         ]
         indexes = [
             models.Index(fields=["activity", "start_date", "start_time"], name="activities_occ_activity_idx"),
@@ -374,6 +321,19 @@ class Occurrence(models.Model):
 
     def save(self, *args, **kwargs):
         self.timezone = (self.timezone or "").strip()
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            structured_start = {"start_date", "start_time", "timing_kind"}
+            structured_end = {"end_date", "end_time", "timing_kind"}
+            if "start_at" in update_fields and not (update_fields & structured_start):
+                self.start_date, self.start_time = self._local_parts_from_instant(self.start_at)
+                self.timing_kind = OccurrenceTimingKind.EXACT
+                update_fields.update({"start_date", "start_time", "timing_kind"})
+            if "end_at" in update_fields and not (update_fields & structured_end):
+                self.end_date, self.end_time = self._local_parts_from_instant(self.end_at)
+                update_fields.update({"end_date", "end_time"})
+            kwargs["update_fields"] = update_fields
         self.full_clean()
         return super().save(*args, **kwargs)
 
