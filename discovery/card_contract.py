@@ -171,6 +171,12 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
             enabled=participant.availability not in {"cancelled", "completed"},
         )
     save_label = "Enregistré" if bookmarked else "Enregistrer"
+    representation = item.representation or RepresentationPresentation(
+        kind="image" if item.image_url else ("route" if item.vertical == "transport" else "identity"),
+        image_url=item.image_url,
+        eyebrow=item.eyebrow,
+        route_label=item.eyebrow if item.vertical == "transport" else None,
+    )
     return DiscoveryCardPresentation(
         candidate_key=item.candidate_key,
         activity_id=item.activity_id,
@@ -181,12 +187,7 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
         summary=item.summary,
         operator_label={"event": "Organisé par", "transport": "Opéré par"}.get(item.vertical, "Proposé par"),
         operator_name=item.space_name,
-        representation=RepresentationPresentation(
-            kind="image" if item.image_url else ("route" if item.vertical == "transport" else "identity"),
-            image_url=item.image_url,
-            eyebrow=item.eyebrow,
-            route_label=item.eyebrow if item.vertical == "transport" else None,
-        ),
+        representation=representation,
         facts=_occurrence_facts(item),
         participant_state=participant,
         actions=ParticipantActionSet(
@@ -243,7 +244,10 @@ def present_service_card(item: dict, *, bookmarked: bool = False) -> DiscoveryCa
         summary=item.get("summary") or "",
         operator_label="Proposé par",
         operator_name=item.get("space_name") or "",
-        representation=RepresentationPresentation(kind="service", eyebrow=item.get("service_kind")),
+        representation=item.get("representation") or RepresentationPresentation(
+            kind="service",
+            eyebrow=item.get("service_kind"),
+        ),
         facts=tuple(facts),
         participant_state=participant,
         actions=ParticipantActionSet(
