@@ -69,6 +69,7 @@ class Migration(migrations.Migration):
         migrations.AddField(model_name="occurrence", name="schedule", field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="generated_occurrences", to="activities.occurrenceschedule")),
         migrations.AddField(model_name="occurrence", name="schedule_local_date", field=models.DateField(blank=True, null=True)),
         migrations.AlterField(model_name="occurrence", name="start_at", field=models.DateTimeField(blank=True, null=True)),
+        migrations.AlterModelOptions(name="occurrence", options={"ordering": ["start_date", "start_time", "id"]}),
         migrations.RunPython(backfill_occurrence_parts, migrations.RunPython.noop),
         migrations.RemoveConstraint(model_name="occurrence", name="activities_occ_end_after_start"),
         migrations.RemoveIndex(model_name="occurrence", name="activities_occ_activity_idx"),
