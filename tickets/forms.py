@@ -1,5 +1,6 @@
 from django import forms
 
+from activities.models import Occurrence
 from events.models import Event
 from events.selectors import get_manageable_events
 
@@ -18,9 +19,10 @@ CHECKBOX_CLASS = (
 
 
 class TicketTypeForm(forms.Form):
-    """Event-facing ticket vocabulary; persistence is routed by configure_ticket_type."""
+    """Event-facing ticket vocabulary; Offer/Capacity own occurrence scope."""
 
     event = forms.ModelChoiceField(queryset=Event.objects.none(), label="Événement")
+    occurrence = forms.ModelChoiceField(queryset=Occurrence.objects.none(), label="Date / séance")
     name = forms.CharField(max_length=140, label="Nom du billet")
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 4}), label="Description")
     price = forms.DecimalField(min_value=0, max_digits=12, decimal_places=2, label="Prix")
@@ -36,14 +38,24 @@ class TicketTypeForm(forms.Form):
     def __init__(self, *args, user=None, instance=None, **kwargs):
         self.instance = instance
         super().__init__(*args, **kwargs)
-        queryset = Event.objects.order_by("activity__occurrences__start_at")
+        queryset = Event.objects.order_by("activity__occurrences__start_date", "activity__occurrences__start_time")
         if user:
-            queryset = get_manageable_events(user).order_by("activity__occurrences__start_at")
+            queryset = get_manageable_events(user).order_by("activity__occurrences__start_date", "activity__occurrences__start_time")
         self.fields["event"].queryset = queryset.distinct()
+
+        event_id = None
+        if self.is_bound:
+            event_id = self.data.get("event")
+        elif instance is not None:
+            event_id = instance.event_id
+        if event_id:
+            self.fields["occurrence"].queryset = Occurrence.objects.filter(activity__event_vertical__pk=event_id).order_by("start_date", "start_time", "id")
+
         if instance is not None:
             self.initial.update(
                 {
                     "event": instance.event,
+                    "occurrence": instance.offer.occurrence,
                     "name": instance.name,
                     "description": instance.description,
                     "price": instance.price,
@@ -58,19 +70,7 @@ class TicketTypeForm(forms.Form):
                 }
             )
 
-        widgets = {
-            "event": forms.Select,
-            "name": forms.TextInput,
-            "description": forms.Textarea,
-            "price": forms.NumberInput,
-            "currency": forms.TextInput,
-            "quantity_total": forms.NumberInput,
-            "sales_start_at": forms.DateTimeInput,
-            "sales_end_at": forms.DateTimeInput,
-            "min_per_order": forms.NumberInput,
-            "max_per_order": forms.NumberInput,
-        }
-        for name, field in self.fields.items():
+        for field in self.fields.values():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs["class"] = CHECKBOX_CLASS
             else:
@@ -87,8 +87,13 @@ class TicketTypeForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         event = cleaned.get("event")
+        occurrence = cleaned.get("occurrence")
         if event and self.instance and self.instance.pk and self.instance.event_id != event.pk:
             self.add_error("event", "Un type de billet existant ne peut pas changer d’événement.")
+        if event and occurrence and occurrence.activity_id != event.activity_id:
+            self.add_error("occurrence", "Cette date n’appartient pas à l’événement sélectionné.")
+        if self.instance and occurrence and self.instance.offer.occurrence_id != occurrence.pk:
+            self.add_error("occurrence", "Un type de billet existant ne peut pas changer de séance.")
         minimum = cleaned.get("min_per_order")
         maximum = cleaned.get("max_per_order")
         if minimum and maximum and maximum < minimum:
