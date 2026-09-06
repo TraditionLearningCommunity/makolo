@@ -1,5 +1,8 @@
+from types import SimpleNamespace
+
 from django.test import SimpleTestCase
 
+from intelligence.interoperability import connection_ref
 from interoperability.actions import (
     ActionAuthorizationError,
     ActionConnectionRequired,
@@ -53,6 +56,24 @@ class ConnectionAuthorizationTests(SimpleTestCase):
                 has_platform_authority=lambda: True,
                 has_space_authority=lambda _space_id: True,
             )
+
+    def test_intelligence_profile_connection_projects_canonical_user_id(self):
+        connection = SimpleNamespace(
+            pk="c1",
+            scope="profile",
+            enabled=True,
+            profile_id="profile-row-id",
+            profile=SimpleNamespace(user_id="canonical-user-id"),
+            space_id=None,
+        )
+        ref = connection_ref(connection)
+        self.assertEqual(ref.profile_id, "canonical-user-id")
+        authorize_connection(
+            actor_id="canonical-user-id",
+            connection=ref,
+            has_platform_authority=lambda: False,
+            has_space_authority=lambda _space_id: False,
+        )
 
 
 class ActionRegistryTests(SimpleTestCase):
