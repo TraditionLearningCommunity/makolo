@@ -92,6 +92,24 @@ class WebhookContractTests(SimpleTestCase):
         self.assertNotIn(b"private", sent[0][1])
         self.assertIn("X-Makolo-Webhook-Signature", sent[0][2])
 
+    def test_outbound_endpoint_rejects_local_private_or_embedded_credentials(self):
+        unsafe_urls = (
+            "https://localhost/hooks",
+            "https://127.0.0.1/hooks",
+            "https://10.0.0.8/hooks",
+            "https://user:password@example.test/hooks",
+        )
+        for endpoint_url in unsafe_urls:
+            with self.subTest(endpoint_url=endpoint_url), self.assertRaises(ValueError):
+                WebhookSubscription(
+                    code="unsafe",
+                    endpoint_url=endpoint_url,
+                    event_types={"activity.published"},
+                    signing_key_id="partner-a",
+                    payload_builder=lambda _event: {},
+                    allow_event=lambda _event: True,
+                )
+
 
 class ExtensionBoundaryTests(SimpleTestCase):
     def test_extension_can_only_compose_allowlisted_surfaces(self):
