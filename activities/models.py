@@ -64,7 +64,7 @@ class Activity(models.Model):
     def _slug_scope(self):
         queryset = Activity.objects.exclude(pk=self.pk)
         if self.space_id:
-            return queryset.filter(space_id=None).filter(space_id=self.space_id)
+            return queryset.filter(space_id=self.space_id)
         if self.owner_profile_id:
             return queryset.filter(space_id=None, owner_profile_id=self.owner_profile_id)
         return queryset.filter(space_id=None, owner_profile_id=None)
@@ -216,6 +216,8 @@ class Occurrence(models.Model):
     end_date = models.DateField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     timing_kind = models.CharField(max_length=16, choices=OccurrenceTimingKind.choices, default=OccurrenceTimingKind.EXACT)
+    # Compatibility projection for existing exact-time consumers. Date-only and
+    # all-day Occurrences deliberately keep these NULL rather than invent 00:00.
     start_at = models.DateTimeField(null=True, blank=True)
     end_at = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=100, default="Africa/Lubumbashi", validators=[validate_timezone_name])
