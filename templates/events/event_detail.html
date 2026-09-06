@@ -43,6 +43,24 @@
     <div class="relative h-32 overflow-hidden rounded-[24px] border sm:h-36" style="border-color:rgba(82,50,219,.28);background:radial-gradient(circle at 84% 15%,rgba(255,112,77,.38),transparent 31%),linear-gradient(135deg,#2B176E,#5232DB)"><div class="absolute inset-0 flex items-center justify-between gap-5 px-6 sm:px-8"><div><p class="text-[10px] font-bold uppercase tracking-[.16em] text-white/70">Makolo</p><p class="mt-2 max-w-xl text-sm font-semibold text-white/90 sm:text-base">{{ event.title }}</p></div><img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="h-12 w-auto shrink-0 opacity-80 sm:h-16" aria-hidden="true"></div></div>
     {% endif %}
 
+    {% if event_occurrences %}
+    <section class="mk-panel p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div><p class="text-[10px] font-bold uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Dates / séances</p><h2 class="mt-1 text-base font-bold">Choisissez la date qui vous intéresse</h2></div>
+            {% if requires_occurrence_selection %}<span class="mk-badge mk-badge-brand">Choix requis avant réservation</span>{% endif %}
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+            {% for occurrence in event_occurrences %}
+                <a href="{% url 'events:detail' event.slug %}?occurrence={{ occurrence.pk }}" class="mk-btn {% if selected_occurrence and selected_occurrence.pk == occurrence.pk %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}">
+                    <i data-lucide="calendar-clock" class="h-4 w-4"></i>
+                    <span>{{ occurrence.start_date|date:"D d M Y" }}{% if occurrence.timing_kind == 'exact' and occurrence.start_time %} · {{ occurrence.start_time|time:"H:i" }}{% elif occurrence.timing_kind == 'date_only' %} · Heure à confirmer{% elif occurrence.timing_kind == 'all_day' %} · Toute la journée{% endif %}</span>
+                    {% if occurrence.status == 'cancelled' %}<span class="text-[10px] font-bold uppercase">Annulée</span>{% endif %}
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section class="mk-panel p-5 sm:p-7">
             <div class="flex items-center gap-3"><div class="grid h-9 w-9 place-items-center rounded-xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="align-left" class="h-4 w-4"></i></div><h2 class="text-lg font-[730] tracking-[-.03em]">À propos</h2></div>
@@ -52,9 +70,9 @@
         <aside class="mk-panel h-fit overflow-hidden">
             <div class="border-b px-5 py-4" style="border-color:var(--mk-border)"><h2 class="text-sm font-bold">Informations</h2></div>
             <div class="divide-y" style="--tw-divide-opacity:1;border-color:var(--mk-border)">
-                <div class="flex gap-3 px-5 py-4"><i data-lucide="calendar-clock" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Date</p><p class="mt-1 text-xs font-semibold">{{ event.start_at|date:"d M Y · H:i" }}</p><p class="mt-1 text-[11px]" style="color:var(--mk-muted)">jusqu’au {{ event.end_at|date:"d M Y · H:i" }}</p></div></div>
+                <div class="flex gap-3 px-5 py-4"><i data-lucide="calendar-clock" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Date</p>{% if selected_occurrence %}<p class="mt-1 text-xs font-semibold">{{ selected_occurrence.start_date|date:"d M Y" }}{% if selected_occurrence.timing_kind == 'exact' and selected_occurrence.start_time %} · {{ selected_occurrence.start_time|time:"H:i" }}{% elif selected_occurrence.timing_kind == 'date_only' %} · Heure à confirmer{% elif selected_occurrence.timing_kind == 'all_day' %} · Toute la journée{% endif %}</p>{% else %}<p class="mt-1 text-xs font-semibold">Plusieurs dates disponibles</p>{% endif %}</div></div>
                 <div class="flex gap-3 border-t px-5 py-4" style="border-color:var(--mk-border)"><i data-lucide="map-pin" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Lieu</p><p class="mt-1 text-xs font-semibold">{% if event.venue %}{{ event.venue }}{% else %}À définir{% endif %}</p></div></div>
-                <div class="flex gap-3 border-t px-5 py-4" style="border-color:var(--mk-border)"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Capacité</p><p class="mt-1 text-xs font-semibold">{% if event.capacity %}{{ event.capacity }} places{% else %}Illimitée{% endif %}</p></div></div>
+                <div class="flex gap-3 border-t px-5 py-4" style="border-color:var(--mk-border)"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Capacité</p><p class="mt-1 text-xs font-semibold">{% if event_occurrences|length == 1 and event.capacity %}{{ event.capacity }} places{% elif event_occurrences|length > 1 %}Selon la date choisie{% else %}Illimitée{% endif %}</p></div></div>
                 <div class="flex gap-3 border-t px-5 py-4" style="border-color:var(--mk-border)"><i data-lucide="tag" class="mt-0.5 h-4 w-4 shrink-0" style="color:var(--mk-brand)"></i><div><p class="text-[10px] font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Catégorie</p><p class="mt-1 text-xs font-semibold">{% if event.category %}{{ event.category.name }}{% else %}Sans catégorie{% endif %}</p></div></div>
             </div>
         </aside>
