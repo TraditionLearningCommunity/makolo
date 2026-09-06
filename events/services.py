@@ -467,7 +467,8 @@ def reopen_event(*, event: Event, actor) -> Event:
     if not reopenable:
         raise ValidationError("Aucune date future n’est réouvrable ; ajoutez une nouvelle date au lieu de modifier l’historique.")
 
-    before = {"status": event.status, "occurrence_ids": [str(row.pk) for row in reopenable]}
+    occurrence_ids = [str(row.pk) for row in reopenable]
+    before = {"status": event.status, "occurrence_ids": occurrence_ids}
     reopen_completed_activity(activity=event.activity)
     for occurrence in reopenable:
         reopen_completed_occurrence(occurrence=occurrence)
@@ -475,6 +476,9 @@ def reopen_event(*, event: Event, actor) -> Event:
 
     from operations.services import audit_action
 
+    metadata = {"activity_id": str(event.activity_id), "occurrence_ids": occurrence_ids}
+    if len(occurrence_ids) == 1:
+        metadata["occurrence_id"] = occurrence_ids[0]
     audit_action(
         actor=actor,
         action="event.reopened",
@@ -482,7 +486,7 @@ def reopen_event(*, event: Event, actor) -> Event:
         target_id=event.pk,
         summary=f"Réouverture de {event.title} après une clôture prématurée.",
         before=before,
-        after={"status": event.status, "occurrence_ids": [str(row.pk) for row in reopenable]},
-        metadata={"activity_id": str(event.activity_id)},
+        after={"status": event.status, "occurrence_ids": occurrence_ids},
+        metadata=metadata,
     )
     return event
