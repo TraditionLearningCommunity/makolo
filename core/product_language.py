@@ -156,7 +156,7 @@ def _service_vocabulary(workflow):
     return ProductVocabulary(
         vertical="service",
         activity_noun="Accompagnement",
-        occurrence_noun="Étape",
+        occurrence_noun="Créneau",
         journey_noun=journey[0],
         journey_detail_label=journey[1],
         request_noun="Demande",
