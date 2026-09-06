@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.utils import timezone
 
-from activities.models import OccurrenceStatus
+from activities.models import OccurrenceStatus, OccurrenceTimingKind
 
 from .types import ArrivalWindow, TemporalContext, TemporalState
 
@@ -26,6 +26,22 @@ def temporal_state(occurrence, *, now=None) -> TemporalState:
     now = _aware_now(now)
     if occurrence.status == OccurrenceStatus.CANCELLED:
         return TemporalState.CANCELLED
+
+    zone = ZoneInfo(occurrence.timezone)
+    local_today = now.astimezone(zone).date()
+
+    if occurrence.start_at is None:
+        if occurrence.start_date is None:
+            return TemporalState.UPCOMING
+        effective_end_date = occurrence.end_date or occurrence.start_date
+        if effective_end_date < local_today:
+            return TemporalState.ENDED
+        if occurrence.timing_kind == OccurrenceTimingKind.ALL_DAY and occurrence.start_date <= local_today <= effective_end_date:
+            return TemporalState.ACTIVE
+        # Date-only deliberately never becomes SOON: Makolo does not know the
+        # instant closely enough to produce countdown/leave-now semantics.
+        return TemporalState.UPCOMING
+
     if occurrence.end_at and occurrence.end_at <= now:
         return TemporalState.ENDED
     if occurrence.start_at <= now and (occurrence.end_at is None or occurrence.end_at > now):
@@ -44,18 +60,16 @@ def get_temporal_context(
     action_windows=(),
 ) -> TemporalContext:
     now = _aware_now(now)
-    # Validation belongs to Occurrence. Creating the ZoneInfo here proves the
-    # projection keeps the stored timezone contract usable, including DST.
     ZoneInfo(occurrence.timezone)
     return TemporalContext(
         now=now,
         starts_at=occurrence.start_at,
         ends_at=occurrence.end_at,
         timezone=occurrence.timezone,
-        starts_in=occurrence.start_at - now,
+        starts_in=(occurrence.start_at - now) if occurrence.start_at else None,
         ends_in=(occurrence.end_at - now) if occurrence.end_at else None,
         state=temporal_state(occurrence, now=now),
-        arrival_window=arrival_window,
+        arrival_window=arrival_window if occurrence.start_at else None,
         presentation_deadline=presentation_deadline,
         action_windows=tuple(action_windows),
     )
