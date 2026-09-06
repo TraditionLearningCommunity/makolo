@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 
 from access.models import AccessStatus, CredentialStatus
-from activities.models import ActivityStatus, OccurrenceStatus
+from activities.models import ActivityStatus, OccurrenceStatus, OccurrenceTimingKind
 from capacity.models import CapacityReservationStatus
 from commerce.models import CommerceOrderStatus, PaymentMode
 from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
@@ -31,7 +31,7 @@ JOURNEY_STATUS_LABELS = {
     JourneyStatus.PENDING_PAYMENT: "Paiement requis",
     JourneyStatus.CONFIRMED: "Confirmée",
     JourneyStatus.FULFILLED: "Terminée",
-    JourneyStatus.REJECTED: "Refusée",
+    JourneyStatus.REJECTED: "Rejetée",
     JourneyStatus.CANCELLED: "Annulée",
     JourneyStatus.EXPIRED: "Expirée",
 }
@@ -86,13 +86,23 @@ class ParticipantActivityState:
 
 
 def occurrence_timing(occurrence):
-    if occurrence is None:
+    if occurrence is None or occurrence.start_date is None:
         return None
-    zone = ZoneInfo(occurrence.timezone)
-    local_start = occurrence.start_at.astimezone(zone)
-    date_label = date_format(local_start, "l d F Y")
-    time_label = local_start.strftime("%H:%M")
-    compact_label = f"{date_format(local_start, 'D d M')} · {time_label}"
+    date_label = date_format(occurrence.start_date, "l d F Y")
+    if occurrence.timing_kind == OccurrenceTimingKind.DATE_ONLY:
+        time_label = "Heure à confirmer"
+        compact_label = f"{date_format(occurrence.start_date, 'D d M')} · {time_label}"
+    elif occurrence.timing_kind == OccurrenceTimingKind.ALL_DAY:
+        time_label = "Toute la journée"
+        compact_label = f"{date_format(occurrence.start_date, 'D d M')} · {time_label}"
+    else:
+        zone = ZoneInfo(occurrence.timezone)
+        local_start = occurrence.start_at.astimezone(zone) if occurrence.start_at else None
+        if local_start is None:
+            return None
+        date_label = date_format(local_start, "l d F Y")
+        time_label = local_start.strftime("%H:%M")
+        compact_label = f"{date_format(local_start, 'D d M')} · {time_label}"
     return OccurrenceTiming(
         date_label=date_label,
         time_label=time_label,
@@ -110,7 +120,6 @@ def active_credential(access):
 
 
 def next_participant_action(journey, *, readiness=None):
-    """Compatibility presenter backed by the single Readiness decision engine."""
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     readiness = readiness or resolve_journey_readiness(journey)
     if readiness.next_action:
@@ -164,6 +173,10 @@ def _global_availability(*, activity, occurrence, availability_state, availabili
         return "completed", activity_state_label(activity=activity, state="completed")
     if occurrence is not None and occurrence.end_at and occurrence.end_at <= now:
         return "completed", activity_state_label(activity=activity, state="completed")
+    if occurrence is not None and occurrence.start_at is None and occurrence.start_date:
+        local_today = now.astimezone(ZoneInfo(occurrence.timezone)).date()
+        if (occurrence.end_date or occurrence.start_date) < local_today:
+            return "completed", activity_state_label(activity=activity, state="completed")
     if availability_state == "sold_out":
         return "sold_out", activity_state_label(activity=activity, state="sold_out")
     if availability_state in {"closed", "unavailable"}:
@@ -244,12 +257,6 @@ def resolve_participant_activity_state(
     detail_url=None,
     now=None,
 ):
-    """Resolve read-only participant presentation from canonical bounded contexts.
-
-    The function performs no mutations. Pass a batched ParticipantStateContext for
-    list surfaces so the resolver itself remains query-free.
-    """
-
     now = now or timezone.now()
     availability, global_label = _global_availability(
         activity=activity,
