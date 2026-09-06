@@ -110,6 +110,19 @@ def _card_action_label(*, code: str, vertical: str, fallback: str) -> str:
     return fallback
 
 
+def _availability_fact_value(item):
+    if item.matching_count > 1:
+        return item.availability.label
+    if item.availability.state == "unlimited":
+        return "Illimitée"
+    if item.availability.remaining is not None:
+        remaining = item.availability.remaining
+        if remaining <= 0:
+            return "Complet"
+        return f"{remaining} place{'s' if remaining != 1 else ''} restante{'s' if remaining != 1 else ''}"
+    return item.availability.label
+
+
 def _occurrence_facts(item) -> tuple[FactPresentation, ...]:
     facts: list[FactPresentation] = []
     if item.temporal_summary:
@@ -122,7 +135,7 @@ def _occurrence_facts(item) -> tuple[FactPresentation, ...]:
     if item.price.label:
         facts.append(FactPresentation("price", "Prix", item.price.label, "wallet-cards", 30))
     if item.availability.label:
-        facts.append(FactPresentation("capacity", "Disponibilité", item.availability.label, "users", 40))
+        facts.append(FactPresentation("capacity", "Disponibilité", _availability_fact_value(item), "users", 40))
     if item.distance_km is not None:
         facts.append(FactPresentation("distance", "Distance", f"{item.distance_km:g} km", "route", 50))
     return tuple(sorted(facts, key=lambda fact: fact.priority))
