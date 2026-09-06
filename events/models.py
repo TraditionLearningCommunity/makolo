@@ -1,4 +1,5 @@
 import uuid
+from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -11,12 +12,12 @@ from activities.models import (
     ActivityVisibility,
     OccurrencePlaceRole,
     OccurrenceStatus,
+    OccurrenceTimingKind,
 )
 
 from .validators import validate_event_cover
 
 
-# Event keeps the public vocabulary while Activity owns these generic states.
 EventStatus = ActivityStatus
 EventVisibility = ActivityVisibility
 
@@ -60,18 +61,12 @@ class EventCategory(models.Model):
 
 
 class EventVenue(models.Model):
-    """Event-specific venue presentation layered on top of canonical Place.
-
-    Physical geography is canonical in ``place``. The historical geography
-    columns remain temporarily for imported/legacy rows only; new Event flows
-    never write them.
-    """
+    """Event-specific venue presentation layered on top of canonical Place."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=180)
     kind = models.CharField(max_length=20, choices=VenueKind.choices, default=VenueKind.PHYSICAL)
     place = models.ForeignKey("geography.Place", on_delete=models.SET_NULL, related_name="event_venues", null=True, blank=True)
-    # Compatibility-only geography. Place is the source of truth.
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=120, blank=True)
@@ -93,8 +88,6 @@ class EventVenue(models.Model):
         if self.kind in {VenueKind.ONLINE, VenueKind.HYBRID} and not self.online_url:
             errors["online_url"] = "Une URL est requise pour un événement en ligne ou hybride."
         if self.kind in {VenueKind.PHYSICAL, VenueKind.HYBRID} and not self.place_id:
-            # Historical rows were backfilled in 0003. New physical venues must
-            # always point at Geography instead of writing legacy coordinates.
             errors["place"] = "Un lieu physique ou hybride doit référencer un Place canonique."
         if errors:
             raise ValidationError(errors)
@@ -163,12 +156,7 @@ def _rewrite_q(node):
 
 
 class EventQuerySet(models.QuerySet):
-    """Compatibility bridge for historical Event queryset vocabulary.
-
-    It rewrites generic Event lookups to canonical relations. New Events code
-    uses explicit ``activity__...`` paths; this bridge exists only so older
-    consumers do not become a second source of truth during the cutover.
-    """
+    """Compatibility bridge for historical Event queryset vocabulary."""
 
     def _rewrite(self, args, kwargs):
         return tuple(_rewrite_q(arg) for arg in args), {_rewrite_lookup(k): v for k, v in kwargs.items()}
@@ -195,10 +183,6 @@ class EventQuerySet(models.QuerySet):
         return super().order_by(*rewritten)
 
     def select_for_update(self, nowait=False, skip_locked=False, of=(), no_key=False):
-        # Event queries often load Activity.space for presentation. Space is
-        # nullable on generic Activity, so PostgreSQL cannot FOR UPDATE the
-        # nullable side of that outer join. Lock only the vertical Event row
-        # unless a caller explicitly requests another lock scope.
         return super().select_for_update(
             nowait=nowait,
             skip_locked=skip_locked,
@@ -210,11 +194,7 @@ class EventQuerySet(models.QuerySet):
 class EventManager(models.Manager.from_queryset(EventQuerySet)):
     @transaction.atomic
     def create(self, **kwargs):
-        """Canonical-first compatibility for historical ``Event.objects.create``.
-
-        Generic Event arguments are consumed to create Activity/Occurrence.
-        No generic value is stored on Event itself.
-        """
+        """Canonical-first compatibility for historical ``Event.objects.create``."""
         if kwargs.get("activity") is not None or kwargs.get("activity_id") is not None:
             return super().create(**kwargs)
 
@@ -315,12 +295,8 @@ class Event(models.Model):
     activity = models.OneToOneField("activities.Activity", on_delete=models.PROTECT, related_name="event_vertical")
     category = models.ForeignKey(EventCategory, on_delete=models.SET_NULL, related_name="events", null=True, blank=True)
     venue = models.ForeignKey(EventVenue, on_delete=models.SET_NULL, related_name="events", null=True, blank=True)
-    # Kept as a stable Event public/API route identifier. Generic Activity slug
-    # remains canonical for Activity surfaces.
     slug = models.SlugField(max_length=240, unique=True, blank=True)
     cover_image = models.ImageField(upload_to=event_cover_path, validators=[validate_event_cover], blank=True, null=True)
-    # Event-global registration policy. Ticket sale windows are canonical on
-    # Offer and are clamped by vertical services when this policy is set.
     registration_start_at = models.DateTimeField(null=True, blank=True)
     registration_end_at = models.DateTimeField(null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
@@ -337,16 +313,33 @@ class Event(models.Model):
         verbose_name_plural = "événements"
         indexes = [models.Index(fields=["activity", "created_at"], name="events_activity_created_idx")]
 
+    def _ordered_occurrences(self):
+        if not self.activity_id:
+            return []
+        prefetched = getattr(self.activity, "_prefetched_objects_cache", {}).get("occurrences")
+        if prefetched is not None:
+            return sorted(
+                prefetched,
+                key=lambda occurrence: (
+                    occurrence.start_date or timezone.localdate(),
+                    occurrence.start_time is None,
+                    occurrence.start_time,
+                    str(occurrence.pk),
+                ),
+            )
+        return list(self.activity.occurrences.order_by("start_date", "start_time", "id"))
+
     def clean(self):
         super().clean()
         errors = {}
         if self.registration_start_at and self.registration_end_at and self.registration_end_at <= self.registration_start_at:
             errors["registration_end_at"] = "La fin des inscriptions doit être postérieure à leur début."
-        occurrence = self.primary_occurrence if self.activity_id else None
-        if occurrence and occurrence.end_at:
-            if self.registration_end_at and self.registration_end_at > occurrence.end_at:
-                errors["registration_end_at"] = "Les inscriptions ne peuvent pas se terminer après l’événement."
-            if self.registration_start_at and self.registration_start_at >= occurrence.end_at:
+        exact_ends = [occurrence.end_at for occurrence in self._ordered_occurrences() if occurrence.end_at]
+        if exact_ends:
+            last_end = max(exact_ends)
+            if self.registration_end_at and self.registration_end_at > last_end:
+                errors["registration_end_at"] = "Les inscriptions ne peuvent pas se terminer après la dernière date connue de l’événement."
+            if self.registration_start_at and self.registration_start_at >= last_end:
                 errors["registration_start_at"] = "Les inscriptions doivent commencer avant la fin de l’événement."
         if errors:
             raise ValidationError(errors)
@@ -408,12 +401,9 @@ class Event(models.Model):
 
     @property
     def primary_occurrence(self):
-        if not self.activity_id:
-            return None
-        prefetched = getattr(self.activity, "_prefetched_objects_cache", {}).get("occurrences")
-        if prefetched is not None:
-            return sorted(prefetched, key=lambda occurrence: (occurrence.start_at, str(occurrence.pk)))[0] if prefetched else None
-        return self.activity.occurrences.order_by("start_at", "id").first()
+        """Legacy projection: earliest Occurrence. New flows pass Occurrence explicitly."""
+        rows = self._ordered_occurrences()
+        return rows[0] if rows else None
 
     @property
     def primary_place(self):
@@ -444,7 +434,6 @@ class Event(models.Model):
 
     @property
     def capacity(self):
-        """Readonly compatibility projection; CapacityPool decides availability."""
         occurrence = self.primary_occurrence
         if occurrence is None:
             return None
@@ -457,7 +446,7 @@ class Event(models.Model):
 
     @property
     def is_upcoming(self):
-        return bool(self.start_at and self.start_at > timezone.now())
+        return any(occurrence.is_future for occurrence in self._ordered_occurrences())
 
     @property
     def is_registration_open(self):
@@ -468,7 +457,18 @@ class Event(models.Model):
             return False
         if self.registration_end_at and now >= self.registration_end_at:
             return False
-        return bool(self.end_at and now < self.end_at)
+        for occurrence in self._ordered_occurrences():
+            if occurrence.status != OccurrenceStatus.SCHEDULED:
+                continue
+            if occurrence.start_at:
+                if occurrence.end_at is None or occurrence.end_at > now:
+                    return True
+                continue
+            if occurrence.start_date:
+                local_today = now.astimezone(ZoneInfo(occurrence.timezone)).date()
+                if (occurrence.end_date or occurrence.start_date) >= local_today:
+                    return True
+        return False
 
     def __str__(self):
         return self.title
