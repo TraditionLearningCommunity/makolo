@@ -22,7 +22,11 @@ class TicketTypeForm(forms.Form):
     """Event-facing ticket vocabulary; Offer/Capacity own occurrence scope."""
 
     event = forms.ModelChoiceField(queryset=Event.objects.none(), label="Événement")
-    occurrence = forms.ModelChoiceField(queryset=Occurrence.objects.none(), label="Date / séance")
+    occurrence = forms.ModelChoiceField(
+        queryset=Occurrence.objects.none(),
+        required=False,
+        label="Date / séance",
+    )
     name = forms.CharField(max_length=140, label="Nom du billet")
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 4}), label="Description")
     price = forms.DecimalField(min_value=0, max_digits=12, decimal_places=2, label="Prix")
@@ -90,6 +94,23 @@ class TicketTypeForm(forms.Form):
         occurrence = cleaned.get("occurrence")
         if event and self.instance and self.instance.pk and self.instance.event_id != event.pk:
             self.add_error("event", "Un type de billet existant ne peut pas changer d’événement.")
+
+        if event and occurrence is None:
+            if self.instance and self.instance.pk and self.instance.event_id == event.pk:
+                occurrence = self.instance.offer.occurrence
+            else:
+                occurrences = list(
+                    event.activity.occurrences.order_by("start_date", "start_time", "id")[:2]
+                )
+                if len(occurrences) == 1:
+                    occurrence = occurrences[0]
+                elif not occurrences:
+                    self.add_error("occurrence", "Cet événement ne possède aucune date / séance à cibler.")
+                else:
+                    self.add_error("occurrence", "Choisissez la date / séance ciblée par ce type de billet.")
+            if occurrence is not None:
+                cleaned["occurrence"] = occurrence
+
         if event and occurrence and occurrence.activity_id != event.activity_id:
             self.add_error("occurrence", "Cette date n’appartient pas à l’événement sélectionné.")
         if self.instance and occurrence and self.instance.offer.occurrence_id != occurrence.pk:
