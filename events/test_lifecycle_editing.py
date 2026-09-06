@@ -6,14 +6,14 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from activities.models import OccurrenceStatus
+from activities.models import ActivityStatus, OccurrenceStatus
 from domain_events.contracts import DomainEventType
 from domain_events.models import DomainEventOutbox
 from operations.models import OperationsAuditLog
 from organizations.services import create_organization
 
 from .models import EventStatus, EventVisibility
-from .services import complete_event, create_event, publish_event, reopen_event, update_event
+from .services import create_event, publish_event, reopen_event, update_event
 
 
 User = get_user_model()
@@ -55,47 +55,35 @@ class CompletedEventEditingTests(TestCase):
         return event
 
     def _prematurely_completed_event(self):
+        """Represent legacy/inconsistent data that reopen_event must repair.
+
+        The runtime service now correctly refuses to complete an Event while a
+        current/future Occurrence exists, so this recovery fixture must not use
+        that public transition to manufacture an invalid state.
+        """
         event = self._published_event()
-        complete_event(event=event, actor=self.owner)
+        event.activity.occurrences.update(status=OccurrenceStatus.COMPLETED)
+        event.activity.__class__.objects.filter(pk=event.activity_id).update(status=ActivityStatus.COMPLETED)
+        event.refresh_from_db()
         return event
 
     def test_published_event_edit_page_keeps_normal_schedule_fields(self):
         event = self._published_event()
         self.client.force_login(self.owner)
-
         response = self.client.get(reverse("events:edit", kwargs={"slug": event.slug}))
-
         self.assertEqual(response.status_code, 200)
         fields = response.context["form"].fields
-        for field_name in {
-            "organization",
-            "venue",
-            "start_at",
-            "end_at",
-            "registration_start_at",
-            "registration_end_at",
-            "timezone",
-        }:
+        for field_name in {"organization", "venue", "start_at", "end_at", "registration_start_at", "registration_end_at", "timezone"}:
             self.assertIn(field_name, fields)
 
     def test_completed_event_edit_page_opens_and_only_exposes_editorial_fields(self):
         event = self._prematurely_completed_event()
         self.client.force_login(self.owner)
-
         response = self.client.get(reverse("events:edit", kwargs={"slug": event.slug}))
-
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Cet événement est terminé.")
         fields = response.context["form"].fields
-        for field_name in {
-            "organization",
-            "venue",
-            "start_at",
-            "end_at",
-            "registration_start_at",
-            "registration_end_at",
-            "timezone",
-        }:
+        for field_name in {"organization", "venue", "start_at", "end_at", "registration_start_at", "registration_end_at", "timezone"}:
             self.assertNotIn(field_name, fields)
         for field_name in {"title", "short_description", "description", "category", "cover_image", "visibility"}:
             self.assertIn(field_name, fields)
@@ -106,20 +94,12 @@ class CompletedEventEditingTests(TestCase):
         original_start = occurrence.start_at
         original_end = occurrence.end_at
         self.client.force_login(self.owner)
-
         response = self.client.post(
             reverse("events:edit", kwargs={"slug": event.slug}),
-            {
-                "title": "Titre corrigé après clôture",
-                "short_description": "Résumé corrigé",
-                "description": "Contenu éditorial corrigé sans rouvrir l’événement.",
-                "visibility": EventVisibility.PUBLIC,
-            },
+            {"title": "Titre corrigé après clôture", "short_description": "Résumé corrigé", "description": "Contenu éditorial corrigé sans rouvrir l’événement.", "visibility": EventVisibility.PUBLIC},
         )
-
         self.assertRedirects(response, reverse("events:detail", kwargs={"slug": event.slug}))
-        event.refresh_from_db()
-        occurrence.refresh_from_db()
+        event.refresh_from_db(); occurrence.refresh_from_db()
         self.assertEqual(event.title, "Titre corrigé après clôture")
         self.assertEqual(event.description, "Contenu éditorial corrigé sans rouvrir l’événement.")
         self.assertEqual(event.status, EventStatus.COMPLETED)
@@ -131,14 +111,8 @@ class CompletedEventEditingTests(TestCase):
         event = self._prematurely_completed_event()
         occurrence = event.primary_occurrence
         original_start = occurrence.start_at
-
         with self.assertRaises(ValidationError):
-            update_event(
-                event=event,
-                actor=self.owner,
-                start_at=original_start + timedelta(days=1),
-            )
-
+            update_event(event=event, actor=self.owner, start_at=original_start + timedelta(days=1))
         occurrence.refresh_from_db()
         self.assertEqual(occurrence.start_at, original_start)
         self.assertEqual(occurrence.status, OccurrenceStatus.COMPLETED)
@@ -146,33 +120,17 @@ class CompletedEventEditingTests(TestCase):
     def test_authorized_user_can_reopen_a_premature_completion_with_audit(self):
         event = self._prematurely_completed_event()
         occurrence = event.primary_occurrence
-        event_id = event.pk
-        activity_id = event.activity_id
-        occurrence_id = occurrence.pk
-        published_at = event.published_at
-
+        event_id = event.pk; activity_id = event.activity_id; occurrence_id = occurrence.pk; published_at = event.published_at
         reopened = reopen_event(event=event, actor=self.owner)
-
-        reopened.refresh_from_db()
-        occurrence.refresh_from_db()
+        reopened.refresh_from_db(); occurrence.refresh_from_db()
         self.assertEqual(reopened.pk, event_id)
         self.assertEqual(reopened.activity_id, activity_id)
         self.assertEqual(occurrence.pk, occurrence_id)
         self.assertEqual(reopened.status, EventStatus.PUBLISHED)
         self.assertEqual(occurrence.status, OccurrenceStatus.SCHEDULED)
         self.assertEqual(reopened.published_at, published_at)
-        self.assertTrue(
-            DomainEventOutbox.objects.filter(
-                event_type=DomainEventType.ACTIVITY_REOPENED,
-                activity_id=activity_id,
-            ).exists()
-        )
-        self.assertTrue(
-            DomainEventOutbox.objects.filter(
-                event_type=DomainEventType.OCCURRENCE_REOPENED,
-                activity_id=activity_id,
-            ).exists()
-        )
+        self.assertTrue(DomainEventOutbox.objects.filter(event_type=DomainEventType.ACTIVITY_REOPENED, activity_id=activity_id).exists())
+        self.assertTrue(DomainEventOutbox.objects.filter(event_type=DomainEventType.OCCURRENCE_REOPENED, activity_id=activity_id).exists())
         audit = OperationsAuditLog.objects.get(action="event.reopened", target_id=str(event_id))
         self.assertEqual(audit.actor, self.owner)
         self.assertEqual(audit.metadata["activity_id"], str(activity_id))
@@ -180,10 +138,8 @@ class CompletedEventEditingTests(TestCase):
 
     def test_unauthorized_user_cannot_reopen_event(self):
         event = self._prematurely_completed_event()
-
         with self.assertRaises(PermissionDenied):
             reopen_event(event=event, actor=self.outsider)
-
         event.refresh_from_db()
         self.assertEqual(event.status, EventStatus.COMPLETED)
         self.assertFalse(OperationsAuditLog.objects.filter(action="event.reopened").exists())
@@ -192,26 +148,18 @@ class CompletedEventEditingTests(TestCase):
         event = self._prematurely_completed_event()
         occurrence = event.primary_occurrence
         past_start = timezone.now() - timedelta(days=2)
-        event.activity.occurrences.filter(pk=occurrence.pk).update(
-            start_at=past_start,
-            end_at=past_start + timedelta(hours=4),
-        )
+        event.activity.occurrences.filter(pk=occurrence.pk).update(start_at=past_start, end_at=past_start + timedelta(hours=4), start_date=past_start.date(), end_date=(past_start + timedelta(hours=4)).date(), start_time=past_start.time().replace(tzinfo=None), end_time=(past_start + timedelta(hours=4)).time().replace(tzinfo=None))
         occurrence.refresh_from_db()
-
         with self.assertRaises(ValidationError):
             reopen_event(event=event, actor=self.owner)
-
-        event.refresh_from_db()
-        occurrence.refresh_from_db()
+        event.refresh_from_db(); occurrence.refresh_from_db()
         self.assertEqual(event.status, EventStatus.COMPLETED)
         self.assertEqual(occurrence.status, OccurrenceStatus.COMPLETED)
 
     def test_reopen_action_is_only_offered_for_future_completed_event(self):
         event = self._prematurely_completed_event()
         self.client.force_login(self.owner)
-
         response = self.client.get(reverse("events:detail", kwargs={"slug": event.slug}))
-
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Réouvrir l’événement")
 
@@ -219,11 +167,8 @@ class CompletedEventEditingTests(TestCase):
         event = self._prematurely_completed_event()
         occurrence = event.primary_occurrence
         self.client.force_login(self.owner)
-
         response = self.client.post(reverse("events:reopen", kwargs={"slug": event.slug}))
-
         self.assertRedirects(response, reverse("events:detail", kwargs={"slug": event.slug}))
-        event.refresh_from_db()
-        occurrence.refresh_from_db()
+        event.refresh_from_db(); occurrence.refresh_from_db()
         self.assertEqual(event.status, EventStatus.PUBLISHED)
         self.assertEqual(occurrence.status, OccurrenceStatus.SCHEDULED)
