@@ -5,13 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, order=True)
 class CandidateKey:
-    """Logical identity of one real Discovery possibility.
-
-    Identity comes from the canonical object. Provenance/reasons explain why a
-    possibility was surfaced and never change this key. Related possibilities
-    from different families are not automatically duplicates. This is a
-    read-only value object, not a persisted Discovery domain model.
-    """
+    """Logical identity of one real Discovery possibility."""
 
     family: str
     object_id: str
@@ -20,7 +14,13 @@ class CandidateKey:
         return f"{self.family}:{self.object_id}"
 
 
+def activity_candidate_key(activity_or_id) -> CandidateKey:
+    return CandidateKey("activity", str(getattr(activity_or_id, "pk", activity_or_id)))
+
+
 def occurrence_candidate_key(occurrence_or_id) -> CandidateKey:
+    # Kept for occurrence-specific contexts (map markers, actions, operations).
+    # Activity-backed Discovery result identity now uses activity_candidate_key.
     return CandidateKey("occurrence", str(getattr(occurrence_or_id, "pk", occurrence_or_id)))
 
 
@@ -33,7 +33,6 @@ def opportunity_candidate_key(opportunity_or_id) -> CandidateKey:
 
 
 def deduplicate_candidates(rows, *, key):
-    """Stable exact-key deduplication; no heuristic cross-family merging."""
     seen = set()
     result = []
     for row in rows:
