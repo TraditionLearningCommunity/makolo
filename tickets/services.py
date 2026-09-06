@@ -52,18 +52,19 @@ def _validate_event_sales(event: Event) -> None:
         raise ValidationError("Les inscriptions ne sont pas ouvertes pour cet événement.")
 
 
-def _lock_event_ticket_types(event: Event):
-    return list(
+def _lock_event_ticket_types(event: Event, *, occurrence=None):
+    queryset = (
         TicketType.objects.select_for_update(of=("self",))
         .filter(event=event)
-        .select_related("event__activity", "offer", "capacity_pool")
+        .select_related("event__activity", "offer__occurrence", "capacity_pool")
         .order_by("id")
     )
+    if occurrence is not None:
+        queryset = queryset.filter(offer__occurrence=occurrence)
+    return list(queryset)
 
 
 def _available_for_ticket_type(ticket_type: TicketType, ticket_types=None) -> int | None:
-    # CapacityPool is the only source of availability. The optional collection
-    # argument is retained for compatibility with callers from the legacy UI.
     return capacity_availability(ticket_type.capacity_pool).available
 
 
@@ -71,7 +72,12 @@ def _ticket_sales_window_open(ticket_type: TicketType, *, now=None) -> bool:
     now = now or timezone.now()
     event = ticket_type.event
     offer = ticket_type.offer
+    occurrence = offer.occurrence
     if event.status != EventStatus.PUBLISHED or not event.is_registration_open:
+        return False
+    if occurrence is None or occurrence.activity_id != event.activity_id:
+        return False
+    if occurrence.status != "scheduled":
         return False
     if not ticket_type.is_public or offer.status != OfferStatus.ACTIVE or not ticket_type.capacity_pool.is_active:
         return False
@@ -109,11 +115,30 @@ def _bounded_offer_window(event, *, available_from=None, available_until=None):
     return available_from, available_until
 
 
+def _resolve_ticket_occurrence(*, event, occurrence=None, ticket_type=None):
+    if ticket_type is not None:
+        current = ticket_type.offer.occurrence
+        if current is None:
+            raise ValidationError("Ce type de billet historique n’a pas de séance canonique.")
+        if occurrence is not None and occurrence.pk != current.pk:
+            raise ValidationError("Un type de billet existant ne peut pas changer de séance.")
+        occurrence = current
+    if occurrence is None:
+        candidates = list(event.activity.occurrences.order_by("start_date", "start_time", "id")[:2])
+        if len(candidates) != 1:
+            raise ValidationError("Choisissez explicitement la date / séance de ce billet.")
+        occurrence = candidates[0]
+    if occurrence.activity_id != event.activity_id:
+        raise ValidationError("La séance choisie n’appartient pas à cet événement.")
+    return occurrence
+
+
 @transaction.atomic
 def configure_ticket_type(
     *,
     actor,
     event,
+    occurrence=None,
     ticket_type=None,
     name,
     description="",
@@ -127,12 +152,10 @@ def configure_ticket_type(
     is_active=True,
     is_public=True,
 ):
-    """Configure Event ticket vocabulary while Offer/Capacity own the data."""
+    """Configure Event ticket vocabulary for one concrete Occurrence."""
     if not user_can_manage_event(actor, event):
         raise PermissionDenied("Vous ne pouvez pas gérer les tarifs de cet événement.")
-    occurrence = event.primary_occurrence
-    if occurrence is None:
-        raise ValidationError("L’événement doit avoir une Occurrence avant de configurer un billet.")
+    occurrence = _resolve_ticket_occurrence(event=event, occurrence=occurrence, ticket_type=ticket_type)
     price = Decimal(str(price or "0.00"))
     currency = (currency or "USD").strip().upper()
     sales_start_at, sales_end_at = _bounded_offer_window(
@@ -186,12 +209,13 @@ def configure_ticket_type(
 
     ticket_type = (
         TicketType.objects.select_for_update(of=("self",))
-        .select_related("offer", "capacity_pool", "event__activity")
+        .select_related("offer__occurrence", "capacity_pool", "event__activity")
         .order_by()
         .get(pk=ticket_type.pk)
     )
     if ticket_type.event_id != event.pk:
         raise ValidationError("Un type de billet existant ne peut pas changer d’événement.")
+    occurrence = _resolve_ticket_occurrence(event=event, occurrence=occurrence, ticket_type=ticket_type)
 
     availability = capacity_availability(ticket_type.capacity_pool)
     consumed = availability.held + availability.committed
@@ -283,24 +307,25 @@ def create_order(
     promotion_code: str = "",
     auto_confirm_free: bool = True,
 ) -> TicketOrder:
-    """Canonical Event checkout: Journey -> Commerce -> Event projections."""
+    """Canonical Event checkout for exactly one concrete Occurrence."""
     if not getattr(buyer, "is_authenticated", False):
         raise ValidationError("Le nouveau checkout Event exige une identité Makolo.")
     event = Event.objects.select_for_update().select_related("activity", "activity__space").get(pk=event.pk)
     _validate_event_sales(event)
-    occurrence = event.primary_occurrence
-    if occurrence is None:
-        raise ValidationError("Cet événement n’a pas d’Occurrence disponible.")
     if not selections:
         raise ValidationError("Sélectionnez au moins un type de billet.")
 
     locked_types = _lock_event_ticket_types(event)
     types_by_id = {ticket_type.pk: ticket_type for ticket_type in locked_types}
     normalized = []
+    occurrence_ids = set()
     for selected_type, raw_quantity in selections:
         ticket_type = types_by_id.get(selected_type.pk)
         if ticket_type is None:
             raise ValidationError("Un type de billet n’appartient pas à cet événement.")
+        if ticket_type.offer.occurrence_id is None:
+            raise ValidationError("Ce type de billet ne cible pas une séance canonique.")
+        occurrence_ids.add(ticket_type.offer.occurrence_id)
         try:
             quantity = int(raw_quantity)
         except (TypeError, ValueError) as exc:
@@ -315,6 +340,9 @@ def create_order(
         if available is not None and quantity > available:
             raise ValidationError(f"Stock insuffisant pour {ticket_type.name}.")
         normalized.append((ticket_type, quantity))
+    if len(occurrence_ids) != 1:
+        raise ValidationError("Une commande Event doit cibler une seule date / séance.")
+    occurrence = normalized[0][0].offer.occurrence
 
     expires_at = timezone.now() + timedelta(minutes=hold_minutes)
     journey = create_journey(
@@ -378,7 +406,6 @@ def create_order(
 
 @transaction.atomic
 def _confirm_locked_order(order: TicketOrder, locked_types=None) -> TicketOrder:
-    """Compatibility entry used by Payment after provider verification."""
     order = (
         TicketOrder.objects.select_for_update(of=("self",))
         .select_related("commerce_order", "journey", "event")
@@ -520,7 +547,7 @@ def join_waitlist(*, user, ticket_type: TicketType, quantity: int = 1) -> Ticket
         raise PermissionDenied("Connectez-vous pour rejoindre la liste d’attente.")
     ticket_type = (
         TicketType.objects.select_for_update(of=("self",))
-        .select_related("event__activity", "offer", "capacity_pool")
+        .select_related("event__activity", "offer__occurrence", "capacity_pool")
         .get(pk=ticket_type.pk)
     )
     if not _ticket_sales_window_open(ticket_type):
@@ -557,7 +584,10 @@ def join_waitlist(*, user, ticket_type: TicketType, quantity: int = 1) -> Ticket
 
 
 def _waitlist_offer_expiry(ticket_type: TicketType, *, now, hold_minutes: int):
-    candidates = [now + timedelta(minutes=hold_minutes), ticket_type.event.end_at]
+    candidates = [now + timedelta(minutes=hold_minutes)]
+    occurrence = ticket_type.offer.occurrence
+    if occurrence and occurrence.end_at:
+        candidates.append(occurrence.end_at)
     if ticket_type.event.registration_end_at:
         candidates.append(ticket_type.event.registration_end_at)
     if ticket_type.offer.available_until:
@@ -575,7 +605,7 @@ def promote_waitlist_for_ticket_type(ticket_type_id, *, now=None, hold_minutes: 
     now = now or timezone.now()
     ticket_type = (
         TicketType.objects.select_for_update(of=("self",))
-        .select_related("event__activity", "offer", "capacity_pool")
+        .select_related("event__activity", "offer__occurrence", "capacity_pool")
         .filter(pk=ticket_type_id)
         .first()
     )
@@ -695,7 +725,7 @@ def _notify_transfer_accepted_on_commit(transfer_id):
 def create_ticket_transfer(*, ticket: Ticket, sender, recipient_email: str, expiry_hours: int = TRANSFER_EXPIRY_HOURS) -> TicketTransfer:
     ticket = (
         Ticket.objects.select_for_update(of=("self",))
-        .select_related("event", "owner", "ticket_type", "access")
+        .select_related("event", "owner", "ticket_type__offer__occurrence", "access")
         .get(pk=ticket.pk)
     )
     if ticket.owner_id != getattr(sender, "pk", None):
@@ -713,7 +743,11 @@ def create_ticket_transfer(*, ticket: Ticket, sender, recipient_email: str, expi
     if TicketTransfer.objects.filter(ticket=ticket, status=TransferStatus.PENDING).exists():
         raise ValidationError("Un transfert est déjà en attente pour ce billet.")
     now = timezone.now()
-    expires_at = min(now + timedelta(hours=expiry_hours), ticket.event.end_at)
+    occurrence = ticket.ticket_type.offer.occurrence
+    event_deadline = occurrence.end_at if occurrence and occurrence.end_at else ticket.event.end_at
+    if event_deadline is None:
+        raise ValidationError("L’horaire de cette séance doit être confirmé avant un transfert.")
+    expires_at = min(now + timedelta(hours=expiry_hours), event_deadline)
     if expires_at <= now:
         raise ValidationError("L’événement est trop proche ou déjà terminé pour ce transfert.")
     transfer = TicketTransfer(
@@ -761,7 +795,6 @@ def accept_ticket_transfer(*, transfer: TicketTransfer, recipient) -> TicketTran
         actor=None,
         source="ticket_transfer",
     )
-    # Ticket holder fields are presentation only; QR rotation happened in Access.
     Ticket.objects.filter(pk=ticket.pk).update(
         owner=recipient,
         holder_name=recipient.full_name or recipient.username,
@@ -846,7 +879,6 @@ def validate_qr_token(token: str) -> Ticket:
     canonical = _validate_canonical_ticket_qr(token)
     if canonical is not None:
         return canonical
-    # Explicit historical fallback only. New Tickets always have AccessCredential.
     try:
         raw_code = Signer(salt=QR_SIGNING_SALT).unsign(token)
     except BadSignature as exc:
