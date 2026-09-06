@@ -278,7 +278,7 @@ Makolo préfère :
 
 ## 13. Personnalisation et notifications utiles
 
-G9 compose des signaux explicites et des états métier existants :
+Le programme G compose des signaux explicites et des états métier existants :
 
 ```text
 Profile
@@ -308,7 +308,7 @@ Cible forte :
 
 > **Une chose pertinente vient d’apparaître et Makolo peut déjà montrer ce qui est prêt, ce qui manque ou ce qui peut être fait ensuite.**
 
-## 14. Séquence G1 → G9
+## 14. Séquence G1 → G8 — programme terminé
 
 ### G1 — Profile Foundations ✅ intégré
 
@@ -354,40 +354,37 @@ Cible forte :
 - vérification publique réutilisant Trust ;
 - préparation de la lecture G6.
 
-### G6 — Passeport Makolo
+### G6 — Passeport Makolo ✅ intégré
 
-Construire une projection/export Profile et Space à partir des données autorisées, Activities, Proofs et Credentials, avec variantes publique, complète, thématique et personnalisée. Le Passeport ne devient pas une source de vérité ni un score humain.
+Projection/export Profile et Space à partir des données autorisées, Activities, Proofs et Credentials, sans devenir une source de vérité ni un score humain.
 
-### G7 — Réseau bilatéral
+### G7 — Réseau bilatéral ✅ intégré
 
-Permettre l’expression d’un besoin et la découverte privacy-safe de Profiles pertinents à partir de `searchable`, `Open to` et faits publics autorisés, puis une sollicitation explicite acceptée/refusée avant l’action.
+Expression d’un besoin et découverte privacy-safe de Profiles pertinents à partir de `searchable`, `Open to` et faits publics autorisés, avec sollicitation explicite avant l’action.
 
-### G8 — Activation progressive du Profil
+### G8 — Activation progressive du Profil ✅ intégré
 
-Construire une complétion dérivée et des prompts contextuels utiles sans rendre des champs optionnels obligatoires ni collecter des données sensibles pour faire progresser un score.
+Complétion dérivée et prompts contextuels utiles sans rendre des champs optionnels obligatoires ni collecter des données sensibles pour faire progresser un score.
 
-### G9 — Personnalisation croisée & notifications
+La personnalisation croisée et les notifications utiles anciennement décrites comme un chantier G9 ne constituent plus un train séparé. Elles sont absorbées par les capacités déjà livrées et, selon le sujet, par l’assemblage M8 ou le hardening M9.
 
-Composer Interests, Follow, Geography, Veilles, état d’action, capital personnel et signaux publics/privés autorisés pour améliorer Discover, Prepared Start, NextAction et Notifications avec des raisons explicables.
+## 15. Dépendances et clôture
 
-## 15. Dépendances et parallélisme
-
-La séquence de référence est :
+La séquence G est consolidée :
 
 ```text
-G1 ─┐
-G2 ─┼──► G3 ─────┐
-G5 ─┘            │
-                 ├──► G6
-G2 ─────► G4     ├──► G7
-                 └──► G8
-
-G6 / G7 / G8 consolidés
-          ↓
-         G9
+G1–G5
+  ↓
+G6 / G7 / G8
+  ↓
+G terminé
+  ↓
+M7 terminé
+  ↓
+M8 → M9 → M10 → A
 ```
 
-G1/G2/G5 ont pu être menés en parallèle puis consolidés. G3/G4 ont ensuite avancé en parallèle. La prochaine vague peut paralléliser G6/G7/G8 depuis un `main` vert commun ; G9 vient après leur consolidation.
+Il n’existe plus de prochain train G séparé. Les évolutions futures réutilisent ces contrats depuis leurs domaines propriétaires et les gates Mature.
 
 Les branches de travail doivent rester courtes, ciblées et réconciliées avec le `main` réel avant merge. Les audits généraux ne sont pas requis lorsque les contrats concernés sont déjà identifiés.
 

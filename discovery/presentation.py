@@ -17,6 +17,8 @@ from core.product_language import vertical_for, vocabulary_for
 from journeys.models import WorkflowKind
 
 from .candidate_identity import occurrence_candidate_key
+from .card_contract import RepresentationPresentation
+from .representation import resolve_activity_representation
 
 
 @dataclass(frozen=True)
@@ -68,9 +70,14 @@ class DiscoveryItem:
     url: str
     image_url: str | None = None
     eyebrow: str | None = None
+    representation: RepresentationPresentation | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         payload = asdict(self)
+        # ``representation`` is the internal reusable Presentation contract.
+        # Preserve the established public Discovery payload while legacy
+        # consumers still read image_url/eyebrow directly.
+        payload.pop("representation", None)
         for key in ("start_at", "end_at", "local_start"):
             value = payload[key]
             payload[key] = value.isoformat() if value else None
@@ -256,12 +263,6 @@ class BasePresenter:
     def can_present_offer(self, occurrence) -> bool:
         return True
 
-    def image_url(self, occurrence) -> str | None:
-        return None
-
-    def eyebrow(self, occurrence) -> str | None:
-        return None
-
 
 class EventPresenter(BasePresenter):
     key = "event"
@@ -296,14 +297,6 @@ class EventPresenter(BasePresenter):
         workflow = WorkflowKind.REGISTRATION if price.is_free else WorkflowKind.PURCHASE
         return vocabulary_for(activity=occurrence.activity, workflow=workflow).primary_action
 
-    def image_url(self, occurrence) -> str | None:
-        image = self._event(occurrence).cover_image
-        return image.url if image else None
-
-    def eyebrow(self, occurrence) -> str | None:
-        category = self._event(occurrence).category
-        return category.name if category else None
-
 
 class TransportPresenter(BasePresenter):
     key = "transport"
@@ -337,17 +330,6 @@ class TransportPresenter(BasePresenter):
             return "Voir le départ"
         return vocabulary_for(activity=occurrence.activity, workflow=WorkflowKind.RESERVATION).primary_action
 
-    def eyebrow(self, occurrence) -> str | None:
-        try:
-            route = occurrence.activity.transport_service.route
-            origin = route.origin
-            destination = route.destination
-            if origin and destination:
-                return f"{origin.locality or origin.name} → {destination.locality or destination.name}"
-        except Exception:
-            pass
-        return "Départ"
-
 
 PRESENTERS = (TransportPresenter(), EventPresenter())
 DEFAULT_PRESENTER = BasePresenter()
@@ -370,6 +352,10 @@ def build_discovery_item(
 ) -> DiscoveryItem:
     now = now or timezone.now()
     presenter = presenter_for(occurrence)
+    representation = resolve_activity_representation(
+        activity=occurrence.activity,
+        occurrence=occurrence,
+    )
     vocabulary = vocabulary_for(activity=occurrence.activity)
     place = presenter.primary_place(occurrence)
     price = (
@@ -426,6 +412,7 @@ def build_discovery_item(
         cta_label=participant.primary_action,
         cta_url=participant.primary_url,
         url=detail_url,
-        image_url=presenter.image_url(occurrence),
-        eyebrow=presenter.eyebrow(occurrence),
+        image_url=representation.image_url,
+        eyebrow=representation.eyebrow,
+        representation=representation,
     )
