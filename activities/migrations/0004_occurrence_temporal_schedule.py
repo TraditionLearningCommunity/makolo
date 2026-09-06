@@ -19,9 +19,7 @@ def backfill_occurrence_parts(apps, schema_editor):
             local_end = occurrence.end_at.astimezone(zone)
             occurrence.end_date = local_end.date()
             occurrence.end_time = local_end.timetz().replace(tzinfo=None)
-        occurrence.save(
-            update_fields=["start_date", "start_time", "end_date", "end_time", "timing_kind"]
-        )
+        occurrence.save(update_fields=["start_date", "start_time", "end_date", "end_time", "timing_kind"])
 
 
 class Migration(migrations.Migration):
@@ -75,15 +73,28 @@ class Migration(migrations.Migration):
         migrations.RemoveConstraint(model_name="occurrence", name="activities_occ_end_after_start"),
         migrations.RemoveIndex(model_name="occurrence", name="activities_occ_activity_idx"),
         migrations.RemoveIndex(model_name="occurrence", name="activities_occ_status_idx"),
-        migrations.AddConstraint(model_name="occurrence", constraint=models.CheckConstraint(condition=models.Q(("end_date__isnull", True), ("start_date__isnull", True), _connector="OR") | models.Q(end_date__gte=models.F("start_date")), name="activities_occ_date_window")),
-        migrations.AddConstraint(model_name="occurrence", constraint=models.UniqueConstraint(condition=models.Q(("schedule__isnull", False)), fields=("schedule", "schedule_local_date"), name="activities_occ_schedule_slot_unique")),
+        migrations.AddConstraint(
+            model_name="occurrence",
+            constraint=models.CheckConstraint(
+                condition=models.Q(end_date__isnull=True) | models.Q(start_date__isnull=True) | models.Q(end_date__gte=models.F("start_date")),
+                name="activities_occ_date_window",
+            ),
+        ),
+        migrations.AddConstraint(
+            model_name="occurrence",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(schedule__isnull=False),
+                fields=("schedule", "schedule_local_date"),
+                name="activities_occ_schedule_slot_unique",
+            ),
+        ),
         migrations.AddIndex(model_name="occurrence", index=models.Index(fields=["activity", "start_date", "start_time"], name="activities_occ_activity_idx")),
         migrations.AddIndex(model_name="occurrence", index=models.Index(fields=["status", "start_date", "start_time"], name="activities_occ_status_idx")),
         migrations.AddIndex(model_name="occurrence", index=models.Index(fields=["start_at"], name="activities_occ_startat_idx")),
-        migrations.AddConstraint(model_name="occurrenceschedule", constraint=models.CheckConstraint(condition=models.Q(("interval__gt", 0)), name="activities_sched_interval_pos")),
-        migrations.AddConstraint(model_name="occurrenceschedule", constraint=models.CheckConstraint(condition=models.Q(("ends_on__isnull", True)) | models.Q(ends_on__gte=models.F("starts_on")), name="activities_sched_window_valid")),
+        migrations.AddConstraint(model_name="occurrenceschedule", constraint=models.CheckConstraint(condition=models.Q(interval__gt=0), name="activities_sched_interval_pos")),
+        migrations.AddConstraint(model_name="occurrenceschedule", constraint=models.CheckConstraint(condition=models.Q(ends_on__isnull=True) | models.Q(ends_on__gte=models.F("starts_on")), name="activities_sched_window_valid")),
         migrations.AddIndex(model_name="occurrenceschedule", index=models.Index(fields=["activity", "status"], name="activities_sched_activity_idx")),
         migrations.AddIndex(model_name="occurrenceschedule", index=models.Index(fields=["status", "starts_on", "ends_on"], name="activities_sched_window_idx")),
         migrations.AddConstraint(model_name="occurrencescheduleweekday", constraint=models.UniqueConstraint(fields=("schedule", "weekday"), name="activities_sched_weekday_unique")),
-        migrations.AddConstraint(model_name="occurrencescheduleweekday", constraint=models.CheckConstraint(condition=models.Q(("weekday__gte", 0), ("weekday__lte", 6)), name="activities_sched_weekday_valid")),
+        migrations.AddConstraint(model_name="occurrencescheduleweekday", constraint=models.CheckConstraint(condition=models.Q(weekday__gte=0, weekday__lte=6), name="activities_sched_weekday_valid")),
     ]
