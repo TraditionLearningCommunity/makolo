@@ -18,10 +18,12 @@ class OperationsCanonicalIncidentMigrationTests(TransactionTestCase):
     """Exercise the real upgrade path with legacy Operations data present."""
 
     migrate_from = [
+        ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("operations", "0001_initial"),
     ]
     migrate_to = [
+        ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("operations", "0002_canonical_incident_scope"),
     ]
@@ -43,32 +45,19 @@ class OperationsCanonicalIncidentMigrationTests(TransactionTestCase):
         Event = old_apps.get_model("events", "Event")
         OperationsIncident = old_apps.get_model("operations", "OperationsIncident")
 
-        user = User.objects.create(
-            username="ops-migration-owner",
-            email="ops-migration-owner@example.test",
-            password="!",
-        )
-        organization = Organization.objects.create(
-            name="Operations migration space",
-            slug="operations-migration-space",
-            created_by_id=user.pk,
-        )
-        activity = Activity.objects.create(
-            space_id=organization.pk,
-            created_by_id=user.pk,
-            title="Historical Event activity",
-            slug="historical-event-activity",
-            status="published",
-            visibility="public",
-        )
-        event = Event.objects.create(
-            activity_id=activity.pk,
-            slug="historical-event",
-        )
+        user = User.objects.create(username="ops-migration-owner", email="ops-migration-owner@example.test", password="!")
+        organization = Organization.objects.create(name="Operations migration space", slug="operations-migration-space", created_by_id=user.pk)
+        activity = Activity.objects.create(space_id=organization.pk, created_by_id=user.pk, title="Historical Event activity", slug="historical-event-activity", status="published", visibility="public")
+        event = Event.objects.create(activity_id=activity.pk, slug="historical-event")
         start_at = timezone.now() + timedelta(days=1)
         occurrence = Occurrence.objects.create(
             pk=stable_event_projection_id("occurrence", event.pk),
             activity_id=activity.pk,
+            start_date=start_at.date(),
+            start_time=start_at.time().replace(tzinfo=None),
+            end_date=(start_at + timedelta(hours=2)).date(),
+            end_time=(start_at + timedelta(hours=2)).time().replace(tzinfo=None),
+            timing_kind="exact",
             start_at=start_at,
             end_at=start_at + timedelta(hours=2),
             timezone="Africa/Lubumbashi",
@@ -85,9 +74,6 @@ class OperationsCanonicalIncidentMigrationTests(TransactionTestCase):
             organization_id=None,
         )
 
-        # At events.0007 the historical Event model no longer has the generic
-        # start/end/organization fields. This is the state that failed on the
-        # existing PythonAnywhere beta database.
         self.assertNotIn("start_at", {field.name for field in Event._meta.fields})
         self.assertNotIn("end_at", {field.name for field in Event._meta.fields})
         self.assertNotIn("organization", {field.name for field in Event._meta.fields})
