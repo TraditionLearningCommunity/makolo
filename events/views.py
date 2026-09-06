@@ -88,8 +88,6 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         values = dict(form.cleaned_data)
         schedule_values = _pop_schedule_values(values)
         if schedule_values["repeat"]:
-            # The durable Event is created first; the recurrence then materializes
-            # concrete Occurrences through the generic Activities schedule service.
             occurrence_values = {
                 key: values.pop(key, None)
                 for key in ("start_at", "end_at", "start_date", "start_time", "end_date", "end_time", "timing_kind", "timezone")
@@ -154,7 +152,11 @@ class EventDetailView(DetailView):
         if requested_occurrence:
             selected = next((row for row in occurrences if str(row.pk) == requested_occurrence), None)
         viable = [row for row in occurrences if row.status == OccurrenceStatus.SCHEDULED]
-        if selected is None and len(viable) == 1:
+        if selected is None and len(occurrences) == 1:
+            # A unique cancelled/completed occurrence still carries participant
+            # history. Selection does not imply that acquisition is available.
+            selected = occurrences[0]
+        elif selected is None and len(viable) == 1:
             selected = viable[0]
         context["selected_occurrence"] = selected
         context["participant_presentation"] = None
