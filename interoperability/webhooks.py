@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping
+from urllib.parse import urlparse
 
 
 class WebhookError(RuntimeError):
@@ -22,6 +24,30 @@ class WebhookReplayError(WebhookAuthenticationError):
 
 class WebhookDeliveryError(WebhookError):
     pass
+
+
+def _validate_outbound_endpoint(value: str) -> None:
+    """Reject obviously unsafe webhook targets before transport execution.
+
+    M7 deliberately does not perform DNS resolution here. The transport/network
+    layer remains responsible for redirect and DNS-rebinding protections, while
+    this contract prevents direct localhost/private/reserved literal targets.
+    """
+
+    parsed = urlparse(value)
+    hostname = (parsed.hostname or "").rstrip(".").lower()
+    if parsed.scheme != "https" or not hostname:
+        raise ValueError("Outbound webhook endpoint must use a public HTTPS URL.")
+    if parsed.username or parsed.password:
+        raise ValueError("Outbound webhook endpoint must not contain URL credentials.")
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        raise ValueError("Outbound webhook endpoint must not target localhost.")
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        return
+    if not address.is_global:
+        raise ValueError("Outbound webhook endpoint must not target a private, local or reserved address.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,8 +81,9 @@ class WebhookSubscription:
         normalized_events = frozenset(item.strip() for item in event_types if item.strip())
         if not code or not endpoint_url or not signing_key_id or not normalized_events:
             raise ValueError("Webhook subscription requires code, endpoint, events and signing key reference.")
-        if not endpoint_url.startswith("https://"):
-            raise ValueError("Outbound webhook endpoint must use HTTPS.")
+        if not callable(payload_builder) or not callable(allow_event):
+            raise ValueError("Webhook payload builder and visibility policy must be callable.")
+        _validate_outbound_endpoint(endpoint_url)
         object.__setattr__(self, "code", code)
         object.__setattr__(self, "endpoint_url", endpoint_url)
         object.__setattr__(self, "event_types", normalized_events)
