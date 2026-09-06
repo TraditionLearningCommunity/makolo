@@ -309,6 +309,10 @@ class Occurrence(models.Model):
         super().clean()
         self.timezone = (self.timezone or "").strip()
         errors = {}
+        try:
+            validate_timezone_name(self.timezone)
+        except ValidationError as exc:
+            raise ValidationError({"timezone": exc.messages}) from exc
 
         if self.start_at is not None and self.start_date is None:
             self.start_date, self.start_time = self._local_parts_from_instant(self.start_at)
