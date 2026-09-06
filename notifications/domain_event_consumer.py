@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from zoneinfo import ZoneInfo
+
 from django.urls import reverse
 from django.utils import timezone
 
 from access.models import Access
-from activities.models import Activity, Occurrence
+from activities.models import Activity, Occurrence, OccurrenceTimingKind
 from commerce.models import PaymentMode
 from core.product_language import occurrence_change_copy, vocabulary_for
 from domain_events.contracts import DomainEventType
@@ -36,11 +38,7 @@ def _domain_dedup(event, recipient, template_key):
 
 
 def _category_for(activity):
-    return (
-        NotificationCategory.EVENT
-        if vocabulary_for(activity=activity).vertical == "event"
-        else NotificationCategory.SYSTEM
-    )
+    return NotificationCategory.EVENT if vocabulary_for(activity=activity).vertical == "event" else NotificationCategory.SYSTEM
 
 
 def _journey_action(journey):
@@ -71,11 +69,7 @@ def _journey_confirmation_copy(journey, commerce_order=None):
 
 
 def _notify_journey_confirmed(domain_event):
-    journey = (
-        Journey.objects.select_related("beneficiary", "activity")
-        .filter(pk=domain_event.payload.get("journey_id"))
-        .first()
-    )
+    journey = Journey.objects.select_related("beneficiary", "activity").filter(pk=domain_event.payload.get("journey_id")).first()
     if not journey or not journey.beneficiary_id:
         return
     commerce_order = journey.commerce_orders.order_by("-created_at").first()
@@ -99,11 +93,7 @@ def _notify_journey_confirmed(domain_event):
 
 
 def _notify_payment_required(domain_event):
-    journey = (
-        Journey.objects.select_related("beneficiary", "activity")
-        .filter(pk=domain_event.payload.get("journey_id"))
-        .first()
-    )
+    journey = Journey.objects.select_related("beneficiary", "activity").filter(pk=domain_event.payload.get("journey_id")).first()
     if not journey or not journey.beneficiary_id:
         return
     subject = journey.activity.title
@@ -127,11 +117,7 @@ def _notify_payment_required(domain_event):
 
 
 def _notify_request_approved(domain_event):
-    request = (
-        JourneyRequest.objects.select_related("requester", "journey__activity")
-        .filter(pk=domain_event.payload.get("request_id"))
-        .first()
-    )
+    request = JourneyRequest.objects.select_related("requester", "journey__activity").filter(pk=domain_event.payload.get("request_id")).first()
     if not request or not request.requester_id:
         return
     subject = request.journey.activity.title
@@ -153,11 +139,7 @@ def _notify_request_approved(domain_event):
 
 
 def _notify_access_issued(domain_event):
-    access = (
-        Access.objects.select_related("beneficiary", "activity", "journey")
-        .filter(pk=domain_event.payload.get("access_id"))
-        .first()
-    )
+    access = Access.objects.select_related("beneficiary", "activity", "journey").filter(pk=domain_event.payload.get("access_id")).first()
     if not access or not access.beneficiary_id:
         return
 
@@ -278,12 +260,22 @@ def _notify_payment(domain_event):
     )
 
 
+def _occurrence_when_copy(occurrence):
+    if occurrence.start_date is None:
+        return "date à confirmer"
+    day = occurrence.start_date.strftime("%d/%m/%Y")
+    if occurrence.timing_kind == OccurrenceTimingKind.DATE_ONLY:
+        return f"{day}, heure à confirmer"
+    if occurrence.timing_kind == OccurrenceTimingKind.ALL_DAY:
+        return f"{day}, toute la journée"
+    if occurrence.start_at:
+        local = occurrence.start_at.astimezone(ZoneInfo(occurrence.timezone))
+        return local.strftime("%d/%m/%Y à %H:%M")
+    return day
+
+
 def _notify_occurrence(domain_event):
-    occurrence = (
-        Occurrence.objects.select_related("activity")
-        .filter(pk=domain_event.payload.get("occurrence_id"))
-        .first()
-    )
+    occurrence = Occurrence.objects.select_related("activity").filter(pk=domain_event.payload.get("occurrence_id")).first()
     if not occurrence:
         return
     cancelled = domain_event.event_type == DomainEventType.OCCURRENCE_CANCELLED
@@ -292,8 +284,7 @@ def _notify_occurrence(domain_event):
         message = base_message
         template_key = "occurrence.cancelled"
     else:
-        starts = timezone.localtime(occurrence.start_at).strftime("%d/%m/%Y à %H:%M")
-        message = f"{base_message} Nouvelle date : {starts}."
+        message = f"{base_message} Nouvelle date : {_occurrence_when_copy(occurrence)}."
         template_key = "occurrence.rescheduled"
     for recipient in occurrence_recipients(occurrence):
         create_notification(
