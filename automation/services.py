@@ -353,12 +353,23 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
     }
 
     completed_cutoff = now - timedelta(days=COMPLETED_EVENT_CATCHUP_DAYS)
-    events = (
-        Event.objects.filter(
-            Q(status=EventStatus.PUBLISHED)
-            | Q(status=EventStatus.COMPLETED, updated_at__gte=completed_cutoff)
+    completed_cutoff_date = completed_cutoff.date()
+    recent_completed = Q(status=EventStatus.COMPLETED) & (
+        Q(activity__occurrences__end_at__gte=completed_cutoff)
+        | Q(
+            activity__occurrences__end_at__isnull=True,
+            activity__occurrences__end_date__gte=completed_cutoff_date,
         )
+        | Q(
+            activity__occurrences__end_at__isnull=True,
+            activity__occurrences__end_date__isnull=True,
+            activity__occurrences__start_date__gte=completed_cutoff_date,
+        )
+    )
+    events = (
+        Event.objects.filter(Q(status=EventStatus.PUBLISHED) | recent_completed)
         .select_related("activity", "activity__created_by", "activity__space", "automation_policy")
+        .distinct()
         .order_by("created_at")
     )
     for event in events:
