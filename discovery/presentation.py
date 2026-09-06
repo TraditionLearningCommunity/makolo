@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 
-from activities.models import OccurrencePlaceRole
+from activities.models import OccurrencePlaceRole, OccurrenceTimingKind
 from capacity.models import CapacityReservationStatus
 from commerce.models import OfferStatus
 from commerce.selectors import offer_applies_to_occurrence
@@ -16,7 +17,7 @@ from core.participant_presentation import ParticipantActivityState, resolve_part
 from core.product_language import vertical_for, vocabulary_for
 from journeys.models import WorkflowKind
 
-from .candidate_identity import occurrence_candidate_key
+from .candidate_identity import activity_candidate_key
 from .card_contract import RepresentationPresentation
 from .representation import resolve_activity_representation
 
@@ -56,10 +57,16 @@ class DiscoveryItem:
     title: str
     summary: str
     space_name: str
+    timing_kind: str
+    start_date: Any
+    start_time: Any
+    end_date: Any
+    end_time: Any
     start_at: Any
     end_at: Any
     timezone: str
     local_start: Any
+    temporal_summary: str
     place: DiscoveryPlace | None
     distance_km: float | None
     price: DiscoveryPrice
@@ -68,16 +75,21 @@ class DiscoveryItem:
     cta_label: str | None
     cta_url: str | None
     url: str
+    matching_occurrence_ids: tuple[str, ...] = ()
+    matching_count: int = 1
     image_url: str | None = None
     eyebrow: str | None = None
     representation: RepresentationPresentation | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         payload = asdict(self)
-        # ``representation`` is the internal reusable Presentation contract.
-        # Preserve the established public Discovery payload while legacy
-        # consumers still read image_url/eyebrow directly.
         payload.pop("representation", None)
+        for key in ("start_date", "end_date"):
+            value = payload[key]
+            payload[key] = value.isoformat() if value else None
+        for key in ("start_time", "end_time"):
+            value = payload[key]
+            payload[key] = value.isoformat() if value else None
         for key in ("start_at", "end_at", "local_start"):
             value = payload[key]
             payload[key] = value.isoformat() if value else None
@@ -89,7 +101,6 @@ class DiscoveryItem:
         return payload
 
     def to_map_dict(self) -> dict[str, Any] | None:
-        """Return only the established public map contract."""
         if self.place is None or self.place.latitude is None or self.place.longitude is None:
             return None
         return {
@@ -98,7 +109,10 @@ class DiscoveryItem:
             "occurrence_id": self.occurrence_id,
             "vertical": self.vertical,
             "title": self.title,
-            "start_at": self.start_at.isoformat(),
+            "timing_kind": self.timing_kind,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "start_at": self.start_at.isoformat() if self.start_at else None,
             "timezone": self.timezone,
             "place": {
                 "name": self.place.name,
@@ -113,10 +127,7 @@ class DiscoveryItem:
                 "currency": self.price.currency,
                 "label": self.price.label,
             },
-            "availability": {
-                "state": self.availability.state,
-                "label": self.availability.label,
-            },
+            "availability": {"state": self.availability.state, "label": self.availability.label},
             "cta_label": self.cta_label,
             "url": self.url,
         }
@@ -182,11 +193,7 @@ def _offers_for_occurrence(occurrence):
         return list(applicable_offers(occurrence=occurrence))
     by_id = {offer.pk: offer for offer in activity_offers}
     by_id.update({offer.pk: offer for offer in occurrence_offers})
-    return [
-        offer
-        for offer in by_id.values()
-        if offer_applies_to_occurrence(offer, occurrence)
-    ]
+    return [offer for offer in by_id.values() if offer_applies_to_occurrence(offer, occurrence)]
 
 
 def active_offers(occurrence, *, now=None):
@@ -220,12 +227,7 @@ def price_presentation(occurrence, *, now=None):
     if free:
         return DiscoveryPrice(True, Decimal("0.00"), free[0].currency, "Gratuit")
     cheapest = min(offers, key=lambda offer: (offer.unit_price, offer.currency, str(offer.pk)))
-    return DiscoveryPrice(
-        False,
-        cheapest.unit_price,
-        cheapest.currency,
-        f"À partir de {_format_amount(cheapest.unit_price)} {cheapest.currency}",
-    )
+    return DiscoveryPrice(False, cheapest.unit_price, cheapest.currency, f"À partir de {_format_amount(cheapest.unit_price)} {cheapest.currency}")
 
 
 def availability_presentation(occurrence, *, now=None):
@@ -243,6 +245,20 @@ def availability_presentation(occurrence, *, now=None):
     if total_remaining <= 0:
         return DiscoveryAvailability("sold_out", "Complet", 0)
     return DiscoveryAvailability("available", "Disponible", total_remaining)
+
+
+def occurrence_temporal_summary(occurrence):
+    day = occurrence.start_date
+    if day is None:
+        return "Date à confirmer"
+    day_label = date_format(day, "D d M")
+    if occurrence.timing_kind == OccurrenceTimingKind.DATE_ONLY:
+        return f"{day_label} · Heure à confirmer"
+    if occurrence.timing_kind == OccurrenceTimingKind.ALL_DAY:
+        return f"{day_label} · Toute la journée"
+    if occurrence.start_time is not None:
+        return f"{day_label} · {occurrence.start_time.strftime('%H:%M')}"
+    return day_label
 
 
 class BasePresenter:
@@ -284,15 +300,10 @@ class EventPresenter(BasePresenter):
         return reverse("events:detail", args=[self._event(occurrence).slug])
 
     def can_present_offer(self, occurrence) -> bool:
-        # Event checkout is still primary-occurrence. A secondary date must not
-        # inherit or imply an acquisition path until Ticketing becomes aware of
-        # the selected Occurrence.
         return self._is_primary(occurrence)
 
     def cta(self, occurrence, *, price, availability) -> str:
-        if not self._is_primary(occurrence):
-            return "Voir l’événement"
-        if availability.state == "sold_out" or price.minimum is None:
+        if not self._is_primary(occurrence) or availability.state == "sold_out" or price.minimum is None:
             return "Voir l’événement"
         workflow = WorkflowKind.REGISTRATION if price.is_free else WorkflowKind.PURCHASE
         return vocabulary_for(activity=occurrence.activity, workflow=workflow).primary_action
@@ -342,30 +353,15 @@ def presenter_for(occurrence):
     return DEFAULT_PRESENTER
 
 
-def build_discovery_item(
-    occurrence,
-    *,
-    distance_m=None,
-    now=None,
-    profile=None,
-    participant_context=None,
-) -> DiscoveryItem:
+def build_discovery_item(occurrence, *, distance_m=None, now=None, profile=None, participant_context=None) -> DiscoveryItem:
     now = now or timezone.now()
     presenter = presenter_for(occurrence)
-    representation = resolve_activity_representation(
-        activity=occurrence.activity,
-        occurrence=occurrence,
-    )
+    representation = resolve_activity_representation(activity=occurrence.activity, occurrence=occurrence)
     vocabulary = vocabulary_for(activity=occurrence.activity)
     place = presenter.primary_place(occurrence)
-    price = (
-        price_presentation(occurrence, now=now)
-        if presenter.can_present_offer(occurrence)
-        else DiscoveryPrice(False, None, None, None)
-    )
+    price = price_presentation(occurrence, now=now) if presenter.can_present_offer(occurrence) else DiscoveryPrice(False, None, None, None)
     availability = availability_presentation(occurrence, now=now)
-    local_zone = ZoneInfo(occurrence.timezone)
-    local_start = occurrence.start_at.astimezone(local_zone)
+    local_start = occurrence.start_at.astimezone(ZoneInfo(occurrence.timezone)) if occurrence.start_at else None
     public_place = None
     if place is not None:
         public_place = DiscoveryPlace(
@@ -389,7 +385,7 @@ def build_discovery_item(
         detail_url=detail_url,
         now=now,
     )
-    candidate_key = occurrence_candidate_key(occurrence)
+    candidate_key = activity_candidate_key(occurrence.activity)
     return DiscoveryItem(
         candidate_family=candidate_key.family,
         candidate_key=str(candidate_key),
@@ -400,10 +396,16 @@ def build_discovery_item(
         title=occurrence.activity.title,
         summary=occurrence.activity.short_description or occurrence.activity.description[:220],
         space_name=occurrence.activity.operator_display_name,
+        timing_kind=occurrence.timing_kind,
+        start_date=occurrence.start_date,
+        start_time=occurrence.start_time,
+        end_date=occurrence.end_date,
+        end_time=occurrence.end_time,
         start_at=occurrence.start_at,
         end_at=occurrence.end_at,
         timezone=occurrence.timezone,
         local_start=local_start,
+        temporal_summary=occurrence_temporal_summary(occurrence),
         place=public_place,
         distance_km=round(float(distance_m) / 1000, 1) if distance_m is not None else None,
         price=price,
@@ -412,7 +414,76 @@ def build_discovery_item(
         cta_label=participant.primary_action,
         cta_url=participant.primary_url,
         url=detail_url,
+        matching_occurrence_ids=(str(occurrence.pk),),
         image_url=representation.image_url,
         eyebrow=representation.eyebrow,
         representation=representation,
     )
+
+
+def _aggregate_price(items):
+    priced = [item for item in items if item.price.minimum is not None]
+    if not priced:
+        return DiscoveryPrice(False, None, None, None)
+    currencies = {item.price.currency for item in priced}
+    if len(currencies) != 1:
+        return DiscoveryPrice(False, None, None, "Plusieurs tarifs")
+    currency = next(iter(currencies))
+    values = [item.price.minimum for item in priced]
+    low, high = min(values), max(values)
+    if high == Decimal("0.00"):
+        return DiscoveryPrice(True, low, currency, "Gratuit")
+    label = f"À partir de {_format_amount(low)} {currency}" if low == high else f"{_format_amount(low)}–{_format_amount(high)} {currency}"
+    return DiscoveryPrice(low == Decimal("0.00"), low, currency, label)
+
+
+def _aggregate_availability(items):
+    available = [item for item in items if item.availability.state not in {"sold_out", "cancelled", "completed", "closed"}]
+    if not available:
+        return DiscoveryAvailability("sold_out", "Complet", 0)
+    if len(items) == 1:
+        return items[0].availability
+    return DiscoveryAvailability("available", f"{len(available)} date{'s' if len(available) != 1 else ''} disponible{'s' if len(available) != 1 else ''}", None)
+
+
+def _aggregate_temporal(items):
+    if len(items) == 1:
+        return items[0].temporal_summary
+    dates = {item.start_date for item in items}
+    exact_times = [item.start_time for item in items if item.timing_kind == OccurrenceTimingKind.EXACT and item.start_time]
+    if len(dates) == 1 and len(exact_times) == len(items):
+        times = ", ".join(value.strftime("%H:%M") for value in sorted(exact_times))
+        return f"{date_format(next(iter(dates)), 'D d M')} · {times}"
+    return f"{len(items)} dates · Prochaine {items[0].temporal_summary}"
+
+
+def aggregate_discovery_items(items):
+    """Group matching Occurrences by Activity before Discovery pagination."""
+    grouped = {}
+    order = []
+    for item in items:
+        if item.activity_id not in grouped:
+            grouped[item.activity_id] = []
+            order.append(item.activity_id)
+        grouped[item.activity_id].append(item)
+    results = []
+    for activity_id in order:
+        matches = grouped[activity_id]
+        first = matches[0]
+        label = first.cta_label
+        if len(matches) > 1 and first.participant.participant_state == "none":
+            label = {"transport": "Voir les départs", "event": "Voir les dates"}.get(first.vertical, "Voir les horaires")
+        results.append(
+            replace(
+                first,
+                candidate_family="activity",
+                candidate_key=str(activity_candidate_key(activity_id)),
+                price=_aggregate_price(matches),
+                availability=_aggregate_availability(matches),
+                temporal_summary=_aggregate_temporal(matches),
+                cta_label=label,
+                matching_occurrence_ids=tuple(item.occurrence_id for item in matches),
+                matching_count=len(matches),
+            )
+        )
+    return results
