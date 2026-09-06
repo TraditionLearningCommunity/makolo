@@ -8,11 +8,23 @@ from .models import ProviderConnection, ProviderScope
 
 
 def connection_ref(connection: ProviderConnection) -> ConnectionRef:
+    """Project Intelligence persistence onto the provider-neutral Connection contract.
+
+    ``ProviderConnection.profile`` points at ``UserProfile`` while Makolo
+    authority and authenticated actors use the canonical auth user. The generic
+    Profile Connection owner id therefore uses ``UserProfile.user_id`` rather
+    than the presentation-profile row id.
+    """
+
     return ConnectionRef(
         id=str(connection.pk),
         scope=ConnectionScope(connection.scope),
         enabled=connection.enabled,
-        profile_id=str(connection.profile_id) if connection.profile_id else None,
+        profile_id=(
+            str(connection.profile.user_id)
+            if connection.profile_id
+            else None
+        ),
         space_id=str(connection.space_id) if connection.space_id else None,
     )
 
