@@ -14,6 +14,7 @@ from services.models import OpportunityPolicy, ServiceDetails
 
 from .candidate_capabilities import family_can_satisfy_filters, requested_filter_keys
 from .candidate_identity import opportunity_candidate_key, service_activity_candidate_key
+from .representation import resolve_activity_representation, resolve_opportunity_representation
 
 
 # Match the bounded Occurrence search envelope. Common Discovery pagination now
@@ -80,6 +81,7 @@ def public_opportunity_discovery_items(
                 continue
             seen.add(key)
             revision = opportunity.current_revision
+            state_label = "Ouverte" if temporal_state == "open" else "À venir"
             rows.append(
                 {
                     "candidate_family": key.family,
@@ -92,7 +94,8 @@ def public_opportunity_discovery_items(
                     "issuer_name": revision.issuer_name,
                     "url": reverse("opportunities:detail", kwargs={"pk": opportunity.pk}),
                     "cta_label": "Voir l’opportunité",
-                    "state_label": "Ouverte" if temporal_state == "open" else "À venir",
+                    "state_label": state_label,
+                    "representation": resolve_opportunity_representation(state_label=state_label),
                 }
             )
             if len(rows) >= DISCOVERY_FAMILY_CANDIDATE_LIMIT:
@@ -205,6 +208,7 @@ def public_service_discovery_items(
                 "cta_label": participant.primary_action,
                 "cta_url": participant.primary_url,
                 "url": start_url,
+                "representation": resolve_activity_representation(activity=activity),
             }
         )
     return rows
