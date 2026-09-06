@@ -127,6 +127,8 @@ class TransportDeparture(models.Model):
             except Exception:
                 errors["occurrence"] = "L’Occurrence doit appartenir à une Activity Transport."
                 service = None
+            if self.occurrence.start_at is None:
+                errors["occurrence"] = "Un départ Transport exige une date et une heure exactes."
             if self.vehicle_id and service and self.vehicle.space_id != service.route.space_id:
                 errors["vehicle"] = "Le véhicule doit appartenir au même Espace que le service Transport."
         if self.passenger_capacity_pool_id and self.occurrence_id:
