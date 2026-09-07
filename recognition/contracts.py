@@ -16,6 +16,8 @@ class ImpactChannel(str, Enum):
     RELIABILITY = "reliability"
     DURABILITY = "durability"
     PROMOTIONAL = "promotional"
+    # Internal cross-channel object pool. Staff Rules cannot target this channel.
+    UTILITY = "utility"
 
 
 class TemporalProfile(str, Enum):
@@ -35,6 +37,7 @@ class RecognitionWindowStatus(str, Enum):
 
 class RecognitionLedgerKind(str, Enum):
     GRANT = "grant"
+    PENDING = "pending"
     SPEND = "spend"
     REVERSAL = "reversal"
     ADJUSTMENT = "adjustment"
