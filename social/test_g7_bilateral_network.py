@@ -470,7 +470,11 @@ class ActivityInvolvementRealizationTests(TestCase):
             need=self.need,
             candidate_profile=self.candidate,
         )
-        authority_before = Mandate.objects.count()
+        domain_counts_before = (
+            Mandate.objects.count(),
+            Journey.objects.count(),
+            Access.objects.count(),
+        )
         respond_to_action_proposal(
             actor=self.candidate,
             proposal=proposal,
@@ -483,6 +487,7 @@ class ActivityInvolvementRealizationTests(TestCase):
         function = involvement.functions.get()
         self.assertEqual(function.kind, ActivityInvolvementFunctionKind.SPEAKER)
         self.assertEqual(function.presentation_tier, 1)
-        self.assertEqual(Mandate.objects.count(), authority_before)
-        self.assertEqual(Journey.objects.filter(profile=self.candidate).count(), 0)
-        self.assertEqual(Access.objects.filter(profile=self.candidate).count(), 0)
+        self.assertEqual(
+            domain_counts_before,
+            (Mandate.objects.count(), Journey.objects.count(), Access.objects.count()),
+        )
