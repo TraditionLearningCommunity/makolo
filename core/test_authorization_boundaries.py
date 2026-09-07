@@ -24,7 +24,6 @@ class OrganizationCapabilityBoundaryTests(TestCase):
             username="boundary-owner",
             email="boundary-owner@example.com",
             password="Strong-boundary-password-2026!",
-            is_organizer=True,
         )
         self.event_manager = User.objects.create_user(
             username="boundary-events",
