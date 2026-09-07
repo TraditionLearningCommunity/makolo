@@ -1,6 +1,7 @@
 import uuid
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from organizations.models import Organization
@@ -63,3 +64,17 @@ class RecognitionRewardVisibilityTests(TestCase):
         rendered = next(item for item in active_rewards(owner_account=account) if item.pk == reward.pk)
         self.assertTrue(rendered.recognition_self_eligible)
         self.assertFalse(rendered.recognition_requires_other_beneficiary)
+
+    def test_giftable_introduction_requires_explicit_consent_policy(self):
+        with self.assertRaises(ValidationError):
+            RewardDefinition.objects.create(
+                code="unsafe-introduction-gift",
+                version=1,
+                name="Unsafe introduction gift",
+                kind=RewardKind.INTRODUCTION,
+                points_cost=10,
+                beneficiary_allowed=True,
+                acceptance_required=False,
+                eligibility={"beneficiary_subject_types": ["profile"]},
+                fulfillment={"match_kind": "participate"},
+            )
