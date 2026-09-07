@@ -18,6 +18,10 @@ class PermissionCode:
     SPACE_MANAGE = "space.manage"
     SPACE_ACTION_NETWORK_VIEW = "space.action_network.view"
     SPACE_ACTION_NETWORK_MANAGE = "space.action_network.manage"
+    SPACE_CONVERSATIONS_PUBLISH = "space.conversations.publish"
+    SPACE_CONVERSATIONS_MODERATE = "space.conversations.moderate"
+    SPACE_CONVERSATIONS_MANAGE = "space.conversations.manage"
+    SPACE_CONVERSATIONS_ROUTES_MANAGE = "space.conversations.routes.manage"
     SPACE_TRUST_VIEW = "space.trust.view"
     SPACE_TRUST_MANAGE = "space.trust.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
@@ -37,10 +41,18 @@ class PermissionCode:
     GROUP_INVITATIONS_MANAGE = "group.invitations.manage"
     GROUP_SNAPSHOTS_CREATE = "group.snapshots.create"
     GROUP_OWNERSHIP_MANAGE = "group.ownership.manage"
+    GROUP_CONVERSATIONS_PUBLISH = "group.conversations.publish"
+    GROUP_CONVERSATIONS_MODERATE = "group.conversations.moderate"
+    GROUP_CONVERSATIONS_MANAGE = "group.conversations.manage"
+    GROUP_CONVERSATIONS_ROUTES_MANAGE = "group.conversations.routes.manage"
     ACTIVITY_VIEW = "activity.view"
     ACTIVITY_MANAGE = "activity.manage"
     ACTIVITY_ACTION_NETWORK_VIEW = "activity.action_network.view"
     ACTIVITY_ACTION_NETWORK_MANAGE = "activity.action_network.manage"
+    ACTIVITY_CONVERSATIONS_PUBLISH = "activity.conversations.publish"
+    ACTIVITY_CONVERSATIONS_MODERATE = "activity.conversations.moderate"
+    ACTIVITY_CONVERSATIONS_MANAGE = "activity.conversations.manage"
+    ACTIVITY_CONVERSATIONS_ROUTES_MANAGE = "activity.conversations.routes.manage"
     ACTIVITY_REQUESTS_VIEW = "activity.requests.view"
     ACTIVITY_REQUESTS_DECIDE = "activity.requests.decide"
     ACTIVITY_ACCESS_VIEW = "activity.access.view"
@@ -71,6 +83,10 @@ class PermissionCode:
     DOSSIER_VIEW = "dossier.view"
     DOSSIER_MANAGE = "dossier.manage"
     DOSSIER_AUTHORITY_MANAGE = "dossier.authority.manage"
+    DOSSIER_CONVERSATIONS_PUBLISH = "dossier.conversations.publish"
+    DOSSIER_CONVERSATIONS_MODERATE = "dossier.conversations.moderate"
+    DOSSIER_CONVERSATIONS_MANAGE = "dossier.conversations.manage"
+    DOSSIER_CONVERSATIONS_ROUTES_MANAGE = "dossier.conversations.routes.manage"
     ORDERS_VIEW = "orders.view"
     TICKETS_VIEW = "tickets.view"
     FINANCE_VIEW = "finance.view"
@@ -101,7 +117,9 @@ class SystemRoleCode:
     SPACE_ADMIN = "space-admin"
     ACTIVITY_MANAGER = "space-activity-manager"
     SPACE_ACTIVITY_MANAGER = ACTIVITY_MANAGER
+    SPACE_COMMUNICATION_MANAGER = "space-communication-manager"
     ACTIVITY_LOCAL_MANAGER = "activity-manager"
+    ACTIVITY_COMMUNICATION_MANAGER = "activity-communication-manager"
     ACTIVITY_SCANNER = "activity-scanner"
     ACTIVITY_OPERATIONS_MANAGER = "activity-operations-manager"
     ACTIVITY_FINANCE = "activity-finance"
@@ -111,12 +129,14 @@ class SystemRoleCode:
     DOSSIER_VIEWER = "dossier-viewer"
     DOSSIER_MANAGER = "dossier-manager"
     DOSSIER_ADMIN = "dossier-admin"
+    DOSSIER_COMMUNICATION_MANAGER = "dossier-communication-manager"
     FINANCE = "finance"
     MARKETING = "marketing"
     ACCESS_MANAGER = "access-manager"
     GROUP_OWNER = "group-owner"
     GROUP_ADMIN = "group-admin"
     GROUP_MODERATOR = "group-moderator"
+    GROUP_COMMUNICATION_MANAGER = "group-communication-manager"
 
 
 PLATFORM_PERMISSION_CODES = {
@@ -131,10 +151,14 @@ GROUP_PERMISSION_CODES = {
     PermissionCode.GROUP_VIEW, PermissionCode.GROUP_MANAGE, PermissionCode.GROUP_MEMBERS_VIEW,
     PermissionCode.GROUP_MEMBERS_MANAGE, PermissionCode.GROUP_INVITATIONS_MANAGE,
     PermissionCode.GROUP_SNAPSHOTS_CREATE, PermissionCode.GROUP_OWNERSHIP_MANAGE,
+    PermissionCode.GROUP_CONVERSATIONS_PUBLISH, PermissionCode.GROUP_CONVERSATIONS_MODERATE,
+    PermissionCode.GROUP_CONVERSATIONS_MANAGE, PermissionCode.GROUP_CONVERSATIONS_ROUTES_MANAGE,
 }
 ACTIVITY_PERMISSION_CODES = {
     PermissionCode.ACTIVITY_VIEW, PermissionCode.ACTIVITY_MANAGE,
     PermissionCode.ACTIVITY_ACTION_NETWORK_VIEW, PermissionCode.ACTIVITY_ACTION_NETWORK_MANAGE,
+    PermissionCode.ACTIVITY_CONVERSATIONS_PUBLISH, PermissionCode.ACTIVITY_CONVERSATIONS_MODERATE,
+    PermissionCode.ACTIVITY_CONVERSATIONS_MANAGE, PermissionCode.ACTIVITY_CONVERSATIONS_ROUTES_MANAGE,
     PermissionCode.ACTIVITY_REQUESTS_VIEW, PermissionCode.ACTIVITY_REQUESTS_DECIDE,
     PermissionCode.ACTIVITY_ACCESS_VIEW, PermissionCode.ACTIVITY_ACCESS_MANAGE,
     PermissionCode.ACTIVITY_ACCESS_SCAN, PermissionCode.ACTIVITY_OPERATIONS_VIEW, PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
@@ -151,6 +175,8 @@ ACTIVITY_PERMISSION_CODES = {
 }
 DOSSIER_PERMISSION_CODES = {
     PermissionCode.DOSSIER_VIEW, PermissionCode.DOSSIER_MANAGE, PermissionCode.DOSSIER_AUTHORITY_MANAGE,
+    PermissionCode.DOSSIER_CONVERSATIONS_PUBLISH, PermissionCode.DOSSIER_CONVERSATIONS_MODERATE,
+    PermissionCode.DOSSIER_CONVERSATIONS_MANAGE, PermissionCode.DOSSIER_CONVERSATIONS_ROUTES_MANAGE,
 }
 SPACE_PERMISSION_CODES = {
     value for name, value in PermissionCode.__dict__.items()
@@ -159,10 +185,10 @@ SPACE_PERMISSION_CODES = {
 }
 
 STANDARD_PLATFORM_ROLE_CODES = {SystemRoleCode.PLATFORM_ADMIN, SystemRoleCode.OPPORTUNITY_CURATOR}
-STANDARD_SPACE_ROLE_CODES = {SystemRoleCode.SPACE_OWNER, SystemRoleCode.SPACE_ADMIN, SystemRoleCode.ACTIVITY_MANAGER, SystemRoleCode.FINANCE, SystemRoleCode.MARKETING, SystemRoleCode.ACCESS_MANAGER}
-STANDARD_GROUP_ROLE_CODES = {SystemRoleCode.GROUP_OWNER, SystemRoleCode.GROUP_ADMIN, SystemRoleCode.GROUP_MODERATOR}
-STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER, SystemRoleCode.ACTIVITY_SCANNER, SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER, SystemRoleCode.ACTIVITY_FINANCE, SystemRoleCode.ACTIVITY_SERVICE_MANAGER, SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR, SystemRoleCode.ACTIVITY_SERVICE_REVIEWER}
-STANDARD_DOSSIER_ROLE_CODES = {SystemRoleCode.DOSSIER_VIEWER, SystemRoleCode.DOSSIER_MANAGER, SystemRoleCode.DOSSIER_ADMIN}
+STANDARD_SPACE_ROLE_CODES = {SystemRoleCode.SPACE_OWNER, SystemRoleCode.SPACE_ADMIN, SystemRoleCode.ACTIVITY_MANAGER, SystemRoleCode.SPACE_COMMUNICATION_MANAGER, SystemRoleCode.FINANCE, SystemRoleCode.MARKETING, SystemRoleCode.ACCESS_MANAGER}
+STANDARD_GROUP_ROLE_CODES = {SystemRoleCode.GROUP_OWNER, SystemRoleCode.GROUP_ADMIN, SystemRoleCode.GROUP_MODERATOR, SystemRoleCode.GROUP_COMMUNICATION_MANAGER}
+STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER, SystemRoleCode.ACTIVITY_COMMUNICATION_MANAGER, SystemRoleCode.ACTIVITY_SCANNER, SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER, SystemRoleCode.ACTIVITY_FINANCE, SystemRoleCode.ACTIVITY_SERVICE_MANAGER, SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR, SystemRoleCode.ACTIVITY_SERVICE_REVIEWER}
+STANDARD_DOSSIER_ROLE_CODES = {SystemRoleCode.DOSSIER_VIEWER, SystemRoleCode.DOSSIER_MANAGER, SystemRoleCode.DOSSIER_ADMIN, SystemRoleCode.DOSSIER_COMMUNICATION_MANAGER}
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
     "owner": SystemRoleCode.SPACE_OWNER, "admin": SystemRoleCode.SPACE_ADMIN,
