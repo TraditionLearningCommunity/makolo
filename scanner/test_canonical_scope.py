@@ -51,7 +51,24 @@ class CanonicalScannerScopeTests(TestCase):
         credential = access.credentials.get(status=CredentialStatus.ACTIVE)
         return access, render_access_credential(credential)
 
-    def test_non_event_activity_assignment_scans_canonical_access_once(self):
+    def _grant_scanner(self, profile=None):
+        grant_activity_role(
+            profile=profile or self.agent,
+            activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.owner,
+            source="test",
+        )
+
+    def test_assignment_alone_never_grants_scan_authority(self):
+        ScannerAssignment.objects.create(activity=self.activity, agent=self.agent, label="Activity-wide")
+        _access, token = self._token()
+
+        with self.assertRaises(PermissionDenied):
+            scan_access_credential(token=token, actor=self.agent, activity=self.activity)
+
+    def test_non_event_activity_mandate_and_assignment_scan_canonical_access_once(self):
+        self._grant_scanner()
         ScannerAssignment.objects.create(activity=self.activity, agent=self.agent, label="Activity-wide")
         access, token = self._token()
 
@@ -64,6 +81,7 @@ class CanonicalScannerScopeTests(TestCase):
         self.assertEqual(ScanLog.objects.count(), 0)
 
     def test_same_generic_scanner_cycle_is_idempotent_but_next_cycle_is_not(self):
+        self._grant_scanner()
         ScannerAssignment.objects.create(activity=self.activity, agent=self.agent, label="Activity-wide")
         access, token = self._token()
 
@@ -95,6 +113,7 @@ class CanonicalScannerScopeTests(TestCase):
         self.assertEqual(ScanLog.objects.count(), 0)
 
     def test_occurrence_assignment_cannot_scan_another_occurrence(self):
+        self._grant_scanner()
         ScannerAssignment.objects.create(
             activity=self.activity,
             occurrence=self.occurrence_b,
@@ -114,6 +133,7 @@ class CanonicalScannerScopeTests(TestCase):
         self.assertFalse(AccessUse.objects.filter(access=access, result=AccessUseResult.ACCEPTED).exists())
 
     def test_assignment_scope_rejects_wrong_activity_and_inactive_assignment(self):
+        self._grant_scanner()
         other_activity = Activity.objects.create(
             owner_profile=self.owner,
             created_by=self.owner,
@@ -134,13 +154,7 @@ class CanonicalScannerScopeTests(TestCase):
             scan_access_credential(token=token, actor=self.other, activity=self.activity)
 
     def test_scan_mandate_is_minimal_and_needs_no_assignment(self):
-        grant_activity_role(
-            profile=self.agent,
-            activity=self.activity,
-            role=SystemRoleCode.ACTIVITY_SCANNER,
-            granted_by=self.owner,
-            source="test",
-        )
+        self._grant_scanner()
         _access, token = self._token(self.occurrence_a)
 
         outcome = scan_access_credential(
