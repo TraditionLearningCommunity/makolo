@@ -3,6 +3,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from domain_events.contracts import DomainEventType
 from domain_events.models import DomainEventOutbox
 from notifications.models import Notification
@@ -31,6 +33,13 @@ class ConversationJ7ContractsTests(TestCase):
         self.outsider = User.objects.create_user(username="j7-contract-outsider", email="j7-contract-outsider@example.test", password="StrongPass2026!")
         self.space = Organization.objects.create(name="J7 Contract Space", created_by=self.owner)
         self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="J7 Contract Activity")
+        grant_activity_role(
+            profile=self.owner,
+            activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+            source="j7-conversations-contracts",
+        )
         self.conversation = ensure_context_conversation(
             actor=self.owner,
             kind=ConversationContextKind.ACTIVITY,
