@@ -13,6 +13,12 @@ class QueueStatus(models.TextChoices):
     CLOSED = "closed", "Fermée"
 
 
+class QueueEligibilityPolicy(models.TextChoices):
+    ACCESS_REQUIRED = "access_required", "Accès requis"
+    JOURNEY_REQUIRED = "journey_required", "Démarche requise"
+    ACCESS_OR_JOURNEY = "access_or_journey", "Accès ou démarche"
+
+
 class QueueEntryStatus(models.TextChoices):
     WAITING = "waiting", "En attente"
     CALLED = "called", "Appelé"
@@ -42,6 +48,12 @@ class OccurrenceQueue(models.Model):
     )
     key = models.CharField(max_length=80)
     label = models.CharField(max_length=180)
+    eligibility_policy = models.CharField(
+        max_length=24,
+        choices=QueueEligibilityPolicy.choices,
+        default=QueueEligibilityPolicy.ACCESS_REQUIRED,
+        help_text="Fait canonique exigé avant l’entrée dans cette file live.",
+    )
     status = models.CharField(max_length=16, choices=QueueStatus.choices, default=QueueStatus.OPEN)
     next_sequence = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
