@@ -3,6 +3,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from organizations.models import Organization
 from questionnaires.models import FormRequestStatus, QuestionType
 from questionnaires.services import (
@@ -35,6 +37,13 @@ class ConversationFormsTests(TestCase):
         self.outsider = User.objects.create_user(username="j6-outsider", email="j6-outsider@example.test", password="StrongPass2026!")
         self.space = Organization.objects.create(name="J6 Space", created_by=self.owner)
         self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="J6 Activity")
+        grant_activity_role(
+            profile=self.owner,
+            activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+            source="j6-conversations-forms",
+        )
         self.form = create_form(activity=self.activity, key="coordination", title="Préparation collective", actor=self.owner)
         self.version = create_form_version(form=self.form, actor=self.owner)
         add_question(
