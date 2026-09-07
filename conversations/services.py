@@ -296,14 +296,10 @@ def context_base_eligible(actor, context: ConversationContext) -> bool:
 def can_view_conversation(actor, conversation: Conversation) -> bool:
     if not _authenticated(actor):
         return False
-    if ConversationParticipation.objects.filter(
-        conversation=conversation,
-        profile=actor,
-        status=ConversationParticipationStatus.ACTIVE,
-    ).exists():
-        return True
     try:
-        return context_base_eligible(actor, conversation.context)
+        from .audience_services import conversation_viewer_ids
+
+        return actor.pk in conversation_viewer_ids(conversation)
     except ConversationContext.DoesNotExist:
         return False
 
