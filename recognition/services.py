@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_FLOOR
 from typing import Iterable
 
@@ -180,7 +180,8 @@ def process_impact_slice(*, window, slice_key, accrual_key, channel, temporal_pr
     existing=RecognitionSliceReceipt.objects.filter(slice_key=slice_key).first()
     if existing: return SliceProcessResult(existing,False,tuple(existing.ledger_entries.all()))
     if window.status==RecognitionWindowStatus.COMPLETED.value: raise ValidationError("Une fenêtre terminée n'accepte plus de nouvelles slices.")
-    if window.policy_version!=policy_version: raise ValidationError("La slice doit utiliser la même Policy que sa fenêtre.")
+    # A scheduler window is defined by available_at and may legitimately contain a late fact
+    # governed by an older published Policy. The receipt/ledger keep the semantic Policy version.
     if available_at is None or not (window.starts_at <= available_at < window.ends_at): raise ValidationError("available_at doit appartenir à la fenêtre d'évaluation [starts_at, ends_at).")
     shares=_normalize_shares(attribution_shares)
     accrual,_=RecognitionAccrual.objects.get_or_create(accrual_key=accrual_key,policy_version=policy_version,defaults={"channel":channel})
@@ -213,41 +214,35 @@ def process_impact_slice(*, window, slice_key, accrual_key, channel, temporal_pr
 @transaction.atomic
 def release_due_pending_grants(*, now=None, limit=500):
     """Move matured pending Recognition into the available balance exactly once."""
-    now = now or timezone.now()
-    released = 0
+    now = now or timezone.now(); released = 0
+    released_ids = set(
+        value for value in RecognitionLedgerEntry.objects.filter(
+            kind=RecognitionLedgerKind.GRANT.value,
+            metadata__pending_entry_id__isnull=False,
+        ).values_list("metadata__pending_entry_id", flat=True) if value
+    )
     candidates = list(
         RecognitionLedgerEntry.objects.filter(kind=RecognitionLedgerKind.PENDING.value)
+        .exclude(pk__in=released_ids)
         .select_related("account", "recognized_slice")
         .order_by("created_at", "id")[: max(1, int(limit))]
     )
     for pending in candidates:
         matures_at = (pending.metadata or {}).get("matures_at")
-        if not matures_at:
-            continue
-        try:
-            due_at = timezone.datetime.fromisoformat(matures_at)
-        except (TypeError, ValueError):
-            continue
-        if timezone.is_naive(due_at):
-            due_at = timezone.make_aware(due_at, timezone.get_current_timezone())
-        if due_at > now:
-            continue
+        if not matures_at: continue
+        try: due_at = datetime.fromisoformat(matures_at)
+        except (TypeError, ValueError): continue
+        if timezone.is_naive(due_at): due_at = timezone.make_aware(due_at, timezone.get_current_timezone())
+        if due_at > now: continue
         release_key = f"recognition-release:{pending.pk}"
-        if RecognitionLedgerEntry.objects.filter(idempotency_key=release_key).exists():
-            continue
+        if RecognitionLedgerEntry.objects.filter(idempotency_key=release_key).exists(): continue
         account = RecognitionAccount.objects.select_for_update().get(pk=pending.account_id)
-        if account.pending_points < pending.points:
-            raise ValidationError("La projection pending Recognition est incohérente avec le ledger.")
-        absorbed = _apply_earned_projection(account, pending.points)
-        account.pending_points -= pending.points
+        if account.pending_points < pending.points: raise ValidationError("La projection pending Recognition est incohérente avec le ledger.")
+        absorbed = _apply_earned_projection(account, pending.points); account.pending_points -= pending.points
         grant = RecognitionLedgerEntry.objects.create(
-            account=account,
-            kind=RecognitionLedgerKind.GRANT.value,
-            points=pending.points,
+            account=account, kind=RecognitionLedgerKind.GRANT.value, points=pending.points,
             description=pending.description.replace("en maturation", "reconnu")[:255],
-            idempotency_key=release_key,
-            recognized_slice=pending.recognized_slice,
-            policy_version=pending.policy_version,
+            idempotency_key=release_key, recognized_slice=pending.recognized_slice, policy_version=pending.policy_version,
             metadata={"pending_entry_id": str(pending.pk), "absorbed_correction_deficit": absorbed},
         )
         account.save(update_fields=["points_balance","pending_points","correction_deficit","lifetime_earned","updated_at"])
