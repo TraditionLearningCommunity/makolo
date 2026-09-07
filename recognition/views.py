@@ -21,6 +21,7 @@ from .services import get_or_create_account
 
 class RecognitionDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "recognition/dashboard.html"
+    login_url = "core:login"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -39,6 +40,7 @@ class RecognitionDashboardView(LoginRequiredMixin, TemplateView):
 
 class SpaceRecognitionDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "recognition/dashboard.html"
+    login_url = "core:login"
 
     def dispatch(self, request, *args, **kwargs):
         self.space = get_object_or_404(Organization, pk=kwargs["space_id"])
@@ -64,6 +66,8 @@ class SpaceRecognitionDashboardView(LoginRequiredMixin, TemplateView):
 
 
 class RedeemRewardView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
     def post(self, request, reward_id):
         reward = get_object_or_404(RewardDefinition, pk=reward_id)
         space_id = request.POST.get("owner_space_id")
