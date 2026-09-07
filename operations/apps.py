@@ -14,5 +14,11 @@ class OperationsConfig(AppConfig):
             setattr(self.models_module, name, getattr(placement_models, name))
         for name in ("CheckpointStatus", "OccurrenceCheckpoint", "CheckpointAssignment", "CheckpointObservation"):
             setattr(self.models_module, name, getattr(checkpoint_models, name))
-        for name in ("QueueStatus", "QueueEntryStatus", "OccurrenceQueue", "QueueEntry"):
+        for name in (
+            "QueueStatus",
+            "QueueEligibilityPolicy",
+            "QueueEntryStatus",
+            "OccurrenceQueue",
+            "QueueEntry",
+        ):
             setattr(self.models_module, name, getattr(queue_models, name))
