@@ -10,6 +10,12 @@ class PermissionCode:
     PLATFORM_SUBSCRIPTIONS_MANAGE = "platform.subscriptions.manage"
     PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE = "platform.subscriptions.grants.manage"
     PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE = "platform.subscriptions.reviews.manage"
+    PLATFORM_RECOGNITION_VIEW = "platform.recognition.view"
+    PLATFORM_RECOGNITION_POLICY_MANAGE = "platform.recognition.policy.manage"
+    PLATFORM_RECOGNITION_POLICY_PUBLISH = "platform.recognition.policy.publish"
+    PLATFORM_RECOGNITION_ECONOMY_MANAGE = "platform.recognition.economy.manage"
+    PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE = "platform.recognition.achievements.manage"
+    PLATFORM_RECOGNITION_AUDIT_VIEW = "platform.recognition.audit.view"
     OPPORTUNITIES_MANAGE = "opportunities.manage"
     OPPORTUNITIES_REVIEW_SUBMISSIONS = "opportunities.review_submissions"
     OPPORTUNITIES_SOURCES_VERIFY = "opportunities.sources.verify"
@@ -18,6 +24,8 @@ class PermissionCode:
     SPACE_MANAGE = "space.manage"
     SPACE_ACTION_NETWORK_VIEW = "space.action_network.view"
     SPACE_ACTION_NETWORK_MANAGE = "space.action_network.manage"
+    SPACE_RECOGNITION_VIEW = "space.recognition.view"
+    SPACE_RECOGNITION_SPEND = "space.recognition.spend"
     SPACE_TRUST_VIEW = "space.trust.view"
     SPACE_TRUST_MANAGE = "space.trust.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
@@ -124,6 +132,9 @@ PLATFORM_PERMISSION_CODES = {
     PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW, PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW, PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE,
     PermissionCode.PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE, PermissionCode.PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE,
+    PermissionCode.PLATFORM_RECOGNITION_VIEW, PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE,
+    PermissionCode.PLATFORM_RECOGNITION_POLICY_PUBLISH, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE,
+    PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE, PermissionCode.PLATFORM_RECOGNITION_AUDIT_VIEW,
     PermissionCode.OPPORTUNITIES_MANAGE, PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS,
     PermissionCode.OPPORTUNITIES_SOURCES_VERIFY, PermissionCode.OPPORTUNITIES_MERGE,
 }
