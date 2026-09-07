@@ -12,27 +12,34 @@ from discovery.recommendations import activity_destination
 from groups.models import Group
 from notifications.models import NotificationCategory, NotificationKind
 from notifications.services import create_notification
+from organizations.models import Organization
 
 from .action_stream import build_action_stream
 from .bilateral_services import (
     can_manage_action_need,
-    cancel_profile_solicitation,
+    cancel_action_proposal,
     close_action_need,
     create_action_need,
-    create_profile_solicitation,
-    respond_to_profile_solicitation,
+    create_action_proposal,
+    respond_to_action_proposal,
 )
 from .forms import ActionNeedForm
 from .models import (
     ActionNeed,
     ActionNeedStatus,
+    ActionProposal,
+    ActionProposalDirection,
+    ActionProposalStatus,
     Contribution,
     ContributionKind,
     ContributionStatus,
-    ProfileSolicitation,
-    ProfileSolicitationStatus,
 )
-from .profile_search import action_needs_for_actor, search_profiles_for_need, solicitations_for_recipient
+from .profile_search import (
+    action_needs_for_actor,
+    proposals_for_profile,
+    search_profiles_for_need,
+    search_spaces_for_need,
+)
 from .selectors import group_contributions
 from .services import create_contribution, moderate_contribution, share_activity_to_group
 
@@ -148,7 +155,7 @@ class ActionNeedsView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form"] = kwargs.get("form") or self._form()
-        context["needs"] = action_needs_for_actor(self.request.user).prefetch_related("topics", "solicitations")
+        context["needs"] = action_needs_for_actor(self.request.user).prefetch_related("topics", "proposals")
         return context
 
     def post(self, request):
@@ -162,15 +169,20 @@ class ActionNeedsView(LoginRequiredMixin, TemplateView):
                     space=space,
                     title=form.cleaned_data["title"],
                     description=form.cleaned_data["description"],
-                    open_to_kind=form.cleaned_data["open_to_kind"],
+                    match_kind=form.cleaned_data["match_kind"],
+                    candidate_kind=form.cleaned_data["candidate_kind"],
+                    visibility=form.cleaned_data["visibility"],
+                    intake_policy=form.cleaned_data["intake_policy"],
+                    target_count=form.cleaned_data["target_count"],
                     topics=form.cleaned_data["topics"],
                     activity=form.cleaned_data["activity"],
+                    occurrence=form.cleaned_data["occurrence"],
                     opportunity=form.cleaned_data["opportunity"],
                 )
             except (ValidationError, PermissionDenied) as exc:
                 form.add_error(None, str(exc))
             else:
-                messages.success(request, "Besoin créé. La recherche n'utilisera que des signaux autorisés.")
+                messages.success(request, "Besoin créé. Makolo appliquera les règles de visibilité et de consentement choisies.")
                 return redirect("social:need-detail", pk=need.pk)
         return self.render_to_response(self.get_context_data(form=form))
 
@@ -181,7 +193,7 @@ class ActionNeedDetailView(LoginRequiredMixin, TemplateView):
 
     def _need(self):
         need = get_object_or_404(
-            ActionNeed.objects.select_related("owner_profile", "space", "activity", "opportunity", "created_by").prefetch_related("topics"),
+            ActionNeed.objects.select_related("owner_profile", "space", "activity", "occurrence", "opportunity", "created_by").prefetch_related("topics"),
             pk=self.kwargs["pk"],
         )
         if not can_manage_action_need(self.request.user, need):
@@ -192,24 +204,80 @@ class ActionNeedDetailView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         need = self._need()
         context["need"] = need
-        context["candidates"] = search_profiles_for_need(need=need, limit=100) if need.status == ActionNeedStatus.OPEN else []
-        context["solicitations"] = need.solicitations.select_related("recipient_profile", "sent_by").order_by("-created_at")
+        if need.status == ActionNeedStatus.OPEN:
+            context["profile_candidates"] = search_profiles_for_need(need=need, limit=100)
+            context["space_candidates"] = search_spaces_for_need(need=need, limit=100)
+        else:
+            context["profile_candidates"] = []
+            context["space_candidates"] = []
+        context["proposals"] = need.proposals.select_related("candidate_profile", "candidate_space", "initiated_by", "responded_by").order_by("-created_at")
         return context
 
 
-class ActionNeedSolicitView(LoginRequiredMixin, View):
+class ActionNeedSolicitProfileView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, pk, profile_id):
         need = get_object_or_404(ActionNeed, pk=pk)
         recipient = get_object_or_404(User, pk=profile_id)
         try:
-            create_profile_solicitation(actor=request.user, need=need, recipient_profile=recipient, message=request.POST.get("message", ""))
-        except ValidationError as exc:
+            create_action_proposal(
+                actor=request.user,
+                need=need,
+                candidate_profile=recipient,
+                direction=ActionProposalDirection.OWNER_TO_CANDIDATE,
+                message=request.POST.get("message", ""),
+            )
+        except (ValidationError, PermissionDenied) as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, "Sollicitation envoyée dans Makolo.")
+            messages.success(request, "Proposition envoyée dans Makolo.")
         return redirect("social:need-detail", pk=need.pk)
+
+
+class ActionNeedSolicitSpaceView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk, space_id):
+        need = get_object_or_404(ActionNeed, pk=pk)
+        candidate_space = get_object_or_404(Organization, pk=space_id)
+        try:
+            create_action_proposal(
+                actor=request.user,
+                need=need,
+                candidate_space=candidate_space,
+                direction=ActionProposalDirection.OWNER_TO_CANDIDATE,
+                message=request.POST.get("message", ""),
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Proposition envoyée au Space dans Makolo.")
+        return redirect("social:need-detail", pk=need.pk)
+
+
+class ActionNeedProposeSelfView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk):
+        need = get_object_or_404(ActionNeed, pk=pk)
+        try:
+            create_action_proposal(
+                actor=request.user,
+                need=need,
+                candidate_profile=request.user,
+                direction=ActionProposalDirection.CANDIDATE_TO_OWNER,
+                message=request.POST.get("message", ""),
+                client_reference=request.POST.get("client_reference") or None,
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Votre proposition a été envoyée.")
+        if need.activity_id:
+            _, url = activity_destination(need.activity)
+            return redirect(url)
+        return redirect("social:network")
 
 
 class ActionNeedCloseView(LoginRequiredMixin, View):
@@ -218,7 +286,7 @@ class ActionNeedCloseView(LoginRequiredMixin, View):
     def post(self, request, pk):
         need = get_object_or_404(ActionNeed, pk=pk)
         close_action_need(actor=request.user, need=need)
-        messages.success(request, "Besoin fermé. Aucune nouvelle sollicitation ne peut être envoyée.")
+        messages.success(request, "Besoin annulé. Aucune nouvelle proposition ne peut être envoyée.")
         return redirect("social:need-detail", pk=need.pk)
 
 
@@ -228,17 +296,18 @@ class ProfileSolicitationsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        solicitations = list(solicitations_for_recipient(self.request.user))
-        for solicitation in solicitations:
-            solicitation.continuation_label = ""
-            solicitation.continuation_url = ""
-            if solicitation.status == ProfileSolicitationStatus.ACCEPTED:
-                if solicitation.need.opportunity_id:
-                    solicitation.continuation_label = "Voir l’Opportunity"
-                    solicitation.continuation_url = reverse("opportunities:detail", kwargs={"pk": solicitation.need.opportunity_id})
-                elif solicitation.need.activity_id:
-                    solicitation.continuation_label, solicitation.continuation_url = activity_destination(solicitation.need.activity)
-        context["solicitations"] = solicitations
+        proposals = list(proposals_for_profile(self.request.user))
+        for proposal in proposals:
+            proposal.continuation_label = ""
+            proposal.continuation_url = ""
+            if proposal.status == ActionProposalStatus.ACCEPTED:
+                if proposal.need.opportunity_id:
+                    proposal.continuation_label = "Voir l’Opportunity"
+                    proposal.continuation_url = reverse("opportunities:detail", kwargs={"pk": proposal.need.opportunity_id})
+                elif proposal.need.activity_id:
+                    proposal.continuation_label, proposal.continuation_url = activity_destination(proposal.need.activity)
+        context["solicitations"] = proposals
+        context["proposals"] = proposals
         return context
 
 
@@ -246,13 +315,20 @@ class ProfileSolicitationRespondView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, pk):
-        solicitation = get_object_or_404(ProfileSolicitation, pk=pk)
+        proposal = get_object_or_404(ActionProposal, pk=pk)
         status = request.POST.get("status", "")
         try:
-            if status not in {ProfileSolicitationStatus.ACCEPTED, ProfileSolicitationStatus.DECLINED}:
+            if status not in {ActionProposalStatus.ACCEPTED, ActionProposalStatus.DECLINED}:
                 raise ValidationError("Réponse invalide.")
-            respond_to_profile_solicitation(actor=request.user, solicitation=solicitation, status=status)
-        except ValidationError as exc:
+            respond_to_action_proposal(
+                actor=request.user,
+                proposal=proposal,
+                status=status,
+                response_message=request.POST.get("response_message", ""),
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            if isinstance(exc, PermissionDenied):
+                raise
             messages.error(request, str(exc))
         else:
             messages.success(request, "Votre réponse a été enregistrée sans créer de droit automatique.")
@@ -263,11 +339,17 @@ class ProfileSolicitationCancelView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, pk):
-        solicitation = get_object_or_404(ProfileSolicitation.objects.select_related("need"), pk=pk)
+        proposal = get_object_or_404(ActionProposal.objects.select_related("need"), pk=pk)
         try:
-            cancel_profile_solicitation(actor=request.user, solicitation=solicitation)
-        except ValidationError as exc:
+            cancel_action_proposal(actor=request.user, proposal=proposal)
+        except (ValidationError, PermissionDenied) as exc:
+            if isinstance(exc, PermissionDenied):
+                raise
             messages.error(request, str(exc))
         else:
-            messages.success(request, "Sollicitation annulée.")
-        return redirect("social:need-detail", pk=solicitation.need_id)
+            messages.success(request, "Proposition annulée.")
+        return redirect("social:need-detail", pk=proposal.need_id)
+
+
+# Compatibility class name used by the existing URL module/tests.
+ActionNeedSolicitView = ActionNeedSolicitProfileView
