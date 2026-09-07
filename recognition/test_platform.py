@@ -1,5 +1,4 @@
 from datetime import timedelta
-from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -11,7 +10,7 @@ from organizations.models import Organization
 from .achievements import grant_due_achievements
 from .economy import redeem_reward
 from .ingest import record_signal
-from .models import AchievementDefinition, RecognitionAccount, RecognitionPolicy, RecognitionSignal, RewardDefinition
+from .models import RecognitionAccount, RecognitionPolicy, RecognitionSignal, RewardDefinition
 from .runtime import run_default_recognition_cycle
 from .selectors import compact_credits
 from .services import get_or_create_account
@@ -60,13 +59,7 @@ class RecognitionPlatformTests(TestCase):
         owner.lifetime_earned = 100
         owner.save()
         reward = RewardDefinition.objects.create(code="gift-test", version=1, name="Bénéfice test", points_cost=25, beneficiary_allowed=True)
-        redemption = redeem_reward(
-            owner_account=owner,
-            reward=reward,
-            idempotency_key="gift-test-1",
-            actor_profile=self.user,
-            beneficiary_profile=self.other,
-        )
+        redemption = redeem_reward(owner_account=owner, reward=reward, idempotency_key="gift-test-1", actor_profile=self.user, beneficiary_profile=self.other)
         owner.refresh_from_db()
         self.assertEqual(owner.points_balance, 75)
         self.assertEqual(redemption.beneficiary_profile, self.other)
