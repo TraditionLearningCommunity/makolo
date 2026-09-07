@@ -1,7 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from django.urls import reverse
 
 from rest_framework import status
@@ -26,7 +24,8 @@ class G1ProfileDefaultsTests(TestCase):
 
         self.assertFalse(profile.public_profile)
         self.assertFalse(profile.searchable)
-        self.assertFalse(profile.profile_completed)
+        self.assertFalse(profile.derive_profile_completed())
+        self.assertNotIn("profile_completed", {field.name for field in UserProfile._meta.fields})
 
     def test_profile_completion_is_derived_from_compatible_minimum(self):
         user = User.objects.create_user(
@@ -65,7 +64,6 @@ class G1ProfileSectionFormTests(TestCase):
             organization_name="Ancienne organisation",
             public_profile=True,
             searchable=True,
-            profile_completed=True,
         )
 
     def test_link_section_does_not_overwrite_other_sections(self):
@@ -211,10 +209,7 @@ class G1ProfileApiTests(APITestCase):
 
     def test_profile_update_requires_authentication(self):
         response = self.client.patch(self.url, {"city": "Lubumbashi"}, format="json")
-        self.assertIn(
-            response.status_code,
-            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
-        )
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
 
     def test_profile_api_updates_user_and_profile_fields(self):
         self.client.force_authenticate(self.user)
@@ -239,19 +234,15 @@ class G1ProfileApiTests(APITestCase):
         self.assertEqual(self.profile.profession, "Ingénieure")
         self.assertTrue(self.profile.public_profile)
         self.assertTrue(self.profile.searchable)
-        self.assertTrue(self.profile.profile_completed)
+        self.assertTrue(self.profile.derive_profile_completed())
 
     def test_profile_api_rejects_invalid_urls(self):
         self.client.force_authenticate(self.user)
-        response = self.client.patch(
-            self.url,
-            {"tiktok_url": "not-a-url"},
-            format="json",
-        )
+        response = self.client.patch(self.url, {"tiktok_url": "not-a-url"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("tiktok_url", response.data)
 
-    def test_profile_completed_cannot_be_forced_by_api(self):
+    def test_profile_completed_cannot_be_forced_or_persisted_by_api(self):
         incomplete = User.objects.create_user(
             username="g1-api-incomplete",
             email="g1-api-incomplete@example.test",
@@ -267,35 +258,31 @@ class G1ProfileApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         profile.refresh_from_db()
-        self.assertFalse(profile.profile_completed)
+        self.assertFalse(profile.derive_profile_completed())
+        self.assertNotIn("profile_completed", {field.name for field in UserProfile._meta.fields})
 
 
-
-
-class G1ProfileCompatibilityTests(TestCase):
-    def test_legacy_profile_data_remains_compatible(self):
+class G1ProfileCanonicalStorageTests(TestCase):
+    def test_profile_extension_keeps_declared_fields_without_completion_snapshot(self):
         user = User.objects.create_user(
-            username="g1-legacy",
-            email="g1-legacy@example.test",
+            username="g1-canonical",
+            email="g1-canonical@example.test",
             password=PASSWORD,
         )
-
         profile = UserProfile.objects.create(
             user=user,
-            company_name="Legacy Co",
-            organization_name="Legacy Org",
+            company_name="Declared Co",
+            organization_name="Declared Org",
             public_profile=True,
             searchable=True,
-            profile_completed=True,
         )
-
         profile.refresh_from_db()
 
-        self.assertEqual(profile.company_name, "Legacy Co")
-        self.assertEqual(profile.organization_name, "Legacy Org")
+        self.assertEqual(profile.company_name, "Declared Co")
+        self.assertEqual(profile.organization_name, "Declared Org")
         self.assertTrue(profile.public_profile)
         self.assertTrue(profile.searchable)
-        self.assertTrue(profile.profile_completed)
+        self.assertNotIn("profile_completed", {field.name for field in UserProfile._meta.fields})
 
     def test_new_profile_defaults_are_private(self):
         user = User.objects.create_user(
@@ -303,8 +290,6 @@ class G1ProfileCompatibilityTests(TestCase):
             email="g1-new@example.test",
             password=PASSWORD,
         )
-
         profile = UserProfile.objects.create(user=user)
-
         self.assertFalse(profile.public_profile)
         self.assertFalse(profile.searchable)
