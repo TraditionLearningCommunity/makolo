@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("operations", "0005_occurrence_live_queue"),
+        ("operations", "0006_operational_controls"),
     ]
 
     operations = [

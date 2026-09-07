@@ -8,7 +8,7 @@ class OperationsConfig(AppConfig):
 
     def import_models(self):
         super().import_models()
-        from . import checkpoint_models, placement_models, queue_models
+        from . import checkpoint_models, control_models, placement_models, queue_models
 
         for name in ("PlacementPlan", "PlacementUnit", "PlacementAssignment"):
             setattr(self.models_module, name, getattr(placement_models, name))
@@ -22,3 +22,8 @@ class OperationsConfig(AppConfig):
             "QueueEntry",
         ):
             setattr(self.models_module, name, getattr(queue_models, name))
+        for name in ("OperationalControlCode", "OperationalControl"):
+            setattr(self.models_module, name, getattr(control_models, name))
+
+    def ready(self):
+        from . import emergency_signals  # noqa: F401
