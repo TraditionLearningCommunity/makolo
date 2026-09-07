@@ -5,6 +5,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from organizations.models import Organization
 
 from .audience_models import ConversationAudienceRuleKind, ConversationAudienceRuleOperation
@@ -27,6 +29,13 @@ class ConversationMediaTests(TestCase):
         self.outsider = User.objects.create_user(username="j6-media-outsider", email="j6-media-outsider@example.test", password="StrongPass2026!")
         self.space = Organization.objects.create(name="J6 Media Space", created_by=self.owner)
         self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="J6 Media Activity")
+        grant_activity_role(
+            profile=self.owner,
+            activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+            source="j6-conversations-media",
+        )
         self.conversation = ensure_context_conversation(actor=self.owner, kind=ConversationContextKind.ACTIVITY, activity=self.activity)
         audience = create_audience_set(actor=self.owner, conversation=self.conversation, label="Destinataire média")
         add_audience_rule(
