@@ -49,7 +49,7 @@ class RecognitionRewardVisibilityTests(TestCase):
         self.assertFalse(rendered.recognition_self_eligible)
         self.assertTrue(rendered.recognition_requires_other_beneficiary)
 
-    def test_same_profile_only_reward_is_self_eligible_for_profile_owner(self):
+    def test_profile_only_owner_domain_default_is_persisted_and_self_eligible(self):
         reward = RewardDefinition.objects.create(
             code="profile-self",
             version=1,
@@ -57,9 +57,10 @@ class RecognitionRewardVisibilityTests(TestCase):
             kind=RewardKind.PROMOTION,
             points_cost=10,
             beneficiary_allowed=True,
-            eligibility={"beneficiary_subject_types": ["profile"]},
             fulfillment={"promotion_id": str(uuid.uuid4())},
         )
+        reward.refresh_from_db()
+        self.assertEqual(reward.eligibility["beneficiary_subject_types"], ["profile"])
         account = self._fund(profile=self.profile)
         rendered = next(item for item in active_rewards(owner_account=account) if item.pk == reward.pk)
         self.assertTrue(rendered.recognition_self_eligible)
