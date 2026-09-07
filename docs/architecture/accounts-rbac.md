@@ -1,65 +1,47 @@
-# Accounts & RBAC
+# Accounts, identité et autorité
 
-## Objectif
+## Statut
 
-Makolo doit utiliser une source d'autorisation cohérente pour les rôles métier, tout en conservant la compatibilité avec le socle actuel.
+Ce document remplace l'ancien contrat RBAC global d'Accounts. Depuis le cutover canonique, `accounts` ne possède plus de rôle métier global, de `PermissionGroup`, de flag `is_organizer` / `is_scanner_agent` ni de statut générique `is_verified`.
 
-## Source de vérité
-
-Pour tout nouveau code métier, les rôles dynamiques de `accounts.Role` sont la source privilégiée :
+La source canonique d'autorité est documentée dans [`authorization-boundaries.md`](authorization-boundaries.md) et suit :
 
 ```text
-User
-  ↓
-roles
-  ↓
-permissions métier
+Profil + Rôle + Portée = Mandat
 ```
 
-Les groupes de permissions (`PermissionGroup`) peuvent regrouper plusieurs rôles et seront utilisés lorsque les besoins d'autorisation deviendront plus fins.
+## Responsabilité d'Accounts
 
-## Compatibilité avec les booléens historiques
+`accounts.User` reste l'identité technique du Profil global et porte :
 
-Le modèle `User` contient encore :
+- authentification et statut technique du compte ;
+- coordonnées personnelles nécessaires au compte ;
+- vérification de contact `email_verified` / `phone_verified` ;
+- sécurité de connexion, appareils et sessions ;
+- préférences personnelles.
 
-- `is_organizer` ;
-- `is_scanner_agent`.
+`accounts.UserProfile` reste une extension 1–1 de ce même Profil. Il ne constitue ni une seconde personne, ni une identité publique autonome, ni une source d'autorité.
 
-Ces champs sont conservés temporairement pour ne pas casser les données existantes. Le helper d'autorisation utilisé par l'API consulte d'abord les rôles actifs, puis ces booléens comme fallback de compatibilité.
+## Ce qu'Accounts ne possède plus
 
-Aucun nouveau module ne doit ajouter d'autres booléens métier de type `is_*` lorsqu'un rôle peut représenter la même information.
+Accounts ne décide jamais qu'un Profil est « organisateur », « scanner », « finance », « marketing » ou administrateur d'un Espace. Ces responsabilités sont contextuelles et passent par `authorization.Role`, `Permission` et `Mandate`.
 
-## Codes de rôles réservés
+Le staff Django reste une capacité technique d'administration. `is_staff=True` ne remplace pas un Mandat métier.
 
-Les codes suivants sont réservés :
+## Vérification et confiance
 
-- `organizer`
-- `scanner-agent`
+`email_verified` et `phone_verified` restent des faits de contact du compte.
 
-D'autres rôles système pourront être ajoutés de manière explicite, par exemple `platform-admin`, `participant` ou `partner`, lorsque les modules concernés seront implémentés.
+Toute vérification métier d'identité ou d'organisation appartient au domaine `trust`, notamment via `VerificationClaim` et `TrustEvidence`. Un écran qui affiche « Profil vérifié » doit dériver ce résultat de Trust et ne doit jamais stocker un booléen concurrent dans Accounts.
 
-## Plan de migration
+## Complétude du Profil
 
-Une phase ultérieure devra :
+La complétude/activation du Profil est une projection privée dérivée. Aucun `profile_completed` persistant n'est source de vérité. `accounts.profile_activation` calcule la progression depuis les faits réellement présents.
 
-1. créer/garantir les rôles système nécessaires ;
-2. migrer les utilisateurs dont les booléens historiques sont actifs vers les rôles correspondants ;
-3. supprimer l'utilisation fonctionnelle des booléens ;
-4. supprimer les champs historiques dans une migration séparée après validation des données.
+## Inscription et JWT
 
-## Politique d'inscription et JWT
-
-L'inscription publique crée le compte mais n'émet plus automatiquement de jetons JWT.
-
-Le client doit appeler explicitement l'endpoint de connexion pour obtenir un couple access/refresh. Cela sépare la création de compte de l'authentification et permet d'ajouter ensuite une politique de vérification sans changer le contrat d'inscription.
-
-À ce stade, `is_verified`, `email_verified` et `phone_verified` sont des états métier exposés, mais la connexion n'est pas encore bloquée sur ces états. Les modules sensibles devront appliquer une permission de vérification lorsque leurs règles métier seront définies.
+L'inscription publique crée le compte mais n'émet pas automatiquement de jetons JWT. Le client appelle ensuite explicitement l'endpoint de connexion pour obtenir ses jetons.
 
 ## Limitation de débit
 
-Les endpoints publics d'authentification disposent de limites locales :
-
-- inscription : 5 requêtes/heure par adresse IP anonyme ;
-- connexion : 10 requêtes/minute par adresse IP anonyme.
-
-Ces limites constituent une première protection. Une stratégie distribuée (Redis, reverse proxy, WAF ou équivalent) sera nécessaire avant montée en charge.
+Les endpoints publics d'authentification conservent leurs limites applicatives. Ces limites ne remplacent pas les protections d'infrastructure nécessaires avant production.
