@@ -54,6 +54,7 @@ urlpatterns = [
     path("scanner/", include("scanner.urls")),
     path("payments/", include("payments.urls")),
     path("notifications/", include("notifications.urls")),
+    path("conversations/", include("conversations.urls")),
     path("questionnaires/", include("questionnaires.urls")),
     path("preparation/", include("preparation.urls")),
     path("trust/", include("trust.urls")),
