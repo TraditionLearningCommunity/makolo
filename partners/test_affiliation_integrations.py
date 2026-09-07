@@ -37,31 +37,26 @@ class AffiliationIntegrationTests(TestCase):
             username="aff-owner-2",
             email="aff-owner-2@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.marketing = User.objects.create_user(
             username="aff-marketing-2",
             email="aff-marketing-2@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.finance = User.objects.create_user(
             username="aff-finance-2",
             email="aff-finance-2@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.ambassador = User.objects.create_user(
             username="aff-ambassador-2",
             email="aff-ambassador-2@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.buyer = User.objects.create_user(
             username="aff-buyer-2",
             email="aff-buyer-2@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.organization = Organization.objects.create(
             name="Affiliate Integration Org",
