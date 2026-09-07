@@ -87,7 +87,6 @@ class PaymentServiceTests(TestCase):
             username="payment-organizer",
             email="payment-organizer@example.com",
             password="Strong-payment-password-2026!",
-            is_organizer=True,
         )
         self.buyer = User.objects.create_user(
             username="payment-buyer",
@@ -257,7 +256,6 @@ class PaymentApiTests(APITestCase):
             username="payment-api-organizer",
             email="payment-api-organizer@example.com",
             password="Strong-payment-api-password-2026!",
-            is_organizer=True,
         )
         self.buyer = User.objects.create_user(
             username="payment-api-buyer",
@@ -326,7 +324,6 @@ class PaymentWebTests(TestCase):
             username="payment-web-organizer",
             email="payment-web-organizer@example.com",
             password="Strong-payment-web-password-2026!",
-            is_organizer=True,
         )
         self.buyer = User.objects.create_user(
             username="payment-web-buyer",
