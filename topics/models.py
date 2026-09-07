@@ -41,14 +41,23 @@ class ProfileInterest(models.Model):
         return f"{self.profile} — {self.topic}"
 
 
-class OpenToKind(models.TextChoices):
+class ActionMatchKind(models.TextChoices):
+    """Stable, broad families used to match explicit availability with real needs."""
+
     PARTICIPATE = "participate", "Participer"
     COLLABORATE = "collaborate", "Collaborer"
     VOLUNTEER = "volunteer", "Bénévolat"
     SPEAK = "speak", "Intervenir / prendre la parole"
     MENTOR = "mentor", "Mentorat"
     ORGANIZE = "organize", "Organiser"
+    PROVIDE_SERVICE = "provide_service", "Fournir une prestation"
+    PARTNER = "partner", "Partenariat"
+    SPONSOR = "sponsor", "Sponsoring"
     OPPORTUNITIES = "opportunities", "Recevoir des opportunités"
+
+
+# Compatibility alias while callers move to the clearer domain name.
+OpenToKind = ActionMatchKind
 
 
 class ProfileOpenTo(models.Model):
@@ -56,7 +65,7 @@ class ProfileOpenTo(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="open_to_declarations")
-    kind = models.CharField(max_length=32, choices=OpenToKind.choices)
+    kind = models.CharField(max_length=32, choices=ActionMatchKind.choices)
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="open_to_declarations", null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_public = models.BooleanField(default=False)
@@ -75,6 +84,44 @@ class ProfileOpenTo(models.Model):
     def __str__(self):
         suffix = f" — {self.topic}" if self.topic_id else ""
         return f"{self.profile} — {self.get_kind_display()}{suffix}"
+
+
+class SpaceOpenTo(models.Model):
+    """Explicit Space consent to be discovered or solicited for an action family."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="open_to_declarations",
+    )
+    kind = models.CharField(max_length=32, choices=ActionMatchKind.choices)
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.PROTECT,
+        related_name="space_open_to_declarations",
+        null=True,
+        blank=True,
+    )
+    is_active = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=False)
+    is_searchable = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["kind", "created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["space", "kind", "topic"], name="topics_space_open_to_unique"),
+        ]
+        indexes = [
+            models.Index(fields=["space", "is_active", "is_public"], name="topic_sot_space_public_idx"),
+            models.Index(fields=["is_active", "is_searchable", "kind"], name="topic_sot_search_kind_idx"),
+        ]
+
+    def __str__(self):
+        suffix = f" — {self.topic}" if self.topic_id else ""
+        return f"{self.space} — {self.get_kind_display()}{suffix}"
 
 
 class ActivityTopic(models.Model):
