@@ -202,7 +202,6 @@ class Command(BaseCommand):
             first_name="Service",
             last_name=username.replace("e2e-service-", "").title(),
             is_active=True,
-            is_verified=True,
             email_verified=True,
             onboarding_completed=True,
             onboarding_step=5,
