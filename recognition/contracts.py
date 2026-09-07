@@ -23,6 +23,7 @@ class TemporalProfile(str, Enum):
     WINDOW = "window"
     STOCK = "stock"
     FLOW = "flow"
+    TRANSITION = "transition"
 
 
 class RecognitionWindowStatus(str, Enum):
@@ -41,15 +42,7 @@ class RecognitionLedgerKind(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class RecognitionSliceCandidate:
-    """Domain-independent candidate emitted by a Recognition adapter.
-
-    ``slice_key`` is globally stable and is the anti-double-processing identity.
-    ``available_at`` is when Recognition could first consume the observation;
-    it may be later than ``occurred_at`` and is what evaluation windows use.
-    ``accrual_key`` groups successive slices that must share one cumulative
-    impact-to-points curve, for example one Opportunity/channel or one
-    Activity/channel.
-    """
+    """Domain-independent candidate emitted by a Recognition adapter."""
 
     slice_key: str
     accrual_key: str
@@ -60,3 +53,31 @@ class RecognitionSliceCandidate:
     impact_delta: Decimal
     attribution_shares: tuple[Any, ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class RecognitionSignalFact:
+    """Pure signal contract consumed by the policy engine, with no ORM dependency."""
+
+    signal_id: str
+    signal_kind: str
+    object_type: str
+    object_id: str
+    occurred_at: datetime
+    available_at: datetime
+    outcome_identity: str
+    values: dict[str, Any] = field(default_factory=dict)
+    contributors: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    confidence: Decimal = Decimal("1")
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyRuleResult:
+    rule_code: str
+    channel: ImpactChannel
+    temporal_profile: TemporalProfile
+    utility_delta: Decimal
+    accrual_key: str
+    slice_key: str
+    attribution_shares: tuple[Any, ...] = field(default_factory=tuple)
+    explanation: dict[str, Any] = field(default_factory=dict)
