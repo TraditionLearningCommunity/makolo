@@ -16,7 +16,7 @@ django.setup()
 from django.db import transaction
 
 from accounts.models import User
-from demo_seed.accounts_orgs import seed_accounts_and_organizations
+from demo_seed.accounts_orgs_canonical import seed_accounts_and_organizations
 from demo_seed.activities_demo import seed_activity_core
 from demo_seed.authority import seed_contextual_authority
 from demo_seed.beta import BETA_PERSONAS, seed_beta
@@ -87,9 +87,6 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
             validation.update(assert_task33_beta_coverage())
             validation.update(assert_task34b_beta_coverage())
         else:
-            # Historical volume profiles remain useful for development load, but
-            # they are not the canonical beta contract and no longer fabricate
-            # arbitrary rows merely to cover every installed model.
             seed_accounts_and_organizations(ctx)
             seed_contextual_authority(ctx)
             seed_events_and_commerce(ctx)
