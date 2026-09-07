@@ -1,32 +1,15 @@
 from django.contrib.auth import get_user_model
 
-from access.models import AccessStatus
-from journeys.models import JourneyStatus
+from activities.participant_selectors import occurrence_participant_ids
 
 
 User = get_user_model()
 
 
-ACTIVE_OCCURRENCE_JOURNEY_STATUSES = {
-    JourneyStatus.SUBMITTED,
-    JourneyStatus.PENDING_APPROVAL,
-    JourneyStatus.APPROVED,
-    JourneyStatus.PENDING_PAYMENT,
-    JourneyStatus.CONFIRMED,
-    JourneyStatus.FULFILLED,
-}
-
-
 def occurrence_recipient_ids(occurrence):
-    access_ids = occurrence.access_rights.filter(
-        beneficiary__isnull=False,
-        status__in={AccessStatus.PENDING, AccessStatus.VALID, AccessStatus.USED},
-    ).values_list("beneficiary_id", flat=True)
-    journey_ids = occurrence.journeys.filter(
-        beneficiary__isnull=False,
-        status__in=ACTIVE_OCCURRENCE_JOURNEY_STATUSES,
-    ).values_list("beneficiary_id", flat=True)
-    return set(access_ids).union(journey_ids)
+    """Compatibility name for Notifications; canonical participation lives with Activity/Occurrence."""
+
+    return occurrence_participant_ids(occurrence)
 
 
 def occurrence_recipients(occurrence):
