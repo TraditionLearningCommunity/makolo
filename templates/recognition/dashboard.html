@@ -56,16 +56,19 @@
             {% if recognition_subject_kind == 'space' %}<input type="hidden" name="owner_space_id" value="{{ space.pk }}">{% endif %}
             <input type="hidden" name="idempotency_key" value="{{ reward.pk }}-{{ request.user.pk }}-{% now 'U' %}">
             {% if reward.beneficiary_allowed %}
-              <details class="text-sm">
-                <summary class="cursor-pointer font-medium">Utiliser pour quelqu'un d'autre</summary>
+              <details class="text-sm" {% if reward.recognition_requires_other_beneficiary %}open{% endif %}>
+                <summary class="cursor-pointer font-medium">{% if reward.recognition_requires_other_beneficiary %}Choisir le bénéficiaire{% else %}Utiliser pour quelqu'un d'autre{% endif %}</summary>
                 <div class="mt-2 space-y-2">
+                  {% if reward.recognition_requires_other_beneficiary %}<p class="text-xs" style="color:var(--mk-subtle)">Cette possibilité n'est pas applicable directement à ce compte ; choisissez le Profile ou l'Espace qui en bénéficiera.</p>{% endif %}
                   <label class="block">Profile bénéficiaire <input class="mk-input mt-1 w-full" name="beneficiary_profile_id" placeholder="Identifiant du Profile"></label>
                   <label class="block">ou Espace bénéficiaire <input class="mk-input mt-1 w-full" name="beneficiary_space_id" placeholder="Identifiant de l'Espace"></label>
                   {% if reward.acceptance_required %}<p class="text-xs" style="color:var(--mk-subtle)">Le bénéficiaire devra accepter avant que le bénéfice soit appliqué.</p>{% endif %}
                 </div>
               </details>
             {% endif %}
-            <button class="mk-button mk-button-primary" type="submit">Utiliser pour {% if recognition_subject_kind == 'space' %}cet Espace{% else %}moi{% endif %}</button>
+            <button class="mk-button mk-button-primary" type="submit">
+              {% if reward.recognition_requires_other_beneficiary %}Utiliser pour le bénéficiaire choisi{% else %}Utiliser pour {% if recognition_subject_kind == 'space' %}cet Espace{% else %}moi{% endif %}{% endif %}
+            </button>
           </form>
           {% endif %}
         </article>
