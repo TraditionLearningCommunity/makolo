@@ -185,7 +185,7 @@ def create_point(
 
 @transaction.atomic
 def publish_point(*, actor, point):
-    locked = ConversationPoint.objects.select_for_update().select_related("conversation__policy").get(pk=point.pk)
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation__policy").get(pk=point.pk)
     if not can_publish_in_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas publier ce Point.")
     if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
@@ -206,7 +206,7 @@ def publish_point(*, actor, point):
 
 @transaction.atomic
 def submit_point_response(*, actor, point, value=None, represented_space=None, client_reference=None):
-    locked = ConversationPoint.objects.select_for_update().select_related(
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related(
         "conversation", "visibility_audience", "response_audience", "expected_action_audience"
     ).get(pk=point.pk)
     at = _active_window(locked)
@@ -242,7 +242,7 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
 
 @transaction.atomic
 def acknowledge_point(*, actor, point):
-    locked = ConversationPoint.objects.select_for_update().select_related("conversation", "visibility_audience").get(pk=point.pk)
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "visibility_audience").get(pk=point.pk)
     if not locked.requires_acknowledgement:
         raise ValidationError("Ce Point ne demande pas de confirmation de lecture.")
     if not point_visible_to(actor, locked):
@@ -342,7 +342,7 @@ def maybe_auto_resolve(*, point, allow_open=False):
 
 @transaction.atomic
 def resolve_point(*, actor, point, summary, selected_option_ids=(), result_payload=None, method=ConversationPointResolutionMethod.MANUAL):
-    locked = ConversationPoint.objects.select_for_update().select_related("conversation", "resolution_audience").get(pk=point.pk)
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "resolution_audience").get(pk=point.pk)
     if locked.lifecycle == ConversationPointLifecycle.RESOLVED:
         return locked.resolution
     if locked.lifecycle not in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
@@ -359,7 +359,7 @@ def resolve_point(*, actor, point, summary, selected_option_ids=(), result_paylo
 
 @transaction.atomic
 def close_point_responses(*, actor, point):
-    locked = ConversationPoint.objects.select_for_update().select_related("conversation").get(pk=point.pk)
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation").get(pk=point.pk)
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas fermer les réponses de ce Point.")
     if locked.lifecycle != ConversationPointLifecycle.OPEN:
@@ -374,7 +374,7 @@ def close_point_responses(*, actor, point):
 
 @transaction.atomic
 def supersede_point(*, actor, old_point, new_point):
-    old = ConversationPoint.objects.select_for_update().select_related("conversation").get(pk=old_point.pk)
+    old = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation").get(pk=old_point.pk)
     if old.conversation_id != new_point.conversation_id:
         raise ValidationError("Le Point de remplacement doit appartenir à la même Conversation.")
     if not can_publish_in_conversation(actor, old.conversation):
@@ -393,7 +393,7 @@ def supersede_point(*, actor, old_point, new_point):
 
 @transaction.atomic
 def create_exchange_entry(*, actor, point, body, reply_to=None, represented_space=None, client_reference=None):
-    locked = ConversationPoint.objects.select_for_update().select_related("conversation__policy", "visibility_audience", "response_audience").get(pk=point.pk)
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation__policy", "visibility_audience", "response_audience").get(pk=point.pk)
     _active_window(locked)
     if locked.kind != ConversationPointKind.EXCHANGE or not locked.conversation.policy.allow_free_exchange:
         raise ValidationError("Ce Point n’autorise pas la discussion libre.")
