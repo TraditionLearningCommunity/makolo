@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 
 from accounts.models import UserProfile
 from activities.involvement_services import create_external_involvement
@@ -179,8 +182,8 @@ class J0CanonicalActionInboxTests(TestCase):
             is_searchable=True,
         )
 
-    def ids_for(self, actor):
-        return set(action_proposals_requiring_actor_response(actor).values_list("id", flat=True))
+    def ids_for(self, actor, *, at=None):
+        return set(action_proposals_requiring_actor_response(actor, at=at).values_list("id", flat=True))
 
     def test_profile_invitation_is_in_candidate_inbox_only_while_pending(self):
         need = create_action_need(
@@ -203,6 +206,23 @@ class J0CanonicalActionInboxTests(TestCase):
             status=ActionProposalStatus.DECLINED,
         )
         self.assertNotIn(proposal.pk, self.ids_for(self.candidate))
+
+    def test_expired_pending_proposal_is_not_actionable_attention(self):
+        need = create_action_need(
+            actor=self.owner,
+            owner_profile=self.owner,
+            title="Invitation expirée J0",
+            match_kind=ActionMatchKind.COLLABORATE,
+        )
+        proposal = create_action_proposal(
+            actor=self.owner,
+            need=need,
+            candidate_profile=self.candidate,
+        )
+        now = timezone.now()
+        proposal.expires_at = now - timedelta(seconds=1)
+        proposal.save(update_fields=["expires_at", "updated_at"])
+        self.assertNotIn(proposal.pk, self.ids_for(self.candidate, at=now))
 
     def test_candidate_initiated_proposal_is_in_personal_owner_inbox(self):
         need = create_action_need(
