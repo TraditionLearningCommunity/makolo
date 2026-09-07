@@ -5,11 +5,21 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from conversations.audience_services import conversation_viewer_ids, resolve_audience_ids
+from conversations.audience_services import (
+    conversation_manager_ids,
+    conversation_viewer_ids,
+    resolve_audience_ids,
+)
 from conversations.core_models import ConversationInvitation, ConversationUserState
-from conversations.point_models import ConversationPoint
+from conversations.point_models import (
+    ConversationPoint,
+    ConversationPointKind,
+    ConversationPointResponseMode,
+    ConversationPointResponseStatus,
+)
 from domain_events.contracts import DomainEventType
 from domain_events.registry import register_consumer
+from questionnaires.models import FormRequestStatus
 
 from .models import NotificationCategory, NotificationKind
 from .services import create_notification
@@ -18,6 +28,7 @@ from .services import create_notification
 CONSUMER_NAME = "notifications.conversations"
 EVENT_TYPES = {
     DomainEventType.CONVERSATION_POINT_PUBLISHED,
+    DomainEventType.CONVERSATION_POINT_RESPONSE_CLOSED,
     DomainEventType.CONVERSATION_POINT_RESOLVED,
     DomainEventType.CONVERSATION_INVITATION_CREATED,
 }
@@ -56,10 +67,55 @@ def _notify_profiles(*, event, conversation, profile_ids, title, message, templa
         )
 
 
+def _visible_profile_ids(point):
+    viewers = conversation_viewer_ids(point.conversation)
+    if point.visibility_audience_id:
+        return viewers & resolve_audience_ids(point.visibility_audience)
+    return viewers
+
+
+def _outstanding_expected_profile_ids(point):
+    if not point.expected_action_audience_id:
+        return set()
+    expected = resolve_audience_ids(point.expected_action_audience) & _visible_profile_ids(point)
+    if not expected:
+        return set()
+
+    if point.kind == ConversationPointKind.FORM_REQUEST:
+        completed = set(
+            point.form_request_links.filter(
+                target_profile_id__in=expected,
+                form_request__status=FormRequestStatus.COMPLETED,
+            ).values_list("target_profile_id", flat=True)
+        )
+        return expected - completed
+
+    if point.requires_acknowledgement:
+        acknowledged = set(
+            point.user_states.filter(
+                profile_id__in=expected,
+                acknowledged_at__isnull=False,
+            ).values_list("profile_id", flat=True)
+        )
+        return expected - acknowledged
+
+    if point.response_mode != ConversationPointResponseMode.NONE:
+        responded = set(
+            point.responses.filter(
+                actor_id__in=expected,
+                represented_space__isnull=True,
+                status=ConversationPointResponseStatus.ACTIVE,
+            ).values_list("actor_id", flat=True)
+        )
+        return expected - responded
+    return set()
+
+
 def _consume_point(event):
     point = (
         ConversationPoint.objects.select_related(
             "conversation",
+            "conversation__context",
             "expected_action_audience",
             "resolution_audience",
             "visibility_audience",
@@ -69,10 +125,12 @@ def _consume_point(event):
     )
     if point is None:
         return
+
+    visible_ids = _visible_profile_ids(point)
     if event.event_type == DomainEventType.CONVERSATION_POINT_PUBLISHED:
         if not point.expected_action_audience_id:
             return
-        ids = resolve_audience_ids(point.expected_action_audience)
+        ids = resolve_audience_ids(point.expected_action_audience) & visible_ids
         ids.discard(point.published_by_id)
         _notify_profiles(
             event=event,
@@ -84,8 +142,24 @@ def _consume_point(event):
         )
         return
 
-    audience = point.resolution_audience or point.visibility_audience
-    ids = resolve_audience_ids(audience) if audience is not None else conversation_viewer_ids(point.conversation)
+    if event.event_type == DomainEventType.CONVERSATION_POINT_RESPONSE_CLOSED:
+        if not _outstanding_expected_profile_ids(point):
+            return
+        managers = conversation_manager_ids(point.conversation) & visible_ids
+        _notify_profiles(
+            event=event,
+            conversation=point.conversation,
+            profile_ids=managers,
+            title="Une coordination reste à régler",
+            message="Des actions attendues sont restées incomplètes à la clôture d’un Point.",
+            template_key="conversation.point.escalation",
+        )
+        return
+
+    if point.resolution_audience_id:
+        ids = resolve_audience_ids(point.resolution_audience) & visible_ids
+    else:
+        ids = visible_ids
     _notify_profiles(
         event=event,
         conversation=point.conversation,
@@ -122,6 +196,7 @@ def _consume_invitation(event):
 def consume_conversation_event(event):
     if event.event_type in {
         DomainEventType.CONVERSATION_POINT_PUBLISHED,
+        DomainEventType.CONVERSATION_POINT_RESPONSE_CLOSED,
         DomainEventType.CONVERSATION_POINT_RESOLVED,
     }:
         _consume_point(event)
