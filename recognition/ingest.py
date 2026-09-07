@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from .models import RecognitionSignal
-from .signal_contracts import BOOLEAN, IDENTIFIER, NUMBER, STRING, allowed_fields, field_type
+from .signal_contracts import BOOLEAN, IDENTIFIER, NUMERIC_TYPES, STRING, allowed_fields, field_type
 
 
 def _validate_values(signal_kind, values):
@@ -22,7 +22,7 @@ def _validate_values(signal_kind, values):
         kind = field_type(signal_kind, name)
         if value is None:
             continue
-        if kind == NUMBER:
+        if kind in NUMERIC_TYPES:
             try:
                 number = Decimal(str(value))
             except (InvalidOperation, TypeError, ValueError) as exc:
