@@ -48,6 +48,7 @@ class RecognitionBeneficiaryAuthorityTests(TestCase):
             points_cost=20,
             beneficiary_allowed=True,
             acceptance_required=True,
+            fulfillment={"owner_domain": "external"},
         )
         self.redemption = redeem_reward(
             owner_account=self.account,
@@ -81,3 +82,4 @@ class RecognitionBeneficiaryAuthorityTests(TestCase):
         self.redemption.refresh_from_db()
         self.assertEqual(self.redemption.fulfillment_snapshot["consent_state"], "accepted")
         self.assertEqual(self.redemption.fulfillment_snapshot["consent_actor_profile_id"], str(self.actor.pk))
+        self.assertEqual(self.redemption.fulfillment_snapshot["delegated_domain"], "external")
