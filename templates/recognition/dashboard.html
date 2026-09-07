@@ -12,8 +12,27 @@
     <p class="text-sm font-semibold" style="color:var(--mk-subtle)">Disponibles maintenant</p>
     <p class="mt-2 text-4xl font-bold">{{ credits_display }}</p>
     {% if account and account.pending_points %}<p class="mt-2 text-sm" style="color:var(--mk-subtle)">{{ account.pending_points }} crédits en maturation</p>{% endif %}
+    {% if account and account.correction_deficit %}<p class="mt-2 text-xs" style="color:var(--mk-subtle)">Une correction interne est en cours d'absorption. Votre solde disponible ne devient jamais négatif.</p>{% endif %}
     {% if account %}<p class="mt-3 text-xs" style="color:var(--mk-subtle)">{{ account.lifetime_earned }} gagnés au total · {{ account.lifetime_spent }} utilisés</p>{% endif %}
   </div>
+
+  {% if incoming_redemptions %}
+  <section class="space-y-3">
+    <h2 class="text-xl font-semibold">À décider</h2>
+    <div class="space-y-3">
+      {% for redemption in incoming_redemptions %}
+      <article class="mk-card p-4">
+        <p class="font-semibold">{{ redemption.reward.name }}</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-subtle)">Quelqu'un souhaite utiliser {{ redemption.points_cost }} crédits pour vous faire bénéficier de cette possibilité.</p>
+        <div class="mt-4 flex gap-2">
+          <form method="post" action="{% url 'recognition:redemption-decision' redemption.pk 'accept' %}">{% csrf_token %}<button class="mk-button mk-button-primary" type="submit">Accepter</button></form>
+          <form method="post" action="{% url 'recognition:redemption-decision' redemption.pk 'decline' %}">{% csrf_token %}<button class="mk-button" type="submit">Refuser</button></form>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   <section class="space-y-3">
     <h2 class="text-xl font-semibold">Achievements</h2>
@@ -32,7 +51,22 @@
         <article class="mk-card p-4">
           <div class="flex items-start justify-between gap-4"><div><p class="font-semibold">{{ reward.name }}</p><p class="mt-1 text-sm" style="color:var(--mk-subtle)">{{ reward.description }}</p></div><span class="font-semibold">{{ reward.points_cost }} crédits</span></div>
           {% if recognition_subject_kind == 'profile' or can_spend %}
-          <form method="post" action="{% url 'recognition:reward-use' reward.pk %}" class="mt-4">{% csrf_token %}{% if recognition_subject_kind == 'space' %}<input type="hidden" name="owner_space_id" value="{{ space.pk }}">{% endif %}<input type="hidden" name="idempotency_key" value="{{ reward.pk }}-{{ request.user.pk }}-{% now 'U' %}"><button class="mk-button mk-button-primary" type="submit">Utiliser pour {% if recognition_subject_kind == 'space' %}cet Espace{% else %}moi{% endif %}</button></form>
+          <form method="post" action="{% url 'recognition:reward-use' reward.pk %}" class="mt-4 space-y-3">
+            {% csrf_token %}
+            {% if recognition_subject_kind == 'space' %}<input type="hidden" name="owner_space_id" value="{{ space.pk }}">{% endif %}
+            <input type="hidden" name="idempotency_key" value="{{ reward.pk }}-{{ request.user.pk }}-{% now 'U' %}">
+            {% if reward.beneficiary_allowed %}
+              <details class="text-sm">
+                <summary class="cursor-pointer font-medium">Utiliser pour quelqu'un d'autre</summary>
+                <div class="mt-2 space-y-2">
+                  <label class="block">Profile bénéficiaire <input class="mk-input mt-1 w-full" name="beneficiary_profile_id" placeholder="Identifiant du Profile"></label>
+                  <label class="block">ou Espace bénéficiaire <input class="mk-input mt-1 w-full" name="beneficiary_space_id" placeholder="Identifiant de l'Espace"></label>
+                  {% if reward.acceptance_required %}<p class="text-xs" style="color:var(--mk-subtle)">Le bénéficiaire devra accepter avant que le bénéfice soit appliqué.</p>{% endif %}
+                </div>
+              </details>
+            {% endif %}
+            <button class="mk-button mk-button-primary" type="submit">Utiliser pour {% if recognition_subject_kind == 'space' %}cet Espace{% else %}moi{% endif %}</button>
+          </form>
           {% endif %}
         </article>
       {% endfor %}

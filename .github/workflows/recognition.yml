@@ -77,4 +77,4 @@ jobs:
           python manage.py makemigrations --check --dry-run
           python manage.py migrate --noinput
       - name: Run Recognition PostgreSQL tests
-        run: python manage.py test recognition.tests recognition.test_concurrency recognition.test_platform
+        run: python manage.py test recognition.tests recognition.test_concurrency recognition.test_platform recognition.test_completion
