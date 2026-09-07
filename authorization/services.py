@@ -21,6 +21,8 @@ from .models import AuthorityScope, Mandate, MandateStatus, Permission, Role, Ro
 ACTIVITY_PERMISSION_INHERITANCE = {
     PermissionCode.ACTIVITY_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
     PermissionCode.ACTIVITY_MANAGE: PermissionCode.SPACE_ACTIVITIES_MANAGE,
+    PermissionCode.ACTIVITY_ACTION_NETWORK_VIEW: PermissionCode.SPACE_ACTION_NETWORK_VIEW,
+    PermissionCode.ACTIVITY_ACTION_NETWORK_MANAGE: PermissionCode.SPACE_ACTION_NETWORK_MANAGE,
     PermissionCode.ACTIVITY_REQUESTS_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
     PermissionCode.ACTIVITY_REQUESTS_DECIDE: PermissionCode.SPACE_ACTIVITIES_MANAGE,
     PermissionCode.ACTIVITY_ACCESS_VIEW: PermissionCode.SPACE_ACTIVITIES_VIEW,
