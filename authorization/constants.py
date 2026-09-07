@@ -16,6 +16,8 @@ class PermissionCode:
     OPPORTUNITIES_MERGE = "opportunities.merge"
     SPACE_VIEW = "space.view"
     SPACE_MANAGE = "space.manage"
+    SPACE_ACTION_NETWORK_VIEW = "space.action_network.view"
+    SPACE_ACTION_NETWORK_MANAGE = "space.action_network.manage"
     SPACE_TRUST_VIEW = "space.trust.view"
     SPACE_TRUST_MANAGE = "space.trust.manage"
     SPACE_TEAM_MANAGE = "space.team.manage"
@@ -37,6 +39,8 @@ class PermissionCode:
     GROUP_OWNERSHIP_MANAGE = "group.ownership.manage"
     ACTIVITY_VIEW = "activity.view"
     ACTIVITY_MANAGE = "activity.manage"
+    ACTIVITY_ACTION_NETWORK_VIEW = "activity.action_network.view"
+    ACTIVITY_ACTION_NETWORK_MANAGE = "activity.action_network.manage"
     ACTIVITY_REQUESTS_VIEW = "activity.requests.view"
     ACTIVITY_REQUESTS_DECIDE = "activity.requests.decide"
     ACTIVITY_ACCESS_VIEW = "activity.access.view"
@@ -129,8 +133,10 @@ GROUP_PERMISSION_CODES = {
     PermissionCode.GROUP_SNAPSHOTS_CREATE, PermissionCode.GROUP_OWNERSHIP_MANAGE,
 }
 ACTIVITY_PERMISSION_CODES = {
-    PermissionCode.ACTIVITY_VIEW, PermissionCode.ACTIVITY_MANAGE, PermissionCode.ACTIVITY_REQUESTS_VIEW,
-    PermissionCode.ACTIVITY_REQUESTS_DECIDE, PermissionCode.ACTIVITY_ACCESS_VIEW, PermissionCode.ACTIVITY_ACCESS_MANAGE,
+    PermissionCode.ACTIVITY_VIEW, PermissionCode.ACTIVITY_MANAGE,
+    PermissionCode.ACTIVITY_ACTION_NETWORK_VIEW, PermissionCode.ACTIVITY_ACTION_NETWORK_MANAGE,
+    PermissionCode.ACTIVITY_REQUESTS_VIEW, PermissionCode.ACTIVITY_REQUESTS_DECIDE,
+    PermissionCode.ACTIVITY_ACCESS_VIEW, PermissionCode.ACTIVITY_ACCESS_MANAGE,
     PermissionCode.ACTIVITY_ACCESS_SCAN, PermissionCode.ACTIVITY_OPERATIONS_VIEW, PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
     PermissionCode.ACTIVITY_COMMERCE_VIEW, PermissionCode.ACTIVITY_COMMERCE_MANAGE,
     PermissionCode.ACTIVITY_CAPACITY_VIEW, PermissionCode.ACTIVITY_CAPACITY_MANAGE,
