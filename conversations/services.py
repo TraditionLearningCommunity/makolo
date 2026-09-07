@@ -389,7 +389,6 @@ def ensure_context_conversation(
     try:
         context.save()
     except IntegrityError:
-        # Concurrent ensure calls converge on the canonical context.
         canonical = ConversationContext.objects.select_related("conversation").get(**lookup)
         conversation.delete()
         return canonical.conversation
@@ -401,7 +400,7 @@ def ensure_context_conversation(
 
 @transaction.atomic
 def transition_conversation(*, actor, conversation: Conversation, lifecycle: str) -> Conversation:
-    locked = Conversation.objects.select_for_update().select_related("context").get(pk=conversation.pk)
+    locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if not can_manage_conversation(actor, locked):
         raise PermissionDenied("Vous ne pouvez pas changer l’état de cette Conversation.")
     if locked.lifecycle == lifecycle:
@@ -424,7 +423,7 @@ def transition_conversation(*, actor, conversation: Conversation, lifecycle: str
 
 @transaction.atomic
 def set_conversation_policy(*, actor, conversation: Conversation, preset: str) -> ConversationPolicy:
-    locked = Conversation.objects.select_for_update().select_related("context").get(pk=conversation.pk)
+    locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if not can_manage_conversation(actor, locked):
         raise PermissionDenied("Vous ne pouvez pas modifier la politique de cette Conversation.")
     if preset not in POLICY_PRESETS:
@@ -443,7 +442,7 @@ def set_conversation_policy(*, actor, conversation: Conversation, preset: str) -
 def activate_participation(
     *, actor, conversation: Conversation, profile, source=ConversationParticipationSource.MANUAL, represented_space=None
 ) -> ConversationParticipation:
-    locked = Conversation.objects.select_for_update().select_related("context").get(pk=conversation.pk)
+    locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if actor.pk != profile.pk and not can_manage_conversation(actor, locked):
         raise PermissionDenied("Vous ne pouvez pas ajouter cette personne à la Conversation.")
     participation, _ = ConversationParticipation.objects.select_for_update().get_or_create(
@@ -482,7 +481,7 @@ def leave_conversation(*, actor, conversation: Conversation) -> ConversationPart
 
 @transaction.atomic
 def remove_participation(*, actor, participation: ConversationParticipation) -> ConversationParticipation:
-    locked = ConversationParticipation.objects.select_for_update().select_related("conversation__context").get(pk=participation.pk)
+    locked = ConversationParticipation.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=participation.pk)
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas retirer cette participation.")
     if locked.status == ConversationParticipationStatus.REMOVED:
@@ -495,7 +494,7 @@ def remove_participation(*, actor, participation: ConversationParticipation) -> 
 
 @transaction.atomic
 def create_conversation_invitation(*, actor, conversation: Conversation, invitee, represented_space=None, expires_at=None, client_reference=None):
-    locked = Conversation.objects.select_for_update().select_related("context").get(pk=conversation.pk)
+    locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if not can_manage_conversation(actor, locked):
         raise PermissionDenied("Vous ne pouvez pas inviter dans cette Conversation.")
     normalized_reference = (client_reference or "").strip() or None
@@ -522,7 +521,7 @@ def create_conversation_invitation(*, actor, conversation: Conversation, invitee
 
 @transaction.atomic
 def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitation, accept: bool):
-    locked = ConversationInvitation.objects.select_for_update().select_related("conversation__context").get(pk=invitation.pk)
+    locked = ConversationInvitation.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=invitation.pk)
     if locked.invitee_id != getattr(actor, "pk", None):
         raise PermissionDenied("Seule la personne invitée peut répondre.")
     if locked.status != ConversationInvitationStatus.PENDING:
@@ -549,7 +548,7 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
 
 @transaction.atomic
 def create_join_request(*, actor, conversation: Conversation, represented_space=None, client_reference=None):
-    locked = Conversation.objects.select_for_update().select_related("context").get(pk=conversation.pk)
+    locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if locked.entry_mode != ConversationEntryMode.REQUEST:
         raise ValidationError("Cette Conversation n’accepte pas de demandes d’entrée.")
     if not context_base_eligible(actor, locked.context):
@@ -577,7 +576,7 @@ def create_join_request(*, actor, conversation: Conversation, represented_space=
 
 @transaction.atomic
 def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, approve: bool):
-    locked = ConversationJoinRequest.objects.select_for_update().select_related("conversation__context").get(pk=join_request.pk)
+    locked = ConversationJoinRequest.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=join_request.pk)
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas traiter cette demande d’entrée.")
     if locked.status != ConversationJoinRequestStatus.PENDING:
@@ -598,7 +597,7 @@ def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, app
 
 @transaction.atomic
 def join_conversation(*, actor, conversation: Conversation):
-    locked = Conversation.objects.select_for_update().select_related("context").get(pk=conversation.pk)
+    locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if locked.entry_mode != ConversationEntryMode.JOIN:
         raise ValidationError("Cette Conversation ne permet pas l’adhésion directe.")
     if not context_base_eligible(actor, locked.context):
