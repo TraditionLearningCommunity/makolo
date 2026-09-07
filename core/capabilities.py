@@ -1,10 +1,6 @@
-from django.db.models import Q
-from django.utils import timezone
-
 from authorization.constants import PermissionCode
 from authorization.services import effective_permission_codes
 from organizations.models import TeamMembership, TeamMembershipStatus
-from scanner.models import ScannerAssignment
 
 
 ORGANIZER_CAPABILITY_KEYS = (
@@ -64,18 +60,13 @@ def _empty_capabilities(*, is_staff=False, has_organization=False):
     return capabilities
 
 
-def _has_current_scanner_assignment(user) -> bool:
-    now = timezone.now()
-    return ScannerAssignment.objects.filter(agent=user, is_active=True).filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now)).filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now)).exists()
-
-
 def get_web_capabilities(user) -> dict[str, bool]:
     if not getattr(user, "is_authenticated", False):
         return _empty_capabilities()
     effective = effective_permission_codes(user)
     has_team = TeamMembership.objects.filter(user=user, status=TeamMembershipStatus.ACTIVE, team__is_active=True).exists()
     can_manage_access = PermissionCode.ACCESS_MANAGE in effective
-    can_use_access = can_manage_access or _has_current_scanner_assignment(user)
+    can_use_access = can_manage_access or PermissionCode.ACTIVITY_ACCESS_SCAN in effective
     can_catalog_manage = PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE in effective
     can_subscription_manage = PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE in effective
     capabilities = {
