@@ -38,7 +38,6 @@ class TicketSecurityApiTests(APITestCase):
             username="private-organizer",
             email="private-organizer@example.com",
             password="Strong-private-ticket-password-2026!",
-            is_organizer=True,
         )
         self.participant = User.objects.create_user(
             username="private-participant",
@@ -84,7 +83,6 @@ class ConfirmedOrderCancellationTests(TestCase):
             username="cancel-organizer",
             email="cancel-organizer@example.com",
             password="Strong-cancel-ticket-password-2026!",
-            is_organizer=True,
         )
         self.buyer = User.objects.create_user(
             username="cancel-buyer",
