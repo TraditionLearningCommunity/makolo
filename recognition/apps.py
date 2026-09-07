@@ -8,3 +8,4 @@ class RecognitionConfig(AppConfig):
 
     def ready(self):
         from . import domain_event_consumer  # noqa: F401
+        from . import immutability  # noqa: F401
