@@ -13,12 +13,16 @@ class SignalContract:
 
 
 NUMBER = "number"
+COUNT = "count"
+MONEY = "money"
+RATIO = "ratio"
 STRING = "string"
 BOOLEAN = "boolean"
 IDENTIFIER = "identifier"
+NUMERIC_TYPES = frozenset({NUMBER, COUNT, MONEY, RATIO})
 
 COMMON_FIELDS = {
-    "count": NUMBER,
+    "count": COUNT,
     "space_id": IDENTIFIER,
     "activity_id": IDENTIFIER,
 }
@@ -37,7 +41,7 @@ SIGNAL_CONTRACTS: dict[str, SignalContract] = {
         "journey_id": IDENTIFIER,
         "occurrence_id": IDENTIFIER,
         "payment_mode": STRING,
-        "amount": NUMBER,
+        "amount": MONEY,
         "currency": STRING,
         "status": STRING,
     }),
@@ -47,7 +51,7 @@ SIGNAL_CONTRACTS: dict[str, SignalContract] = {
         "journey_id": IDENTIFIER,
         "occurrence_id": IDENTIFIER,
         "payment_mode": STRING,
-        "amount": NUMBER,
+        "amount": MONEY,
         "currency": STRING,
         "status": STRING,
     }),
@@ -69,7 +73,7 @@ SIGNAL_CONTRACTS: dict[str, SignalContract] = {
     DomainEventType.OPPORTUNITY_REVISION_PUBLISHED: _contract({
         "opportunity_id": IDENTIFIER,
         "revision_id": IDENTIFIER,
-        "version": NUMBER,
+        "version": COUNT,
     }),
     DomainEventType.JOURNEY_STARTED_FROM_SHARE: _contract({
         "share_id": IDENTIFIER,
@@ -125,7 +129,7 @@ def _number(value: Any):
 def _safe_value(kind: str, value: Any):
     if value is None:
         return None
-    if kind == NUMBER:
+    if kind in NUMERIC_TYPES:
         return _number(value)
     if kind == BOOLEAN:
         return value if type(value) is bool else None
@@ -157,13 +161,7 @@ def sanitize_event_values(event) -> dict[str, Any]:
 
 
 def resolve_recognition_object(event, values: dict[str, Any]) -> tuple[str, str]:
-    """Resolve the object whose Makolo network utility receives the finite pool.
-
-    The Domain Event source is evidence, not necessarily the Recognition object.
-    Payments, refunds, access uses, checkpoints and queue passages should roll up
-    to the Occurrence/Journey/Activity they make actionable when that context is
-    explicitly present.
-    """
+    """Resolve the action object whose Makolo network utility receives the finite pool."""
     kind = event.event_type
     if kind in {
         DomainEventType.PAYMENT_SUCCEEDED,
@@ -179,12 +177,10 @@ def resolve_recognition_object(event, values: dict[str, Any]) -> tuple[str, str]
         ):
             if values.get(field):
                 return object_type, str(values[field])
-    if kind == DomainEventType.JOURNEY_FULFILLED:
-        if values.get("journey_id"):
-            return "journey", str(values["journey_id"])
-    if kind == DomainEventType.OPPORTUNITY_REVISION_PUBLISHED:
-        if values.get("opportunity_id"):
-            return "opportunity", str(values["opportunity_id"])
+    if kind == DomainEventType.JOURNEY_FULFILLED and values.get("journey_id"):
+        return "journey", str(values["journey_id"])
+    if kind == DomainEventType.OPPORTUNITY_REVISION_PUBLISHED and values.get("opportunity_id"):
+        return "opportunity", str(values["opportunity_id"])
     if kind == DomainEventType.JOURNEY_STARTED_FROM_SHARE:
         subject_type = str(values.get("subject_type") or "").strip()
         subject_id = values.get("subject_id")
@@ -196,4 +192,4 @@ def resolve_recognition_object(event, values: dict[str, Any]) -> tuple[str, str]
 
 
 def uses_money_field(signal_kind: str, field_names: set[str]) -> bool:
-    return signal_kind in {DomainEventType.PAYMENT_SUCCEEDED, DomainEventType.PAYMENT_REFUNDED} and "amount" in field_names
+    return any(field_type(signal_kind, name) == MONEY for name in field_names)
