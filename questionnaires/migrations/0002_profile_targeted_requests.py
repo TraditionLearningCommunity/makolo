@@ -10,6 +10,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterModelOptions(
+            name="formrequest",
+            options={"ordering": ["created_at", "id"]},
+        ),
         migrations.AlterField(
             model_name="formrequest",
             name="journey",
