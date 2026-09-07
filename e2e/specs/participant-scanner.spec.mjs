@@ -32,7 +32,7 @@ async function completeSandboxPayment(page) {
 
 test('participant experience works for a canonical non-Event registration', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
-  await expect(page.getByRole('heading', { name: /Que dois-je faire maintenant/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Qu’est-ce qui compte maintenant/i })).toBeVisible();
   await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
 
   await page.goto('/me/journeys/');
