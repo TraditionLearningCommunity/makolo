@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 
-from .signal_contracts import NUMBER, allowed_fields, field_type, uses_money_field
+from .signal_contracts import COUNT, MONEY, NUMBER, NUMERIC_TYPES, RATIO, allowed_fields, field_type, uses_money_field
 
 
 ALLOWED_OPS = {
@@ -21,6 +21,7 @@ ALLOWED_CURVES = {"LINEAR", "LOG", "SQRT", "POWER", "PIECEWISE"}
 ALLOWED_MODULATORS = {"confidence", "scarcity", "reliability", "maturity", "anti_abuse", "temporal_factor"}
 ALLOWED_ATTRIBUTION_STRATEGIES = {"signal_contributors", "profile_only", "space_only", "unattributed"}
 ALLOWED_COMBINATIONS = {"additive", "exclusive", "max"}
+STATEFUL_AGGREGATIONS = {"LATEST_STATE", "MAX", "MIN"}
 
 
 def decimal_value(value):
@@ -50,28 +51,77 @@ def _collect_expression_fields(expression, result):
             _collect_expression_fields(child, result)
 
 
-def _walk(expression, *, signal_kind):
-    if expression in ({}, None, []):
-        return
-    if not isinstance(expression, dict):
+def _declared_numeric_type(expression, default=NUMBER):
+    kind = str((expression or {}).get("type") or default)
+    if kind not in NUMERIC_TYPES:
+        raise ValidationError({"measure": f"Type numérique Recognition inconnu: {kind!r}."})
+    return kind
+
+
+def _require_same(types, op):
+    unique = set(types)
+    if len(unique) != 1:
+        raise ValidationError({"measure": f"{op} exige des grandeurs de même type, reçu: {', '.join(sorted(unique))}."})
+    return types[0]
+
+
+def _expression_type(expression, *, signal_kind):
+    if not isinstance(expression, dict) or not expression:
         raise ValidationError("Une expression Recognition doit être déclarative.")
     op = expression.get("op")
     if op not in ALLOWED_OPS:
         raise ValidationError(f"Opération Recognition non autorisée: {op!r}.")
+    if op == "const":
+        return _declared_numeric_type(expression)
+    if op == "param":
+        return _declared_numeric_type(expression)
     if op == "field":
         name = str(expression.get("name") or "")
         if name not in allowed_fields(signal_kind):
             raise ValidationError({"measure": f"Le champ {name!r} n'est pas exposé par le contrat Signal {signal_kind}."})
-        if field_type(signal_kind, name) != NUMBER:
+        kind = field_type(signal_kind, name)
+        if kind not in NUMERIC_TYPES:
             raise ValidationError({"measure": f"Le champ {name!r} n'est pas numérique et ne peut pas entrer dans une formule."})
-    for child in expression.get("args", []):
-        _walk(child, signal_kind=signal_kind)
-    for key in ("then", "else"):
-        child = expression.get(key)
-        if isinstance(child, dict):
-            _walk(child, signal_kind=signal_kind)
+        return kind
     if op == "if":
         _validate_condition(expression.get("condition", {}), signal_kind=signal_kind)
+        then_type = _expression_type(expression.get("then"), signal_kind=signal_kind)
+        else_type = _expression_type(expression.get("else"), signal_kind=signal_kind)
+        return _require_same((then_type, else_type), "if")
+
+    args = expression.get("args", [])
+    if not isinstance(args, list) or not args:
+        raise ValidationError({"measure": f"L'opération {op} exige des arguments."})
+    types = [_expression_type(child, signal_kind=signal_kind) for child in args]
+    if op in {"add", "sub", "min", "max", "clamp"}:
+        return _require_same(types, op)
+    if op == "abs":
+        return types[0]
+    if op == "mul":
+        dimensional = [kind for kind in types if kind not in {NUMBER, RATIO}]
+        if len(dimensional) > 1:
+            raise ValidationError({"measure": "Une multiplication ne peut combiner deux grandeurs dimensionnées (ex. MONEY × COUNT)."})
+        return dimensional[0] if dimensional else NUMBER
+    if op == "div":
+        if len(types) != 2:
+            raise ValidationError({"measure": "div exige exactement deux arguments."})
+        left, right = types
+        if right in {NUMBER, RATIO}:
+            return left
+        if left == right:
+            return NUMBER
+        raise ValidationError({"measure": f"Division incompatible: {left} / {right}."})
+    if op in {"sqrt", "log1p", "pow"}:
+        if any(kind not in {NUMBER, COUNT, RATIO} for kind in types):
+            raise ValidationError({"measure": f"{op} n'accepte pas de grandeur monétaire/dimensionnée."})
+        return NUMBER
+    if op in {"delta", "positive_delta"}:
+        return _require_same(types, op)
+    if op in {"relative_delta", "ratio", "percentage"}:
+        if len(types) != 2 or types[0] != types[1]:
+            raise ValidationError({"measure": f"{op} exige deux grandeurs de même type."})
+        return RATIO
+    raise ValidationError(f"Opération Recognition non supportée: {op!r}.")
 
 
 def _validate_condition(condition, *, signal_kind):
@@ -96,6 +146,8 @@ def _validate_condition(condition, *, signal_kind):
     operator = condition.get("op", "eq")
     if operator not in {"eq", "ne", "gt", "gte", "lt", "lte", "in", "not_in", "is_null", "not_null"}:
         raise ValidationError(f"Condition Recognition non supportée: {operator!r}.")
+    if operator in {"gt", "gte", "lt", "lte"} and field_type(signal_kind, name) not in NUMERIC_TYPES:
+        raise ValidationError({"conditions": f"La comparaison {operator} exige un champ numérique."})
 
 
 def _condition_has_currency_pin(condition):
@@ -112,11 +164,15 @@ def validate_rule_definition(rule):
         raise ValidationError({"signal_kind": "Le Signal est obligatoire."})
     if not allowed_fields(signal_kind):
         raise ValidationError({"signal_kind": "Ce Signal n'est pas exposé au moteur Recognition."})
+    if getattr(rule, "channel", "") == "utility":
+        raise ValidationError({"channel": "utility est réservé au pool interne de l'objet et ne peut pas être configuré par une Rule."})
     _validate_condition(rule.scope or {}, signal_kind=signal_kind)
     _validate_condition(rule.conditions or {}, signal_kind=signal_kind)
-    _walk(rule.measure, signal_kind=signal_kind)
+    _expression_type(rule.measure, signal_kind=signal_kind)
     if rule.aggregation not in ALLOWED_AGGREGATIONS:
         raise ValidationError({"aggregation": "Agrégation Recognition non autorisée."})
+    if getattr(rule, "temporal_profile", "") in {"stock", "transition"} and rule.aggregation not in STATEFUL_AGGREGATIONS:
+        raise ValidationError({"aggregation": "STOCK/TRANSITION attend une valeur d'état (LATEST_STATE, MAX ou MIN), pas un cumul d'outcomes."})
     curve_kind = (rule.curve or {}).get("kind", "LINEAR")
     normalization_kind = (rule.normalization or {}).get("kind", "LINEAR")
     if curve_kind not in ALLOWED_CURVES:
@@ -148,7 +204,7 @@ def validate_rule_definition(rule):
     _collect_expression_fields(rule.measure, fields)
     if uses_money_field(signal_kind, fields):
         if not (_condition_has_currency_pin(rule.scope or {}) or _condition_has_currency_pin(rule.conditions or {})):
-            raise ValidationError({"conditions": "Une formule utilisant amount doit fixer explicitement currency ; aucun FX implicite n'est autorisé."})
+            raise ValidationError({"conditions": "Une formule monétaire doit fixer explicitement currency ; aucun FX implicite n'est autorisé."})
 
 
 def evaluate_condition(condition, values):
