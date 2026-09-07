@@ -11,12 +11,44 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 from journeys.models import JourneyStatus
 
-from .models import Dispute, Feedback, Proof, Report, VerificationClaim, VerificationDisclosure, VerificationStatus
+from .models import (
+    Dispute,
+    Feedback,
+    Proof,
+    Report,
+    VerificationClaim,
+    VerificationClaimType,
+    VerificationDisclosure,
+    VerificationStatus,
+)
 from .services import can_view_space_trust
 
 
 PUBLIC_FEEDBACK_BREAKDOWN_MIN_SAMPLE = 3
 DEFAULT_RELIABILITY_PERIOD_DAYS = 365
+
+
+def _active_verification_filter(at):
+    return (
+        Q(valid_from__isnull=True) | Q(valid_from__lte=at)
+    ) & (
+        Q(valid_until__isnull=True) | Q(valid_until__gt=at)
+    )
+
+
+def active_profile_verifications(profile, *, at=None):
+    """Return current Trust verification claims for the global Profile."""
+    at = at or timezone.now()
+    return VerificationClaim.objects.filter(
+        subject_profile=profile,
+        status=VerificationStatus.VERIFIED,
+    ).filter(_active_verification_filter(at)).order_by("claim_type", "-reviewed_at")
+
+
+def profile_identity_is_verified(profile, *, at=None) -> bool:
+    return active_profile_verifications(profile, at=at).filter(
+        claim_type=VerificationClaimType.PROFILE_IDENTITY,
+    ).exists()
 
 
 def active_public_verifications_for_space(space, *, at=None):
@@ -25,9 +57,7 @@ def active_public_verifications_for_space(space, *, at=None):
         subject_space=space,
         status=VerificationStatus.VERIFIED,
         disclosure=VerificationDisclosure.PUBLIC_RESULT,
-    ).filter(Q(valid_from__isnull=True) | Q(valid_from__lte=at)).filter(
-        Q(valid_until__isnull=True) | Q(valid_until__gt=at)
-    ).order_by("claim_type", "-reviewed_at")
+    ).filter(_active_verification_filter(at)).order_by("claim_type", "-reviewed_at")
 
 
 def _period(period_days, at=None):
@@ -55,10 +85,28 @@ def get_operational_reliability_summary(space, *, period_days=DEFAULT_RELIABILIT
 
     metrics = []
     if occurrence_denominator:
-        metrics.append({"key": "occurrence_completion", "numerator": occurrence_counts.get(OccurrenceStatus.COMPLETED, 0), "denominator": occurrence_denominator, "period_days": period_days, "source": "Occurrence.status"})
-        metrics.append({"key": "occurrence_cancellation", "numerator": occurrence_counts.get(OccurrenceStatus.CANCELLED, 0), "denominator": occurrence_denominator, "period_days": period_days, "source": "Occurrence.status"})
+        metrics.append({
+            "key": "occurrence_completion",
+            "numerator": occurrence_counts.get(OccurrenceStatus.COMPLETED, 0),
+            "denominator": occurrence_denominator,
+            "period_days": period_days,
+            "source": "Occurrence.status",
+        })
+        metrics.append({
+            "key": "occurrence_cancellation",
+            "numerator": occurrence_counts.get(OccurrenceStatus.CANCELLED, 0),
+            "denominator": occurrence_denominator,
+            "period_days": period_days,
+            "source": "Occurrence.status",
+        })
     if journey_denominator:
-        metrics.append({"key": "journey_fulfillment", "numerator": journey_counts.get(JourneyStatus.FULFILLED, 0), "denominator": journey_denominator, "period_days": period_days, "source": "Journey.status"})
+        metrics.append({
+            "key": "journey_fulfillment",
+            "numerator": journey_counts.get(JourneyStatus.FULFILLED, 0),
+            "denominator": journey_denominator,
+            "period_days": period_days,
+            "source": "Journey.status",
+        })
     return {"period_days": period_days, "metrics": metrics}
 
 
@@ -83,7 +131,11 @@ def _feedback_summary(space, *, period_days, at=None):
         "minimum_sample": PUBLIC_FEEDBACK_BREAKDOWN_MIN_SAMPLE,
     }
     if result["breakdown_available"]:
-        result["sentiment"] = {"positive": aggregate["positive"], "neutral": aggregate["neutral"], "negative": aggregate["negative"]}
+        result["sentiment"] = {
+            "positive": aggregate["positive"],
+            "neutral": aggregate["neutral"],
+            "negative": aggregate["negative"],
+        }
     return result
 
 
