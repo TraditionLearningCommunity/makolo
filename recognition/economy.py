@@ -90,7 +90,6 @@ def fulfill_redemption(redemption, *, actor_profile=None):
         raise ValidationError("Le bénéficiaire doit accepter cette Reward avant réalisation.")
     if redemption.reward.kind == RewardKind.ENTITLEMENT:
         return _fulfill_entitlement(redemption, actor_profile=actor_profile)
-    # Other kinds stay REQUESTED for their canonical owning domain/workflow.
     return redemption
 
 
@@ -157,7 +156,11 @@ def redeem_reward(*, owner_account, reward, idempotency_key, actor_profile=None,
 
 @transaction.atomic
 def accept_redemption(*, redemption, beneficiary_profile=None, actor_profile=None):
-    redemption = RecognitionRedemption.objects.select_for_update().select_related("reward", "beneficiary_profile", "beneficiary_space").get(pk=redemption.pk)
+    redemption = (
+        RecognitionRedemption.objects.select_for_update(of=("self",))
+        .select_related("reward", "beneficiary_profile", "beneficiary_space")
+        .get(pk=redemption.pk)
+    )
     snapshot = dict(redemption.fulfillment_snapshot or {})
     if snapshot.get("consent_state") != "pending":
         return redemption
@@ -175,7 +178,11 @@ def accept_redemption(*, redemption, beneficiary_profile=None, actor_profile=Non
 
 @transaction.atomic
 def decline_redemption(*, redemption, beneficiary_profile=None, actor_profile=None):
-    redemption = RecognitionRedemption.objects.select_for_update().select_related("reward", "owner_account", "beneficiary_profile").get(pk=redemption.pk)
+    redemption = (
+        RecognitionRedemption.objects.select_for_update(of=("self",))
+        .select_related("reward", "owner_account", "beneficiary_profile")
+        .get(pk=redemption.pk)
+    )
     snapshot = dict(redemption.fulfillment_snapshot or {})
     if snapshot.get("consent_state") != "pending":
         raise ValidationError("Cette Reward n'attend pas de décision du bénéficiaire.")
