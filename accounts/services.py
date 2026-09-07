@@ -16,14 +16,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
-from accounts.models import (
-    NotificationPreference,
-    UserActivity,
-    UserDevice,
-    UserProfile,
-    UserSession,
-    VerificationDocument,
-)
+from accounts.models import NotificationPreference, UserDevice, UserProfile, UserSession
 
 
 logger = logging.getLogger("makolo")
@@ -41,7 +34,6 @@ def blacklist_user_refresh_tokens(user) -> int:
 
 
 def request_password_reset(*, email: str) -> None:
-    """Send a secure reset link without exposing account existence."""
     normalized_email = (email or "").strip().lower()
     user = User.objects.filter(email__iexact=normalized_email, is_active=True).first()
     if not user:
@@ -49,10 +41,7 @@ def request_password_reset(*, email: str) -> None:
 
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
-    reset_path = reverse(
-        "account:password-reset-confirm",
-        kwargs={"uid": uid, "token": token},
-    )
+    reset_path = reverse("account:password-reset-confirm", kwargs={"uid": uid, "token": token})
     reset_url = f"{settings.MAKOLO_PUBLIC_BASE_URL}{reset_path}"
     body = (
         "Une demande de réinitialisation du mot de passe Makolo a été reçue.\n\n"
@@ -146,10 +135,7 @@ def get_account_deletion_blockers(user):
             blockers.append(mandate.space)
 
     blockers.extend(
-        Group.objects.filter(
-            owner_profile=user,
-            status=GroupStatus.ACTIVE,
-        ).order_by("name")
+        Group.objects.filter(owner_profile=user, status=GroupStatus.ACTIVE).order_by("name")
     )
     return blockers
 
@@ -171,7 +157,7 @@ def _schedule_file_deletions(names):
 
 @transaction.atomic
 def delete_account(*, user, current_password: str):
-    """Deactivate/anonymize an account while preserving commercial audit history."""
+    """Deactivate/anonymize an account while preserving canonical audit history."""
     from authorization.models import Mandate, MandateStatus
     from crm.models import CRMContact, MarketingConsent
     from notifications.models import Notification
@@ -209,9 +195,7 @@ def delete_account(*, user, current_password: str):
     suffix = locked.pk.hex
     anonymized_email = f"deleted+{suffix}@deleted.invalid"
     anonymized_username = f"deleted-{suffix}"
-    file_names = []
-    if locked.avatar:
-        file_names.append(locked.avatar.name)
+    file_names = [locked.avatar.name] if locked.avatar else []
 
     order_ids = list(TicketOrder.objects.filter(buyer=locked).values_list("pk", flat=True))
     TicketOrder.objects.filter(pk__in=order_ids).update(
@@ -270,14 +254,8 @@ def delete_account(*, user, current_password: str):
     Partner.objects.filter(created_by=locked).update(created_by=None)
     Notification.objects.filter(recipient=locked).delete()
     NotificationPreference.objects.filter(user=locked).delete()
-
     UserDevice.objects.filter(user=locked).delete()
     UserSession.objects.filter(user=locked).update(active=False, ended_at=now)
-    UserActivity.objects.filter(user=locked).update(ip_address=None, user_agent="", metadata={})
-    for document in VerificationDocument.objects.filter(user=locked):
-        if document.file:
-            file_names.append(document.file.name)
-    VerificationDocument.objects.filter(user=locked).delete()
 
     UserProfile.objects.filter(user=locked).update(
         company_name=None,
@@ -290,13 +268,8 @@ def delete_account(*, user, current_password: str):
         longitude=None,
         public_profile=False,
         searchable=False,
-        profile_completed=False,
     )
 
-    # Historical global RBAC is kept only as a compatibility surface until its
-    # API contract can be retired; deletion still removes every old assignment.
-    locked.roles.clear()
-    locked.permission_groups.clear()
     blacklist_user_refresh_tokens(locked)
     locked.set_unusable_password()
     locked.email = anonymized_email
@@ -317,13 +290,9 @@ def delete_account(*, user, current_password: str):
     locked.youtube_url = None
     locked.metadata = {}
     locked.preferences = {}
-    locked.settings_data = {}
-    locked.analytics_data = {}
     locked.is_active = False
     locked.is_staff = False
     locked.is_superuser = False
-    locked.is_organizer = False
-    locked.is_scanner_agent = False
     locked.require_2fa = False
     locked.failed_login_attempts = 0
     locked.account_locked_until = None
