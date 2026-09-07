@@ -7,6 +7,8 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.services import can
+from domain_events.contracts import DomainEventType
+from domain_events.services import emit_domain_event
 from notifications.models import NotificationCategory, NotificationKind
 from notifications.services import create_notification
 
@@ -23,12 +25,83 @@ from .models import (
 from .profile_search import profile_is_eligible_for_need, space_is_eligible_for_need
 
 
+_NEED_EVENT_TYPES = {
+    ActionNeedStatus.OPEN: DomainEventType.ACTION_NEED_OPENED,
+    ActionNeedStatus.PAUSED: DomainEventType.ACTION_NEED_PAUSED,
+    ActionNeedStatus.FILLED: DomainEventType.ACTION_NEED_FILLED,
+    ActionNeedStatus.CANCELLED: DomainEventType.ACTION_NEED_CANCELLED,
+    ActionNeedStatus.EXPIRED: DomainEventType.ACTION_NEED_EXPIRED,
+}
+
+_PROPOSAL_EVENT_TYPES = {
+    ActionProposalStatus.ACCEPTED: DomainEventType.ACTION_PROPOSAL_ACCEPTED,
+    ActionProposalStatus.DECLINED: DomainEventType.ACTION_PROPOSAL_DECLINED,
+    ActionProposalStatus.CANCELLED: DomainEventType.ACTION_PROPOSAL_CANCELLED,
+    ActionProposalStatus.EXPIRED: DomainEventType.ACTION_PROPOSAL_EXPIRED,
+}
+
+
 def _authenticated(actor) -> bool:
     return bool(actor and getattr(actor, "is_authenticated", False))
 
 
+def _can_manage_activity_action_network(actor, activity) -> bool:
+    if can(actor, PermissionCode.ACTIVITY_ACTION_NETWORK_MANAGE, activity=activity):
+        return True
+    return bool(
+        getattr(activity, "space_id", None)
+        and can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=activity.space)
+    )
+
+
+def _emit_need_event(*, need: ActionNeed, event_type: str, suffix: str):
+    emit_domain_event(
+        event_type=event_type,
+        source_type="action_need",
+        source_id=need.pk,
+        idempotency_key=f"action-need:{need.pk}:{suffix}",
+        space_id=need.space_id,
+        activity_id=need.activity_id,
+        payload={
+            "need_id": str(need.pk),
+            "owner_profile_id": str(need.owner_profile_id) if need.owner_profile_id else None,
+            "space_id": str(need.space_id) if need.space_id else None,
+            "activity_id": str(need.activity_id) if need.activity_id else None,
+            "occurrence_id": str(need.occurrence_id) if need.occurrence_id else None,
+            "opportunity_id": str(need.opportunity_id) if need.opportunity_id else None,
+            "match_kind": need.match_kind,
+            "candidate_kind": need.candidate_kind,
+            "visibility": need.visibility,
+            "intake_policy": need.intake_policy,
+            "status": need.status,
+        },
+    )
+
+
+def _emit_proposal_event(*, proposal: ActionProposal, event_type: str, suffix: str):
+    need = proposal.need
+    emit_domain_event(
+        event_type=event_type,
+        source_type="action_proposal",
+        source_id=proposal.pk,
+        idempotency_key=f"action-proposal:{proposal.pk}:{suffix}",
+        space_id=need.space_id,
+        activity_id=need.activity_id,
+        payload={
+            "proposal_id": str(proposal.pk),
+            "need_id": str(proposal.need_id),
+            "candidate_profile_id": str(proposal.candidate_profile_id) if proposal.candidate_profile_id else None,
+            "candidate_space_id": str(proposal.candidate_space_id) if proposal.candidate_space_id else None,
+            "activity_id": str(need.activity_id) if need.activity_id else None,
+            "occurrence_id": str(need.occurrence_id) if need.occurrence_id else None,
+            "direction": proposal.direction,
+            "status": proposal.status,
+        },
+    )
+
+
 def can_manage_action_need(actor, need: ActionNeed) -> bool:
-    """Resolve authority from personal ownership or canonical Mandates."""
+    """Resolve Action Network authority from ownership or fine-grained Mandates."""
 
     if not _authenticated(actor):
         return False
@@ -43,10 +116,11 @@ def can_manage_action_need(actor, need: ActionNeed) -> bool:
     if not need.space_id:
         return False
     if need.activity_id:
-        return need.activity.space_id == need.space_id and can(
-            actor, PermissionCode.ACTIVITY_MANAGE, activity=need.activity
+        return need.activity.space_id == need.space_id and (
+            _can_manage_activity_action_network(actor, need.activity)
+            or can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=need.space)
         )
-    return can(actor, PermissionCode.SPACE_MANAGE, space=need.space)
+    return can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=need.space)
 
 
 def _require_need_authority(*, actor, owner_profile=None, space=None, activity=None, occurrence=None) -> None:
@@ -66,11 +140,14 @@ def _require_need_authority(*, actor, owner_profile=None, space=None, activity=N
     if activity is not None:
         if activity.space_id != space.pk:
             raise ValidationError({"activity": "L'Activity doit appartenir au Space du besoin."})
-        if not can(actor, PermissionCode.ACTIVITY_MANAGE, activity=activity):
-            raise PermissionDenied("Cette Activity exige l'autorité ACTIVITY_MANAGE.")
+        if not (
+            _can_manage_activity_action_network(actor, activity)
+            or can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=space)
+        ):
+            raise PermissionDenied("Cette Activity exige l'autorité de gestion du réseau d'action.")
         return
-    if not can(actor, PermissionCode.SPACE_MANAGE, space=space):
-        raise PermissionDenied("Ce besoin Space exige l'autorité SPACE_MANAGE.")
+    if not can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=space):
+        raise PermissionDenied("Ce besoin Space exige l'autorité de gestion du réseau d'action.")
 
 
 def _need_accepts_new_proposals(need: ActionNeed) -> None:
@@ -125,8 +202,8 @@ def _require_candidate_authority(*, actor, candidate_profile=None, candidate_spa
             raise PermissionDenied("Seul le Profile candidat peut agir pour cette proposition.")
         return
     if candidate_space is not None:
-        if not can(actor, PermissionCode.SPACE_MANAGE, space=candidate_space):
-            raise PermissionDenied("Cette proposition exige l'autorité du Space candidat.")
+        if not can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=candidate_space):
+            raise PermissionDenied("Cette proposition exige l'autorité réseau du Space candidat.")
         return
     raise ValidationError("Un candidat est obligatoire.")
 
@@ -172,6 +249,11 @@ def create_action_need(
     need.save()
     if topics:
         need.topics.set(topics)
+    _emit_need_event(
+        need=need,
+        event_type=DomainEventType.ACTION_NEED_OPENED,
+        suffix="opened:create",
+    )
     return need
 
 
@@ -186,7 +268,7 @@ def transition_action_need(*, actor, need: ActionNeed, status: str) -> ActionNee
         ActionNeedStatus.EXPIRED: set(),
     }
     locked = ActionNeed.objects.select_for_update().select_related(
-        "owner_profile", "space", "activity", "occurrence"
+        "owner_profile", "space", "activity", "activity__space", "occurrence"
     ).get(pk=need.pk)
     if not can_manage_action_need(actor, locked):
         raise PermissionDenied("Vous ne pouvez pas changer l'état de ce besoin.")
@@ -194,9 +276,17 @@ def transition_action_need(*, actor, need: ActionNeed, status: str) -> ActionNee
         return locked
     if status not in allowed.get(locked.status, set()):
         raise ValidationError({"status": "Transition de besoin invalide."})
+    previous_status = locked.status
     locked.status = status
     locked._allow_status_transition = True
     locked.save(update_fields=["status", "updated_at"])
+    event_type = _NEED_EVENT_TYPES.get(status)
+    if event_type:
+        _emit_need_event(
+            need=locked,
+            event_type=event_type,
+            suffix=f"{previous_status}-to-{status}:{locked.updated_at.isoformat()}",
+        )
     return locked
 
 
@@ -206,12 +296,36 @@ def close_action_need(*, actor, need: ActionNeed) -> ActionNeed:
 
 
 @transaction.atomic
+def expire_action_need(*, need: ActionNeed, at=None) -> ActionNeed:
+    """Expire a due Need without inventing an actor for scheduled automation."""
+
+    at = at or timezone.now()
+    locked = ActionNeed.objects.select_for_update().select_related(
+        "owner_profile", "space", "activity", "occurrence"
+    ).get(pk=need.pk)
+    if locked.status not in {ActionNeedStatus.OPEN, ActionNeedStatus.PAUSED}:
+        return locked
+    if not locked.closes_at or at < locked.closes_at:
+        return locked
+    previous_status = locked.status
+    locked.status = ActionNeedStatus.EXPIRED
+    locked._allow_status_transition = True
+    locked.save(update_fields=["status", "updated_at"])
+    _emit_need_event(
+        need=locked,
+        event_type=DomainEventType.ACTION_NEED_EXPIRED,
+        suffix=f"{previous_status}-to-expired:{locked.updated_at.isoformat()}",
+    )
+    return locked
+
+
+@transaction.atomic
 def create_action_proposal(
     *, actor, need: ActionNeed, candidate_profile=None, candidate_space=None,
     direction=ActionProposalDirection.OWNER_TO_CANDIDATE, message="", client_reference=None,
 ) -> ActionProposal:
     locked_need = ActionNeed.objects.select_for_update().select_related(
-        "owner_profile", "space", "activity", "occurrence", "created_by"
+        "owner_profile", "space", "activity", "activity__space", "occurrence", "created_by"
     ).get(pk=need.pk)
     _need_accepts_new_proposals(locked_need)
     if bool(candidate_profile) == bool(candidate_space):
@@ -266,6 +380,12 @@ def create_action_proposal(
     except IntegrityError as exc:
         raise ValidationError("Une proposition active existe déjà pour ce candidat et ce besoin.") from exc
 
+    _emit_proposal_event(
+        proposal=proposal,
+        event_type=DomainEventType.ACTION_PROPOSAL_CREATED,
+        suffix="created",
+    )
+
     if direction == ActionProposalDirection.OWNER_TO_CANDIDATE and candidate_profile is not None:
         create_notification(
             recipient=candidate_profile,
@@ -295,63 +415,101 @@ def create_action_proposal(
     return proposal
 
 
+def _expire_locked_proposal(locked: ActionProposal, *, at) -> bool:
+    if locked.status != ActionProposalStatus.PENDING:
+        return False
+    if not locked.expires_at or at < locked.expires_at:
+        return False
+    locked.status = ActionProposalStatus.EXPIRED
+    locked._allow_status_transition = True
+    locked.save(update_fields=["status", "updated_at"])
+    _emit_proposal_event(
+        proposal=locked,
+        event_type=DomainEventType.ACTION_PROPOSAL_EXPIRED,
+        suffix="expired",
+    )
+    return True
+
+
 @transaction.atomic
+def expire_action_proposal(*, proposal: ActionProposal, at=None) -> ActionProposal:
+    """Expire a due Proposal without inventing an actor for scheduled automation."""
+
+    at = at or timezone.now()
+    locked = ActionProposal.objects.select_for_update().select_related(
+        "need", "need__space", "need__activity", "need__occurrence"
+    ).get(pk=proposal.pk)
+    _expire_locked_proposal(locked, at=at)
+    return locked
+
+
 def respond_to_action_proposal(*, actor, proposal: ActionProposal, status: str, response_message="") -> ActionProposal:
     if status not in {ActionProposalStatus.ACCEPTED, ActionProposalStatus.DECLINED}:
         raise ValidationError({"status": "Réponse de proposition invalide."})
-    locked = ActionProposal.objects.select_for_update().select_related(
-        "candidate_profile", "candidate_space", "initiated_by", "need", "need__space", "need__owner_profile", "need__activity", "need__occurrence"
-    ).get(pk=proposal.pk)
-    if locked.status != ActionProposalStatus.PENDING:
-        raise ValidationError("Cette proposition n'est plus en attente.")
-    if locked.expires_at and timezone.now() >= locked.expires_at:
-        locked.status = ActionProposalStatus.EXPIRED
-        locked._allow_status_transition = True
-        locked.save(update_fields=["status", "updated_at"])
-        raise ValidationError("Cette proposition a expiré.")
 
-    if locked.direction == ActionProposalDirection.OWNER_TO_CANDIDATE:
-        _require_candidate_authority(actor=actor, candidate_profile=locked.candidate_profile, candidate_space=locked.candidate_space)
-    else:
-        if not can_manage_action_need(actor, locked.need):
-            raise PermissionDenied("Seul le propriétaire autorisé du besoin peut répondre à cette proposition.")
+    expired = False
+    with transaction.atomic():
+        locked = ActionProposal.objects.select_for_update().select_related(
+            "candidate_profile", "candidate_space", "initiated_by", "need", "need__space",
+            "need__owner_profile", "need__activity", "need__activity__space", "need__occurrence"
+        ).get(pk=proposal.pk)
+        if locked.status != ActionProposalStatus.PENDING:
+            raise ValidationError("Cette proposition n'est plus en attente.")
+        if _expire_locked_proposal(locked, at=timezone.now()):
+            expired = True
+        else:
+            if locked.direction == ActionProposalDirection.OWNER_TO_CANDIDATE:
+                _require_candidate_authority(actor=actor, candidate_profile=locked.candidate_profile, candidate_space=locked.candidate_space)
+            elif not can_manage_action_need(actor, locked.need):
+                raise PermissionDenied("Seul le propriétaire autorisé du besoin peut répondre à cette proposition.")
 
-    locked.status = status
-    locked.response_message = (response_message or "").strip()
-    locked.responded_by = actor
-    locked.responded_at = timezone.now()
-    locked._allow_status_transition = True
-    locked.save(update_fields=["status", "response_message", "responded_by", "responded_at", "updated_at"])
+            locked.status = status
+            locked.response_message = (response_message or "").strip()
+            locked.responded_by = actor
+            locked.responded_at = timezone.now()
+            locked._allow_status_transition = True
+            locked.save(update_fields=["status", "response_message", "responded_by", "responded_at", "updated_at"])
 
-    if status == ActionProposalStatus.ACCEPTED:
-        try:
-            from activities.involvement_services import realize_activity_proposal
-        except ImportError:
-            realize_activity_proposal = None
-        if realize_activity_proposal is not None:
-            realize_activity_proposal(actor=actor, proposal=locked)
+            if status == ActionProposalStatus.ACCEPTED:
+                try:
+                    from activities.involvement_services import realize_activity_proposal
+                except ImportError:
+                    realize_activity_proposal = None
+                if realize_activity_proposal is not None:
+                    realize_activity_proposal(actor=actor, proposal=locked)
 
-    recipient = locked.initiated_by
-    if recipient_id := getattr(recipient, "pk", None):
-        if recipient_id != getattr(actor, "pk", None):
-            verb = "acceptée" if status == ActionProposalStatus.ACCEPTED else "refusée"
-            create_notification(
-                recipient=recipient,
-                kind=NotificationKind.SYSTEM,
-                category=NotificationCategory.SYSTEM,
-                title="Réponse à une proposition Makolo",
-                message=f"La proposition « {locked.need.title} » a été {verb}.",
-                action_url=reverse("social:need-detail", kwargs={"pk": locked.need_id}),
-                dedup_key=f"action-proposal-response:{locked.pk}:{status}",
-                metadata={"proposal_id": str(locked.pk), "need_id": str(locked.need_id), "status": status},
-                queue_email=False,
+            _emit_proposal_event(
+                proposal=locked,
+                event_type=_PROPOSAL_EVENT_TYPES[status],
+                suffix=status,
             )
+
+            recipient = locked.initiated_by
+            if recipient_id := getattr(recipient, "pk", None):
+                if recipient_id != getattr(actor, "pk", None):
+                    verb = "acceptée" if status == ActionProposalStatus.ACCEPTED else "refusée"
+                    create_notification(
+                        recipient=recipient,
+                        kind=NotificationKind.SYSTEM,
+                        category=NotificationCategory.SYSTEM,
+                        title="Réponse à une proposition Makolo",
+                        message=f"La proposition « {locked.need.title} » a été {verb}.",
+                        action_url=reverse("social:need-detail", kwargs={"pk": locked.need_id}),
+                        dedup_key=f"action-proposal-response:{locked.pk}:{status}",
+                        metadata={"proposal_id": str(locked.pk), "need_id": str(locked.need_id), "status": status},
+                        queue_email=False,
+                    )
+
+    if expired:
+        raise ValidationError("Cette proposition a expiré.")
     return locked
 
 
 @transaction.atomic
 def cancel_action_proposal(*, actor, proposal: ActionProposal) -> ActionProposal:
-    locked = ActionProposal.objects.select_for_update().get(pk=proposal.pk)
+    locked = ActionProposal.objects.select_for_update().select_related(
+        "need", "need__space", "need__activity", "need__occurrence"
+    ).get(pk=proposal.pk)
     if locked.initiated_by_id != getattr(actor, "pk", None):
         raise PermissionDenied("Seul l'initiateur peut annuler cette proposition.")
     if locked.status != ActionProposalStatus.PENDING:
@@ -361,6 +519,11 @@ def cancel_action_proposal(*, actor, proposal: ActionProposal) -> ActionProposal
     locked.cancelled_at = timezone.now()
     locked._allow_status_transition = True
     locked.save(update_fields=["status", "cancelled_by", "cancelled_at", "updated_at"])
+    _emit_proposal_event(
+        proposal=locked,
+        event_type=DomainEventType.ACTION_PROPOSAL_CANCELLED,
+        suffix="cancelled",
+    )
     return locked
 
 
@@ -373,7 +536,7 @@ def create_action_network_block(
     if blocker_profile is not None:
         if blocker_profile.pk != getattr(actor, "pk", None):
             raise PermissionDenied("Un Profile ne peut créer qu'un bloc en son propre nom.")
-    elif not can(actor, PermissionCode.SPACE_MANAGE, space=blocker_space):
+    elif not can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=blocker_space):
         raise PermissionDenied("Vous n'êtes pas autorisé à bloquer au nom de ce Space.")
     try:
         return ActionNetworkBlock.objects.create(
