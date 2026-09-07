@@ -40,7 +40,6 @@ class TicketServiceTests(TestCase):
             username="ticket-organizer",
             email="organizer-tickets@example.com",
             password="Strong-ticket-password-2026!",
-            is_organizer=True,
         )
         self.buyer = User.objects.create_user(
             username="ticket-buyer",
@@ -210,7 +209,6 @@ class TicketApiTests(APITestCase):
             username="api-organizer",
             email="api-organizer@example.com",
             password="Strong-api-ticket-password-2026!",
-            is_organizer=True,
         )
         self.buyer = User.objects.create_user(
             username="api-buyer",
@@ -307,7 +305,6 @@ class TicketWebTests(TestCase):
             username="web-organizer",
             email="web-organizer@example.com",
             password="Strong-web-ticket-password-2026!",
-            is_organizer=True,
         )
         self.buyer = User.objects.create_user(
             username="web-buyer",
