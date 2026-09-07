@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
 
-from .core_models import Conversation
+from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, create_exchange_entry, submit_point_response
 from .presentation import (
@@ -17,7 +17,7 @@ from .presentation import (
     search_conversation,
     search_conversations_for_profile,
 )
-from .services import can_view_conversation, update_personal_conversation_state
+from .services import can_view_conversation, respond_to_conversation_invitation, update_personal_conversation_state
 
 
 class ConversationAccessMixin(LoginRequiredMixin):
@@ -40,10 +40,21 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
         if tab not in {"for-me", "all", "archived"}:
             tab = "for-me"
         q = (self.request.GET.get("q") or "").strip()[:120]
+        invitations = []
+        if not q and tab != "archived":
+            invitations = list(
+                ConversationInvitation.objects.filter(
+                    invitee=self.request.user,
+                    status=ConversationInvitationStatus.PENDING,
+                )
+                .select_related("conversation")
+                .order_by("created_at", "id")[:50]
+            )
         context.update(
             {
                 "tab": tab,
                 "q": q,
+                "pending_invitations": invitations,
                 "rows": conversation_rows_for_profile(
                     self.request.user,
                     archived=tab == "archived",
@@ -77,6 +88,38 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
         )
         update_personal_conversation_state(actor=self.request.user, conversation=conversation, opened=True)
         return context
+
+
+class ConversationInvitationRespondView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, invitation_pk):
+        invitation = get_object_or_404(
+            ConversationInvitation.objects.select_related("conversation", "conversation__context"),
+            pk=invitation_pk,
+            invitee=request.user,
+        )
+        decision = request.POST.get("decision")
+        if decision not in {"accept", "decline"}:
+            messages.error(request, "Réponse d’invitation invalide.")
+            return redirect("conversations:list")
+        try:
+            invitation = respond_to_conversation_invitation(
+                actor=request.user,
+                invitation=invitation,
+                accept=decision == "accept",
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, str(exc))
+            return redirect("conversations:list")
+        if invitation.status == ConversationInvitationStatus.ACCEPTED:
+            messages.success(request, "Invitation acceptée.")
+            return redirect("conversations:detail", pk=invitation.conversation_id)
+        if invitation.status == ConversationInvitationStatus.DECLINED:
+            messages.success(request, "Invitation refusée.")
+        elif invitation.status == ConversationInvitationStatus.EXPIRED:
+            messages.info(request, "Cette invitation a expiré.")
+        return redirect("conversations:list")
 
 
 class PointRespondView(LoginRequiredMixin, View):
