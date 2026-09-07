@@ -5,6 +5,7 @@ from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.utils import timezone
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from authorization.constants import PermissionCode
@@ -250,8 +251,7 @@ def action_needs_for_actor(actor):
     if manageable_spaces is None or manageable_activities is None:
         return ActionNeed.objects.all().select_related("owner_profile", "space", "activity", "occurrence", "opportunity")
     if manageable_spaces:
-        query |= Q(space_id__in=manageable_spaces, activity__isnull=True)
-        query |= Q(space_id__in=manageable_spaces, activity__isnull=False)
+        query |= Q(space_id__in=manageable_spaces)
     if manageable_activities:
         query |= Q(activity_id__in=manageable_activities)
 
@@ -262,13 +262,15 @@ def action_needs_for_actor(actor):
     )
 
 
-def action_proposals_requiring_actor_response(actor):
-    """Canonical Action Inbox: pending Proposals the actor is currently authorized to answer."""
+def action_proposals_requiring_actor_response(actor, *, at=None):
+    """Canonical Action Inbox: pending, unexpired Proposals the actor may currently answer."""
 
     if not getattr(actor, "is_authenticated", False):
         return ActionProposal.objects.none()
+    at = at or timezone.now()
+    live = Q(status=ActionProposalStatus.PENDING) & (Q(expires_at__isnull=True) | Q(expires_at__gt=at))
     if getattr(actor, "is_superuser", False):
-        return ActionProposal.objects.filter(status=ActionProposalStatus.PENDING).select_related(
+        return ActionProposal.objects.filter(live).select_related(
             "candidate_profile", "candidate_space", "initiated_by", "need", "need__owner_profile", "need__space",
             "need__activity", "need__occurrence", "need__opportunity"
         ).prefetch_related("need__topics")
@@ -278,14 +280,13 @@ def action_proposals_requiring_actor_response(actor):
         candidate_profile=actor,
     )
 
-    candidate_space_ids = space_ids_with_permission(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE)
     manageable_space_ids = space_ids_with_permission(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE)
     manageable_activity_ids = activity_ids_with_permission(actor, PermissionCode.ACTIVITY_ACTION_NETWORK_MANAGE)
 
-    if candidate_space_ids is None:
+    if manageable_space_ids is None:
         query |= Q(direction=ActionProposalDirection.OWNER_TO_CANDIDATE, candidate_space__isnull=False)
-    elif candidate_space_ids:
-        query |= Q(direction=ActionProposalDirection.OWNER_TO_CANDIDATE, candidate_space_id__in=candidate_space_ids)
+    elif manageable_space_ids:
+        query |= Q(direction=ActionProposalDirection.OWNER_TO_CANDIDATE, candidate_space_id__in=manageable_space_ids)
 
     owner_query = Q(direction=ActionProposalDirection.CANDIDATE_TO_OWNER, need__owner_profile=actor)
     if manageable_space_ids is None or manageable_activity_ids is None:
@@ -304,7 +305,7 @@ def action_proposals_requiring_actor_response(actor):
     query |= owner_query
 
     return (
-        ActionProposal.objects.filter(query, status=ActionProposalStatus.PENDING)
+        ActionProposal.objects.filter(query).filter(live)
         .select_related(
             "candidate_profile", "candidate_space", "initiated_by", "need", "need__owner_profile", "need__space",
             "need__activity", "need__occurrence", "need__opportunity"
