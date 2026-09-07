@@ -11,6 +11,7 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="user", name="permission_groups"),
         migrations.RemoveField(model_name="user", name="is_organizer"),
         migrations.RemoveField(model_name="user", name="is_scanner_agent"),
+        migrations.RemoveIndex(model_name="user", name="accounts_us_is_veri_fa45d6_idx"),
         migrations.RemoveField(model_name="user", name="is_verified"),
         migrations.RemoveField(model_name="user", name="settings_data"),
         migrations.RemoveField(model_name="user", name="analytics_data"),
