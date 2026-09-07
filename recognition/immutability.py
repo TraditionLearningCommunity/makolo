@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
 
-from .models import AchievementDefinition, RewardDefinition
+from .models import AchievementDefinition, PolicyStatus, RecognitionRule, RewardDefinition
 
 
 ACHIEVEMENT_PROTECTED_FIELDS = (
@@ -34,6 +34,17 @@ REWARD_PROTECTED_FIELDS = (
 
 def _changed(previous, instance, fields):
     return any(previous.get(field) != getattr(instance, field) for field in fields)
+
+
+@receiver(pre_save, sender=RecognitionRule, dispatch_uid="recognition.rule_set_immutable_after_publish")
+def protect_published_policy_rule_set(sender, instance, **kwargs):
+    if not instance.policy_id:
+        return
+    status = instance.policy.status
+    if status not in {PolicyStatus.DRAFT, PolicyStatus.SIMULATED}:
+        raise ValidationError(
+            "Les Rules d'une Policy publiée sont immuables. Clonez la Policy dans une nouvelle version."
+        )
 
 
 @receiver(pre_save, sender=AchievementDefinition, dispatch_uid="recognition.achievement_definition_immutable_after_grant")
