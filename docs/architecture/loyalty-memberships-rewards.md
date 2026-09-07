@@ -10,6 +10,14 @@ Lot 5 adds organization-scoped retention mechanics without turning Makolo points
 
 Points are not a currency and are never converted between USD, CDF or another money currency. Purchase points are based on order/ticket counts rather than aggregating monetary amounts across currencies.
 
+## Boundary with platform Recognition
+
+This Loyalty domain remains an **Organization-scoped retention specialization**. Its historical rules (`points_per_order`, `points_per_ticket`, `points_per_checkin`, tiers and memberships) are not the scoring rules of Makolo's platform-wide Network Utility Recognition.
+
+Platform Recognition is documented separately in [`network-utility-recognition.md`](network-utility-recognition.md). It targets exactly one Profile or one Space, derives Points from new observed utility over time, and keeps its own auditable ledger. No Loyalty balance, tier, historical order earning or redemption is silently migrated or reinterpreted as Recognition.
+
+A future convergence may extract shared technical ledger primitives if that reduces duplication, but it must preserve both domains' semantics and existing data explicitly.
+
 ## Automatic earning
 
 A confirmed ticket order earns `points_per_order + points_per_ticket × quantity`. A successful check-in earns `points_per_checkin`. Active tier and membership multipliers are applied at earning time. Repeated signals are idempotent.
