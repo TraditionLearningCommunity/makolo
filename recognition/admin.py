@@ -1,7 +1,7 @@
 from datetime import timedelta
+from math import ceil
 
 from django.contrib import admin, messages
-from django.db import transaction
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
@@ -18,6 +18,18 @@ from .simulation import simulate_policy
 
 def _allowed(request, permission):
     return bool(request.user.is_superuser or can(request.user, permission))
+
+
+def _next_policy_boundary(*, cursor, target):
+    """First Recognition window boundary at or after target."""
+    if cursor is None:
+        return target
+    window = timedelta(hours=cursor.window_size_hours)
+    if target <= cursor.last_completed_end:
+        return cursor.last_completed_end + window
+    distance = target - cursor.last_completed_end
+    steps = max(1, ceil(distance.total_seconds() / window.total_seconds()))
+    return cursor.last_completed_end + (window * steps)
 
 
 class RecognitionRuleInline(admin.StackedInline):
@@ -83,15 +95,37 @@ class RecognitionPolicyAdmin(admin.ModelAdmin):
         if policy.status not in {PolicyStatus.SIMULATED, PolicyStatus.SCHEDULED}:
             self.message_user(request, "La Policy doit être simulée avant publication.", level=messages.ERROR)
             return
+
         now = timezone.now()
-        if policy.effective_from and policy.effective_from > now:
-            RecognitionPolicy.objects.filter(pk=policy.pk).update(status=PolicyStatus.SCHEDULED)
-            self.message_user(request, "Policy planifiée. Automation l'activera à une frontière de fenêtre.", level=messages.SUCCESS)
+        cursor = RecognitionCursor.objects.filter(pk="recognition-v1").first()
+        desired = policy.effective_from or now
+        if cursor is not None:
+            effective_from = _next_policy_boundary(cursor=cursor, target=max(desired, now))
+            RecognitionPolicy.objects.filter(pk=policy.pk).update(
+                status=PolicyStatus.SCHEDULED,
+                effective_from=effective_from,
+            )
+            self.message_user(
+                request,
+                f"Policy planifiée pour la frontière Recognition {effective_from.isoformat()}.",
+                level=messages.SUCCESS,
+            )
             return
-        with transaction.atomic():
-            RecognitionPolicy.objects.filter(status=PolicyStatus.ACTIVE).exclude(pk=policy.pk).update(status=PolicyStatus.SUPERSEDED, effective_until=now)
-            RecognitionPolicy.objects.filter(pk=policy.pk).update(status=PolicyStatus.ACTIVE, effective_from=policy.effective_from or now)
-        self.message_user(request, "Policy Recognition publiée.", level=messages.SUCCESS)
+
+        if desired > now:
+            RecognitionPolicy.objects.filter(pk=policy.pk).update(status=PolicyStatus.SCHEDULED, effective_from=desired)
+            self.message_user(request, "Policy planifiée. Automation l'activera avant sa première fenêtre applicable.", level=messages.SUCCESS)
+            return
+
+        RecognitionPolicy.objects.filter(status=PolicyStatus.ACTIVE).exclude(pk=policy.pk).update(
+            status=PolicyStatus.SUPERSEDED,
+            effective_until=now,
+        )
+        RecognitionPolicy.objects.filter(pk=policy.pk).update(
+            status=PolicyStatus.ACTIVE,
+            effective_from=now,
+        )
+        self.message_user(request, "Policy Recognition publiée avant ouverture du premier watermark.", level=messages.SUCCESS)
 
 
 class ReadOnlyRecognitionAdmin(admin.ModelAdmin):
@@ -126,8 +160,10 @@ class AchievementDefinitionAdmin(admin.ModelAdmin):
     def has_module_permission(self, request): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE)
     def has_view_permission(self, request, obj=None): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE)
     def has_add_permission(self, request): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE)
-    def has_change_permission(self, request, obj=None): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE)
-    def has_delete_permission(self, request, obj=None): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE)
+    def has_change_permission(self, request, obj=None):
+        return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE) and not (obj and obj.grants.exists())
+    def has_delete_permission(self, request, obj=None):
+        return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE) and not (obj and obj.grants.exists())
 
 
 @admin.register(RewardDefinition)
@@ -136,5 +172,7 @@ class RewardDefinitionAdmin(admin.ModelAdmin):
     def has_module_permission(self, request): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
     def has_view_permission(self, request, obj=None): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
     def has_add_permission(self, request): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
-    def has_change_permission(self, request, obj=None): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
-    def has_delete_permission(self, request, obj=None): return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
+    def has_change_permission(self, request, obj=None):
+        return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE) and not (obj and obj.redemptions.exists())
+    def has_delete_permission(self, request, obj=None):
+        return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE) and not (obj and obj.redemptions.exists())
