@@ -14,6 +14,16 @@ def user_avatar_path(instance, filename):
     return f"accounts/users/{instance.id}/avatar/{filename}"
 
 
+def verification_document_path(instance, filename):
+    """Historical migration callable only.
+
+    ``accounts.VerificationDocument`` has been removed from runtime ownership in
+    favour of Trust, but old migrations must remain importable on a fresh DB.
+    """
+    user_id = getattr(instance, "user_id", None) or getattr(getattr(instance, "user", None), "id", "unknown")
+    return f"accounts/users/{user_id}/verification/{filename}"
+
+
 def validate_phone_number(value):
     """Accept common phone formatting while requiring a plausible digit count."""
     if value in (None, ""):
