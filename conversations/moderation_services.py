@@ -15,7 +15,7 @@ def moderate_exchange_entry(*, actor, entry: PointExchangeEntry, state: str):
     if state not in ConversationExchangeModerationState.values:
         raise ValidationError({"state": "État de modération inconnu."})
     locked = (
-        PointExchangeEntry.objects.select_for_update()
+        PointExchangeEntry.objects.select_for_update(of=("self",))
         .select_related("point__conversation__context")
         .get(pk=entry.pk)
     )
