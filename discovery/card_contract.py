@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.urls import reverse
-from django.utils.formats import date_format
 
 from journeys.models import WorkflowKind
 
@@ -69,13 +68,7 @@ def _primary_action_code(participant_state: str, workflow: str | None) -> str:
         return "pay"
     if participant_state == "access_valid":
         return "access"
-    if participant_state in {
-        "capacity_held",
-        "request_pending",
-        "order_pending",
-        "order_confirmed",
-        "journey_pending",
-    }:
+    if participant_state in {"capacity_held", "request_pending", "order_pending", "order_confirmed", "journey_pending"}:
         return "continue"
     return {
         WorkflowKind.PURCHASE: "buy",
@@ -102,7 +95,6 @@ def _action_icon(code: str) -> str:
 
 
 def _card_action_label(*, code: str, vertical: str, fallback: str) -> str:
-    """Short card grammar derived from semantic action code, never parsed copy."""
     if code == "access":
         if vertical in {"event", "transport"}:
             return "Mon billet"
@@ -118,19 +110,23 @@ def _card_action_label(*, code: str, vertical: str, fallback: str) -> str:
     return fallback
 
 
+def _availability_fact_value(item):
+    if item.matching_count > 1:
+        return item.availability.label
+    if item.availability.state == "unlimited":
+        return "Illimitée"
+    if item.availability.remaining is not None:
+        remaining = item.availability.remaining
+        if remaining <= 0:
+            return "Complet"
+        return f"{remaining} place{'s' if remaining != 1 else ''} restante{'s' if remaining != 1 else ''}"
+    return item.availability.label
+
+
 def _occurrence_facts(item) -> tuple[FactPresentation, ...]:
     facts: list[FactPresentation] = []
-    local_start = item.local_start
-    if local_start is not None:
-        facts.append(
-            FactPresentation(
-                "when",
-                "Quand",
-                f"{date_format(local_start, 'D d M')} · {local_start.strftime('%H:%M')}",
-                "calendar-clock",
-                10,
-            )
-        )
+    if item.temporal_summary:
+        facts.append(FactPresentation("when", "Quand", item.temporal_summary, "calendar-clock", 10))
     if item.place is not None:
         place_value = item.place.name
         if item.place.locality and item.place.locality != item.place.name:
@@ -138,16 +134,8 @@ def _occurrence_facts(item) -> tuple[FactPresentation, ...]:
         facts.append(FactPresentation("place", "Lieu", place_value, "map-pin", 20))
     if item.price.label:
         facts.append(FactPresentation("price", "Prix", item.price.label, "wallet-cards", 30))
-    if item.availability.state == "unlimited":
-        facts.append(FactPresentation("capacity", "Capacité", "Illimitée", "users", 40))
-    elif item.availability.remaining is not None:
-        remaining = item.availability.remaining
-        value = (
-            "Complet"
-            if remaining <= 0
-            else f"{remaining} place{'s' if remaining != 1 else ''} restante{'s' if remaining != 1 else ''}"
-        )
-        facts.append(FactPresentation("capacity", "Capacité", value, "users", 40))
+    if item.availability.label:
+        facts.append(FactPresentation("capacity", "Disponibilité", _availability_fact_value(item), "users", 40))
     if item.distance_km is not None:
         facts.append(FactPresentation("distance", "Distance", f"{item.distance_km:g} km", "route", 50))
     return tuple(sorted(facts, key=lambda fact: fact.priority))
@@ -170,7 +158,6 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
             emphasis="primary",
             enabled=participant.availability not in {"cancelled", "completed"},
         )
-    save_label = "Enregistré" if bookmarked else "Enregistrer"
     representation = item.representation or RepresentationPresentation(
         kind="image" if item.image_url else ("route" if item.vertical == "transport" else "identity"),
         image_url=item.image_url,
@@ -194,7 +181,7 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
             save=ActionPresentation(
                 code="save",
                 role="save",
-                label=save_label,
+                label="Enregistré" if bookmarked else "Enregistrer",
                 icon="orbit",
                 state="saved" if bookmarked else "available",
                 url=reverse("discovery:activity-bookmark-toggle", args=[item.activity_id]),
@@ -207,7 +194,7 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
                 label="Partager",
                 icon="share-2",
                 state="available",
-                url=reverse("sharing:create-occurrence", args=[item.occurrence_id]),
+                url=reverse("sharing:create-activity", args=[item.activity_id]),
                 emphasis="light",
             ),
         ),
@@ -244,10 +231,7 @@ def present_service_card(item: dict, *, bookmarked: bool = False) -> DiscoveryCa
         summary=item.get("summary") or "",
         operator_label="Proposé par",
         operator_name=item.get("space_name") or "",
-        representation=item.get("representation") or RepresentationPresentation(
-            kind="service",
-            eyebrow=item.get("service_kind"),
-        ),
+        representation=item.get("representation") or RepresentationPresentation(kind="service", eyebrow=item.get("service_kind")),
         facts=tuple(facts),
         participant_state=participant,
         actions=ParticipantActionSet(

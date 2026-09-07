@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from activities.models import ActivityStatus, ActivityVisibility, OccurrenceStatus
+from activities.models import ActivityStatus, ActivityVisibility, OccurrenceStatus, OccurrenceTimingKind
 from activities.services import create_activity, create_occurrence
 from core.participant_presentation import ParticipantActivityState
 from core.product_language import vocabulary_for
@@ -16,6 +16,7 @@ from services.models import OpportunityPolicy, ServiceDetails, ServiceKind
 from .card_contract import present_occurrence_card
 from .models import ActivityBookmark
 from .presentation import DiscoveryAvailability, DiscoveryItem, DiscoveryPlace, DiscoveryPrice
+from .search import search_occurrences
 
 
 User = get_user_model()
@@ -39,12 +40,14 @@ def _participant_state(**overrides):
 
 def _item(*, participant=None, price=None, availability=None):
     now = timezone.now()
+    local_start = timezone.localtime(now + timedelta(days=1))
+    local_end = timezone.localtime(now + timedelta(days=1, hours=2))
     activity_id = str(uuid.uuid4())
     occurrence_id = str(uuid.uuid4())
     participant = participant or _participant_state()
     return DiscoveryItem(
-        candidate_family="occurrence",
-        candidate_key=f"occurrence:{occurrence_id}",
+        candidate_family="activity",
+        candidate_key=f"activity:{activity_id}",
         activity_id=activity_id,
         occurrence_id=occurrence_id,
         vertical="event",
@@ -52,10 +55,16 @@ def _item(*, participant=None, price=None, availability=None):
         title="Kasaï All Stars",
         summary="Une possibilité réelle.",
         space_name="Pullman Lubumbashi",
+        timing_kind=OccurrenceTimingKind.EXACT,
+        start_date=local_start.date(),
+        start_time=local_start.timetz().replace(tzinfo=None),
+        end_date=local_end.date(),
+        end_time=local_end.timetz().replace(tzinfo=None),
         start_at=now + timedelta(days=1),
         end_at=now + timedelta(days=1, hours=2),
         timezone="Africa/Lubumbashi",
-        local_start=now + timedelta(days=1),
+        local_start=local_start,
+        temporal_summary=f"{local_start.strftime('%a %d %b')} · {local_start.strftime('%H:%M')}",
         place=DiscoveryPlace(
             id=str(uuid.uuid4()),
             name="Pullman",
@@ -70,6 +79,8 @@ def _item(*, participant=None, price=None, availability=None):
         cta_label=participant.primary_action,
         cta_url=participant.primary_url,
         url="/detail/",
+        matching_occurrence_ids=(occurrence_id,),
+        matching_count=1,
         image_url=None,
         eyebrow="Concert",
     )
@@ -179,6 +190,33 @@ class DiscoveryPresentationWebTests(TestCase):
             status=OccurrenceStatus.SCHEDULED,
         )
 
+    def test_matching_occurrences_are_grouped_by_activity_before_pagination(self):
+        create_occurrence(
+            activity=self.activity,
+            start_at=timezone.now() + timedelta(days=3),
+            end_at=timezone.now() + timedelta(days=3, hours=2),
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        other = create_activity(
+            created_by=self.owner,
+            owner_profile=self.owner,
+            title="Deuxième possibilité",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        create_occurrence(
+            activity=other,
+            start_at=timezone.now() + timedelta(days=4),
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        result = search_occurrences({"when": "upcoming"})
+        by_activity = {item.activity_id: item for item in result.items}
+        self.assertEqual(result.total, 2)
+        self.assertEqual(by_activity[str(self.activity.pk)].candidate_key, f"activity:{self.activity.pk}")
+        self.assertEqual(by_activity[str(self.activity.pk)].matching_count, 2)
+
     def test_unauthenticated_discovery_has_explicit_save_primary_share_fallback(self):
         response = self.client.get(reverse("discovery:home"))
         self.assertEqual(response.status_code, 200)
@@ -239,6 +277,7 @@ class DiscoveryPresentationWebTests(TestCase):
         vocabulary = vocabulary_for(activity=service_activity)
         self.assertEqual(vocabulary.vertical, "service")
         self.assertEqual(vocabulary.primary_action, "Commencer")
+        self.assertEqual(vocabulary.occurrence_noun, "Créneau")
         response = self.client.get(reverse("discovery:home"), {"vertical": "service"})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Accompagnement candidature")

@@ -10,12 +10,7 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
-from activities.models import (
-    ActivityStatus,
-    ActivityVisibility,
-    Occurrence,
-    OccurrenceStatus,
-)
+from activities.models import ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
 from capacity.models import CapacityPool
 from commerce.models import Offer
 from core.participant_selectors import participant_state_context
@@ -24,7 +19,7 @@ from geography.selectors import nearby_places
 from geography.value_objects import GeoPoint
 from groups.selectors import filter_queryset_by_activity_group_eligibility
 
-from .presentation import build_discovery_item, primary_place_for
+from .presentation import aggregate_discovery_items, build_discovery_item, primary_place_for
 
 
 MAX_TEXT_LENGTH = 120
@@ -68,10 +63,7 @@ def search_timezone(*, place_text=None, timezone_name=None):
             zone = _valid_zone(place.timezone)
             if zone:
                 return zone
-    current = timezone.get_current_timezone()
-    if current:
-        return current
-    return ZoneInfo(settings.TIME_ZONE)
+    return timezone.get_current_timezone() or ZoneInfo(settings.TIME_ZONE)
 
 
 def _day_window(day, zone):
@@ -98,10 +90,7 @@ def _period_window(window, period, *, zone):
     }
     start_time, end_time = bounds[period]
     period_start = datetime.combine(day, start_time, tzinfo=zone)
-    if period == "evening":
-        period_end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=zone)
-    else:
-        period_end = datetime.combine(day, end_time, tzinfo=zone)
+    period_end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=zone) if period == "evening" else datetime.combine(day, end_time, tzinfo=zone)
     return max(start, period_start), min(end, period_end)
 
 
@@ -132,9 +121,7 @@ def resolve_time_window(params, *, zone, now=None):
             raise ValidationError("La date de fin doit être postérieure à la date de début.")
         if (last - first).days > MAX_DATE_RANGE_DAYS:
             raise ValidationError(f"La plage de dates est limitée à {MAX_DATE_RANGE_DAYS} jours.")
-        start = datetime.combine(first, time.min, tzinfo=zone)
-        end = datetime.combine(last + timedelta(days=1), time.min, tzinfo=zone)
-        window = (start, end)
+        window = (datetime.combine(first, time.min, tzinfo=zone), datetime.combine(last + timedelta(days=1), time.min, tzinfo=zone))
     elif preset == "today":
         window = _day_window(local_today, zone)
     elif preset == "tomorrow":
@@ -159,13 +146,17 @@ def _base_queryset(*, now):
     offers = Offer.objects.select_related("capacity_pool").prefetch_related("capacity_pool__reservations")
     pools = CapacityPool.objects.prefetch_related("reservations")
     space_places = SpacePlace.objects.select_related("place")
+    today = timezone.localdate(now)
     return (
         Occurrence.objects.filter(
             activity__status=ActivityStatus.PUBLISHED,
             activity__visibility=ActivityVisibility.PUBLIC,
             status=OccurrenceStatus.SCHEDULED,
         )
-        .filter(Q(end_at__gte=now) | Q(end_at__isnull=True, start_at__gte=now))
+        .filter(
+            Q(start_at__isnull=False) & (Q(end_at__gte=now) | Q(end_at__isnull=True, start_at__gte=now))
+            | Q(start_at__isnull=True, start_date__gte=today)
+        )
         .exclude(activity__space__verification_status="suspended")
         .select_related(
             "activity",
@@ -177,6 +168,7 @@ def _base_queryset(*, now):
             "activity__transport_service",
             "activity__transport_service__route",
             "transport_departure",
+            "schedule",
         )
         .prefetch_related(
             "place_links__place",
@@ -187,7 +179,7 @@ def _base_queryset(*, now):
             Prefetch("activity__space__space_places", queryset=space_places),
             "activity__transport_service__route__stops__place",
         )
-        .order_by("start_at", "id")
+        .order_by("start_date", "start_time", "id")
     )
 
 
@@ -203,9 +195,9 @@ def _apply_time(queryset, window):
     if window is None:
         return queryset
     start, end = window
-    return queryset.filter(start_at__lt=end).filter(
-        Q(end_at__gt=start) | Q(end_at__isnull=True, start_at__gte=start)
-    )
+    exact = Q(start_at__isnull=False, start_at__lt=end) & (Q(end_at__gt=start) | Q(end_at__isnull=True, start_at__gte=start))
+    date_only = Q(start_at__isnull=True, start_date__gte=start.date(), start_date__lt=end.date())
+    return queryset.filter(exact | date_only)
 
 
 def _apply_text(queryset, text):
@@ -231,10 +223,7 @@ def _apply_place(queryset, place_text):
         Q(place_links__place__name__icontains=place_text)
         | Q(place_links__place__locality__icontains=place_text)
         | Q(place_links__place__administrative_area__icontains=place_text)
-        | Q(
-            activity__transport_service__route__stops__position=1,
-            activity__transport_service__route__stops__place__locality__icontains=place_text,
-        )
+        | Q(activity__transport_service__route__stops__position=1, activity__transport_service__route__stops__place__locality__icontains=place_text)
     )
 
 
@@ -248,11 +237,7 @@ def _apply_vertical(queryset, vertical):
     if vertical == "service":
         return queryset.filter(activity__service_details__isnull=False)
     if vertical == "other":
-        return queryset.filter(
-            activity__event_vertical__isnull=True,
-            activity__service_details__isnull=True,
-            transport_departure__isnull=True,
-        )
+        return queryset.filter(activity__event_vertical__isnull=True, activity__service_details__isnull=True, transport_departure__isnull=True)
     raise ValidationError("Type d’activité invalide.")
 
 
@@ -273,8 +258,7 @@ def _parse_nearby(params):
         raise ValidationError("Coordonnées hors limites.")
     if radius not in ALLOWED_RADIUS_KM:
         raise ValidationError("Rayon invalide. Choisissez 5, 10, 25 ou 50 km.")
-    point = GeoPoint(lat, lon)
-    ranked = nearby_places(point, radius_m=radius * 1000, limit=MAX_CANDIDATES)
+    ranked = nearby_places(GeoPoint(lat, lon), radius_m=radius * 1000, limit=MAX_CANDIDATES)
     return {place.pk: distance for place, distance in ranked}
 
 
@@ -294,7 +278,12 @@ def _text_rank(item, text):
     return 4
 
 
+def _item_time_sort(item):
+    return (item.start_date or timezone.localdate(), item.start_time or time.max)
+
+
 def search_occurrences(params, *, profile=None, now=None):
+    """Search concrete Occurrences, then return one Activity-level result per Activity."""
     now = now or timezone.now()
     text = (params.get("q") or "").strip()
     place_text = (params.get("place") or params.get("city") or "").strip()
@@ -303,14 +292,10 @@ def search_occurrences(params, *, profile=None, now=None):
     if len(place_text) > MAX_TEXT_LENGTH:
         raise ValidationError(f"Le lieu est limité à {MAX_TEXT_LENGTH} caractères.")
 
-    zone = search_timezone(
-        place_text=place_text,
-        timezone_name=(params.get("timezone") or "").strip() or None,
-    )
+    zone = search_timezone(place_text=place_text, timezone_name=(params.get("timezone") or "").strip() or None)
     window = resolve_time_window(params, zone=zone, now=now)
     nearby = _parse_nearby(params)
-    queryset = _base_queryset(now=now)
-    queryset = filter_queryset_by_activity_group_eligibility(queryset, profile)
+    queryset = filter_queryset_by_activity_group_eligibility(_base_queryset(now=now), profile)
     queryset = _apply_time(queryset, window)
     queryset = _apply_text(queryset, text)
     queryset = _apply_place(queryset, place_text)
@@ -320,50 +305,32 @@ def search_occurrences(params, *, profile=None, now=None):
 
     occurrences = list(queryset.distinct()[:MAX_CANDIDATES])
     participant_context = participant_state_context(profile, occurrences)
-    items = []
+    occurrence_items = []
     for occurrence in occurrences:
         place = primary_place_for(occurrence)
         distance_m = (nearby or {}).get(place.pk) if nearby is not None and place is not None else None
-        items.append(
-            build_discovery_item(
-                occurrence,
-                distance_m=distance_m,
-                now=now,
-                profile=profile,
-                participant_context=participant_context,
-            )
-        )
+        occurrence_items.append(build_discovery_item(occurrence, distance_m=distance_m, now=now, profile=profile, participant_context=participant_context))
 
     price_filter = (params.get("price") or "").strip().lower()
     if price_filter == "free":
-        items = [item for item in items if item.price.is_free]
+        occurrence_items = [item for item in occurrence_items if item.price.is_free]
     elif price_filter == "paid":
-        items = [item for item in items if item.price.minimum is not None and not item.price.is_free]
+        occurrence_items = [item for item in occurrence_items if item.price.minimum is not None and not item.price.is_free]
     elif price_filter:
         raise ValidationError("Filtre de prix invalide.")
 
+    items = aggregate_discovery_items(occurrence_items)
     ordering = (params.get("ordering") or "soon").strip().lower()
     if ordering == "proximity":
         if nearby is None:
             raise ValidationError("Le tri par proximité exige une position et un rayon.")
-        items.sort(
-            key=lambda item: (
-                item.distance_km if item.distance_km is not None else float("inf"),
-                item.start_at,
-            )
-        )
+        items.sort(key=lambda item: (item.distance_km if item.distance_km is not None else float("inf"), *_item_time_sort(item)))
     elif ordering == "soon":
-        items.sort(key=lambda item: (_text_rank(item, text), item.start_at, item.distance_km or 0))
+        items.sort(key=lambda item: (_text_rank(item, text), *_item_time_sort(item), item.distance_km or 0))
     else:
         raise ValidationError("Tri invalide.")
-    return DiscoverySearchResult(
-        items=items,
-        timezone_name=str(zone),
-        total=len(items),
-        nearby_active=nearby is not None,
-    )
+    return DiscoverySearchResult(items=items, timezone_name=str(zone), total=len(items), nearby_active=nearby is not None)
 
 
 def get_public_occurrence(pk, *, now=None):
-    now = now or timezone.now()
-    return _base_queryset(now=now).get(pk=pk)
+    return _base_queryset(now=now or timezone.now()).get(pk=pk)

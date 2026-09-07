@@ -14,8 +14,11 @@ test('owner creates a complete event, publishes it and configures ticketing', as
   await page.locator('[name="short_description"]').fill('Événement créé entièrement depuis le navigateur.');
   await page.locator('[name="description"]').fill('Ce scénario valide la création, la publication et la billetterie organisateur.');
   await page.locator('[name="visibility"]').selectOption('public');
-  await page.locator('[name="start_at"]').fill('2030-08-20T18:00');
-  await page.locator('[name="end_at"]').fill('2030-08-20T21:00');
+  await page.locator('[name="timing_kind"]').selectOption('exact');
+  await page.locator('[name="start_date"]').fill('2030-08-20');
+  await page.locator('[name="start_time"]').fill('18:00');
+  await page.locator('[name="end_date"]').fill('2030-08-20');
+  await page.locator('[name="end_time"]').fill('21:00');
   await page.locator('[name="registration_start_at"]').fill('2029-12-01T00:00');
   await page.locator('[name="registration_end_at"]').fill('2030-08-20T17:00');
   await page.locator('[name="timezone"]').fill('Africa/Lubumbashi');

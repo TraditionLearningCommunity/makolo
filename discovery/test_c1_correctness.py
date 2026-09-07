@@ -21,6 +21,7 @@ from transport.selectors import next_public_departure_for_activity
 from transport.services import configure_transport_fare, create_transport_departure, create_transport_route, create_transport_service, publish_transport_departure
 
 from .candidate_identity import occurrence_candidate_key, opportunity_candidate_key, service_activity_candidate_key
+from .presentation import build_discovery_item
 from .recommendations import activity_destination, build_activity_recommendations
 from .search import search_occurrences
 from .services import build_trending
@@ -117,8 +118,10 @@ class C1DiscoveryCorrectnessTests(TestCase):
         activity = self.activity("Event Multi C1"); primary = self.occurrence(activity, start=self.now + timedelta(days=1)); secondary = self.occurrence(activity, start=self.now + timedelta(days=2)); event = Event.objects.create(activity=activity, slug="event-multi-c1")
         pool = CapacityPool.objects.create(activity=activity, occurrence=primary, label="Primary only", total_quantity=7)
         Offer.objects.create(activity=activity, occurrence=primary, capacity_pool=pool, name="Primary ticket", unit_price=Decimal("15.00"), currency="USD", payment_mode=PaymentMode.UPFRONT, status=OfferStatus.ACTIVE)
-        rows = search_occurrences({"q": "Event Multi C1"}, now=self.now).items; by_id = {row.occurrence_id: row for row in rows}; primary_row = by_id[str(primary.pk)]; secondary_row = by_id[str(secondary.pk)]
-        self.assertEqual(primary_row.price.minimum, Decimal("15.00")); self.assertIsNone(secondary_row.price.minimum); self.assertIsNone(secondary_row.availability.remaining); self.assertEqual(secondary_row.cta_label, "Voir l’événement"); self.assertEqual(secondary_row.url, reverse("events:detail", kwargs={"slug": event.slug})); self.assertNotEqual(primary_row.candidate_key, secondary_row.candidate_key)
+        primary_row = build_discovery_item(primary, now=self.now); secondary_row = build_discovery_item(secondary, now=self.now)
+        self.assertEqual(primary_row.price.minimum, Decimal("15.00")); self.assertIsNone(secondary_row.price.minimum); self.assertIsNone(secondary_row.availability.remaining); self.assertEqual(secondary_row.cta_label, "Voir l’événement"); self.assertEqual(secondary_row.url, reverse("events:detail", kwargs={"slug": event.slug})); self.assertEqual(primary_row.candidate_key, secondary_row.candidate_key)
+        grouped = search_occurrences({"q": "Event Multi C1"}, now=self.now).items
+        self.assertEqual(len(grouped), 1); self.assertEqual(grouped[0].matching_count, 2); self.assertEqual(set(grouped[0].matching_occurrence_ids), {str(primary.pk), str(secondary.pk)})
 
     def test_activity_scoped_and_occurrence_scoped_offers_are_explicitly_applicable(self):
         activity = self.activity("Offers C1"); first = self.occurrence(activity, start=self.now + timedelta(days=1)); second = self.occurrence(activity, start=self.now + timedelta(days=2))
@@ -126,7 +129,8 @@ class C1DiscoveryCorrectnessTests(TestCase):
         first_offer = Offer.objects.create(activity=activity, occurrence=first, name="First only", unit_price=Decimal("10.00"), currency="USD", payment_mode=PaymentMode.UPFRONT, status=OfferStatus.ACTIVE)
         Offer.objects.create(activity=activity, occurrence=second, name="Inactive second", unit_price=Decimal("5.00"), currency="USD", payment_mode=PaymentMode.UPFRONT, status=OfferStatus.INACTIVE)
         self.assertEqual(set(applicable_offers(occurrence=first)), {activity_offer, first_offer}); self.assertEqual(set(applicable_offers(occurrence=second).filter(status=OfferStatus.ACTIVE)), {activity_offer}); self.assertEqual(list(applicable_offers(activity=activity)), [activity_offer])
-        rows = search_occurrences({"q": "Offers C1"}, now=self.now).items; by_id = {row.occurrence_id: row for row in rows}; self.assertEqual(by_id[str(first.pk)].price.minimum, Decimal("10.00")); self.assertEqual(by_id[str(second.pk)].price.minimum, Decimal("20.00"))
+        self.assertEqual(build_discovery_item(first, now=self.now).price.minimum, Decimal("10.00")); self.assertEqual(build_discovery_item(second, now=self.now).price.minimum, Decimal("20.00"))
+        rows = search_occurrences({"q": "Offers C1"}, now=self.now).items; self.assertEqual(len(rows), 1); self.assertEqual(rows[0].price.minimum, Decimal("10.00")); self.assertEqual(rows[0].matching_count, 2); self.assertEqual(set(rows[0].matching_occurrence_ids), {str(first.pk), str(second.pk)})
 
     def test_group_eligibility_is_composed_into_search(self):
         activity = self.activity("Groupe C1"); occurrence = self.occurrence(activity); group = Group.objects.create(name="Groupe réservé C1", owner_profile=self.owner, created_by=self.owner)

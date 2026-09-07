@@ -55,7 +55,7 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/tickets\/buy\/festival-makolo-e2e\/$/);
+  await expect(page).toHaveURL(/\/tickets\/buy\/festival-makolo-e2e\/\?occurrence=[0-9a-f-]+$/i);
 
   await page.getByLabel('Quantité').fill('1');
   await page.getByRole('button', { name: /Créer la commande/i }).click();

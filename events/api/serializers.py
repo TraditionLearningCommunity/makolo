@@ -2,6 +2,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 from rest_framework import serializers
 
+from activities.models import OccurrenceTimingKind
+from core.participant_presentation import occurrence_timing
 from events.models import Event, EventCategory, EventVenue, EventVisibility
 from events.validators import validate_event_cover
 from organizations.models import Organization
@@ -41,13 +43,27 @@ class OrganizationSummarySerializer(serializers.Serializer):
     verification_status = serializers.CharField(read_only=True)
 
 
+class EventOccurrenceSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    label = serializers.CharField(read_only=True)
+    timing_kind = serializers.CharField(read_only=True)
+    start_date = serializers.DateField(read_only=True)
+    start_time = serializers.TimeField(read_only=True, allow_null=True)
+    end_date = serializers.DateField(read_only=True, allow_null=True)
+    end_time = serializers.TimeField(read_only=True, allow_null=True)
+    start_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    end_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    timezone = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+
 class EventListSerializer(serializers.ModelSerializer):
     title = serializers.CharField(read_only=True)
     short_description = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
     visibility = serializers.CharField(read_only=True)
-    start_at = serializers.DateTimeField(read_only=True)
-    end_at = serializers.DateTimeField(read_only=True)
+    start_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    end_at = serializers.DateTimeField(read_only=True, allow_null=True)
     capacity = serializers.IntegerField(read_only=True, allow_null=True)
     category = EventCategorySerializer(read_only=True)
     venue = EventVenueSerializer(read_only=True)
@@ -55,6 +71,7 @@ class EventListSerializer(serializers.ModelSerializer):
     organization = OrganizationSummarySerializer(read_only=True)
     cover_image_url = serializers.SerializerMethodField()
     is_registration_open = serializers.BooleanField(read_only=True)
+    occurrences = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -72,6 +89,7 @@ class EventListSerializer(serializers.ModelSerializer):
             "start_at",
             "end_at",
             "capacity",
+            "occurrences",
             "cover_image_url",
             "is_registration_open",
         ]
@@ -82,6 +100,10 @@ class EventListSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get("request")
         return request.build_absolute_uri(obj.cover_image.url) if request else obj.cover_image.url
+
+    def get_occurrences(self, obj):
+        rows = obj.activity.occurrences.order_by("start_date", "start_time", "id")
+        return EventOccurrenceSerializer(rows, many=True).data
 
 
 class EventDetailSerializer(EventListSerializer):
@@ -103,36 +125,33 @@ class EventDetailSerializer(EventListSerializer):
 
 
 class EventWriteSerializer(serializers.Serializer):
-    """Stable Event API vocabulary, routed to canonical services by the view."""
+    """Stable Event API vocabulary routed to Activity/Occurrence owners."""
 
-    organization_id = serializers.PrimaryKeyRelatedField(
-        source="organization",
-        queryset=Organization.objects.all(),
-        required=False,
-    )
+    organization_id = serializers.PrimaryKeyRelatedField(source="organization", queryset=Organization.objects.all(), required=False)
     title = serializers.CharField(max_length=220, required=False)
     category_id = serializers.PrimaryKeyRelatedField(
-        source="category",
-        queryset=EventCategory.objects.filter(is_active=True),
-        allow_null=True,
-        required=False,
+        source="category", queryset=EventCategory.objects.filter(is_active=True), allow_null=True, required=False
     )
     venue_id = serializers.PrimaryKeyRelatedField(
-        source="venue",
-        queryset=EventVenue.objects.filter(is_active=True),
-        allow_null=True,
-        required=False,
+        source="venue", queryset=EventVenue.objects.filter(is_active=True), allow_null=True, required=False
     )
     short_description = serializers.CharField(max_length=320, allow_blank=True, required=False)
     description = serializers.CharField(allow_blank=True, required=False)
     cover_image = serializers.ImageField(allow_null=True, required=False)
     visibility = serializers.ChoiceField(choices=EventVisibility.choices, required=False)
-    start_at = serializers.DateTimeField(required=False)
-    end_at = serializers.DateTimeField(required=False)
+
+    timing_kind = serializers.ChoiceField(choices=OccurrenceTimingKind.choices, required=False)
+    start_date = serializers.DateField(required=False)
+    start_time = serializers.TimeField(allow_null=True, required=False)
+    end_date = serializers.DateField(allow_null=True, required=False)
+    end_time = serializers.TimeField(allow_null=True, required=False)
+    # Legacy exact-instant compatibility. New clients should send split values.
+    start_at = serializers.DateTimeField(required=False, allow_null=True)
+    end_at = serializers.DateTimeField(required=False, allow_null=True)
+    timezone = serializers.CharField(max_length=100, required=False)
+
     registration_start_at = serializers.DateTimeField(allow_null=True, required=False)
     registration_end_at = serializers.DateTimeField(allow_null=True, required=False)
-    timezone = serializers.CharField(max_length=100, required=False)
-    # Compatibility input/output: backed by a canonical Event-scoped CapacityPool.
     capacity = serializers.IntegerField(min_value=1, allow_null=True, required=False)
 
     def validate_cover_image(self, value):
@@ -154,34 +173,38 @@ class EventWriteSerializer(serializers.Serializer):
             )
 
         title = attrs.get("title", getattr(instance, "title", None))
-        start_at = attrs.get("start_at", getattr(instance, "start_at", None))
-        end_at = attrs.get("end_at", getattr(instance, "end_at", None))
+        start_date = attrs.get("start_date")
+        start_time = attrs.get("start_time")
+        start_at = attrs.get("start_at")
+        timing_kind = attrs.get("timing_kind", OccurrenceTimingKind.EXACT)
         if instance is None:
             required = {}
             if not title:
                 required["title"] = "Ce champ est obligatoire."
-            if not start_at:
-                required["start_at"] = "Ce champ est obligatoire."
-            if not end_at:
-                required["end_at"] = "Ce champ est obligatoire."
+            if not start_date and not start_at:
+                required["start_date"] = "Une date de début est obligatoire."
+            if timing_kind == OccurrenceTimingKind.EXACT and not start_time and not start_at:
+                required["start_time"] = "Une heure est requise pour un horaire exact."
             if required:
                 raise serializers.ValidationError(required)
 
-        registration_start_at = attrs.get(
-            "registration_start_at", getattr(instance, "registration_start_at", None)
-        )
-        registration_end_at = attrs.get(
-            "registration_end_at", getattr(instance, "registration_end_at", None)
-        )
+        end_date = attrs.get("end_date")
+        end_time = attrs.get("end_time")
+        end_at = attrs.get("end_at")
         errors = {}
+        if timing_kind != OccurrenceTimingKind.EXACT and (start_time or end_time or start_at or end_at):
+            errors["timing_kind"] = "Une date sans heure exacte ne doit pas contenir d’instant ou d’heure."
+        if start_date and end_date and end_date < start_date:
+            errors["end_date"] = "La fin doit être postérieure ou égale au début."
         if start_at and end_at and end_at <= start_at:
             errors["end_at"] = "La fin doit être postérieure au début."
+        if start_date and start_time and end_time and (end_date or start_date) == start_date and end_time <= start_time:
+            errors["end_time"] = "La fin doit être postérieure au début."
+
+        registration_start_at = attrs.get("registration_start_at", getattr(instance, "registration_start_at", None))
+        registration_end_at = attrs.get("registration_end_at", getattr(instance, "registration_end_at", None))
         if registration_start_at and registration_end_at and registration_end_at <= registration_start_at:
             errors["registration_end_at"] = "La fin des inscriptions doit être postérieure à leur début."
-        if registration_end_at and end_at and registration_end_at > end_at:
-            errors["registration_end_at"] = "Les inscriptions ne peuvent pas se terminer après l’événement."
-        if registration_start_at and end_at and registration_start_at >= end_at:
-            errors["registration_start_at"] = "Les inscriptions doivent commencer avant la fin de l’événement."
         if errors:
             raise serializers.ValidationError(errors)
         return attrs

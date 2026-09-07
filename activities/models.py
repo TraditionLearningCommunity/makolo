@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -26,27 +28,9 @@ class ActivityVisibility(models.TextChoices):
 
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    space = models.ForeignKey(
-        "organizations.Organization",
-        on_delete=models.PROTECT,
-        related_name="activities",
-        null=True,
-        blank=True,
-    )
-    owner_profile = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="owned_activities",
-        null=True,
-        blank=True,
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        related_name="created_activities",
-        null=True,
-        blank=True,
-    )
+    space = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="activities", null=True, blank=True)
+    owner_profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owned_activities", null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_activities", null=True, blank=True)
     title = models.CharField(max_length=220)
     slug = models.SlugField(max_length=240, blank=True)
     short_description = models.CharField(max_length=320, blank=True)
@@ -59,28 +43,10 @@ class Activity(models.Model):
     class Meta:
         ordering = ["title", "id"]
         constraints = [
-            models.CheckConstraint(
-                condition=~Q(space__isnull=False, owner_profile__isnull=False),
-                name="activities_single_logical_owner",
-            ),
-            models.UniqueConstraint(
-                fields=["space", "slug"],
-                condition=Q(space__isnull=False),
-                name="activities_space_slug_unique",
-            ),
-            models.UniqueConstraint(
-                fields=["owner_profile", "slug"],
-                condition=Q(owner_profile__isnull=False, space__isnull=True),
-                name="activities_profile_slug_unique",
-            ),
-            # Compatibility only for pre-T24 rows whose logical owner cannot be
-            # inferred safely. New rows are rejected by clean() if both owners
-            # are absent.
-            models.UniqueConstraint(
-                fields=["slug"],
-                condition=Q(space__isnull=True, owner_profile__isnull=True),
-                name="activities_legacy_slug_unique",
-            ),
+            models.CheckConstraint(condition=~Q(space__isnull=False, owner_profile__isnull=False), name="activities_single_logical_owner"),
+            models.UniqueConstraint(fields=["space", "slug"], condition=Q(space__isnull=False), name="activities_space_slug_unique"),
+            models.UniqueConstraint(fields=["owner_profile", "slug"], condition=Q(owner_profile__isnull=False, space__isnull=True), name="activities_profile_slug_unique"),
+            models.UniqueConstraint(fields=["slug"], condition=Q(space__isnull=True, owner_profile__isnull=True), name="activities_legacy_slug_unique"),
         ]
         indexes = [
             models.Index(fields=["space", "status"], name="activities_space_status_idx"),
@@ -91,13 +57,9 @@ class Activity(models.Model):
     def clean(self):
         super().clean()
         if self.space_id and self.owner_profile_id:
-            raise ValidationError(
-                "Une Activity appartient soit à un Profil, soit à un Espace, jamais aux deux."
-            )
+            raise ValidationError("Une Activity appartient soit à un Profil, soit à un Espace, jamais aux deux.")
         if not self.space_id and not self.owner_profile_id and self._state.adding:
-            raise ValidationError(
-                "Toute nouvelle Activity doit avoir un propriétaire logique explicite."
-            )
+            raise ValidationError("Toute nouvelle Activity doit avoir un propriétaire logique explicite.")
 
     def _slug_scope(self):
         queryset = Activity.objects.exclude(pk=self.pk)
@@ -117,8 +79,6 @@ class Activity(models.Model):
             return self.space.name
         if self.owner_profile_id:
             return self.owner_profile.full_name or self.owner_profile.username
-        # Legacy compatibility only. created_by remains provenance and is not
-        # promoted to ownership for newly-created Activities.
         if self.created_by_id:
             return self.created_by.full_name or self.created_by.username
         return ""
@@ -146,46 +106,234 @@ class OccurrenceStatus(models.TextChoices):
     COMPLETED = "completed", "Terminée"
 
 
-class Occurrence(models.Model):
+class OccurrenceTimingKind(models.TextChoices):
+    EXACT = "exact", "Date et heure exactes"
+    DATE_ONLY = "date_only", "Date connue, heure à confirmer"
+    ALL_DAY = "all_day", "Toute la journée"
+
+
+class OccurrenceScheduleFrequency(models.TextChoices):
+    DAILY = "daily", "Tous les jours"
+    WEEKLY = "weekly", "Chaque semaine"
+    MONTHLY = "monthly", "Chaque mois"
+    YEARLY = "yearly", "Chaque année"
+
+
+class OccurrenceScheduleStatus(models.TextChoices):
+    ACTIVE = "active", "Actif"
+    PAUSED = "paused", "En pause"
+    RETIRED = "retired", "Retiré"
+
+
+class OccurrenceSchedule(models.Model):
+    """Calendar rule that materializes concrete Occurrences for one Activity."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="occurrences")
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="occurrence_schedules")
     label = models.CharField(max_length=180, blank=True)
-    start_at = models.DateTimeField()
-    end_at = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=100, default="Africa/Lubumbashi", validators=[validate_timezone_name])
-    status = models.CharField(max_length=20, choices=OccurrenceStatus.choices, default=OccurrenceStatus.DRAFT)
-    places = models.ManyToManyField("geography.Place", through="OccurrencePlace", related_name="occurrences", blank=True)
+    frequency = models.CharField(max_length=16, choices=OccurrenceScheduleFrequency.choices)
+    interval = models.PositiveSmallIntegerField(default=1)
+    starts_on = models.DateField()
+    ends_on = models.DateField(null=True, blank=True)
+    timing_kind = models.CharField(max_length=16, choices=OccurrenceTimingKind.choices, default=OccurrenceTimingKind.EXACT)
+    start_time = models.TimeField(null=True, blank=True)
+    duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+    month_day = models.PositiveSmallIntegerField(null=True, blank=True)
+    month = models.PositiveSmallIntegerField(null=True, blank=True)
+    occurrence_status = models.CharField(max_length=20, choices=OccurrenceStatus.choices, default=OccurrenceStatus.SCHEDULED)
+    status = models.CharField(max_length=16, choices=OccurrenceScheduleStatus.choices, default=OccurrenceScheduleStatus.ACTIVE)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name="created_occurrence_schedules", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["start_at", "id"]
-        constraints = [
-            models.CheckConstraint(condition=Q(end_at__isnull=True) | Q(end_at__gt=models.F("start_at")), name="activities_occ_end_after_start"),
-            models.CheckConstraint(condition=~Q(timezone=""), name="activities_occ_timezone_present"),
-        ]
+        ordering = ["activity_id", "starts_on", "start_time", "id"]
         indexes = [
-            models.Index(fields=["activity", "start_at"], name="activities_occ_activity_idx"),
-            models.Index(fields=["status", "start_at"], name="activities_occ_status_idx"),
+            models.Index(fields=["activity", "status"], name="activities_sched_activity_idx"),
+            models.Index(fields=["status", "starts_on", "ends_on"], name="activities_sched_window_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(interval__gt=0), name="activities_sched_interval_pos"),
+            models.CheckConstraint(condition=Q(ends_on__isnull=True) | Q(ends_on__gte=models.F("starts_on")), name="activities_sched_window_valid"),
         ]
 
     def clean(self):
         super().clean()
         self.timezone = (self.timezone or "").strip()
+        errors = {}
+        if self.timing_kind == OccurrenceTimingKind.EXACT and self.start_time is None:
+            errors["start_time"] = "Une récurrence à heure exacte exige une heure de début."
+        if self.timing_kind != OccurrenceTimingKind.EXACT and self.start_time is not None:
+            errors["start_time"] = "Une récurrence sans heure exacte ne doit pas stocker d'heure."
+        if self.duration_minutes is not None and self.timing_kind != OccurrenceTimingKind.EXACT:
+            errors["duration_minutes"] = "Une durée en minutes exige une heure exacte."
+        if self.frequency == OccurrenceScheduleFrequency.MONTHLY and not self.month_day:
+            errors["month_day"] = "Une récurrence mensuelle exige un jour du mois."
+        if self.frequency == OccurrenceScheduleFrequency.YEARLY and (not self.month or not self.month_day):
+            errors["month"] = "Une récurrence annuelle exige un mois et un jour."
+        if self.month and not 1 <= self.month <= 12:
+            errors["month"] = "Le mois doit être compris entre 1 et 12."
+        if self.month_day and not 1 <= self.month_day <= 31:
+            errors["month_day"] = "Le jour du mois doit être compris entre 1 et 31."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.timezone = (self.timezone or "").strip()
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class OccurrenceScheduleWeekday(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    schedule = models.ForeignKey(OccurrenceSchedule, on_delete=models.CASCADE, related_name="weekdays")
+    weekday = models.PositiveSmallIntegerField(help_text="0=lundi … 6=dimanche")
+
+    class Meta:
+        ordering = ["weekday", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["schedule", "weekday"], name="activities_sched_weekday_unique"),
+            models.CheckConstraint(condition=Q(weekday__gte=0, weekday__lte=6), name="activities_sched_weekday_valid"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.weekday not in range(7):
+            raise ValidationError({"weekday": "Le jour de semaine doit être compris entre 0 et 6."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class Occurrence(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="occurrences")
+    label = models.CharField(max_length=180, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    start_time = models.TimeField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    timing_kind = models.CharField(max_length=16, choices=OccurrenceTimingKind.choices, default=OccurrenceTimingKind.EXACT)
+    # Compatibility projection for existing exact-time consumers. Date-only and
+    # all-day Occurrences deliberately keep these NULL rather than invent 00:00.
+    start_at = models.DateTimeField(null=True, blank=True)
+    end_at = models.DateTimeField(null=True, blank=True)
+    timezone = models.CharField(max_length=100, default="Africa/Lubumbashi", validators=[validate_timezone_name])
+    status = models.CharField(max_length=20, choices=OccurrenceStatus.choices, default=OccurrenceStatus.DRAFT)
+    schedule = models.ForeignKey(OccurrenceSchedule, on_delete=models.SET_NULL, related_name="generated_occurrences", null=True, blank=True)
+    schedule_local_date = models.DateField(null=True, blank=True)
+    places = models.ManyToManyField("geography.Place", through="OccurrencePlace", related_name="occurrences", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["start_date", "start_time", "id"]
+        constraints = [
+            models.CheckConstraint(condition=~Q(timezone=""), name="activities_occ_timezone_present"),
+            models.CheckConstraint(condition=Q(end_date__isnull=True) | Q(start_date__isnull=True) | Q(end_date__gte=models.F("start_date")), name="activities_occ_date_window"),
+            models.UniqueConstraint(fields=["schedule", "schedule_local_date"], condition=Q(schedule__isnull=False), name="activities_occ_schedule_slot_unique"),
+        ]
+        indexes = [
+            models.Index(fields=["activity", "start_date", "start_time"], name="activities_occ_activity_idx"),
+            models.Index(fields=["status", "start_date", "start_time"], name="activities_occ_status_idx"),
+            models.Index(fields=["start_at"], name="activities_occ_startat_idx"),
+        ]
+
+    def _local_parts_from_instant(self, value):
+        if value is None:
+            return None, None
+        local = value.astimezone(ZoneInfo(self.timezone))
+        return local.date(), local.timetz().replace(tzinfo=None)
+
+    def _instant_from_local(self, day, clock):
+        if day is None or clock is None:
+            return None
+        return datetime.combine(day, clock, tzinfo=ZoneInfo(self.timezone))
+
+    def clean(self):
+        super().clean()
+        self.timezone = (self.timezone or "").strip()
+        errors = {}
+        try:
+            validate_timezone_name(self.timezone)
+        except ValidationError as exc:
+            raise ValidationError({"timezone": exc.messages}) from exc
+
+        if self.start_at is not None and self.start_date is None:
+            self.start_date, self.start_time = self._local_parts_from_instant(self.start_at)
+            self.timing_kind = OccurrenceTimingKind.EXACT
+        if self.end_at is not None and self.end_date is None:
+            self.end_date, self.end_time = self._local_parts_from_instant(self.end_at)
+
+        if self.start_date is None:
+            errors["start_date"] = "La date de début est obligatoire."
+
+        if self.timing_kind == OccurrenceTimingKind.EXACT:
+            if self.start_time is None:
+                errors["start_time"] = "Une Occurrence à heure exacte exige une heure de début."
+            else:
+                self.start_at = self._instant_from_local(self.start_date, self.start_time)
+            if self.end_time is not None:
+                effective_end_date = self.end_date or self.start_date
+                self.end_date = effective_end_date
+                self.end_at = self._instant_from_local(effective_end_date, self.end_time)
+            elif self.end_date is not None and self.end_at is None:
+                errors["end_time"] = "Une date de fin exacte exige une heure de fin."
+        else:
+            if self.start_time is not None or self.end_time is not None:
+                errors["start_time"] = "Une Occurrence sans heure exacte ne doit pas stocker d'heure."
+            self.start_at = None
+            self.end_at = None
+            if self.timing_kind == OccurrenceTimingKind.ALL_DAY and self.end_date is None:
+                self.end_date = self.start_date
+
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            errors["end_date"] = "La fin doit être postérieure ou égale au début."
         if self.start_at and self.end_at and self.end_at <= self.start_at:
-            raise ValidationError({"end_at": "La fin doit être postérieure au début."})
+            errors["end_time"] = "La fin doit être postérieure au début."
+        if self.schedule_id and self.schedule_local_date and self.start_date and self.schedule_local_date != self.start_date:
+            errors["schedule_local_date"] = "Le slot généré doit correspondre à la date locale de l'Occurrence."
+        if errors:
+            raise ValidationError(errors)
 
     @property
     def is_future(self):
-        return self.start_at > timezone.now()
+        if self.start_at is not None:
+            return self.start_at > timezone.now()
+        if self.start_date is None:
+            return False
+        today = timezone.now().astimezone(ZoneInfo(self.timezone)).date()
+        return self.start_date > today
 
     @property
     def is_ongoing(self):
         now = timezone.now()
-        return self.start_at <= now and (self.end_at is None or self.end_at > now)
+        if self.start_at is not None:
+            return self.start_at <= now and (self.end_at is None or self.end_at > now)
+        if self.start_date is None:
+            return False
+        local_today = now.astimezone(ZoneInfo(self.timezone)).date()
+        if self.timing_kind == OccurrenceTimingKind.ALL_DAY:
+            return self.start_date <= local_today <= (self.end_date or self.start_date)
+        return False
 
     def save(self, *args, **kwargs):
         self.timezone = (self.timezone or "").strip()
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            explicit_structured_start = update_fields & {"start_date", "start_time"}
+            explicit_structured_end = update_fields & {"end_date", "end_time"}
+            if "start_at" in update_fields and not explicit_structured_start:
+                self.start_date, self.start_time = self._local_parts_from_instant(self.start_at)
+                self.timing_kind = OccurrenceTimingKind.EXACT
+                update_fields.update({"start_date", "start_time", "timing_kind"})
+            if "end_at" in update_fields and not explicit_structured_end:
+                self.end_date, self.end_time = self._local_parts_from_instant(self.end_at)
+                update_fields.update({"end_date", "end_time"})
+            kwargs["update_fields"] = update_fields
         self.full_clean()
         return super().save(*args, **kwargs)
 

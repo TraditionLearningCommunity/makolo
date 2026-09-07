@@ -4,6 +4,10 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, Sum
 from django.utils import timezone
 
+from activities.models import ActivityStatus, OccurrenceStatus
+from activities.services import complete_occurrence, update_activity_common
+from commerce.models import OfferStatus
+from commerce.services import update_offer
 from crm.services import process_due_campaigns
 from events.models import Event, EventStatus
 from loyalty.services import expire_due_memberships
@@ -24,27 +28,9 @@ from .models import AutomationRun, AutomationRunStatus, EventAutomationPolicy
 User = get_user_model()
 COMPLETED_EVENT_CATCHUP_DAYS = 30
 REMINDER_RULES = (
-    (
-        "reminder_7d_enabled",
-        "event-reminder-7d",
-        timedelta(days=7),
-        timedelta(hours=6),
-        "Dans 7 jours",
-    ),
-    (
-        "reminder_24h_enabled",
-        "event-reminder-24h",
-        timedelta(hours=24),
-        timedelta(hours=3),
-        "Demain",
-    ),
-    (
-        "reminder_2h_enabled",
-        "event-reminder-2h",
-        timedelta(hours=2),
-        timedelta(minutes=70),
-        "Dans 2 heures",
-    ),
+    ("reminder_7d_enabled", "event-reminder-7d", timedelta(days=7), timedelta(hours=6), "Dans 7 jours"),
+    ("reminder_24h_enabled", "event-reminder-24h", timedelta(hours=24), timedelta(hours=3), "Demain"),
+    ("reminder_2h_enabled", "event-reminder-2h", timedelta(hours=2), timedelta(minutes=70), "Dans 2 heures"),
 )
 
 
@@ -56,15 +42,7 @@ def ensure_policy(event: Event) -> EventAutomationPolicy:
         return policy
 
 
-def _record_once(
-    *,
-    event,
-    rule_key,
-    dedup_key,
-    summary="",
-    payload=None,
-    status=AutomationRunStatus.SUCCESS,
-):
+def _record_once(*, event, rule_key, dedup_key, summary="", payload=None, status=AutomationRunStatus.SUCCESS):
     return AutomationRun.objects.get_or_create(
         dedup_key=dedup_key,
         defaults={
@@ -94,22 +72,17 @@ def _event_team_recipient_objects(event):
     return [event.organizer] if event.organizer_id else []
 
 
-def _event_participants(event, *, include_cancelled=False):
+def _event_participants(event, *, occurrence=None, include_cancelled=False):
     tickets = Ticket.objects.filter(event=event, owner__isnull=False)
+    if occurrence is not None:
+        tickets = tickets.filter(ticket_type__offer__occurrence=occurrence)
     if not include_cancelled:
         tickets = tickets.exclude(status=TicketStatus.CANCELLED)
     owner_ids = tickets.values_list("owner_id", flat=True).distinct()
     return User.objects.filter(pk__in=owner_ids).order_by("pk")
 
 
-def _notify_event_team(
-    event,
-    *,
-    title,
-    message,
-    dedup_prefix,
-    category=NotificationCategory.EVENT,
-):
+def _notify_event_team(event, *, title, message, dedup_prefix, category=NotificationCategory.EVENT):
     count = 0
     for user in _event_team_recipient_objects(event):
         create_notification(
@@ -126,79 +99,87 @@ def _notify_event_team(
     return count
 
 
+def _scheduled_occurrences(event):
+    return list(
+        event.activity.occurrences.filter(status=OccurrenceStatus.SCHEDULED)
+        .order_by("start_date", "start_time", "id")
+    )
+
+
 def _run_reminders(event, policy, now):
     created = 0
-    for field_name, rule_key, offset, grace, label in REMINDER_RULES:
-        if not getattr(policy, field_name):
+    # Reminder offsets require a real instant. Date-only/all-day occurrences
+    # intentionally do not produce synthetic countdowns.
+    for occurrence in _scheduled_occurrences(event):
+        if occurrence.start_at is None:
             continue
-        due_at = event.start_at - offset
-        if now < due_at or now > due_at + grace or now >= event.start_at:
-            continue
-
-        for participant in _event_participants(event, include_cancelled=False):
-            dedup_key = f"autopilot:{rule_key}:{event.pk}:{participant.pk}"
-            run, run_created = _record_once(
-                event=event,
-                rule_key=rule_key,
-                dedup_key=dedup_key,
-                summary=f"Rappel {label} pour {participant.email}",
-                payload={"user_id": str(participant.pk)},
-            )
-            if not run_created:
+        for field_name, rule_key, offset, grace, label in REMINDER_RULES:
+            if not getattr(policy, field_name):
                 continue
-            create_notification(
-                recipient=participant,
-                kind=NotificationKind.EVENT_REMINDER,
-                category=NotificationCategory.EVENT,
-                title=f"{label} — {event.title}",
-                message=(
-                    f"« {event.title} » commence le "
-                    f"{timezone.localtime(event.start_at).strftime('%d/%m/%Y à %H:%M')}. "
-                    "Votre billet et son QR code sont disponibles dans Makolo."
-                ),
-                action_url=f"/events/{event.slug}/",
-                dedup_key=f"notification:{dedup_key}",
-                metadata={
-                    "event_id": str(event.pk),
-                    "automation_run_id": str(run.pk),
-                },
-            )
-            created += 1
+            due_at = occurrence.start_at - offset
+            if now < due_at or now > due_at + grace or now >= occurrence.start_at:
+                continue
+            for participant in _event_participants(event, occurrence=occurrence, include_cancelled=False):
+                dedup_key = f"autopilot:{rule_key}:{occurrence.pk}:{participant.pk}"
+                run, run_created = _record_once(
+                    event=event,
+                    rule_key=rule_key,
+                    dedup_key=dedup_key,
+                    summary=f"Rappel {label} pour {participant.email}",
+                    payload={"user_id": str(participant.pk), "occurrence_id": str(occurrence.pk)},
+                )
+                if not run_created:
+                    continue
+                create_notification(
+                    recipient=participant,
+                    kind=NotificationKind.EVENT_REMINDER,
+                    category=NotificationCategory.EVENT,
+                    title=f"{label} — {event.title}",
+                    message=(
+                        f"« {event.title} » commence le "
+                        f"{occurrence.start_at.astimezone(timezone.get_current_timezone()).strftime('%d/%m/%Y à %H:%M')}. "
+                        "Votre billet et son QR code sont disponibles dans Makolo."
+                    ),
+                    action_url=f"/events/{event.slug}/?occurrence={occurrence.pk}",
+                    dedup_key=f"notification:{dedup_key}",
+                    metadata={
+                        "event_id": str(event.pk),
+                        "occurrence_id": str(occurrence.pk),
+                        "automation_run_id": str(run.pk),
+                    },
+                )
+                created += 1
     return created
 
 
 def _run_capacity_alert(event, policy):
-    if not policy.capacity_alerts_enabled or not event.capacity:
+    # The historical event-wide percentage is only meaningful when there is one
+    # concrete occurrence. Multi-date capacity remains occurrence-scoped.
+    occurrences = list(event.activity.occurrences.all()[:2])
+    if len(occurrences) != 1 or not policy.capacity_alerts_enabled or not event.capacity:
         return 0
-    committed = TicketType.objects.filter(event=event).aggregate(
-        reserved=Sum("reserved_quantity"),
-        issued=Sum("issued_quantity"),
+    committed = TicketType.objects.filter(event=event, offer__occurrence=occurrences[0]).aggregate(
+        reserved=Sum("capacity_pool__reservations__quantity", filter=Q(capacity_pool__reservations__status="held")),
+        issued=Sum("capacity_pool__reservations__quantity", filter=Q(capacity_pool__reservations__status="committed")),
     )
     total = (committed["reserved"] or 0) + (committed["issued"] or 0)
     percent = int((total / event.capacity) * 100)
     if percent < policy.capacity_alert_percent:
         return 0
-    dedup = f"autopilot:capacity:{policy.capacity_alert_percent}:{event.pk}"
+    dedup = f"autopilot:capacity:{policy.capacity_alert_percent}:{event.pk}:{occurrences[0].pk}"
     _, created = _record_once(
         event=event,
         rule_key="capacity-alert",
         dedup_key=dedup,
         summary=f"Capacité à {percent}%",
-        payload={
-            "percent": percent,
-            "committed": total,
-            "capacity": event.capacity,
-        },
+        payload={"percent": percent, "committed": total, "capacity": event.capacity, "occurrence_id": str(occurrences[0].pk)},
     )
     if not created:
         return 0
     return _notify_event_team(
         event,
         title=f"{event.title} atteint {percent}% de capacité",
-        message=(
-            f"{total} place(s) sont réservées ou émises sur {event.capacity}. "
-            "Makolo Autopilot continuera à surveiller le remplissage."
-        ),
+        message=f"{total} place(s) sont retenues ou engagées sur {event.capacity}.",
         dedup_prefix=f"notification:{dedup}",
     )
 
@@ -207,107 +188,121 @@ def _run_low_stock_alerts(event, policy):
     if not policy.low_stock_alerts_enabled:
         return 0
     alerts = 0
-    for ticket_type in TicketType.objects.filter(event=event, is_active=True):
+    ticket_types = TicketType.objects.filter(event=event).select_related("offer__occurrence", "capacity_pool")
+    for ticket_type in ticket_types:
+        if not ticket_type.is_active:
+            continue
         available = ticket_type.available_quantity
         if available is None or available > policy.low_stock_threshold:
             continue
+        occurrence_id = ticket_type.offer.occurrence_id
         dedup = f"autopilot:low-stock:{ticket_type.pk}:{policy.low_stock_threshold}"
         _, created = _record_once(
             event=event,
             rule_key="low-stock",
             dedup_key=dedup,
             summary=f"Stock faible {ticket_type.name}: {available}",
-            payload={
-                "ticket_type_id": str(ticket_type.pk),
-                "available": available,
-            },
+            payload={"ticket_type_id": str(ticket_type.pk), "occurrence_id": str(occurrence_id) if occurrence_id else None, "available": available},
         )
         if not created:
             continue
         alerts += _notify_event_team(
             event,
             title=f"Stock faible — {ticket_type.name}",
-            message=(
-                f"Il ne reste que {available} billet(s) « {ticket_type.name} » "
-                f"pour {event.title}."
-            ),
+            message=f"Il ne reste que {available} billet(s) « {ticket_type.name} » pour {event.title}.",
             dedup_prefix=f"notification:{dedup}",
         )
     return alerts
 
 
 def _auto_close_sales(event, policy, now):
-    if not policy.auto_close_sales_at_start or now < event.start_at:
+    if not policy.auto_close_sales_at_start:
         return 0
-    dedup = f"autopilot:close-sales:{event.pk}"
-    _, created = _record_once(
-        event=event,
-        rule_key="close-sales",
-        dedup_key=dedup,
-        summary="Ventes fermées automatiquement au début de l'événement",
-    )
-    if not created:
-        return 0
-    return TicketType.objects.filter(event=event, is_active=True).update(
-        is_active=False,
-        updated_at=now,
-    )
+    closed = 0
+    ticket_types = TicketType.objects.filter(event=event).select_related("offer__occurrence")
+    for ticket_type in ticket_types:
+        offer = ticket_type.offer
+        occurrence = offer.occurrence
+        if occurrence is None or occurrence.start_at is None or now < occurrence.start_at:
+            continue
+        if offer.status != OfferStatus.ACTIVE:
+            continue
+        dedup = f"autopilot:close-sales:{event.pk}:{occurrence.pk}:{ticket_type.pk}"
+        _, created = _record_once(
+            event=event,
+            rule_key="close-sales",
+            dedup_key=dedup,
+            summary="Ventes fermées automatiquement au début de la séance",
+            payload={"occurrence_id": str(occurrence.pk), "ticket_type_id": str(ticket_type.pk)},
+        )
+        if not created:
+            continue
+        update_offer(offer=offer, status=OfferStatus.INACTIVE)
+        closed += 1
+    return closed
 
 
 def _auto_complete(event, policy, now):
-    if (
-        not policy.auto_complete_event
-        or event.status != EventStatus.PUBLISHED
-        or now < event.end_at
-    ):
+    if not policy.auto_complete_event or event.status != EventStatus.PUBLISHED:
         return 0
+    occurrences = list(event.activity.occurrences.all())
+    if not occurrences:
+        return 0
+    for occurrence in occurrences:
+        if occurrence.status in {OccurrenceStatus.CANCELLED, OccurrenceStatus.COMPLETED}:
+            continue
+        if occurrence.end_at is None or occurrence.end_at > now:
+            return 0
     dedup = f"autopilot:complete-event:{event.pk}"
     _, created = _record_once(
         event=event,
         rule_key="complete-event",
         dedup_key=dedup,
-        summary="Événement terminé automatiquement",
+        summary="Événement terminé automatiquement après sa dernière séance",
     )
     if not created:
         return 0
-
-    Event.objects.filter(pk=event.pk, status=EventStatus.PUBLISHED).update(
-        status=EventStatus.COMPLETED,
-        updated_at=now,
-    )
-    event.status = EventStatus.COMPLETED
+    for occurrence in occurrences:
+        if occurrence.status == OccurrenceStatus.SCHEDULED:
+            complete_occurrence(occurrence=occurrence)
+    update_activity_common(activity=event.activity, status=ActivityStatus.COMPLETED)
     return 1
 
 
 def _post_event_followup(event, policy, now):
-    if not policy.post_event_followup_enabled or now < event.end_at:
+    if not policy.post_event_followup_enabled:
         return 0
     created = 0
-    for participant in _event_participants(event, include_cancelled=False):
-        dedup = f"autopilot:followup:{event.pk}:{participant.pk}"
-        _, run_created = _record_once(
-            event=event,
-            rule_key="post-event-followup",
-            dedup_key=dedup,
-            summary=f"Suivi post-événement pour {participant.email}",
-        )
-        if not run_created:
+    for occurrence in event.activity.occurrences.all():
+        ended = occurrence.status == OccurrenceStatus.COMPLETED or (occurrence.end_at is not None and now >= occurrence.end_at)
+        if not ended:
             continue
-        create_notification(
-            recipient=participant,
-            kind=NotificationKind.SYSTEM,
-            category=NotificationCategory.EVENT,
-            title=f"Merci d'avoir participé à {event.title}",
-            message=(
-                "Merci d'avoir utilisé Makolo. Votre participation est enregistrée. "
-                "Les avis et recommandations personnalisées pourront s'appuyer "
-                "sur cet historique sans exposer vos données à l'organisateur."
-            ),
-            action_url=f"/events/{event.slug}/",
-            dedup_key=f"notification:{dedup}",
-            metadata={"event_id": str(event.pk)},
-        )
-        created += 1
+        for participant in _event_participants(event, occurrence=occurrence, include_cancelled=False):
+            dedup = f"autopilot:followup:{occurrence.pk}:{participant.pk}"
+            _, run_created = _record_once(
+                event=event,
+                rule_key="post-event-followup",
+                dedup_key=dedup,
+                summary=f"Suivi post-séance pour {participant.email}",
+                payload={"occurrence_id": str(occurrence.pk)},
+            )
+            if not run_created:
+                continue
+            create_notification(
+                recipient=participant,
+                kind=NotificationKind.SYSTEM,
+                category=NotificationCategory.EVENT,
+                title=f"Merci d'avoir participé à {event.title}",
+                message=(
+                    "Merci d'avoir utilisé Makolo. Votre participation est enregistrée. "
+                    "Les avis et recommandations personnalisées pourront s'appuyer "
+                    "sur cet historique sans exposer vos données à l'organisateur."
+                ),
+                action_url=f"/events/{event.slug}/?occurrence={occurrence.pk}",
+                dedup_key=f"notification:{dedup}",
+                metadata={"event_id": str(event.pk), "occurrence_id": str(occurrence.pk)},
+            )
+            created += 1
     return created
 
 
@@ -358,13 +353,24 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
     }
 
     completed_cutoff = now - timedelta(days=COMPLETED_EVENT_CATCHUP_DAYS)
-    events = (
-        Event.objects.filter(
-            Q(status=EventStatus.PUBLISHED)
-            | Q(status=EventStatus.COMPLETED, end_at__gte=completed_cutoff)
+    completed_cutoff_date = completed_cutoff.date()
+    recent_completed = Q(status=EventStatus.COMPLETED) & (
+        Q(activity__occurrences__end_at__gte=completed_cutoff)
+        | Q(
+            activity__occurrences__end_at__isnull=True,
+            activity__occurrences__end_date__gte=completed_cutoff_date,
         )
-        .select_related("organizer", "organization", "automation_policy")
-        .order_by("start_at")
+        | Q(
+            activity__occurrences__end_at__isnull=True,
+            activity__occurrences__end_date__isnull=True,
+            activity__occurrences__start_date__gte=completed_cutoff_date,
+        )
+    )
+    events = (
+        Event.objects.filter(Q(status=EventStatus.PUBLISHED) | recent_completed)
+        .select_related("activity", "activity__created_by", "activity__space", "automation_policy")
+        .distinct()
+        .order_by("created_at")
     )
     for event in events:
         policy = ensure_policy(event)
@@ -376,7 +382,9 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
             stats["low_stock_alerts"] += _run_low_stock_alerts(event, policy)
             stats["sales_closed"] += _auto_close_sales(event, policy, now)
             stats["events_completed"] += _auto_complete(event, policy, now)
-        if event.status == EventStatus.COMPLETED or now >= event.end_at:
+        if event.status == EventStatus.COMPLETED or any(
+            occurrence.end_at and occurrence.end_at <= now for occurrence in event.activity.occurrences.all()
+        ):
             stats["followups"] += _post_event_followup(event, policy, now)
 
     stats["crm_campaigns"] = process_due_campaigns(now=now, recipient_limit=delivery_limit)

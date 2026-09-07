@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -7,6 +9,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from activities.models import OccurrenceScheduleFrequency, OccurrenceStatus, OccurrenceTimingKind
 from automation.services import ensure_policy
 from core.participant_presentation import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
@@ -16,7 +19,35 @@ from .forms import EventForm
 from .models import Event, EventStatus
 from .permissions import user_can_manage_event, user_can_manage_events
 from .selectors import get_events_visible_to, get_manageable_events
-from .services import cancel_event, complete_event, create_event, publish_event, reopen_event, update_event
+from .services import (
+    cancel_event,
+    complete_event,
+    create_event,
+    create_event_schedule,
+    publish_event,
+    reopen_event,
+    update_event,
+)
+
+
+SCHEDULE_FORM_KEYS = {"repeat", "frequency", "interval", "weekdays", "repeat_until"}
+
+
+def _schedule_duration_minutes(values):
+    if values.get("timing_kind") != OccurrenceTimingKind.EXACT:
+        return None
+    start_date = values.get("start_date")
+    start_time = values.get("start_time")
+    end_time = values.get("end_time")
+    if not start_date or not start_time or not end_time:
+        return None
+    end_date = values.get("end_date") or start_date
+    minutes = int((datetime.combine(end_date, end_time) - datetime.combine(start_date, start_time)).total_seconds() // 60)
+    return minutes if minutes > 0 else None
+
+
+def _pop_schedule_values(values):
+    return {key: values.pop(key, None) for key in SCHEDULE_FORM_KEYS}
 
 
 class EventListView(ListView):
@@ -54,9 +85,41 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        self.object = create_event(actor=self.request.user, **form.cleaned_data)
+        values = dict(form.cleaned_data)
+        schedule_values = _pop_schedule_values(values)
+        if schedule_values["repeat"]:
+            occurrence_values = {
+                key: values.pop(key, None)
+                for key in ("start_at", "end_at", "start_date", "start_time", "end_date", "end_time", "timing_kind", "timezone")
+            }
+            self.object = create_event(actor=self.request.user, **values)
+            start_date = occurrence_values["start_date"]
+            frequency = schedule_values["frequency"]
+            month_day = start_date.day if frequency in {OccurrenceScheduleFrequency.MONTHLY, OccurrenceScheduleFrequency.YEARLY} else None
+            month = start_date.month if frequency == OccurrenceScheduleFrequency.YEARLY else None
+            create_event_schedule(
+                event=self.object,
+                actor=self.request.user,
+                frequency=frequency,
+                starts_on=start_date,
+                ends_on=schedule_values["repeat_until"],
+                materialize_through=schedule_values["repeat_until"],
+                timezone_name=occurrence_values["timezone"],
+                interval=schedule_values["interval"] or 1,
+                timing_kind=occurrence_values["timing_kind"],
+                start_time=occurrence_values["start_time"],
+                duration_minutes=_schedule_duration_minutes(occurrence_values),
+                weekdays=tuple(int(day) for day in (schedule_values["weekdays"] or ())),
+                month_day=month_day,
+                month=month,
+                venue=self.object.venue,
+            )
+        else:
+            values["start_at"] = values.get("start_at") or None
+            values["end_at"] = values.get("end_at") or None
+            self.object = create_event(actor=self.request.user, **values)
         ensure_policy(self.object)
-        messages.success(self.request, "Événement créé en brouillon avec Makolo Autopilot prêt à être configuré.")
+        messages.success(self.request, "Événement créé en brouillon avec ses dates Makolo.")
         return redirect(self.get_success_url())
 
     def get_success_url(self):
@@ -77,36 +140,49 @@ class EventDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         can_manage_event = user_can_manage_event(self.request.user, self.object)
         context["can_manage_event"] = can_manage_event
-        context["can_reopen_event"] = bool(
-            can_manage_event
-            and self.object.status == EventStatus.COMPLETED
-            and self.object.end_at
-            and self.object.end_at > timezone.now()
-        )
+        occurrences = list(self.object.activity.occurrences.order_by("start_date", "start_time", "id"))
+        context["event_occurrences"] = occurrences
+        future_completed = [row for row in occurrences if row.status == OccurrenceStatus.COMPLETED and row.is_future]
+        context["can_reopen_event"] = bool(can_manage_event and self.object.status == EventStatus.COMPLETED and future_completed)
         context["is_bookmarked"] = False
         context["can_submit_feedback"] = False
 
-        occurrence = self.object.primary_occurrence
+        selected = None
+        requested_occurrence = self.request.GET.get("occurrence")
+        if requested_occurrence:
+            selected = next((row for row in occurrences if str(row.pk) == requested_occurrence), None)
+        viable = [row for row in occurrences if row.status == OccurrenceStatus.SCHEDULED]
+        if selected is None and len(occurrences) == 1:
+            # A unique cancelled/completed occurrence still carries participant
+            # history. Selection does not imply that acquisition is available.
+            selected = occurrences[0]
+        elif selected is None and len(viable) == 1:
+            selected = viable[0]
+        context["selected_occurrence"] = selected
         context["participant_presentation"] = None
-        if occurrence is not None:
+        context["requires_occurrence_selection"] = bool(len(viable) > 1 and selected is None)
+
+        if selected is not None:
             now = timezone.now()
-            availability = availability_presentation(occurrence, now=now)
-            price = price_presentation(occurrence, now=now)
-            presenter = presenter_for(occurrence)
-            public_cta = presenter.cta(occurrence, price=price, availability=availability)
+            availability = availability_presentation(selected, now=now)
+            price = price_presentation(selected, now=now)
+            presenter = presenter_for(selected)
+            public_cta = presenter.cta(selected, price=price, availability=availability)
             acquisition_url = None
             if (
                 self.object.status == EventStatus.PUBLISHED
                 and self.object.is_registration_open
                 and availability.state != "sold_out"
                 and public_cta != "Voir l’événement"
+                and selected.start_at is not None
             ):
-                acquisition_url = reverse("tickets:order-create", kwargs={"event_slug": self.object.slug})
-            participant_context = participant_state_context(self.request.user, [occurrence])
+                base_url = reverse("tickets:order-create", kwargs={"event_slug": self.object.slug})
+                acquisition_url = f"{base_url}?occurrence={selected.pk}"
+            participant_context = participant_state_context(self.request.user, [selected])
             context["participant_presentation"] = resolve_participant_activity_state(
                 profile=self.request.user,
                 activity=self.object.activity,
-                occurrence=occurrence,
+                occurrence=selected,
                 context=participant_context,
                 availability_state=availability.state,
                 availability_label=availability.label,
@@ -121,10 +197,7 @@ class EventDetailView(DetailView):
             from growth.models import EventFeedback
             from growth.services import can_submit_feedback
 
-            context["is_bookmarked"] = ActivityBookmark.objects.filter(
-                user=self.request.user,
-                activity=self.object.activity,
-            ).exists()
+            context["is_bookmarked"] = ActivityBookmark.objects.filter(user=self.request.user, activity=self.object.activity).exists()
             context["can_submit_feedback"] = can_submit_feedback(self.request.user, self.object)
             context["existing_feedback"] = EventFeedback.objects.filter(user=self.request.user, event=self.object).first()
         return context
@@ -151,6 +224,7 @@ class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def form_valid(self, form):
         values = dict(form.cleaned_data)
+        _pop_schedule_values(values)
         self.object = update_event(
             event=self.object,
             actor=self.request.user,
