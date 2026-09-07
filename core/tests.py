@@ -17,7 +17,6 @@ class DashboardTests(TestCase):
             username="dashboard-user",
             email="dashboard@example.com",
             password="Strong-dashboard-password-2026!",
-            is_verified=True,
         )
 
         start_at = timezone.now() + timedelta(days=7)
