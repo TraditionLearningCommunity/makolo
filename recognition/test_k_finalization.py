@@ -16,8 +16,8 @@ from .contracts import ImpactChannel, RecognitionSignalFact, TemporalProfile
 from .economy import redeem_reward
 from .engine import RuleSpec, evaluate_rule_group
 from .ingest import record_signal
-from .models import RecognitionObjectEvaluation, RecognitionPolicy, RecognitionRule, RewardDefinition, RewardKind
-from .runtime import _temporal_delta, process_signal_group
+from .models import PolicyStatus, RecognitionObjectEvaluation, RecognitionPolicy, RecognitionRule, RewardDefinition, RewardKind
+from .runtime import _temporal_delta, process_signal_group, run_default_recognition_cycle
 from .services import AttributionShare, ensure_cursor, get_due_window, get_or_create_account, process_impact_slice, reconstructed_balance, release_due_pending_grants
 
 
@@ -72,6 +72,64 @@ class RecognitionKFinalizationTests(TestCase):
             total += delta
         self.assertEqual(total, Decimal("2"))
         self.assertEqual(len(state["buckets"]), 1)
+
+    def test_late_fact_keeps_policy_effective_at_occurred_at(self):
+        now = timezone.now().replace(microsecond=0)
+        old_start = now - timedelta(days=3)
+        boundary = now - timedelta(hours=12)
+
+        # Close the seeded default before this explicit policy history.
+        RecognitionPolicy.objects.filter(status=PolicyStatus.ACTIVE).update(
+            status=PolicyStatus.SUPERSEDED,
+            effective_until=old_start,
+        )
+        old_policy = RecognitionPolicy.objects.create(
+            code="late-fact-policy", version=1, name="Late fact old",
+            status=PolicyStatus.DRAFT, effective_from=old_start, effective_until=boundary,
+            parameters={"credits_per_utility": "1"}, standard_window_hours=24,
+        )
+        RecognitionRule.objects.create(
+            policy=old_policy, code="old-access", name="Old access", signal_kind="access.used",
+            channel="real_action", temporal_profile="pulse", measure={"op": "const", "value": "1"},
+            aggregation="SUM_DISTINCT_OUTCOME", attribution={"strategy": "signal_contributors"},
+            outcome_identity={"source": "signal.outcome_identity"},
+        )
+        new_policy = RecognitionPolicy.objects.create(
+            code="late-fact-policy", version=2, name="Late fact new",
+            status=PolicyStatus.DRAFT, effective_from=boundary,
+            parameters={"credits_per_utility": "1"}, standard_window_hours=24,
+        )
+        RecognitionRule.objects.create(
+            policy=new_policy, code="new-access", name="New access", signal_kind="access.used",
+            channel="real_action", temporal_profile="pulse", measure={"op": "const", "value": "10"},
+            aggregation="SUM_DISTINCT_OUTCOME", attribution={"strategy": "signal_contributors"},
+            outcome_identity={"source": "signal.outcome_identity"},
+        )
+        RecognitionPolicy.objects.filter(pk=old_policy.pk).update(status=PolicyStatus.SUPERSEDED)
+        RecognitionPolicy.objects.filter(pk=new_policy.pk).update(status=PolicyStatus.ACTIVE)
+
+        record_signal(
+            signal_id="late-policy-signal", signal_kind="access.used",
+            object_type="occurrence", object_id="late-policy-occurrence",
+            outcome_identity="late-policy-outcome",
+            occurred_at=boundary - timedelta(hours=1),
+            available_at=now - timedelta(hours=1),
+            values={"count": 1},
+            contributors=[{
+                "subject_type": "profile", "subject_id": str(self.user.pk),
+                "causal_mode": "enable", "weight": "1",
+            }],
+        )
+
+        result = run_default_recognition_cycle(now=now)
+        self.assertEqual(result["issued_points"], 1)
+        account = get_or_create_account(profile=self.user); account.refresh_from_db()
+        self.assertEqual(account.points_balance, 1)
+        evaluation = RecognitionObjectEvaluation.objects.get(object_id="late-policy-occurrence")
+        self.assertEqual(evaluation.receipt.policy_version, old_policy.version_key)
+        self.assertEqual(evaluation.window.policy_version, new_policy.version_key)
+        self.assertEqual(evaluation.explanation["earning_policy_version"], old_policy.version_key)
+        self.assertEqual(evaluation.explanation["observation_policy_version"], new_policy.version_key)
 
     def test_transition_decrease_never_claws_back_but_recovery_is_new_value(self):
         now = timezone.now().replace(microsecond=0)
