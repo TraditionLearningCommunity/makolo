@@ -14,7 +14,7 @@
       {% if row.reason == 'respond' %}<form method="post" action="{% url 'conversations:point-respond' point.pk %}" class="mt-4 space-y-3">{% csrf_token %}
         {% if point.response_mode == 'single_choice' %}{% for option in point.options.all %}<label class="flex items-center gap-2"><input type="radio" name="choice" value="{{ option.pk }}" required><span>{{ option.label }}</span></label>{% endfor %}
         {% elif point.response_mode == 'multiple_choice' %}{% for option in point.options.all %}<label class="flex items-center gap-2"><input type="checkbox" name="choices" value="{{ option.pk }}"><span>{{ option.label }}</span></label>{% endfor %}
-        {% elif point.response_mode == 'boolean' %}<label class="mr-4"><input type="radio" name="value" value="true" required> Oui</label><label><input type="radio" name="value" value="false" required> Non</label>
+        {% elif point.response_mode == 'boolean' %}<div class="flex gap-4"><label><input type="radio" name="value" value="true" required> Oui</label><label><input type="radio" name="value" value="false" required> Non</label></div>
         {% else %}<textarea class="mk-input min-h-[50px] w-full" name="value" required></textarea>{% endif %}<button class="mk-btn mk-btn-primary">Répondre</button></form>{% endif %}
       {% if point.kind == 'exchange' %}<form method="post" action="{% url 'conversations:point-exchange' point.pk %}" class="mt-4 flex gap-2">{% csrf_token %}<input class="mk-input flex-1" name="body" placeholder="Échanger dans ce contexte…" required><button class="mk-btn mk-btn-secondary">Envoyer</button></form>{% endif %}
     </article>{% endwith %}{% empty %}<div class="py-5 text-center"><p class="font-semibold">Tout est en ordre. ✓</p></div>{% endfor %}

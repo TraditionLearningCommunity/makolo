@@ -15,6 +15,7 @@ from .presentation import (
     essential_points_for_profile,
     now_points_for_profile,
     search_conversation,
+    search_conversations_for_profile,
 )
 from .services import can_view_conversation, update_personal_conversation_state
 
@@ -38,14 +39,17 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
         tab = (self.request.GET.get("tab") or "for-me").strip().lower()
         if tab not in {"for-me", "all", "archived"}:
             tab = "for-me"
+        q = (self.request.GET.get("q") or "").strip()[:120]
         context.update(
             {
                 "tab": tab,
+                "q": q,
                 "rows": conversation_rows_for_profile(
                     self.request.user,
                     archived=tab == "archived",
                     only_attention=tab == "for-me",
-                ),
+                ) if not q else [],
+                "search_results": search_conversations_for_profile(self.request.user, q) if q else [],
             }
         )
         return context
@@ -63,7 +67,7 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
         context.update(
             {
                 "conversation": conversation,
-                "context_label": conversation_context_label(conversation),
+                "context_label": conversation_context_label(conversation, self.request.user),
                 "now_rows": now_points_for_profile(self.request.user, conversation),
                 "essential_points": essential_points_for_profile(self.request.user, conversation),
                 "q": q,

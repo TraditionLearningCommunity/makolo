@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from django.db.models import Q
 from django.utils import timezone
 
 from .attention import point_attention_reason
@@ -20,7 +21,15 @@ class ConversationRow:
     all_clear: bool
 
 
-def conversation_context_label(conversation):
+@dataclass(frozen=True)
+class ConversationSearchRow:
+    conversation: Conversation
+    context_label: str
+    point: ConversationPoint | None
+    rank: int
+
+
+def conversation_context_label(conversation, profile=None):
     context = conversation.context
     if context.kind == ConversationContextKind.SPACE:
         return context.space.name
@@ -39,7 +48,12 @@ def conversation_context_label(conversation):
     if context.kind == ConversationContextKind.ACTION_PROPOSAL:
         return context.action_proposal.need.title
     if context.kind == ConversationContextKind.DIRECT:
-        other = context.direct_profile_b if conversation.created_by_id == context.direct_profile_a_id else context.direct_profile_a
+        if profile is not None and profile.pk == context.direct_profile_a_id:
+            other = context.direct_profile_b
+        elif profile is not None and profile.pk == context.direct_profile_b_id:
+            other = context.direct_profile_a
+        else:
+            other = context.direct_profile_b if conversation.created_by_id == context.direct_profile_a_id else context.direct_profile_a
         return other.full_name or other.username
     return "Conversation"
 
@@ -90,7 +104,7 @@ def conversation_rows_for_profile(profile, *, archived=False, only_attention=Fal
         rows.append(
             ConversationRow(
                 conversation=conversation,
-                context_label=conversation_context_label(conversation),
+                context_label=conversation_context_label(conversation, profile),
                 attention_count=attention,
                 latest_result=_latest_resolution_summary(conversation, profile),
                 all_clear=attention == 0,
@@ -144,16 +158,26 @@ def search_conversation(profile, conversation, query, *, limit=50):
     query = (query or "").strip()[:120]
     if not query:
         return []
-    candidates = conversation.points.filter(title__icontains=query) | conversation.points.filter(body__icontains=query)
-    candidates = candidates.select_related("visibility_audience", "resolution").distinct()[:200]
+    candidates = conversation.points.filter(
+        Q(title__icontains=query) | Q(body__icontains=query) | Q(resolution__summary__icontains=query)
+    ).select_related("visibility_audience", "resolution").distinct()[:200]
     scored = []
+    normalized = query.casefold()
     for point in candidates:
         if not point_visible_to(profile, point):
             continue
+        resolution_summary = ""
         if point.lifecycle == ConversationPointLifecycle.RESOLVED:
+            try:
+                resolution_summary = point.resolution.summary or ""
+            except Exception:
+                resolution_summary = ""
+        if resolution_summary and normalized in resolution_summary.casefold():
             score = 0
         elif point.lifecycle in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
             score = 1
+        elif point.lifecycle == ConversationPointLifecycle.RESOLVED:
+            score = 2
         elif point.lifecycle == ConversationPointLifecycle.SUPERSEDED:
             score = 5
         else:
@@ -161,6 +185,51 @@ def search_conversation(profile, conversation, query, *, limit=50):
         scored.append((score, -(point.published_at.timestamp() if point.published_at else 0), point))
     scored.sort(key=lambda row: (row[0], row[1]))
     return [row[2] for row in scored[:limit]]
+
+
+def search_conversations_for_profile(profile, query, *, limit=50):
+    """Privacy-safe global Conversation search with outcome/current-state precedence.
+
+    The selector deliberately keeps the physical search implementation independent
+    from the Conversation domain so SQLite can serve beta while PostgreSQL search
+    can replace this implementation later without changing persisted truth.
+    """
+
+    query = (query or "").strip()[:120]
+    if not query or not getattr(profile, "is_authenticated", False):
+        return []
+    normalized = query.casefold()
+    rows = []
+    for conversation in _accessible_conversations(profile, include_archived=False, limit=300):
+        context_label = conversation_context_label(conversation, profile)
+        haystack = " ".join((conversation.title_override or "", conversation.purpose or "", context_label)).casefold()
+        if normalized in haystack:
+            rows.append(ConversationSearchRow(conversation=conversation, context_label=context_label, point=None, rank=2))
+        for point in search_conversation(profile, conversation, query, limit=5):
+            if point.lifecycle == ConversationPointLifecycle.RESOLVED:
+                try:
+                    summary = point.resolution.summary or ""
+                except Exception:
+                    summary = ""
+                rank = 0 if normalized in summary.casefold() else 2
+            elif point.lifecycle in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
+                rank = 1
+            else:
+                rank = 3
+            rows.append(ConversationSearchRow(conversation=conversation, context_label=context_label, point=point, rank=rank))
+    rows.sort(
+        key=lambda row: (
+            row.rank,
+            -(
+                row.point.resolved_at.timestamp()
+                if row.point is not None and row.point.resolved_at
+                else row.point.published_at.timestamp()
+                if row.point is not None and row.point.published_at
+                else row.conversation.updated_at.timestamp()
+            ),
+        )
+    )
+    return rows[:limit]
 
 
 def catch_up_summary(profile, conversation, *, since=None):
