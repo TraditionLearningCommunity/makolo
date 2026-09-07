@@ -124,6 +124,10 @@ def _grant_idempotency_key(*, slice_key, subject_key):
     return "recognition-grant:" + hashlib.sha256(f"{slice_key}|{subject_key}".encode()).hexdigest()
 
 
+def _pending_idempotency_key(*, slice_key, subject_key):
+    return "recognition-pending:" + hashlib.sha256(f"{slice_key}|{subject_key}".encode()).hexdigest()
+
+
 def _normalize_shares(shares: Iterable[AttributionShare]):
     rows = tuple(shares); total = Decimal("0"); seen = set()
     for item in rows:
@@ -162,9 +166,10 @@ def _apply_earned_projection(account, points):
 
 
 @transaction.atomic
-def process_impact_slice(*, window, slice_key, accrual_key, channel, temporal_profile, occurred_at, available_at, impact_delta, attribution_shares, points_target_for_cumulative, policy_version, metadata=None):
+def process_impact_slice(*, window, slice_key, accrual_key, channel, temporal_profile, occurred_at, available_at, impact_delta, attribution_shares, points_target_for_cumulative, policy_version, metadata=None, maturation_hours=0):
     policy_version = _validate_policy_version(policy_version); slice_key=(slice_key or "").strip(); accrual_key=(accrual_key or "").strip(); impact_delta=Decimal(impact_delta)
     channel=getattr(channel,"value",channel); temporal_profile=getattr(temporal_profile,"value",temporal_profile)
+    maturation_hours=max(0, min(int(maturation_hours or 0), 8760))
     if not slice_key or not accrual_key: raise ValidationError("slice_key et accrual_key sont obligatoires.")
     if not impact_delta.is_finite() or impact_delta < 0: raise ValidationError("Une slice v1 porte un delta d'impact fini, positif ou nul ; les corrections sont explicites.")
     if channel not in {item.value for item in ImpactChannel}: raise ValidationError("Canal d'impact Recognition inconnu.")
@@ -190,12 +195,68 @@ def process_impact_slice(*, window, slice_key, accrual_key, channel, temporal_pr
     grants=[]
     for share,points in allocations:
         account=get_or_create_account(profile=share.profile,space=share.space); account=RecognitionAccount.objects.select_for_update().get(pk=account.pk)
-        absorbed=_apply_earned_projection(account,points)
-        entry=RecognitionLedgerEntry.objects.create(account=account,kind=RecognitionLedgerKind.GRANT.value,points=points,description=(share.description or "Impact Makolo reconnu")[:255],idempotency_key=_grant_idempotency_key(slice_key=slice_key,subject_key=share.subject_key()),recognized_slice=receipt,policy_version=policy_version,metadata={"slice_key":slice_key,"accrual_key":accrual_key,"absorbed_correction_deficit":absorbed})
-        account.save(update_fields=["points_balance","correction_deficit","lifetime_earned","updated_at"]); grants.append(entry)
+        if maturation_hours:
+            matures_at=available_at + timedelta(hours=maturation_hours)
+            entry=RecognitionLedgerEntry.objects.create(account=account,kind=RecognitionLedgerKind.PENDING.value,points=points,description=(share.description or "Impact Makolo en maturation")[:255],idempotency_key=_pending_idempotency_key(slice_key=slice_key,subject_key=share.subject_key()),recognized_slice=receipt,policy_version=policy_version,metadata={"slice_key":slice_key,"accrual_key":accrual_key,"matures_at":matures_at.isoformat()})
+            account.pending_points+=points
+            account.save(update_fields=["pending_points","updated_at"])
+        else:
+            absorbed=_apply_earned_projection(account,points)
+            entry=RecognitionLedgerEntry.objects.create(account=account,kind=RecognitionLedgerKind.GRANT.value,points=points,description=(share.description or "Impact Makolo reconnu")[:255],idempotency_key=_grant_idempotency_key(slice_key=slice_key,subject_key=share.subject_key()),recognized_slice=receipt,policy_version=policy_version,metadata={"slice_key":slice_key,"accrual_key":accrual_key,"absorbed_correction_deficit":absorbed})
+            account.save(update_fields=["points_balance","correction_deficit","lifetime_earned","updated_at"])
+        grants.append(entry)
     window.processed_slices+=1; window.pool_points+=pool_points; window.issued_points+=issued; window.unattributed_points+=unattributed
     window.save(update_fields=["processed_slices","pool_points","issued_points","unattributed_points","updated_at"])
     return SliceProcessResult(receipt,True,tuple(grants))
+
+
+@transaction.atomic
+def release_due_pending_grants(*, now=None, limit=500):
+    """Move matured pending Recognition into the available balance exactly once."""
+    now = now or timezone.now()
+    released = 0
+    candidates = list(
+        RecognitionLedgerEntry.objects.filter(kind=RecognitionLedgerKind.PENDING.value)
+        .select_related("account", "recognized_slice")
+        .order_by("created_at", "id")[: max(1, int(limit))]
+    )
+    for pending in candidates:
+        matures_at = (pending.metadata or {}).get("matures_at")
+        if not matures_at:
+            continue
+        try:
+            due_at = timezone.datetime.fromisoformat(matures_at)
+        except (TypeError, ValueError):
+            continue
+        if timezone.is_naive(due_at):
+            due_at = timezone.make_aware(due_at, timezone.get_current_timezone())
+        if due_at > now:
+            continue
+        release_key = f"recognition-release:{pending.pk}"
+        if RecognitionLedgerEntry.objects.filter(idempotency_key=release_key).exists():
+            continue
+        account = RecognitionAccount.objects.select_for_update().get(pk=pending.account_id)
+        if account.pending_points < pending.points:
+            raise ValidationError("La projection pending Recognition est incohérente avec le ledger.")
+        absorbed = _apply_earned_projection(account, pending.points)
+        account.pending_points -= pending.points
+        grant = RecognitionLedgerEntry.objects.create(
+            account=account,
+            kind=RecognitionLedgerKind.GRANT.value,
+            points=pending.points,
+            description=pending.description.replace("en maturation", "reconnu")[:255],
+            idempotency_key=release_key,
+            recognized_slice=pending.recognized_slice,
+            policy_version=pending.policy_version,
+            metadata={"pending_entry_id": str(pending.pk), "absorbed_correction_deficit": absorbed},
+        )
+        account.save(update_fields=["points_balance","pending_points","correction_deficit","lifetime_earned","updated_at"])
+        evaluation = getattr(pending.recognized_slice, "object_evaluation", None) if pending.recognized_slice_id else None
+        if evaluation is not None:
+            from .achievements import grant_due_achievements
+            grant_due_achievements(account=account, evaluation=evaluation)
+        released += grant.points
+    return released
 
 
 @transaction.atomic
@@ -239,5 +300,5 @@ def apply_correction(*, account, points_to_remove, idempotency_key, reason, acto
 
 
 def reconstructed_balance(account):
-    value=account.ledger_entries.aggregate(total=Sum("points"))["total"]
+    value=account.ledger_entries.exclude(kind=RecognitionLedgerKind.PENDING.value).aggregate(total=Sum("points"))["total"]
     return int(value or 0)
