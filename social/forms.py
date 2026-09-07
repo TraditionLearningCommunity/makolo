@@ -1,12 +1,14 @@
 from django import forms
 from django.db.models import Q
 
-from activities.models import Activity
+from activities.models import Activity, Occurrence
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission, space_ids_with_permission
 from opportunities.models import Opportunity, OpportunityPublicationStatus
 from organizations.models import Organization
-from topics.models import OpenToKind, Topic
+from topics.models import ActionMatchKind, Topic
+
+from .models import ActionNeedCandidateKind, ActionNeedIntakePolicy, ActionNeedVisibility
 
 
 class ActionNeedForm(forms.Form):
@@ -17,7 +19,11 @@ class ActionNeedForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
     )
-    open_to_kind = forms.ChoiceField(label="Ouvert à recherché", choices=OpenToKind.choices)
+    match_kind = forms.ChoiceField(label="Famille de contribution", choices=ActionMatchKind.choices)
+    candidate_kind = forms.ChoiceField(label="Qui recherchez-vous ?", choices=ActionNeedCandidateKind.choices)
+    visibility = forms.ChoiceField(label="Visibilité", choices=ActionNeedVisibility.choices)
+    intake_policy = forms.ChoiceField(label="Réception des propositions", choices=ActionNeedIntakePolicy.choices)
+    target_count = forms.IntegerField(label="Nombre recherché", min_value=1, required=False)
     topics = forms.ModelMultipleChoiceField(label="Topics", queryset=Topic.objects.none(), required=False)
     space = forms.ModelChoiceField(
         label="Space (laisser vide pour un besoin personnel)",
@@ -25,6 +31,7 @@ class ActionNeedForm(forms.Form):
         required=False,
     )
     activity = forms.ModelChoiceField(label="Activity liée", queryset=Activity.objects.none(), required=False)
+    occurrence = forms.ModelChoiceField(label="Occurrence liée", queryset=Occurrence.objects.none(), required=False)
     opportunity = forms.ModelChoiceField(label="Opportunity liée", queryset=Opportunity.objects.none(), required=False)
 
     def __init__(self, *args, actor, **kwargs):
@@ -45,7 +52,9 @@ class ActionNeedForm(forms.Form):
             if manageable_activities:
                 activity_query |= Q(pk__in=manageable_activities)
             activity_queryset = Activity.objects.filter(activity_query)
-        self.fields["activity"].queryset = activity_queryset.select_related("space", "owner_profile").order_by("title", "id")
+        activity_queryset = activity_queryset.select_related("space", "owner_profile").order_by("title", "id")
+        self.fields["activity"].queryset = activity_queryset
+        self.fields["occurrence"].queryset = Occurrence.objects.filter(activity__in=activity_queryset).select_related("activity").order_by("start_date", "start_time", "id")
 
         if manageable_spaces is None or manageable_activities is None:
             space_queryset = Organization.objects.all()
@@ -59,3 +68,13 @@ class ActionNeedForm(forms.Form):
                 )
             space_queryset = Organization.objects.filter(pk__in=space_ids)
         self.fields["space"].queryset = space_queryset.order_by("name", "id")
+
+    def clean(self):
+        cleaned = super().clean()
+        occurrence = cleaned.get("occurrence")
+        activity = cleaned.get("activity")
+        if occurrence is not None and activity is None:
+            self.add_error("activity", "Choisissez l'Activity de cette Occurrence.")
+        elif occurrence is not None and occurrence.activity_id != activity.pk:
+            self.add_error("occurrence", "L'Occurrence doit appartenir à l'Activity choisie.")
+        return cleaned
