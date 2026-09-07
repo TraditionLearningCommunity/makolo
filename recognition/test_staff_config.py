@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models.deletion import ProtectedError
 from django.test import TestCase
 from django.utils import timezone
 
@@ -71,6 +72,7 @@ class RecognitionStaffConfigurationTests(TestCase):
             version=1,
             name="Reward v1",
             points_cost=10,
+            fulfillment={"owner_domain": "external"},
         )
         redeem_reward(
             owner_account=self.account,
@@ -88,6 +90,7 @@ class RecognitionStaffConfigurationTests(TestCase):
             version=2,
             name="Reward v2",
             points_cost=12,
+            fulfillment={"owner_domain": "external"},
         )
         visible = active_rewards(owner_account=self.account)
         self.assertIn(reward_v2, visible)
@@ -106,5 +109,6 @@ class RecognitionStaffConfigurationTests(TestCase):
         achievement.criteria = {"lifetime_earned_gte": 999999}
         with self.assertRaises(ValidationError):
             achievement.save()
-        with self.assertRaises(ValidationError):
+        # The FK PROTECT is the strongest source-level guarantee: historical grants keep their definition.
+        with self.assertRaises(ProtectedError):
             achievement.delete()
