@@ -42,7 +42,7 @@ def ensure_form_requests_for_point(*, actor, point: ConversationPoint, form_vers
     each respondent needs an independent canonical response lifecycle.
     """
 
-    locked = ConversationPoint.objects.select_for_update().select_related("conversation__context").get(pk=point.pk)
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=point.pk)
     if locked.kind != ConversationPointKind.FORM_REQUEST:
         raise ValidationError("Ce Point n’est pas un Point Formulaire.")
     if not can_publish_in_conversation(actor, locked.conversation):
