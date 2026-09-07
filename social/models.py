@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
-from topics.models import OpenToKind
+from topics.models import ActionMatchKind
 
 
 class ContributionKind(models.TextChoices):
@@ -174,12 +174,34 @@ class Contribution(models.Model):
 
 
 class ActionNeedStatus(models.TextChoices):
+    DRAFT = "draft", "Brouillon"
     OPEN = "open", "Ouvert"
-    CLOSED = "closed", "Fermé"
+    PAUSED = "paused", "En pause"
+    FILLED = "filled", "Satisfait"
+    CANCELLED = "cancelled", "Annulé"
+    EXPIRED = "expired", "Expiré"
+
+
+class ActionNeedCandidateKind(models.TextChoices):
+    PROFILE = "profile", "Profil"
+    SPACE = "space", "Espace"
+    EITHER = "either", "Profil ou Espace"
+
+
+class ActionNeedVisibility(models.TextChoices):
+    PRIVATE = "private", "Privé"
+    MATCHED = "matched", "Candidats compatibles"
+    PUBLIC = "public", "Public"
+
+
+class ActionNeedIntakePolicy(models.TextChoices):
+    INVITE_ONLY = "invite_only", "Sur invitation"
+    MATCHED = "matched", "Candidats compatibles"
+    OPEN = "open", "Ouvert aux propositions"
 
 
 class ActionNeed(models.Model):
-    """A lightweight bilateral-network need: "I am looking for people for this"."""
+    """A concrete, scoped need in Makolo's bilateral action network."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner_profile = models.ForeignKey(
@@ -203,10 +225,22 @@ class ActionNeed(models.Model):
     )
     title = models.CharField(max_length=220)
     description = models.CharField(max_length=600, blank=True)
-    open_to_kind = models.CharField(max_length=32, choices=OpenToKind.choices)
+    match_kind = models.CharField(max_length=32, choices=ActionMatchKind.choices)
+    candidate_kind = models.CharField(
+        max_length=16,
+        choices=ActionNeedCandidateKind.choices,
+        default=ActionNeedCandidateKind.PROFILE,
+    )
     topics = models.ManyToManyField("topics.Topic", related_name="action_needs", blank=True)
     activity = models.ForeignKey(
         "activities.Activity",
+        on_delete=models.PROTECT,
+        related_name="action_needs",
+        null=True,
+        blank=True,
+    )
+    occurrence = models.ForeignKey(
+        "activities.Occurrence",
         on_delete=models.PROTECT,
         related_name="action_needs",
         null=True,
@@ -219,6 +253,21 @@ class ActionNeed(models.Model):
         null=True,
         blank=True,
     )
+    visibility = models.CharField(
+        max_length=16,
+        choices=ActionNeedVisibility.choices,
+        default=ActionNeedVisibility.PRIVATE,
+    )
+    intake_policy = models.CharField(
+        max_length=16,
+        choices=ActionNeedIntakePolicy.choices,
+        default=ActionNeedIntakePolicy.INVITE_ONLY,
+    )
+    target_count = models.PositiveIntegerField(null=True, blank=True)
+    opens_at = models.DateTimeField(null=True, blank=True)
+    closes_at = models.DateTimeField(null=True, blank=True)
+    needed_from = models.DateTimeField(null=True, blank=True)
+    needed_until = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=16, choices=ActionNeedStatus.choices, default=ActionNeedStatus.OPEN)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -233,11 +282,27 @@ class ActionNeed(models.Model):
                 ),
                 name="social_action_need_single_owner",
             ),
+            models.CheckConstraint(
+                condition=Q(target_count__isnull=True) | Q(target_count__gt=0),
+                name="social_action_need_target_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(closes_at__isnull=True) | Q(opens_at__isnull=True) | Q(closes_at__gte=models.F("opens_at")),
+                name="social_action_need_intake_window",
+            ),
+            models.CheckConstraint(
+                condition=Q(needed_until__isnull=True) | Q(needed_from__isnull=True) | Q(needed_until__gte=models.F("needed_from")),
+                name="social_action_need_needed_window",
+            ),
         ]
         indexes = [
             models.Index(fields=["owner_profile", "status", "created_at"], name="social_need_profile_idx"),
             models.Index(fields=["space", "status", "created_at"], name="social_need_space_idx"),
-            models.Index(fields=["status", "open_to_kind"], name="social_need_open_to_idx"),
+            models.Index(fields=["activity", "status"], name="social_need_activity_idx"),
+            models.Index(fields=["occurrence", "status"], name="social_need_occurrence_idx"),
+            models.Index(fields=["status", "match_kind"], name="social_need_match_idx"),
+            models.Index(fields=["status", "visibility", "intake_policy"], name="social_need_discovery_idx"),
+            models.Index(fields=["closes_at"], name="social_need_closes_idx"),
         ]
 
     def clean(self):
@@ -252,6 +317,17 @@ class ActionNeed(models.Model):
                 errors["activity"] = "L'Activity doit appartenir au même Profile que le besoin."
             if self.space_id and self.activity.space_id != self.space_id:
                 errors["activity"] = "L'Activity doit appartenir au même Space que le besoin."
+        if self.occurrence_id:
+            if not self.activity_id:
+                errors["activity"] = "Une Occurrence exige une Activity explicite sur le besoin."
+            elif self.occurrence.activity_id != self.activity_id:
+                errors["occurrence"] = "L'Occurrence doit appartenir à l'Activity du besoin."
+        if self.target_count is not None and self.target_count <= 0:
+            errors["target_count"] = "Le nombre recherché doit être strictement positif."
+        if self.opens_at and self.closes_at and self.closes_at < self.opens_at:
+            errors["closes_at"] = "La fermeture doit être postérieure à l'ouverture."
+        if self.needed_from and self.needed_until and self.needed_until < self.needed_from:
+            errors["needed_until"] = "La fin du besoin doit être postérieure à son début."
         if errors:
             raise ValidationError(errors)
 
@@ -273,78 +349,259 @@ class ActionNeed(models.Model):
             return self.owner_profile.full_name or self.owner_profile.username
         return ""
 
+    @property
+    def open_to_kind(self):
+        """Compatibility accessor for pre-convergence presentation code."""
+        return self.match_kind
+
     def __str__(self):
         return self.title
 
 
-class ProfileSolicitationStatus(models.TextChoices):
+class ActionProposalDirection(models.TextChoices):
+    OWNER_TO_CANDIDATE = "owner_to_candidate", "Invitation du propriétaire"
+    CANDIDATE_TO_OWNER = "candidate_to_owner", "Proposition du candidat"
+
+
+class ActionProposalStatus(models.TextChoices):
     PENDING = "pending", "En attente"
     ACCEPTED = "accepted", "Acceptée"
     DECLINED = "declined", "Refusée"
     CANCELLED = "cancelled", "Annulée"
+    EXPIRED = "expired", "Expirée"
 
 
-class ProfileSolicitation(models.Model):
-    """Explicit presentation of one ActionNeed to one discoverable Profile."""
+class ActionProposal(models.Model):
+    """Explicit bilateral proposal for one candidate to satisfy one ActionNeed."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    need = models.ForeignKey(ActionNeed, on_delete=models.PROTECT, related_name="solicitations")
-    recipient_profile = models.ForeignKey(
+    need = models.ForeignKey(ActionNeed, on_delete=models.PROTECT, related_name="proposals")
+    candidate_profile = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="received_profile_solicitations",
+        related_name="action_proposals_as_candidate",
+        null=True,
+        blank=True,
     )
-    sent_by = models.ForeignKey(
+    candidate_space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="action_proposals_as_candidate",
+        null=True,
+        blank=True,
+    )
+    initiated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="sent_profile_solicitations",
+        related_name="initiated_action_proposals",
+    )
+    direction = models.CharField(
+        max_length=24,
+        choices=ActionProposalDirection.choices,
+        default=ActionProposalDirection.OWNER_TO_CANDIDATE,
     )
     status = models.CharField(
         max_length=16,
-        choices=ProfileSolicitationStatus.choices,
-        default=ProfileSolicitationStatus.PENDING,
+        choices=ActionProposalStatus.choices,
+        default=ActionProposalStatus.PENDING,
     )
     message = models.CharField(max_length=500, blank=True)
+    response_message = models.CharField(max_length=500, blank=True)
+    responded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="responded_action_proposals",
+        null=True,
+        blank=True,
+    )
     responded_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cancelled_action_proposals",
+        null=True,
+        blank=True,
+    )
     cancelled_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    client_reference = models.CharField(max_length=80, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at", "id"]
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(candidate_profile__isnull=False, candidate_space__isnull=True)
+                    | Q(candidate_profile__isnull=True, candidate_space__isnull=False)
+                ),
+                name="social_action_proposal_single_candidate",
+            ),
             models.UniqueConstraint(
-                fields=["need", "recipient_profile"],
-                condition=Q(status=ProfileSolicitationStatus.PENDING),
-                name="social_solicitation_unique_pending",
+                fields=["need", "candidate_profile"],
+                condition=Q(candidate_profile__isnull=False, status__in=[ActionProposalStatus.PENDING, ActionProposalStatus.ACCEPTED]),
+                name="social_prop_profile_active_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["need", "candidate_space"],
+                condition=Q(candidate_space__isnull=False, status__in=[ActionProposalStatus.PENDING, ActionProposalStatus.ACCEPTED]),
+                name="social_prop_space_active_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["client_reference"],
+                condition=Q(client_reference__isnull=False),
+                name="social_prop_client_ref_unique",
             ),
         ]
         indexes = [
-            models.Index(fields=["need", "status", "created_at"], name="social_sol_need_status_idx"),
-            models.Index(fields=["recipient_profile", "status", "created_at"], name="social_sol_recipient_idx"),
-            models.Index(fields=["sent_by", "status", "created_at"], name="social_sol_sender_idx"),
+            models.Index(fields=["need", "status", "created_at"], name="social_prop_need_status_idx"),
+            models.Index(fields=["candidate_profile", "status", "created_at"], name="social_prop_profile_idx"),
+            models.Index(fields=["candidate_space", "status", "created_at"], name="social_prop_space_idx"),
+            models.Index(fields=["initiated_by", "created_at"], name="social_prop_initiator_idx"),
+            models.Index(fields=["expires_at"], name="social_prop_expires_idx"),
         ]
 
     def clean(self):
         super().clean()
         self.message = (self.message or "").strip()
+        self.response_message = (self.response_message or "").strip()
+        self.client_reference = (self.client_reference or "").strip() or None
         errors = {}
-        if self.need_id and self.need.owner_profile_id and self.need.owner_profile_id == self.recipient_profile_id:
-            errors["recipient_profile"] = "Un besoin personnel ne peut pas être sollicité auprès de son propre propriétaire."
-        if self._state.adding and self.need_id and self.need.status != ActionNeedStatus.OPEN:
-            errors["need"] = "Une nouvelle sollicitation exige un besoin ouvert."
+        if bool(self.candidate_profile_id) == bool(self.candidate_space_id):
+            errors["candidate_profile"] = "Une proposition vise soit un Profile, soit un Space, jamais les deux."
+        if self.need_id:
+            if self.candidate_profile_id and self.need.candidate_kind == ActionNeedCandidateKind.SPACE:
+                errors["candidate_profile"] = "Ce besoin recherche uniquement un Space."
+            if self.candidate_space_id and self.need.candidate_kind == ActionNeedCandidateKind.PROFILE:
+                errors["candidate_space"] = "Ce besoin recherche uniquement un Profile."
+            if self.need.owner_profile_id and self.need.owner_profile_id == self.candidate_profile_id:
+                errors["candidate_profile"] = "Un besoin personnel ne peut pas viser son propre propriétaire."
+            if self.need.space_id and self.need.space_id == self.candidate_space_id:
+                errors["candidate_space"] = "Un besoin Space ne peut pas viser son propre Space."
+            if self._state.adding and self.need.status != ActionNeedStatus.OPEN:
+                errors["need"] = "Une nouvelle proposition exige un besoin ouvert."
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.full_clean()
         if self.pk and not self._state.adding and not getattr(self, "_allow_status_transition", False):
-            previous = ProfileSolicitation.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            previous = ActionProposal.objects.filter(pk=self.pk).values_list("status", flat=True).first()
             if previous is not None and previous != self.status:
-                raise ValidationError({"status": "Utilisez le service ProfileSolicitation pour répondre ou annuler."})
+                raise ValidationError({"status": "Utilisez le service ActionProposal pour répondre ou annuler."})
         result = super().save(*args, **kwargs)
         self._allow_status_transition = False
         return result
 
     def __str__(self):
-        return f"{self.need} → {self.recipient_profile} ({self.get_status_display()})"
+        candidate = self.candidate_profile or self.candidate_space
+        return f"{self.need} → {candidate} ({self.get_status_display()})"
+
+
+class ActionNetworkBlock(models.Model):
+    """Symmetric matching/contact exclusion initiated by one Profile or Space."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    blocker_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="action_network_blocks_created_as_profile",
+        null=True,
+        blank=True,
+    )
+    blocker_space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="action_network_blocks_created_as_space",
+        null=True,
+        blank=True,
+    )
+    blocked_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="action_network_blocks_received_as_profile",
+        null=True,
+        blank=True,
+    )
+    blocked_space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="action_network_blocks_received_as_space",
+        null=True,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_action_network_blocks",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(blocker_profile__isnull=False, blocker_space__isnull=True)
+                    | Q(blocker_profile__isnull=True, blocker_space__isnull=False)
+                ),
+                name="social_block_single_blocker",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(blocked_profile__isnull=False, blocked_space__isnull=True)
+                    | Q(blocked_profile__isnull=True, blocked_space__isnull=False)
+                ),
+                name="social_block_single_blocked",
+            ),
+            models.UniqueConstraint(
+                fields=["blocker_profile", "blocked_profile"],
+                condition=Q(blocker_profile__isnull=False, blocked_profile__isnull=False),
+                name="social_block_profile_profile_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["blocker_profile", "blocked_space"],
+                condition=Q(blocker_profile__isnull=False, blocked_space__isnull=False),
+                name="social_block_profile_space_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["blocker_space", "blocked_profile"],
+                condition=Q(blocker_space__isnull=False, blocked_profile__isnull=False),
+                name="social_block_space_profile_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["blocker_space", "blocked_space"],
+                condition=Q(blocker_space__isnull=False, blocked_space__isnull=False),
+                name="social_block_space_space_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["blocker_profile", "blocked_profile"], name="social_block_pp_idx"),
+            models.Index(fields=["blocker_profile", "blocked_space"], name="social_block_ps_idx"),
+            models.Index(fields=["blocker_space", "blocked_profile"], name="social_block_sp_idx"),
+            models.Index(fields=["blocker_space", "blocked_space"], name="social_block_ss_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if bool(self.blocker_profile_id) == bool(self.blocker_space_id):
+            errors["blocker_profile"] = "Un bloc est porté soit par un Profile, soit par un Space."
+        if bool(self.blocked_profile_id) == bool(self.blocked_space_id):
+            errors["blocked_profile"] = "Un bloc vise soit un Profile, soit un Space."
+        if self.blocker_profile_id and self.blocked_profile_id and self.blocker_profile_id == self.blocked_profile_id:
+            errors["blocked_profile"] = "Un Profile ne peut pas se bloquer lui-même."
+        if self.blocker_space_id and self.blocked_space_id and self.blocker_space_id == self.blocked_space_id:
+            errors["blocked_space"] = "Un Space ne peut pas se bloquer lui-même."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+# Compatibility names for pre-convergence callers. New code should use ActionProposal.
+ProfileSolicitation = ActionProposal
+ProfileSolicitationStatus = ActionProposalStatus

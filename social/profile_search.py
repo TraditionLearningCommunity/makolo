@@ -9,9 +9,10 @@ from django.db.models import Q
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission, space_ids_with_permission
-from topics.models import OpenToKind, ProfileInterest
+from organizations.models import Organization
+from topics.models import ActionMatchKind, ProfileInterest, SpaceOpenTo
 
-from .models import ActionNeed, ProfileSolicitation
+from .models import ActionNeed, ActionNetworkBlock, ActionProposal, ActionProposalDirection
 
 
 User = get_user_model()
@@ -29,13 +30,48 @@ class ProfileCandidate:
     reasons: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class SpaceCandidate:
+    """Minimum-disclosure read model for one Space candidate."""
+
+    space_id: UUID
+    display_name: str
+    city: str
+    country: str
+    open_to_label: str
+    reasons: tuple[str, ...]
+
+
+def _blocked_profile_ids(need: ActionNeed) -> set[UUID]:
+    if need.owner_profile_id:
+        outbound = ActionNetworkBlock.objects.filter(blocker_profile_id=need.owner_profile_id).exclude(blocked_profile=None)
+        inbound = ActionNetworkBlock.objects.filter(blocked_profile_id=need.owner_profile_id).exclude(blocker_profile=None)
+        return set(outbound.values_list("blocked_profile_id", flat=True)) | set(inbound.values_list("blocker_profile_id", flat=True))
+    if need.space_id:
+        outbound = ActionNetworkBlock.objects.filter(blocker_space_id=need.space_id).exclude(blocked_profile=None)
+        inbound = ActionNetworkBlock.objects.filter(blocked_space_id=need.space_id).exclude(blocker_profile=None)
+        return set(outbound.values_list("blocked_profile_id", flat=True)) | set(inbound.values_list("blocker_profile_id", flat=True))
+    return set()
+
+
+def _blocked_space_ids(need: ActionNeed) -> set[UUID]:
+    if need.owner_profile_id:
+        outbound = ActionNetworkBlock.objects.filter(blocker_profile_id=need.owner_profile_id).exclude(blocked_space=None)
+        inbound = ActionNetworkBlock.objects.filter(blocked_profile_id=need.owner_profile_id).exclude(blocker_space=None)
+        return set(outbound.values_list("blocked_space_id", flat=True)) | set(inbound.values_list("blocker_space_id", flat=True))
+    if need.space_id:
+        outbound = ActionNetworkBlock.objects.filter(blocker_space_id=need.space_id).exclude(blocked_space=None)
+        inbound = ActionNetworkBlock.objects.filter(blocked_space_id=need.space_id).exclude(blocker_space=None)
+        return set(outbound.values_list("blocked_space_id", flat=True)) | set(inbound.values_list("blocker_space_id", flat=True))
+    return set()
+
+
 def _eligible_profiles(need: ActionNeed):
     queryset = (
         User.objects.filter(
             is_active=True,
-            profile__public_profile=True,
             profile__searchable=True,
-            open_to_declarations__kind=need.open_to_kind,
+            open_to_declarations__kind=need.match_kind,
             open_to_declarations__is_active=True,
             open_to_declarations__is_searchable=True,
         )
@@ -44,23 +80,46 @@ def _eligible_profiles(need: ActionNeed):
     )
     if need.owner_profile_id:
         queryset = queryset.exclude(pk=need.owner_profile_id)
+    blocked = _blocked_profile_ids(need)
+    if blocked:
+        queryset = queryset.exclude(pk__in=blocked)
+    return queryset
+
+
+def _eligible_spaces(need: ActionNeed):
+    queryset = (
+        Organization.objects.filter(
+            open_to_declarations__kind=need.match_kind,
+            open_to_declarations__is_active=True,
+            open_to_declarations__is_searchable=True,
+        )
+        .distinct()
+    )
+    if need.space_id:
+        queryset = queryset.exclude(pk=need.space_id)
+    blocked = _blocked_space_ids(need)
+    if blocked:
+        queryset = queryset.exclude(pk__in=blocked)
     return queryset
 
 
 def profile_is_eligible_for_need(*, need: ActionNeed, profile) -> bool:
-    """Absolute discoverability gate used before a solicitation can be sent."""
-
+    if need.candidate_kind == "space":
+        return False
     return _eligible_profiles(need).filter(pk=getattr(profile, "pk", None)).exists()
 
 
+def space_is_eligible_for_need(*, need: ActionNeed, space) -> bool:
+    if need.candidate_kind == "profile":
+        return False
+    return _eligible_spaces(need).filter(pk=getattr(space, "pk", None)).exists()
+
+
 def search_profiles_for_need(*, need: ActionNeed, limit: int = 100) -> list[ProfileCandidate]:
-    """Find Profiles using only disclosure signals explicitly allowed by G7.
+    """Find Profiles from explicit searchable signals without exposing private facts."""
 
-    There is no materialized result table and no human score. OpenTo compatibility
-    is an absolute gate. Public interests and public personal Activities only
-    contribute explainable reasons and deterministic ordering.
-    """
-
+    if need.candidate_kind == "space":
+        return []
     limit = max(1, min(int(limit or 100), 200))
     profiles = list(_eligible_profiles(need).order_by("username", "id")[:limit])
     if not profiles:
@@ -69,7 +128,6 @@ def search_profiles_for_need(*, need: ActionNeed, limit: int = 100) -> list[Prof
     profile_ids = [profile.pk for profile in profiles]
     need_topics = list(need.topics.filter(is_active=True).order_by("label", "code"))
     topic_ids = [topic.pk for topic in need_topics]
-
     interests_by_profile: dict[UUID, list[str]] = {profile_id: [] for profile_id in profile_ids}
     activities_by_profile: dict[UUID, list[str]] = {profile_id: [] for profile_id in profile_ids}
 
@@ -100,7 +158,7 @@ def search_profiles_for_need(*, need: ActionNeed, limit: int = 100) -> list[Prof
         for activity in public_activities:
             activities_by_profile[activity.owner_profile_id].append(activity.title)
 
-    open_to_label = OpenToKind(need.open_to_kind).label
+    open_to_label = ActionMatchKind(need.match_kind).label
     candidates = []
     for profile in profiles:
         public_interests = interests_by_profile[profile.pk]
@@ -129,20 +187,68 @@ def search_profiles_for_need(*, need: ActionNeed, limit: int = 100) -> list[Prof
     return [row[4] for row in candidates]
 
 
+def search_spaces_for_need(*, need: ActionNeed, limit: int = 100) -> list[SpaceCandidate]:
+    if need.candidate_kind == "profile":
+        return []
+    limit = max(1, min(int(limit or 100), 200))
+    spaces = list(_eligible_spaces(need).order_by("name", "id")[:limit])
+    if not spaces:
+        return []
+    topic_ids = list(need.topics.filter(is_active=True).values_list("id", flat=True))
+    open_to_label = ActionMatchKind(need.match_kind).label
+    topic_labels_by_space: dict[UUID, list[str]] = {space.pk: [] for space in spaces}
+    if topic_ids:
+        for declaration in (
+            SpaceOpenTo.objects.filter(
+                space_id__in=[space.pk for space in spaces],
+                kind=need.match_kind,
+                is_active=True,
+                is_searchable=True,
+                topic_id__in=topic_ids,
+            )
+            .select_related("topic")
+            .order_by("topic__label", "space_id")
+        ):
+            topic_labels_by_space[declaration.space_id].append(declaration.topic.label)
+
+    candidates = []
+    for space in spaces:
+        topic_labels = topic_labels_by_space[space.pk]
+        reasons = [f"Ouvert à : {open_to_label}"]
+        reasons.extend(f"Topic compatible : {label}" for label in topic_labels)
+        candidates.append(
+            (
+                bool(topic_labels),
+                space.name.casefold(),
+                str(space.pk),
+                SpaceCandidate(
+                    space_id=space.pk,
+                    display_name=space.name,
+                    city=space.city or "",
+                    country=space.country or "",
+                    open_to_label=open_to_label,
+                    reasons=tuple(reasons),
+                ),
+            )
+        )
+    candidates.sort(key=lambda row: (-int(row[0]), row[1], row[2]))
+    return [row[3] for row in candidates]
+
+
 def action_needs_for_actor(actor):
     """Return needs the actor may manage without reading legacy memberships."""
 
     if not getattr(actor, "is_authenticated", False):
         return ActionNeed.objects.none()
     if getattr(actor, "is_superuser", False):
-        return ActionNeed.objects.all().select_related("owner_profile", "space", "activity", "opportunity")
+        return ActionNeed.objects.all().select_related("owner_profile", "space", "activity", "occurrence", "opportunity")
 
     query = Q(owner_profile=actor)
     manageable_spaces = space_ids_with_permission(actor, PermissionCode.SPACE_MANAGE)
     manageable_activities = activity_ids_with_permission(actor, PermissionCode.ACTIVITY_MANAGE)
 
     if manageable_spaces is None or manageable_activities is None:
-        return ActionNeed.objects.all().select_related("owner_profile", "space", "activity", "opportunity")
+        return ActionNeed.objects.all().select_related("owner_profile", "space", "activity", "occurrence", "opportunity")
     if manageable_spaces:
         query |= Q(space_id__in=manageable_spaces, activity__isnull=True)
     if manageable_activities:
@@ -150,14 +256,18 @@ def action_needs_for_actor(actor):
 
     return (
         ActionNeed.objects.filter(query)
-        .select_related("owner_profile", "space", "activity", "opportunity")
+        .select_related("owner_profile", "space", "activity", "occurrence", "opportunity")
         .distinct()
     )
 
 
-def solicitations_for_recipient(profile):
+def proposals_for_profile(profile):
     return (
-        ProfileSolicitation.objects.filter(recipient_profile=profile)
-        .select_related("need", "need__owner_profile", "need__space", "need__activity", "need__opportunity", "sent_by")
+        ActionProposal.objects.filter(candidate_profile=profile, direction=ActionProposalDirection.OWNER_TO_CANDIDATE)
+        .select_related("need", "need__owner_profile", "need__space", "need__activity", "need__occurrence", "need__opportunity", "initiated_by")
         .prefetch_related("need__topics")
     )
+
+
+# Compatibility selector name for the pre-convergence UI.
+solicitations_for_recipient = proposals_for_profile
