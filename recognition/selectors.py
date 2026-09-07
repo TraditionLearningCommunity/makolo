@@ -49,13 +49,18 @@ def _self_eligible(reward, account):
 
 
 def active_rewards(*, at=None, owner_account=None):
+    """Return one currently usable version per Reward code, newest version wins."""
     at = at or timezone.now()
-    rewards = list(
+    candidates = list(
         RewardDefinition.objects.filter(is_active=True)
         .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=at))
         .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
-        .order_by("points_cost", "name")
+        .order_by("code", "-version", "id")
     )
+    latest = {}
+    for reward in candidates:
+        latest.setdefault(reward.code, reward)
+    rewards = sorted(latest.values(), key=lambda reward: (reward.points_cost, reward.name, reward.code))
     if owner_account is None:
         return rewards
     return [reward for reward in rewards if _self_eligible(reward, owner_account)]
