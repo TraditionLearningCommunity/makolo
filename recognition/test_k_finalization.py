@@ -78,7 +78,6 @@ class RecognitionKFinalizationTests(TestCase):
         old_start = now - timedelta(days=3)
         boundary = now - timedelta(hours=12)
 
-        # Close the seeded default before this explicit policy history.
         RecognitionPolicy.objects.filter(status=PolicyStatus.ACTIVE).update(
             status=PolicyStatus.SUPERSEDED,
             effective_until=old_start,
@@ -265,6 +264,7 @@ class RecognitionKFinalizationTests(TestCase):
         account = self._fund_account()
         reward = RewardDefinition.objects.create(
             code="intro-final", version=1, name="Introduction final", kind=RewardKind.INTRODUCTION, points_cost=10,
+            acceptance_required=True,
             fulfillment={"match_kind": "participate", "title": "Trouver une personne utile"},
         )
         redemption = redeem_reward(owner_account=account, reward=reward, idempotency_key="intro-final-1", actor_profile=self.user, beneficiary_profile=self.user)
