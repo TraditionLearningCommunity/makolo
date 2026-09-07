@@ -23,7 +23,7 @@ from .services import get_or_create_account
 def _redemption_queryset():
     return RecognitionRedemption.objects.select_related(
         "reward", "owner_account", "beneficiary_profile", "beneficiary_space"
-    ).order_by("-requested_at", "-id")
+    ).order_by("-created_at", "-id")
 
 
 class RecognitionDashboardView(LoginRequiredMixin, TemplateView):
