@@ -55,17 +55,17 @@ class RecognitionAccount(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=(Q(profile__isnull=False, space__isnull=True) | Q(profile__isnull=True, space__isnull=False)),
-                name="recognition_account_subject_xor",
+                name="rec_account_subject_xor",
             ),
             models.UniqueConstraint(
                 fields=["profile"],
                 condition=Q(profile__isnull=False),
-                name="recognition_account_profile_unique",
+                name="rec_account_profile_unique",
             ),
             models.UniqueConstraint(
                 fields=["space"],
                 condition=Q(space__isnull=False),
-                name="recognition_account_space_unique",
+                name="rec_account_space_unique",
             ),
         ]
 
@@ -104,7 +104,7 @@ class RecognitionCursor(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=Q(window_size_hours__gte=1, window_size_hours__lte=168),
-                name="recognition_cursor_window_hours_valid",
+                name="rec_cursor_window_hours_valid",
             )
         ]
 
@@ -138,15 +138,15 @@ class RecognitionEvaluationWindow(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["cursor", "starts_at", "ends_at"],
-                name="recognition_window_cursor_bounds_unique",
+                name="rec_window_bounds_unique",
             ),
-            models.CheckConstraint(condition=Q(ends_at__gt=F("starts_at")), name="recognition_window_order_valid"),
+            models.CheckConstraint(condition=Q(ends_at__gt=F("starts_at")), name="rec_window_order_valid"),
             models.CheckConstraint(
                 condition=Q(pool_points=F("issued_points") + F("unattributed_points")),
-                name="recognition_window_points_conserved",
+                name="rec_window_points_conserved",
             ),
         ]
-        indexes = [models.Index(fields=["cursor", "status", "ends_at"], name="recognition_window_status_idx")]
+        indexes = [models.Index(fields=["cursor", "status", "ends_at"], name="rec_window_status_idx")]
 
     def __str__(self):
         return f"Recognition {self.cursor_id} {self.starts_at.isoformat()} → {self.ends_at.isoformat()} [{self.status}]"
@@ -173,11 +173,11 @@ class RecognitionAccrual(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["accrual_key", "policy_version"],
-                name="recognition_accrual_key_policy_unique",
+                name="rec_accrual_key_policy_unique",
             ),
-            models.CheckConstraint(condition=Q(cumulative_impact__gte=0), name="recognition_accrual_impact_nonnegative"),
+            models.CheckConstraint(condition=Q(cumulative_impact__gte=0), name="rec_accrual_impact_nonneg"),
         ]
-        indexes = [models.Index(fields=["channel", "updated_at"], name="recognition_accrual_channel_idx")]
+        indexes = [models.Index(fields=["channel", "updated_at"], name="rec_accrual_channel_idx")]
 
     def __str__(self):
         return f"{self.accrual_key} — {self.cumulative_impact} → {self.matured_points} pts"
@@ -215,15 +215,15 @@ class RecognitionSliceReceipt(models.Model):
     class Meta:
         ordering = ["available_at", "id"]
         constraints = [
-            models.CheckConstraint(condition=Q(impact_delta__gte=0), name="recognition_slice_impact_nonnegative"),
+            models.CheckConstraint(condition=Q(impact_delta__gte=0), name="rec_slice_impact_nonneg"),
             models.CheckConstraint(
                 condition=Q(pool_points=F("issued_points") + F("unattributed_points")),
-                name="recognition_slice_points_conserved",
+                name="rec_slice_points_conserved",
             ),
         ]
         indexes = [
-            models.Index(fields=["window", "available_at"], name="recognition_slice_window_idx"),
-            models.Index(fields=["channel", "occurred_at"], name="recognition_slice_channel_idx"),
+            models.Index(fields=["window", "available_at"], name="rec_slice_window_idx"),
+            models.Index(fields=["channel", "occurred_at"], name="rec_slice_channel_idx"),
         ]
 
     def save(self, *args, **kwargs):
@@ -273,10 +273,10 @@ class RecognitionLedgerEntry(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
-        constraints = [models.CheckConstraint(condition=~Q(points=0), name="recognition_ledger_points_nonzero")]
+        constraints = [models.CheckConstraint(condition=~Q(points=0), name="rec_ledger_points_nonzero")]
         indexes = [
-            models.Index(fields=["account", "created_at"], name="recognition_ledger_account_idx"),
-            models.Index(fields=["kind", "created_at"], name="recognition_ledger_kind_idx"),
+            models.Index(fields=["account", "created_at"], name="rec_ledger_account_idx"),
+            models.Index(fields=["kind", "created_at"], name="rec_ledger_kind_idx"),
         ]
 
     def save(self, *args, **kwargs):
