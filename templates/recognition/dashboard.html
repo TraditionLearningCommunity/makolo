@@ -74,9 +74,41 @@
     {% else %}<p class="text-sm" style="color:var(--mk-subtle)">Aucune possibilité d’utilisation n’est configurée pour le moment. Vos crédits restent disponibles.</p>{% endif %}
   </section>
 
+  {% if redemptions %}
+  <section class="space-y-3">
+    <h2 class="text-xl font-semibold">Mes utilisations</h2>
+    <div class="mk-card divide-y">
+      {% for redemption in redemptions %}
+      <div class="p-4">
+        <div class="flex items-center justify-between gap-4"><p class="font-medium">{{ redemption.reward.name }}</p><span class="text-sm font-semibold">{{ redemption.points_cost }} crédits</span></div>
+        <p class="mt-1 text-xs" style="color:var(--mk-subtle)">État : {{ redemption.get_status_display }}{% if redemption.fulfillment_snapshot.delegation_state %} · {{ redemption.fulfillment_snapshot.delegation_state }}{% endif %}</p>
+        {% if redemption.beneficiary_profile %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">Pour {{ redemption.beneficiary_profile }}</p>{% elif redemption.beneficiary_space %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">Pour {{ redemption.beneficiary_space }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if benefits_received %}
+  <section class="space-y-3">
+    <h2 class="text-xl font-semibold">Bénéfices reçus</h2>
+    <div class="grid gap-3 md:grid-cols-2">
+      {% for benefit in benefits_received %}
+      <article class="mk-card p-4">
+        <p class="font-semibold">{{ benefit.reward.name }}</p>
+        <p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ benefit.get_status_display }}{% if benefit.fulfillment_snapshot.delegation_state %} · {{ benefit.fulfillment_snapshot.delegation_state }}{% endif %}</p>
+        {% if benefit.fulfillment_snapshot.fulfilled_domain == 'promotions' and benefit.fulfillment_snapshot.promotion_code %}
+          <p class="mt-3 text-sm">Code privé : <strong>{{ benefit.fulfillment_snapshot.promotion_code }}</strong></p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <section class="space-y-3">
     <h2 class="text-xl font-semibold">Historique</h2>
-    {% if ledger_entries %}<div class="mk-card divide-y">{% for entry in ledger_entries %}<div class="flex items-center justify-between gap-4 p-4"><div><p class="font-medium">{{ entry.description }}</p><p class="text-xs" style="color:var(--mk-subtle)">{{ entry.created_at }}</p></div><span class="font-semibold">{% if entry.points > 0 %}+{% endif %}{{ entry.points }} crédits</span></div>{% endfor %}</div>{% else %}<p class="text-sm" style="color:var(--mk-subtle)">Rien à signaler pour l’instant. Avancez : Makolo suit ce qui devient possible.</p>{% endif %}
+    {% if ledger_entries %}<div class="mk-card divide-y">{% for entry in ledger_entries %}<div class="flex items-center justify-between gap-4 p-4"><div><p class="font-medium">{{ entry.description }}</p><p class="text-xs" style="color:var(--mk-subtle)">{{ entry.created_at }}</p></div><span class="font-semibold">{% if entry.kind == 'pending' %}en maturation · {% elif entry.points > 0 %}+{% endif %}{{ entry.points }} crédits</span></div>{% endfor %}</div>{% else %}<p class="text-sm" style="color:var(--mk-subtle)">Rien à signaler pour l’instant. Avancez : Makolo suit ce qui devient possible.</p>{% endif %}
   </section>
 
   <aside class="mk-card p-5"><h2 class="font-semibold">Comment ça marche ?</h2><p class="mt-2 text-sm" style="color:var(--mk-subtle)">Les crédits ne mesurent ni votre valeur personnelle ni la popularité. Ils reconnaissent la valeur observée dans le réseau d’action Makolo. Les règles et possibilités d’utilisation sont versionnées et administrées par Makolo.</p></aside>
