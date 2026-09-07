@@ -3,6 +3,8 @@ from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from notifications.models import Notification
 from organizations.models import Organization
 
@@ -42,9 +44,15 @@ class ConversationEscalationAndModerationTests(TestCase):
         self.space = Organization.objects.create(name="J7 Hardening Space", created_by=self.owner)
         self.activity = Activity.objects.create(
             space=self.space,
-            owner_profile=self.owner,
             created_by=self.owner,
             title="J7 Hardening Activity",
+        )
+        grant_activity_role(
+            profile=self.owner,
+            activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+            source="j7-conversations-hardening",
         )
         self.conversation = ensure_context_conversation(
             actor=self.owner,
