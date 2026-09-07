@@ -115,9 +115,14 @@ jobs:
         run: python manage.py test
 
   postgresql-core:
+    name: postgresql-core (${{ matrix.shard }})
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [identity, services, commerce]
     services:
       postgres:
         image: postgres:16-alpine
@@ -159,6 +164,7 @@ jobs:
           python manage.py check
           python manage.py migrate --noinput
       - name: Run authority, Groups, geography, Activities and Discovery PostgreSQL tests
+        if: ${{ matrix.shard == 'identity' }}
         run: >-
           python manage.py test
           authorization.tests
@@ -176,6 +182,7 @@ jobs:
           events.test_activity_bridge
           core.test_manual_access_attribution
       - name: Run Journey, Request and Access PostgreSQL tests
+        if: ${{ matrix.shard == 'identity' }}
         run: >-
           python manage.py test
           authorization.test_journey_access_scope
@@ -189,6 +196,7 @@ jobs:
           tickets.test_journey_access_bridge
           scanner.test_access_bridge
       - name: Run Services T31 PostgreSQL tests
+        if: ${{ matrix.shard == 'services' }}
         run: >-
           python manage.py test
           journeys.test_task31_services_core
@@ -196,6 +204,7 @@ jobs:
           services.tests
           services.test_task31_concurrency
       - name: Run horizontal Requirements T34A PostgreSQL tests
+        if: ${{ matrix.shard == 'services' }}
         run: >-
           python manage.py test
           requirements
@@ -203,12 +212,14 @@ jobs:
           services.test_task34a_requirements
           services.test_task34a_concurrency
       - name: Run Opportunities and Services T32 PostgreSQL tests
+        if: ${{ matrix.shard == 'services' }}
         run: >-
           python manage.py test
           opportunities.tests
           services.test_task32_opportunities
           services.test_task32_concurrency
       - name: Run Payments and Services T33 PostgreSQL tests
+        if: ${{ matrix.shard == 'commerce' }}
         run: >-
           python manage.py test
           payments.test_task33_obligations
@@ -216,6 +227,7 @@ jobs:
           services.test_task33_external_flows
           services.test_task33_concurrency
       - name: Run Commerce and Capacity PostgreSQL tests
+        if: ${{ matrix.shard == 'commerce' }}
         run: >-
           python manage.py test
           capacity.tests
@@ -232,31 +244,31 @@ jobs:
           payments.test_commerce_bridge
           payments.test_generic_commerce
 
-  postgresql-ops:
+  postgresql-ops-events:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 18
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: makolo_ci_ops
+          POSTGRES_DB: makolo_ci_ops_events
           POSTGRES_USER: makolo
           POSTGRES_PASSWORD: makolo-ci-password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U makolo -d makolo_ci_ops"
+          --health-cmd "pg_isready -U makolo -d makolo_ci_ops_events"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
       DJANGO_ENV: test
       DJANGO_DEBUG: "False"
-      DJANGO_SECRET_KEY: ci-postgresql-ops-secret-key-not-used-in-production
+      DJANGO_SECRET_KEY: ci-postgresql-ops-events-secret-key-not-used-in-production
       DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
       DJANGO_DATABASE_ENGINE: postgresql
-      DJANGO_DATABASE_NAME: makolo_ci_ops
+      DJANGO_DATABASE_NAME: makolo_ci_ops_events
       DJANGO_DATABASE_USER: makolo
       DJANGO_DATABASE_PASSWORD: makolo-ci-password
       DJANGO_DATABASE_HOST: 127.0.0.1
@@ -286,6 +298,56 @@ jobs:
           automation.test_domain_events
           automation.test_domain_event_concurrency
           automation.test_r3_proactive_preparation
+      - name: Run automation PostgreSQL tests
+        run: >-
+          python manage.py test
+          automation.test_operational_hardening
+          automation.tests
+
+  postgresql-ops-product:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_ci_ops_product
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: makolo-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_ci_ops_product"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-postgresql-ops-product-secret-key-not-used-in-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_ci_ops_product
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: makolo-ci-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Check and migrate PostgreSQL
+        run: |
+          python manage.py check
+          python manage.py migrate --noinput
       - name: Run CRM, audiences and promotions PostgreSQL tests
         run: >-
           python manage.py test
@@ -305,6 +367,57 @@ jobs:
           core.test_operational_readiness
           accounts.test_operational_hardening
           events.test_operational_hardening
+      - name: Run ticket and scanner PostgreSQL tests
+        run: >-
+          python manage.py test
+          scanner.tests
+          tickets.tests
+          tickets.test_security
+
+  postgresql-ops-commerce:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_ci_ops_commerce
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: makolo-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_ci_ops_commerce"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-postgresql-ops-commerce-secret-key-not-used-in-production
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_ci_ops_commerce
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: makolo-ci-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Check and migrate PostgreSQL
+        run: |
+          python manage.py check
+          python manage.py migrate --noinput
       - name: Run payment PostgreSQL tests
         run: >-
           python manage.py test
@@ -312,17 +425,6 @@ jobs:
           payments.test_task25_manual
           payments.test_task25_concurrency
           payments.tests
-      - name: Run ticket and scanner PostgreSQL tests
-        run: >-
-          python manage.py test
-          scanner.tests
-          tickets.tests
-          tickets.test_security
-      - name: Run automation PostgreSQL tests
-        run: >-
-          python manage.py test
-          automation.test_operational_hardening
-          automation.tests
       - name: Run Subscription S1/S2 PostgreSQL regressions
         run: >-
           python manage.py test
@@ -402,7 +504,9 @@ jobs:
     needs:
       - django
       - postgresql-core
-      - postgresql-ops
+      - postgresql-ops-events
+      - postgresql-ops-product
+      - postgresql-ops-commerce
       - e2e
     runs-on: ubuntu-latest
     steps:
@@ -416,7 +520,7 @@ jobs:
             const needs = JSON.parse(process.env.NEEDS_JSON);
             const results = Object.values(needs).map(({ result }) => result);
             const success = results.every((result) => result === "success");
-            const summary = `Django/PG-core/PG-ops/E2E: ${results.join("/")}`;
+            const summary = `Django/PG-core/PG-ops-events/PG-ops-product/PG-ops-commerce/E2E: ${results.join("/")}`;
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,

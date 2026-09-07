@@ -1,0 +1,34 @@
+{% extends 'base/app.html' %}
+{% block title %}Conversations | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-6 pb-10">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div><span class="mk-kicker">Réseau d’action</span><h1 class="mk-page-title mt-2">Conversations</h1><p class="mk-page-copy mt-2">Ce qui doit être coordonné maintenant, sans transformer les échanges en compteur de messages.</p></div>
+    <form method="get" class="flex gap-2"><input type="hidden" name="tab" value="{{ tab }}"><input name="q" value="{{ q }}" class="mk-input" placeholder="Rechercher…"><button class="mk-btn mk-btn-secondary">Rechercher</button></form>
+  </header>
+  <nav class="flex flex-wrap gap-2" aria-label="Filtres Conversations">
+    <a href="?tab=for-me" class="mk-btn {% if tab == 'for-me' %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}">Pour moi</a>
+    <a href="?tab=all" class="mk-btn {% if tab == 'all' %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}">Toutes</a>
+    <a href="?tab=archived" class="mk-btn {% if tab == 'archived' %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}">Archivées</a>
+  </nav>
+  {% if q %}
+  <section class="space-y-3" aria-label="Résultats de recherche Conversations">
+    {% for result in search_results %}<a href="{% url 'conversations:detail' result.conversation.pk %}{% if result.point %}#point-{{ result.point.pk }}{% endif %}" class="mk-panel block p-5 sm:p-6"><div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">{{ result.conversation.context.get_kind_display }}</p><h2 class="mt-1 text-lg font-extrabold">{% if result.point and result.point.title %}{{ result.point.title }}{% elif result.conversation.title_override %}{{ result.conversation.title_override }}{% else %}{{ result.context_label }}{% endif %}</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ result.context_label }}</p>{% if result.point and result.point.lifecycle == 'resolved' and result.point.resolution %}<p class="mt-2 text-sm">✓ {{ result.point.resolution.summary }}</p>{% elif result.point and result.point.body %}<p class="mt-2 text-sm">{{ result.point.body }}</p>{% endif %}</div>{% if result.rank == 0 %}<span class="mk-badge mk-badge-brand">Résultat actuel</span>{% endif %}</div></a>{% empty %}<div class="mk-panel p-8 text-center"><p class="font-extrabold">Aucun résultat accessible.</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">La recherche ne révèle jamais de Conversation ou de Point hors de votre accès courant.</p></div>{% endfor %}
+  </section>
+  {% else %}
+  {% if pending_invitations %}
+  <section class="space-y-3" aria-labelledby="conversation-invitations-title">
+    <div><h2 id="conversation-invitations-title" class="text-lg font-extrabold">Invitations</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Acceptez uniquement les Conversations auxquelles vous souhaitez participer.</p></div>
+    {% for invitation in pending_invitations %}<article class="mk-panel p-5 sm:p-6"><div class="flex flex-wrap items-center justify-between gap-4"><div><p class="font-extrabold">Invitation à une Conversation</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Votre accès ne commence qu’après votre acceptation.</p>{% if invitation.expires_at %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">Expire le {{ invitation.expires_at|date:'d/m/Y à H:i' }}</p>{% endif %}</div><form method="post" action="{% url 'conversations:invitation-respond' invitation.pk %}" class="flex gap-2">{% csrf_token %}<button class="mk-btn mk-btn-secondary" name="decision" value="decline">Refuser</button><button class="mk-btn mk-btn-primary" name="decision" value="accept">Accepter</button></form></div></article>{% endfor %}
+  </section>
+  {% endif %}
+  <div class="space-y-3">
+    {% for row in rows %}
+      <a href="{% url 'conversations:detail' row.conversation.pk %}" class="mk-panel block p-5 sm:p-6">
+        <div class="flex items-start justify-between gap-4"><div class="min-w-0"><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">{{ row.conversation.context.get_kind_display }}</p><h2 class="mt-1 text-lg font-extrabold">{% if row.conversation.title_override %}{{ row.conversation.title_override }}{% else %}{{ row.context_label }}{% endif %}</h2>{% if row.latest_result %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">✓ {{ row.latest_result }}</p>{% endif %}</div>{% if row.attention_count %}<span class="mk-badge mk-badge-brand">{{ row.attention_count }} pour vous</span>{% else %}<span class="mk-badge">✓ Tout est en ordre</span>{% endif %}</div>
+      </a>
+    {% empty %}{% if not pending_invitations %}<div class="mk-panel p-8 text-center"><p class="font-extrabold">Tout est en ordre. ✓</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">Aucune Conversation ne demande votre attention dans cette vue.</p></div>{% endif %}{% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

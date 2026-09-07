@@ -10,3 +10,4 @@ class NotificationsConfig(AppConfig):
         from . import services_domain_event_consumer  # noqa: F401
         from . import subscriptions_domain_event_consumer  # noqa: F401
         from . import m2_domain_event_consumer  # noqa: F401
+        from . import conversation_domain_event_consumer  # noqa: F401

@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -11,10 +12,15 @@ from .services import save_response, submit_response
 
 def _request_for(user, pk):
     return get_object_or_404(
-        FormRequest.objects.select_related("journey", "form_version", "form_version__form")
-        .prefetch_related("form_version__questions", "response__answers__question"),
+        FormRequest.objects.select_related(
+            "journey",
+            "journey__beneficiary",
+            "target_profile",
+            "form_version",
+            "form_version__form",
+        ).prefetch_related("form_version__questions", "response__answers__question"),
+        Q(journey__beneficiary=user) | Q(target_profile=user),
         pk=pk,
-        journey__beneficiary=user,
     )
 
 
@@ -23,7 +29,8 @@ def _serialize(form_request):
     answers = {answer.question.key: answer.value for answer in response.answers.all()} if response else {}
     return {
         "id": str(form_request.pk),
-        "journey_id": str(form_request.journey_id),
+        "journey_id": str(form_request.journey_id) if form_request.journey_id else None,
+        "target_profile_id": str(form_request.target_profile_id) if form_request.target_profile_id else None,
         "required": form_request.required,
         "status": form_request.status,
         "opens_at": form_request.opens_at,
@@ -65,8 +72,8 @@ class FormRequestListAPIView(APIView):
 
     def get(self, request):
         rows = (
-            FormRequest.objects.filter(journey__beneficiary=request.user)
-            .select_related("journey", "form_version", "form_version__form")
+            FormRequest.objects.filter(Q(journey__beneficiary=request.user) | Q(target_profile=request.user))
+            .select_related("journey", "journey__beneficiary", "target_profile", "form_version", "form_version__form")
             .prefetch_related("form_version__questions", "response__answers__question")
             .order_by("created_at", "id")
         )

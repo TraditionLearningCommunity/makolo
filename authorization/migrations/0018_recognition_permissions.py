@@ -42,5 +42,5 @@ def seed(apps, schema_editor):
             RolePermission.objects.get_or_create(role=role, permission=permissions[code], defaults={"id": stable_uuid("role-permission", f"{role_code}:{code}")})
 
 class Migration(migrations.Migration):
-    dependencies = [("authorization", "0016_action_network_permissions")]
+    dependencies = [("authorization", "0017_conversation_permissions")]
     operations = [migrations.RunPython(seed, migrations.RunPython.noop)]

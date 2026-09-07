@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
@@ -24,10 +25,17 @@ from .services import (
 
 def _participant_request(user, pk):
     return get_object_or_404(
-        FormRequest.objects.select_related("journey", "journey__activity", "form_version", "form_version__form")
-        .prefetch_related("form_version__questions", "response__answers__question"),
+        FormRequest.objects.select_related(
+            "journey",
+            "journey__activity",
+            "journey__beneficiary",
+            "target_profile",
+            "form_version",
+            "form_version__form",
+            "form_version__form__activity",
+        ).prefetch_related("form_version__questions", "response__answers__question"),
+        Q(journey__beneficiary=user) | Q(target_profile=user),
         pk=pk,
-        journey__beneficiary=user,
     )
 
 

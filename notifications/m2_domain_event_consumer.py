@@ -22,15 +22,27 @@ EVENT_TYPES = {
 def _notify_form(event):
     request_id = event.payload.get("form_request_id")
     form_request = (
-        FormRequest.objects.select_related("journey__beneficiary", "journey__activity", "form_version")
+        FormRequest.objects.select_related(
+            "journey__beneficiary",
+            "journey__activity",
+            "target_profile",
+            "form_version",
+            "form_version__form__activity",
+        )
         .filter(pk=request_id)
         .first()
     )
-    if not form_request or not form_request.journey.beneficiary_id:
+    recipient = form_request.recipient if form_request else None
+    if not form_request or recipient is None:
         return
     reopened = event.event_type == DomainEventType.FORM_REOPENED
+    metadata = {"form_request_id": str(form_request.pk)}
+    if form_request.journey_id:
+        metadata["journey_id"] = str(form_request.journey_id)
+    if form_request.target_profile_id:
+        metadata["target_profile_id"] = str(form_request.target_profile_id)
     create_notification(
-        recipient=form_request.journey.beneficiary,
+        recipient=recipient,
         kind=NotificationKind.SYSTEM,
         category=NotificationCategory.SYSTEM,
         title="Formulaire réouvert" if reopened else "Formulaire à compléter",
@@ -40,11 +52,11 @@ def _notify_form(event):
             else f"Vous avez un formulaire de préparation à compléter : « {form_request.form_version.title} »."
         ),
         action_url=reverse("questionnaires:request-detail", kwargs={"pk": form_request.pk}),
-        dedup_key=f"m2:{event.pk}:{form_request.journey.beneficiary_id}",
-        metadata={"form_request_id": str(form_request.pk), "journey_id": str(form_request.journey_id)},
+        dedup_key=f"m2:{event.pk}:{recipient.pk}",
+        metadata=metadata,
         domain_event=event,
-        activity=form_request.journey.activity,
-        journey=form_request.journey,
+        activity=form_request.activity,
+        journey=form_request.journey if form_request.journey_id else None,
         template_key="form.reopened" if reopened else "form.requested",
     )
 

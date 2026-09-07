@@ -57,7 +57,7 @@ class DashboardTests(TestCase):
 
         self.assertRedirects(response, reverse("core:participant-home"))
         personal = self.client.get(reverse("core:participant-home"))
-        self.assertContains(personal, "Que dois-je faire maintenant ?")
+        self.assertContains(personal, "Qu’est-ce qui compte maintenant ?")
         self.assertContains(personal, "Mes démarches")
         self.assertContains(personal, "Mes accès")
         self.assertNotContains(personal, "Paiements réussis")
