@@ -1,4 +1,6 @@
 from conversations.automation import process_due_conversation_points
+from operations.emergency_controls import is_operational_control_enabled
+from operations.models import OperationalControlCode
 from recognition.runtime import run_default_recognition_cycle
 from sharing.document_services import expire_captures
 from spatiotemporal.automation import run_spatiotemporal_automation_cycle
@@ -10,6 +12,8 @@ from .subscription_deadlines import run_subscription_deadlines
 
 
 def run_autopilot_cycle(*, now=None, delivery_limit=100):
+    if not is_operational_control_enabled(OperationalControlCode.AUTOPILOT):
+        return {"operational_control": "disabled"}
     stats = run_legacy_autopilot_cycle(now=now, delivery_limit=delivery_limit)
     stats["service_reminders"] = run_service_reminders(now=now)
     stats["subscription_deadlines"] = run_subscription_deadlines(now=now)
