@@ -29,10 +29,10 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                "indexes": [models.Index(fields=["channel", "updated_at"], name="recognition_accrual_channel_idx")],
+                "indexes": [models.Index(fields=["channel", "updated_at"], name="rec_accrual_channel_idx")],
                 "constraints": [
-                    models.UniqueConstraint(fields=("accrual_key", "policy_version"), name="recognition_accrual_key_policy_unique"),
-                    models.CheckConstraint(condition=models.Q(("cumulative_impact__gte", 0)), name="recognition_accrual_impact_nonnegative"),
+                    models.UniqueConstraint(fields=("accrual_key", "policy_version"), name="rec_accrual_key_policy_unique"),
+                    models.CheckConstraint(condition=models.Q(("cumulative_impact__gte", 0)), name="rec_accrual_impact_nonneg"),
                 ],
             },
         ),
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                "constraints": [models.CheckConstraint(condition=models.Q(("window_size_hours__gte", 1), ("window_size_hours__lte", 168)), name="recognition_cursor_window_hours_valid")],
+                "constraints": [models.CheckConstraint(condition=models.Q(("window_size_hours__gte", 1), ("window_size_hours__lte", 168)), name="rec_cursor_window_hours_valid")],
             },
         ),
         migrations.CreateModel(
@@ -69,11 +69,11 @@ class Migration(migrations.Migration):
             ],
             options={
                 "ordering": ["starts_at", "id"],
-                "indexes": [models.Index(fields=["cursor", "status", "ends_at"], name="recognition_window_status_idx")],
+                "indexes": [models.Index(fields=["cursor", "status", "ends_at"], name="rec_window_status_idx")],
                 "constraints": [
-                    models.UniqueConstraint(fields=("cursor", "starts_at", "ends_at"), name="recognition_window_cursor_bounds_unique"),
-                    models.CheckConstraint(condition=models.Q(("ends_at__gt", models.F("starts_at"))), name="recognition_window_order_valid"),
-                    models.CheckConstraint(condition=models.Q(("pool_points", models.F("issued_points") + models.F("unattributed_points"))), name="recognition_window_points_conserved"),
+                    models.UniqueConstraint(fields=("cursor", "starts_at", "ends_at"), name="rec_window_bounds_unique"),
+                    models.CheckConstraint(condition=models.Q(("ends_at__gt", models.F("starts_at"))), name="rec_window_order_valid"),
+                    models.CheckConstraint(condition=models.Q(("pool_points", models.F("issued_points") + models.F("unattributed_points"))), name="rec_window_points_conserved"),
                 ],
             },
         ),
@@ -91,9 +91,9 @@ class Migration(migrations.Migration):
             ],
             options={
                 "constraints": [
-                    models.CheckConstraint(condition=models.Q(models.Q(("profile__isnull", False), ("space__isnull", True)), models.Q(("profile__isnull", True), ("space__isnull", False)), _connector="OR"), name="recognition_account_subject_xor"),
-                    models.UniqueConstraint(condition=models.Q(("profile__isnull", False)), fields=("profile",), name="recognition_account_profile_unique"),
-                    models.UniqueConstraint(condition=models.Q(("space__isnull", False)), fields=("space",), name="recognition_account_space_unique"),
+                    models.CheckConstraint(condition=models.Q(models.Q(("profile__isnull", False), ("space__isnull", True)), models.Q(("profile__isnull", True), ("space__isnull", False)), _connector="OR"), name="rec_account_subject_xor"),
+                    models.UniqueConstraint(condition=models.Q(("profile__isnull", False)), fields=("profile",), name="rec_account_profile_unique"),
+                    models.UniqueConstraint(condition=models.Q(("space__isnull", False)), fields=("space",), name="rec_account_space_unique"),
                 ],
             },
         ),
@@ -119,12 +119,12 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ["available_at", "id"],
                 "indexes": [
-                    models.Index(fields=["window", "available_at"], name="recognition_slice_window_idx"),
-                    models.Index(fields=["channel", "occurred_at"], name="recognition_slice_channel_idx"),
+                    models.Index(fields=["window", "available_at"], name="rec_slice_window_idx"),
+                    models.Index(fields=["channel", "occurred_at"], name="rec_slice_channel_idx"),
                 ],
                 "constraints": [
-                    models.CheckConstraint(condition=models.Q(("impact_delta__gte", 0)), name="recognition_slice_impact_nonnegative"),
-                    models.CheckConstraint(condition=models.Q(("pool_points", models.F("issued_points") + models.F("unattributed_points"))), name="recognition_slice_points_conserved"),
+                    models.CheckConstraint(condition=models.Q(("impact_delta__gte", 0)), name="rec_slice_impact_nonneg"),
+                    models.CheckConstraint(condition=models.Q(("pool_points", models.F("issued_points") + models.F("unattributed_points"))), name="rec_slice_points_conserved"),
                 ],
             },
         ),
@@ -146,10 +146,10 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ["-created_at", "-id"],
                 "indexes": [
-                    models.Index(fields=["account", "created_at"], name="recognition_ledger_account_idx"),
-                    models.Index(fields=["kind", "created_at"], name="recognition_ledger_kind_idx"),
+                    models.Index(fields=["account", "created_at"], name="rec_ledger_account_idx"),
+                    models.Index(fields=["kind", "created_at"], name="rec_ledger_kind_idx"),
                 ],
-                "constraints": [models.CheckConstraint(condition=models.Q(("points", 0), _negated=True), name="recognition_ledger_points_nonzero")],
+                "constraints": [models.CheckConstraint(condition=models.Q(("points", 0), _negated=True), name="rec_ledger_points_nonzero")],
             },
         ),
     ]
