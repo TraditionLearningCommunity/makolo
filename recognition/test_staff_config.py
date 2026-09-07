@@ -1,8 +1,12 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.utils import timezone
 
 from .achievements import grant_due_achievements
+from .admin import _next_policy_boundary
 from .economy import redeem_reward
 from .models import (
     AchievementDefinition,
@@ -12,7 +16,7 @@ from .models import (
     RewardDefinition,
 )
 from .selectors import active_rewards
-from .services import get_or_create_account
+from .services import ensure_cursor, get_or_create_account
 
 
 class RecognitionStaffConfigurationTests(TestCase):
@@ -46,6 +50,20 @@ class RecognitionStaffConfigurationTests(TestCase):
                 aggregation="SUM_DISTINCT_OUTCOME",
                 outcome_identity={"source": "signal.outcome_identity"},
             )
+
+    def test_policy_publish_time_snaps_forward_to_window_boundary(self):
+        start = timezone.now().replace(microsecond=0)
+        cursor = ensure_cursor(
+            key="staff-boundary-test",
+            policy_version="default:v1",
+            window_size_hours=24,
+            start_at=start,
+        )
+        target = start + timedelta(hours=25)
+        self.assertEqual(
+            _next_policy_boundary(cursor=cursor, target=target),
+            start + timedelta(hours=48),
+        )
 
     def test_used_reward_is_immutable_and_new_version_is_visible(self):
         reward_v1 = RewardDefinition.objects.create(
