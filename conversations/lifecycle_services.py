@@ -11,7 +11,7 @@ from .services import can_manage_conversation, can_manage_conversation_routes
 
 @transaction.atomic
 def cancel_point(*, actor, point: ConversationPoint):
-    locked = ConversationPoint.objects.select_for_update().select_related("conversation__context").get(pk=point.pk)
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=point.pk)
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas annuler ce Point.")
     if locked.lifecycle == ConversationPointLifecycle.CANCELLED:
@@ -32,7 +32,7 @@ def cancel_point(*, actor, point: ConversationPoint):
 
 @transaction.atomic
 def retire_communication_route(*, actor, route: CommunicationRoute):
-    locked = CommunicationRoute.objects.select_for_update().select_related("conversation__context").get(pk=route.pk)
+    locked = CommunicationRoute.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=route.pk)
     if not can_manage_conversation_routes(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas retirer cette route externe.")
     if locked.status == CommunicationRouteStatus.RETIRED:
