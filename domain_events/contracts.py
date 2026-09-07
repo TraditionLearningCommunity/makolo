@@ -75,7 +75,7 @@ class DomainEventType:
     PROJECT_LIFECYCLE_CHANGED = "project.lifecycle_changed"
     PROJECT_DOSSIER_LINKED = "project.dossier_linked"
     PROJECT_DOSSIER_UNLINKED = "project.dossier_unlinked"
-    PROJECT_DOSSIER_MOVED = "project.dossier.moved"
+    PROJECT_DOSSIER_MOVED = "project.dossier_moved"
 
     FORM_REQUESTED = "form.requested"
     FORM_SUBMITTED = "form.submitted"
