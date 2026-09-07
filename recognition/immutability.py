@@ -44,6 +44,11 @@ REWARD_REQUIRED_CONFIG = {
     RewardKind.PAYOUT: ("amount", "currency"),
     RewardKind.OTHER: ("owner_domain",),
 }
+PROFILE_ONLY_REWARD_KINDS = {
+    RewardKind.PROMOTION,
+    RewardKind.ACCESS,
+    RewardKind.INTRODUCTION,
+}
 
 
 def _changed(previous, instance, fields):
@@ -55,7 +60,14 @@ def _validate_reward_contract(instance):
     missing = [key for key in REWARD_REQUIRED_CONFIG.get(instance.kind, ()) if config.get(key) in (None, "")]
     if missing:
         raise ValidationError({"fulfillment": f"Configuration Reward incomplète pour {instance.kind}: {', '.join(missing)}."})
-    eligibility = instance.eligibility if isinstance(instance.eligibility, dict) else {}
+
+    eligibility = dict(instance.eligibility) if isinstance(instance.eligibility, dict) else {}
+    if instance.kind in PROFILE_ONLY_REWARD_KINDS and not eligibility.get("beneficiary_subject_types"):
+        # Persist the owner-domain truth. Selectors and redemption must not later
+        # reinterpret an empty dict as Profile|Space for a person-scoped benefit.
+        eligibility["beneficiary_subject_types"] = ["profile"]
+        instance.eligibility = eligibility
+
     subject_types = set(eligibility.get("beneficiary_subject_types") or ["profile", "space"])
     if not subject_types or not subject_types <= {"profile", "space"}:
         raise ValidationError({"eligibility": "beneficiary_subject_types accepte uniquement profile et/ou space."})
@@ -75,11 +87,8 @@ def _validate_reward_contract(instance):
         currency = str(config.get("currency") or "").strip().upper()
         if not amount.is_finite() or amount <= 0 or len(currency) != 3:
             raise ValidationError({"fulfillment": "Payout exige amount positif et currency ISO explicite."})
-    if instance.kind in {RewardKind.PROMOTION, RewardKind.ACCESS, RewardKind.INTRODUCTION}:
-        # These v1 bridges grant a person-scoped concrete benefit. Staff can still spend Space credits for a Profile.
-        allowed = set(eligibility.get("beneficiary_subject_types") or ["profile"])
-        if "space" in allowed:
-            raise ValidationError({"eligibility": f"La Reward {instance.kind} v1 doit limiter beneficiary_subject_types à ['profile']."})
+    if instance.kind in PROFILE_ONLY_REWARD_KINDS and "space" in subject_types:
+        raise ValidationError({"eligibility": f"La Reward {instance.kind} v1 doit limiter beneficiary_subject_types à ['profile']."})
     if instance.kind == RewardKind.INTRODUCTION and instance.beneficiary_allowed and not instance.acceptance_required:
         raise ValidationError({
             "acceptance_required": "Une Introduction utilisable pour un autre Profile exige son consentement explicite."
@@ -88,9 +97,6 @@ def _validate_reward_contract(instance):
 
 @receiver(pre_save, sender=RecognitionRule, dispatch_uid="recognition.rule_set_immutable_after_publish")
 def protect_published_policy_rule_set(sender, instance, raw=False, **kwargs):
-    # Django restores serialized test databases and fixtures with raw=True.
-    # That path is persistence restoration, not a business mutation, and must
-    # not be blocked by runtime immutability guards.
     if raw or not instance.policy_id:
         return
     if instance.policy.status not in {PolicyStatus.DRAFT, PolicyStatus.SIMULATED}:
