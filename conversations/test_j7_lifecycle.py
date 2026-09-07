@@ -5,6 +5,8 @@ from django.test import TestCase
 from django.utils import timezone
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from domain_events.contracts import DomainEventType
 from domain_events.models import DomainEventOutbox
 from organizations.models import Organization
@@ -28,6 +30,7 @@ class ConversationLifecycleHardeningTests(TestCase):
         self.invitee = User.objects.create_user(username="j7-life-invitee", email="j7-life-invitee@example.test", password="StrongPass2026!")
         self.space = Organization.objects.create(name="J7 Lifecycle Space", created_by=self.owner)
         self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="J7 Lifecycle Activity")
+        grant_activity_role(profile=self.owner, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER, granted_by=self.owner, source="j7-conversations-lifecycle")
         self.conversation = ensure_context_conversation(actor=self.owner, kind=ConversationContextKind.ACTIVITY, activity=self.activity)
 
     def test_cancel_point_is_idempotent_and_emits_material_event(self):
@@ -37,39 +40,20 @@ class ConversationLifecycleHardeningTests(TestCase):
             second = cancel_point(actor=self.owner, point=point)
         self.assertEqual(first.lifecycle, ConversationPointLifecycle.CANCELLED)
         self.assertEqual(second.lifecycle, ConversationPointLifecycle.CANCELLED)
-        self.assertEqual(
-            DomainEventOutbox.objects.filter(event_type=DomainEventType.CONVERSATION_POINT_CANCELLED, source_id=str(point.pk)).count(),
-            1,
-        )
+        self.assertEqual(DomainEventOutbox.objects.filter(event_type=DomainEventType.CONVERSATION_POINT_CANCELLED, source_id=str(point.pk)).count(), 1)
 
     def test_retire_route_is_idempotent_and_emits_event(self):
         with self.captureOnCommitCallbacks(execute=True):
-            route = create_communication_route(
-                actor=self.owner,
-                conversation=self.conversation,
-                provider=CommunicationRouteProvider.EMAIL,
-                destination_kind=CommunicationRouteDestinationKind.EMAIL,
-                label="Support",
-                destination="support@example.test",
-            )
+            route = create_communication_route(actor=self.owner, conversation=self.conversation, provider=CommunicationRouteProvider.EMAIL, destination_kind=CommunicationRouteDestinationKind.EMAIL, label="Support", destination="support@example.test")
             first = retire_communication_route(actor=self.owner, route=route)
             second = retire_communication_route(actor=self.owner, route=route)
         self.assertEqual(first.status, CommunicationRouteStatus.RETIRED)
         self.assertEqual(second.status, CommunicationRouteStatus.RETIRED)
-        self.assertEqual(
-            DomainEventOutbox.objects.filter(event_type=DomainEventType.CONVERSATION_ROUTE_RETIRED, source_id=str(route.pk)).count(),
-            1,
-        )
+        self.assertEqual(DomainEventOutbox.objects.filter(event_type=DomainEventType.CONVERSATION_ROUTE_RETIRED, source_id=str(route.pk)).count(), 1)
 
     def test_autopilot_expires_pending_invitation(self):
         now = timezone.now()
-        invitation = create_conversation_invitation(
-            actor=self.owner,
-            conversation=self.conversation,
-            invitee=self.invitee,
-            expires_at=now - timedelta(minutes=1),
-            client_reference="j7-expiring-invite",
-        )
+        invitation = create_conversation_invitation(actor=self.owner, conversation=self.conversation, invitee=self.invitee, expires_at=now - timedelta(minutes=1), client_reference="j7-expiring-invite")
         stats = process_due_conversation_points(now=now)
         invitation.refresh_from_db()
         self.assertEqual(invitation.status, ConversationInvitationStatus.EXPIRED)
