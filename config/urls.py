@@ -41,6 +41,7 @@ urlpatterns = [
     path("o/", include("organizations.public_urls")),
     path("account/", include("accounts.web_urls")),
     path("subscription/", include("subscriptions.web_urls")),
+    path("recognition/", include("recognition.urls")),
     path("activities/", include("activities.urls")),
     path("spaces/", include("organizations.urls")),
     path("groups/", include("groups.urls")),

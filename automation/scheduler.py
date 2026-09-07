@@ -1,4 +1,5 @@
 from conversations.automation import process_due_conversation_points
+from recognition.runtime import run_default_recognition_cycle
 from sharing.document_services import expire_captures
 from spatiotemporal.automation import run_spatiotemporal_automation_cycle
 
@@ -24,5 +25,6 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
         now=now,
         limit=max(delivery_limit, 1),
     )
+    stats["recognition"] = run_default_recognition_cycle(now=now)
     stats["expired_inbound_captures"] = expire_captures(limit=500)
     return stats
