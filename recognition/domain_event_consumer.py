@@ -6,7 +6,7 @@ from domain_events.contracts import DomainEventType
 from domain_events.registry import register_consumer
 
 from .ingest import record_signal
-from .signal_contracts import sanitize_event_values
+from .signal_contracts import resolve_recognition_object, sanitize_event_values
 
 
 RECOGNITION_EVENT_TYPES = frozenset({
@@ -82,18 +82,20 @@ def _causal_contributors(event):
 def consume_recognition_event(event):
     """Create the minimal Recognition projection of a canonical Domain Event.
 
-    available_at is when Recognition actually observes the fact. occurred_at
-    remains the domain time, so delayed delivery never rewrites history and a
-    late fact can still enter the next open Recognition window.
+    The Domain Event source remains evidence. ``object_type/object_id`` identify
+    the Activity/Occurrence/Journey/Opportunity whose network utility receives
+    the finite pool. ``available_at`` is when Recognition observes the fact;
+    ``occurred_at`` remains the immutable domain time.
     """
     values = sanitize_event_values(event)
     if not values:
         return None
+    object_type, object_id = resolve_recognition_object(event, values)
     return record_signal(
         signal_id=f"domain-event:{event.pk}",
         signal_kind=event.event_type,
-        object_type=event.source_type,
-        object_id=event.source_id or str(event.pk),
+        object_type=object_type,
+        object_id=object_id,
         outcome_identity=event.idempotency_key,
         occurred_at=event.occurred_at,
         available_at=timezone.now(),
