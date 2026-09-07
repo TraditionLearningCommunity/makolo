@@ -5,6 +5,8 @@ from django.test import TestCase
 from django.utils import timezone
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from organizations.models import Organization
 
 from .automation import process_due_conversation_points
@@ -27,6 +29,13 @@ class ConversationAutomationTests(TestCase):
         self.owner = User.objects.create_user(username="j7-owner", email="j7-owner@example.test", password="StrongPass2026!")
         self.space = Organization.objects.create(name="J7 Space", created_by=self.owner)
         self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="J7 Activity")
+        grant_activity_role(
+            profile=self.owner,
+            activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+            source="j7-conversations-automation",
+        )
         self.conversation = ensure_context_conversation(actor=self.owner, kind=ConversationContextKind.ACTIVITY, activity=self.activity)
 
     def test_deadline_closes_responses_idempotently(self):
