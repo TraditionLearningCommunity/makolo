@@ -34,23 +34,18 @@ def _ordered(signals: Iterable[RecognitionSignalFact]):
 def _modulated_measure(rule, signal, measured):
     result = Decimal(measured)
     for name in rule.modulators or ():
-        if name == "confidence":
-            factor = max(Decimal("0"), min(Decimal("1"), Decimal(signal.confidence)))
-        else:
-            factor = max(Decimal("0"), decimal_value(signal.values.get(name, 1)))
+        if name == "confidence": factor = max(Decimal("0"), min(Decimal("1"), Decimal(signal.confidence)))
+        else: factor = max(Decimal("0"), decimal_value(signal.values.get(name, 1)))
         result *= factor
     return result
 
 
 def _aggregate_metrics(rows, aggregation):
     if not rows:
-        zero = Decimal("0")
-        return {"value": zero, "sum": zero, "count": 0, "first": zero, "last": zero, "min": zero, "max": zero, "outcomes": 0}
+        zero = Decimal("0"); return {"value": zero, "sum": zero, "count": 0, "first": zero, "last": zero, "min": zero, "max": zero, "outcomes": 0}
     distinct = {}
-    for signal, measured in rows:
-        distinct.setdefault(signal.outcome_identity, measured)
-    values = [measured for _, measured in rows]
-    total = sum(values, Decimal("0"))
+    for signal, measured in rows: distinct.setdefault(signal.outcome_identity, measured)
+    values = [measured for _, measured in rows]; total = sum(values, Decimal("0"))
     if aggregation == "COUNT": value = Decimal(len(rows))
     elif aggregation == "COUNT_DISTINCT": value = Decimal(len(distinct))
     elif aggregation == "SUM_DISTINCT_OUTCOME": value = sum(distinct.values(), Decimal("0"))
@@ -65,16 +60,11 @@ def _aggregate_metrics(rows, aggregation):
 
 
 def _serialized_metrics(metrics):
-    return {
-        "value": str(metrics["value"]), "sum": str(metrics["sum"]), "count": metrics["count"],
-        "first": str(metrics["first"]), "last": str(metrics["last"]),
-        "min": str(metrics["min"]), "max": str(metrics["max"]), "outcomes": metrics["outcomes"],
-    }
+    return {"value": str(metrics["value"]), "sum": str(metrics["sum"]), "count": metrics["count"], "first": str(metrics["first"]), "last": str(metrics["last"]), "min": str(metrics["min"]), "max": str(metrics["max"]), "outcomes": metrics["outcomes"]}
 
 
 def _utility(rule, raw):
-    normalized = apply_curve(raw, rule.normalization or {"kind": "LINEAR", "factor": 1})
-    return apply_curve(normalized, rule.curve or {"kind": "LINEAR", "factor": 1})
+    return apply_curve(apply_curve(raw, rule.normalization or {"kind": "LINEAR", "factor": 1}), rule.curve or {"kind": "LINEAR", "factor": 1})
 
 
 def _combined_contributors(rows, attribution):
@@ -93,8 +83,7 @@ def _combined_contributors(rows, attribution):
             try: weight = decimal_value(contributor.get("weight", contributor.get("share", 1)))
             except Exception: continue
             if weight <= 0: continue
-            key = (subject_type, str(subject_id), causal_mode)
-            merged[key] = merged.get(key, Decimal("0")) + weight
+            key = (subject_type, str(subject_id), causal_mode); merged[key] = merged.get(key, Decimal("0")) + weight
     return tuple({"subject_type": st, "subject_id": sid, "causal_mode": mode, "weight": str(weight)} for (st, sid, mode), weight in sorted(merged.items()))
 
 
@@ -103,44 +92,24 @@ def evaluate_rule_group(*, signals: Iterable[RecognitionSignalFact], rule: RuleS
     candidates = [item for item in _ordered(signals) if item.signal_kind == rule.signal_kind]
     rows = []
     for signal in candidates:
-        measured = measure_value(rule, values=signal.values, parameters=parameters)
+        context = dict(signal.values); context.update({"occurred_at": signal.occurred_at, "available_at": signal.available_at})
+        measured = measure_value(rule, values=context, parameters=parameters)
         if measured is not None: rows.append((signal, _modulated_measure(rule, signal, measured)))
     if not rows: return None
-
-    metrics = _aggregate_metrics(rows, rule.aggregation)
-    window_buckets = []
+    metrics = _aggregate_metrics(rows, rule.aggregation); window_buckets = []
     if rule.temporal_profile == TemporalProfile.WINDOW.value:
-        seconds = max(1, min(int(semantic_window_hours or 24), 8760)) * 3600
-        grouped = defaultdict(list)
-        for signal, measured in rows:
-            grouped[int(signal.occurred_at.timestamp()) // seconds].append((signal, measured))
+        seconds = max(1, min(int(semantic_window_hours or 24), 8760)) * 3600; grouped = defaultdict(list)
+        for signal, measured in rows: grouped[int(signal.occurred_at.timestamp()) // seconds].append((signal, measured))
         for bucket, bucket_rows in sorted(grouped.items()):
-            bucket_metrics = _aggregate_metrics(bucket_rows, rule.aggregation)
-            window_buckets.append({"bucket": bucket, "metrics": _serialized_metrics(bucket_metrics)})
+            bucket_metrics = _aggregate_metrics(bucket_rows, rule.aggregation); window_buckets.append({"bucket": bucket, "metrics": _serialized_metrics(bucket_metrics)})
         utility = sum((_utility(rule, decimal_value(item["metrics"]["value"])) for item in window_buckets), Decimal("0"))
-    else:
-        utility = _utility(rule, metrics["value"])
-
+    else: utility = _utility(rule, metrics["value"])
     contributors = _combined_contributors(rows, rule.attribution)
     if (rule.attribution or {}).get("require_contributor") and not contributors: return None
-    first_signal = rows[0][0]
-    identity = f"{policy_version}|{rule.code}|{group_identity}|{rule.channel}"
-    explanation = {
-        "signal_kind": rule.signal_kind, "aggregation": rule.aggregation, "combination": rule.combination,
-        "signals": metrics["count"], "outcomes": metrics["outcomes"],
-        "aggregate_value": str(metrics["value"]), "aggregate_sum": str(metrics["sum"]),
-        "first_value": str(metrics["first"]), "last_value": str(metrics["last"]),
-        "min_value": str(metrics["min"]), "max_value": str(metrics["max"]),
-        "utility_delta": str(max(Decimal("0"), Decimal(utility))),
-    }
+    first_signal = rows[0][0]; identity = f"{policy_version}|{rule.code}|{group_identity}|{rule.channel}"
+    explanation = {"signal_kind": rule.signal_kind, "aggregation": rule.aggregation, "combination": rule.combination, "signals": metrics["count"], "outcomes": metrics["outcomes"], "aggregate_value": str(metrics["value"]), "aggregate_sum": str(metrics["sum"]), "first_value": str(metrics["first"]), "last_value": str(metrics["last"]), "min_value": str(metrics["min"]), "max_value": str(metrics["max"]), "utility_delta": str(max(Decimal("0"), Decimal(utility)))}
     if window_buckets: explanation["window_buckets"] = window_buckets
-    return PolicyRuleResult(
-        rule_code=rule.code, channel=ImpactChannel(rule.channel), temporal_profile=TemporalProfile(rule.temporal_profile),
-        utility_delta=max(Decimal("0"), Decimal(utility)),
-        accrual_key=f"{first_signal.object_type}:{first_signal.object_id}:{rule.code}:{rule.channel}",
-        slice_key="recognition:" + hashlib.sha256(identity.encode("utf-8")).hexdigest(),
-        attribution_shares=contributors, explanation=explanation,
-    )
+    return PolicyRuleResult(rule_code=rule.code, channel=ImpactChannel(rule.channel), temporal_profile=TemporalProfile(rule.temporal_profile), utility_delta=max(Decimal("0"), Decimal(utility)), accrual_key=f"{first_signal.object_type}:{first_signal.object_id}:{rule.code}:{rule.channel}", slice_key="recognition:" + hashlib.sha256(identity.encode("utf-8")).hexdigest(), attribution_shares=contributors, explanation=explanation)
 
 
 def evaluate_rule(*, signal: RecognitionSignalFact, rule: RuleSpec, parameters: dict[str, Any], policy_version: str) -> PolicyRuleResult | None:
