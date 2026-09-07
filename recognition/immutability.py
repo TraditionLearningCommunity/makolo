@@ -80,6 +80,10 @@ def _validate_reward_contract(instance):
         allowed = set(eligibility.get("beneficiary_subject_types") or ["profile"])
         if "space" in allowed:
             raise ValidationError({"eligibility": f"La Reward {instance.kind} v1 doit limiter beneficiary_subject_types à ['profile']."})
+    if instance.kind == RewardKind.INTRODUCTION and instance.beneficiary_allowed and not instance.acceptance_required:
+        raise ValidationError({
+            "acceptance_required": "Une Introduction utilisable pour un autre Profile exige son consentement explicite."
+        })
 
 
 @receiver(pre_save, sender=RecognitionRule, dispatch_uid="recognition.rule_set_immutable_after_publish")
