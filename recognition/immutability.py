@@ -6,7 +6,14 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
 
-from .models import AchievementDefinition, PolicyStatus, RecognitionRule, RewardDefinition, RewardKind
+from .models import (
+    AchievementDefinition,
+    PolicyStatus,
+    RecognitionRule,
+    RecognitionSignal,
+    RewardDefinition,
+    RewardKind,
+)
 
 
 ACHIEVEMENT_PROTECTED_FIELDS = (
@@ -15,6 +22,19 @@ ACHIEVEMENT_PROTECTED_FIELDS = (
 REWARD_PROTECTED_FIELDS = (
     "code", "version", "name", "description", "kind", "points_cost", "fulfillment", "eligibility",
     "beneficiary_allowed", "acceptance_required", "stock", "valid_from", "valid_until",
+)
+SIGNAL_PROTECTED_FIELDS = (
+    "signal_id",
+    "signal_kind",
+    "object_type",
+    "object_id",
+    "occurred_at",
+    "available_at",
+    "outcome_identity",
+    "values",
+    "contributors",
+    "confidence",
+    "source_ref",
 )
 REWARD_REQUIRED_CONFIG = {
     RewardKind.ENTITLEMENT: ("feature_code",),
@@ -71,6 +91,23 @@ def protect_published_policy_rule_set(sender, instance, raw=False, **kwargs):
         return
     if instance.policy.status not in {PolicyStatus.DRAFT, PolicyStatus.SIMULATED}:
         raise ValidationError("Les Rules d'une Policy publiée sont immuables. Clonez la Policy dans une nouvelle version.")
+
+
+@receiver(pre_save, sender=RecognitionSignal, dispatch_uid="recognition.signal_semantics_immutable")
+def protect_signal_semantics(sender, instance, raw=False, **kwargs):
+    if raw or not instance.pk:
+        return
+    previous = RecognitionSignal.objects.filter(pk=instance.pk).values(*SIGNAL_PROTECTED_FIELDS).first()
+    if previous and _changed(previous, instance, SIGNAL_PROTECTED_FIELDS):
+        raise ValidationError(
+            "Un Signal Recognition observé est immuable. Une correction métier doit produire un nouveau fait/outcome canonique."
+        )
+
+
+@receiver(pre_delete, sender=RecognitionSignal, dispatch_uid="recognition.signal_no_delete")
+def protect_signal_delete(sender, instance, **kwargs):
+    if instance.pk:
+        raise ValidationError("Un Signal Recognition observé est historique et ne peut pas être supprimé.")
 
 
 @receiver(pre_save, sender=AchievementDefinition, dispatch_uid="recognition.achievement_definition_immutable_after_grant")
