@@ -16,7 +16,7 @@ from .media_models import ConversationAttachmentKind
 from .media_services import attachment_for_download, create_point_attachment
 from .point_models import ConversationPointKind
 from .point_services import create_point
-from .services import ensure_context_conversation
+from .services import activate_participation, ensure_context_conversation
 
 
 User = get_user_model()
@@ -37,6 +37,9 @@ class ConversationMediaTests(TestCase):
             source="j6-conversations-media",
         )
         self.conversation = ensure_context_conversation(actor=self.owner, kind=ConversationContextKind.ACTIVITY, activity=self.activity)
+        # Visibility audiences narrow legitimate access; explicit participation is
+        # the live access boundary for this media recipient fixture.
+        activate_participation(actor=self.owner, conversation=self.conversation, profile=self.member)
         audience = create_audience_set(actor=self.owner, conversation=self.conversation, label="Destinataire média")
         add_audience_rule(
             actor=self.owner,

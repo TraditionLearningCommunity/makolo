@@ -24,7 +24,7 @@ from .core_models import ConversationContextKind
 from .form_services import ensure_form_requests_for_point, form_request_for_profile
 from .point_models import ConversationPointKind, ConversationPointResponseMode
 from .point_services import create_point
-from .services import ensure_context_conversation
+from .services import activate_participation, ensure_context_conversation
 
 
 User = get_user_model()
@@ -63,6 +63,9 @@ class ConversationFormsTests(TestCase):
             kind=ConversationContextKind.ACTIVITY,
             activity=self.activity,
         )
+        # Explicit Point audiences narrow an existing live boundary; they do not
+        # create Conversation access by themselves.
+        activate_participation(actor=self.owner, conversation=conversation, profile=self.member)
         audience = create_audience_set(actor=self.owner, conversation=conversation, label="Cible")
         add_audience_rule(
             actor=self.owner,

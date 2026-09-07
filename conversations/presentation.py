@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from .attention import point_attention_reason
 from .core_models import Conversation, ConversationContextKind
-from .point_models import ConversationPoint, ConversationPointLifecycle
+from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle
 from .point_services import point_visible_to
 from .services import can_view_conversation
 
@@ -128,6 +128,12 @@ def now_points_for_profile(profile, conversation, *, limit=100):
         if not point_visible_to(profile, point, at=now):
             continue
         reason = point_attention_reason(profile, point, at=now)
+        # "Maintenant" is personal: once a required Question/Request/Form has been
+        # handled by this Profile, it must not linger as generic information merely
+        # because other people may still have work. Information Points remain useful
+        # in "À savoir" even when they do not demand an explicit action.
+        if reason is None and point.kind != ConversationPointKind.INFORMATION:
+            continue
         section = "pour_moi" if reason in {"respond", "acknowledge", "form", "revisit"} else "a_regler" if reason == "resolve" else "a_savoir"
         rows.append({"point": point, "reason": reason, "section": section})
         if len(rows) >= limit:
