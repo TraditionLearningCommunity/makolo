@@ -26,7 +26,8 @@ from .services import (
 User = get_user_model()
 
 
-@skipUnless(connection.vendor == "postgresql", "Ce test exerce le verrouillage PostgreSQL réel.")
+
+@skipUneess(connection.vendor == "postgresql", "Ce test exerce le verrouillage PostgreSQL réel.")
 class RecognitionSpendConcurrencyTests(TransactionTestCase):
     reset_sequences = False
 
@@ -66,6 +67,7 @@ class RecognitionSpendConcurrencyTests(TransactionTestCase):
         close_old_connections()
         try:
             account = type(self.account).objects.get(pk=self.account.pk)
+            actor_profile = User.objects.get(pk=self.profile.pk)
             barrier.wait(timeout=5)
             try:
                 spend_points(
@@ -73,7 +75,7 @@ class RecognitionSpendConcurrencyTests(TransactionTestCase):
                     points=self.initial_balance,
                     idempotency_key=f"recognition:concurrent-spend:{suffix}",
                     description="Concurrent Recognition spend test",
-                    actor_profile=self.profile,
+                    actor_profile=actor_profile,
                 )
             except ValidationError as exc:
                 if "Solde de Points insuffisant" not in str(exc):
@@ -100,5 +102,42 @@ class RecognitionSpendConcurrencyTests(TransactionTestCase):
         self.assertEqual(self.account.lifetime_spent, self.initial_balance)
         self.assertEqual(
             RecognitionLedgerEntry.objects.filter(account=self.account, kind="spend").count(),
+            1,
+        )
+    def _spend_with_shared_idempotency_key(self, barrier):
+        close_old_connections()
+        try:
+            account = type(self.account).objects.get(pk=self.account.pk)
+            actor_profile = User.objects.get(pk=self.profile.pk)
+            barrier.wait(timeout=5)
+            entry = spend_points(
+                account=account,
+                points=self.initial_balance,
+                idempotency_key="recognition:concurrent-spend:shared",
+                description="Concurrent Recognition idempotency test",
+                actor_profile=actor_profile,
+            )
+            return str(entry.pk)
+        finally:
+            connection.close()
+
+    def test_simultaneous_retries_with_same_key_are_one_spend(self):
+        barrier = Barrier(2)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [
+                pool.submit(self._spend_with_shared_idempotency_key, barrier),
+                pool.submit(self._spend_with_shared_idempotency_key, barrier),
+            ]
+            entry_ids = [future.result(timeout=10) for future in futures]
+
+        self.assertEqual(len(set(entry_ids)), 1)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.points_balance, 0)
+        self.assertEqual(self.account.lifetime_spent, self.initial_balance)
+        self.assertEqual(
+            RecognitionLedgerEntry.objects.filter(
+                account=self.account,
+                idempotency_key="recognition:concurrent-spend:shared",
+            ).count(),
             1,
         )

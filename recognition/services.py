@@ -252,7 +252,7 @@ def process_impact_slice(
         accrual_key=accrual_key,
         policy_version=policy_version,
         defaults={"channel": channel},
-    )
+     )
     accrual = RecognitionAccrual.objects.select_for_update().get(pk=accrual.pk)
     if accrual.channel != channel:
         raise ValidationError("Un accrual_key ne peut pas changer de canal.")
@@ -320,7 +320,7 @@ def process_impact_slice(
             "unattributed_points",
             "updated_at",
         ]
-    )
+     )
     return SliceProcessResult(receipt=receipt, created=True, grants=tuple(grants))
 
 
@@ -343,11 +343,29 @@ def spend_points(
 
     existing = RecognitionLedgerEntry.objects.filter(idempotency_key=idempotency_key).first()
     if existing:
-        if existing.account_id != account.pk or existing.kind != RecognitionLedgerKind.SPEND.value:
-            raise ValidationError("Cette clé d'idempotence appartient à une autre opération.")
+        if (
+            existing.account_id != account.pk
+            or existing.kind != RecognitionLedgerKind.SPEND.value
+            or existing.points != -points
+        ):
+            raise ValidationError("Cette clé d'idempotence appartient à une autre opération ou un autre montant.")
         return existing
 
     account = RecognitionAccount.objects.select_for_update().get(pk=account.pk)
+
+    # A concurrent retry can pass the optimistic check above before the first
+    # request commits. Re-check under the account lock so the retry becomes a
+    # deterministic no-op instead of surfacing a unique-key IntegrityError.
+    existing = RecognitionLedgerEntry.objects.filter(idempotency_key=idempotency_key).first()
+    if existing:
+        if (
+            existing.account_id != account.pk
+            or existing.kind != RecognitionLedgerKind.SPEND.value
+            or existing.points != -points
+        ):
+            raise ValidationError("Cette clé d'idempotence appartient à une autre opération ou un autre montant.")
+        return existing
+
     if account.points_balance < points:
         raise ValidationError("Solde de Points insuffisant.")
 
