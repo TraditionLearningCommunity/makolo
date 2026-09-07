@@ -11,6 +11,7 @@ from .achievements import grant_due_achievements
 from .economy import redeem_reward
 from .ingest import record_signal
 from .models import RecognitionAccount, RecognitionPolicy, RecognitionSignal, RewardDefinition
+from .policy_dsl import validate_rule_definition
 from .runtime import run_default_recognition_cycle
 from .selectors import compact_credits
 from .services import get_or_create_account
@@ -29,6 +30,11 @@ class RecognitionPlatformTests(TestCase):
         refund = policy.rules.get(code="payment-refunded")
         self.assertEqual(payment.measure["value"], "2")
         self.assertEqual(refund.measure["value"], "1")
+        for rule in policy.rules.all():
+            validate_rule_definition(rule)
+        self.assertEqual(policy.rules.get(code="journey-fulfilled").aggregation, "LATEST_STATE")
+        self.assertEqual(policy.rules.get(code="opportunity-published").temporal_profile, "pulse")
+        self.assertEqual(policy.rules.get(code="checkpoint-closed").temporal_profile, "pulse")
 
     def test_runtime_consumes_semantic_signal_once_and_credits_space(self):
         now = timezone.now()
