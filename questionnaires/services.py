@@ -31,13 +31,21 @@ def _require_activity_manage(actor, activity):
         raise PermissionDenied("La gestion de cette Activity n’est pas autorisée.")
 
 
-def _require_beneficiary(actor, request):
-    if not getattr(actor, "is_authenticated", False) or request.journey.beneficiary_id != actor.pk:
-        raise PermissionDenied("Ce formulaire n’appartient pas à votre Journey.")
+def _request_recipient_id(request):
+    if request.target_profile_id:
+        return request.target_profile_id
+    if request.journey_id:
+        return request.journey.beneficiary_id
+    return None
+
+
+def _require_request_recipient(actor, request):
+    if not getattr(actor, "is_authenticated", False) or _request_recipient_id(request) != actor.pk:
+        raise PermissionDenied("Ce formulaire ne vous est pas destiné.")
 
 
 def _emit(event_type, source_type, source_id, request, suffix, payload):
-    activity = request.journey.activity
+    activity = request.activity
     return emit_domain_event(
         event_type=event_type,
         source_type=source_type,
@@ -107,6 +115,8 @@ def publish_form_version(*, form_version, actor):
 
 @transaction.atomic
 def request_form(*, form_version, journey, actor, required=True, opens_at=None, due_at=None):
+    """Create the established Journey-bound FormRequest."""
+
     _require_activity_manage(actor, journey.activity)
     request = FormRequest.objects.create(
         form_version=form_version,
@@ -123,6 +133,38 @@ def request_form(*, form_version, journey, actor, required=True, opens_at=None, 
         request,
         "requested",
         {"form_request_id": str(request.pk), "journey_id": str(journey.pk), "form_version_id": str(form_version.pk)},
+    )
+    return request
+
+
+@transaction.atomic
+def request_form_for_profile(*, form_version, profile, actor, required=True, opens_at=None, due_at=None):
+    """Create a Profile-targeted request without creating a synthetic Journey.
+
+    This mode is for contextual collective coordination such as Conversation Points.
+    It deliberately contributes nothing to Journey Readiness because it has no Journey.
+    """
+
+    _require_activity_manage(actor, form_version.form.activity)
+    request = FormRequest.objects.create(
+        form_version=form_version,
+        target_profile=profile,
+        required=required,
+        opens_at=opens_at,
+        due_at=due_at,
+        created_by=actor,
+    )
+    _emit(
+        DomainEventType.FORM_REQUESTED,
+        "form_request",
+        request.pk,
+        request,
+        "requested",
+        {
+            "form_request_id": str(request.pk),
+            "target_profile_id": str(profile.pk),
+            "form_version_id": str(form_version.pk),
+        },
     )
     return request
 
@@ -187,7 +229,7 @@ def _editable(request, now):
 
 @transaction.atomic
 def save_response(*, request, actor, answers):
-    _require_beneficiary(actor, request)
+    _require_request_recipient(actor, request)
     now = timezone.now()
     if not _editable(request, now):
         raise ValidationError("Cette réponse n’est pas modifiable actuellement.")
@@ -210,7 +252,7 @@ def save_response(*, request, actor, answers):
 
 @transaction.atomic
 def submit_response(*, request, actor):
-    _require_beneficiary(actor, request)
+    _require_request_recipient(actor, request)
     now = timezone.now()
     if not _editable(request, now):
         raise ValidationError("Cette réponse ne peut pas être soumise actuellement.")
@@ -234,21 +276,22 @@ def submit_response(*, request, actor):
     request.status = FormRequestStatus.COMPLETED
     request.completed_at = now
     request.save(update_fields=["status", "completed_at", "updated_at"])
-    _emit(
-        DomainEventType.FORM_SUBMITTED,
-        "form_response",
-        response.pk,
-        request,
-        "submitted",
-        {"form_response_id": str(response.pk), "form_request_id": str(request.pk), "journey_id": str(request.journey_id)},
-    )
+    payload = {
+        "form_response_id": str(response.pk),
+        "form_request_id": str(request.pk),
+    }
+    if request.journey_id:
+        payload["journey_id"] = str(request.journey_id)
+    if request.target_profile_id:
+        payload["target_profile_id"] = str(request.target_profile_id)
+    _emit(DomainEventType.FORM_SUBMITTED, "form_response", response.pk, request, "submitted", payload)
     return response
 
 
 @transaction.atomic
 def reopen_response(*, response, actor):
     request = response.request
-    _require_activity_manage(actor, request.journey.activity)
+    _require_activity_manage(actor, request.activity)
     response = FormResponse.objects.select_for_update().get(pk=response.pk)
     if response.status != FormResponseStatus.SUBMITTED:
         raise ValidationError("Seule une réponse soumise peut être réouverte.")
@@ -259,12 +302,17 @@ def reopen_response(*, response, actor):
     request.status = FormRequestStatus.REQUESTED
     request.completed_at = None
     request.save(update_fields=["status", "completed_at", "updated_at"])
+    payload = {"form_response_id": str(response.pk), "form_request_id": str(request.pk)}
+    if request.journey_id:
+        payload["journey_id"] = str(request.journey_id)
+    if request.target_profile_id:
+        payload["target_profile_id"] = str(request.target_profile_id)
     _emit(
         DomainEventType.FORM_REOPENED,
         "form_response",
         response.pk,
         request,
         f"reopened:{response.reopened_at.isoformat()}",
-        {"form_response_id": str(response.pk), "form_request_id": str(request.pk), "journey_id": str(request.journey_id)},
+        payload,
     )
     return response

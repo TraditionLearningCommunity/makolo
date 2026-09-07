@@ -1,6 +1,7 @@
 from django import template
 
 from conversations.attention import attention_points_for_profile, conversation_attention_count
+from conversations.form_services import form_request_for_profile
 from conversations.point_models import ConversationPoint
 from conversations.presentation import conversation_context_label
 
@@ -46,3 +47,8 @@ def conversation_attention_preview(profile, limit=5):
         for item in items
         if item.point_id in points
     ]
+
+
+@register.simple_tag
+def conversation_point_form_request(point, profile):
+    return form_request_for_profile(point, profile)

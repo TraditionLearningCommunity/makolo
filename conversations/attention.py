@@ -48,9 +48,11 @@ def point_attention_reason(profile, point, *, at=None):
             return "acknowledge"
     if point.lifecycle == ConversationPointLifecycle.OPEN and point_expected_from(profile, point, at=at):
         if point.kind == ConversationPointKind.FORM_REQUEST:
-            # J6 supplies per-profile FormRequest completion; until then this stays visible but not falsely completed.
-            return "form"
-        if point.response_mode != "none" and not _subject_has_active_response(point, profile):
+            from .form_services import form_request_completed_for_profile
+
+            if not form_request_completed_for_profile(point, profile):
+                return "form"
+        elif point.response_mode != "none" and not _subject_has_active_response(point, profile):
             if not point.deadline_at or at < point.deadline_at:
                 return "respond"
     if point.resolution_audience_id and profile_in_audience(profile, point.resolution_audience, at=at):
