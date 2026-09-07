@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ActionNeed, Contribution, ProfileSolicitation
+from .models import ActionNeed, ActionNetworkBlock, ActionProposal, Contribution
 
 
 @admin.register(Contribution)
@@ -13,15 +13,21 @@ class ContributionAdmin(admin.ModelAdmin):
 
 @admin.register(ActionNeed)
 class ActionNeedAdmin(admin.ModelAdmin):
-    list_display = ("title", "owner_profile", "space", "open_to_kind", "status", "created_by", "created_at")
-    list_filter = ("status", "open_to_kind")
+    list_display = ("title", "owner_profile", "space", "match_kind", "candidate_kind", "status", "created_by", "created_at")
+    list_filter = ("status", "match_kind", "candidate_kind", "visibility", "intake_policy")
     search_fields = ("title", "description", "owner_profile__username", "space__name")
     readonly_fields = ("created_at", "updated_at")
 
 
-@admin.register(ProfileSolicitation)
-class ProfileSolicitationAdmin(admin.ModelAdmin):
-    list_display = ("need", "recipient_profile", "sent_by", "status", "created_at")
-    list_filter = ("status",)
-    search_fields = ("need__title", "recipient_profile__username", "sent_by__username")
+@admin.register(ActionProposal)
+class ActionProposalAdmin(admin.ModelAdmin):
+    list_display = ("need", "candidate_profile", "candidate_space", "direction", "initiated_by", "status", "created_at")
+    list_filter = ("status", "direction")
+    search_fields = ("need__title", "candidate_profile__username", "candidate_space__name", "initiated_by__username")
     readonly_fields = ("created_at", "updated_at", "responded_at", "cancelled_at")
+
+
+@admin.register(ActionNetworkBlock)
+class ActionNetworkBlockAdmin(admin.ModelAdmin):
+    list_display = ("blocker_profile", "blocker_space", "blocked_profile", "blocked_space", "created_by", "created_at")
+    readonly_fields = ("created_at",)
