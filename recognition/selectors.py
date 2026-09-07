@@ -28,15 +28,12 @@ def account_for_space(space):
     return RecognitionAccount.objects.filter(space=space).first()
 
 
-def _self_eligible(reward, account):
+def _owner_can_spend_reward(reward, account):
+    """Owner-side economy constraints only; beneficiary is a distinct subject."""
     if account is None or account.points_balance < reward.points_cost:
         return False
     eligibility = reward.eligibility or {}
     if account.lifetime_earned < int(eligibility.get("owner_lifetime_earned_gte", 0) or 0):
-        return False
-    subject_type = account.subject_type
-    allowed = set(eligibility.get("beneficiary_subject_types") or ["profile", "space"])
-    if subject_type not in allowed:
         return False
     max_owner = eligibility.get("max_per_owner")
     if max_owner is not None:
@@ -48,8 +45,32 @@ def _self_eligible(reward, account):
     return True
 
 
+def _self_beneficiary_eligible(reward, account):
+    if account is None:
+        return False
+    eligibility = reward.eligibility or {}
+    subject_type = account.subject_type
+    allowed = set(eligibility.get("beneficiary_subject_types") or ["profile", "space"])
+    if subject_type not in allowed:
+        return False
+    max_beneficiary = eligibility.get("max_per_beneficiary")
+    if max_beneficiary is not None:
+        query = {f"beneficiary_{subject_type}_id": account.subject.pk}
+        used = reward.redemptions.exclude(status=RedemptionStatus.CANCELLED).filter(**query).count()
+        if used >= int(max_beneficiary):
+            return False
+    return True
+
+
 def active_rewards(*, at=None, owner_account=None):
-    """Return one currently usable version per Reward code, newest version wins."""
+    """Return one currently usable version per Reward code, newest version wins.
+
+    Visibility answers whether the owner can spend this Reward at all. It does
+    not conflate that with beneficiary eligibility: a Space may legitimately
+    spend its credits for a Profile-only benefit, and vice versa when allowed.
+    Transient flags are presentation hints only; redemption revalidates all
+    constraints transactionally.
+    """
     at = at or timezone.now()
     candidates = list(
         RewardDefinition.objects.filter(is_active=True)
@@ -63,4 +84,15 @@ def active_rewards(*, at=None, owner_account=None):
     rewards = sorted(latest.values(), key=lambda reward: (reward.points_cost, reward.name, reward.code))
     if owner_account is None:
         return rewards
-    return [reward for reward in rewards if _self_eligible(reward, owner_account)]
+
+    visible = []
+    for reward in rewards:
+        if not _owner_can_spend_reward(reward, owner_account):
+            continue
+        self_eligible = _self_beneficiary_eligible(reward, owner_account)
+        if not self_eligible and not reward.beneficiary_allowed:
+            continue
+        reward.recognition_self_eligible = self_eligible
+        reward.recognition_requires_other_beneficiary = not self_eligible
+        visible.append(reward)
+    return visible
