@@ -44,11 +44,11 @@ User = get_user_model()
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class EventCRMTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="crm-owner", email="crm-owner@example.com", password="Strong-password-2026!", is_verified=True)
-        self.marketing = User.objects.create_user(username="crm-marketing", email="crm-marketing@example.com", password="Strong-password-2026!", is_verified=True)
-        self.event_manager = User.objects.create_user(username="crm-event", email="crm-event@example.com", password="Strong-password-2026!", is_verified=True)
-        self.finance = User.objects.create_user(username="crm-finance", email="crm-finance@example.com", password="Strong-password-2026!", is_verified=True)
-        self.attendee = User.objects.create_user(username="crm-attendee", email="attendee@example.com", password="Strong-password-2026!", is_verified=True, first_name="Aline", last_name="Participant")
+        self.owner = User.objects.create_user(username="crm-owner", email="crm-owner@example.com", password="Strong-password-2026!")
+        self.marketing = User.objects.create_user(username="crm-marketing", email="crm-marketing@example.com", password="Strong-password-2026!")
+        self.event_manager = User.objects.create_user(username="crm-event", email="crm-event@example.com", password="Strong-password-2026!")
+        self.finance = User.objects.create_user(username="crm-finance", email="crm-finance@example.com", password="Strong-password-2026!")
+        self.attendee = User.objects.create_user(username="crm-attendee", email="attendee@example.com", password="Strong-password-2026!", first_name="Aline", last_name="Participant")
         self.organization = Organization.objects.create(name="Makolo CRM Lab", created_by=self.owner)
         for user, role in [
             (self.owner, OrganizationRole.OWNER),
