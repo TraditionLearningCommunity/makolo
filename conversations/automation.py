@@ -4,16 +4,13 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .core_models import ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointLifecycle
 from .point_services import maybe_auto_resolve
 
 
 def process_due_conversation_points(*, now=None, limit=100):
-    """Advance Point time contracts idempotently from the existing Autopilot.
-
-    Deadline closes responses. valid_until ends operational validity. Neither
-    depends on realtime transport or browser presence.
-    """
+    """Advance Point and invitation time contracts from the existing Autopilot."""
 
     now = now or timezone.now()
     candidate_ids = list(
@@ -24,7 +21,7 @@ def process_due_conversation_points(*, now=None, limit=100):
         .order_by("valid_until", "deadline_at", "id")
         .values_list("pk", flat=True)[: max(int(limit or 1), 1)]
     )
-    stats = {"examined": 0, "responses_closed": 0, "resolved": 0, "expired": 0}
+    stats = {"examined": 0, "responses_closed": 0, "resolved": 0, "expired": 0, "invitations_expired": 0}
     for point_id in candidate_ids:
         with transaction.atomic():
             point = ConversationPoint.objects.select_for_update().get(pk=point_id)
@@ -48,4 +45,25 @@ def process_due_conversation_points(*, now=None, limit=100):
                 resolution = maybe_auto_resolve(point=point)
                 if resolution is not None:
                     stats["resolved"] += 1
+
+    invitation_ids = list(
+        ConversationInvitation.objects.filter(
+            status=ConversationInvitationStatus.PENDING,
+            expires_at__isnull=False,
+            expires_at__lte=now,
+        )
+        .order_by("expires_at", "id")
+        .values_list("pk", flat=True)[: max(int(limit or 1), 1)]
+    )
+    for invitation_id in invitation_ids:
+        with transaction.atomic():
+            invitation = ConversationInvitation.objects.select_for_update().get(pk=invitation_id)
+            if invitation.status != ConversationInvitationStatus.PENDING:
+                continue
+            if not invitation.expires_at or invitation.expires_at > now:
+                continue
+            invitation.status = ConversationInvitationStatus.EXPIRED
+            invitation.responded_at = invitation.responded_at or now
+            invitation.save(update_fields=["status", "responded_at", "updated_at"])
+            stats["invitations_expired"] += 1
     return stats

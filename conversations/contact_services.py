@@ -8,6 +8,7 @@ from django.utils import timezone
 from social.models import ActionNetworkBlock, ActionProposalStatus
 
 from .audience_services import profile_in_audience
+from .concurrency_services import ensure_context_conversation_concurrent
 from .contact_models import (
     CommunicationRoute,
     CommunicationRouteStatus,
@@ -17,7 +18,7 @@ from .contact_models import (
     ProfileContactPolicy,
 )
 from .core_models import ConversationContextKind, ConversationEntryMode, ConversationHistoryPolicy
-from .services import can_manage_conversation_routes, ensure_context_conversation
+from .services import can_manage_conversation_routes
 
 
 def profiles_blocked(profile_a, profile_b) -> bool:
@@ -109,7 +110,7 @@ def respond_to_contact_request(*, actor, contact_request, accept: bool):
 def ensure_direct_conversation(*, actor, target, purpose_key="coordination", title_override=""):
     if not can_start_direct_conversation(actor, target):
         raise PermissionDenied("Cette Conversation directe n’est pas disponible sans contexte ou consentement.")
-    return ensure_context_conversation(
+    return ensure_context_conversation_concurrent(
         actor=actor,
         kind=ConversationContextKind.DIRECT,
         direct_profile_a=actor,
@@ -135,7 +136,7 @@ def ensure_proposal_conversation(*, actor, proposal):
         allowed = _has_scope_permission(actor, probe, "MANAGE")
     if not allowed:
         raise PermissionDenied("Vous ne faites pas partie de cette proposition.")
-    return ensure_context_conversation(
+    return ensure_context_conversation_concurrent(
         actor=actor,
         kind=ConversationContextKind.ACTION_PROPOSAL,
         action_proposal=proposal,
