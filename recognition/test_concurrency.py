@@ -26,8 +26,7 @@ from .services import (
 User = get_user_model()
 
 
-
-@skipUneess(connection.vendor == "postgresql", "Ce test exerce le verrouillage PostgreSQL réel.")
+@skipUnless(connection.vendor == "postgresql", "Ce test exerce le verrouillage PostgreSQL réel.")
 class RecognitionSpendConcurrencyTests(TransactionTestCase):
     reset_sequences = False
 
@@ -104,6 +103,7 @@ class RecognitionSpendConcurrencyTests(TransactionTestCase):
             RecognitionLedgerEntry.objects.filter(account=self.account, kind="spend").count(),
             1,
         )
+
     def _spend_with_shared_idempotency_key(self, barrier):
         close_old_connections()
         try:
