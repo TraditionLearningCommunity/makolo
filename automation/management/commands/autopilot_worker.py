@@ -7,7 +7,8 @@ from django.core.management.base import BaseCommand
 
 from automation.crm_runtime import process_due_crm_workflows
 from automation.scheduler import run_autopilot_cycle
-from operations.models import WorkerState
+from operations.emergency_controls import is_operational_control_enabled
+from operations.models import OperationalControlCode, WorkerState
 from operations.services import record_worker_heartbeat
 
 
@@ -53,8 +54,11 @@ class Command(BaseCommand):
                 metadata={"poll_seconds": poll_seconds, "delivery_limit": delivery_limit},
             )
             try:
-                stats = run_autopilot_cycle(delivery_limit=delivery_limit)
-                stats["crm_workflows"] = process_due_crm_workflows(limit=delivery_limit)
+                if not is_operational_control_enabled(OperationalControlCode.AUTOPILOT):
+                    stats = {"operational_control": "disabled"}
+                else:
+                    stats = run_autopilot_cycle(delivery_limit=delivery_limit)
+                    stats["crm_workflows"] = process_due_crm_workflows(limit=delivery_limit)
             except Exception as exc:
                 heartbeat(
                     state=WorkerState.DEGRADED,

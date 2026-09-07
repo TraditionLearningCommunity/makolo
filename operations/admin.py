@@ -1,7 +1,10 @@
+from django import forms
 from django.contrib import admin
 
+from .emergency_controls import set_operational_control
 from .models import (
     ModerationCase,
+    OperationalControl,
     OperationsAuditLog,
     OperationsIncident,
     PlacementAssignment,
@@ -9,6 +12,60 @@ from .models import (
     PlacementUnit,
     WorkerHeartbeat,
 )
+from .permissions import user_can_access_operations
+
+
+class OperationalControlAdminForm(forms.ModelForm):
+    reason = forms.CharField(
+        required=True,
+        label="Justification Operations",
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Obligatoire à chaque activation ou désactivation; cette justification est auditée.",
+    )
+
+    class Meta:
+        model = OperationalControl
+        fields = ("is_enabled", "reason", "incident")
+
+
+@admin.register(OperationalControl)
+class OperationalControlAdmin(admin.ModelAdmin):
+    form = OperationalControlAdminForm
+    list_display = ("code", "is_enabled", "incident", "changed_by", "changed_at")
+    list_filter = ("is_enabled",)
+    search_fields = ("code", "reason")
+    fields = ("code", "is_enabled", "reason", "incident", "changed_by", "changed_at")
+    readonly_fields = ("code", "changed_by", "changed_at")
+    raw_id_fields = ("incident",)
+
+    def has_module_permission(self, request):
+        return user_can_access_operations(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return user_can_access_operations(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return user_can_access_operations(request.user)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        saved = set_operational_control(
+            code=obj.code,
+            enabled=obj.is_enabled,
+            actor=request.user,
+            reason=obj.reason,
+            incident=obj.incident,
+        )
+        obj.is_enabled = saved.is_enabled
+        obj.reason = saved.reason
+        obj.incident_id = saved.incident_id
+        obj.changed_by_id = saved.changed_by_id
+        obj.changed_at = saved.changed_at
 
 
 @admin.register(OperationsIncident)
