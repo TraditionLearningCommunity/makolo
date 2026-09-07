@@ -54,7 +54,6 @@ class SmartWaitlistServiceTests(TestCase):
             username="waitlist-organizer",
             email="waitlist-organizer@example.com",
             password="StrongPass2026!",
-            is_organizer=True,
         )
         self.owner = User.objects.create_user(
             username="seat-owner",
@@ -140,7 +139,6 @@ class SecureTicketTransferServiceTests(TestCase):
             username="transfer-organizer",
             email="transfer-organizer@example.com",
             password="StrongPass2026!",
-            is_organizer=True,
         )
         self.sender = User.objects.create_user(
             username="transfer-sender",
@@ -236,7 +234,6 @@ class WaitlistTransferApiTests(APITestCase):
             username="api-wt-organizer",
             email="api-wt-organizer@example.com",
             password="StrongPass2026!",
-            is_organizer=True,
         )
         self.owner = User.objects.create_user(
             username="api-wt-owner",
