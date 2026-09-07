@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from activities.models import Activity
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from notifications.models import Notification
 from organizations.models import Organization
 
@@ -40,6 +42,13 @@ class ConversationNotificationPrivacyTests(TestCase):
             space=self.space,
             created_by=self.owner,
             title="J7 Privacy Activity",
+        )
+        grant_activity_role(
+            profile=self.owner,
+            activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+            source="j7-conversations-privacy",
         )
         self.conversation = ensure_context_conversation(
             actor=self.owner,
