@@ -58,11 +58,15 @@ class RecognitionPlatformTests(TestCase):
         owner.points_balance = 100
         owner.lifetime_earned = 100
         owner.save()
-        reward = RewardDefinition.objects.create(code="gift-test", version=1, name="Bénéfice test", points_cost=25, beneficiary_allowed=True)
+        reward = RewardDefinition.objects.create(
+            code="gift-test", version=1, name="Bénéfice test", points_cost=25,
+            beneficiary_allowed=True, fulfillment={"owner_domain": "external"},
+        )
         redemption = redeem_reward(owner_account=owner, reward=reward, idempotency_key="gift-test-1", actor_profile=self.user, beneficiary_profile=self.other)
         owner.refresh_from_db()
         self.assertEqual(owner.points_balance, 75)
         self.assertEqual(redemption.beneficiary_profile, self.other)
+        self.assertEqual(redemption.fulfillment_snapshot["delegated_domain"], "external")
         self.assertFalse(RecognitionAccount.objects.filter(profile=self.other).exists())
 
     def test_private_profile_dashboard_requires_login_and_space_requires_authority(self):
