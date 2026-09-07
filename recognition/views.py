@@ -20,6 +20,12 @@ from .selectors import account_for_profile, account_for_space, active_rewards, c
 from .services import get_or_create_account
 
 
+def _redemption_queryset():
+    return RecognitionRedemption.objects.select_related(
+        "reward", "owner_account", "beneficiary_profile", "beneficiary_space"
+    ).order_by("-requested_at", "-id")
+
+
 class RecognitionDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "recognition/dashboard.html"
     login_url = "core:login"
@@ -27,11 +33,11 @@ class RecognitionDashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         account = account_for_profile(self.request.user)
-        incoming = RecognitionRedemption.objects.filter(
+        incoming = _redemption_queryset().filter(
             beneficiary_profile=self.request.user,
             status="requested",
             fulfillment_snapshot__consent_state="pending",
-        ).select_related("reward", "owner_account")
+        )
         context.update({
             "recognition_subject": self.request.user,
             "recognition_subject_kind": "profile",
@@ -41,6 +47,8 @@ class RecognitionDashboardView(LoginRequiredMixin, TemplateView):
             "achievements": account.achievement_grants.select_related("achievement").all() if account else (),
             "rewards": active_rewards(owner_account=account),
             "incoming_redemptions": incoming,
+            "redemptions": _redemption_queryset().filter(owner_account=account)[:20] if account else (),
+            "benefits_received": _redemption_queryset().filter(beneficiary_profile=self.request.user)[:20],
         })
         return context
 
@@ -61,11 +69,11 @@ class SpaceRecognitionDashboardView(LoginRequiredMixin, TemplateView):
         can_spend = can(self.request.user, PermissionCode.SPACE_RECOGNITION_SPEND, space=self.space)
         incoming = ()
         if can_spend:
-            incoming = RecognitionRedemption.objects.filter(
+            incoming = _redemption_queryset().filter(
                 beneficiary_space=self.space,
                 status="requested",
                 fulfillment_snapshot__consent_state="pending",
-            ).select_related("reward", "owner_account")
+            )
         context.update({
             "recognition_subject": self.space,
             "recognition_subject_kind": "space",
@@ -77,6 +85,8 @@ class SpaceRecognitionDashboardView(LoginRequiredMixin, TemplateView):
             "rewards": active_rewards(owner_account=account),
             "can_spend": can_spend,
             "incoming_redemptions": incoming,
+            "redemptions": _redemption_queryset().filter(owner_account=account)[:20] if account else (),
+            "benefits_received": _redemption_queryset().filter(beneficiary_space=self.space)[:20],
         })
         return context
 
@@ -92,47 +102,39 @@ class RedeemRewardView(LoginRequiredMixin, View):
             if not can(request.user, PermissionCode.SPACE_RECOGNITION_SPEND, space=space):
                 raise PermissionDenied
             account = get_or_create_account(space=space)
-            beneficiary_profile = None
-            beneficiary_space = space
-            redirect_to = "recognition:space-dashboard"
-            redirect_kwargs = {"space_id": space.pk}
+            beneficiary_profile = None; beneficiary_space = space
+            redirect_to = "recognition:space-dashboard"; redirect_kwargs = {"space_id": space.pk}
         else:
             account = get_or_create_account(profile=request.user)
-            beneficiary_profile = request.user
-            beneficiary_space = None
-            redirect_to = "recognition:dashboard"
-            redirect_kwargs = {}
+            beneficiary_profile = request.user; beneficiary_space = None
+            redirect_to = "recognition:dashboard"; redirect_kwargs = {}
 
         other_profile_id = (request.POST.get("beneficiary_profile_id") or "").strip()
         other_space_id = (request.POST.get("beneficiary_space_id") or "").strip()
         if other_profile_id or other_space_id:
-            if not reward.beneficiary_allowed:
-                raise PermissionDenied
-            if other_profile_id and other_space_id:
-                raise Http404
+            if not reward.beneficiary_allowed: raise PermissionDenied
+            if other_profile_id and other_space_id: raise Http404
             if other_profile_id:
-                beneficiary_profile = get_object_or_404(get_user_model(), pk=other_profile_id)
-                beneficiary_space = None
+                beneficiary_profile = get_object_or_404(get_user_model(), pk=other_profile_id); beneficiary_space = None
             else:
-                beneficiary_space = get_object_or_404(Organization, pk=other_space_id)
-                beneficiary_profile = None
+                beneficiary_space = get_object_or_404(Organization, pk=other_space_id); beneficiary_profile = None
 
         try:
             redemption = redeem_reward(
-                owner_account=account,
-                reward=reward,
+                owner_account=account, reward=reward,
                 idempotency_key=request.POST.get("idempotency_key") or str(uuid.uuid4()),
-                actor_profile=request.user,
-                beneficiary_profile=beneficiary_profile,
-                beneficiary_space=beneficiary_space,
+                actor_profile=request.user, beneficiary_profile=beneficiary_profile, beneficiary_space=beneficiary_space,
             )
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            if (redemption.fulfillment_snapshot or {}).get("consent_state") == "pending":
+            snapshot = redemption.fulfillment_snapshot or {}
+            if snapshot.get("consent_state") == "pending":
                 messages.success(request, "La proposition a été envoyée au bénéficiaire pour acceptation.")
             elif redemption.status == "fulfilled":
-                messages.success(request, "Utilisation réalisée. Makolo a préparé le bénéfice.")
+                messages.success(request, "Utilisation réalisée. Le domaine propriétaire a préparé le bénéfice.")
+            elif snapshot.get("delegation_state"):
+                messages.success(request, "Utilisation enregistrée. Le domaine propriétaire poursuit maintenant la demande.")
             else:
                 messages.success(request, "Utilisation enregistrée. Makolo prépare la suite.")
         return redirect(redirect_to, **redirect_kwargs)
@@ -142,42 +144,33 @@ class RedemptionDecisionView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def post(self, request, redemption_id, decision):
-        redemption = get_object_or_404(
-            RecognitionRedemption.objects.select_related("beneficiary_space"),
-            pk=redemption_id,
-        )
-        beneficiary_profile = None
-        beneficiary_space = None
-        redirect_to = "recognition:dashboard"
-        redirect_kwargs = {}
+        redemption = get_object_or_404(_redemption_queryset(), pk=redemption_id)
+        beneficiary_profile = None; beneficiary_space = None
+        redirect_to = "recognition:dashboard"; redirect_kwargs = {}
         if redemption.beneficiary_profile_id:
-            if redemption.beneficiary_profile_id != request.user.pk:
-                raise PermissionDenied
+            if redemption.beneficiary_profile_id != request.user.pk: raise PermissionDenied
             beneficiary_profile = request.user
         elif redemption.beneficiary_space_id:
             beneficiary_space = redemption.beneficiary_space
-            if not can(request.user, PermissionCode.SPACE_RECOGNITION_SPEND, space=beneficiary_space):
-                raise PermissionDenied
-            redirect_to = "recognition:space-dashboard"
-            redirect_kwargs = {"space_id": beneficiary_space.pk}
+            if not can(request.user, PermissionCode.SPACE_RECOGNITION_SPEND, space=beneficiary_space): raise PermissionDenied
+            redirect_to = "recognition:space-dashboard"; redirect_kwargs = {"space_id": beneficiary_space.pk}
         else:
             raise Http404
 
         try:
             if decision == "accept":
-                accept_redemption(
-                    redemption=redemption,
-                    beneficiary_profile=beneficiary_profile,
-                    beneficiary_space=beneficiary_space,
-                    actor_profile=request.user,
+                result = accept_redemption(
+                    redemption=redemption, beneficiary_profile=beneficiary_profile,
+                    beneficiary_space=beneficiary_space, actor_profile=request.user,
                 )
-                messages.success(request, "Bénéfice accepté.")
+                if (result.fulfillment_snapshot or {}).get("delegation_state"):
+                    messages.success(request, "Bénéfice accepté. Le domaine propriétaire poursuit la demande.")
+                else:
+                    messages.success(request, "Bénéfice accepté.")
             elif decision == "decline":
                 decline_redemption(
-                    redemption=redemption,
-                    beneficiary_profile=beneficiary_profile,
-                    beneficiary_space=beneficiary_space,
-                    actor_profile=request.user,
+                    redemption=redemption, beneficiary_profile=beneficiary_profile,
+                    beneficiary_space=beneficiary_space, actor_profile=request.user,
                 )
                 messages.success(request, "Bénéfice refusé. Les crédits ont été restitués au propriétaire.")
             else:
