@@ -154,8 +154,20 @@ def redeem_reward(*, owner_account, reward, idempotency_key, actor_profile=None,
     return redemption
 
 
+def _validate_decision_subject(redemption, *, beneficiary_profile=None, beneficiary_space=None):
+    if redemption.beneficiary_profile_id:
+        if beneficiary_profile is None or beneficiary_profile.pk != redemption.beneficiary_profile_id or beneficiary_space is not None:
+            raise ValidationError("Seul le Profile bénéficiaire peut décider pour cette Reward.")
+        return beneficiary_profile
+    if redemption.beneficiary_space_id:
+        if beneficiary_space is None or beneficiary_space.pk != redemption.beneficiary_space_id or beneficiary_profile is not None:
+            raise ValidationError("Seul l'Espace bénéficiaire, via une autorité explicite, peut décider pour cette Reward.")
+        return beneficiary_space
+    raise ValidationError("Cette Reward n'a pas de bénéficiaire valide.")
+
+
 @transaction.atomic
-def accept_redemption(*, redemption, beneficiary_profile=None, actor_profile=None):
+def accept_redemption(*, redemption, beneficiary_profile=None, beneficiary_space=None, actor_profile=None):
     redemption = (
         RecognitionRedemption.objects.select_for_update(of=("self",))
         .select_related("reward", "beneficiary_profile", "beneficiary_space")
@@ -164,30 +176,34 @@ def accept_redemption(*, redemption, beneficiary_profile=None, actor_profile=Non
     snapshot = dict(redemption.fulfillment_snapshot or {})
     if snapshot.get("consent_state") != "pending":
         return redemption
-    if redemption.beneficiary_profile_id:
-        if beneficiary_profile is None or beneficiary_profile.pk != redemption.beneficiary_profile_id:
-            raise ValidationError("Seul le bénéficiaire peut accepter cette Reward.")
-    else:
-        raise ValidationError("Le consentement d'un Espace doit passer par son workflow d'autorité dédié.")
+    _validate_decision_subject(
+        redemption,
+        beneficiary_profile=beneficiary_profile,
+        beneficiary_space=beneficiary_space,
+    )
     snapshot["consent_state"] = "accepted"
     snapshot["consent_at"] = timezone.now().isoformat()
+    snapshot["consent_actor_profile_id"] = str(getattr(actor_profile, "pk", ""))
     redemption.fulfillment_snapshot = snapshot
     redemption.save(update_fields=["fulfillment_snapshot"])
     return fulfill_redemption(redemption, actor_profile=actor_profile or beneficiary_profile)
 
 
 @transaction.atomic
-def decline_redemption(*, redemption, beneficiary_profile=None, actor_profile=None):
+def decline_redemption(*, redemption, beneficiary_profile=None, beneficiary_space=None, actor_profile=None):
     redemption = (
         RecognitionRedemption.objects.select_for_update(of=("self",))
-        .select_related("reward", "owner_account", "beneficiary_profile")
+        .select_related("reward", "owner_account", "beneficiary_profile", "beneficiary_space")
         .get(pk=redemption.pk)
     )
     snapshot = dict(redemption.fulfillment_snapshot or {})
     if snapshot.get("consent_state") != "pending":
         raise ValidationError("Cette Reward n'attend pas de décision du bénéficiaire.")
-    if redemption.beneficiary_profile_id != getattr(beneficiary_profile, "pk", None):
-        raise ValidationError("Seul le bénéficiaire peut refuser cette Reward.")
+    _validate_decision_subject(
+        redemption,
+        beneficiary_profile=beneficiary_profile,
+        beneficiary_space=beneficiary_space,
+    )
     refund_spend(
         account=redemption.owner_account,
         points=redemption.points_cost,
@@ -198,6 +214,7 @@ def decline_redemption(*, redemption, beneficiary_profile=None, actor_profile=No
     )
     snapshot["consent_state"] = "declined"
     snapshot["consent_at"] = timezone.now().isoformat()
+    snapshot["consent_actor_profile_id"] = str(getattr(actor_profile, "pk", ""))
     redemption.fulfillment_snapshot = snapshot
     redemption.status = RedemptionStatus.CANCELLED
     redemption.save(update_fields=["fulfillment_snapshot", "status"])
