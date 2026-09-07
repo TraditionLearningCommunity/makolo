@@ -85,9 +85,14 @@ jobs:
           python manage.py test subscriptions.tests subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade subscriptions.test_s6_product_ux subscriptions.test_s6_performance analytics_app.test_subscription_analytics
 
   postgresql:
+    name: postgresql (${{ matrix.shard }})
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [catalog-runtime, transitions-security, ux-concurrency]
     services:
       postgres:
         image: postgres:16-alpine
@@ -130,16 +135,23 @@ jobs:
           python manage.py makemigrations --check --dry-run
           python manage.py migrate --noinput
       - name: Run Subscription catalogue regressions
+        if: ${{ matrix.shard == 'catalog-runtime' }}
         run: python manage.py test subscriptions.tests
       - name: Run Subscription S2 runtime regressions
+        if: ${{ matrix.shard == 'catalog-runtime' }}
         run: python manage.py test subscriptions.test_s2_runtime subscriptions.test_s2_grant_regressions
       - name: Run Subscription S3 eligibility regressions
+        if: ${{ matrix.shard == 'catalog-runtime' }}
         run: python manage.py test subscriptions.test_s3_eligibility subscriptions.test_s3_requirement_validation requirements
       - name: Run Subscription S4 transition regressions
+        if: ${{ matrix.shard == 'transitions-security' }}
         run: python manage.py test subscriptions.test_s4_transitions subscriptions.test_s4_validation subscriptions.test_s4_payment_bridge subscriptions.test_s4_preview
       - name: Run Subscription S5 security events automation regressions
+        if: ${{ matrix.shard == 'transitions-security' }}
         run: python manage.py test subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade notifications automation domain_events authorization
       - name: Run Subscription S6 product UX analytics hardening regressions
+        if: ${{ matrix.shard == 'ux-concurrency' }}
         run: python manage.py test subscriptions.test_s6_product_ux subscriptions.test_s6_performance analytics_app.test_subscription_analytics
       - name: Run Subscription PostgreSQL concurrency regressions
+        if: ${{ matrix.shard == 'ux-concurrency' }}
         run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency

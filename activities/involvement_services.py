@@ -41,6 +41,10 @@ def _emit_involvement_event(*, involvement, event_type, suffix):
     )
 
 
+def _can_manage_involvement(actor, activity) -> bool:
+    return can(actor, PermissionCode.ACTIVITY_ACTION_NETWORK_MANAGE, activity=activity)
+
+
 @transaction.atomic
 def realize_activity_proposal(*, actor, proposal):
     """Idempotently materialize the Activity truth owned by a configured Need."""
@@ -111,8 +115,8 @@ def create_external_involvement(
     function_kind=ActivityInvolvementFunctionKind.OTHER,
     function_label="", presentation_tier=3, presentation_order=0,
 ):
-    if not can(actor, PermissionCode.ACTIVITY_MANAGE, activity=activity):
-        raise PermissionDenied("Cette Activity exige l'autorité ACTIVITY_MANAGE.")
+    if not _can_manage_involvement(actor, activity):
+        raise PermissionDenied("Cette Activity exige l'autorité de gestion du réseau d'action.")
     if occurrence is not None and occurrence.activity_id != activity.pk:
         raise ValidationError({"occurrence": "L'Occurrence doit appartenir à l'Activity."})
     involvement = ActivityInvolvement.objects.create(
@@ -151,8 +155,8 @@ def create_direct_confirmed_involvement(
 ):
     """Safe direct path only when the acting subject can confirm itself."""
 
-    if not can(actor, PermissionCode.ACTIVITY_MANAGE, activity=activity):
-        raise PermissionDenied("Cette Activity exige l'autorité ACTIVITY_MANAGE.")
+    if not _can_manage_involvement(actor, activity):
+        raise PermissionDenied("Cette Activity exige l'autorité de gestion du réseau d'action.")
     if bool(profile) == bool(space):
         raise ValidationError("Choisissez exactement un Profile ou un Space.")
     if profile is not None:
@@ -160,8 +164,8 @@ def create_direct_confirmed_involvement(
             raise PermissionDenied("Un autre Profile doit confirmer via une ActionProposal.")
         basis = ActivityInvolvementConfirmationBasis.PROFILE_CONFIRMED
     else:
-        if not can(actor, PermissionCode.SPACE_MANAGE, space=space):
-            raise PermissionDenied("Le représentant doit être autorisé à agir pour ce Space.")
+        if not can(actor, PermissionCode.SPACE_ACTION_NETWORK_MANAGE, space=space):
+            raise PermissionDenied("Le représentant doit être autorisé à agir pour le réseau d'action de ce Space.")
         basis = ActivityInvolvementConfirmationBasis.SPACE_CONFIRMED
     if occurrence is not None and occurrence.activity_id != activity.pk:
         raise ValidationError({"occurrence": "L'Occurrence doit appartenir à l'Activity."})
@@ -195,8 +199,8 @@ def create_direct_confirmed_involvement(
 
 @transaction.atomic
 def remove_activity_involvement(*, actor, involvement: ActivityInvolvement):
-    locked = ActivityInvolvement.objects.select_for_update().select_related("activity").get(pk=involvement.pk)
-    if not can(actor, PermissionCode.ACTIVITY_MANAGE, activity=locked.activity):
+    locked = ActivityInvolvement.objects.select_for_update().select_related("activity", "activity__space").get(pk=involvement.pk)
+    if not _can_manage_involvement(actor, locked.activity):
         raise PermissionDenied("Vous ne pouvez pas retirer cette implication.")
     if locked.status == ActivityInvolvementStatus.REMOVED:
         return locked

@@ -141,7 +141,14 @@ class FormQuestion(models.Model):
 class FormRequest(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     form_version = models.ForeignKey(FormVersion, on_delete=models.PROTECT, related_name="requests")
-    journey = models.ForeignKey("journeys.Journey", on_delete=models.CASCADE, related_name="form_requests")
+    journey = models.ForeignKey("journeys.Journey", on_delete=models.CASCADE, related_name="form_requests", null=True, blank=True)
+    target_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="targeted_form_requests",
+        null=True,
+        blank=True,
+    )
     status = models.CharField(max_length=16, choices=FormRequestStatus.choices, default=FormRequestStatus.REQUESTED)
     required = models.BooleanField(default=True)
     opens_at = models.DateTimeField(null=True, blank=True)
@@ -152,13 +159,36 @@ class FormRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["journey", "created_at", "id"]
-        constraints = [models.UniqueConstraint(fields=["journey", "form_version"], name="questionnaire_request_journey_version_unique")]
-        indexes = [models.Index(fields=["journey", "status"], name="qnr_req_journey_status_idx")]
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["journey", "form_version"], name="questionnaire_request_journey_version_unique"),
+            models.CheckConstraint(
+                condition=(Q(journey__isnull=False, target_profile__isnull=True) | Q(journey__isnull=True, target_profile__isnull=False)),
+                name="qnr_request_exactly_one_target",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["journey", "status"], name="qnr_req_journey_status_idx"),
+            models.Index(fields=["target_profile", "status"], name="qnr_req_profile_status_idx"),
+        ]
+
+    @property
+    def recipient(self):
+        if self.target_profile_id:
+            return self.target_profile
+        return self.journey.beneficiary if self.journey_id else None
+
+    @property
+    def activity(self):
+        if self.journey_id:
+            return self.journey.activity
+        return self.form_version.form.activity
 
     def clean(self):
         super().clean()
         errors = {}
+        if bool(self.journey_id) == bool(self.target_profile_id):
+            errors["journey"] = "Une demande de formulaire cible soit une Journey, soit un Profile, jamais les deux."
         if self.form_version_id and self.form_version.status != FormVersionStatus.PUBLISHED:
             errors["form_version"] = "Seule une version publiée peut être demandée."
         if self.journey_id and self.form_version_id and self.journey.activity_id != self.form_version.form.activity_id:
@@ -193,8 +223,10 @@ class FormResponse(models.Model):
         errors = {}
         if self.request_id and self.form_version_id and self.request.form_version_id != self.form_version_id:
             errors["form_version"] = "La réponse doit rester liée à la version demandée."
-        if self.request_id and self.respondent_id and self.request.journey.beneficiary_id != self.respondent_id:
-            errors["respondent"] = "Le répondant doit être le bénéficiaire de la Journey."
+        if self.request_id and self.respondent_id:
+            expected_id = self.request.target_profile_id or (self.request.journey.beneficiary_id if self.request.journey_id else None)
+            if expected_id != self.respondent_id:
+                errors["respondent"] = "Le répondant doit être le Profile ciblé par la demande."
         if errors:
             raise ValidationError(errors)
 

@@ -1,3 +1,4 @@
+from conversations.automation import process_due_conversation_points
 from sharing.document_services import expire_captures
 from spatiotemporal.automation import run_spatiotemporal_automation_cycle
 
@@ -16,6 +17,10 @@ def run_autopilot_cycle(*, now=None, delivery_limit=100):
         limit=max(delivery_limit, 1),
     )
     stats["proactive_preparation"] = run_proactive_preparation_cycle(
+        now=now,
+        limit=max(delivery_limit, 1),
+    )
+    stats["conversation_points"] = process_due_conversation_points(
         now=now,
         limit=max(delivery_limit, 1),
     )

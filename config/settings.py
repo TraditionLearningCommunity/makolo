@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "intelligence.apps.IntelligenceConfig",
     "objectives.apps.ObjectivesConfig",
     "personal_assets.apps.PersonalAssetsConfig",
+    "conversations.apps.ConversationsConfig",
     "recognition.apps.RecognitionConfig",
 ]
 
