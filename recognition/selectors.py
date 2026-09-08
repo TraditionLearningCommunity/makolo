@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.db.models import Q
 from django.utils import timezone
 
-from .models import RecognitionAccount, RedemptionStatus, RewardDefinition
+from .models import RecognitionAccount, RecognitionRedemption, RedemptionStatus, RewardDefinition
 
 
 def compact_credits(value):
@@ -26,6 +26,23 @@ def account_for_profile(profile):
 
 def account_for_space(space):
     return RecognitionAccount.objects.filter(space=space).first()
+
+
+def redemptions_requiring_beneficiary_response(profile):
+    """Profile-owned consent inbox; balance and achievements are intentionally excluded."""
+    if not getattr(profile, "is_authenticated", False):
+        return RecognitionRedemption.objects.none()
+    return (
+        RecognitionRedemption.objects.select_related(
+            "reward", "owner_account", "beneficiary_profile", "beneficiary_space"
+        )
+        .filter(
+            beneficiary_profile=profile,
+            status=RedemptionStatus.REQUESTED,
+            fulfillment_snapshot__consent_state="pending",
+        )
+        .order_by("created_at", "id")
+    )
 
 
 def _owner_can_spend_reward(reward, account):

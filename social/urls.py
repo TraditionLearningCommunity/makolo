@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .mature_views import MatureProfileSolicitationsView
 from .views import (
     ActionNeedCloseView,
     ActionNeedDetailView,
@@ -13,7 +14,6 @@ from .views import (
     NetworkView,
     ProfileSolicitationCancelView,
     ProfileSolicitationRespondView,
-    ProfileSolicitationsView,
     RemoveContributionView,
     ReplyContributionView,
 )
@@ -32,7 +32,7 @@ urlpatterns = [
     path("network/needs/<uuid:pk>/solicit/profile/<uuid:profile_id>/", ActionNeedSolicitProfileView.as_view(), name="need-solicit"),
     path("network/needs/<uuid:pk>/solicit/space/<uuid:space_id>/", ActionNeedSolicitSpaceView.as_view(), name="need-solicit-space"),
     path("network/needs/<uuid:pk>/propose/", ActionNeedProposeSelfView.as_view(), name="need-propose-self"),
-    path("network/solicitations/", ProfileSolicitationsView.as_view(), name="my-solicitations"),
+    path("network/solicitations/", MatureProfileSolicitationsView.as_view(), name="my-solicitations"),
     path("network/solicitations/<uuid:pk>/respond/", ProfileSolicitationRespondView.as_view(), name="solicitation-respond"),
     path("network/solicitations/<uuid:pk>/cancel/", ProfileSolicitationCancelView.as_view(), name="solicitation-cancel"),
 ]
