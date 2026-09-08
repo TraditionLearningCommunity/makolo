@@ -71,13 +71,14 @@ class LoyaltyReversalDebtTests(TestCase):
             quantity_total=20,
         )
 
-        order = create_order(
-            buyer=participant,
-            event=event,
-            customer_name="Debt Member",
-            customer_email=participant.email,
-            selections=[(ticket_type, 1)],
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            order = create_order(
+                buyer=participant,
+                event=event,
+                customer_name="Debt Member",
+                customer_email=participant.email,
+                selections=[(ticket_type, 1)],
+            )
         account = LoyaltyAccount.objects.get(program=program, user=participant)
         self.assertEqual(account.points_balance, 15)
 
@@ -85,10 +86,13 @@ class LoyaltyReversalDebtTests(TestCase):
         account.refresh_from_db()
         self.assertEqual(account.points_balance, 5)
 
-        cancel_order(order=order, actor=owner)
+        with self.captureOnCommitCallbacks(execute=True):
+            cancel_order(order=order, actor=owner)
         account.refresh_from_db()
 
         self.assertEqual(account.points_balance, -10)
         self.assertEqual(account.lifetime_earned, 0)
-        reversal = LoyaltyLedgerEntry.objects.get(idempotency_key=f"order-reversal:{order.pk}")
+        reversal = LoyaltyLedgerEntry.objects.get(
+            idempotency_key=f"commerce-order-reversal:{order.commerce_order_id}"
+        )
         self.assertEqual(reversal.points, -15)
