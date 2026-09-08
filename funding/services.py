@@ -108,7 +108,11 @@ def update_funding(
     status=None,
     visibility=None,
 ):
-    funding = FundingDetails.objects.select_for_update().select_related("activity", "activity__space").get(pk=funding.pk)
+    funding = (
+        FundingDetails.objects.select_for_update()
+        .select_related("activity")
+        .get(pk=funding.pk)
+    )
     if not can_manage_funding(actor, funding):
         raise PermissionDenied("Vous n’avez pas l’autorité nécessaire pour modifier ce financement.")
     activity_fields = {
@@ -144,7 +148,7 @@ def create_funding_contribution(*, funding, actor, amount, client_reference=""):
         raise PermissionDenied("Vous devez être connecté pour contribuer.")
     funding = (
         FundingDetails.objects.select_for_update()
-        .select_related("activity", "activity__space", "activity__owner_profile")
+        .select_related("activity")
         .get(pk=funding.pk)
     )
     if not funding_accepts_contributions(funding, at=timezone.now()):
