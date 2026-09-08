@@ -51,10 +51,10 @@ class CanonicalScannerScopeTests(TestCase):
         credential = access.credentials.get(status=CredentialStatus.ACTIVE)
         return access, render_access_credential(credential)
 
-    def _grant_scanner(self, profile=None):
+    def _grant_scanner(self, profile=None, activity=None):
         grant_activity_role(
             profile=profile or self.agent,
-            activity=self.activity,
+            activity=activity or self.activity,
             role=SystemRoleCode.ACTIVITY_SCANNER,
             granted_by=self.owner,
             source="test",
@@ -139,6 +139,7 @@ class CanonicalScannerScopeTests(TestCase):
             created_by=self.owner,
             title="Other activity",
         )
+        self._grant_scanner(activity=other_activity)
         ScannerAssignment.objects.create(activity=other_activity, agent=self.agent)
         _access, token = self._token()
         outcome = scan_access_credential(
