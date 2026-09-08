@@ -71,49 +71,59 @@ class LoyaltyServiceTests(LoyaltyFixtureMixin, TestCase):
         self.build_fixture()
 
     def test_confirmed_order_awards_points_once(self):
-        order = create_order(
-            buyer=self.participant,
-            event=self.event,
-            customer_name="Member",
-            customer_email=self.participant.email,
-            selections=[(self.ticket_type, 2)],
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            order = create_order(
+                buyer=self.participant,
+                event=self.event,
+                customer_name="Member",
+                customer_email=self.participant.email,
+                selections=[(self.ticket_type, 2)],
+            )
         account = LoyaltyAccount.objects.get(program=self.program, user=self.participant)
         self.assertEqual(account.points_balance, 20)
         self.assertEqual(account.current_tier, self.base_tier)
         order.save()
         account.refresh_from_db()
         self.assertEqual(account.points_balance, 20)
-        self.assertEqual(LoyaltyLedgerEntry.objects.filter(idempotency_key=f"order:{order.pk}").count(), 1)
+        self.assertEqual(LoyaltyLedgerEntry.objects.filter(idempotency_key=f"commerce-order:{order.commerce_order_id}").count(), 1)
 
     def test_cancelled_confirmed_order_reverses_purchase_points(self):
-        order = create_order(
-            buyer=self.participant,
-            event=self.event,
-            customer_name="Member",
-            customer_email=self.participant.email,
-            selections=[(self.ticket_type, 1)],
-        )
-        cancel_order(order=order, actor=self.owner)
+        with self.captureOnCommitCallbacks(execute=True):
+            order = create_order(
+                buyer=self.participant,
+                event=self.event,
+                customer_name="Member",
+                customer_email=self.participant.email,
+                selections=[(self.ticket_type, 1)],
+            )
+        with self.captureOnCommitCallbacks(execute=True):
+            cancel_order(order=order, actor=self.owner)
         account = LoyaltyAccount.objects.get(program=self.program, user=self.participant)
         self.assertEqual(account.points_balance, 0)
-        self.assertTrue(LoyaltyLedgerEntry.objects.filter(kind=LedgerKind.ORDER_REVERSAL, order=order).exists())
+        self.assertTrue(
+            LoyaltyLedgerEntry.objects.filter(
+                kind=LedgerKind.ORDER_REVERSAL,
+                idempotency_key=f"commerce-order-reversal:{order.commerce_order_id}",
+            ).exists()
+        )
 
     def test_checkin_awards_points_to_current_owner_once(self):
-        order = create_order(
-            buyer=self.participant,
-            event=self.event,
-            customer_name="Member",
-            customer_email=self.participant.email,
-            selections=[(self.ticket_type, 1)],
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            order = create_order(
+                buyer=self.participant,
+                event=self.event,
+                customer_name="Member",
+                customer_email=self.participant.email,
+                selections=[(self.ticket_type, 1)],
+            )
         ticket = order.tickets.get()
         ticket.status = TicketStatus.USED
         ticket.used_at = timezone.now()
         ticket.save(update_fields=["status", "used_at", "updated_at"])
+        award_checkin_points(ticket)
         account = LoyaltyAccount.objects.get(program=self.program, user=self.participant)
         self.assertEqual(account.points_balance, 35)
-        ticket.save()
+        award_checkin_points(ticket)
         account.refresh_from_db()
         self.assertEqual(account.points_balance, 35)
 
@@ -153,16 +163,17 @@ class LoyaltyServiceTests(LoyaltyFixtureMixin, TestCase):
         account = LoyaltyAccount.objects.create(program=self.program, user=self.participant, points_balance=100, lifetime_earned=100, current_tier=self.gold_tier)
         plan = MembershipPlan.objects.create(program=self.program, name="Plus", code="PLUS", price=0, currency="USD", points_multiplier=Decimal("2.00"), created_by=self.owner)
         request_membership(user=self.participant, plan=plan)
-        order = create_order(
-            buyer=self.participant,
-            event=self.event,
-            customer_name="Member",
-            customer_email=self.participant.email,
-            selections=[(self.ticket_type, 1)],
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            order = create_order(
+                buyer=self.participant,
+                event=self.event,
+                customer_name="Member",
+                customer_email=self.participant.email,
+                selections=[(self.ticket_type, 1)],
+            )
         account.refresh_from_db()
         self.assertEqual(account.points_balance, 145)
-        entry = LoyaltyLedgerEntry.objects.get(idempotency_key=f"order:{order.pk}")
+        entry = LoyaltyLedgerEntry.objects.get(idempotency_key=f"commerce-order:{order.commerce_order_id}")
         self.assertEqual(entry.points, 45)
 
     def test_reward_redemption_deducts_points_and_creates_one_use_code(self):
