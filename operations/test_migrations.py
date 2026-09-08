@@ -18,11 +18,13 @@ class OperationsCanonicalIncidentMigrationTests(TransactionTestCase):
     """Exercise the real upgrade path with legacy Operations data present."""
 
     migrate_from = [
+        ("accounts", "0006_remove_legacy_account_truths"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("operations", "0001_initial"),
     ]
     migrate_to = [
+        ("accounts", "0006_remove_legacy_account_truths"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("operations", "0002_canonical_incident_scope"),
