@@ -1,5 +1,4 @@
 from django import forms
-from django.db.models import Q
 
 from activities.models import ActivityStatus, ActivityVisibility
 from authorization.constants import PermissionCode
@@ -25,12 +24,7 @@ class FundingConfigurationForm(forms.Form):
     title = forms.CharField(label="Titre", max_length=220)
     short_description = forms.CharField(label="Résumé", max_length=320, required=False)
     description = forms.CharField(label="Pourquoi ce financement ?", required=False, widget=forms.Textarea(attrs={"rows": 5}))
-    space = forms.ModelChoiceField(
-        label="Espace porteur",
-        queryset=Organization.objects.none(),
-        required=False,
-        help_text="Laissez vide pour un financement personnel.",
-    )
+    space = forms.ModelChoiceField(label="Espace porteur", queryset=Organization.objects.none(), required=False, help_text="Laissez vide pour un financement personnel.")
     currency = forms.CharField(label="Devise", max_length=3, initial="USD")
     target_amount = forms.DecimalField(label="Objectif", max_digits=12, decimal_places=2, min_value=0.01, required=False)
     minimum_contribution = forms.DecimalField(label="Contribution minimale", max_digits=12, decimal_places=2, min_value=0.01, required=False)
@@ -52,22 +46,7 @@ class FundingConfigurationForm(forms.Form):
         if funding is not None:
             activity = funding.activity
             self.fields["space"].disabled = True
-            self.initial.update(
-                {
-                    "title": activity.title,
-                    "short_description": activity.short_description,
-                    "description": activity.description,
-                    "space": activity.space,
-                    "currency": funding.currency,
-                    "target_amount": funding.target_amount,
-                    "minimum_contribution": funding.minimum_contribution,
-                    "maximum_contribution": funding.maximum_contribution,
-                    "opens_at": funding.opens_at,
-                    "closes_at": funding.closes_at,
-                    "status": activity.status,
-                    "visibility": activity.visibility,
-                }
-            )
+            self.initial.update({"title": activity.title, "short_description": activity.short_description, "description": activity.description, "space": activity.space, "currency": funding.currency, "target_amount": funding.target_amount, "minimum_contribution": funding.minimum_contribution, "maximum_contribution": funding.maximum_contribution, "opens_at": funding.opens_at, "closes_at": funding.closes_at, "status": activity.status, "visibility": activity.visibility})
 
     def clean_currency(self):
         currency = (self.cleaned_data["currency"] or "").strip().upper()
@@ -95,10 +74,6 @@ class FundingContributionForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.funding = funding
         self.fields["amount"].help_text = f"Montant en {funding.currency}."
-        if funding.minimum_contribution is not None:
-            self.fields["amount"].min_value = funding.minimum_contribution
-        if funding.maximum_contribution is not None:
-            self.fields["amount"].max_value = funding.maximum_contribution
 
     def clean_amount(self):
         amount = self.cleaned_data["amount"]
