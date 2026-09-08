@@ -13,7 +13,7 @@ from authorization.models import AuthorityScope, Permission, Role, RolePermissio
 from authorization.services import grant_activity_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
-from .models import OccurrenceQueue, QueueEntry
+from .models import OccurrenceQueue, QueueEligibilityPolicy, QueueEntry
 from .queue_services import enter_queue
 
 
@@ -87,7 +87,12 @@ class O3QueueConcurrencyTests(TransactionTestCase):
                 workflow=WorkflowKind.REGISTRATION,
                 status=JourneyStatus.CONFIRMED,
             )
-        self.queue = OccurrenceQueue.objects.create(occurrence=self.occurrence, key="live", label="Live")
+        self.queue = OccurrenceQueue.objects.create(
+            occurrence=self.occurrence,
+            key="live",
+            label="Live",
+            eligibility_policy=QueueEligibilityPolicy.JOURNEY_REQUIRED,
+        )
 
     def _enter(self, barrier, profile_id, reference):
         close_old_connections()
