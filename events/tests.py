@@ -9,8 +9,6 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from accounts.models import Role
-
 from .models import Event, EventStatus, EventVisibility
 from .services import publish_event
 
@@ -20,17 +18,11 @@ User = get_user_model()
 
 class EventModelAndServiceTests(TestCase):
     def setUp(self):
-        self.organizer_role = Role.objects.create(
-            name="Organizer",
-            code="organizer",
-            is_active=True,
-        )
         self.organizer = User.objects.create_user(
             username="organizer",
             email="organizer@example.com",
             password="Strong-event-password-2026!",
         )
-        self.organizer.roles.add(self.organizer_role)
         self.other_user = User.objects.create_user(
             username="other",
             email="other@example.com",
@@ -82,23 +74,16 @@ class EventModelAndServiceTests(TestCase):
 
 class EventApiTests(APITestCase):
     def setUp(self):
-        self.organizer_role = Role.objects.create(
-            name="Organizer",
-            code="organizer",
-            is_active=True,
-        )
         self.organizer = User.objects.create_user(
             username="api-organizer",
             email="api-organizer@example.com",
             password="Strong-event-password-2026!",
         )
-        self.organizer.roles.add(self.organizer_role)
         self.other_organizer = User.objects.create_user(
             username="other-organizer",
             email="other-organizer@example.com",
             password="Strong-event-password-2026!",
         )
-        self.other_organizer.roles.add(self.organizer_role)
         self.regular_user = User.objects.create_user(
             username="participant",
             email="participant@example.com",
@@ -195,17 +180,11 @@ class EventApiTests(APITestCase):
 
 class EventWebTests(TestCase):
     def setUp(self):
-        role = Role.objects.create(
-            name="Organizer",
-            code="organizer",
-            is_active=True,
-        )
         self.organizer = User.objects.create_user(
             username="web-organizer",
             email="web-organizer@example.com",
             password="Strong-event-password-2026!",
         )
-        self.organizer.roles.add(role)
 
     def test_event_list_is_public_but_only_shows_published_public_events(self):
         start = timezone.now() + timedelta(days=4)
