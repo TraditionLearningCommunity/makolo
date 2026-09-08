@@ -3,7 +3,7 @@
   <details>
     <summary class="mk-btn mk-btn-secondary" style="cursor:pointer"><span aria-hidden="true">↗</span> Partager</summary>
     <div role="group" aria-label="Options de partage" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem">
-      <button type="button" class="mk-btn mk-btn-primary" data-share-internal>Envoyer dans Makolo</button>
+      <button type="button" class="mk-btn mk-btn-primary" data-share-internal>{{ internal_label|default:'Envoyer dans Makolo' }}</button>
       <button type="button" class="mk-btn mk-btn-secondary" data-share-native>Partager avec…</button>
       <button type="button" class="mk-btn mk-btn-secondary" data-share-copy>Copier le lien</button>
       <button type="button" class="mk-btn mk-btn-ghost" data-share-qr-button>Afficher le QR</button>
