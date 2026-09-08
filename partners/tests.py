@@ -47,37 +47,31 @@ class PartnerAffiliationTests(TestCase):
             username="partner-owner",
             email="owner-partners@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.marketing = User.objects.create_user(
             username="partner-marketing",
             email="marketing-partners@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.finance = User.objects.create_user(
             username="partner-finance",
             email="finance-partners@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.ambassador_user = User.objects.create_user(
             username="ambassador",
             email="ambassador@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.other_ambassador = User.objects.create_user(
             username="other-ambassador",
             email="other-ambassador@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.buyer = User.objects.create_user(
             username="affiliate-buyer",
             email="buyer-affiliate@example.com",
             password="Strong-password-2026!",
-            is_verified=True,
         )
         self.organization = Organization.objects.create(
             name="Makolo Growth Lab",

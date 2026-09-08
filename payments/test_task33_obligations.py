@@ -133,7 +133,7 @@ class PaymentObligationTests(TestCase):
 @override_settings(PAYMENTS_SANDBOX_ENABLED=True)
 class PaymentObligationLegacyCompatibilityTests(TestCase):
     def setUp(self):
-        self.organizer = User.objects.create_user(username="t33-event-organizer", email="t33-event-organizer@example.com", password="x", is_organizer=True)
+        self.organizer = User.objects.create_user(username="t33-event-organizer", email="t33-event-organizer@example.com", password="x")
         self.buyer = User.objects.create_user(username="t33-event-buyer", email="t33-event-buyer@example.com", password="x")
         self.event, self.ticket_type, self.order = make_paid_order(self.organizer, self.buyer)
 

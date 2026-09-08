@@ -7,7 +7,13 @@ from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 from journeys.models import Journey
 
-from .models import OccurrenceQueue, QueueEntry, QueueEntryStatus, QueueStatus
+from .models import (
+    OccurrenceQueue,
+    QueueEligibilityPolicy,
+    QueueEntry,
+    QueueEntryStatus,
+    QueueStatus,
+)
 from .operation_guards import require_occurrence_live_actionable
 from .permissions import user_can_manage_activity_operations
 
@@ -27,6 +33,7 @@ def _subject_kwargs(*, profile=None, external_beneficiary=None):
 
 
 def beneficiary_is_expected(*, queue, profile=None, external_beneficiary=None):
+    """Evaluate the queue's declared canonical eligibility fact."""
     occurrence = queue.occurrence
     journey_filters = {"activity": occurrence.activity, "occurrence": occurrence}
     access_filters = {"activity": occurrence.activity, "occurrence": occurrence}
@@ -36,10 +43,19 @@ def beneficiary_is_expected(*, queue, profile=None, external_beneficiary=None):
     else:
         journey_filters["external_beneficiary"] = external_beneficiary
         access_filters["external_beneficiary"] = external_beneficiary
-    return (
-        Journey.objects.filter(**journey_filters).exclude(status__in=_INELIGIBLE_JOURNEY_STATUSES).exists()
-        or Access.objects.filter(**access_filters).exists()
-    )
+
+    has_access = Access.objects.filter(**access_filters).exists()
+    has_journey = Journey.objects.filter(**journey_filters).exclude(
+        status__in=_INELIGIBLE_JOURNEY_STATUSES
+    ).exists()
+
+    if queue.eligibility_policy == QueueEligibilityPolicy.ACCESS_REQUIRED:
+        return has_access
+    if queue.eligibility_policy == QueueEligibilityPolicy.JOURNEY_REQUIRED:
+        return has_journey
+    if queue.eligibility_policy == QueueEligibilityPolicy.ACCESS_OR_JOURNEY:
+        return has_access or has_journey
+    raise ValidationError({"eligibility_policy": "Politique d’éligibilité de queue inconnue."})
 
 
 def _require_manage(actor, queue):
@@ -74,6 +90,7 @@ def _emit(entry, event_type):
             "subject_type": "profile" if entry.profile_id else "external_beneficiary",
             "status": entry.status,
             "sequence": entry.sequence,
+            "eligibility_policy": queue.eligibility_policy,
         },
     )
 
@@ -135,7 +152,9 @@ def enter_queue(
     if current.status != QueueStatus.OPEN:
         raise ValidationError({"queue": "La queue doit être ouverte pour accepter une entrée."})
     if not beneficiary_is_expected(queue=current, **subject):
-        raise ValidationError({"beneficiary": "Ce bénéficiaire n’est pas lié à cette Occurrence."})
+        raise ValidationError({
+            "beneficiary": "Ce bénéficiaire ne satisfait pas la politique d’éligibilité de cette queue."
+        })
 
     source = (source or "").strip()
     client_reference = (client_reference or "").strip()
@@ -151,7 +170,11 @@ def enter_queue(
                 raise ValidationError({"client_reference": "Cette référence idempotente est déjà utilisée pour un autre bénéficiaire."})
             return retry
 
-    active = QueueEntry.objects.filter(queue=current, **subject, status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.CALLED]).first()
+    active = QueueEntry.objects.filter(
+        queue=current,
+        **subject,
+        status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.CALLED],
+    ).first()
     if active:
         return active
 
@@ -170,7 +193,11 @@ def enter_queue(
         with transaction.atomic():
             entry.save()
     except IntegrityError as exc:
-        active = QueueEntry.objects.filter(queue=current, **subject, status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.CALLED]).first()
+        active = QueueEntry.objects.filter(
+            queue=current,
+            **subject,
+            status__in=[QueueEntryStatus.WAITING, QueueEntryStatus.CALLED],
+        ).first()
         if active:
             return active
         raise ValidationError("Conflit lors de l’entrée dans la queue.") from exc

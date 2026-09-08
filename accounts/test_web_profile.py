@@ -44,7 +44,7 @@ class AccountProfileWebTests(TestCase):
                 "phone": "+243 999 000 111",
                 "birth_date": "1995-04-12",
                 "gender": "",
-                "bio": "Participant et organisateur.",
+                "bio": "Profil Makolo actif.",
                 "website": "https://example.com",
                 "linkedin_url": "",
                 "facebook_url": "",
@@ -70,7 +70,8 @@ class AccountProfileWebTests(TestCase):
         self.assertEqual(profile.city, "Lubumbashi")
         self.assertEqual(profile.profession, "Ingénieur")
         self.assertTrue(profile.public_profile)
-        self.assertTrue(profile.profile_completed)
+        self.assertTrue(profile.derive_profile_completed())
+        self.assertNotIn("profile_completed", {field.name for field in UserProfile._meta.fields})
 
     def test_profile_fields_use_browser_autocomplete_where_meaningful(self):
         self.client.force_login(self.user)

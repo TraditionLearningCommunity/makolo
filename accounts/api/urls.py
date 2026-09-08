@@ -12,9 +12,7 @@ from .views import (
     PasswordChangeAPIView,
     PasswordForgotAPIView,
     PasswordResetAPIView,
-    PermissionGroupViewSet,
     RegisterAPIView,
-    RoleViewSet,
     UpdateProfileAPIView,
     UserViewSet,
 )
@@ -22,12 +20,6 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="users")
-router.register(r"roles", RoleViewSet, basename="roles")
-router.register(
-    r"permission-groups",
-    PermissionGroupViewSet,
-    basename="permission-groups",
-)
 
 urlpatterns = [
     path("auth/register/", RegisterAPIView.as_view(), name="register"),

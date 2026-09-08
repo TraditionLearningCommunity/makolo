@@ -5,6 +5,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
+from access.services import issue_access
 from activities.models import Activity, Occurrence
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
@@ -12,7 +13,14 @@ from domain_events.contracts import DomainEventType
 from domain_events.models import DomainEventOutbox
 from journeys.models import ExternalBeneficiary, Journey, JourneyStatus, WorkflowKind
 
-from .models import OccurrenceCheckpoint, OccurrenceQueue, QueueEntry, QueueEntryStatus, QueueStatus
+from .models import (
+    OccurrenceCheckpoint,
+    OccurrenceQueue,
+    QueueEligibilityPolicy,
+    QueueEntry,
+    QueueEntryStatus,
+    QueueStatus,
+)
 from .queue_selectors import queue_position, queue_snapshot
 from .queue_services import (
     call_next,
@@ -83,7 +91,20 @@ class O3LiveQueueTests(TestCase):
             checkpoint=self.checkpoint,
             key="service",
             label="File service",
+            eligibility_policy=QueueEligibilityPolicy.JOURNEY_REQUIRED,
         )
+
+    def test_default_policy_requires_access_not_merely_a_journey(self):
+        access_queue = OccurrenceQueue.objects.create(
+            occurrence=self.occurrence,
+            key="access",
+            label="Contrôle accès",
+        )
+        with self.assertRaises(ValidationError):
+            enter_queue(actor=self.manager, queue=access_queue, profile=self.first)
+        issue_access(beneficiary=self.first, activity=self.activity, occurrence=self.occurrence)
+        entry = enter_queue(actor=self.manager, queue=access_queue, profile=self.first)
+        self.assertEqual(entry.profile, self.first)
 
     def test_queue_checkpoint_must_match_occurrence_and_key_is_scoped(self):
         other_activity = Activity.objects.create(owner_profile=self.owner, created_by=self.owner, title="Other")
@@ -106,11 +127,7 @@ class O3LiveQueueTests(TestCase):
 
     def test_entry_requires_profile_xor_external_beneficiary(self):
         with self.assertRaises(ValidationError):
-            QueueEntry(
-                queue=self.queue,
-                sequence=1,
-                entered_by=self.manager,
-            ).full_clean()
+            QueueEntry(queue=self.queue, sequence=1, entered_by=self.manager).full_clean()
         with self.assertRaises(ValidationError):
             QueueEntry(
                 queue=self.queue,
@@ -210,11 +227,19 @@ class O3LiveQueueTests(TestCase):
         event_types = set(
             DomainEventOutbox.objects.filter(source_id=str(entry.pk)).values_list("event_type", flat=True)
         )
-        self.assertTrue({DomainEventType.QUEUE_ENTERED, DomainEventType.QUEUE_CALLED, DomainEventType.QUEUE_SERVED}.issubset(event_types))
-        event = DomainEventOutbox.objects.get(source_id=str(entry.pk), event_type=DomainEventType.QUEUE_SERVED)
+        self.assertTrue({
+            DomainEventType.QUEUE_ENTERED,
+            DomainEventType.QUEUE_CALLED,
+            DomainEventType.QUEUE_SERVED,
+        }.issubset(event_types))
+        event = DomainEventOutbox.objects.get(
+            source_id=str(entry.pk),
+            event_type=DomainEventType.QUEUE_SERVED,
+        )
         serialized = str(event.payload)
         self.assertNotIn(self.first.email, serialized)
         self.assertNotIn("credential", serialized.lower())
+        self.assertEqual(event.payload["eligibility_policy"], QueueEligibilityPolicy.JOURNEY_REQUIRED)
         snapshot = queue_snapshot(queue=self.queue, now=served.served_at)
         self.assertEqual(snapshot["served"], 1)
         self.assertEqual(snapshot["served_last_hour"], 1)

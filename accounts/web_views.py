@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
@@ -18,6 +18,7 @@ from core.web_throttling import (
     client_rate_identity,
     value_rate_identity,
 )
+from trust.selectors import profile_identity_is_verified
 
 from .device_accounts import (
     forget_account_on_device,
@@ -112,10 +113,7 @@ class PasswordForgotView(FormView):
             scope="password-forgot",
             limit=5,
             window_seconds=3600,
-            identities=[
-                client_rate_identity(request),
-                value_rate_identity("email", email),
-            ],
+            identities=[client_rate_identity(request), value_rate_identity("email", email)],
         ):
             return _rate_limited_form_response(self)
         return super().post(request, *args, **kwargs)
@@ -158,18 +156,11 @@ class AccountProfileView(LoginRequiredMixin, View):
     def _profile_forms(self, request, profile, *, bound_section=None):
         forms = {}
         for section in AccountProfileForm.SECTION_FIELDS:
-            kwargs = {
-                "instance": request.user,
-                "profile": profile,
-                "section": section,
-            }
+            kwargs = {"instance": request.user, "profile": profile, "section": section}
             if section == bound_section:
                 form = AccountProfileForm(request.POST, request.FILES, **kwargs)
             else:
                 form = AccountProfileForm(**kwargs)
-            # The UI presents independent conceptual sections but keeps the
-            # historical single-save contract. HTML's form attribute lets
-            # these sectioned fields submit through one non-nested form.
             for field in form.fields.values():
                 field.widget.attrs["form"] = "profile-master"
             forms[section] = form
@@ -195,6 +186,7 @@ class AccountProfileView(LoginRequiredMixin, View):
             "preferences_form": preferences_form,
             "appearance_form": appearance_form,
             "deletion_blockers": get_account_deletion_blockers(request.user),
+            "identity_verified": profile_identity_is_verified(request.user),
         }
 
     def get(self, request):
@@ -202,11 +194,7 @@ class AccountProfileView(LoginRequiredMixin, View):
         return render(
             request,
             self.template_name,
-            self._context(
-                request,
-                profile,
-                NotificationPreferencesForm(instance=preferences),
-            ),
+            self._context(request, profile, NotificationPreferencesForm(instance=preferences)),
         )
 
     def post(self, request):
@@ -230,7 +218,6 @@ class AccountProfileView(LoginRequiredMixin, View):
                 messages.success(request, "Préférences de notification mises à jour.")
                 return redirect(reverse("account:profile"))
         elif section == "profile":
-            # Compatibility for the former all-in-one Profile form and clients.
             legacy_form = AccountProfileForm(
                 request.POST,
                 request.FILES,
@@ -339,10 +326,7 @@ class AccountDeleteView(LoginRequiredMixin, FormView):
 
     def form_valid(self, form):
         try:
-            delete_account(
-                user=self.request.user,
-                current_password=form.cleaned_data["password"],
-            )
+            delete_account(user=self.request.user, current_password=form.cleaned_data["password"])
         except ValidationError as exc:
             message_dict = getattr(exc, "message_dict", {})
             password_messages = message_dict.get("password", [])

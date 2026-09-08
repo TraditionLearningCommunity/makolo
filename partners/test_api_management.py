@@ -23,10 +23,10 @@ User = get_user_model()
 @override_settings(PAYMENTS_SANDBOX_ENABLED=True)
 class PartnerManagementAPITests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="api-partner-owner", email="api-owner@example.com", password="Strong-password-2026!", is_verified=True)
-        self.marketing = User.objects.create_user(username="api-partner-marketing", email="api-marketing@example.com", password="Strong-password-2026!", is_verified=True)
-        self.finance = User.objects.create_user(username="api-partner-finance", email="api-finance@example.com", password="Strong-password-2026!", is_verified=True)
-        self.buyer = User.objects.create_user(username="api-partner-buyer", email="api-buyer@example.com", password="Strong-password-2026!", is_verified=True)
+        self.owner = User.objects.create_user(username="api-partner-owner", email="api-owner@example.com", password="Strong-password-2026!")
+        self.marketing = User.objects.create_user(username="api-partner-marketing", email="api-marketing@example.com", password="Strong-password-2026!")
+        self.finance = User.objects.create_user(username="api-partner-finance", email="api-finance@example.com", password="Strong-password-2026!")
+        self.buyer = User.objects.create_user(username="api-partner-buyer", email="api-buyer@example.com", password="Strong-password-2026!")
         self.organization = Organization.objects.create(name="API Partner Org", created_by=self.owner)
         for user, role in ((self.owner, OrganizationRole.OWNER), (self.marketing, OrganizationRole.MARKETING), (self.finance, OrganizationRole.FINANCE)):
             OrganizationMembership.objects.create(organization=self.organization, user=user, role=role)

@@ -1,10 +1,11 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from accounts.api.serializers import VerificationDocumentSerializer
+from accounts.validators import validate_verification_document
 
 
 User = get_user_model()
@@ -36,9 +37,7 @@ class UserApiPermissionTests(APITestCase):
 
     def test_regular_user_cannot_access_another_user(self):
         self.client.force_authenticate(self.user)
-        response = self.client.get(
-            f"/api/v1/accounts/users/{self.other_user.pk}/"
-        )
+        response = self.client.get(f"/api/v1/accounts/users/{self.other_user.pk}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_regular_user_can_update_own_profile(self):
@@ -56,11 +55,9 @@ class UserApiPermissionTests(APITestCase):
         response = self.client.get("/api/v1/accounts/users/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_user_detail_does_not_expose_internal_security_fields(self):
+    def test_user_detail_does_not_expose_internal_or_retired_authority_fields(self):
         self.client.force_authenticate(self.user)
-        response = self.client.get(
-            f"/api/v1/accounts/users/{self.user.pk}/"
-        )
+        response = self.client.get(f"/api/v1/accounts/users/{self.user.pk}/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         for field in (
@@ -71,6 +68,11 @@ class UserApiPermissionTests(APITestCase):
             "preferences",
             "settings_data",
             "analytics_data",
+            "roles",
+            "permission_groups",
+            "is_organizer",
+            "is_scanner_agent",
+            "is_verified",
         ):
             self.assertNotIn(field, response.data)
 
@@ -110,18 +112,11 @@ class RegistrationValidationTests(APITestCase):
 
 
 class UploadValidationTests(APITestCase):
-    def test_verification_document_rejects_unsupported_extension(self):
+    def test_trust_evidence_validator_rejects_unsupported_extension(self):
         uploaded_file = SimpleUploadedFile(
             "identity.exe",
             b"not-a-real-document",
             content_type="application/pdf",
         )
-        serializer = VerificationDocumentSerializer(
-            data={
-                "document_type": "id_card",
-                "file": uploaded_file,
-            }
-        )
-
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("file", serializer.errors)
+        with self.assertRaises(ValidationError):
+            validate_verification_document(uploaded_file)

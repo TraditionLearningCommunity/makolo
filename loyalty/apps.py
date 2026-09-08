@@ -7,4 +7,4 @@ class LoyaltyConfig(AppConfig):
     verbose_name = "Fidélité & memberships"
 
     def ready(self):
-        from . import signals  # noqa: F401
+        from . import domain_event_consumer  # noqa: F401

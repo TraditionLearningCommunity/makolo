@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from activities.models import Occurrence
 from journeys.models import ExternalBeneficiary
 
-from .models import OccurrenceCheckpoint, OccurrenceQueue, QueueEntry
+from .models import OccurrenceCheckpoint, OccurrenceQueue, QueueEligibilityPolicy, QueueEntry
 from .permissions import user_can_manage_activity_operations, user_can_view_activity_operations
 from .queue_selectors import (
     active_entries,
@@ -48,6 +48,7 @@ def _queue_payload(queue):
         "checkpoint_id": queue.checkpoint_id,
         "key": queue.key,
         "label": queue.label,
+        "eligibility_policy": queue.eligibility_policy,
         "status": queue.status,
         "counts": snapshot,
     }
@@ -105,6 +106,10 @@ class QueueCreateSerializer(serializers.Serializer):
     key = serializers.CharField(max_length=80)
     label = serializers.CharField(max_length=180)
     checkpoint_id = serializers.UUIDField(required=False, allow_null=True)
+    eligibility_policy = serializers.ChoiceField(
+        choices=QueueEligibilityPolicy.choices,
+        default=QueueEligibilityPolicy.ACCESS_REQUIRED,
+    )
 
 
 class QueueEnterSerializer(serializers.Serializer):
@@ -154,6 +159,7 @@ class OperatorOccurrenceQueuesAPIView(APIView):
             checkpoint=checkpoint,
             key=serializer.validated_data["key"],
             label=serializer.validated_data["label"],
+            eligibility_policy=serializer.validated_data["eligibility_policy"],
         )
         try:
             queue.save()
@@ -271,11 +277,7 @@ class QueueEntryActionAPIView(APIView):
         entry = _operator_entry(request.user, entry_id, manage=True)
         if entry is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        service = {
-            "serve": serve_entry,
-            "expire": expire_entry,
-            "cancel": cancel_entry,
-        }.get(action)
+        service = {"serve": serve_entry, "expire": expire_entry, "cancel": cancel_entry}.get(action)
         if service is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         try:

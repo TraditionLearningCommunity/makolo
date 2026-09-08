@@ -25,12 +25,13 @@ class ProfileActivationProjectionTests(TestCase):
     def _step(self, summary, key):
         return next(step for step in summary.steps if step.key == key)
 
-    def test_projection_is_derived_and_percentage_is_not_persisted(self):
+    def test_projection_is_derived_and_completion_is_not_persisted(self):
         summary = build_profile_activation_summary(self.user, profile=self.profile)
         self.assertGreaterEqual(summary.percentage, 0)
         self.assertLessEqual(summary.percentage, 100)
-        self.assertNotIn("percentage", {field.name for field in UserProfile._meta.fields})
-        self.assertFalse(self.profile.profile_completed)
+        fields = {field.name for field in UserProfile._meta.fields}
+        self.assertNotIn("percentage", fields)
+        self.assertNotIn("profile_completed", fields)
 
     def test_interests_complete_discover_step_and_raise_progress(self):
         before = build_profile_activation_summary(self.user, profile=self.profile)

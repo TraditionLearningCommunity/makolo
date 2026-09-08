@@ -67,13 +67,13 @@ class Command(BaseCommand):
                 ("password", "password.user@e2e.makolo.test", "e2e-password", {}),
                 ("delete", "delete.me@e2e.makolo.test", "e2e-delete", {}),
                 ("sole_owner", "sole.owner@e2e.makolo.test", "e2e-sole-owner", {}),
-                ("owner", "owner@e2e.makolo.test", "e2e-owner", {"is_organizer": True}),
+                ("owner", "owner@e2e.makolo.test", "e2e-owner", {}),
                 ("event_manager", "event.manager@e2e.makolo.test", "e2e-event-manager", {}),
                 ("finance", "finance@e2e.makolo.test", "e2e-finance", {}),
                 ("marketing", "marketing@e2e.makolo.test", "e2e-marketing", {}),
-                ("scanner", "scanner@e2e.makolo.test", "e2e-scanner", {"is_scanner_agent": True}),
+                ("scanner", "scanner@e2e.makolo.test", "e2e-scanner", {}),
                 ("multi", "multi.role@e2e.makolo.test", "e2e-multi", {}),
-                ("new_organizer", "new.organizer@e2e.makolo.test", "e2e-new-organizer", {"is_organizer": True}),
+                ("new_organizer", "new.organizer@e2e.makolo.test", "e2e-new-organizer", {}),
                 ("staff", "staff@e2e.makolo.test", "e2e-staff", {"is_staff": True}),
             ]
         }

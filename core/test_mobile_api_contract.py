@@ -10,7 +10,9 @@ from django.utils import timezone
 
 from rest_framework.test import APIClient
 
-from accounts.models import NotificationPreference, Role, User
+from accounts.models import NotificationPreference, User
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from events.models import (
     Event,
     EventCategory,
@@ -106,12 +108,13 @@ class MobileMVPAPIContractTests(TestCase):
             username="scanner-mobile",
             password=PASSWORD,
         )
-        scanner_role = Role.objects.create(
-            name="Agent scanner mobile",
-            code="scanner-agent",
-            is_system=True,
+        grant_activity_role(
+            profile=self.scanner,
+            activity=self.event.activity,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.organizer,
+            source="mobile-api-contract",
         )
-        self.scanner.roles.add(scanner_role)
         self.gate = EventAccessGate.objects.create(
             event=self.event,
             name="Entrée principale",
@@ -748,6 +751,13 @@ class MobileMVPAPIContractTests(TestCase):
             visibility=EventVisibility.PUBLIC,
             start_at=now + timedelta(days=1),
             end_at=now + timedelta(days=1, hours=3),
+        )
+        grant_activity_role(
+            profile=self.scanner,
+            activity=other_event.activity,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.organizer,
+            source="mobile-api-contract-wrong-event",
         )
         other_gate = EventAccessGate.objects.create(
             event=other_event,

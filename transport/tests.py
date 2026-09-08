@@ -260,6 +260,13 @@ class TransportCompositionTests(TestCase):
         result["access"].refresh_from_db()
         token = render_access_credential(result["access"].credentials.get(status="active"))
         scanner_user = self._user("scanner")
+        grant_activity_role(
+            profile=scanner_user,
+            activity=self.service.activity,
+            role=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.user,
+            source="transport-test",
+        )
         ScannerAssignment.objects.create(
             activity=self.service.activity,
             occurrence=self.departure.occurrence,

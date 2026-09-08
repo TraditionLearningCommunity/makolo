@@ -9,7 +9,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from accounts.models import NotificationPreference, PermissionGroup, Role
+from accounts.models import NotificationPreference
 from accounts.services import (
     change_password,
     delete_account,
@@ -18,17 +18,15 @@ from accounts.services import (
 )
 
 from .permissions import IsAdmin, IsSelfOrAdmin
-from .selectors import get_permission_groups, get_roles, get_users
+from .selectors import get_users
 from .serializers import (
     AccountDeleteSerializer,
     NotificationPreferenceSerializer,
     PasswordChangeSerializer,
     PasswordForgotSerializer,
     PasswordResetSerializer,
-    PermissionGroupSerializer,
     ProfileUpdateSerializer,
     RegisterSerializer,
-    RoleSerializer,
     UserDetailSerializer,
     UserListSerializer,
     UserUpdateSerializer,
@@ -87,9 +85,7 @@ class MeAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        return Response(
-            UserDetailSerializer(request.user, context={"request": request}).data
-        )
+        return Response(UserDetailSerializer(request.user, context={"request": request}).data)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -119,17 +115,9 @@ class UserViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_staff:
             return queryset.filter(pk=self.request.user.pk)
         search = self.request.query_params.get("search")
-        verified = self.request.query_params.get("verified")
-        role = self.request.query_params.get("role")
         if search:
             queryset = queryset.filter(email__icontains=search)
-        if verified == "true":
-            queryset = queryset.filter(is_verified=True)
-        elif verified == "false":
-            queryset = queryset.filter(is_verified=False)
-        if role:
-            queryset = queryset.filter(roles__code=role)
-        return queryset.distinct()
+        return queryset
 
 
 class UpdateProfileAPIView(APIView):
@@ -148,10 +136,7 @@ class UpdateProfileAPIView(APIView):
         return Response(
             {
                 "message": "Profil mis à jour.",
-                "user": UserDetailSerializer(
-                    request.user,
-                    context={"request": request},
-                ).data,
+                "user": UserDetailSerializer(request.user, context={"request": request}).data,
             }
         )
 
@@ -167,9 +152,7 @@ class PasswordForgotAPIView(APIView):
         request_password_reset(email=serializer.validated_data["email"])
         return Response(
             {
-                "message": (
-                    "Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé."
-                )
+                "message": "Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé."
             }
         )
 
@@ -194,10 +177,7 @@ class PasswordChangeAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        serializer = PasswordChangeSerializer(
-            data=request.data,
-            context={"request": request},
-        )
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         change_password(
             user=request.user,
@@ -219,11 +199,7 @@ class NotificationPreferencesAPIView(APIView):
 
     def patch(self, request):
         preference = self._preference(request)
-        serializer = NotificationPreferenceSerializer(
-            preference,
-            data=request.data,
-            partial=True,
-        )
+        serializer = NotificationPreferenceSerializer(preference, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -240,15 +216,3 @@ class AccountDeleteAPIView(APIView):
             current_password=serializer.validated_data["password"],
         )
         return Response(result, status=status.HTTP_200_OK)
-
-
-class RoleViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = get_roles()
-    serializer_class = RoleSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-
-class PermissionGroupViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = get_permission_groups()
-    serializer_class = PermissionGroupSerializer
-    permission_classes = [permissions.IsAuthenticated]

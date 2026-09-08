@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-from contextlib import contextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -16,7 +15,7 @@ django.setup()
 from django.db import transaction
 
 from accounts.models import User
-from demo_seed.accounts_orgs import seed_accounts_and_organizations
+from demo_seed.accounts_orgs_canonical import seed_accounts_and_organizations
 from demo_seed.activities_demo import seed_activity_core
 from demo_seed.authority import seed_contextual_authority
 from demo_seed.beta import BETA_PERSONAS, seed_beta
@@ -37,26 +36,6 @@ from demo_seed.transport import seed_transport
 TZ = ZoneInfo("Africa/Lubumbashi")
 
 
-@contextmanager
-def _suspend_loyalty_seed_signals():
-    """The seed builds deterministic snapshots and must not react to its own writes."""
-    from django.db.models.signals import post_save
-    from loyalty.signals import sync_checkin_points, sync_order_points
-    from tickets.models import Ticket, TicketOrder
-
-    bindings = [
-        (sync_order_points, TicketOrder, "loyalty.sync_order_points"),
-        (sync_checkin_points, Ticket, "loyalty.sync_checkin_points"),
-    ]
-    for _receiver, sender, dispatch_uid in bindings:
-        post_save.disconnect(sender=sender, dispatch_uid=dispatch_uid)
-    try:
-        yield
-    finally:
-        for receiver, sender, dispatch_uid in bindings:
-            post_save.connect(receiver, sender=sender, dispatch_uid=dispatch_uid)
-
-
 def _parse_as_of(raw: str) -> datetime:
     if not raw:
         raise ValueError("--as-of est obligatoire (YYYY-MM-DD).")
@@ -75,7 +54,7 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
 
     ctx = SeedContext(as_of=_parse_as_of(as_of), scale=scale, demo_password=demo_password)
     validation = None
-    with _suspend_loyalty_seed_signals(), transaction.atomic():
+    with transaction.atomic():
         if scale == "beta":
             seed_beta(ctx)
             seed_task22_extension(ctx)
@@ -87,9 +66,6 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
             validation.update(assert_task33_beta_coverage())
             validation.update(assert_task34b_beta_coverage())
         else:
-            # Historical volume profiles remain useful for development load, but
-            # they are not the canonical beta contract and no longer fabricate
-            # arbitrary rows merely to cover every installed model.
             seed_accounts_and_organizations(ctx)
             seed_contextual_authority(ctx)
             seed_events_and_commerce(ctx)

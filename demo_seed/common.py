@@ -22,6 +22,17 @@ SCALE = {
     "large": {"users": 180, "orders_per_event": 18},
 }
 
+_RETIRED_DEMO_DEFAULTS = {
+    "accounts.user": frozenset({
+        "is_verified",
+        "is_organizer",
+        "is_scanner_agent",
+        "settings_data",
+        "analytics_data",
+    }),
+    "accounts.userprofile": frozenset({"profile_completed"}),
+}
+
 
 def stable_uuid(key: str) -> uuid.UUID:
     return uuid.uuid5(NAMESPACE, key)
@@ -43,6 +54,18 @@ def backdate(obj: models.Model, **values: Any) -> None:
     obj.__class__.objects.filter(pk=obj.pk).update(**values)
     for key, value in values.items():
         setattr(obj, key, value)
+
+
+def _canonical_demo_defaults(model: type[models.Model], defaults: dict[str, Any]) -> dict[str, Any]:
+    """Drop only explicitly retired Accounts fixture keys during the demo cutover.
+
+    Runtime code never passes through this helper. Unknown keys still fail fast;
+    this is deliberately not a generic typo filter.
+    """
+    retired = _RETIRED_DEMO_DEFAULTS.get(model._meta.label_lower)
+    if not retired:
+        return defaults
+    return {key: value for key, value in defaults.items() if key not in retired}
 
 
 def _reuse_business_created_object(model: type[models.Model], defaults: dict[str, Any]):
@@ -76,6 +99,7 @@ def _apply_defaults_if_changed(obj: models.Model, defaults: dict[str, Any]) -> m
 
 
 def upsert(model: type[models.Model], key: str, *, defaults: dict[str, Any]) -> models.Model:
+    defaults = _canonical_demo_defaults(model, defaults)
     pk = stable_uuid(f"{model._meta.label_lower}:{key}")
     obj = model.objects.filter(pk=pk).first()
     if obj is None:

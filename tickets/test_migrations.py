@@ -10,11 +10,13 @@ class TicketJourneyAccessMigrationTests(TransactionTestCase):
     """Exercise the existing-database upgrade after the Event cutover."""
 
     migrate_from = [
+        ("accounts", "0006_remove_legacy_account_truths"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("tickets", "0005_journey_access_bridges"),
     ]
     migrate_to = [
+        ("accounts", "0006_remove_legacy_account_truths"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("tickets", "0006_backfill_journey_access"),
@@ -88,6 +90,7 @@ class PopulatedBetaUpgradeMigrationTests(TransactionTestCase):
     """Guard the populated beta upgrade path through all current migrations."""
 
     migrate_from = [
+        ("accounts", "0006_remove_legacy_account_truths"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("tickets", "0007_commerce_capacity_bridges"),

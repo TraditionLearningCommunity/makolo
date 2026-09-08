@@ -7,6 +7,8 @@ from django.utils import timezone
 
 from access.models import AccessUseResult
 from access.services import render_access_credential
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role
 from commerce.models import PaymentMode
 from geography.models import Place
 from organizations.models import Organization
@@ -92,6 +94,13 @@ class TransportScannerTimingTests(TestCase):
         )
         access = booking["access"]
         token = render_access_credential(access.credentials.get(status="active"))
+        grant_activity_role(
+            profile=scanner,
+            activity=service.activity,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=traveler,
+            source="transport-timing-test",
+        )
         ScannerAssignment.objects.create(
             activity=service.activity,
             occurrence=departure.occurrence,

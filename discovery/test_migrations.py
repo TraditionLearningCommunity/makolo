@@ -8,11 +8,13 @@ from django.utils import timezone
 
 class ActivityBookmarkMigrationTests(TransactionTestCase):
     migrate_from = [
+        ("accounts", "0006_remove_legacy_account_truths"),
         ("activities", "0003_activity_owner_profile"),
         ("events", "0007_cutover_event_to_activity"),
         ("discovery", "0001_initial"),
     ]
     migrate_to = [
+        ("accounts", "0006_remove_legacy_account_truths"),
         ("activities", "0003_activity_owner_profile"),
         ("events", "0007_cutover_event_to_activity"),
         ("discovery", "0002_activity_bookmark"),
