@@ -246,8 +246,6 @@ class NotificationAPITests(APITestCase):
 class NotificationIntegrationTests(TestCase):
     def setUp(self):
         self.organizer = make_user("notify-organizer")
-        self.organizer.is_organizer = True
-        self.organizer.save(update_fields=["is_organizer"])
         self.buyer = make_user("notify-buyer")
 
     def test_free_order_confirmation_creates_notification_after_commit(self):
