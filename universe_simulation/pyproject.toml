@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "makolo-universe-sim"
+version = "0.1.0"
+description = "Standalone physical-universe model and simulation engine"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "Makolo"}]
+dependencies = []
+
+[project.optional-dependencies]
+visualization = ["matplotlib>=3.8", "pillow>=10"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["universe_sim*"]
