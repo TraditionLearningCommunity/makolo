@@ -4,8 +4,14 @@ from django.test import TransactionTestCase
 
 
 class Task27GroupMigrationTests(TransactionTestCase):
-    migrate_from = [("groups", "0004_align_invitation_identity_constraint")]
-    migrate_to = [("groups", "0005_community_layer")]
+    migrate_from = [
+        ("accounts", "0006_remove_legacy_account_truths"),
+        ("groups", "0004_align_invitation_identity_constraint"),
+    ]
+    migrate_to = [
+        ("accounts", "0006_remove_legacy_account_truths"),
+        ("groups", "0005_community_layer"),
+    ]
 
     def tearDown(self):
         executor = MigrationExecutor(connection)
