@@ -10,7 +10,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
-from .models import OccurrenceQueue, QueueEntry, QueueEntryStatus
+from .models import OccurrenceQueue, QueueEligibilityPolicy, QueueEntry, QueueEntryStatus
 
 
 User = get_user_model()
@@ -49,6 +49,7 @@ class O3QueueAPITests(TestCase):
             occurrence=self.occurrence,
             key="main",
             label="File principale",
+            eligibility_policy=QueueEligibilityPolicy.JOURNEY_REQUIRED,
         )
         self.other_activity = Activity.objects.create(owner_profile=self.owner, created_by=self.owner, title="O3 API other")
         self.other_occurrence = Occurrence.objects.create(
@@ -61,6 +62,7 @@ class O3QueueAPITests(TestCase):
             occurrence=self.other_occurrence,
             key="main",
             label="Other queue",
+            eligibility_policy=QueueEligibilityPolicy.JOURNEY_REQUIRED,
         )
 
     def test_operator_can_enter_call_and_serve(self):
@@ -128,6 +130,7 @@ class O3QueueAPITests(TestCase):
         )
         self.client.force_login(second)
         entered = self.client.post(reverse("operations_api:queue-entry-me", args=[self.queue.pk]))
+        self.assertEqual(entered.status_code, 201)
         entry_id = entered.json()["id"]
         self.client.force_login(self.participant)
         response = self.client.post(reverse("operations_api:queue-entry-me-cancel", args=[entry_id]))
