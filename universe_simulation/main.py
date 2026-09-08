@@ -5,6 +5,7 @@ from pathlib import Path
 
 from universe_sim.constants import AU, DAY
 from universe_sim.examples import SCENES, construire_scene
+from universe_sim.persistence import ConfigurationPersistance, SessionPersistance
 from universe_sim.simulation import IntegrateurEuler, IntegrateurRK4, IntegrateurSymplectique
 from universe_sim.visualization import animer_simulation
 from universe_sim.visuals import (
@@ -26,6 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--renderer", choices=("auto", "none", "2d", "plotly", "pyvista"), default="auto")
     parser.add_argument("--show", action="store_true", help="Open an interactive animation window/browser")
     parser.add_argument("--save", default=None, help="Export .html (Plotly), .gif/.mp4 (PyVista), or .gif (2D)")
+    parser.add_argument("--save-simulation", action="store_true", help="Persist this run (CSV, metadata and media) into an ordered run directory")
+    parser.add_argument("--output-dir", default="simulation_outputs", help="Root directory used by --save-simulation")
+    parser.add_argument("--run-name", default=None, help="Optional name used for the persisted run directory")
     parser.add_argument("--frames", type=int, default=180, help="Number of sampled visual frames")
     parser.add_argument("--interval-ms", type=int, default=45, help="Playback delay between visual frames")
     parser.add_argument("--trail-points", type=int, default=120, help="Maximum trail samples per body")
@@ -72,6 +76,7 @@ def afficher_resume(simulation, diagnostic_initial: dict[str, object]) -> None:
     diagnostic_final = simulation.diagnostic()
     print(f"Simulation: {simulation.univers.nom}")
     print(f"Physical time: {simulation.horloge.instant_courant.seconds / DAY:.3f} days")
+    print(f"Reference epoch: {simulation.horloge.epoque_reference.nom} (t=0 is only a chosen reference)")
     print(f"Integrator: {simulation.integrateur.nom}")
     for body in simulation.univers.corps_physiques:
         translation = body.etat().translation
@@ -105,15 +110,36 @@ def main() -> None:
     simulation.integrateur = select_integrator(args.integrator)
     total_steps = max(0, int(round(days * DAY / dt)))
     renderer = choisir_renderer(args.renderer, args.save, args.show)
+    diagnostic_initial = simulation.diagnostic()
+
+    persistance = None
+    if args.save_simulation:
+        persistance = SessionPersistance.demarrer(
+            simulation,
+            ConfigurationPersistance(
+                save_simulation=True,
+                dossier_racine=args.output_dir,
+                nom_execution=args.run_name,
+            ),
+            scene=args.scene,
+            diagnostic_initial=diagnostic_initial,
+            metadata={
+                "requested_days": days,
+                "requested_dt_s": dt,
+                "requested_renderer": renderer,
+                "focus": args.focus,
+                "scale": args.scale or definition.echelle_defaut,
+                "camera": args.camera or definition.camera_defaut,
+            },
+        )
+
+    rendu_path = persistance.chemin_rendu(renderer, args.save) if persistance is not None else args.save
+    sequence = None
 
     if renderer == "none":
-        initial = simulation.diagnostic()
         simulation.executer(days * DAY, dt=dt)
-        afficher_resume(simulation, initial)
-        print("Use --show for interactive 3D, or --save solar.mp4 / solar.html to export a sequence.")
-        return
-
-    if renderer == "2d":
+        afficher_resume(simulation, diagnostic_initial)
+    elif renderer == "2d":
         steps_per_frame = max(1, total_steps // max(1, args.frames)) if total_steps else 1
         actual_frames = max(1, min(args.frames, total_steps + 1 if total_steps else 1))
         animer_simulation(
@@ -123,42 +149,50 @@ def main() -> None:
             interval_ms=args.interval_ms,
             span=args.span_au * AU,
             focus=args.focus,
-            save=args.save,
+            save=rendu_path,
             show=args.show,
         )
-        return
+    else:
+        sequence = capturer_sequence(simulation, total_steps, frames=args.frames)
+        echelle = obtenir_echelle(args.scale or definition.echelle_defaut)
+        camera = args.camera or definition.camera_defaut
 
-    sequence = capturer_sequence(simulation, total_steps, frames=args.frames)
-    echelle = obtenir_echelle(args.scale or definition.echelle_defaut)
-    camera = args.camera or definition.camera_defaut
+        if renderer == "plotly":
+            rendre_plotly_3d(
+                sequence,
+                echelle,
+                focus=args.focus,
+                camera=camera,
+                trail_points=args.trail_points,
+                interval_ms=args.interval_ms,
+                save=rendu_path,
+                show=args.show,
+            )
+        elif renderer == "pyvista":
+            rendre_pyvista_3d(
+                sequence,
+                echelle,
+                focus=args.focus,
+                camera=camera,
+                trail_points=args.trail_points,
+                interval_ms=args.interval_ms,
+                save=rendu_path,
+                show=args.show,
+            )
+        else:
+            raise ValueError(f"Unsupported renderer: {renderer}")
 
-    if renderer == "plotly":
-        rendre_plotly_3d(
-            sequence,
-            echelle,
-            focus=args.focus,
-            camera=camera,
-            trail_points=args.trail_points,
-            interval_ms=args.interval_ms,
-            save=args.save,
-            show=args.show,
+    if persistance is not None:
+        dossier = persistance.finaliser(
+            simulation,
+            sequence=sequence,
+            renderer=renderer,
+            rendu_path=rendu_path,
+            diagnostic_final=simulation.diagnostic(),
         )
-        return
-
-    if renderer == "pyvista":
-        rendre_pyvista_3d(
-            sequence,
-            echelle,
-            focus=args.focus,
-            camera=camera,
-            trail_points=args.trail_points,
-            interval_ms=args.interval_ms,
-            save=args.save,
-            show=args.show,
-        )
-        return
-
-    raise ValueError(f"Unsupported renderer: {renderer}")
+        print(f"Simulation persisted to: {dossier}")
+    elif renderer == "none":
+        print("Use --save-simulation to persist CSV/metadata, --show for interactive 3D, or --save solar.mp4 / solar.html to export media.")
 
 
 if __name__ == "__main__":

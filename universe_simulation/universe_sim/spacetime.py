@@ -12,6 +12,20 @@ from .constants import C
 from .values import Instant, Quaternion, Vecteur3
 
 
+@dataclass(frozen=True, slots=True)
+class EpoqueReference:
+    """Reference epoch chosen by a simulation or dataset.
+
+    `Instant(0)` is only the numerical origin of that chosen epoch. It is not
+    the beginning of physical time and carries no cosmological meaning.
+    """
+
+    nom: str
+    instant_simulation_zero: Instant = Instant(0.0)
+    date_iso: str | None = None
+    description: str = "Chosen reference epoch; t=0 is not the origin of physical time."
+
+
 class TypeModeleEspaceTemps(str, Enum):
     CLASSIQUE = "classique"
     RELATIVISTE = "relativiste"
@@ -141,6 +155,12 @@ def spherique_vers_cartesien(r: float, theta: float, phi: float) -> Vecteur3:
     return Vecteur3(r * cp * cos(theta), r * cp * sin(theta), r * sin(phi))
 
 
-ORIGINE_GLOBALE = PointReference("Origine globale")
-REFERENTIEL_INERTIEL = Referentiel("Referentiel inertiel global", ORIGINE_GLOBALE)
+ORIGINE_SIMULATION = PointReference("Origine du referentiel de simulation")
+REFERENTIEL_SIMULATION = Referentiel("Referentiel inertiel de simulation", ORIGINE_SIMULATION)
+EPOQUE_SIMULATION = EpoqueReference("Epoque de reference de simulation")
 COORDONNEES_CARTESIENNES = SystemeCoordonnees()
+
+# Backward-compatible aliases. Their semantics are simulation-local, never
+# absolute origins of the physical universe.
+ORIGINE_GLOBALE = ORIGINE_SIMULATION
+REFERENTIEL_INERTIEL = REFERENTIEL_SIMULATION
