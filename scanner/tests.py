@@ -9,9 +9,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from accounts.models import Role
 from authorization.constants import SystemRoleCode
-from authorization.services import grant_space_role
+from authorization.services import grant_activity_role, grant_space_role
 from events.models import Event, EventStatus, EventVisibility
 from organizations.models import Organization
 from tickets.models import TicketStatus, TicketType
@@ -28,38 +27,21 @@ class ScannerFixtureMixin:
     password = "Strong-scanner-password-2026!"
 
     def build_fixture(self):
-        self.organizer_role = Role.objects.create(
-            name="Organizer",
-            code="organizer",
-            is_active=True,
-        )
-        self.scanner_role = Role.objects.create(
-            name="Scanner Agent",
-            code="scanner-agent",
-            is_active=True,
-        )
-
         self.organizer = User.objects.create_user(
             username="scanner-organizer",
             email="scanner-organizer@example.com",
             password=self.password,
         )
-        self.organizer.roles.add(self.organizer_role)
-
         self.agent = User.objects.create_user(
             username="gate-agent",
             email="gate-agent@example.com",
             password=self.password,
         )
-        self.agent.roles.add(self.scanner_role)
-
         self.other_agent = User.objects.create_user(
             username="other-gate-agent",
             email="other-gate-agent@example.com",
             password=self.password,
         )
-        self.other_agent.roles.add(self.scanner_role)
-
         self.participant = User.objects.create_user(
             username="ticket-holder",
             email="ticket-holder@example.com",
@@ -88,6 +70,13 @@ class ScannerFixtureMixin:
             end_at=start_at + timedelta(hours=5),
             published_at=timezone.now(),
             capacity=100,
+        )
+        grant_activity_role(
+            profile=self.agent,
+            activity=self.event.activity,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.organizer,
+            source="scanner-test",
         )
         self.ticket_type = TicketType.objects.create(
             event=self.event,
@@ -205,6 +194,13 @@ class ScannerServiceTests(ScannerFixtureMixin, TestCase):
 
     def test_ticket_for_another_event_is_rejected(self):
         other_event = self.make_other_event()
+        grant_activity_role(
+            profile=self.agent,
+            activity=other_event.activity,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.organizer,
+            source="scanner-test",
+        )
         ScannerAssignment.objects.create(
             event=other_event,
             agent=self.agent,
@@ -223,7 +219,7 @@ class ScannerServiceTests(ScannerFixtureMixin, TestCase):
         self.assertEqual(outcome.result, ScanResult.WRONG_EVENT)
         self.assertEqual(self.ticket.status, TicketStatus.VALID)
 
-    def test_unassigned_scanner_agent_cannot_scan_event(self):
+    def test_user_without_scanner_authority_cannot_scan_event(self):
         with self.assertRaises(PermissionDenied):
             scan_ticket(
                 token=self.ticket.qr_token,
@@ -299,6 +295,13 @@ class ScannerApiTests(ScannerFixtureMixin, APITestCase):
         self.assertEqual(response.data["count"], 0)
 
     def test_organizer_can_create_assignment_for_scanner_role(self):
+        grant_activity_role(
+            profile=self.other_agent,
+            activity=self.event.activity,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.organizer,
+            source="scanner-test",
+        )
         self.client.force_authenticate(self.organizer)
         response = self.client.post(
             "/api/v1/scanner/assignments/",
