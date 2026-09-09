@@ -46,11 +46,13 @@ jobs:
       - name: Regenerate reviewed scanner mobile baseline
         env:
           E2E_SKIP_PREP: "1"
-        run: >-
-          bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs
-          --grep "representative mobile surfaces"
-          --project=chromium-mobile
-          --update-snapshots
+        run: |
+          path="e2e/specs/visual.spec.mjs-snapshots/scanner-light-mobile-chromium-mobile-linux.png"
+          rm -f "$path"
+          bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs \
+            --grep "representative mobile surfaces" \
+            --project=chromium-mobile \
+            --update-snapshots
       - name: Commit only reviewed scanner baseline
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
