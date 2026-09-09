@@ -1,6 +1,7 @@
 """Multi-rate coordinate-time execution for large hot numerical domains."""
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -16,12 +17,11 @@ PolitiqueCouplageMultiTaux = Callable[["SimulationGrandeEchelleMultiTaux", Echea
 
 @dataclass(slots=True)
 class SimulationGrandeEchelleMultiTaux:
-    """Advance hot domains at distinct cadences on one coordinate-time axis.
+    """Advance dynamically owned domains at distinct coordinate-time cadences.
 
-    Domain states are only jointly simultaneous at synchronization barriers.
-    Cross-domain coupling is therefore never guessed: an optional coupling
-    policy is invoked before each deadline and is responsible for any required
-    prediction/interpolation of lagging domains.
+    A body registry may appear in more than one domain, but only one domain may
+    currently participate in its evolution. This enables SR-array -> GR-object
+    migrations without removing immutable rows from large backends.
     """
 
     origine_temps: Instant
@@ -31,7 +31,6 @@ class SimulationGrandeEchelleMultiTaux:
     historique_evenements: list[EvenementPhysique] = field(default_factory=list)
     echeances_executees: int = 0
     _temps_domaines_s: dict[str, float] = field(default_factory=dict, init=False, repr=False)
-    _corps_enregistres: set[str] = field(default_factory=set, init=False, repr=False)
 
     def __post_init__(self) -> None:
         names = [domain.nom for domain in self.domaines]
@@ -40,18 +39,26 @@ class SimulationGrandeEchelleMultiTaux:
         if set(names) != set(self.cadences):
             raise ValueError("Every domain must have exactly one cadence")
         for domain in self.domaines:
-            ids = tuple(domain.corps_ids)
-            overlap = self._corps_enregistres.intersection(ids)
-            if overlap:
-                raise ValueError(f"Bodies already owned by another domain: {sorted(overlap)}")
-            self._corps_enregistres.update(ids)
+            if len(set(domain.corps_ids)) != len(domain.corps_ids):
+                raise ValueError(f"Duplicate body ids inside domain {domain.nom}")
         self._temps_domaines_s = {name: self.origine_temps.seconds for name in names}
+        self.verifier_propriete_unique()
 
     def domaine(self, nom: str) -> DomaineEvolutionGrandeEchelle:
         for domain in self.domaines:
             if domain.nom == nom:
                 return domain
         raise KeyError(nom)
+
+    def verifier_propriete_unique(self) -> None:
+        counts = Counter(
+            body_id
+            for domain in self.domaines
+            for body_id in domain.corps_participants
+        )
+        duplicates = sorted(body_id for body_id, count in counts.items() if count > 1)
+        if duplicates:
+            raise RuntimeError(f"Bodies have multiple active dynamics owners: {duplicates}")
 
     def temps_domaine(self, nom: str) -> Instant:
         return Instant(self._temps_domaines_s[nom])
@@ -81,6 +88,7 @@ class SimulationGrandeEchelleMultiTaux:
         for deadline in schedule:
             if self.politique_couplage is not None:
                 self.politique_couplage(self, deadline)
+            self.verifier_propriete_unique()
             for planned in deadline.evolutions:
                 domain = self.domaine(planned.nom)
                 current = self._temps_domaines_s[planned.nom]
@@ -94,6 +102,7 @@ class SimulationGrandeEchelleMultiTaux:
                     )
                 self._temps_domaines_s[planned.nom] = current
                 self.historique_evenements.extend(events)
+            self.verifier_propriete_unique()
             self.echeances_executees += 1
 
         if schedule and not self.simultanes(max(1e-9, abs(segment_origin + duration) * 1e-12)):
@@ -101,5 +110,6 @@ class SimulationGrandeEchelleMultiTaux:
 
     def synchroniser_objets(self, univers: Univers) -> None:
         instant = self.instant_barriere
+        self.verifier_propriete_unique()
         for domain in self.domaines:
             domain.synchroniser_objets(univers, instant)
