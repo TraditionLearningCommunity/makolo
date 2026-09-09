@@ -33,6 +33,11 @@ _RETIRED_DEMO_DEFAULTS = {
     "accounts.userprofile": frozenset({"profile_completed"}),
 }
 
+_GUARDED_SNAPSHOT_FIELDS = {
+    "status": "_allow_status_transition",
+    "lifecycle": "_allow_lifecycle_transition",
+}
+
 
 def stable_uuid(key: str) -> uuid.UUID:
     return uuid.uuid5(NAMESPACE, key)
@@ -116,12 +121,27 @@ def _same_value(current: Any, expected: Any) -> bool:
     return current == expected
 
 
+def _allow_seed_snapshot_change(obj: models.Model, field: str) -> None:
+    """Allow deterministic demo reruns to reconcile guarded snapshot fields.
+
+    Several mature models require domain services for runtime status/lifecycle
+    transitions. The demo seed is not a runtime transition: it is a deterministic
+    snapshot writer that must be safely rerunnable on partially seeded beta DBs.
+    Only models that explicitly expose the internal transition flag are affected.
+    """
+
+    flag = _GUARDED_SNAPSHOT_FIELDS.get(field)
+    if flag and hasattr(obj, flag):
+        setattr(obj, flag, True)
+
+
 def _apply_defaults_if_changed(obj: models.Model, defaults: dict[str, Any]) -> models.Model:
     changed = False
     for field, value in defaults.items():
         current = getattr(obj, field)
         if _same_value(current, value):
             continue
+        _allow_seed_snapshot_change(obj, field)
         setattr(obj, field, value)
         changed = True
     if changed:
