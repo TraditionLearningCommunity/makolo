@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm run build:css && npm run build:js && mkdir -p test-results/playwright && cp static/dist/makolo.css static/dist/makolo.js test-results/playwright/",
+    "build": "npm run build:css && npm run build:js",
     "build:css": "tailwindcss -c frontend/tailwind.config.js -i frontend/src/styles.css -o static/dist/makolo.css --minify",
     "build:js": "node frontend/build.mjs",
     "check:runtime-deps": "python scripts/check_frontend_runtime_deps.py",
