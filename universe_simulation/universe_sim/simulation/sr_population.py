@@ -53,21 +53,21 @@ class IntegrateurPopulationSRTableau:
         forces = np.asarray(forces_n, dtype=np.float64)
         if forces.shape != backend.momenta_kg_m_s.shape:
             raise ValueError("forces_n must have shape (N,3)")
-        active = backend.active
-        if not np.any(active):
+        evolving = backend.masque_evolution()
+        if not np.any(evolving):
             return
 
-        p0 = backend.momenta_kg_m_s[active]
-        f = forces[active]
-        masses = backend.masses_kg[active]
+        p0 = backend.momenta_kg_m_s[evolving]
+        f = forces[evolving]
+        masses = backend.masses_kg[evolving]
         p_mid = p0 + 0.5 * f * dt
         velocity_mid, gamma_mid = self._velocites_et_gamma(p_mid, masses)
-        backend.positions_m[active] += velocity_mid * dt
-        backend.momenta_kg_m_s[active] = p0 + f * dt
-        finite_tau = np.isfinite(backend.proper_times_s[active])
-        tau = backend.proper_times_s[active].copy()
+        backend.positions_m[evolving] += velocity_mid * dt
+        backend.momenta_kg_m_s[evolving] = p0 + f * dt
+        finite_tau = np.isfinite(backend.proper_times_s[evolving])
+        tau = backend.proper_times_s[evolving].copy()
         tau[finite_tau] += dt / gamma_mid[finite_tau]
-        backend.proper_times_s[active] = tau
+        backend.proper_times_s[evolving] = tau
         backend.rafraichir_vitesses()
 
 

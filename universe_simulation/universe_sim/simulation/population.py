@@ -28,22 +28,24 @@ class IntegrateurPopulationNewtonienneTableau:
         if np.any(backend.regime_codes != classical_code):
             raise ValueError("Newtonian population integrator accepts only classical array rows")
 
-        # Velocity is a primary classical state for zero-mass tracers and is
-        # reconstructed from momentum for massive rows.
         backend.rafraichir_vitesses()
-        active = backend.active
-        if not np.any(active):
+        evolving = backend.masque_evolution()
+        if not np.any(evolving):
             return
 
-        a0 = self.solveur.accelerations(backend.positions_m, backend.masses_kg, active)
+        a0 = self.solveur.accelerations(backend.positions_m, backend.masses_kg, evolving)
         dt2 = dt * dt
-        backend.positions_m[active] += backend.velocities_m_s[active] * dt + 0.5 * a0[active] * dt2
-        a1 = self.solveur.accelerations(backend.positions_m, backend.masses_kg, active)
-        backend.velocities_m_s[active] += 0.5 * (a0[active] + a1[active]) * dt
+        backend.positions_m[evolving] += (
+            backend.velocities_m_s[evolving] * dt + 0.5 * a0[evolving] * dt2
+        )
+        a1 = self.solveur.accelerations(backend.positions_m, backend.masses_kg, evolving)
+        backend.velocities_m_s[evolving] += 0.5 * (a0[evolving] + a1[evolving]) * dt
 
-        massive = active & (backend.masses_kg > 0)
-        backend.momenta_kg_m_s[massive] = backend.velocities_m_s[massive] * backend.masses_kg[massive, None]
-        tracers = active & (backend.masses_kg == 0)
+        massive = evolving & (backend.masses_kg > 0)
+        backend.momenta_kg_m_s[massive] = (
+            backend.velocities_m_s[massive] * backend.masses_kg[massive, None]
+        )
+        tracers = evolving & (backend.masses_kg == 0)
         backend.momenta_kg_m_s[tracers] = 0.0
 
 
