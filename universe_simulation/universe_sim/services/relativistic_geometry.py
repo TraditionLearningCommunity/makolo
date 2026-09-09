@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..constants import C
-from ..relativistic_values import facteur_lorentz
+from ..relativistic_values import Quadrimpulsion, Quadrivecteur, facteur_lorentz
 from ..values import Vecteur3
 
 
@@ -54,6 +54,30 @@ def transformer_vitesse_lorentz(vitesse_objet: Vecteur3, vitesse_cible: Vecteur3
     if result.norm() >= C * (1.0 + 1e-12):
         raise ArithmeticError("Lorentz transform produced a superluminal velocity")
     return result
+
+
+def transformer_quadrivecteur_lorentz(quadrivecteur: Quadrivecteur, vitesse_cible: Vecteur3) -> Quadrivecteur:
+    u2 = vitesse_cible.norm2()
+    if u2 == 0:
+        return quadrivecteur
+    gamma = facteur_lorentz(vitesse_cible)
+    dot = vitesse_cible.dot(quadrivecteur.spatial)
+    temporal = gamma * (quadrivecteur.temporel - dot / C)
+    spatial = quadrivecteur.spatial + vitesse_cible * (
+        ((gamma - 1.0) * dot / u2) - gamma * quadrivecteur.temporel / C
+    )
+    return Quadrivecteur(temporal, spatial)
+
+
+def transformer_quadrimpulsion_lorentz(
+    quadrimpulsion: Quadrimpulsion,
+    vitesse_cible: Vecteur3,
+) -> Quadrimpulsion:
+    transformed = transformer_quadrivecteur_lorentz(
+        Quadrivecteur(quadrimpulsion.energie_sur_c, quadrimpulsion.impulsion),
+        vitesse_cible,
+    )
+    return Quadrimpulsion(transformed.temporel, transformed.spatial)
 
 
 def transformation_inverse_evenement(evenement: EvenementMinkowski, vitesse_cible: Vecteur3) -> EvenementMinkowski:

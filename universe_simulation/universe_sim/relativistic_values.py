@@ -10,18 +10,22 @@ from .values import Vecteur3
 
 @dataclass(frozen=True, slots=True)
 class Quadrivecteur:
-    """Generic four-vector using a temporal component with spatial units.
-
-    For an event displacement the temporal component is ``c * dt``. For a
-    four-momentum it is ``E / c``. Homogeneous units make the Minkowski norm
-    explicit and avoid silently mixing seconds with metres.
-    """
+    """Generic four-vector with temporal component homogeneous with space."""
 
     temporel: float
     spatial: Vecteur3
 
     def norme_minkowski2(self) -> float:
         return -self.temporel * self.temporel + self.spatial.norm2()
+
+
+@dataclass(frozen=True, slots=True)
+class Quadrivitesse:
+    temporel_m_s: float
+    spatial_m_s: Vecteur3
+
+    def norme_minkowski2(self) -> float:
+        return -self.temporel_m_s * self.temporel_m_s + self.spatial_m_s.norm2()
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +53,11 @@ def facteur_lorentz(vitesse: Vecteur3) -> float:
     return 1.0 / sqrt(1.0 - beta2)
 
 
+def quadrivitesse_depuis_vitesse(vitesse: Vecteur3) -> Quadrivitesse:
+    gamma = facteur_lorentz(vitesse)
+    return Quadrivitesse(gamma * C, vitesse * gamma)
+
+
 def impulsion_relativiste(masse_repos_kg: float, vitesse: Vecteur3) -> Vecteur3:
     _valider_masse(masse_repos_kg)
     return vitesse * (facteur_lorentz(vitesse) * masse_repos_kg)
@@ -70,8 +79,7 @@ def vitesse_depuis_impulsion(masse_repos_kg: float, impulsion: Vecteur3) -> Vect
 
 
 def gamma_depuis_impulsion(masse_repos_kg: float, impulsion: Vecteur3) -> float:
-    energie = energie_totale_relativiste(masse_repos_kg, impulsion)
-    return energie / (masse_repos_kg * C * C)
+    return energie_totale_relativiste(masse_repos_kg, impulsion) / (masse_repos_kg * C * C)
 
 
 def energie_cinetique_relativiste(masse_repos_kg: float, impulsion: Vecteur3) -> float:
