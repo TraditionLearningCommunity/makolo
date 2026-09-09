@@ -36,69 +36,77 @@ if NUMBA_DISPONIBLE:
         theta,
         epsilon2,
         stack_capacity,
+        target_block_size,
+        target_start,
+        target_end,
     ):
-        n = positions.shape[0]
-        out = np.zeros((n, 3), dtype=np.float64)
-        for target in prange(n):
-            if not active[target]:
-                continue
-            tx = positions[target, 0]
-            ty = positions[target, 1]
-            tz = positions[target, 2]
+        n_targets = target_end - target_start
+        out = np.zeros((n_targets, 3), dtype=np.float64)
+        n_blocks = (n_targets + target_block_size - 1) // target_block_size
+        for block in prange(n_blocks):
             stack = np.empty(stack_capacity, dtype=np.int64)
-            stack[0] = root
-            sp = 1
-            ax = 0.0
-            ay = 0.0
-            az = 0.0
-            while sp > 0:
-                sp -= 1
-                node = stack[sp]
-                count = leaf_counts[node]
-                if count > 0:
-                    start = leaf_offsets[node]
-                    for local in range(count):
-                        source = leaf_sources[start + local]
-                        if source == target:
-                            continue
-                        dx = positions[source, 0] - tx
-                        dy = positions[source, 1] - ty
-                        dz = positions[source, 2] - tz
-                        r2 = dx * dx + dy * dy + dz * dz + epsilon2
-                        inv_r3 = 1.0 / (r2 * math.sqrt(r2))
-                        factor = G * masses[source] * inv_r3
+            start_local = block * target_block_size
+            end_local = min(n_targets, start_local + target_block_size)
+            for local_target in range(start_local, end_local):
+                target = target_start + local_target
+                if not active[target]:
+                    continue
+                tx = positions[target, 0]
+                ty = positions[target, 1]
+                tz = positions[target, 2]
+                stack[0] = root
+                sp = 1
+                ax = 0.0
+                ay = 0.0
+                az = 0.0
+                while sp > 0:
+                    sp -= 1
+                    node = stack[sp]
+                    count = leaf_counts[node]
+                    if count > 0:
+                        start = leaf_offsets[node]
+                        for local in range(count):
+                            source = leaf_sources[start + local]
+                            if source == target:
+                                continue
+                            dx = positions[source, 0] - tx
+                            dy = positions[source, 1] - ty
+                            dz = positions[source, 2] - tz
+                            r2 = dx * dx + dy * dy + dz * dz + epsilon2
+                            inv_r3 = 1.0 / (r2 * math.sqrt(r2))
+                            factor = G * masses[source] * inv_r3
+                            ax += factor * dx
+                            ay += factor * dy
+                            az += factor * dz
+                        continue
+
+                    dx = node_com[node, 0] - tx
+                    dy = node_com[node, 1] - ty
+                    dz = node_com[node, 2] - tz
+                    distance2 = dx * dx + dy * dy + dz * dz
+                    contains = (
+                        abs(tx - node_centres[node, 0]) <= node_half[node]
+                        and abs(ty - node_centres[node, 1]) <= node_half[node]
+                        and abs(tz - node_centres[node, 2]) <= node_half[node]
+                    )
+                    distance = math.sqrt(distance2)
+                    size = 2.0 * node_half[node]
+                    if (not contains) and distance > 0.0 and size / distance < theta:
+                        denom2 = distance2 + epsilon2
+                        inv_r3 = 1.0 / (denom2 * math.sqrt(denom2))
+                        factor = G * node_masses[node] * inv_r3
                         ax += factor * dx
                         ay += factor * dy
                         az += factor * dz
-                    continue
-
-                dx = node_com[node, 0] - tx
-                dy = node_com[node, 1] - ty
-                dz = node_com[node, 2] - tz
-                distance2 = dx * dx + dy * dy + dz * dz
-                contains = (
-                    abs(tx - node_centres[node, 0]) <= node_half[node]
-                    and abs(ty - node_centres[node, 1]) <= node_half[node]
-                    and abs(tz - node_centres[node, 2]) <= node_half[node]
-                )
-                distance = math.sqrt(distance2)
-                size = 2.0 * node_half[node]
-                if (not contains) and distance > 0.0 and size / distance < theta:
-                    denom2 = distance2 + epsilon2
-                    inv_r3 = 1.0 / (denom2 * math.sqrt(denom2))
-                    factor = G * node_masses[node] * inv_r3
-                    ax += factor * dx
-                    ay += factor * dy
-                    az += factor * dz
-                else:
-                    for child_slot in range(8):
-                        child = children[node, child_slot]
-                        if child >= 0:
-                            stack[sp] = child
-                            sp += 1
-            out[target, 0] = ax
-            out[target, 1] = ay
-            out[target, 2] = az
+                    else:
+                        for child_slot in range(8):
+                            child = children[node, child_slot]
+                            if child >= 0:
+                                stack[sp] = child
+                                sp += 1
+                out[local_target, 0] = ax
+                out[local_target, 1] = ay
+                out[local_target, 2] = az
         return out
 else:
     _parcourir_octree_compile_avec_feuilles = None
@@ -106,17 +114,22 @@ else:
 
 @dataclass(frozen=True, slots=True)
 class SolveurGraviteBarnesHutCompile:
-    """Barnes-Hut with Python tree construction and Numba-parallel traversal."""
+    """Barnes-Hut with Python tree construction and block-parallel Numba traversal."""
 
     theta: float = 0.6
     leaf_capacity: int = 16
     max_depth: int = 64
     softening_m: float = 0.0
+    target_block_size: int = 512
+    target_batch_size: int = 250_000
     nom: str = "Barnes-Hut 3D compile (Numba)"
 
     def __post_init__(self) -> None:
-        # Reuse the reference implementation's parameter validation.
         SolveurGraviteBarnesHut(self.theta, self.leaf_capacity, self.max_depth, self.softening_m)
+        if self.target_block_size < 1:
+            raise ValueError("target_block_size must be positive")
+        if self.target_batch_size < 1:
+            raise ValueError("target_batch_size must be positive")
 
     def accelerations(self, positions_m, masses_kg, active=None):
         if not NUMBA_DISPONIBLE:
@@ -165,20 +178,27 @@ class SolveurGraviteBarnesHutCompile:
                 packed_sources.extend(int(v) for v in node.indices_sources)
         leaf_sources = np.asarray(packed_sources, dtype=np.int64)
         stack_capacity = 8 * self.max_depth + 16
-        return _parcourir_octree_compile_avec_feuilles(
-            positions,
-            masses,
-            active_mask,
-            centres,
-            half,
-            node_masses,
-            com,
-            children,
-            leaf_offsets,
-            leaf_counts,
-            leaf_sources,
-            root,
-            self.theta,
-            self.softening_m * self.softening_m,
-            stack_capacity,
-        )
+        out = np.zeros((n, 3), dtype=np.float64)
+        for target_start in range(0, n, self.target_batch_size):
+            target_end = min(n, target_start + self.target_batch_size)
+            out[target_start:target_end] = _parcourir_octree_compile_avec_feuilles(
+                positions,
+                masses,
+                active_mask,
+                centres,
+                half,
+                node_masses,
+                com,
+                children,
+                leaf_offsets,
+                leaf_counts,
+                leaf_sources,
+                root,
+                self.theta,
+                self.softening_m * self.softening_m,
+                stack_capacity,
+                self.target_block_size,
+                target_start,
+                target_end,
+            )
+        return out
