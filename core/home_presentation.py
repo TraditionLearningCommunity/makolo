@@ -198,7 +198,7 @@ def _dossier_actions(profile, *, observed_at, metadata):
             HomeActionMeta(
                 context_label=dossier.title,
                 source_label="Dossier",
-                fallback_url=reverse("objectives:dossier-detail", kwargs={"pk": dossier.pk}),
+                fallback_url=reverse("objectives:dossier-detail", kwargs={"dossier_id": dossier.pk}),
             ),
         )
     return actions
