@@ -1,26 +1,21 @@
 from django.urls import path
 
 from . import views
+from .activity_views import dossier_from_activity
 
 
 app_name = "objectives"
 
-
-def dossier_detail_by_pk(request, pk):
-    """Compatibility reverse target for presentation callers using ``pk``."""
-    return views.dossier_detail(request, dossier_id=pk)
-
-
 urlpatterns = [
     path("", views.dossier_list, name="dossier-list"),
     path("new/", views.dossier_create, name="dossier-create"),
+    path("from-activity/<uuid:activity_id>/", dossier_from_activity, name="dossier-from-activity"),
     path("projects/", views.project_list, name="project-list"),
     path("projects/new/", views.project_create, name="project-create"),
     path("projects/<uuid:project_id>/", views.project_detail, name="project-detail"),
     path("projects/<uuid:project_id>/dossiers/link/", views.project_link_dossier, name="project-link-dossier"),
     path("projects/<uuid:project_id>/dossiers/<uuid:dossier_id>/unlink/", views.project_unlink_dossier, name="project-unlink-dossier"),
     path("projects/<uuid:project_id>/lifecycle/", views.project_lifecycle, name="project-lifecycle"),
-    path("<uuid:pk>/", dossier_detail_by_pk, name="dossier-detail"),
     path("<uuid:dossier_id>/", views.dossier_detail, name="dossier-detail"),
     path("<uuid:dossier_id>/project/", views.dossier_project, name="dossier-project"),
     path("<uuid:dossier_id>/collaboration/assign/", views.dossier_assign, name="dossier-assign"),
