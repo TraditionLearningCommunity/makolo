@@ -10,7 +10,7 @@ from ..constants import C
 from ..events import EvenementPhysique, TypeEvenement
 from ..regimes import NiveauActiviteCalcul, RegimeDynamique
 from ..relativistic_state import EtatCinematiqueRelativiste, TypeCourbeCausale
-from ..services.horizons import detecter_franchissement_horizon
+from ..services.horizons import detecter_franchissement_horizon, est_dans_horizon
 from ..systems import Univers
 from ..values import Instant, Vecteur3
 from .clock import HorlogeSimulation
@@ -61,10 +61,18 @@ class EvolutionSRCorps:
 
 @dataclass(slots=True)
 class EvolutionGeodesiqueCorps:
+    """Evolve one body in a prescribed curved space-time.
+
+    The affine integrator may describe free geodesic motion or a forced
+    timelike worldline. ``GEODESIQUE`` remains a compatibility class name; the
+    configured physical regime is the canonical ``RELATIVISTE_GENERAL`` enum
+    alias.
+    """
+
     corps_id: str
     integrateur: IntegrateurAffine
     dlambda_max_m: float | None = None
-    regime: RegimeDynamique = field(default=RegimeDynamique.GEODESIQUE, init=False)
+    regime: RegimeDynamique = field(default=RegimeDynamique.RELATIVISTE_GENERAL, init=False)
 
     @property
     def corps_ids(self) -> tuple[str, ...]:
@@ -79,12 +87,30 @@ class EvolutionGeodesiqueCorps:
         causal = TypeGeodesique.TEMPORELLE if curved.type_causal == TypeCourbeCausale.TEMPORELLE else TypeGeodesique.NULLE
         hot = EtatGeodesique(curved.coordonnees_m, curved.tangente, curved.parametre_affine_m, causal)
         before = hot.coordonnees_m
+        metric = getattr(self.integrateur, "metrique", None)
+        inside_before: bool | None = None
+        if metric is not None:
+            try:
+                inside_before = est_dans_horizon(metric, before)
+            except TypeError:
+                inside_before = None
+
         dlambda = avancer_jusqua_temps_coordonne(
             self.integrateur,
             hot,
             dt_s,
             dlambda_max_m=self.dlambda_max_m,
         )
+
+        inside_after: bool | None = None
+        if metric is not None and inside_before is not None:
+            inside_after = est_dans_horizon(metric, hot.coordonnees_m)
+            if inside_before and not inside_after:
+                raise ArithmeticError(
+                    "A future-directed worldline numerically re-emerged from a black-hole event horizon; "
+                    "reduce the integration step/tolerance rather than accepting the trajectory"
+                )
+
         curved.coordonnees_m = hot.coordonnees_m
         curved.tangente = hot.tangente
         curved.parametre_affine_m = hot.parametre_affine_m
@@ -93,7 +119,6 @@ class EvolutionGeodesiqueCorps:
             curved.temps_propre_s += dlambda / C
         state.instant = Instant(instant.seconds + dt_s)
 
-        metric = getattr(self.integrateur, "metrique", None)
         if metric is None:
             return []
         try:
