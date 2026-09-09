@@ -127,11 +127,12 @@ def _allow_seed_snapshot_change(obj: models.Model, field: str) -> None:
     Several mature models require domain services for runtime status/lifecycle
     transitions. The demo seed is not a runtime transition: it is a deterministic
     snapshot writer that must be safely rerunnable on partially seeded beta DBs.
-    Only models that explicitly expose the internal transition flag are affected.
+    Only known snapshot field names are supported; on guarded models this sets
+    the same private flag their transition services intentionally use.
     """
 
     flag = _GUARDED_SNAPSHOT_FIELDS.get(field)
-    if flag and hasattr(obj, flag):
+    if flag:
         setattr(obj, flag, True)
 
 
