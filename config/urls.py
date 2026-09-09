@@ -49,6 +49,7 @@ urlpatterns = [
     path("discover/", include("discovery.urls")),
     path("opportunities/", include("opportunities.urls")),
     path("services/", include("services.urls")),
+    path("funding/", include("funding.urls")),
     path("growth/", include("growth.urls")),
     path("transport/", include("transport.urls")),
     path("events/", include("events.urls")),

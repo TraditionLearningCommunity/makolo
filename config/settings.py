@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "personal_assets.apps.PersonalAssetsConfig",
     "conversations.apps.ConversationsConfig",
     "recognition.apps.RecognitionConfig",
+    "funding.apps.FundingConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime

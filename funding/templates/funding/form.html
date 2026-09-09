@@ -1,0 +1,13 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ form_title }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6 pb-10">
+  <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-ghost">Retour</a>
+  <section class="mk-panel p-6 sm:p-8">
+    <span class="mk-kicker">Financement</span><h1 class="mk-page-title mt-2">{{ form_title }}</h1>
+    <p class="mk-page-copy mt-3">Décrivez ce que l’argent permettra de rendre possible. L’objectif et les limites de contribution restent optionnels lorsqu’ils n’ont pas de sens pour la situation.</p>
+    {% if progress %}<div class="mt-5 rounded-2xl border p-4" style="border-color:var(--mk-border)"><strong>{{ progress.raised_amount }} {{ progress.currency }} réunis</strong>{% if progress.target_amount is not None %}<span class="ml-2" style="color:var(--mk-muted)">sur {{ progress.target_amount }} {{ progress.currency }}</span>{% endif %}</div>{% endif %}
+    <form method="post" class="mt-6 space-y-4">{% csrf_token %}{{ form.as_p }}<button type="submit" class="mk-btn mk-btn-primary">Enregistrer</button></form>
+  </section>
+</div>
+{% endblock %}

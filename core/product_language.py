@@ -58,6 +58,8 @@ def vertical_for(activity):
         return "event"
     if _has_related(activity, "service_details"):
         return "service"
+    if _has_related(activity, "funding_details"):
+        return "funding"
     return "generic"
 
 
@@ -169,6 +171,23 @@ def _service_vocabulary(workflow):
     )
 
 
+def _funding_vocabulary(workflow):
+    return ProductVocabulary(
+        vertical="funding",
+        activity_noun="Financement",
+        occurrence_noun="Période",
+        journey_noun="Contribution",
+        journey_detail_label="Voir ma contribution",
+        request_noun="Contribution",
+        offer_noun="Montant",
+        access_noun="Confirmation",
+        access_detail_label="Voir ma contribution",
+        participant_noun="Contributeur",
+        operator_label="Porté par",
+        primary_action="Contribuer",
+    )
+
+
 def vocabulary_for(*, activity=None, workflow=None):
     vertical = vertical_for(activity)
     if vertical == "transport":
@@ -177,6 +196,8 @@ def vocabulary_for(*, activity=None, workflow=None):
         return _event_vocabulary(workflow)
     if vertical == "service":
         return _service_vocabulary(workflow)
+    if vertical == "funding":
+        return _funding_vocabulary(workflow)
     return _generic_vocabulary(workflow)
 
 
