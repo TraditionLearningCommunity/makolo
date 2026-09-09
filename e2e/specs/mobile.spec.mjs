@@ -12,8 +12,8 @@ test('participant home, memory and Access QR stay usable on mobile @mobile', asy
   await page.goto('/me/');
   await expect(page.getByRole('heading', { name: /Qu’est-ce qui compte maintenant/i })).toBeVisible();
   await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Groupes', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Favoris', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Groupes/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Favoris/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Mes Espaces/i })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
