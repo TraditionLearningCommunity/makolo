@@ -1,6 +1,7 @@
 """Coordinate-time orchestrator for coexisting physical dynamics regimes."""
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
@@ -15,7 +16,9 @@ from ..values import Instant, Vecteur3
 from .clock import HorlogeSimulation
 from .configuration import ConfigurationPhysique
 from .coordinate_time import IntegrateurAffine, avancer_jusqua_temps_coordonne
+from .diagnostics import ControlePhysique
 from .geodesic_integrator import EtatGeodesique, TypeGeodesique
+from .snapshot import Snapshot
 from .sr_integrator import EtatParticuleSR, IntegrateurRelativisteSpecial
 
 
@@ -157,8 +160,10 @@ class SimulationMultiRegime:
     configuration: ConfigurationPhysique
     evolutions: list[EvolutionRegime] = field(default_factory=list)
     historique_evenements: list[EvenementPhysique] = field(default_factory=list)
+    snapshots: list[Snapshot] = field(default_factory=list)
     pas_effectues: int = 0
     exiger_couverture_complete: bool = True
+    controle_classique: ControlePhysique = field(default_factory=ControlePhysique)
     _corps_enregistres: set[str] = field(default_factory=set, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -197,6 +202,16 @@ class SimulationMultiRegime:
         if missing:
             raise RuntimeError(f"Active bodies without a dynamics evolution: {missing}")
 
+    def _enregistrer_snapshot_si_necessaire(self) -> None:
+        if not self.configuration.conserver_historique:
+            return
+        cadence = max(1, self.configuration.enregistrer_tous_les_n_pas)
+        if self.pas_effectues % cadence != 0:
+            return
+        self.snapshots.append(Snapshot.capturer(self.univers, self.horloge.instant_courant))
+        for body in self.univers.corps_physiques:
+            body.enregistrer_etat()
+
     def avancer(self, dt_s: float | None = None) -> list[EvenementPhysique]:
         step = self.horloge.pas_temps.seconds if dt_s is None else float(dt_s)
         if step <= 0:
@@ -215,6 +230,7 @@ class SimulationMultiRegime:
         self.horloge.avancer(step)
         self.pas_effectues += 1
         self.historique_evenements.extend(events)
+        self._enregistrer_snapshot_si_necessaire()
         return events
 
     def executer(self, duree_s: float, dt_s: float | None = None) -> None:
@@ -224,3 +240,44 @@ class SimulationMultiRegime:
         target = self.horloge.instant_courant.seconds + duree_s
         while self.horloge.instant_courant.seconds < target - 1e-12:
             self.avancer(min(step, target - self.horloge.instant_courant.seconds))
+
+    def diagnostic(self) -> dict[str, object]:
+        active = [body for body in self.univers.corps_physiques if body.actif]
+        regimes = Counter(self.configuration.regime_pour(body.id).value for body in active)
+        all_classical = all(
+            self.configuration.regime_pour(body.id) == RegimeDynamique.CLASSIQUE
+            for body in active
+        )
+        if all_classical:
+            result = dict(self.controle_classique.mesurer(self.univers))
+        else:
+            result = {
+                "energie_mecanique": None,
+                "derive_relative_energie": None,
+                "quantite_mouvement": None,
+                "moment_cinetique": None,
+            }
+
+        gammas: list[float] = []
+        proper_times: list[float] = []
+        for body in active:
+            state = body.etat()
+            if state.relativiste is not None and state.massique is not None and state.massique.masse.value > 0:
+                gammas.append(state.relativiste.gamma(state.massique.masse.value))
+                proper_times.append(state.relativiste.temps_propre_s)
+            if state.espace_temps is not None and state.espace_temps.temps_propre_s is not None:
+                proper_times.append(state.espace_temps.temps_propre_s)
+
+        result.update(
+            {
+                "regimes": dict(sorted(regimes.items())),
+                "gamma_max_sr": max(gammas) if gammas else None,
+                "temps_propre_min_s": min(proper_times) if proper_times else None,
+                "temps_propre_max_s": max(proper_times) if proper_times else None,
+                "note_energie": (
+                    "Newtonian mechanical energy is reported only for an entirely classical run; "
+                    "no generic global mechanical energy is asserted for mixed/curved space-time runs."
+                ),
+            }
+        )
+        return result
