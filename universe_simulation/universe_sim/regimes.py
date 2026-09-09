@@ -13,8 +13,17 @@ class RegimeDynamique(str, Enum):
     CLASSIQUE = "classique"
     RELATIVISTE_SPECIAL = "relativiste_special"
     POST_NEWTONIEN_1PN = "post_newtonien_1pn"
-    GEODESIQUE = "geodesique"
+    RELATIVISTE_GENERAL = "relativiste_general"
+    # Backward-compatible name from the first migration iterations. A geodesic
+    # is a free-fall trajectory, not the name of the physical theory/regime.
+    GEODESIQUE = "relativiste_general"
     ANALYTIQUE = "analytique"
+
+    @classmethod
+    def _missing_(cls, value: object):
+        if value == "geodesique":
+            return cls.RELATIVISTE_GENERAL
+        return None
 
 
 class NiveauActiviteCalcul(str, Enum):

@@ -42,7 +42,14 @@ def diagnostiquer_regime(
     potentiel_gravitationnel_specifique_j_kg: float = 0.0,
     seuils: SeuilsSelectionRegime | None = None,
     imposer_geodesique: bool = False,
+    imposer_relativite_generale: bool = False,
 ) -> DiagnosticRegime:
+    """Diagnose the cheapest regime consistent with a requested error budget.
+
+    ``imposer_geodesique`` is retained as a compatibility argument; the
+    physical regime returned is now named ``RELATIVISTE_GENERAL`` because an
+    accelerated worldline in curved space-time is not itself geodesic.
+    """
     seuils = seuils or SeuilsSelectionRegime()
     beta = vitesse.norm() / C
     if beta >= 1.0:
@@ -50,19 +57,19 @@ def diagnostiquer_regime(
     beta2 = beta * beta
     potentiel_reduit = abs(potentiel_gravitationnel_specifique_j_kg) / (C * C)
 
-    if imposer_geodesique or potentiel_reduit >= seuils.potentiel_reduit_champ_fort:
+    if imposer_relativite_generale or imposer_geodesique or potentiel_reduit >= seuils.potentiel_reduit_champ_fort:
         return DiagnosticRegime(
-            RegimeDynamique.GEODESIQUE,
+            RegimeDynamique.RELATIVISTE_GENERAL,
             beta,
             beta2,
             potentiel_reduit,
-            "strong prescribed curvature or explicitly requested geodesic evolution",
+            "strong prescribed curvature or explicitly requested general-relativistic evolution",
         )
 
     if beta >= seuils.beta_sr_direct:
         if potentiel_reduit >= seuils.precision_newtonienne:
             return DiagnosticRegime(
-                RegimeDynamique.GEODESIQUE,
+                RegimeDynamique.RELATIVISTE_GENERAL,
                 beta,
                 beta2,
                 potentiel_reduit,
