@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .relativistic_state import EtatCinematiqueRelativiste
+from .relativistic_state import EtatCinematiqueRelativiste, EtatSpatioTemporelRelativiste
 from .spacetime import COORDONNEES_CARTESIENNES, REFERENTIEL_INERTIEL, Referentiel, SystemeCoordonnees
 from .values import GrandeurPhysique, Instant, Quaternion, Vecteur3
 
@@ -59,26 +59,32 @@ class EtatPhysique:
     massique: EtatMassique | None = None
     electrique: EtatElectrique | None = None
     relativiste: EtatCinematiqueRelativiste | None = None
+    espace_temps: EtatSpatioTemporelRelativiste | None = None
 
     def __post_init__(self) -> None:
-        if self.translation is not None and self.relativiste is not None:
-            raise ValueError("A physical state cannot have both classical and relativistic translational kinematics")
+        sources = sum(component is not None for component in (self.translation, self.relativiste, self.espace_temps))
+        if sources > 1:
+            raise ValueError("A physical state must have at most one translational/spacetime kinematic source")
 
     def position(self) -> Vecteur3 | None:
         if self.translation is not None:
             return self.translation.position
         if self.relativiste is not None:
             return self.relativiste.position
+        if self.espace_temps is not None:
+            return self.espace_temps.position_cartesienne()
         return None
 
     def vitesse(self) -> Vecteur3 | None:
         if self.translation is not None:
             return self.translation.vitesse
-        if self.relativiste is None:
-            return None
-        if self.massique is None or self.massique.masse.value <= 0:
-            raise ValueError("Relativistic velocity requires positive rest mass")
-        return self.relativiste.vitesse(self.massique.masse.value)
+        if self.relativiste is not None:
+            if self.massique is None or self.massique.masse.value <= 0:
+                raise ValueError("Relativistic velocity requires positive rest mass")
+            return self.relativiste.vitesse(self.massique.masse.value)
+        if self.espace_temps is not None:
+            return self.espace_temps.vitesse_coordonnees()
+        return None
 
     def copier(self) -> "EtatPhysique":
         return EtatPhysique(
@@ -90,6 +96,7 @@ class EtatPhysique:
             massique=None if self.massique is None else EtatMassique(GrandeurPhysique(self.massique.masse.value, self.massique.masse.unit, self.massique.masse.uncertainty)),
             electrique=None if self.electrique is None else EtatElectrique(self.electrique.charge_nette, self.electrique.moment_dipolaire_electrique),
             relativiste=None if self.relativiste is None else self.relativiste.copier(),
+            espace_temps=None if self.espace_temps is None else self.espace_temps.copier(),
         )
 
     def est_complet_pour(self, modele: object) -> bool:
