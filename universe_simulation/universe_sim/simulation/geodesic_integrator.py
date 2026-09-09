@@ -31,6 +31,14 @@ class EtatGeodesique:
     def norme(self, metrique: Metrique4D) -> float:
         return metrique.contracter(self.coordonnees_m, self.tangente, self.tangente)
 
+    def copier(self) -> "EtatGeodesique":
+        return EtatGeodesique(
+            self.coordonnees_m,
+            self.tangente,
+            self.parametre_affine_m,
+            self.type_geodesique,
+        )
+
 
 @dataclass(slots=True)
 class IntegrateurGeodesiqueRK4:

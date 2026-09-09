@@ -1,5 +1,6 @@
 from .clock import HorlogeSimulation
 from .configuration import ConfigurationPhysique
+from .coordinate_time import avancer_jusqua_temps_coordonne
 from .diagnostics import ControlePhysique
 from .engine import MoteurPhysique
 from .geodesic_integrator import (
@@ -32,6 +33,7 @@ __all__ = [
     "construire_tangente_normalisee",
     "IntegrateurLigneUniversForceeRK4",
     "QuadraccelerationProvider",
+    "avancer_jusqua_temps_coordonne",
     "GestionnaireInteractions",
     "GestionnaireChamps",
     "GestionnaireEvenements",
