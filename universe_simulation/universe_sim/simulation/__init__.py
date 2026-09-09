@@ -21,6 +21,7 @@ from .multiregime import (
     SimulationMultiRegime,
 )
 from .pn_integrator import Evolution1PNDeuxCorps, IntegrateurDeuxCorps1PNRK4
+from .population import EvolutionPopulationClassiqueTableau, IntegrateurPopulationNewtonienneTableau
 from .relativistic_rocket import (
     EvolutionFuseeRelativisteIdeale,
     IntegrateurFuseeRelativisteIdeale,
@@ -43,6 +44,7 @@ __all__ = [
     "IntegrateurEuler",
     "IntegrateurRK4",
     "IntegrateurSymplectique",
+    "IntegrateurPopulationNewtonienneTableau",
     "IntegrateurDeuxCorps1PNRK4",
     "EtatParticuleSR",
     "IntegrateurRelativisteSpecial",
@@ -59,6 +61,7 @@ __all__ = [
     "avancer_jusqua_temps_coordonne",
     "EvolutionRegime",
     "EvolutionClassiqueGroupe",
+    "EvolutionPopulationClassiqueTableau",
     "EvolutionSRCorps",
     "EvolutionFuseeRelativisteIdeale",
     "Evolution1PNDeuxCorps",
