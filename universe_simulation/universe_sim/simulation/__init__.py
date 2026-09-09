@@ -18,6 +18,7 @@ from .multiregime import (
     EvolutionSRCorps,
     SimulationMultiRegime,
 )
+from .pn_integrator import Evolution1PNDeuxCorps, IntegrateurDeuxCorps1PNRK4
 from .simulation import Simulation
 from .snapshot import Snapshot
 from .sr_integrator import EtatParticuleSR, IntegrateurRelativisteSpecial
@@ -33,6 +34,7 @@ __all__ = [
     "IntegrateurEuler",
     "IntegrateurRK4",
     "IntegrateurSymplectique",
+    "IntegrateurDeuxCorps1PNRK4",
     "EtatParticuleSR",
     "IntegrateurRelativisteSpecial",
     "EtatGeodesique",
@@ -45,6 +47,7 @@ __all__ = [
     "EvolutionRegime",
     "EvolutionClassiqueGroupe",
     "EvolutionSRCorps",
+    "Evolution1PNDeuxCorps",
     "EvolutionGeodesiqueCorps",
     "GestionnaireInteractions",
     "GestionnaireChamps",
