@@ -20,6 +20,7 @@ from .large_scale_engine import (
     ForceProviderSRHot,
     SimulationGrandeEchelleMultiRegime,
 )
+from .large_scale_multirate import PolitiqueCouplageMultiTaux, SimulationGrandeEchelleMultiTaux
 from .managers import GestionnaireChamps, GestionnaireEvenements, GestionnaireInteractions
 from .multirate import CadenceEvolution, EcheanceMultiTaux, OrdonnanceurMultiTaux, PasEvolution
 from .multiregime import (
@@ -54,6 +55,7 @@ __all__ = [
     "Simulation",
     "SimulationMultiRegime",
     "SimulationGrandeEchelleMultiRegime",
+    "SimulationGrandeEchelleMultiTaux",
     "ArrayStateBackend",
     "EtatAgregeSysteme",
     "RegistreHierarchiqueUnivers",
@@ -61,6 +63,7 @@ __all__ = [
     "PasEvolution",
     "EcheanceMultiTaux",
     "OrdonnanceurMultiTaux",
+    "PolitiqueCouplageMultiTaux",
     "FranchissementSphere",
     "ZoneSpheriquePhysique",
     "IndexSpatialGrille",
