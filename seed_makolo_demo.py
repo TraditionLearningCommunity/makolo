@@ -19,6 +19,7 @@ from demo_seed.accounts_orgs_canonical import seed_accounts_and_organizations
 from demo_seed.activities_demo import seed_activity_core
 from demo_seed.authority import seed_contextual_authority
 from demo_seed.beta import BETA_PERSONAS, seed_beta
+from demo_seed.beta_observability import seed_beta_observability
 from demo_seed.beta_validation import assert_beta_scenario_coverage
 from demo_seed.common import SCALE, SeedContext
 from demo_seed.engagement import seed_engagement
@@ -57,6 +58,7 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
     with transaction.atomic():
         if scale == "beta":
             seed_beta(ctx)
+            seed_beta_observability(ctx)
             seed_task22_extension(ctx)
             beta_users = {key: User.objects.get(email=email) for key, email in BETA_PERSONAS.items()}
             seed_task32_extension(ctx, users=beta_users)
