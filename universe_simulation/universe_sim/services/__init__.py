@@ -6,6 +6,7 @@ from .local_frames import *
 from .mechanics import *
 from .observation import *
 from .post_newtonian import *
+from .regime_transitions import *
 from .relativity import *
 from .relativistic_geometry import *
 from .relativistic_observation import *
