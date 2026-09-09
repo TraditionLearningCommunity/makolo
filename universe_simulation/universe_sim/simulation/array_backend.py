@@ -24,6 +24,50 @@ def _array3(vector: Vecteur3) -> np.ndarray:
     return np.asarray((vector.x, vector.y, vector.z), dtype=np.float64)
 
 
+def _vitesses_sr_depuis_impulsions(momentum: np.ndarray, masses: np.ndarray) -> np.ndarray:
+    """Derive float64 SR velocities from canonical momentum robustly.
+
+    Positive rest mass guarantees a timelike momentum state. At enormous
+    gamma, the mathematical speed differs from c by less than one float64 ulp
+    and may round to exactly c. In that representational corner only, project
+    the derived velocity to the greatest representable speed below c while
+    leaving the canonical momentum untouched.
+    """
+    p = np.asarray(momentum, dtype=np.float64)
+    m = np.asarray(masses, dtype=np.float64)
+    if p.ndim != 2 or p.shape[1] != 3 or m.shape != (p.shape[0],):
+        raise ValueError("SR momentum/mass arrays must have shapes (N,3) and (N,)")
+    if np.any(m <= 0):
+        raise ValueError("SR rows require positive rest mass")
+    if np.any(~np.isfinite(p)) or np.any(~np.isfinite(m)):
+        raise ValueError("SR momentum and rest mass must be finite")
+
+    p_norm = np.hypot(np.hypot(np.abs(p[:, 0]), np.abs(p[:, 1])), np.abs(p[:, 2]))
+    denominator = np.hypot(m * C, p_norm)
+    velocity = p * ((C / denominator)[:, None])
+
+    speed = np.hypot(
+        np.hypot(np.abs(velocity[:, 0]), np.abs(velocity[:, 1])),
+        np.abs(velocity[:, 2]),
+    )
+    rounded_to_c = speed >= C
+    if np.any(rounded_to_c):
+        nonzero = rounded_to_c & (p_norm > 0)
+        representable_causal_speed = np.nextafter(C, 0.0)
+        velocity[nonzero] = (p[nonzero] / p_norm[nonzero, None]) * representable_causal_speed
+        # A multidimensional norm can itself round upward by one ulp. Apply a
+        # second representational contraction only if that happens.
+        corrected = np.hypot(
+            np.hypot(np.abs(velocity[nonzero, 0]), np.abs(velocity[nonzero, 1])),
+            np.abs(velocity[nonzero, 2]),
+        )
+        needs_second = corrected >= C
+        if np.any(needs_second):
+            rows = np.flatnonzero(nonzero)[needs_second]
+            velocity[rows] *= np.nextafter(1.0, 0.0)
+    return velocity
+
+
 @dataclass(slots=True)
 class ArrayStateBackend:
     """Structure-of-arrays representation of hot simulation state.
@@ -112,9 +156,7 @@ class ArrayStateBackend:
                     raise ValueError(f"{body.nom} needs positive rest mass for SR array kinematics")
                 positions[i] = _array3(relativistic.position)
                 momenta[i] = _array3(relativistic.impulsion)
-                p2 = float(np.dot(momenta[i], momenta[i]))
-                energy = float(np.sqrt((mass * C * C) ** 2 + p2 * C * C))
-                velocities[i] = momenta[i] * (C * C / energy)
+                velocities[i] = _vitesses_sr_depuis_impulsions(momenta[i : i + 1], masses[i : i + 1])[0]
                 proper_times[i] = float(relativistic.temps_propre_s)
                 regimes[i] = _REGIME_TO_CODE[RegimeDynamique.RELATIVISTE_SPECIAL]
             else:
@@ -157,12 +199,7 @@ class ArrayStateBackend:
             if np.any(masses <= 0):
                 raise ValueError("SR rows require positive rest mass")
             momenta = self.momenta_kg_m_s[sr]
-            p2 = np.einsum("ij,ij->i", momenta, momenta)
-            energies = np.sqrt((masses * C * C) ** 2 + p2 * C * C)
-            self.velocities_m_s[sr] = momenta * ((C * C / energies)[:, None])
-            speeds2 = np.einsum("ij,ij->i", self.velocities_m_s[sr], self.velocities_m_s[sr])
-            if np.any(speeds2 >= C * C):
-                raise RuntimeError("Relativistic array backend produced a non-causal velocity")
+            self.velocities_m_s[sr] = _vitesses_sr_depuis_impulsions(momenta, masses)
 
     def synchroniser_vers_corps(self, corps: Iterable["CorpsPhysique"]) -> None:
         bodies = tuple(corps)
@@ -202,7 +239,7 @@ class ArrayStateBackend:
                     float(self.charges_c[i]), old_charge.unit, old_charge.uncertainty
                 )
             elif self.charges_c[i] != 0.0:
-                raise ValueError(f"{body.nom} cannot receive non-zero charge without an electric state")
+                raise ValueError(&"{body.nom} cannot receive non-zero charge without an electric state")
             body.actif = bool(self.active[i])
 
     def copier(self) -> "ArrayStateBackend":

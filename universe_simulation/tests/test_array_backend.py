@@ -44,3 +44,23 @@ def test_curved_state_is_rejected():
         assert 'curved-space-time' in str(exc)
     else:
         raise AssertionError('expected curved state rejection')
+
+
+def test_extreme_sr_momentum_remains_representably_subluminal():
+    backend = ArrayStateBackend(
+        ("sr",),
+        np.zeros((1, 3)),
+        np.zeros((1, 3)),
+        np.array([[1e40, -2e40, 3e40]], dtype=float),
+        np.array([1.0]),
+        np.zeros(1),
+        np.zeros(1),
+        np.ones(1, dtype=bool),
+        np.ones(1, dtype=np.int8),
+    )
+    original = backend.momenta_kg_m_s.copy()
+    backend.rafraichir_vitesses()
+    speed = np.linalg.norm(backend.velocities_m_s[0])
+    assert np.isfinite(speed)
+    assert speed < C
+    assert np.array_equal(backend.momenta_kg_m_s, original)
