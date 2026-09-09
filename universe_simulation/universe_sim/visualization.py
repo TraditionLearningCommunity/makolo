@@ -3,6 +3,7 @@ from collections import defaultdict
 from pathlib import Path
 from .constants import AU
 from .simulation import Simulation
+
 def animer_simulation(simulation:Simulation,frames:int=240,steps_per_frame:int=1,interval_ms:int=30,span:float|None=1.25*AU,focus:str|None=None,save:str|None=None,show:bool=True)->None:
     try:
         import matplotlib.pyplot as plt
@@ -15,14 +16,14 @@ def animer_simulation(simulation:Simulation,frames:int=240,steps_per_frame:int=1
     ax.legend(loc="upper right",fontsize=8)
     def center():
         if focus is None:return 0.,0.
-        t=simulation.univers.trouver_corps(focus).etat().translation;return (0.,0.) if t is None else (t.position.x,t.position.y)
+        position=simulation.univers.trouver_corps(focus).etat().position();return (0.,0.) if position is None else (position.x,position.y)
     def update(_frame):
         for _ in range(steps_per_frame):simulation.avancer()
         cx,cy=center()
         for body in simulation.univers.corps_physiques:
-            t=body.etat().translation
-            if t is None:continue
-            trails[body.id].append((t.position.x-cx,t.position.y-cy));lines[body.id].set_data([p[0] for p in trails[body.id]],[p[1] for p in trails[body.id]]);points[body.id].set_data([t.position.x-cx],[t.position.y-cy])
+            position=body.etat().position()
+            if position is None:continue
+            trails[body.id].append((position.x-cx,position.y-cy));lines[body.id].set_data([p[0] for p in trails[body.id]],[p[1] for p in trails[body.id]]);points[body.id].set_data([position.x-cx],[position.y-cy])
         if span is None:ax.relim();ax.autoscale_view()
         else:ax.set_xlim(-span,span);ax.set_ylim(-span,span)
         ax.set_title(f"{simulation.univers.nom} - t = {simulation.horloge.instant_courant.seconds/86400:.2f} days");return [*lines.values(),*points.values()]
