@@ -11,6 +11,13 @@ from .geodesic_integrator import (
 )
 from .integrators import IntegrateurEuler, IntegrateurNumerique, IntegrateurRK4, IntegrateurSymplectique
 from .managers import GestionnaireChamps, GestionnaireEvenements, GestionnaireInteractions
+from .multiregime import (
+    EvolutionClassiqueGroupe,
+    EvolutionGeodesiqueCorps,
+    EvolutionRegime,
+    EvolutionSRCorps,
+    SimulationMultiRegime,
+)
 from .simulation import Simulation
 from .snapshot import Snapshot
 from .sr_integrator import EtatParticuleSR, IntegrateurRelativisteSpecial
@@ -18,6 +25,7 @@ from .worldline_integrator import IntegrateurLigneUniversForceeRK4, Quadracceler
 
 __all__ = [
     "Simulation",
+    "SimulationMultiRegime",
     "HorlogeSimulation",
     "ConfigurationPhysique",
     "MoteurPhysique",
@@ -34,6 +42,10 @@ __all__ = [
     "IntegrateurLigneUniversForceeRK4",
     "QuadraccelerationProvider",
     "avancer_jusqua_temps_coordonne",
+    "EvolutionRegime",
+    "EvolutionClassiqueGroupe",
+    "EvolutionSRCorps",
+    "EvolutionGeodesiqueCorps",
     "GestionnaireInteractions",
     "GestionnaireChamps",
     "GestionnaireEvenements",
