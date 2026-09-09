@@ -8,5 +8,6 @@ from .observation import *
 from .post_newtonian import *
 from .regime_transitions import *
 from .relativity import *
+from .relativistic_electromagnetism import *
 from .relativistic_geometry import *
 from .relativistic_observation import *
