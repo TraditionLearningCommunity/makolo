@@ -14,6 +14,7 @@ from .geodesic_integrator import (
 from .hierarchy import EtatAgregeSysteme, RegistreHierarchiqueUnivers
 from .integrators import IntegrateurEuler, IntegrateurNumerique, IntegrateurRK4, IntegrateurSymplectique
 from .managers import GestionnaireChamps, GestionnaireEvenements, GestionnaireInteractions
+from .multirate import CadenceEvolution, EcheanceMultiTaux, OrdonnanceurMultiTaux, PasEvolution
 from .multiregime import (
     EvolutionClassiqueGroupe,
     EvolutionGeodesiqueCorps,
@@ -40,6 +41,10 @@ __all__ = [
     "ArrayStateBackend",
     "EtatAgregeSysteme",
     "RegistreHierarchiqueUnivers",
+    "CadenceEvolution",
+    "PasEvolution",
+    "EcheanceMultiTaux",
+    "OrdonnanceurMultiTaux",
     "HorlogeSimulation",
     "ConfigurationPhysique",
     "MoteurPhysique",
