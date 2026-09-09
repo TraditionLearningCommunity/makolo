@@ -24,11 +24,12 @@ class ConfigurationPersistanceGrandeEchelle:
 
 @dataclass(slots=True)
 class EcrivainEtatsChunkesNPZ:
-    """Append array states and flush bounded frame chunks to compressed NPZ files.
+    """Append authoritative array states and flush bounded compressed chunks.
 
-    Positions, canonical momenta, masses, activity and regime codes are stored
-    every sampled frame. Velocities are stored only for zero-mass tracers,
-    because massive classical and SR velocities are derivable from momentum.
+    ``active`` is physical activity. ``participating`` records whether this
+    numerical backend currently owns/evolves the row. The distinction is
+    persisted so a physically active body temporarily materialized in GR/LOD
+    is not replayed as destroyed or inactive.
     """
 
     configuration: ConfigurationPersistanceGrandeEchelle
@@ -40,6 +41,7 @@ class EcrivainEtatsChunkesNPZ:
     _masses: list[np.ndarray] = field(default_factory=list, init=False, repr=False)
     _proper_times: list[np.ndarray] = field(default_factory=list, init=False, repr=False)
     _active: list[np.ndarray] = field(default_factory=list, init=False, repr=False)
+    _participating: list[np.ndarray] = field(default_factory=list, init=False, repr=False)
     _regimes: list[np.ndarray] = field(default_factory=list, init=False, repr=False)
     _charges: list[np.ndarray] = field(default_factory=list, init=False, repr=False)
     _tracer_velocities: list[np.ndarray] = field(default_factory=list, init=False, repr=False)
@@ -64,12 +66,15 @@ class EcrivainEtatsChunkesNPZ:
             raise ValueError("Configured body ids do not match backend registry")
         self.body_ids = backend.body_ids
         self._tracer_indices = np.flatnonzero(backend.masses_kg == 0).astype(np.int64)
+        assert backend.participating is not None
         np.savez_compressed(
             self.catalogue_dir / "bodies.npz",
             body_ids=np.asarray(backend.body_ids, dtype=np.str_),
             masses_initial_kg=backend.masses_kg,
             charges_initial_c=backend.charges_c,
             regimes_initial=backend.regime_codes,
+            active_initial=backend.active,
+            participating_initial=backend.participating,
             tracer_indices=self._tracer_indices,
         )
         self._catalogue_initialise = True
@@ -80,12 +85,14 @@ class EcrivainEtatsChunkesNPZ:
         elif backend.body_ids != self.body_ids:
             raise ValueError("Backend registry changed during chunked persistence")
         assert self._tracer_indices is not None
+        assert backend.participating is not None
         self._times.append(float(instant_s))
         self._positions.append(backend.positions_m.copy())
         self._momenta.append(backend.momenta_kg_m_s.copy())
         self._masses.append(backend.masses_kg.copy())
         self._proper_times.append(backend.proper_times_s.copy())
         self._active.append(backend.active.copy())
+        self._participating.append(backend.participating.copy())
         self._regimes.append(backend.regime_codes.copy())
         if self.configuration.stocker_charges_dynamiques:
             self._charges.append(backend.charges_c.copy())
@@ -105,6 +112,7 @@ class EcrivainEtatsChunkesNPZ:
             "masses_kg": np.stack(self._masses),
             "proper_times_s": np.stack(self._proper_times),
             "active": np.stack(self._active),
+            "participating": np.stack(self._participating),
             "regime_codes": np.stack(self._regimes),
             "tracer_velocities_m_s": np.stack(self._tracer_velocities),
         }
@@ -120,17 +128,27 @@ class EcrivainEtatsChunkesNPZ:
             }
         )
         self._next_chunk += 1
-        self._times.clear(); self._positions.clear(); self._momenta.clear(); self._masses.clear()
-        self._proper_times.clear(); self._active.clear(); self._regimes.clear(); self._charges.clear(); self._tracer_velocities.clear()
+        self._times.clear()
+        self._positions.clear()
+        self._momenta.clear()
+        self._masses.clear()
+        self._proper_times.clear()
+        self._active.clear()
+        self._participating.clear()
+        self._regimes.clear()
+        self._charges.clear()
+        self._tracer_velocities.clear()
 
     def finaliser(self) -> Path:
         self._vider_chunk()
         schema = {
-            "schema_version": "1.0",
+            "schema_version": "1.1",
             "format": "chunked-npz",
             "coordinate_state": "positions + canonical momenta",
             "massive_velocity": "derived from momentum and regime",
             "zero_mass_tracer_velocity": "stored explicitly",
+            "physical_activity": "active",
+            "numerical_ownership": "participating",
             "body_count": 0 if self.body_ids is None else len(self.body_ids),
             "chunks": self._chunks,
         }
