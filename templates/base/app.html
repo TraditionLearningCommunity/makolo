@@ -1,40 +1,6 @@
 {% load static %}
+{# Tailwind artifact compatibility for classes retired from the legacy Home: max-w-4xl rounded-2xl items-start sm:grid-cols-3 sm:px-7 sm:py-9 #}
 <!DOCTYPE html>
 <html lang="fr" class="h-full"{% if request.user.is_authenticated %} data-theme-preference="{{ request.user.profile.theme|default:'system' }}"{% endif %}>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#2B176E">
-    <title>{% block title %}Makolo{% endblock %}</title>
-    {% block extra_meta %}{% endblock %}
-    {% include 'partials/brand_head.html' %}
-
-    <script src="{% static 'js/theme-preference.js' %}"></script>
-    <link rel="stylesheet" href="{% static 'dist/makolo.css' %}">
-    <link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}">
-    <link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}">
-    <link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}">
-    <link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}">
-    <link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}">
-    <script defer src="{% static 'dist/makolo.js' %}"></script>
-    <script defer src="{% static 'js/share-actions.js' %}"></script>
-    {% block extra_css %}{% endblock %}
-</head>
-<body class="min-h-full" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
-    <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
-    <div class="mk-app-shell flex min-h-screen">
-        {% include 'partials/sidebar.html' %}
-        <div class="min-w-0 flex-1 lg:pl-[264px]">
-            {% include 'partials/navbar.html' %}
-            <main id="main-content" tabindex="-1" class="mk-content-bg min-h-[calc(100vh-72px)] px-4 pb-10 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
-                <div class="mk-page-shell">
-                    {% include 'partials/messages.html' %}
-                    <div class="mk-page">{% block content %}{% endblock %}</div>
-                </div>
-            </main>
-            {% include 'partials/footer.html' %}
-        </div>
-    </div>
-    {% block extra_js %}{% endblock %}
-</body>
-</html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
+<body class="min-h-full" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false"><a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a><div class="mk-app-shell flex min-h-screen">{% include 'partials/sidebar.html' %}<div class="min-w-0 flex-1 lg:pl-[264px]">{% include 'partials/navbar.html' %}<main id="main-content" tabindex="-1" class="mk-content-bg min-h-[calc(100vh-72px)] px-4 pb-10 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7"><div class="mk-page-shell">{% include 'partials/messages.html' %}<div class="mk-page">{% block content %}{% endblock %}</div></div></main>{% if request.user.is_authenticated and not space_console %}<nav class="mk-mobile-primary-nav lg:hidden" aria-label="Navigation mobile"><a href="{% url 'core:participant-home' %}" {% if request.resolver_match.url_name == 'participant-home' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="home"></i><span>Accueil</span></a><a href="{% url 'discovery:home' %}" {% if request.resolver_match.namespace == 'discovery' and request.resolver_match.url_name == 'home' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="compass"></i><span>Discover</span></a><a href="{% url 'core:participant-journeys' %}" {% if request.resolver_match.namespace == 'core' and request.resolver_match.url_name|slice:':19' == 'participant-journey' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="calendar-search"></i><span>Actions</span></a><a href="{% url 'conversations:list' %}" {% if request.resolver_match.namespace == 'conversations' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="messages-square"></i><span>Conversations</span></a><button type="button" @click="sidebarOpen=true" aria-label="Plus de navigation"><i data-lucide="menu"></i><span>Plus</span></button></nav>{% endif %}{% include 'partials/footer.html' %}</div></div>{% block extra_js %}{% endblock %}</body></html>

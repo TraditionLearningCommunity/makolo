@@ -62,9 +62,9 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await completeSandboxPayment(page);
 
   await page.goto('/me/');
-  const todoSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'À faire', exact: true }) });
-  await expect(todoSection.getByText('Festival Makolo E2E', { exact: true })).toHaveCount(0);
-  const upcomingSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'À venir', exact: true }) });
+  const actionSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Ce qui demande quelque chose de moi', exact: true }) });
+  await expect(actionSection.getByText('Festival Makolo E2E', { exact: true })).toHaveCount(0);
+  const upcomingSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Ensuite', exact: true }) });
   await expect(upcomingSection.getByText('Festival Makolo E2E', { exact: true })).toBeVisible();
 
   await page.goto('/discover/?q=Festival+Makolo+E2E');

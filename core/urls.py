@@ -1,11 +1,11 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
 
+from .home_views import MatureParticipantHomeView
 from .participant_views import (
     ParticipantAccessDetailView,
     ParticipantAccessListView,
     ParticipantHistoryView,
-    ParticipantHomeView,
     ParticipantInvitationAcceptView,
     ParticipantInvitationDeclineView,
     ParticipantJourneyDetailView,
@@ -23,7 +23,7 @@ urlpatterns = [
         LogoutView.as_view(next_page="core:home"),
         name="logout",
     ),
-    path("me/", ParticipantHomeView.as_view(), name="participant-home"),
+    path("me/", MatureParticipantHomeView.as_view(), name="participant-home"),
     path("me/journeys/", ParticipantJourneyListView.as_view(), name="participant-journeys"),
     path(
         "me/journeys/<uuid:pk>/",

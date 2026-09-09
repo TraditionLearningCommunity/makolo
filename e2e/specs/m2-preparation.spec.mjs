@@ -10,8 +10,6 @@ test('M2 participant completes required form, updates readiness and sees authori
   await expect(nextAction).toBeVisible();
   await nextAction.click();
 
-  await expect(page.getByRole('heading', { name: 'Action requise', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Ouvrir', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Informations de préparation E2E', exact: true })).toBeVisible();
   await page.getByLabel('Point de rendez-vous préféré').fill('Accueil principal');
   await page.getByRole('button', { name: 'Soumettre', exact: true }).click();
