@@ -207,13 +207,36 @@ def _transport(ctx, users, space, places):
 
 
 def _journey(ctx, key, user, scenario, workflow, status):
-    return upsert(Journey, f"beta-{key}", defaults={
-        "initiated_by": user, "beneficiary": user, "activity": scenario["activity"], "occurrence": scenario["occurrence"],
-        "workflow": workflow, "status": status, "expires_at": scenario["occurrence"].start_at if status in {JourneyStatus.DRAFT, JourneyStatus.PENDING_PAYMENT} else None,
+    defaults = {
+        "initiated_by": user,
+        "beneficiary": user,
+        "activity": scenario["activity"],
+        "occurrence": scenario["occurrence"],
+        "workflow": workflow,
+        "status": status,
+        "expires_at": scenario["occurrence"].start_at if status in {JourneyStatus.DRAFT, JourneyStatus.PENDING_PAYMENT} else None,
         "submitted_at": ctx.as_of - timedelta(days=2) if status != JourneyStatus.DRAFT else None,
         "confirmed_at": ctx.as_of - timedelta(days=1) if status in {JourneyStatus.CONFIRMED, JourneyStatus.FULFILLED} else None,
         "fulfilled_at": ctx.as_of - timedelta(hours=12) if status == JourneyStatus.FULFILLED else None,
-    })
+    }
+    pk = stable_uuid(f"{Journey._meta.label_lower}:beta-{key}")
+    journey = Journey.objects.filter(pk=pk).first()
+    if journey is None:
+        return Journey.objects.create(pk=pk, **defaults)
+
+    next_status = defaults.pop("status")
+    changed = False
+    for field, value in defaults.items():
+        if getattr(journey, field) != value:
+            setattr(journey, field, value)
+            changed = True
+    if journey.status != next_status:
+        journey.status = next_status
+        journey._allow_status_transition = True
+        changed = True
+    if changed:
+        journey.save()
+    return journey
 
 
 def _reserve(ctx, key, journey, pool, qty=1):
