@@ -10,10 +10,12 @@ from authorization.services import can
 from capacity.models import CapacityPool
 from capacity.selectors import available_quantity
 from commerce.models import CommerceOrder, Offer, PaymentMode
+from conversations.models import ConversationContext, ConversationContextKind
+from funding.models import FundingContribution, FundingDetails
 from journeys.models import Journey, JourneyRequest, JourneyStatus, WorkflowKind
 from notifications.models import DeliveryStatus, NotificationDelivery
 from organizations.models import Organization, OrganizationMembership, TeamMembership
-from payments.models import Payment
+from payments.models import Payment, PaymentObligationStatus
 from scanner.models import ScannerAssignment
 from tickets.models import Ticket, TicketOrder
 from transport.models import TransportDeparture, TransportService
@@ -86,6 +88,36 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
     _require(
         AccessUse.objects.filter(access__activity_id__in=transport_activity_ids, result=AccessUseResult.ACCEPTED).exists(),
         "AccessUse accepté non Event absent",
+        errors,
+    )
+
+    funding_activity_ids = list(FundingDetails.objects.values_list("activity_id", flat=True))
+    _require(bool(funding_activity_ids), "verticale Financement absente", errors)
+    _require(not Event.objects.filter(activity_id__in=funding_activity_ids).exists(), "Financement dépend artificiellement d’Event", errors)
+    _require(not TransportService.objects.filter(activity_id__in=funding_activity_ids).exists(), "Financement dépend artificiellement de Transport", errors)
+    _require(Activity.objects.filter(pk__in=funding_activity_ids, status=ActivityStatus.PUBLISHED).exists(), "Activity Financement publique absente", errors)
+    _require(
+        FundingContribution.objects.filter(
+            funding__activity_id__in=funding_activity_ids,
+            payment_obligation__status=PaymentObligationStatus.SATISFIED,
+        ).count() >= 2,
+        "contributions Financement satisfaites absentes",
+        errors,
+    )
+
+    _require(
+        ConversationContext.objects.filter(kind=ConversationContextKind.ACTIVITY, activity__event_vertical__isnull=False).exists(),
+        "Conversation Activity Event absente",
+        errors,
+    )
+    _require(
+        ConversationContext.objects.filter(kind=ConversationContextKind.ACTIVITY, activity__transport_service__isnull=False).exists(),
+        "Conversation Activity Transport absente",
+        errors,
+    )
+    _require(
+        ConversationContext.objects.filter(kind=ConversationContextKind.ACTIVITY, activity__funding_details__isnull=False).exists(),
+        "Conversation Activity Financement absente",
         errors,
     )
 
@@ -218,6 +250,9 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
         "personas": len(personas),
         "future_event_occurrences": event_occurrences.count(),
         "future_transport_occurrences": transport_occurrences.count(),
+        "funding_activities": Activity.objects.filter(pk__in=funding_activity_ids).count(),
+        "funding_contributions": FundingContribution.objects.filter(funding__activity_id__in=funding_activity_ids).count(),
+        "activity_conversations": ConversationContext.objects.filter(kind=ConversationContextKind.ACTIVITY).count(),
         "non_event_activities": Activity.objects.filter(pk__in=transport_activity_ids).count(),
         "non_event_occurrences": Occurrence.objects.filter(activity_id__in=transport_activity_ids).count(),
         "non_event_journeys": Journey.objects.filter(activity_id__in=transport_activity_ids).count(),

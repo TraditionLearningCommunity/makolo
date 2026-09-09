@@ -56,12 +56,43 @@ def backdate(obj: models.Model, **values: Any) -> None:
         setattr(obj, key, value)
 
 
+def _local_parts(value: datetime, timezone_name: str):
+    local = value.astimezone(ZoneInfo(timezone_name or "Africa/Lubumbashi"))
+    return local.date(), local.timetz().replace(tzinfo=None)
+
+
+def _normalize_occurrence_defaults(defaults: dict[str, Any]) -> dict[str, Any]:
+    """Keep exact Occurrence compatibility fields and canonical parts in sync.
+
+    Earlier demo seeds wrote only ``start_at``/``end_at``. Mature Occurrences now
+    own structured date/time fields and rebuild exact instants from them during
+    ``full_clean``. Re-running a moving beta seed must therefore update both
+    surfaces together instead of leaving stale structured dates behind.
+    """
+
+    values = dict(defaults)
+    timezone_name = values.get("timezone") or "Africa/Lubumbashi"
+    if values.get("start_at") is not None:
+        start_date, start_time = _local_parts(values["start_at"], timezone_name)
+        values["start_date"] = start_date
+        values["start_time"] = start_time
+        values["timing_kind"] = "exact"
+    if values.get("end_at") is not None:
+        end_date, end_time = _local_parts(values["end_at"], timezone_name)
+        values["end_date"] = end_date
+        values["end_time"] = end_time
+    return values
+
+
 def _canonical_demo_defaults(model: type[models.Model], defaults: dict[str, Any]) -> dict[str, Any]:
-    """Drop only explicitly retired Accounts fixture keys during the demo cutover.
+    """Apply only explicit demo cutover normalizations.
 
     Runtime code never passes through this helper. Unknown keys still fail fast;
     this is deliberately not a generic typo filter.
     """
+
+    if model._meta.label_lower == "activities.occurrence":
+        defaults = _normalize_occurrence_defaults(defaults)
     retired = _RETIRED_DEMO_DEFAULTS.get(model._meta.label_lower)
     if not retired:
         return defaults
