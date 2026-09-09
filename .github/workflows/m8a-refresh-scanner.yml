@@ -47,7 +47,7 @@ jobs:
         env:
           E2E_SKIP_PREP: "1"
         run: >-
-          npx playwright test e2e/specs/visual.spec.mjs
+          bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs
           --grep "representative mobile surfaces"
           --project=chromium-mobile
           --update-snapshots
