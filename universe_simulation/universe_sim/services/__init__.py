@@ -2,6 +2,7 @@ from .astrodynamics import *
 from .differential_geometry import *
 from .geometry import *
 from .horizons import *
+from .local_frames import *
 from .mechanics import *
 from .observation import *
 from .post_newtonian import *
