@@ -32,6 +32,13 @@ from .relativistic_rocket import (
 )
 from .simulation import Simulation
 from .snapshot import Snapshot
+from .spatial_events import (
+    FranchissementSphere,
+    IndexSpatialGrille,
+    ZoneSpheriquePhysique,
+    detecter_franchissements_sphere,
+    evenements_zone_spherique,
+)
 from .sr_integrator import EtatParticuleSR, IntegrateurRelativisteSpecial
 from .worldline_integrator import IntegrateurLigneUniversForceeRK4, QuadraccelerationProvider
 
@@ -45,6 +52,11 @@ __all__ = [
     "PasEvolution",
     "EcheanceMultiTaux",
     "OrdonnanceurMultiTaux",
+    "FranchissementSphere",
+    "ZoneSpheriquePhysique",
+    "IndexSpatialGrille",
+    "detecter_franchissements_sphere",
+    "evenements_zone_spherique",
     "HorlogeSimulation",
     "ConfigurationPhysique",
     "MoteurPhysique",
