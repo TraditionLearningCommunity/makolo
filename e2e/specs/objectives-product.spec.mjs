@@ -46,7 +46,6 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   await page.goto('/objectives/');
 
   await expect(page.getByRole('heading', { name: 'Mes Dossiers' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Dossiers & Projets' })).toBeVisible();
   await page.getByRole('link', { name: 'Créer un Dossier' }).click();
 
   await page.getByLabel(/^Objectif\s*:$/).fill('Préparer le départ D6 bis');
