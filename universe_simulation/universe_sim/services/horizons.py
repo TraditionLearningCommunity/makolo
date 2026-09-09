@@ -4,7 +4,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import sqrt
 
-from ..metrics import Coordonnees4, Metrique4D, MetriqueKerrKerrSchild, MetriqueSchwarzschildKerrSchild
+from ..metrics import (
+    Coordonnees4,
+    Metrique4D,
+    MetriqueKerrKerrSchild,
+    MetriqueKerrNewmanKerrSchild,
+    MetriqueSchwarzschildKerrSchild,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,7 +24,7 @@ class FranchissementHorizon:
 def rayon_radial(metrique: Metrique4D, x: Coordonnees4) -> float:
     if isinstance(metrique, MetriqueSchwarzschildKerrSchild):
         return sqrt(x[1] * x[1] + x[2] * x[2] + x[3] * x[3])
-    if isinstance(metrique, MetriqueKerrKerrSchild):
+    if isinstance(metrique, (MetriqueKerrKerrSchild, MetriqueKerrNewmanKerrSchild)):
         return metrique.rayon_boyer_lindquist(x)
     raise TypeError("The selected metric has no black-hole event horizon radius")
 
@@ -26,7 +32,7 @@ def rayon_radial(metrique: Metrique4D, x: Coordonnees4) -> float:
 def rayon_horizon_externe(metrique: Metrique4D) -> float:
     if isinstance(metrique, MetriqueSchwarzschildKerrSchild):
         return metrique.rayon_schwarzschild_m
-    if isinstance(metrique, MetriqueKerrKerrSchild):
+    if isinstance(metrique, (MetriqueKerrKerrSchild, MetriqueKerrNewmanKerrSchild)):
         return metrique.rayon_horizon_externe_m
     raise TypeError("The selected metric has no black-hole event horizon")
 

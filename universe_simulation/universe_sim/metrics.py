@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from math import sqrt
+from math import pi, sqrt
 from typing import Callable
 
-from .constants import C, G
+from .constants import C, EPSILON_0, G
 
 Coordonnees4 = tuple[float, float, float, float]
 Matrice4 = tuple[tuple[float, float, float, float], ...]
@@ -142,6 +142,86 @@ class MetriqueKerrKerrSchild(Metrique4D):
             pz / r,
         )
         h = self.rayon_gravitationnel_m * r**3 / (r**4 + a * a * pz * pz)
+        eta = _minkowski()
+        return tuple(
+            tuple(eta[mu][nu] + 2.0 * h * l[mu] * l[nu] for nu in range(4))
+            for mu in range(4)
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class MetriqueKerrNewmanKerrSchild(Metrique4D):
+    """Kerr-Newman black hole in Cartesian Kerr-Schild coordinates.
+
+    ``spin_dimensionnel`` is chi=a/(GM/c²). ``charge_c`` is the SI electric
+    charge. The metric depends on Q², while the sign of charge remains relevant
+    to electromagnetic interactions outside this purely geometric object.
+    """
+
+    masse_kg: float
+    spin_dimensionnel: float
+    charge_c: float
+    nom: str = "Kerr-Newman Kerr-Schild"
+    domaine_validite: str = "isolated stationary rotating electrically charged black hole"
+    coordonnees: str = "Cartesian Kerr-Schild (ct,x,y,z)"
+
+    def __post_init__(self) -> None:
+        if self.masse_kg <= 0:
+            raise ValueError("Positive source mass required")
+        if abs(self.spin_dimensionnel) > 1.0:
+            raise ValueError("Dimensionless spin must satisfy |chi| <= 1 before charge extremality is checked")
+        if self.discriminant_horizon_m2 < -1e-18 * self.rayon_gravitationnel_m**2:
+            raise ValueError("Kerr-Newman parameters are over-extremal and do not describe a black hole")
+
+    @property
+    def rayon_gravitationnel_m(self) -> float:
+        return G * self.masse_kg / (C * C)
+
+    @property
+    def a_m(self) -> float:
+        return self.spin_dimensionnel * self.rayon_gravitationnel_m
+
+    @property
+    def charge_geometrique2_m2(self) -> float:
+        return G * self.charge_c * self.charge_c / (4.0 * pi * EPSILON_0 * C**4)
+
+    @property
+    def discriminant_horizon_m2(self) -> float:
+        rg = self.rayon_gravitationnel_m
+        return rg * rg - self.a_m * self.a_m - self.charge_geometrique2_m2
+
+    @property
+    def rayon_horizon_externe_m(self) -> float:
+        return self.rayon_gravitationnel_m + sqrt(max(0.0, self.discriminant_horizon_m2))
+
+    @property
+    def rayon_horizon_interne_m(self) -> float:
+        return self.rayon_gravitationnel_m - sqrt(max(0.0, self.discriminant_horizon_m2))
+
+    def rayon_boyer_lindquist(self, x: Coordonnees4) -> float:
+        _, px, py, pz = x
+        a2 = self.a_m * self.a_m
+        rho2 = px * px + py * py + pz * pz
+        term = rho2 - a2
+        r2 = 0.5 * (term + sqrt(term * term + 4.0 * a2 * pz * pz))
+        return sqrt(max(0.0, r2))
+
+    def tenseur(self, x: Coordonnees4) -> Matrice4:
+        _, px, py, pz = x
+        r = self.rayon_boyer_lindquist(x)
+        if r == 0:
+            raise ValueError("Kerr-Newman ring singularity / degenerate r=0 coordinate")
+        a = self.a_m
+        denom_l = r * r + a * a
+        l = (
+            1.0,
+            (r * px + a * py) / denom_l,
+            (r * py - a * px) / denom_l,
+            pz / r,
+        )
+        denominator = r**4 + a * a * pz * pz
+        q2 = self.charge_geometrique2_m2
+        h = (self.rayon_gravitationnel_m * r**3 - 0.5 * q2 * r * r) / denominator
         eta = _minkowski()
         return tuple(
             tuple(eta[mu][nu] + 2.0 * h * l[mu] * l[nu] for nu in range(4))

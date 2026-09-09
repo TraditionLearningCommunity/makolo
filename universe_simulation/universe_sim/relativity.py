@@ -8,7 +8,12 @@ from uuid import uuid4
 
 from .effects import EffetPhysique
 from .laws.base import ModelePhysique
-from .metrics import Metrique4D, MetriqueKerrKerrSchild, MetriqueSchwarzschildKerrSchild
+from .metrics import (
+    Metrique4D,
+    MetriqueKerrKerrSchild,
+    MetriqueKerrNewmanKerrSchild,
+    MetriqueSchwarzschildKerrSchild,
+)
 from .services.relativity import (
     metrique_schwarzschild,
     metrique_trou_noir_parametrique,
@@ -86,12 +91,7 @@ class HorizonEvenements:
 
 @dataclass(slots=True)
 class ModeleGravitationRelativiste(ModelePhysique):
-    """Legacy Schwarzschild model descriptor kept for compatibility.
-
-    The static metric helper remains useful outside the horizon. New trajectory
-    integration should use ``ModeleGeodesiqueTrouNoir`` and an explicit
-    geodesic integrator.
-    """
+    """Legacy Schwarzschild descriptor kept for compatibility."""
 
     masse_source: float = 0.0
     nom: str = "Gravitation relativiste Schwarzschild"
@@ -117,17 +117,18 @@ class ModeleGravitationRelativiste(ModelePhysique):
 
 @dataclass(slots=True)
 class ModeleGeodesiqueTrouNoir(ModelePhysique):
-    """Prescribed Schwarzschild/Kerr geometry for geodesic integration."""
+    """Prescribed Schwarzschild/Kerr/Kerr-Newman geometry for worldline integration."""
 
     masse_source: float = 0.0
     spin_dimensionnel: float = 0.0
+    charge_c: float = 0.0
     source_id: str = "source"
     nom: str = "Geometrie relativiste de trou noir"
-    domaine_validite: str = "isolated uncharged black hole with prescribed stationary geometry"
-    niveau_fidelite: str = "general relativity - prescribed Schwarzschild/Kerr metric"
+    domaine_validite: str = "isolated stationary black hole with prescribed Schwarzschild/Kerr/Kerr-Newman geometry"
+    niveau_fidelite: str = "general relativity - prescribed stationary black-hole metric"
 
     def geometrie(self) -> Metrique4D:
-        return metrique_trou_noir_parametrique(self.masse_source, self.spin_dimensionnel)
+        return metrique_trou_noir_parametrique(self.masse_source, self.spin_dimensionnel, self.charge_c)
 
     def horizon(self) -> HorizonEvenements:
         metric = self.geometrie()
@@ -137,6 +138,9 @@ class ModeleGeodesiqueTrouNoir(ModelePhysique):
         elif isinstance(metric, MetriqueKerrKerrSchild):
             radius = metric.rayon_horizon_externe_m
             name = "Kerr Kerr-Schild"
+        elif isinstance(metric, MetriqueKerrNewmanKerrSchild):
+            radius = metric.rayon_horizon_externe_m
+            name = "Kerr-Newman Kerr-Schild"
         else:
             raise TypeError("Unsupported black-hole geometry")
         return HorizonEvenements(self.source_id, radius, name)
@@ -148,5 +152,9 @@ class ModeleGeodesiqueTrouNoir(ModelePhysique):
         gestionnaire_interactions: object | None = None,
     ) -> list[EffetPhysique]:
         raise RuntimeError(
-            "ModeleGeodesiqueTrouNoir must be evolved through the geodesic engine, never through F = ma"
+            "ModeleGeodesiqueTrouNoir must be evolved through the curved-space-time worldline engine, never through F = ma"
         )
+
+
+# Semantically preferred name. The old class name remains import-compatible.
+ModeleEspaceTempsTrouNoir = ModeleGeodesiqueTrouNoir
