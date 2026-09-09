@@ -55,8 +55,6 @@ def _vitesses_sr_depuis_impulsions(momentum: np.ndarray, masses: np.ndarray) -> 
         nonzero = rounded_to_c & (p_norm > 0)
         representable_causal_speed = np.nextafter(C, 0.0)
         velocity[nonzero] = (p[nonzero] / p_norm[nonzero, None]) * representable_causal_speed
-        # A multidimensional norm can itself round upward by one ulp. Apply a
-        # second representational contraction only if that happens.
         corrected = np.hypot(
             np.hypot(np.abs(velocity[nonzero, 0]), np.abs(velocity[nonzero, 1])),
             np.abs(velocity[nonzero, 2]),
@@ -72,9 +70,13 @@ def _vitesses_sr_depuis_impulsions(momentum: np.ndarray, masses: np.ndarray) -> 
 class ArrayStateBackend:
     """Structure-of-arrays representation of hot simulation state.
 
-    The physical Python objects remain the identities and semantic model. This
-    backend only mirrors classical and flat-space SR kinematics for efficient
-    numerical loops. Curved-space-time states are intentionally rejected.
+    ``active`` is a physical property mirrored from ``CorpsPhysique.actif``.
+    ``participating`` is purely numerical: it tells whether this backend owns
+    and evolves the row at the current instant. A physically active body may be
+    non-participating here while it is materialized in another dynamics path,
+    for example GR near a black hole.
+
+    Curved-space-time states are intentionally rejected from this backend.
     """
 
     body_ids: tuple[str, ...]
@@ -86,6 +88,7 @@ class ArrayStateBackend:
     proper_times_s: np.ndarray
     active: np.ndarray
     regime_codes: np.ndarray
+    participating: np.ndarray | None = None
     _index: dict[str, int] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -110,6 +113,13 @@ class ArrayStateBackend:
             if value.shape != (n,):
                 raise ValueError(f"{name} must have shape {(n,)}")
             setattr(self, name, np.ascontiguousarray(value))
+        if self.participating is None:
+            self.participating = np.ascontiguousarray(self.active.copy())
+        else:
+            participating = np.asarray(self.participating, dtype=np.bool_)
+            if participating.shape != (n,):
+                raise ValueError(f"participating must have shape {(n,)}")
+            self.participating = np.ascontiguousarray(participating)
         if np.any(self.masses_kg < 0):
             raise ValueError("Masses must be non-negative")
         known = np.fromiter(_CODE_TO_REGIME.keys(), dtype=np.int8)
@@ -172,6 +182,7 @@ class ArrayStateBackend:
             proper_times,
             active,
             regimes,
+            active.copy(),
         )
 
     def index(self, body_id: str) -> int:
@@ -182,6 +193,22 @@ class ArrayStateBackend:
 
     def regime(self, body_id: str) -> RegimeDynamique:
         return _CODE_TO_REGIME[int(self.regime_codes[self.index(body_id)])]
+
+    def masque_evolution(self) -> np.ndarray:
+        """Rows physically active and currently owned by this numerical backend."""
+        assert self.participating is not None
+        return self.active & self.participating
+
+    def suspendre_calcul(self, body_id: str) -> None:
+        assert self.participating is not None
+        self.participating[self.index(body_id)] = False
+
+    def reprendre_calcul(self, body_id: str) -> None:
+        index = self.index(body_id)
+        assert self.participating is not None
+        if not self.active[index]:
+            raise ValueError("A physically inactive body cannot resume numerical participation")
+        self.participating[index] = True
 
     def rafraichir_vitesses(self) -> None:
         """Recompute velocities from each regime's canonical momentum."""
@@ -201,6 +228,45 @@ class ArrayStateBackend:
             momenta = self.momenta_kg_m_s[sr]
             self.velocities_m_s[sr] = _vitesses_sr_depuis_impulsions(momenta, masses)
 
+    def _synchroniser_index(self, body: "CorpsPhysique", index: int) -> None:
+        state = body.etat()
+        position = Vecteur3.from_iterable(self.positions_m[index])
+        velocity = Vecteur3.from_iterable(self.velocities_m_s[index])
+        momentum = Vecteur3.from_iterable(self.momenta_kg_m_s[index])
+        regime = _CODE_TO_REGIME[int(self.regime_codes[index])]
+        if regime == RegimeDynamique.CLASSIQUE:
+            if state.translation is None or state.relativiste is not None or state.espace_temps is not None:
+                raise ValueError(f"{body.nom} no longer matches its classical backend representation")
+            state.translation.position = position
+            state.translation.vitesse = velocity
+        elif regime == RegimeDynamique.RELATIVISTE_SPECIAL:
+            if state.relativiste is None or state.translation is not None or state.espace_temps is not None:
+                raise ValueError(f"{body.nom} no longer matches its SR backend representation")
+            state.relativiste.position = position
+            state.relativiste.impulsion = momentum
+            state.relativiste.temps_propre_s = float(self.proper_times_s[index])
+        else:
+            raise ValueError(f"Unsupported array regime: {regime}")
+
+        if state.massique is not None:
+            old = state.massique.masse
+            state.massique.masse = GrandeurPhysique(float(self.masses_kg[index]), old.unit, old.uncertainty)
+        elif self.masses_kg[index] != 0.0:
+            raise ValueError(f"{body.nom} cannot receive non-zero mass without a mass state")
+        if state.electrique is not None:
+            old_charge = state.electrique.charge_nette
+            state.electrique.charge_nette = GrandeurPhysique(
+                float(self.charges_c[index]), old_charge.unit, old_charge.uncertainty
+            )
+        elif self.charges_c[index] != 0.0:
+            raise ValueError(f"{body.nom} cannot receive non-zero charge without an electric state")
+        body.actif = bool(self.active[index])
+
+    def synchroniser_un_corps(self, corps: "CorpsPhysique") -> None:
+        """Synchronize one semantic body without scanning/copying the full registry."""
+        self.rafraichir_vitesses()
+        self._synchroniser_index(corps, self.index(corps.id))
+
     def synchroniser_vers_corps(self, corps: Iterable["CorpsPhysique"]) -> None:
         bodies = tuple(corps)
         by_id = {body.id: body for body in bodies}
@@ -208,41 +274,10 @@ class ArrayStateBackend:
             raise ValueError("Bodies do not match the array backend registry")
         self.rafraichir_vitesses()
         for i, body_id in enumerate(self.body_ids):
-            body = by_id[body_id]
-            state = body.etat()
-            position = Vecteur3.from_iterable(self.positions_m[i])
-            velocity = Vecteur3.from_iterable(self.velocities_m_s[i])
-            momentum = Vecteur3.from_iterable(self.momenta_kg_m_s[i])
-            regime = _CODE_TO_REGIME[int(self.regime_codes[i])]
-            if regime == RegimeDynamique.CLASSIQUE:
-                if state.translation is None or state.relativiste is not None or state.espace_temps is not None:
-                    raise ValueError(f"{body.nom} no longer matches its classical backend representation")
-                state.translation.position = position
-                state.translation.vitesse = velocity
-            elif regime == RegimeDynamique.RELATIVISTE_SPECIAL:
-                if state.relativiste is None or state.translation is not None or state.espace_temps is not None:
-                    raise ValueError(f"{body.nom} no longer matches its SR backend representation")
-                state.relativiste.position = position
-                state.relativiste.impulsion = momentum
-                state.relativiste.temps_propre_s = float(self.proper_times_s[i])
-            else:  # defensive; __post_init__ already rejects unknown codes
-                raise ValueError(f"Unsupported array regime: {regime}")
-
-            if state.massique is not None:
-                old = state.massique.masse
-                state.massique.masse = GrandeurPhysique(float(self.masses_kg[i]), old.unit, old.uncertainty)
-            elif self.masses_kg[i] != 0.0:
-                raise ValueError(f"{body.nom} cannot receive non-zero mass without a mass state")
-            if state.electrique is not None:
-                old_charge = state.electrique.charge_nette
-                state.electrique.charge_nette = GrandeurPhysique(
-                    float(self.charges_c[i]), old_charge.unit, old_charge.uncertainty
-                )
-            elif self.charges_c[i] != 0.0:
-                raise ValueError(&"{body.nom} cannot receive non-zero charge without an electric state")
-            body.actif = bool(self.active[i])
+            self._synchroniser_index(by_id[body_id], i)
 
     def copier(self) -> "ArrayStateBackend":
+        assert self.participating is not None
         return ArrayStateBackend(
             self.body_ids,
             self.positions_m.copy(),
@@ -253,4 +288,5 @@ class ArrayStateBackend:
             self.proper_times_s.copy(),
             self.active.copy(),
             self.regime_codes.copy(),
+            self.participating.copy(),
         )
