@@ -180,3 +180,32 @@ class RegistreHierarchiqueUnivers:
 
     def etat(self, systeme_id: str) -> EtatAgregeSysteme:
         return self.etats_agreges[systeme_id]
+
+    def frontiere_agregee(self) -> tuple[EtatAgregeSysteme, ...]:
+        """Return a non-overlapping frontier of currently aggregated systems.
+
+        If a parent system is aggregated, none of its aggregated descendants
+        are returned. If the parent is opened to a finer computational level,
+        the walk descends and may expose aggregated children. This prevents
+        double-counting the same mass in far-field queries.
+        """
+        children: dict[str, tuple[str, ...]] = {
+            system_id: tuple(child.id for child in system.sous_systemes)
+            for system_id, system in self.systemes_par_id.items()
+        }
+        roots = sorted(
+            system_id for system_id, parent in self.parent_par_systeme.items() if parent is None
+        )
+        result: list[EtatAgregeSysteme] = []
+
+        def visit(system_id: str) -> None:
+            state = self.etats_agreges.get(system_id)
+            if state is not None and state.niveau_activite == NiveauActiviteCalcul.AGGREGATED:
+                result.append(state)
+                return
+            for child_id in children.get(system_id, ()):
+                visit(child_id)
+
+        for root in roots:
+            visit(root)
+        return tuple(result)
