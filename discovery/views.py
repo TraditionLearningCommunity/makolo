@@ -5,13 +5,17 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.participant_selectors import participant_state_context
+from funding.discovery import present_funding_card, public_funding_discovery_items
+from social.models import ActionNeed, ActionNeedIntakePolicy, ActionNeedStatus, ActionNeedVisibility
 
 from .card_contract import present_occurrence_card, present_service_card
 from .intelligence import interpret_with_intelligence
@@ -27,26 +31,11 @@ from .unified import public_opportunity_discovery_items, public_service_discover
 DISCOVERY_PAGE_SIZE = 24
 DISCOVERY_PLACE_SUGGESTION_LIMIT = 10
 DISCOVERY_FILTER_KEYS = (
-    "q",
-    "place",
-    "city",
-    "when",
-    "period",
-    "vertical",
-    "price",
-    "radius_km",
-    "lat",
-    "lon",
-    "date",
-    "date_from",
-    "date_to",
-    "ordering",
-    "timezone",
+    "q", "place", "city", "when", "period", "vertical", "price", "radius_km", "lat", "lon", "date", "date_from", "date_to", "ordering", "timezone",
 )
 
 
 def _place_suggestions(items, *, limit=DISCOVERY_PLACE_SUGGESTION_LIMIT):
-    """Return a small, de-duplicated list from already-public search items."""
     suggestions = []
     seen = set()
     for item in items:
@@ -83,16 +72,12 @@ def _empty_occurrence_result():
     return SimpleNamespace(items=[], timezone_name=settings.TIME_ZONE, total=0, nearby_active=False)
 
 
-def _combine_logical_candidates(*, service_items, opportunity_items, occurrence_items):
-    """Stable exact-identity composition before pagination.
-
-    Candidate identity identifies the real possibility; provenance explains why
-    it was surfaced. Related cross-family possibilities are not merged.
-    """
+def _combine_logical_candidates(*, service_items, funding_items, opportunity_items, occurrence_items):
     rows = []
     seen = set()
     for family, candidates in (
         ("service_activity", service_items),
+        ("funding_activity", funding_items),
         ("opportunity", opportunity_items),
         ("occurrence", occurrence_items),
     ):
@@ -103,6 +88,21 @@ def _combine_logical_candidates(*, service_items, opportunity_items, occurrence_
             seen.add(key)
             rows.append((family, key, candidate))
     return rows
+
+
+def _open_public_action_needs(activity):
+    now = timezone.now()
+    return list(
+        ActionNeed.objects.filter(
+            activity=activity,
+            status=ActionNeedStatus.OPEN,
+            visibility=ActionNeedVisibility.PUBLIC,
+            intake_policy=ActionNeedIntakePolicy.OPEN,
+        )
+        .filter(Q(opens_at__isnull=True) | Q(opens_at__lte=now))
+        .filter(Q(closes_at__isnull=True) | Q(closes_at__gt=now))
+        .order_by("created_at", "id")
+    )
 
 
 class DiscoveryHomeView(TemplateView):
@@ -116,7 +116,7 @@ class DiscoveryHomeView(TemplateView):
         search_params = intent.to_search_params()
         vertical = intent.vertical
         try:
-            result = _empty_occurrence_result() if vertical == "service" else search_occurrences(
+            result = _empty_occurrence_result() if vertical in {"service", "funding"} else search_occurrences(
                 search_params, profile=self.request.user
             )
         except ValidationError as exc:
@@ -124,18 +124,17 @@ class DiscoveryHomeView(TemplateView):
             errors = list(exc.messages)
         occurrence_items = result.items
         service_items = public_service_discovery_items(
-            search_params,
-            profile=self.request.user,
-            requested_params=self.request.GET,
-            constraints=intent.constraints,
+            search_params, profile=self.request.user, requested_params=self.request.GET, constraints=intent.constraints,
+        )
+        funding_items = public_funding_discovery_items(
+            search_params, requested_params=self.request.GET, constraints=intent.constraints,
         )
         opportunity_items = public_opportunity_discovery_items(
-            search_params,
-            requested_params=self.request.GET,
-            constraints=intent.constraints,
+            search_params, requested_params=self.request.GET, constraints=intent.constraints,
         )
         logical_candidates = _combine_logical_candidates(
             service_items=service_items,
+            funding_items=funding_items,
             opportunity_items=opportunity_items,
             occurrence_items=occurrence_items,
         )
@@ -143,23 +142,22 @@ class DiscoveryHomeView(TemplateView):
         page_obj = Paginator(logical_candidates, DISCOVERY_PAGE_SIZE).get_page(self.request.GET.get("page"))
         page_rows = page_obj.object_list
         page_service_items = [row[2] for row in page_rows if row[0] == "service_activity"]
+        page_funding_items = [row[2] for row in page_rows if row[0] == "funding_activity"]
         page_opportunity_items = [row[2] for row in page_rows if row[0] == "opportunity"]
         page_occurrence_items = [row[2] for row in page_rows if row[0] == "occurrence"]
 
         bookmarked_activity_ids = _bookmarked_activity_ids(self.request.user)
         bookmarked_activity_keys = {str(activity_id) for activity_id in bookmarked_activity_ids}
         service_cards = [
-            present_service_card(
-                item,
-                bookmarked=str(item["activity_id"]) in bookmarked_activity_keys,
-            )
+            present_service_card(item, bookmarked=str(item["activity_id"]) in bookmarked_activity_keys)
             for item in page_service_items
         ]
-        cards = [
-            present_occurrence_card(
-                item,
-                bookmarked=str(item.activity_id) in bookmarked_activity_keys,
-            )
+        funding_cards = [
+            present_funding_card(item, bookmarked=str(item["activity_id"]) in bookmarked_activity_keys)
+            for item in page_funding_items
+        ]
+        cards = funding_cards + [
+            present_occurrence_card(item, bookmarked=str(item.activity_id) in bookmarked_activity_keys)
             for item in page_occurrence_items
         ]
 
@@ -169,16 +167,8 @@ class DiscoveryHomeView(TemplateView):
         nearby_active = bool(result.nearby_active)
         map_items = []
         if nearby_active:
-            map_items = [
-                payload
-                for item in page_occurrence_items
-                if (payload := item.to_map_dict()) is not None
-            ]
-        mappable_result_count = sum(
-            1
-            for item in occurrence_items
-            if item.to_map_dict() is not None
-        )
+            map_items = [payload for item in page_occurrence_items if (payload := item.to_map_dict()) is not None]
+        mappable_result_count = sum(1 for item in occurrence_items if item.to_map_dict() is not None)
         record_search(
             result_count=result_count,
             constraint_count=len(intent.constraints),
@@ -231,13 +221,10 @@ class DiscoveryActivityDetailView(TemplateView):
         if presenter.key != "other":
             raise Http404
         participant_context = participant_state_context(self.request.user, [occurrence])
-        context["item"] = build_discovery_item(
-            occurrence,
-            profile=self.request.user,
-            participant_context=participant_context,
-        )
+        context["item"] = build_discovery_item(occurrence, profile=self.request.user, participant_context=participant_context)
         context["occurrence"] = occurrence
         context["is_bookmarked"] = occurrence.activity_id in _bookmarked_activity_ids(self.request.user)
+        context["help_needs"] = _open_public_action_needs(occurrence.activity)
         return context
 
 
@@ -259,11 +246,7 @@ class BookmarkListView(LoginRequiredMixin, ListView):
     login_url = "core:login"
 
     def get_queryset(self):
-        return ActivityBookmark.objects.filter(user=self.request.user).select_related(
-            "activity",
-            "activity__space",
-            "activity__owner_profile",
-        )
+        return ActivityBookmark.objects.filter(user=self.request.user).select_related("activity", "activity__space", "activity__owner_profile")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -279,11 +262,7 @@ class BookmarkListView(LoginRequiredMixin, ListView):
             occurrence = first_by_activity.get(bookmark.activity_id)
             item = None
             if occurrence is not None:
-                item = build_discovery_item(
-                    occurrence,
-                    profile=self.request.user,
-                    participant_context=participant_context,
-                )
+                item = build_discovery_item(occurrence, profile=self.request.user, participant_context=participant_context)
             rows.append({"bookmark": bookmark, "item": item})
         context["bookmark_rows"] = rows
         context["bookmarked_activity_ids"] = set(activity_ids)
@@ -296,10 +275,7 @@ class BookmarkToggleView(LoginRequiredMixin, View):
     def post(self, request, activity_id=None, event_id=None):
         if activity_id is not None:
             activity = get_object_or_404(
-                Activity.objects.filter(
-                    status=ActivityStatus.PUBLISHED,
-                    visibility=ActivityVisibility.PUBLIC,
-                ),
+                Activity.objects.filter(status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC),
                 pk=activity_id,
             )
         else:
@@ -315,13 +291,8 @@ class BookmarkToggleView(LoginRequiredMixin, View):
 
 
 class MyEventsView(LoginRequiredMixin, View):
-    """Compatibility route for the retired Event-only participant hub."""
-
     login_url = "core:login"
 
     def get(self, request):
-        messages.info(
-            request,
-            "Retrouvez désormais vos démarches, accès, activités organisées et enregistrés dans les espaces dédiés.",
-        )
+        messages.info(request, "Retrouvez désormais vos démarches, accès, activités organisées et enregistrés dans les espaces dédiés.")
         return redirect("core:participant-home")

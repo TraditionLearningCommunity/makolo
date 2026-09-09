@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .activity_views import dossier_from_activity
 
 
 app_name = "objectives"
@@ -8,6 +9,7 @@ app_name = "objectives"
 urlpatterns = [
     path("", views.dossier_list, name="dossier-list"),
     path("new/", views.dossier_create, name="dossier-create"),
+    path("from-activity/<uuid:activity_id>/", dossier_from_activity, name="dossier-from-activity"),
     path("projects/", views.project_list, name="project-list"),
     path("projects/new/", views.project_create, name="project-create"),
     path("projects/<uuid:project_id>/", views.project_detail, name="project-detail"),

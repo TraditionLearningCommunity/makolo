@@ -1,5 +1,6 @@
 <nav aria-label="Navigation participant" class="flex gap-2 overflow-x-auto pb-1">
-    <a href="{% url 'discovery:home' %}" class="mk-btn whitespace-nowrap {% if request.resolver_match.url_name == 'home' %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}"><i data-lucide="compass" class="h-4 w-4"></i>Explorer</a>
+    <a href="{% url 'discovery:home' %}" class="mk-btn whitespace-nowrap {% if request.resolver_match.url_name == 'home' and not request.GET.vertical %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}"><i data-lucide="compass" class="h-4 w-4"></i>Explorer</a>
+    <a href="{% url 'discovery:home' %}?vertical=funding" class="mk-btn whitespace-nowrap {% if request.GET.vertical == 'funding' %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}"><i data-lucide="wallet-cards" class="h-4 w-4"></i>Financements</a>
     {% if request.user.is_authenticated %}
     <a href="{% url 'discovery:for-you' %}" class="mk-btn whitespace-nowrap {% if request.resolver_match.url_name == 'for-you' %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}"><i data-lucide="sparkles" class="h-4 w-4"></i>Pour vous</a>
     <a href="{% url 'discovery:bookmarks' %}" class="mk-btn whitespace-nowrap {% if request.resolver_match.url_name == 'bookmarks' %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}"><i data-lucide="bookmark" class="h-4 w-4"></i>Favoris</a>
