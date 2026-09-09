@@ -15,12 +15,14 @@ dependencies = ["numpy>=1.26"]
 visualization = ["matplotlib>=3.8", "pillow>=10"]
 interactive = ["plotly>=7.0"]
 cinematic = ["pyvista>=0.48.4", "imageio-ffmpeg>=0.5"]
+performance = ["numba>=0.60"]
 all = [
     "matplotlib>=3.8",
     "pillow>=10",
     "plotly>=7.0",
     "pyvista>=0.48.4",
     "imageio-ffmpeg>=0.5",
+    "numba>=0.60",
 ]
 
 [tool.setuptools.packages.find]
