@@ -194,11 +194,13 @@ def _transport(ctx, users, space, places):
     for key, route_key, days, hour, vehicle, capacity, price, mode in specs:
         route, activity, service, origin = route_data[route_key]
         start = _at(ctx, days, hour)
-        occ = upsert(Occurrence, f"beta-transport-{key}", defaults={"activity": activity, "label": "Départ", "start_at": start, "end_at": start + timedelta(hours=4), "timezone": "Africa/Lubumbashi", "status": OccurrenceStatus.COMPLETED if days < 0 else OccurrenceStatus.SCHEDULED})
+        departure_label = f"Départ {start:%d/%m %H:%M}"
+        operational_reference = f"BETA-{key.upper()}"
+        occ = upsert(Occurrence, f"beta-transport-{key}", defaults={"activity": activity, "label": departure_label, "start_at": start, "end_at": start + timedelta(hours=4), "timezone": "Africa/Lubumbashi", "status": OccurrenceStatus.COMPLETED if days < 0 else OccurrenceStatus.SCHEDULED})
         OccurrencePlace.objects.update_or_create(occurrence=occ, role=OccurrencePlaceRole.PRIMARY, defaults={"place": origin, "position": 0})
-        pool = upsert(CapacityPool, f"beta-transport-{key}", defaults={"activity": activity, "occurrence": occ, "label": "Voyageurs", "total_quantity": capacity, "is_active": True, "source_key": f"beta:transport:{key}:capacity"})
-        departure = upsert(TransportDeparture, f"beta-{key}", defaults={"occurrence": occ, "vehicle": vehicle, "passenger_capacity_pool": pool, "boarding_instructions": "Présentez votre billet Makolo.", "operational_reference": f"BETA-{key.upper()}"})
-        offer = upsert(Offer, f"beta-transport-{key}", defaults={"activity": activity, "occurrence": occ, "capacity_pool": pool, "name": "Tarif standard", "unit_price": Decimal(price), "currency": "USD", "payment_mode": mode, "available_from": ctx.as_of - timedelta(days=7), "available_until": start - timedelta(hours=1), "min_quantity": 1, "max_quantity": 1, "status": OfferStatus.ACTIVE, "source_key": f"beta:transport:{key}:offer"})
+        pool = upsert(CapacityPool, f"beta-transport-{key}", defaults={"activity": activity, "occurrence": occ, "label": f"Voyageurs — {operational_reference}", "total_quantity": capacity, "is_active": True, "source_key": f"beta:transport:{key}:capacity"})
+        departure = upsert(TransportDeparture, f"beta-{key}", defaults={"occurrence": occ, "vehicle": vehicle, "passenger_capacity_pool": pool, "boarding_instructions": "Présentez votre billet Makolo.", "operational_reference": operational_reference})
+        offer = upsert(Offer, f"beta-transport-{key}", defaults={"activity": activity, "occurrence": occ, "capacity_pool": pool, "name": f"Tarif standard — {departure_label}", "unit_price": Decimal(price), "currency": "USD", "payment_mode": mode, "available_from": ctx.as_of - timedelta(days=7), "available_until": start - timedelta(hours=1), "min_quantity": 1, "max_quantity": 1, "status": OfferStatus.ACTIVE, "source_key": f"beta:transport:{key}:offer"})
         result[key] = {"activity": activity, "occurrence": occ, "pool": pool, "departure": departure, "offer": offer}
     ctx.add("beta_transport_departures", len(result))
     return result
