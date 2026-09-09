@@ -11,6 +11,7 @@ from .geodesic_integrator import (
     TypeGeodesique,
     construire_tangente_normalisee,
 )
+from .hierarchy import EtatAgregeSysteme, RegistreHierarchiqueUnivers
 from .integrators import IntegrateurEuler, IntegrateurNumerique, IntegrateurRK4, IntegrateurSymplectique
 from .managers import GestionnaireChamps, GestionnaireEvenements, GestionnaireInteractions
 from .multiregime import (
@@ -37,6 +38,8 @@ __all__ = [
     "Simulation",
     "SimulationMultiRegime",
     "ArrayStateBackend",
+    "EtatAgregeSysteme",
+    "RegistreHierarchiqueUnivers",
     "HorlogeSimulation",
     "ConfigurationPhysique",
     "MoteurPhysique",
