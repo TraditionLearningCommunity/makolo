@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from access.models import Access, AccessStatus
+from accounts.models import UserProfile
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Permission, Role, RolePermission
@@ -30,11 +31,13 @@ PASSWORD = "Strong-M8A-Password-2026!"
 
 
 def make_user(username):
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username=username,
         email=f"{username}@example.test",
         password=PASSWORD,
     )
+    UserProfile.objects.create(user=user)
+    return user
 
 
 def grant_action_network_manage(*, actor, space):
