@@ -8,6 +8,7 @@ from demo_seed.beta import BETA_PERSONAS
 from demo_seed.beta_validation import assert_beta_scenario_coverage
 from demo_seed.task22_extension import T22_PERSONAS
 from events.models import Event
+from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestStatus
 from seed_makolo_demo import _parse_as_of
 from transport.models import TransportService
 
@@ -45,6 +46,40 @@ class MakoloDemoSeedTests(TestCase):
         self.assertTrue(admin.is_superuser)
         self.assertTrue(admin.check_password(self.password))
         self.assertTrue(participant.check_password(self.password))
+
+    def test_beta_seed_reconciles_guarded_status_snapshots_on_rerun(self):
+        call_command(
+            "seed_makolo_demo",
+            scale="beta",
+            as_of=self.as_of,
+            demo_password=self.password,
+            verbosity=0,
+        )
+        journey = Journey.objects.get(
+            activity__slug="beta-event-free",
+            beneficiary__email=BETA_PERSONAS["participant"],
+        )
+        invitation_request = JourneyRequest.objects.get(
+            journey__activity__slug="beta-event-invitation",
+            requester__email=BETA_PERSONAS["event_manager"],
+        )
+
+        Journey.objects.filter(pk=journey.pk).update(status=JourneyStatus.CANCELLED)
+        JourneyRequest.objects.filter(pk=invitation_request.pk).update(status=RequestStatus.APPROVED)
+
+        call_command(
+            "seed_makolo_demo",
+            scale="beta",
+            as_of=self.as_of,
+            demo_password=self.password,
+            verbosity=0,
+        )
+
+        journey.refresh_from_db()
+        invitation_request.refresh_from_db()
+        self.assertEqual(journey.status, JourneyStatus.CONFIRMED)
+        self.assertEqual(invitation_request.status, RequestStatus.PENDING)
+        assert_beta_scenario_coverage(as_of=_parse_as_of(self.as_of))
 
     def test_task22_personas_match_their_real_authority(self):
         call_command(
