@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from math import sqrt
 
 from ..metrics import Coordonnees4, Metrique4D
 from ..services.differential_geometry import symboles_christoffel
@@ -75,3 +76,42 @@ class IntegrateurGeodesiqueRK4:
         etat.coordonnees_m = tuple(y1[:4])  # type: ignore[assignment]
         etat.tangente = tuple(y1[4:])  # type: ignore[assignment]
         etat.parametre_affine_m += dlambda_m
+
+
+def construire_tangente_normalisee(
+    metrique: Metrique4D,
+    coordonnees_m: Coordonnees4,
+    tangente_spatiale: tuple[float, float, float],
+    type_geodesique: TypeGeodesique = TypeGeodesique.TEMPORELLE,
+    future: bool = True,
+) -> Coordonnees4:
+    """Complete a spatial tangent with the causal time component.
+
+    Timelike tangents are normalized to ``g(u,u)=-1`` so the affine parameter
+    is proper length ``c*d tau``. Null tangents satisfy ``g(k,k)=0``.
+    """
+    g = metrique.tenseur(coordonnees_m)
+    spatial = tuple(float(v) for v in tangente_spatiale)
+    target = -1.0 if type_geodesique == TypeGeodesique.TEMPORELLE else 0.0
+    a = g[0][0]
+    b = 2.0 * sum(g[0][i + 1] * spatial[i] for i in range(3))
+    c_term = sum(
+        g[i + 1][j + 1] * spatial[i] * spatial[j]
+        for i in range(3)
+        for j in range(3)
+    ) - target
+    if abs(a) < 1e-15:
+        if abs(b) < 1e-15:
+            raise ValueError("Cannot determine temporal tangent component in this coordinate chart")
+        roots = (-c_term / b,)
+    else:
+        discriminant = b * b - 4.0 * a * c_term
+        if discriminant < -1e-12:
+            raise ValueError("Requested spatial tangent has no real causal completion")
+        root = sqrt(max(0.0, discriminant))
+        roots = ((-b + root) / (2.0 * a), (-b - root) / (2.0 * a))
+    candidates = [value for value in roots if (value > 0 if future else value < 0)]
+    if not candidates:
+        raise ValueError("No tangent root matches the requested time orientation")
+    u0 = max(candidates) if future else min(candidates)
+    return (u0, spatial[0], spatial[1], spatial[2])
