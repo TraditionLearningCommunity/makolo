@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
   statuses: write
 
 jobs:
@@ -484,13 +484,11 @@ jobs:
       - name: Prepare deterministic E2E environment
         run: bash scripts/prepare-e2e.sh
       - name: Run end-to-end product validation
-        id: product_e2e
-        continue-on-error: true
         env:
           E2E_SKIP_PREP: "1"
         run: npm run test:e2e
       - name: Upload Playwright diagnostics
-        if: ${{ steps.product_e2e.outcome == 'failure' }}
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-e2e-diagnostics
@@ -500,48 +498,6 @@ jobs:
             /tmp/makolo-e2e-server.log
           if-no-files-found: ignore
           retention-days: 5
-      - name: Refresh reviewed M8-A visual baselines
-        if: ${{ steps.product_e2e.outcome == 'failure' && github.event_name == 'pull_request' && github.event.pull_request.number == 216 && github.event.pull_request.head.ref == 'm8/mature-home-shell' }}
-        env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          light="test-results/playwright/visual-representative-light-desktop-surfaces-visual-chromium-desktop/participant-dashboard-light-desktop-actual.png"
-          dark="test-results/playwright/visual-representative-dark-desktop-surfaces-visual-chromium-desktop/participant-dashboard-dark-desktop-actual.png"
-          mobile="test-results/playwright/visual-representative-mobi-e5bfc-s-visual-mobile-mobile-only-chromium-mobile/discovery-light-mobile-actual.png"
-          test -f "$light"
-          test -f "$dark"
-          test -f "$mobile"
-          python - "$light" "$dark" "$mobile" <<'PY'
-          import sys
-          from PIL import Image
-          expected = [(1440, 1222), (1440, 1222), (390, 4503)]
-          actual = [Image.open(path).size for path in sys.argv[1:]]
-          if actual != expected:
-              raise SystemExit(f"Unexpected reviewed baseline dimensions: {actual}")
-          PY
-          mkdir -p /tmp/m8a-baselines
-          cp "$light" /tmp/m8a-baselines/light.png
-          cp "$dark" /tmp/m8a-baselines/dark.png
-          cp "$mobile" /tmp/m8a-baselines/mobile.png
-          git fetch origin m8/mature-home-shell
-          test "$(git rev-parse origin/m8/mature-home-shell)" = "$EXPECTED_HEAD_SHA"
-          git checkout -B m8/mature-home-shell origin/m8/mature-home-shell
-          cp /tmp/m8a-baselines/light.png e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-light-desktop-chromium-desktop-linux.png
-          cp /tmp/m8a-baselines/dark.png e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-dark-desktop-chromium-desktop-linux.png
-          cp /tmp/m8a-baselines/mobile.png e2e/specs/visual.spec.mjs-snapshots/discovery-light-mobile-chromium-mobile-linux.png
-          git add \
-            e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-light-desktop-chromium-desktop-linux.png \
-            e2e/specs/visual.spec.mjs-snapshots/participant-dashboard-dark-desktop-chromium-desktop-linux.png \
-            e2e/specs/visual.spec.mjs-snapshots/discovery-light-mobile-chromium-mobile-linux.png
-          test "$(git diff --cached --name-only | wc -l)" -eq 3
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "test(visual): refresh reviewed M8-A baselines"
-          git push origin HEAD:m8/mature-home-shell
-      - name: Preserve E2E failure until normal baselines are committed
-        if: ${{ steps.product_e2e.outcome == 'failure' }}
-        run: exit 1
 
   aggregate-main-status:
     if: ${{ always() && github.event_name == 'push' }}
