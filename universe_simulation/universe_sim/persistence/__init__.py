@@ -3,6 +3,10 @@ from .large_scale import (
     EcrivainEtatsChunkesNPZ,
     EcrivainEvenementsJSONL,
 )
+from .multidomain import (
+    ConfigurationSessionGrandeEchelle,
+    SessionPersistanceGrandeEchelleMultiDomaine,
+)
 from .multiregime import SessionPersistanceMultiRegime
 from .session import ConfigurationPersistance, SessionPersistance
 
@@ -13,4 +17,6 @@ __all__ = [
     "ConfigurationPersistanceGrandeEchelle",
     "EcrivainEtatsChunkesNPZ",
     "EcrivainEvenementsJSONL",
+    "ConfigurationSessionGrandeEchelle",
+    "SessionPersistanceGrandeEchelleMultiDomaine",
 ]
