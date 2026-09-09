@@ -1,3 +1,4 @@
+from .array_backend import ArrayStateBackend
 from .adaptive_geodesic import IntegrateurGeodesiqueAdaptatif
 from .clock import HorlogeSimulation
 from .configuration import ConfigurationPhysique
@@ -34,6 +35,7 @@ from .worldline_integrator import IntegrateurLigneUniversForceeRK4, Quadracceler
 __all__ = [
     "Simulation",
     "SimulationMultiRegime",
+    "ArrayStateBackend",
     "HorlogeSimulation",
     "ConfigurationPhysique",
     "MoteurPhysique",

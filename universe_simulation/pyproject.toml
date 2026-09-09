@@ -4,22 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "makolo-universe-sim"
-version = "0.2.0"
-description = "Standalone physical-universe model, simulation engine and animated 3D visualization layer"
+version = "0.3.0"
+description = "Standalone physical-universe model, multi-regime simulation engine and animated 3D visualization layer"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "Makolo"}]
-dependencies = []
+dependencies = ["numpy>=1.26"]
 
 [project.optional-dependencies]
 visualization = ["matplotlib>=3.8", "pillow>=10"]
 interactive = ["plotly>=7.0"]
-cinematic = ["numpy>=1.26", "pyvista>=0.48.4", "imageio-ffmpeg>=0.5"]
+cinematic = ["pyvista>=0.48.4", "imageio-ffmpeg>=0.5"]
 all = [
     "matplotlib>=3.8",
     "pillow>=10",
     "plotly>=7.0",
-    "numpy>=1.26",
     "pyvista>=0.48.4",
     "imageio-ffmpeg>=0.5",
 ]
