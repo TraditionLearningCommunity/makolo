@@ -1,3 +1,4 @@
+from .adaptive_geodesic import IntegrateurGeodesiqueAdaptatif
 from .clock import HorlogeSimulation
 from .configuration import ConfigurationPhysique
 from .coordinate_time import avancer_jusqua_temps_coordonne
@@ -48,6 +49,7 @@ __all__ = [
     "IntegrateurFuseeRelativisteIdeale",
     "EtatGeodesique",
     "IntegrateurGeodesiqueRK4",
+    "IntegrateurGeodesiqueAdaptatif",
     "TypeGeodesique",
     "construire_tangente_normalisee",
     "IntegrateurLigneUniversForceeRK4",
