@@ -60,12 +60,20 @@ def diagnostiquer_regime(
         )
 
     if beta >= seuils.beta_sr_direct:
+        if potentiel_reduit >= seuils.precision_newtonienne:
+            return DiagnosticRegime(
+                RegimeDynamique.GEODESIQUE,
+                beta,
+                beta2,
+                potentiel_reduit,
+                "relativistic speed with gravitational curvature above the requested error budget",
+            )
         return DiagnosticRegime(
             RegimeDynamique.RELATIVISTE_SPECIAL,
             beta,
             beta2,
             potentiel_reduit,
-            "relativistic speed in a weak gravitational field",
+            "relativistic speed while gravity is negligible at the requested accuracy",
         )
 
     if max(beta2, potentiel_reduit) >= seuils.precision_newtonienne:

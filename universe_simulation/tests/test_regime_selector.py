@@ -15,6 +15,10 @@ class RegimeSelectorTests(unittest.TestCase):
         diagnostic = diagnostiquer_regime(Vecteur3(0.8 * C, 0.0, 0.0), -1e6)
         self.assertEqual(diagnostic.regime, RegimeDynamique.RELATIVISTE_SPECIAL)
 
+    def test_high_speed_with_non_negligible_gravity_uses_curved_spacetime(self):
+        diagnostic = diagnostiquer_regime(Vecteur3(0.8 * C, 0.0, 0.0), -1e-4 * C * C)
+        self.assertEqual(diagnostic.regime, RegimeDynamique.GEODESIQUE)
+
     def test_strong_field_is_geodesic_even_at_low_speed(self):
         diagnostic = diagnostiquer_regime(Vecteur3(1000.0, 0.0, 0.0), -0.05 * C * C)
         self.assertEqual(diagnostic.regime, RegimeDynamique.GEODESIQUE)
