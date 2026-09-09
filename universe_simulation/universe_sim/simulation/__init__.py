@@ -13,6 +13,7 @@ from .managers import GestionnaireChamps, GestionnaireEvenements, GestionnaireIn
 from .simulation import Simulation
 from .snapshot import Snapshot
 from .sr_integrator import EtatParticuleSR, IntegrateurRelativisteSpecial
+from .worldline_integrator import IntegrateurLigneUniversForceeRK4, QuadraccelerationProvider
 
 __all__ = [
     "Simulation",
@@ -29,6 +30,8 @@ __all__ = [
     "IntegrateurGeodesiqueRK4",
     "TypeGeodesique",
     "construire_tangente_normalisee",
+    "IntegrateurLigneUniversForceeRK4",
+    "QuadraccelerationProvider",
     "GestionnaireInteractions",
     "GestionnaireChamps",
     "GestionnaireEvenements",
