@@ -19,6 +19,12 @@ from .multiregime import (
     SimulationMultiRegime,
 )
 from .pn_integrator import Evolution1PNDeuxCorps, IntegrateurDeuxCorps1PNRK4
+from .relativistic_rocket import (
+    EvolutionFuseeRelativisteIdeale,
+    IntegrateurFuseeRelativisteIdeale,
+    ParametresFuseeRelativisteIdeale,
+    ResultatPousseeRelativiste,
+)
 from .simulation import Simulation
 from .snapshot import Snapshot
 from .sr_integrator import EtatParticuleSR, IntegrateurRelativisteSpecial
@@ -37,6 +43,9 @@ __all__ = [
     "IntegrateurDeuxCorps1PNRK4",
     "EtatParticuleSR",
     "IntegrateurRelativisteSpecial",
+    "ParametresFuseeRelativisteIdeale",
+    "ResultatPousseeRelativiste",
+    "IntegrateurFuseeRelativisteIdeale",
     "EtatGeodesique",
     "IntegrateurGeodesiqueRK4",
     "TypeGeodesique",
@@ -47,6 +56,7 @@ __all__ = [
     "EvolutionRegime",
     "EvolutionClassiqueGroupe",
     "EvolutionSRCorps",
+    "EvolutionFuseeRelativisteIdeale",
     "Evolution1PNDeuxCorps",
     "EvolutionGeodesiqueCorps",
     "GestionnaireInteractions",
