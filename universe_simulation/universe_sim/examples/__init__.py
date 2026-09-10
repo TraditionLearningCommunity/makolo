@@ -9,6 +9,14 @@ from .multigalaxy_catalogue import (
     compteurs_configuration,
     generer_catalogue_multi_galaxies,
 )
+from .multigalaxy_gr_refinement import (
+    EtatLocalTransitionGR,
+    etat_vaisseau_sr_dans_cadre_galaxie,
+    materialiser_trou_noir_central,
+    materialiser_vaisseau_local,
+    metrique_trou_noir_central,
+    referentiel_local_trou_noir,
+)
 from .multigalaxy_scenario import (
     ProgrammePropulsionSRMultiGalaxies,
     ScenarioMultiGalaxies,
@@ -40,6 +48,12 @@ __all__ = [
     "construire_scenario_multi_galaxies",
     "AnalyseNavigationMultiGalaxies",
     "analyser_navigation_multi_galaxies",
+    "EtatLocalTransitionGR",
+    "referentiel_local_trou_noir",
+    "etat_vaisseau_sr_dans_cadre_galaxie",
+    "materialiser_trou_noir_central",
+    "materialiser_vaisseau_local",
+    "metrique_trou_noir_central",
     "DefinitionScene",
     "SCENES",
     "construire_scene",
