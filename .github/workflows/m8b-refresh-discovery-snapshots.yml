@@ -41,7 +41,7 @@ jobs:
 
       - name: Refresh reviewed Discovery visual baselines
         run: |
-          bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots --project=chromium-desktop --project=chromium-mobile
+          bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots --timeout=120000 --project=chromium-desktop --project=chromium-mobile
 
       - name: Keep only baselines that fail the release gate
         run: |
