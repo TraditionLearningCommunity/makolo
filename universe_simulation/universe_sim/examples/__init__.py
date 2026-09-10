@@ -8,6 +8,11 @@ from .multigalaxy_catalogue import (
     compteurs_configuration,
     generer_catalogue_multi_galaxies,
 )
+from .multigalaxy_scenario import (
+    ProgrammePropulsionSRMultiGalaxies,
+    ScenarioMultiGalaxies,
+    construire_scenario_multi_galaxies,
+)
 from .scenes import (
     SCENES,
     DefinitionScene,
@@ -29,6 +34,9 @@ __all__ = [
     "CONFIGURATIONS_MULTI_GALAXIES",
     "compteurs_configuration",
     "generer_catalogue_multi_galaxies",
+    "ProgrammePropulsionSRMultiGalaxies",
+    "ScenarioMultiGalaxies",
+    "construire_scenario_multi_galaxies",
     "DefinitionScene",
     "SCENES",
     "construire_scene",
