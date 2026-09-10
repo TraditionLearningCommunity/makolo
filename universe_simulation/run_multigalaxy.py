@@ -163,7 +163,7 @@ def run(args) -> tuple[Path, Path | None]:
         _capture_states(root, scenario, execution)
     else:
         persistence = SessionPersistanceGrandeEchelleMultiDomaine(
-            ConfigurationSessionGrandeEchelle(root / "run", frames_per_chunk=args.frames_per_chunk)
+            ConfigurationSessionGrandeEchelle(root / "run", frames_par_chunk=args.frames_per_chunk)
         )
         persistence.ajouter_frame(scenario.simulation)
         scenario.executer()
