@@ -43,6 +43,12 @@ jobs:
         run: |
           bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots --project=chromium-desktop --project=chromium-mobile
 
+      - name: Keep only baselines that fail the release gate
+        run: |
+          git restore --source=HEAD -- \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-dark-desktop-chromium-desktop-linux.png \
+            e2e/specs/visual.spec.mjs-snapshots/discovery-nearby-light-desktop-chromium-desktop-linux.png
+
       - name: Verify snapshot scope
         run: |
           expected=$(printf '%s\n' \
