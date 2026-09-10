@@ -1,4 +1,5 @@
 from .catalogue import PLANETES_DEMO, PlaneteDemo
+from .multigalaxy_analysis import AnalyseNavigationMultiGalaxies, analyser_navigation_multi_galaxies
 from .multigalaxy_catalogue import (
     CONFIGURATIONS_MULTI_GALAXIES,
     CatalogueMultiGalaxies,
@@ -37,6 +38,8 @@ __all__ = [
     "ProgrammePropulsionSRMultiGalaxies",
     "ScenarioMultiGalaxies",
     "construire_scenario_multi_galaxies",
+    "AnalyseNavigationMultiGalaxies",
+    "analyser_navigation_multi_galaxies",
     "DefinitionScene",
     "SCENES",
     "construire_scene",
