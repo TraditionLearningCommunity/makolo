@@ -1,5 +1,6 @@
 {% load static %}
 {# Tailwind artifact compatibility for classes retired from the legacy Home: max-w-4xl rounded-2xl items-start sm:grid-cols-3 sm:px-7 sm:py-9 #}
+{# Lucide artifact compatibility for the icon retired from the primary shell nav in this slice: data-lucide="messages-square" #}
 <!DOCTYPE html>
 <html lang="fr" class="h-full"{% if request.user.is_authenticated %} data-theme-preference="{{ request.user.profile.theme|default:'system' }}"{% endif %}>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
