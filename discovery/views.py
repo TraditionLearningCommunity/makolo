@@ -15,9 +15,10 @@ from django.views.generic import ListView, TemplateView
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.participant_selectors import participant_state_context
 from funding.discovery import present_funding_card, public_funding_discovery_items
+from opportunities.models import OpportunitySave
 from social.models import ActionNeed, ActionNeedIntakePolicy, ActionNeedStatus, ActionNeedVisibility
 
-from .card_contract import present_occurrence_card, present_service_card
+from .card_contract import present_occurrence_card, present_opportunity_card, present_service_card
 from .intelligence import interpret_with_intelligence
 from .intent import resolve_discovery_intent
 from .models import ActivityBookmark
@@ -54,10 +55,24 @@ def _place_suggestions(items, *, limit=DISCOVERY_PLACE_SUGGESTION_LIMIT):
     return suggestions
 
 
-def _bookmarked_activity_ids(user):
+def _bookmarked_activity_ids(user, activity_ids=None):
     if not getattr(user, "is_authenticated", False):
         return set()
-    return set(ActivityBookmark.objects.filter(user=user).values_list("activity_id", flat=True))
+    queryset = ActivityBookmark.objects.filter(user=user)
+    if activity_ids is not None:
+        queryset = queryset.filter(activity_id__in=activity_ids)
+    return set(queryset.values_list("activity_id", flat=True))
+
+
+def _saved_opportunity_ids(user, opportunity_ids):
+    if not getattr(user, "is_authenticated", False) or not opportunity_ids:
+        return set()
+    return set(
+        OpportunitySave.objects.filter(
+            profile=user,
+            opportunity_id__in=opportunity_ids,
+        ).values_list("opportunity_id", flat=True)
+    )
 
 
 def _query_without_page(request):
@@ -146,8 +161,19 @@ class DiscoveryHomeView(TemplateView):
         page_opportunity_items = [row[2] for row in page_rows if row[0] == "opportunity"]
         page_occurrence_items = [row[2] for row in page_rows if row[0] == "occurrence"]
 
-        bookmarked_activity_ids = _bookmarked_activity_ids(self.request.user)
+        page_activity_ids = {
+            *(item["activity_id"] for item in page_service_items),
+            *(item["activity_id"] for item in page_funding_items),
+            *(item.activity_id for item in page_occurrence_items),
+        }
+        bookmarked_activity_ids = _bookmarked_activity_ids(self.request.user, page_activity_ids)
         bookmarked_activity_keys = {str(activity_id) for activity_id in bookmarked_activity_ids}
+        saved_opportunity_ids = _saved_opportunity_ids(
+            self.request.user,
+            [item["opportunity_id"] for item in page_opportunity_items],
+        )
+        saved_opportunity_keys = {str(opportunity_id) for opportunity_id in saved_opportunity_ids}
+
         service_cards = [
             present_service_card(item, bookmarked=str(item["activity_id"]) in bookmarked_activity_keys)
             for item in page_service_items
@@ -156,10 +182,19 @@ class DiscoveryHomeView(TemplateView):
             present_funding_card(item, bookmarked=str(item["activity_id"]) in bookmarked_activity_keys)
             for item in page_funding_items
         ]
-        cards = funding_cards + [
+        opportunity_cards = [
+            present_opportunity_card(item, saved=str(item["opportunity_id"]) in saved_opportunity_keys)
+            for item in page_opportunity_items
+        ]
+        occurrence_cards = [
             present_occurrence_card(item, bookmarked=str(item.activity_id) in bookmarked_activity_keys)
             for item in page_occurrence_items
         ]
+        cards_by_candidate = {
+            card.candidate_key: card
+            for card in (*service_cards, *funding_cards, *opportunity_cards, *occurrence_cards)
+        }
+        discovery_cards = [cards_by_candidate[key] for _, key, _ in page_rows]
 
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
         filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
@@ -183,8 +218,10 @@ class DiscoveryHomeView(TemplateView):
                 "items": page_occurrence_items,
                 "service_items": page_service_items,
                 "opportunity_items": page_opportunity_items,
-                "cards": cards,
+                "cards": discovery_cards,
                 "service_cards": service_cards,
+                "opportunity_cards": opportunity_cards,
+                "discovery_cards": discovery_cards,
                 "page_obj": page_obj,
                 "filters": filters,
                 "discovery_intent": intent,
@@ -197,6 +234,7 @@ class DiscoveryHomeView(TemplateView):
                 "nearby_active": nearby_active,
                 "map_items": map_items,
                 "bookmarked_activity_ids": bookmarked_activity_ids,
+                "saved_opportunity_ids": saved_opportunity_ids,
                 "pagination_query": _query_without_page(self.request),
                 "map_config": {
                     "tile_url": settings.MAP_TILE_URL,

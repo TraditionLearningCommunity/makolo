@@ -31,9 +31,9 @@ class ActionPresentation:
 
 @dataclass(frozen=True)
 class ParticipantActionSet:
-    save: ActionPresentation
+    save: ActionPresentation | None
     primary: ActionPresentation | None
-    share: ActionPresentation
+    share: ActionPresentation | None
     secondary: tuple[ActionPresentation, ...] = ()
 
 
@@ -48,7 +48,7 @@ class RepresentationPresentation:
 @dataclass(frozen=True)
 class DiscoveryCardPresentation:
     candidate_key: str
-    activity_id: str
+    activity_id: str | None
     occurrence_id: str | None
     presentation_kind: str
     vertical_label: str
@@ -58,7 +58,7 @@ class DiscoveryCardPresentation:
     operator_name: str
     representation: RepresentationPresentation
     facts: tuple[FactPresentation, ...]
-    participant_state: Any
+    participant_state: Any | None
     actions: ParticipantActionSet
     url: str
 
@@ -199,6 +199,71 @@ def present_occurrence_card(item, *, bookmarked: bool = False) -> DiscoveryCardP
             ),
         ),
         url=item.url,
+    )
+
+
+def present_opportunity_card(item: dict, *, saved: bool = False) -> DiscoveryCardPresentation:
+    """Present a direct Opportunity candidate without inventing Activity state."""
+
+    opportunity_id = item["opportunity_id"]
+    temporal_state = item["temporal_state"]
+    primary = None
+    if temporal_state == "open":
+        primary = ActionPresentation(
+            code="view",
+            role="primary",
+            label=item.get("cta_label") or "Voir l’opportunité",
+            icon="arrow-right",
+            state="available",
+            url=item["url"],
+            emphasis="primary",
+        )
+    facts: list[FactPresentation] = []
+    if item.get("kind_label"):
+        facts.append(FactPresentation("kind", "Type", item["kind_label"], "target", 10))
+    facts.append(
+        FactPresentation(
+            "state",
+            "Statut",
+            "Ouvert maintenant" if temporal_state == "open" else "À venir",
+            "calendar-clock",
+            20,
+        )
+    )
+    return DiscoveryCardPresentation(
+        candidate_key=item["candidate_key"],
+        activity_id=None,
+        occurrence_id=None,
+        presentation_kind="opportunity",
+        vertical_label="Opportunité",
+        title=item["title"],
+        summary=item.get("summary") or "",
+        operator_label="Proposé par",
+        operator_name=item.get("issuer_name") or "",
+        representation=item.get("representation")
+        or RepresentationPresentation(kind="opportunity", eyebrow=item.get("state_label")),
+        facts=tuple(facts),
+        participant_state=None,
+        actions=ParticipantActionSet(
+            save=ActionPresentation(
+                code="save",
+                role="save",
+                label="Enregistré" if saved else "Enregistrer",
+                icon="orbit",
+                state="saved" if saved else "available",
+                url=reverse("opportunities:save-toggle", args=[opportunity_id]),
+            ),
+            primary=primary,
+            share=ActionPresentation(
+                code="share",
+                role="share",
+                label="Partager",
+                icon="share-2",
+                state="available",
+                url=reverse("sharing:create-opportunity", args=[opportunity_id]),
+            ),
+        ),
+        url=item["url"],
     )
 
 
