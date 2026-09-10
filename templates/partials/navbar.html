@@ -1,7 +1,7 @@
 {% load notification_tags profile_activation_tags conversation_tags %}
 {% unread_notifications_count request.user as unread_notifications %}
 {% if request.user.is_authenticated %}{% profile_activation_summary as activation %}{% conversation_attention_badge request.user as conversation_attention %}{% endif %}
-<header class="mk-topbar sticky top-0 z-40 h-[72px]">
+<header id="app-topbar" class="mk-topbar sticky top-0 z-40 h-[72px]">
     <div class="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <div class="flex min-w-0 items-center gap-3">
             <button type="button" @click="sidebarOpen=true" class="mk-icon-btn mk-mobile-nav-trigger lg:hidden" aria-label="Ouvrir la navigation" aria-controls="app-sidebar" :aria-expanded="sidebarOpen ? 'true' : 'false'"><i data-lucide="menu" class="h-5 w-5"></i></button>

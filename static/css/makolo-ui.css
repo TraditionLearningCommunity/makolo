@@ -66,6 +66,27 @@ body {
 
 .mk-app-shell { min-height: 100vh; }
 .mk-content-bg { background: transparent !important; }
+#main-content { position: relative; }
+#main-content.htmx-request .mk-page {
+  opacity: .62;
+  transform: translateY(4px) scale(.998);
+  transition: opacity .16s ease, transform .16s ease;
+}
+#main-content.htmx-request::before {
+  content: "";
+  position: absolute;
+  top: .5rem;
+  left: 50%;
+  z-index: 5;
+  width: min(220px, 42vw);
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--mk-brand), transparent);
+  opacity: .72;
+  transform: translateX(-50%);
+  animation: mk-shell-progress .9s ease-in-out infinite;
+  pointer-events: none;
+}
 .mk-page { animation: mk-page-in .36s cubic-bezier(.22,.8,.3,1) both; }
 .mk-page-shell { width: min(100%, 1500px); margin-inline: auto; }
 
@@ -369,6 +390,10 @@ tbody tr:hover { background: color-mix(in srgb, var(--mk-brand-soft) 35%, transp
 @keyframes mk-page-in {
   from { opacity: 0; transform: translateY(7px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes mk-shell-progress {
+  0%, 100% { opacity: .28; transform: translateX(-50%) scaleX(.45); }
+  50% { opacity: .82; transform: translateX(-50%) scaleX(1); }
 }
 @keyframes mk-toast-in {
   from { opacity: 0; transform: translateY(-8px) scale(.985); }
