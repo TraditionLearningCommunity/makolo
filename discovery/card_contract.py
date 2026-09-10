@@ -220,7 +220,7 @@ def present_opportunity_card(item: dict, *, saved: bool = False) -> DiscoveryCar
         )
     facts: list[FactPresentation] = []
     if item.get("kind_label"):
-        facts.append(FactPresentation("kind", "Type", item["kind_label"], "target", 10))
+        facts.append(FactPresentation("kind", "Type", item["kind_label"], "sparkles", 10))
     facts.append(
         FactPresentation(
             "state",
