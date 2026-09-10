@@ -1,0 +1,144 @@
+{
+  "model": "frontiere-opportunite-makolo-personal-lab-v1",
+  "profile": "profile:christophe-demo",
+  "invariants": {
+    "person_context_only": true,
+    "weighted_score_used": false,
+    "space_authority_may_enter_personal_pool": false,
+    "priority_gate_precedes_pareto": true
+  },
+  "snapshots": [
+    {
+      "tick": 0,
+      "active_personal_targets": [
+        "action-network:mentor-proposal",
+        "conversation:revisit-travel",
+        "discover:concert-tonight",
+        "discover:workshop-ai",
+        "dossier:study-abroad",
+        "journey:university-payment",
+        "journey:visa-form",
+        "opportunity:scholarship",
+        "prepared-start:identity-confirmation"
+      ],
+      "excluded_space_targets": [
+        "space-action-network:partner",
+        "space-conversation:resolve",
+        "space-dossier:critical-blocker"
+      ],
+      "gate_priority": "P1_REQUIRED",
+      "local_front_sizes": {
+        "action-network:mentor-proposal": 1,
+        "journey:university-payment": 2,
+        "journey:visa-form": 1,
+        "prepared-start:identity-confirmation": 1
+      },
+      "screened_targets": [
+        "prepared-start:identity-confirmation"
+      ],
+      "frontier_targets": [
+        "action-network:mentor-proposal",
+        "journey:university-payment",
+        "journey:visa-form"
+      ],
+      "frontier_points": [
+        {
+          "target_key": "action-network:mentor-proposal",
+          "target_label": "Répondre à une proposition de mentorat reçue personnellement",
+          "source_domain": "social/action_network",
+          "plan_key": "review-respond",
+          "plan_label": "Relire puis répondre",
+          "cost": {"user_minutes": 3, "cash_cents": 0, "travel_minutes": 0, "steps_remaining": 1}
+        },
+        {
+          "target_key": "journey:university-payment",
+          "target_label": "Régler l’obligation de paiement de la démarche universitaire",
+          "source_domain": "payments/readiness",
+          "plan_key": "card",
+          "plan_label": "Payer par carte",
+          "cost": {"user_minutes": 4, "cash_cents": 250, "travel_minutes": 0, "steps_remaining": 0}
+        },
+        {
+          "target_key": "journey:visa-form",
+          "target_label": "Compléter le formulaire obligatoire du visa",
+          "source_domain": "journeys/forms/readiness",
+          "plan_key": "reuse-library",
+          "plan_label": "Réutiliser le document déjà en bibliothèque",
+          "cost": {"user_minutes": 8, "cash_cents": 0, "travel_minutes": 0, "steps_remaining": 0}
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "active_personal_targets": [
+        "action-network:mentor-proposal",
+        "conversation:revisit-travel",
+        "discover:concert-tonight",
+        "discover:workshop-ai",
+        "dossier:study-abroad",
+        "journey:visa-form",
+        "opportunity:scholarship",
+        "prepared-start:identity-confirmation"
+      ],
+      "excluded_space_targets": ["space-action-network:partner", "space-conversation:resolve", "space-dossier:critical-blocker"],
+      "gate_priority": "P1_REQUIRED",
+      "local_front_sizes": {"action-network:mentor-proposal": 1, "journey:visa-form": 1, "prepared-start:identity-confirmation": 1},
+      "screened_targets": ["prepared-start:identity-confirmation"],
+      "frontier_targets": ["action-network:mentor-proposal", "journey:visa-form"],
+      "frontier_points": [
+        {"target_key": "action-network:mentor-proposal", "target_label": "Répondre à une proposition de mentorat reçue personnellement", "source_domain": "social/action_network", "plan_key": "review-respond", "plan_label": "Relire puis répondre", "cost": {"user_minutes": 3, "cash_cents": 0, "travel_minutes": 0, "steps_remaining": 1}},
+        {"target_key": "journey:visa-form", "target_label": "Compléter le formulaire obligatoire du visa", "source_domain": "journeys/forms/readiness", "plan_key": "reuse-library", "plan_label": "Réutiliser le document déjà en bibliothèque", "cost": {"user_minutes": 8, "cash_cents": 0, "travel_minutes": 0, "steps_remaining": 0}}
+      ]
+    },
+    {
+      "tick": 2,
+      "active_personal_targets": ["action-network:mentor-proposal", "conversation:revisit-travel", "discover:concert-tonight", "discover:workshop-ai", "dossier:study-abroad", "opportunity:scholarship", "prepared-start:identity-confirmation"],
+      "excluded_space_targets": ["space-action-network:partner", "space-conversation:resolve", "space-dossier:critical-blocker"],
+      "gate_priority": "P1_REQUIRED",
+      "local_front_sizes": {"action-network:mentor-proposal": 1, "prepared-start:identity-confirmation": 1},
+      "screened_targets": ["prepared-start:identity-confirmation"],
+      "frontier_targets": ["action-network:mentor-proposal"],
+      "frontier_points": [
+        {"target_key": "action-network:mentor-proposal", "target_label": "Répondre à une proposition de mentorat reçue personnellement", "source_domain": "social/action_network", "plan_key": "review-respond", "plan_label": "Relire puis répondre", "cost": {"user_minutes": 3, "cash_cents": 0, "travel_minutes": 0, "steps_remaining": 1}}
+      ]
+    },
+    {
+      "tick": 3,
+      "active_personal_targets": ["conversation:revisit-travel", "discover:concert-tonight", "discover:workshop-ai", "dossier:study-abroad", "opportunity:scholarship", "prepared-start:identity-confirmation"],
+      "excluded_space_targets": ["space-action-network:partner", "space-conversation:resolve", "space-dossier:critical-blocker"],
+      "gate_priority": "P1_REQUIRED",
+      "local_front_sizes": {"prepared-start:identity-confirmation": 1},
+      "screened_targets": [],
+      "frontier_targets": ["prepared-start:identity-confirmation"],
+      "frontier_points": [
+        {"target_key": "prepared-start:identity-confirmation", "target_label": "Confirmer une preuve d’identité réutilisable", "source_domain": "opportunities/prepared_start", "plan_key": "confirm-proof", "plan_label": "Vérifier et confirmer la preuve", "cost": {"user_minutes": 15, "cash_cents": 0, "travel_minutes": 10, "steps_remaining": 1}}
+      ]
+    },
+    {
+      "tick": 4,
+      "active_personal_targets": ["conversation:revisit-travel", "discover:concert-tonight", "discover:workshop-ai", "dossier:study-abroad", "opportunity:scholarship"],
+      "excluded_space_targets": ["space-action-network:partner", "space-conversation:resolve", "space-dossier:critical-blocker"],
+      "gate_priority": "P3_PROGRESS",
+      "local_front_sizes": {"conversation:revisit-travel": 1, "dossier:study-abroad": 2, "opportunity:scholarship": 1},
+      "screened_targets": ["opportunity:scholarship"],
+      "frontier_targets": ["conversation:revisit-travel", "dossier:study-abroad"],
+      "frontier_points": [
+        {"target_key": "conversation:revisit-travel", "target_label": "Revoir un point de conversation personnel planifié", "source_domain": "conversations", "plan_key": "revisit", "plan_label": "Revoir le point", "cost": {"user_minutes": 5, "cash_cents": 0, "travel_minutes": 0, "steps_remaining": 2}},
+        {"target_key": "dossier:study-abroad", "target_label": "Faire avancer le Dossier personnel Étudier à l’étranger", "source_domain": "objectives/dossier", "plan_key": "review-plan", "plan_label": "Relire le plan du Dossier", "cost": {"user_minutes": 10, "cash_cents": 0, "travel_minutes": 0, "steps_remaining": 1}}
+      ]
+    },
+    {
+      "tick": 5,
+      "active_personal_targets": ["discover:concert-tonight", "discover:workshop-ai"],
+      "excluded_space_targets": ["space-action-network:partner", "space-conversation:resolve", "space-dossier:critical-blocker"],
+      "gate_priority": "P4_INFORMATION",
+      "local_front_sizes": {"discover:concert-tonight": 1, "discover:workshop-ai": 1},
+      "screened_targets": [],
+      "frontier_targets": ["discover:concert-tonight", "discover:workshop-ai"],
+      "frontier_points": [
+        {"target_key": "discover:concert-tonight", "target_label": "Concert accessible ce soir", "source_domain": "discovery/occurrence", "plan_key": "taxi", "plan_label": "Y aller en taxi", "cost": {"user_minutes": 8, "cash_cents": 1800, "travel_minutes": 8, "steps_remaining": 0}},
+        {"target_key": "discover:workshop-ai", "target_label": "Atelier IA demain", "source_domain": "discovery/occurrence", "plan_key": "register", "plan_label": "S’inscrire et s’y rendre", "cost": {"user_minutes": 7, "cash_cents": 0, "travel_minutes": 35, "steps_remaining": 1}}
+      ]
+    }
+  ]
+}
