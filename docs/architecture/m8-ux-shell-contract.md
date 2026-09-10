@@ -29,7 +29,7 @@ Destinations canoniques :
 3. **Mes démarches** — ce que j'ai commencé ou ce qui reste à accomplir.
 4. **Mes Espaces** — agir dans un contexte d'autorité explicite.
 
-Ces destinations ne doivent pas être dupliquées par des cartes permanentes équivalentes dans la sidebar.
+`Découvrir` peut aussi rester présenté comme carte d'appel en bas de sidebar, parce que cette carte n'introduit pas une deuxième vérité de navigation : elle pointe vers la même destination canonique et sert de rappel visuel de la promesse exploratoire. Les autres destinations ne doivent pas être dupliquées en cartes permanentes équivalentes.
 
 ### 2. Retrouver
 
@@ -78,6 +78,14 @@ Contrat :
 - fallback HTML complet obligatoire sans JavaScript ;
 - aucun formulaire destructif ou flux critique ne passe en navigation partielle avant audit.
 
+Implémentation de ce slice :
+
+- boost htmx limité au rail personnel `Avancer` / `Retrouver`, à la bottom nav mobile et à la carte `Découvrir` ;
+- swap principal sur `#main-content` ;
+- swaps out-of-band pour topbar, sidebar desktop, sidebar mobile et bottom nav mobile afin de garder titre, active state et actions de contexte synchronisés ;
+- indicateur discret sur `#main-content` pendant la requête ;
+- les liens d'Espace, d'opérations, de plateformes et les formulaires restent en navigation HTML complète.
+
 Premières routes candidates :
 
 - `/me/` ;
@@ -112,11 +120,12 @@ Accueil ne devient pas un feed. Discover reste l'espace exploratoire.
 
 - `Profil` n'apparaît plus comme lien primaire permanent dans la sidebar personnelle.
 - `Conversations` n'apparaît plus comme lien primaire permanent dans la sidebar personnelle ni dans la bottom nav mobile.
-- `Découvrir` devient une destination primaire explicite, non une carte de bas de sidebar.
+- `Découvrir` devient une destination primaire explicite et conserve sa carte d'appel en bas de sidebar.
 - Le menu utilisateur garde l'accès au Profil.
 - La topbar garde l'accès Conversation seulement comme action d'attention.
+- Les routes personnelles stables peuvent utiliser le shell progressif htmx avec fallback HTML complet.
 - Les tests existants restent verts.
 
 ## Suite
 
-Le prochain slice doit traiter l'app shell progressif htmx : navigation partielle, indicateur discret de chargement, mise à jour du titre/topbar, back/forward, et fallback no-JS.
+Le prochain slice doit traiter la finition visuelle et comportementale après validation bêta : perception mobile/tablette, polish de `/me/`, tests E2E de back/forward htmx si les gates actuels valident le contrat, et audit no-JS/accessibilité.
