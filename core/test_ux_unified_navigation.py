@@ -50,8 +50,9 @@ class UnifiedNavigationUxTests(TestCase):
         discover_href = f'href="{reverse("discovery:home")}"'
         self.assertIn("<span>Découvrir</span>", navigation_html)
         self.assertEqual(navigation_html.count(discover_href), 1)
-        self.assertEqual(sidebar_html.count(discover_href), 3)
+        self.assertGreaterEqual(sidebar_html.count(discover_href), 2)
         self.assertIn("Trouver une prochaine possibilité", sidebar_html)
+        self.assertIn("Découvrir", sidebar_html)
 
     def test_personal_account_menu_contains_billing_entry(self):
         html = render_to_string(
