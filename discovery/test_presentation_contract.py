@@ -282,7 +282,9 @@ class DiscoveryPresentationWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Accompagnement candidature")
         self.assertContains(response, "Commencer")
-        self.assertContains(
+        expected_login = f"{reverse('core:login')}?next=/discover/%3Fvertical%3Dservice"
+        self.assertContains(response, expected_login, count=2)
+        self.assertNotContains(
             response,
             reverse("sharing:create-activity", args=[service_activity.pk]),
         )
