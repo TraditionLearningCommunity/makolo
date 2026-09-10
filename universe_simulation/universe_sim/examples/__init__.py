@@ -1,4 +1,13 @@
 from .catalogue import PLANETES_DEMO, PlaneteDemo
+from .multigalaxy_catalogue import (
+    CONFIGURATIONS_MULTI_GALAXIES,
+    CatalogueMultiGalaxies,
+    ConfigurationMultiGalaxies,
+    TypeCadreCatalogue,
+    TypeEntiteCatalogue,
+    compteurs_configuration,
+    generer_catalogue_multi_galaxies,
+)
 from .scenes import (
     SCENES,
     DefinitionScene,
@@ -13,6 +22,13 @@ from .solar_system import construire_systeme_solaire_minimal
 __all__ = [
     "PlaneteDemo",
     "PLANETES_DEMO",
+    "ConfigurationMultiGalaxies",
+    "CatalogueMultiGalaxies",
+    "TypeEntiteCatalogue",
+    "TypeCadreCatalogue",
+    "CONFIGURATIONS_MULTI_GALAXIES",
+    "compteurs_configuration",
+    "generer_catalogue_multi_galaxies",
     "DefinitionScene",
     "SCENES",
     "construire_scene",
