@@ -122,8 +122,8 @@ def run(args) -> tuple[Path, Path | None]:
     root = Path(args.output_dir) / f"{timestamp}_{args.scale}_{int(args.years)}y"
     root.mkdir(parents=True, exist_ok=False)
     scenario = construire_scenario_multi_galaxies(args.scale, args.years)
-    sauvegarder_catalogue(scenario.catalogue, root)
 
+    execution = None
     if args.hybrid:
         spins = None
         if args.kerr_demo:
@@ -135,6 +135,12 @@ def run(args) -> tuple[Path, Path | None]:
             precision_transition_gr=args.gr_precision,
             spins_bh=spins,
         )
+
+    # Persist only after hybrid target preparation so the saved catalogue is
+    # exactly the set of initial conditions used by the run.
+    sauvegarder_catalogue(scenario.catalogue, root)
+
+    if execution is not None:
         persistence = SessionPersistanceGrandeEchelleMultiDomaine(
             ConfigurationSessionGrandeEchelle(root / "run", frames_par_chunk=args.frames_per_chunk)
         )
