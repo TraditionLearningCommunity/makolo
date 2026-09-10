@@ -28,14 +28,15 @@ class UnifiedNavigationUxTests(TestCase):
             {"request": self._request(), "space_console": None},
         )
 
-        for label in ("Accueil", "Mes démarches", "Mes accès", "Historique"):
+        for label in ("Accueil", "Découvrir", "Mes démarches", "Mes accès", "Historique"):
             self.assertIn(label, html)
-        self.assertNotIn("Découvrir", html)
+        self.assertNotIn("<span>Profil</span>", html)
+        self.assertNotIn("<span>Conversations</span>", html)
         self.assertNotIn(">Services<", html)
         self.assertNotIn(">Opportunités<", html)
         self.assertNotIn(">Abonnement<", html)
 
-    def test_discover_is_the_anchored_personal_sidebar_cta_without_primary_duplication(self):
+    def test_discover_is_primary_destination_and_anchored_sidebar_cta(self):
         request = self._request()
         sidebar_html = render_to_string(
             "partials/sidebar.html",
@@ -47,9 +48,11 @@ class UnifiedNavigationUxTests(TestCase):
         )
 
         discover_href = f'href="{reverse("discovery:home")}"'
-        self.assertEqual(sidebar_html.count("Découvrir"), 2)
-        self.assertEqual(sidebar_html.count(discover_href), 2)
-        self.assertNotIn("Découvrir", navigation_html)
+        self.assertIn("<span>Découvrir</span>", navigation_html)
+        self.assertEqual(navigation_html.count(discover_href), 1)
+        self.assertGreaterEqual(sidebar_html.count(discover_href), 2)
+        self.assertIn("Trouver une prochaine possibilité", sidebar_html)
+        self.assertIn("Découvrir", sidebar_html)
 
     def test_personal_account_menu_contains_billing_entry(self):
         html = render_to_string(
