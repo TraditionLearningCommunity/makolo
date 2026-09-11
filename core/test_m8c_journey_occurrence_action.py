@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from access.models import Access, AccessCredential, AccessStatus
-from access.services import render_access_credential
+from access.services import issue_access, render_access_credential, revoke_access
 from activities.models import (
     Activity,
     Occurrence,
@@ -86,8 +86,16 @@ class M8CJourneyOccurrenceActionWebTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_pending_access_is_waiting_not_presented_as_user_action(self):
-        self.access.status = AccessStatus.PENDING
-        self.access.save(update_fields=["status", "updated_at"])
+        revoke_access(access=self.access)
+        self.access = issue_access(
+            beneficiary=self.participant,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            journey=self.journey,
+            status=AccessStatus.PENDING,
+            source_key="m8c:web:pending",
+            create_credential=False,
+        )
         self.client.force_login(self.participant)
         response = self.client.get(reverse("core:participant-journey-detail", args=[self.journey.pk]))
         self.assertEqual(response.status_code, 200)
@@ -131,9 +139,20 @@ class M8CJourneyOccurrenceActionWebTests(TestCase):
         self.occurrence.start_at = None
         self.occurrence.end_at = None
         self.occurrence.start_date = target
+        self.occurrence.start_time = None
         self.occurrence.end_date = target
+        self.occurrence.end_time = None
         self.occurrence.save(
-            update_fields=["timing_kind", "start_at", "end_at", "start_date", "end_date", "updated_at"]
+            update_fields=[
+                "timing_kind",
+                "start_at",
+                "end_at",
+                "start_date",
+                "start_time",
+                "end_date",
+                "end_time",
+                "updated_at",
+            ]
         )
         self.client.force_login(self.participant)
         response = self.client.get(reverse("core:participant-occurrence-live", args=[self.occurrence.pk]))
