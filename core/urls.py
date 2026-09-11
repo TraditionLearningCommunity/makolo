@@ -10,6 +10,7 @@ from .participant_views import (
     ParticipantInvitationDeclineView,
     ParticipantJourneyDetailView,
     ParticipantJourneyListView,
+    ParticipantOccurrenceLiveView,
 )
 from .views import DashboardView, PublicHomeView, RateLimitedLoginView
 
@@ -39,6 +40,11 @@ urlpatterns = [
         "me/journeys/<uuid:pk>/invitation/decline/",
         ParticipantInvitationDeclineView.as_view(),
         name="participant-invitation-decline",
+    ),
+    path(
+        "me/occurrences/<uuid:pk>/live/",
+        ParticipantOccurrenceLiveView.as_view(),
+        name="participant-occurrence-live",
     ),
     path("me/accesses/", ParticipantAccessListView.as_view(), name="participant-accesses"),
     path(
