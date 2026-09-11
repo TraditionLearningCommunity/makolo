@@ -46,7 +46,10 @@ test.describe('M8-C action rituals', () => {
     await expect(page.getByText('Ce qui compte maintenant')).toBeVisible();
     await expect(page.getByRole('heading', { name: /C’est votre tour/ })).toBeVisible();
     await expect(page.getByText('Zone A · Place 7')).toBeVisible();
-    await expect(page.getByText('Guichet live')).toBeVisible();
+    const queueBlock = page
+      .locator('section[aria-labelledby="live-place-flow"] > div > div')
+      .filter({ hasText: 'File live' });
+    await expect(queueBlock.getByText('Guichet live', { exact: true })).toBeVisible();
   });
 
   test('ended occurrence removes live movement instructions', async ({ page }) => {
