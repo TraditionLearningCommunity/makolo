@@ -2,15 +2,14 @@ from django.contrib.auth.views import LogoutView
 from django.urls import path
 
 from .home_views import MatureParticipantHomeView
+from .m8c_participant_views import ParticipantJourneyDetailView, ParticipantOccurrenceLiveView
 from .participant_views import (
     ParticipantAccessDetailView,
     ParticipantAccessListView,
     ParticipantHistoryView,
     ParticipantInvitationAcceptView,
     ParticipantInvitationDeclineView,
-    ParticipantJourneyDetailView,
     ParticipantJourneyListView,
-    ParticipantOccurrenceLiveView,
 )
 from .views import DashboardView, PublicHomeView, RateLimitedLoginView
 
