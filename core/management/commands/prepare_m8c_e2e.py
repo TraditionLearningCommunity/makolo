@@ -143,6 +143,7 @@ class Command(BaseCommand):
     ):
         activity = Activity.objects.create(
             created_by=owner,
+            owner_profile=owner,
             title=title,
             status=ActivityStatus.PUBLISHED,
         )
