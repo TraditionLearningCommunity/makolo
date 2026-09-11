@@ -159,3 +159,28 @@ class M8CJourneyOccurrenceActionWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Heure à confirmer")
         self.assertNotContains(response, "00:00")
+
+    def test_personal_access_links_back_to_its_journey(self):
+        self.client.force_login(self.participant)
+        response = self.client.get(reverse("core:participant-access-detail", args=[self.access.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Voir ma préparation")
+        self.assertContains(response, reverse("core:participant-journey-detail", args=[self.journey.pk]))
+
+    def test_multi_role_profile_keeps_participant_safe_personal_projection(self):
+        self.activity.owner_profile = self.participant
+        self.activity.save(update_fields=["owner_profile", "updated_at"])
+        self.occurrence.start_at = self.now - timedelta(minutes=5)
+        self.occurrence.end_at = self.now + timedelta(hours=2)
+        self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+
+        self.client.force_login(self.participant)
+        live_response = self.client.get(reverse("core:participant-occurrence-live", args=[self.occurrence.pk]))
+        self.assertEqual(live_response.status_code, 200)
+        self.assertEqual(live_response.context["live"]["perspective"], "participant")
+        self.assertContains(live_response, "Ce qui compte maintenant")
+
+        journey_response = self.client.get(reverse("core:participant-journey-detail", args=[self.journey.pk]))
+        self.assertEqual(journey_response.status_code, 200)
+        self.assertEqual(journey_response.context["live"]["perspective"], "participant")
+        self.assertContains(journey_response, reverse("core:participant-occurrence-live", args=[self.occurrence.pk]))
