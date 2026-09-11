@@ -92,6 +92,7 @@ def public_opportunity_discovery_items(
                     "title": revision.title,
                     "summary": revision.summary,
                     "issuer_name": revision.issuer_name,
+                    "kind_label": opportunity.get_kind_display(),
                     "url": reverse("opportunities:detail", kwargs={"pk": opportunity.pk}),
                     "cta_label": "Voir l’opportunité",
                     "state_label": state_label,
