@@ -1,6 +1,8 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
+from django.views.generic import TemplateView
 
 from activities.models import Occurrence
 from journeys.models import JourneyStatus
@@ -9,10 +11,7 @@ from operations.participant_occurrence_live import resolve_participant_occurrenc
 from .participant_action_presentation import journey_action_presentation, occurrence_live_presentation
 from .participant_presentation import occurrence_timing
 from .participant_selectors import participant_journeys
-from .participant_views import (
-    ParticipantJourneyDetailView as BaseParticipantJourneyDetailView,
-    ParticipantOccurrenceLiveView as BaseParticipantOccurrenceLiveView,
-)
+from .participant_views import ParticipantJourneyDetailView as BaseParticipantJourneyDetailView
 
 
 class ParticipantJourneyDetailView(BaseParticipantJourneyDetailView):
@@ -43,11 +42,14 @@ class ParticipantJourneyDetailView(BaseParticipantJourneyDetailView):
         return context
 
 
-class ParticipantOccurrenceLiveView(BaseParticipantOccurrenceLiveView):
+class ParticipantOccurrenceLiveView(LoginRequiredMixin, TemplateView):
     """Personal Occurrence Live surface that never escalates to operator data."""
 
+    template_name = "core/participant_occurrence_live.html"
+    login_url = "core:login"
+
     def get_context_data(self, **kwargs):
-        context = super(BaseParticipantOccurrenceLiveView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         occurrence = get_object_or_404(
             Occurrence.objects.select_related("activity").prefetch_related("place_links__place"),
             pk=kwargs["pk"],
