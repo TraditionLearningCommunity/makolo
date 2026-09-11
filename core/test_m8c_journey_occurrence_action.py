@@ -28,7 +28,7 @@ class M8CJourneyOccurrenceActionWebTests(TestCase):
         self.owner = User.objects.create_user(username="m8c-owner", email="m8c-owner@example.test", password="pw")
         self.participant = User.objects.create_user(username="m8c-participant", email="m8c-participant@example.test", password="pw")
         self.outsider = User.objects.create_user(username="m8c-outsider", email="m8c-outsider@example.test", password="pw")
-        self.activity = Activity.objects.create(created_by=self.owner, title="Atelier M8-C")
+        self.activity = Activity.objects.create(created_by=self.owner, owner_profile=self.owner, title="Atelier M8-C")
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
             label="Session principale",
