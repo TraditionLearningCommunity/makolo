@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from access.models import Access, AccessStatus
+from access.services import issue_access, revoke_access
 from activities.models import Activity, Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
@@ -64,8 +65,16 @@ class M8CParticipantOccurrenceLiveProjectionTests(TestCase):
         self.assertEqual(payload["next_action"]["reason"], "before_no_immediate_action")
 
     def test_pending_access_is_waiting_not_regularization(self):
-        self.access.status = AccessStatus.PENDING
-        self.access.save(update_fields=["status", "updated_at"])
+        revoke_access(access=self.access)
+        self.access = issue_access(
+            beneficiary=self.participant,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            journey=self.journey,
+            status=AccessStatus.PENDING,
+            source_key="m8c:operations:pending",
+            create_credential=False,
+        )
         payload = self._payload()
         self.assertEqual(payload["next_action"]["type"], "access_wait")
         self.assertEqual(payload["next_action"]["reason"], "participant_access_pending")
@@ -94,9 +103,20 @@ class M8CParticipantOccurrenceLiveProjectionTests(TestCase):
         self.occurrence.start_at = None
         self.occurrence.end_at = None
         self.occurrence.start_date = target_date
+        self.occurrence.start_time = None
         self.occurrence.end_date = target_date
+        self.occurrence.end_time = None
         self.occurrence.save(
-            update_fields=["timing_kind", "start_at", "end_at", "start_date", "end_date", "updated_at"]
+            update_fields=[
+                "timing_kind",
+                "start_at",
+                "end_at",
+                "start_date",
+                "start_time",
+                "end_date",
+                "end_time",
+                "updated_at",
+            ]
         )
         payload = self._payload()
         self.assertEqual(payload["phase"], "before")
