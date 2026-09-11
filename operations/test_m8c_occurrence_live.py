@@ -20,7 +20,11 @@ class M8CParticipantOccurrenceLiveProjectionTests(TestCase):
         self.now = timezone.now()
         self.owner = User.objects.create_user(username="m8c-live-owner", email="m8c-live-owner@example.test", password="pw")
         self.participant = User.objects.create_user(username="m8c-live", email="m8c-live@example.test", password="pw")
-        self.activity = Activity.objects.create(created_by=self.owner, title="M8-C action réelle")
+        self.activity = Activity.objects.create(
+            created_by=self.owner,
+            owner_profile=self.owner,
+            title="M8-C action réelle",
+        )
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
             label="Session M8-C",
