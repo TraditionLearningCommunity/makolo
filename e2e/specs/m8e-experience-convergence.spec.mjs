@@ -19,7 +19,7 @@ test('mature personal navigation keeps action surfaces coherent on desktop', asy
   await expect(sidebar.getByRole('link', { name: /Découvrir/ })).toHaveCount(1);
 
   await sidebar.getByRole('link', { name: 'Conversations', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Conversations', exact: true })).toBeVisible();
+  await expect(page.locator('h1').filter({ hasText: /^Conversations$/ })).toBeVisible();
   await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Conversations', exact: true })).toHaveAttribute('aria-current', 'page');
 
   await page.locator('#desktop-sidebar').getByRole('link', { name: 'Profil', exact: true }).click();
