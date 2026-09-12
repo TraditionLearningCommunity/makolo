@@ -228,7 +228,7 @@ def incidents_for_console(context):
 def automation_rules_for_console(context):
     queryset = AutomationRule.objects.filter(space=context.space)
     if context.activity_ids is not None:
-        queryset = queryset.filter(Q(activity_id__in=context.activity_ids) | Q(activity__isnull=True))
+        queryset = queryset.filter(activity_id__in=context.activity_ids)
     return queryset.select_related("activity").prefetch_related("executions").order_by("name", "id")
 
 
@@ -276,7 +276,13 @@ def overview_for_console(context):
     if "payments" in visible and context.can_view_finance:
         action_items["payments"] = payments_for_console(context).filter(status__in={PaymentStatus.PENDING, PaymentStatus.FAILED}).count()
     if "automation" in visible:
-        action_items["automations"] = AutomationExecution.objects.filter(rule__space=context.space, status=DomainAutomationExecutionStatus.FAILED).count()
+        failed_automations = AutomationExecution.objects.filter(
+            rule__space=context.space,
+            status=DomainAutomationExecutionStatus.FAILED,
+        )
+        if context.activity_ids is not None:
+            failed_automations = failed_automations.filter(rule__activity_id__in=context.activity_ids)
+        action_items["automations"] = failed_automations.count()
     if "offers" in visible:
         for pool in capacity_for_console(context):
             availability = pool.console_availability
@@ -289,9 +295,9 @@ def overview_for_console(context):
     occurrences = upcoming_occurrences(context, limit=6) if "activities" in visible else []
     return {
         "action_items": action_items,
+        "all_clear": not any(action_items.values()),
         "pending_requests": pending_requests[:5],
         "open_incidents": open_incidents[:5],
         "critical_capacity": critical_capacity[:5],
         "upcoming_occurrences": occurrences,
-        "analytics": analytics_summary(context),
     }
