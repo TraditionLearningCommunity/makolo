@@ -2,13 +2,13 @@ from django.contrib.auth.views import LogoutView
 from django.urls import path
 
 from .home_views import MatureParticipantHomeView
+from .m8c_participant_views import ParticipantJourneyDetailView, ParticipantOccurrenceLiveView
 from .participant_views import (
     ParticipantAccessDetailView,
     ParticipantAccessListView,
     ParticipantHistoryView,
     ParticipantInvitationAcceptView,
     ParticipantInvitationDeclineView,
-    ParticipantJourneyDetailView,
     ParticipantJourneyListView,
 )
 from .views import DashboardView, PublicHomeView, RateLimitedLoginView
@@ -39,6 +39,11 @@ urlpatterns = [
         "me/journeys/<uuid:pk>/invitation/decline/",
         ParticipantInvitationDeclineView.as_view(),
         name="participant-invitation-decline",
+    ),
+    path(
+        "me/occurrences/<uuid:pk>/live/",
+        ParticipantOccurrenceLiveView.as_view(),
+        name="participant-occurrence-live",
     ),
     path("me/accesses/", ParticipantAccessListView.as_view(), name="participant-accesses"),
     path(

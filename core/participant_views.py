@@ -15,13 +15,16 @@ from django.views.generic import TemplateView
 
 from access.models import AccessStatus, CredentialStatus, CredentialType
 from access.services import render_access_credential
+from activities.models import Occurrence
 from activities.selectors import activities_owned_by
 from commerce.models import PaymentMode
 from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
+from operations.occurrence_live import resolve_occurrence_live
 from readiness import ReadinessStatus, resolve_journey_readiness, resolve_many
 from readiness.presentation import readiness_next_action_label, readiness_status_label
 from readiness.selectors import participant_readiness_queryset, readiness_queryset
 
+from .participant_action_presentation import journey_action_presentation, occurrence_live_presentation
 from .participant_actions import participant_accept_invitation, participant_decline_invitation
 from .participant_presentation import (
     access_status_label,
@@ -406,6 +409,10 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         )
         readiness = resolve_journey_readiness(journey, viewer=self.request.user)
         card = _journey_card(journey, readiness=readiness)
+        live = resolve_occurrence_live(occurrence=journey.occurrence, actor=self.request.user) if journey.occurrence else None
+        if live and live.get("perspective") != "participant":
+            live = None
+        mature = journey_action_presentation(journey=journey, readiness=readiness, live=live)
         pending_request = next((request for request in journey.requests.all() if request.status == RequestStatus.PENDING), None)
         rejected_request = next((request for request in journey.requests.all() if request.status == RequestStatus.REJECTED), None)
         order = card["order"]
@@ -418,12 +425,52 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         context.update(
             {
                 **card,
+                "mature": mature,
+                "live": live,
+                "live_url": reverse("core:participant-occurrence-live", kwargs={"pk": journey.occurrence_id}) if live else None,
                 "progress": journey_progress(journey),
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,
                 "can_respond_invitation": journey.workflow == WorkflowKind.INVITATION
                 and journey.status == JourneyStatus.SUBMITTED,
+            }
+        )
+        return context
+
+
+class ParticipantOccurrenceLiveView(LoginRequiredMixin, TemplateView):
+    template_name = "core/participant_occurrence_live.html"
+    login_url = "core:login"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        occurrence = get_object_or_404(
+            Occurrence.objects.select_related("activity").prefetch_related("place_links__place"),
+            pk=kwargs["pk"],
+        )
+        payload = resolve_occurrence_live(occurrence=occurrence, actor=self.request.user)
+        if payload is None or payload.get("perspective") != "participant":
+            from django.http import Http404
+            raise Http404
+        journey = (
+            participant_journeys(self.request.user)
+            .filter(occurrence=occurrence)
+            .exclude(status__in={JourneyStatus.REJECTED, JourneyStatus.CANCELLED, JourneyStatus.EXPIRED})
+            .order_by("created_at", "id")
+            .first()
+        )
+        access_id = next((row["id"] for row in payload["access"] if row["usable"]), None)
+        if access_id is None and payload["access"]:
+            access_id = payload["access"][0]["id"]
+        context.update(
+            {
+                "occurrence": occurrence,
+                "journey": journey,
+                "live": payload,
+                "live_ui": occurrence_live_presentation(payload=payload, timing=occurrence_timing(occurrence)),
+                "journey_url": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}) if journey else None,
+                "access_url": reverse("core:participant-access-detail", kwargs={"pk": access_id}) if access_id else None,
             }
         )
         return context

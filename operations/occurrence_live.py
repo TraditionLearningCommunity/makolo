@@ -196,7 +196,7 @@ def _participant_specific_checks(*, actor, occurrence, now):
                 ReadinessCheck(
                     key="operations.placement.me",
                     source="operations.placement",
-                    state=ReadinessCheckState.ACTION_REQUIRED,
+                    state=ReadinessCheckState.WAITING,
                     blocking=False,
                     reason_code="participant_placement_missing",
                     summary="Un placement obligatoire n’est pas encore attribué.",
@@ -251,8 +251,11 @@ def _occurrence_payload(occurrence):
 def _timing_payload(occurrence, now):
     temporal = get_temporal_context(occurrence, now=now)
     return {
+        "timing_kind": occurrence.timing_kind,
         "start_at": occurrence.start_at,
         "end_at": occurrence.end_at,
+        "start_date": occurrence.start_date,
+        "end_date": occurrence.end_date,
         "timezone": occurrence.timezone,
         "temporal_state": temporal.state.value,
     }
@@ -356,7 +359,14 @@ def _spatial_payload(*, occurrence, journey, now, include_operator_hazards=False
     advices = get_action_advices(occurrence=occurrence, journey=journey, mobility=mobility, hazards=hazards, now=now)
     return {
         "place": (
-            {"id": spatial.place.pk, "name": spatial.place.name}
+            {
+                "id": spatial.place.pk,
+                "name": spatial.place.name,
+                "address_line": spatial.place.address_line,
+                "locality": spatial.place.locality,
+                "timezone": spatial.place.timezone,
+                "access_instructions": spatial.place.access_instructions,
+            }
             if spatial.place is not None
             else None
         ),
@@ -398,6 +408,21 @@ def _participant_next_action(*, occurrence, phase, accesses, placements, flow, q
     if phase == "after":
         return {"type": "none", "source": "activities.occurrence", "reason": "occurrence_completed", "label": "Cette occurrence est terminée."}
 
+    if accesses and not any(row["usable"] for row in accesses):
+        if any(row["status"] == AccessStatus.PENDING for row in accesses):
+            return {
+                "type": "access_wait",
+                "source": "access.access",
+                "reason": "participant_access_pending",
+                "label": "Votre accès est encore en préparation. Attendez sa confirmation avant de poursuivre.",
+            }
+        return {"type": "access", "source": "access.access", "reason": "participant_access_unavailable", "label": "Régularisez votre accès avant de poursuivre."}
+
+    if phase == "before":
+        if spatial["advices"]:
+            return spatial["advices"][0]
+        return {"type": "none", "source": "operations.live", "reason": "before_no_immediate_action", "label": "Aucune action immédiate. Votre préparation reste disponible dans Makolo."}
+
     called = next((row for row in queues if row["status"] == QueueEntryStatus.CALLED), None)
     if called:
         checkpoint = next((row for row in flow["checkpoints"] if row["id"] == called["checkpoint_id"]), None)
@@ -410,8 +435,8 @@ def _participant_next_action(*, occurrence, phase, accesses, placements, flow, q
             "label": f"C’est votre tour. Présentez-vous maintenant à {label}.",
         }
 
-    if accesses and not any(row["usable"] for row in accesses):
-        return {"type": "access", "source": "access.access", "reason": "participant_access_unavailable", "label": "Régularisez votre accès avant de poursuivre."}
+    if phase == "arrival" and spatial["advices"]:
+        return spatial["advices"][0]
 
     next_cp = flow["next_checkpoint"]
     if next_cp and next_cp["blocked_reason"]:

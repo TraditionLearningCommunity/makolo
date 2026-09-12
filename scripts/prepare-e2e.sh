@@ -17,5 +17,6 @@ python manage.py prepare_services_e2e
 python manage.py prepare_subscriptions_e2e
 python manage.py prepare_m2_e2e
 python manage.py prepare_m4_e2e
+python manage.py prepare_m8c_e2e
 python manage.py collectstatic --noinput
 python scripts/validate_static_manifest.py

@@ -1,0 +1,62 @@
+import { expect, test } from '@playwright/test';
+import { login } from '../helpers/auth.mjs';
+
+const PARTICIPANT = 'm8c.participant@e2e.makolo.test';
+
+async function openActiveJourneyFromAccess(page, title) {
+  await page.goto(`/me/accesses/?q=${encodeURIComponent(title)}`);
+  const accessLink = page.getByRole('link').filter({ hasText: title }).first();
+  await expect(accessLink).toBeVisible();
+  await accessLink.click();
+  await page.getByRole('link', { name: 'Voir ma préparation' }).click();
+}
+
+async function openEndedJourneyFromHistory(page, title) {
+  await page.goto(`/me/history/?type=accesses&q=${encodeURIComponent(title)}`);
+  const item = page.locator('article').filter({ hasText: title }).first();
+  await expect(item).toBeVisible();
+  await item.getByRole('link', { name: 'Voir la démarche' }).click();
+}
+
+test.describe('M8-C action rituals', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page, PARTICIPANT);
+  });
+
+  test('preparation is immediately understandable', async ({ page }) => {
+    await openActiveJourneyFromAccess(page, 'M8-C préparation E2E');
+    await expect(page.getByText('Est-ce que tout est prêt ?')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tout est prêt.' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Voir les informations pratiques' })).toBeVisible();
+  });
+
+  test('imminent occurrence hands off to real-world action', async ({ page }) => {
+    await openActiveJourneyFromAccess(page, 'M8-C départ E2E');
+    await expect(page.getByText('Il est temps d’y aller')).toBeVisible();
+    await page.getByRole('link', { name: 'Ouvrir l’action en cours' }).click();
+    await expect(page.getByRole('heading', { name: 'Rejoignez Accueil principal.' })).toBeVisible();
+    await expect(page.getByText('Maison de l’action E2E')).toBeVisible();
+    await expect(page.getByText('Votre accès est prêt')).toBeVisible();
+  });
+
+  test('live occurrence makes the called queue action dominant', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await openActiveJourneyFromAccess(page, 'M8-C action réelle E2E');
+    await page.getByRole('link', { name: 'Ouvrir l’action en cours' }).click();
+    await expect(page.getByText('Ce qui compte maintenant')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /C’est votre tour/ })).toBeVisible();
+    await expect(page.getByText('Zone A · Place 7')).toBeVisible();
+    const queueBlock = page
+      .locator('section[aria-labelledby="live-place-flow"] > div > div')
+      .filter({ hasText: 'File live' });
+    await expect(queueBlock.getByText('Guichet live', { exact: true })).toBeVisible();
+  });
+
+  test('ended occurrence removes live movement instructions', async ({ page }) => {
+    await openEndedJourneyFromHistory(page, 'M8-C fin E2E');
+    await page.getByRole('link', { name: 'Voir l’occurrence' }).click();
+    await expect(page.getByText('Cette activité est terminée')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Cette occurrence est terminée.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sur place' })).toHaveCount(0);
+  });
+});
