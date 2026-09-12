@@ -4,7 +4,7 @@ from django.views.generic import TemplateView
 
 from discovery.recommendations import activity_destination
 
-from .models import ActionProposalStatus
+from .models import ActionProposalDirection, ActionProposalStatus
 from .profile_search import action_proposals_requiring_actor_response, proposals_for_profile
 
 
@@ -32,6 +32,18 @@ class MatureProfileSolicitationsView(LoginRequiredMixin, TemplateView):
         for proposal in proposals:
             proposal.continuation_label = ""
             proposal.continuation_url = ""
+            proposal.response_context_label = "Pour vous"
+            proposal.response_context_detail = "Vous répondez en votre nom."
+
+            response_space = None
+            if proposal.direction == ActionProposalDirection.OWNER_TO_CANDIDATE and proposal.candidate_space_id:
+                response_space = proposal.candidate_space
+            elif proposal.direction == ActionProposalDirection.CANDIDATE_TO_OWNER and proposal.need.space_id:
+                response_space = proposal.need.space
+            if response_space is not None:
+                proposal.response_context_label = f"Pour {response_space.name}"
+                proposal.response_context_detail = f"Vous répondez au nom de {response_space.name}, dans votre autorité actuelle."
+
             if proposal.status == ActionProposalStatus.ACCEPTED:
                 if proposal.need.opportunity_id:
                     proposal.continuation_label = "Voir l’Opportunity"
