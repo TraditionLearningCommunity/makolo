@@ -16,7 +16,7 @@ test('mature personal navigation keeps action surfaces coherent on desktop', asy
   await expect(sidebar.getByRole('link', { name: 'Mes démarches', exact: true })).toBeVisible();
   await expect(sidebar.getByRole('link', { name: 'Conversations', exact: true })).toBeVisible();
   await expect(sidebar.getByRole('link', { name: 'Profil', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: 'Découvrir', exact: true })).toHaveCount(1);
+  await expect(sidebar.getByRole('link', { name: /Découvrir/ })).toHaveCount(1);
 
   await sidebar.getByRole('link', { name: 'Conversations', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Conversations', exact: true })).toBeVisible();
@@ -43,7 +43,7 @@ test('mature mobile shell stays usable from 320px through tablet @mobile', async
     await page.goto('/me/');
     await expectNoHorizontalOverflow(page);
 
-    if (viewport.width < 768) {
+    if (viewport.width < 1024) {
       const mobileNav = page.locator('#mobile-primary-nav');
       await expect(mobileNav).toBeVisible();
       for (const label of ['Accueil', 'Démarches', 'Conversations', 'Profil', 'Plus']) {
