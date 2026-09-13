@@ -50,7 +50,9 @@ class UnifiedNavigationUxTests(TestCase):
 
         discover_href = f'href="{reverse("discovery:home")}"'
         self.assertEqual(navigation_html.count(discover_href), 0)
-        self.assertEqual(sidebar_html.count(discover_href), 1)
+        # The shell renders one anchored Discover CTA per responsive sidebar:
+        # desktop plus the mobile drawer.
+        self.assertEqual(sidebar_html.count(discover_href), 2)
         self.assertIn("Trouver une prochaine possibilité", sidebar_html)
         self.assertIn("Découvrir", sidebar_html)
 
