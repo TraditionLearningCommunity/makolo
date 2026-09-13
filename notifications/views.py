@@ -7,6 +7,7 @@ from django.views.generic import ListView
 
 from accounts.models import NotificationPreference
 from core.participant_selectors import participant_accesses, participant_journeys, participant_orders
+from core.web_navigation import safe_post_next
 
 from .forms import NotificationPreferenceForm
 from .selectors import get_notifications_for_user
@@ -88,7 +89,7 @@ class NotificationMarkReadView(LoginRequiredMixin, View):
     def post(self, request, pk):
         notification = get_object_or_404(get_notifications_for_user(request.user), pk=pk)
         notification.mark_read()
-        return redirect(request.POST.get("next") or "notifications:list")
+        return redirect(safe_post_next(request, fallback="notifications:list"))
 
 
 class NotificationMarkAllReadView(LoginRequiredMixin, View):

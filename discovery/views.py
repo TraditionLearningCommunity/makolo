@@ -14,6 +14,7 @@ from django.views.generic import ListView, TemplateView
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.participant_selectors import participant_state_context
+from core.web_navigation import safe_post_next
 from funding.discovery import present_funding_card, public_funding_discovery_items
 from opportunities.models import OpportunitySave
 from social.models import ActionNeed, ActionNeedIntakePolicy, ActionNeedStatus, ActionNeedVisibility
@@ -325,7 +326,7 @@ class BookmarkToggleView(LoginRequiredMixin, View):
         else:
             bookmark.delete()
             messages.info(request, "Activité retirée de vos enregistrés.")
-        return redirect(request.POST.get("next") or "discovery:home")
+        return redirect(safe_post_next(request, fallback="discovery:home"))
 
 
 class MyEventsView(LoginRequiredMixin, View):
