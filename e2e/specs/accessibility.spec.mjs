@@ -21,10 +21,11 @@ test('public and account entry surfaces have no serious or critical axe violatio
 });
 
 
-test('participant personal space profile and ticket pass axe gate', async ({ page }) => {
+test('participant personal space profile conversations and ticket pass axe gate', async ({ page }) => {
   await login(page, 'visual.participant@e2e.makolo.test');
   await audit(page, '/me/');
   await audit(page, '/account/profile/');
+  await audit(page, '/conversations/');
   await audit(page, '/discover/');
   await audit(page, '/tickets/');
   await page.getByRole('link', { name: /Invitation E2E/i }).first().click();
@@ -32,13 +33,14 @@ test('participant personal space profile and ticket pass axe gate', async ({ pag
 });
 
 
-test('scanner Space and Operations surfaces pass axe gate', async ({ page }) => {
+test('scanner Space Now and Operations surfaces pass axe gate', async ({ page }) => {
   await login(page, 'scanner@e2e.makolo.test');
   await audit(page, '/scanner/event/festival-makolo-e2e/');
 
   await page.context().clearCookies();
   await login(page, 'owner@e2e.makolo.test');
   await audit(page, '/spaces/');
+  await audit(page, `/spaces/${SPACE_SLUG}/overview/`);
 
   await page.context().clearCookies();
   await login(page, 'staff@e2e.makolo.test');

@@ -48,7 +48,7 @@ test.describe('M8-C action rituals', () => {
     await expect(page.getByText('Zone A · Place 7')).toBeVisible();
     const queueBlock = page
       .locator('section[aria-labelledby="live-place-flow"] > div > div')
-      .filter({ hasText: 'File live' });
+      .filter({ hasText: 'Votre file d’attente' });
     await expect(queueBlock.getByText('Guichet live', { exact: true })).toBeVisible();
   });
 
@@ -57,6 +57,7 @@ test.describe('M8-C action rituals', () => {
     await page.getByRole('link', { name: 'Voir l’occurrence' }).click();
     await expect(page.getByText('Cette activité est terminée')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Cette occurrence est terminée.' })).toBeVisible();
+    await expect(page.getByText('Rien d’autre n’est attendu sur place.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Sur place' })).toHaveCount(0);
   });
 });
