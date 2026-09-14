@@ -67,7 +67,9 @@ M9-A ajoute un gate `Security supply chain` pour les workflows gouvernant `main`
 - `npm audit --omit=dev --audit-level=high` ;
 - garde-fou contre les refs GitHub Actions mutables dans les workflows actifs de `main`.
 
-Le premier run du nouveau gate a reproduit un finding critique réel : `maplibre-gl 6.4.0` était affecté par `GHSA-jrc7-96c5-q579` / `CVE-2026-85061`, un contournement du sanitizer XSS. La correction upstream ciblée est `6.4.1`. M9-A a donc mis à jour uniquement cette dépendance directe et son lockfile généré par npm ; `npm ci` puis `npm audit --omit=dev --audit-level=high` passent après correction. Les artifacts frontend versionnés ont ensuite été régénérés avec le lock corrigé afin que le gate de synchronisation du build reste strict. Aucun ignore d'advisory n'a été ajouté.
+Le premier passage `pip-audit` a imposé des mises à niveau ciblées de dépendances runtime déjà présentes, sans ajout de nouvelle capacité : `Django 5.2.14 → 5.2.17`, `djangorestframework 3.16.1 → 3.17.2` et `cryptography 45.0.7 → 50.0.1`. Le gate Python passe avec ces versions et aucun ignore global d'advisory n'est utilisé.
+
+Le premier run du nouveau gate frontend a reproduit un finding critique réel : `maplibre-gl 6.4.0` était affecté par `GHSA-jrc7-96c5-q579` / `CVE-2026-85061`, un contournement du sanitizer XSS. La correction upstream ciblée est `6.4.1`. M9-A a donc mis à jour uniquement cette dépendance directe et son lockfile généré par npm ; `npm ci` puis `npm audit --omit=dev --audit-level=high` passent après correction. Les artifacts frontend versionnés ont ensuite été régénérés avec le lock corrigé afin que le gate de synchronisation du build reste strict. Aucun ignore d'advisory n'a été ajouté.
 
 Les SHA ont été résolus depuis les refs officielles `actions/*` :
 
