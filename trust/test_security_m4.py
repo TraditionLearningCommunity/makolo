@@ -43,6 +43,14 @@ class TrustSecurityHardeningTests(TrustFixtureMixin, TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("trust:evidence-download", kwargs={"evidence_id": evidence.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
     def test_trust_admin_is_audit_only(self):
         request = type("Request", (), {"user": self.staff})()
         for model in (TrustEvidence, Proof):

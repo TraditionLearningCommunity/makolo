@@ -194,7 +194,10 @@ class EvidenceDownloadView(LoginRequiredMixin, View):
             handle = evidence.file.open("rb")
         except FileNotFoundError as exc:
             raise Http404 from exc
-        return FileResponse(handle, as_attachment=True, filename="makolo-trust-evidence")
+        response = FileResponse(handle, as_attachment=True, filename="makolo-trust-evidence")
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class MyProofsView(LoginRequiredMixin, TemplateView):

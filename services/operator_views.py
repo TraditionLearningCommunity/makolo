@@ -376,7 +376,14 @@ class ServiceArtifactDownloadView(LoginRequiredMixin, View):
             raise Http404 from exc
         if artifact is None or not artifact.file:
             raise Http404
-        return FileResponse(artifact.file.open("rb"), as_attachment=True, filename=f"{artifact.title or 'document'}-v{artifact.version}")
+        response = FileResponse(
+            artifact.file.open("rb"),
+            as_attachment=True,
+            filename=f"{artifact.title or 'document'}-v{artifact.version}",
+        )
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class ServiceConfigurationView(LoginRequiredMixin, TemplateView):

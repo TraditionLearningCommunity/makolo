@@ -113,6 +113,7 @@ class PreparationResourceM2Tests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_invalid_file_signature_is_rejected(self):
         upload = SimpleUploadedFile("fake.pdf", b"not-a-pdf", content_type="application/pdf")

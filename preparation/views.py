@@ -23,6 +23,7 @@ class ResourceDownloadView(View):
         response = FileResponse(handle, content_type=resource.mime_type or "application/octet-stream")
         response["Content-Disposition"] = f'attachment; filename="resource-{resource.pk}.bin"'
         response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "private, no-store"
         return response
 
 
