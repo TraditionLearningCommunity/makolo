@@ -592,10 +592,18 @@ def _existing_webhook_outcome(*, event_id: str, payload_hash: str) -> WebhookOut
         return None
     if not hmac.compare_digest(existing.payload_hash, payload_hash):
         raise ValidationError("Identifiant d’événement webhook déjà utilisé avec un payload différent.")
+    if not existing.processed:
+        return None
     return WebhookOutcome(event=existing, payment=existing.payment, duplicate=True)
 
 
-@transaction.atomic
+def _persist_webhook_failure(event_id, message):
+    PaymentEvent.objects.filter(pk=event_id).update(
+        processing_error=(message or "")[:500],
+        processed_at=timezone.now(),
+    )
+
+
 def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcome:
     payload_hash = hashlib.sha256(raw_body).hexdigest()
     try:
@@ -616,65 +624,87 @@ def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcom
     if existing_outcome:
         return existing_outcome
 
-    try:
-        with transaction.atomic():
-            event = PaymentEvent.objects.create(
+    event = PaymentEvent.objects.filter(
+        provider=PaymentProvider.SANDBOX,
+        event_id=event_id,
+    ).first()
+    if event is not None:
+        if not hmac.compare_digest(event.payload_hash, payload_hash):
+            raise ValidationError("Identifiant d’événement webhook déjà utilisé avec un payload différent.")
+    else:
+        try:
+            with transaction.atomic():
+                event = PaymentEvent.objects.create(
+                    provider=PaymentProvider.SANDBOX,
+                    event_id=event_id,
+                    event_type=event_type,
+                    signature_valid=True,
+                    payload_hash=payload_hash,
+                    payload=_safe_webhook_payload(payload),
+                )
+        except IntegrityError:
+            event = PaymentEvent.objects.filter(
                 provider=PaymentProvider.SANDBOX,
                 event_id=event_id,
-                event_type=event_type,
-                signature_valid=True,
-                payload_hash=payload_hash,
-                payload=_safe_webhook_payload(payload),
-            )
-    except IntegrityError:
-        concurrent_outcome = _existing_webhook_outcome(event_id=event_id, payload_hash=payload_hash)
-        if concurrent_outcome:
-            return concurrent_outcome
-        raise ValidationError("Impossible d’enregistrer le webhook de façon unique.")
+            ).first()
+            if event is None:
+                raise ValidationError("Impossible d’enregistrer le webhook de façon unique.")
+            if not hmac.compare_digest(event.payload_hash, payload_hash):
+                raise ValidationError("Identifiant d’événement webhook déjà utilisé avec un payload différent.")
 
-    payment_reference = str(payload.get("payment_reference", "")).strip()
+    payment = None
     try:
-        payment = Payment.objects.select_for_update().get(reference=payment_reference)
-    except Payment.DoesNotExist as exc:
-        event.processing_error = "Paiement introuvable."
-        event.processed_at = timezone.now()
-        event.save(update_fields=["processing_error", "processed_at"])
-        raise ValidationError("Paiement introuvable.") from exc
-
-    if payment.provider != PaymentProvider.SANDBOX:
-        event.processing_error = "Fournisseur incompatible."
-        event.processed_at = timezone.now()
-        event.payment = payment
-        event.save(update_fields=["payment", "processing_error", "processed_at"])
-        raise ValidationError("Fournisseur incompatible avec ce webhook.")
-
-    event.payment = payment
-    try:
-        if event_type == "payment.succeeded":
-            completion = get_provider_adapter(payment.provider).confirm(
-                payment=payment,
-                provider_reference=str(payload.get("provider_reference", "")).strip() or f"SBX-WH-{event_id[:40]}",
-                source="sandbox-webhook",
+        with transaction.atomic():
+            event = (
+                PaymentEvent.objects.select_for_update()
+                .select_related("payment")
+                .get(pk=event.pk)
             )
-            complete_payment(payment=payment, provider_reference=completion.provider_reference, source=completion.source)
-        elif event_type == "payment.failed":
-            fail_payment(
-                payment=payment,
-                failure_code=str(payload.get("failure_code", "")),
-                failure_message=str(payload.get("failure_message", "")),
-                provider_reference=str(payload.get("provider_reference", "")),
-                source="sandbox-webhook",
-            )
-        else:
-            raise ValidationError("Type d’événement webhook non pris en charge.")
+            if not hmac.compare_digest(event.payload_hash, payload_hash):
+                raise ValidationError("Identifiant d’événement webhook déjà utilisé avec un payload différent.")
+            if event.processed:
+                return WebhookOutcome(event=event, payment=event.payment, duplicate=True)
+
+            payment_reference = str(payload.get("payment_reference", "")).strip()
+            try:
+                payment = Payment.objects.select_for_update().get(reference=payment_reference)
+            except Payment.DoesNotExist as exc:
+                raise ValidationError("Paiement introuvable.") from exc
+
+            if payment.provider != PaymentProvider.SANDBOX:
+                raise ValidationError("Fournisseur incompatible avec ce webhook.")
+
+            event.payment = payment
+            if event_type == "payment.succeeded":
+                completion = get_provider_adapter(payment.provider).confirm(
+                    payment=payment,
+                    provider_reference=str(payload.get("provider_reference", "")).strip() or f"SBX-WH-{event_id[:40]}",
+                    source="sandbox-webhook",
+                )
+                complete_payment(
+                    payment=payment,
+                    provider_reference=completion.provider_reference,
+                    source=completion.source,
+                )
+            elif event_type == "payment.failed":
+                fail_payment(
+                    payment=payment,
+                    failure_code=str(payload.get("failure_code", "")),
+                    failure_message=str(payload.get("failure_message", "")),
+                    provider_reference=str(payload.get("provider_reference", "")),
+                    source="sandbox-webhook",
+                )
+            else:
+                raise ValidationError("Type d’événement webhook non pris en charge.")
+
+            event.processed = True
+            event.processing_error = ""
+            event.processed_at = timezone.now()
+            event.save(update_fields=["payment", "processed", "processing_error", "processed_at"])
     except Exception as exc:
-        event.processing_error = str(exc)[:500]
-        event.processed_at = timezone.now()
-        event.save(update_fields=["payment", "processing_error", "processed_at"])
+        _persist_webhook_failure(event.pk, str(exc))
         raise
 
-    event.processed = True
-    event.processed_at = timezone.now()
-    event.save(update_fields=["payment", "processed", "processed_at"])
     payment.refresh_from_db()
+    event.refresh_from_db()
     return WebhookOutcome(event=event, payment=payment)

@@ -89,9 +89,74 @@ Gate externe actuellement **non satisfait** : un administrateur du dépôt doit 
 
 M9 ne déclarera pas cette protection active tant qu'elle n'aura pas été vérifiée via GitHub.
 
-## M9-B — à compléter après merge M9-A
+## M9-B — Integrity, Concurrency & External Resilience
 
-Les matrices PostgreSQL existantes couvrent déjà une part importante des races Payment, Capacity, Access, Funding, Subscriptions, Services, Recognition et Domain Events. M9-B se limite aux trous réellement démontrés autour des providers, webhooks, replay/retry et résilience externe.
+### Base et audit de réalité
+
+M9-B repart de `main@8a21379e804807d9ff11acf3ee54d09024e7636c`, obtenu après le merge de M9-A (#227) puis son correctif CI post-merge (#228). Le HEAD de départ a été vérifié vert sur les gates réellement applicables, dont `CI`, `ci/aggregate`, `Security supply chain`, Beta seed validation et les matrices PostgreSQL déclenchées.
+
+Aucun travail M9-B antérieur n'existait au moment de l'audit : aucune branche, PR, commit, correction ou clôture documentaire correspondante. La branche `m9/integrity-resilience` et la PR #229 ont donc été créées depuis cette base verte. La PR parallèle #223 reste limitée au laboratoire `frontiere_opportunite_lab/*` et ne crée pas de collision runtime ni de migration avec M9-B.
+
+### Garanties déjà présentes avant M9-B
+
+Le runtime possédait déjà des transactions atomiques, `select_for_update`, contraintes uniques/conditionnelles et clés d'idempotence dans plusieurs domaines. Les matrices PostgreSQL couvraient déjà Access, Payments/Subscriptions, Capacity/Commerce, Services, Funding, Recognition, Conversations, Domain Events, Notifications et Automation. M9-B ne duplique pas ces garanties et n'introduit ni lock distribué, ni outbox générique, ni queue, ni nouveau moteur de workflow.
+
+### Finding confirmé — Access / Scanner
+
+Un test PostgreSQL concurrent déterministe, synchronisé par `Barrier`, a reproduit une collision de même `(actor, client_reference)` sur deux `Access` différents. Les deux transactions pouvaient franchir la relecture d'idempotence car elles verrouillaient des lignes `Access` distinctes ; la contrainte `access_use_actor_client_ref_unique` protégeait bien l'intégrité finale mais le perdant recevait un `IntegrityError` brut au lieu du conflit métier attendu.
+
+La correction reste dans `access/services.py` : `_record_use()` exécute l'insert dans un savepoint local. Si la contrainte d'idempotence gagne la course, le savepoint est rollbacké puis la référence est relue. Une collision sur un autre `Access` est transformée en `ValidationError("Cette référence client appartient à un autre contrôle.")`; un replay sur le même `Access` réutilise l'`AccessUse` existant. Aucun lock global n'est ajouté.
+
+Preuves :
+
+- reproduction PostgreSQL dans `access.test_concurrency` ;
+- état final protégé par la contrainte DB existante ;
+- sémantique séquentielle d'idempotence conservée.
+
+### Finding confirmé — Payments webhook
+
+Le test de reproduction PostgreSQL a prouvé que `process_sandbox_webhook()` enregistrait `PaymentEvent.processing_error` puis relançait l'exception à l'intérieur de la même transaction atomique. L'événement lui-même disparaissait après rollback, donc la trace annoncée comme durable ne l'était pas. La logique de duplicate assimilait en outre un même `event_id`/payload existant à un replay final même lorsque `processed=False`, ce qui aurait empêché un vrai retry une fois la trace rendue durable.
+
+La correction reste dans `payments/services.py` et réutilise les champs existants :
+
+- l'identité `PaymentEvent` est persistée avant la transaction de mutation métier ;
+- un événement `processed=True` avec même payload reste un duplicate idempotent ;
+- un événement `processed=False` avec même payload est repris pour retry ;
+- le même `event_id` avec payload différent reste rejeté ;
+- la mutation du paiement et le passage de l'événement à `processed=True` restent dans une transaction atomique avec verrouillage des lignes concernées ;
+- si cette transaction échoue, les effets métier sont rollbackés puis `processing_error`/`processed_at` sont persistés hors de la transaction échouée.
+
+Aucun nouvel état métier n'est créé et aucune réécriture de Payments n'est faite.
+
+### Finding confirmé — Notifications / e-mail
+
+`dispatch_delivery()` remettait auparavant en `QUEUED` toute exception tant que `max_attempts` n'était pas atteint. Pour l'adapter e-mail Django utilisé ici, un `TimeoutError` pendant `send()` représente un résultat externe ambigu : l'absence de réponse ne prouve ni l'acceptation ni le rejet par le serveur SMTP. Un retry automatique pouvait donc dupliquer un e-mail déjà accepté.
+
+M9-B réutilise `DeliveryStatus.FAILED` : un `TimeoutError` devient terminal immédiatement et conserve l'erreur redacted, sans retry automatique. Les erreurs clairement pré-envoi telles qu'un `ConnectionRefusedError` gardent la politique de retry existante. Aucun état `UNKNOWN` générique n'est ajouté.
+
+Les tests `notifications.test_m9b_delivery_resilience` couvrent les deux branches du contrat.
+
+### Provider HTTP runtime
+
+Le provider HTTP runtime identifié reste `intelligence.providers.openai_compatible.OpenAICompatibleProvider`. Il possédait déjà les garanties nécessaires : timeout explicite, redirects refusés, classification des erreurs HTTP/réseau/timeout, validation du payload et absence de retry automatique. M9-B ne modifie donc pas le provider ; des fault-injection tests complètent la preuve pour connection failure, HTTP non-2xx et réponse JSON malformée.
+
+### Domain Events / M7
+
+`deliver_domain_event(...)` reste un contrat avec transport injecté/testé ; aucun transport runtime général n'a été identifié. M9-B ne crée donc ni outbox, ni queue, ni worker, ni saga, ni provider générique pour satisfaire artificiellement le gate.
+
+### Migrations et données
+
+M9-B n'ajoute aucune migration. Les corrections reposent sur les modèles, contraintes et états existants. Le contrôle `makemigrations --check`/fresh migrate reste délégué aux gates CI existants.
+
+### CI et fermeture
+
+La première exécution tests-only de la PR #229 a volontairement échoué sur les deux reproductions PostgreSQL confirmées : Access dans `postgresql-core (identity)` et Payments dans `postgresql-ops-commerce`. Les autres shards observés, dont E2E, `postgresql-ops-events`, `postgresql-ops-product`, `postgresql-core (commerce/services)`, `pr-fast` et Security supply chain, étaient verts.
+
+La clôture de M9-B n'est pas déclarée par ce texte : elle requiert encore que le HEAD contenant les corrections ci-dessus passe intégralement les tests ciblés, les matrices PostgreSQL, la suite Django, Security supply chain, E2E et tous les workflows PR applicables avant merge, puis les gates push du `main` post-merge.
+
+### Risques résiduels / handoff M9-C
+
+M9-B ne traite pas les budgets de requêtes, N+1, indexes spéculatifs ni l'audit général `MigrationExecutor` : ces sujets restent à M9-C. Aucun besoin de migration destructive ou de backfill n'a été identifié dans M9-B.
 
 ## M9-C — à compléter après merge M9-B
 
