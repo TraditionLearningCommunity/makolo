@@ -10,11 +10,14 @@ from pathlib import Path
 WORKFLOWS = Path(__file__).resolve().parents[1] / ".github" / "workflows"
 USES_RE = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)", re.MULTILINE)
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+MAIN_BRANCH_RE = re.compile(
+    r"(?m)(?:^\s*-\s*main\s*$|^\s*branches:\s*\[[^\]]*\bmain\b[^\]]*\]\s*$)"
+)
 
 
 def governs_main(text: str) -> bool:
     """Only enforce workflows that can run for the current main train."""
-    return bool(re.search(r"(?m)^\s*-?\s*main\s*$", text))
+    return bool(MAIN_BRANCH_RE.search(text))
 
 
 def main() -> int:
