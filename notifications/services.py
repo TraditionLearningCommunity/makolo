@@ -205,6 +205,14 @@ def dispatch_delivery(delivery_id) -> str:
         )
         email.attach_alternative(html_body, "text/html")
         email.send(fail_silently=False)
+    except TimeoutError as exc:
+        now = timezone.now()
+        NotificationDelivery.objects.filter(pk=delivery.pk).update(
+            status=DeliveryStatus.FAILED,
+            last_error=redact_sensitive_text(str(exc))[:1000],
+            updated_at=now,
+        )
+        return "failed"
     except Exception as exc:
         now = timezone.now()
         delivery.refresh_from_db(fields=["attempts", "max_attempts"])

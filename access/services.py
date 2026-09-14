@@ -396,16 +396,34 @@ def _record_use(
     now,
     client_reference="",
 ):
-    return AccessUse.objects.create(
-        access=access,
-        credential=credential,
-        actor=_controller_actor(controller),
-        occurrence=occurrence,
-        result=result,
-        source=(source or "")[:80],
-        client_reference=_normalize_client_reference(controller, client_reference),
-        used_at=now,
-    )
+    actor = _controller_actor(controller)
+    normalized_reference = _normalize_client_reference(controller, client_reference)
+    try:
+        with transaction.atomic():
+            return AccessUse.objects.create(
+                access=access,
+                credential=credential,
+                actor=actor,
+                occurrence=occurrence,
+                result=result,
+                source=(source or "")[:80],
+                client_reference=normalized_reference,
+                used_at=now,
+            )
+    except IntegrityError as exc:
+        if actor is None or not normalized_reference:
+            raise
+        existing = (
+            AccessUse.objects.select_related("credential")
+            .filter(actor=actor, client_reference=normalized_reference)
+            .order_by("created_at", "id")
+            .first()
+        )
+        if existing is None:
+            raise
+        if existing.access_id != access.pk:
+            raise ValidationError("Cette référence client appartient à un autre contrôle.") from exc
+        return existing
 
 
 def _outcome(*, result, message, access=None, credential=None, use=None):

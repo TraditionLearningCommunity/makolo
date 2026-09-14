@@ -66,3 +66,30 @@ class SandboxWebhookReplayTests(TestCase):
                 raw_body=conflicting_body,
                 signature=self._signature(conflicting_body),
             )
+
+    def test_failed_event_is_durable_and_same_payload_can_retry(self):
+        body = self._body(
+            event_id="evt-processing-failure",
+            payment_reference="PAY-DOES-NOT-EXIST",
+        )
+        signature = self._signature(body)
+
+        for _attempt in range(2):
+            with self.assertRaises(ValidationError):
+                process_sandbox_webhook(raw_body=body, signature=signature)
+
+            event = PaymentEvent.objects.get(
+                provider=PaymentProvider.SANDBOX,
+                event_id="evt-processing-failure",
+            )
+            self.assertFalse(event.processed)
+            self.assertTrue(event.processing_error)
+            self.assertIsNotNone(event.processed_at)
+
+        self.assertEqual(
+            PaymentEvent.objects.filter(
+                provider=PaymentProvider.SANDBOX,
+                event_id="evt-processing-failure",
+            ).count(),
+            1,
+        )
