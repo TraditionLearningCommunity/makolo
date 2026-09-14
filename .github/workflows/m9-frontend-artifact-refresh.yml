@@ -1,0 +1,46 @@
+name: M9 frontend artifact refresh
+
+on:
+  push:
+    branches:
+      - m9/security-authority-privacy
+    paths:
+      - .github/workflows/m9-frontend-artifact-refresh.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout M9-A branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: m9/security-authority-privacy
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install locked frontend dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Build production frontend
+        run: npm run build
+
+      - name: Commit generated artifacts and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/m9-frontend-artifact-refresh.yml
+          git add static/dist .github/workflows/m9-frontend-artifact-refresh.yml
+          if git diff --cached --quiet; then
+            echo "No generated artifact change produced." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "M9-A: refresh frontend artifacts for patched MapLibre"
+          git push origin HEAD:m9/security-authority-privacy
