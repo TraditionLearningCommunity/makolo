@@ -132,6 +132,8 @@ class T35OperatorWebTests(TestCase):
         self.client.force_login(self.reviewer)
         response = self.client.get(reverse("services:operator-artifact-download", args=[artifact.pk]))
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_manager_configuration_surface_updates_service_without_new_model(self):
         self.client.force_login(self.manager)
