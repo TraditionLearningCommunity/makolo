@@ -1,0 +1,43 @@
+name: M9 MapLibre lock refresh
+
+on:
+  push:
+    branches:
+      - m9/security-authority-privacy
+    paths:
+      - .github/workflows/m9-maplibre-lock-refresh.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout M9-A branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: m9/security-authority-privacy
+
+      - name: Install patched MapLibre in lockfile
+        run: npm install --package-lock-only --save-exact maplibre-gl@6.4.1 --ignore-scripts --no-audit --no-fund
+
+      - name: Verify reproducible install
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify runtime dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Commit generated manifests and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/m9-maplibre-lock-refresh.yml
+          git add package.json package-lock.json .github/workflows/m9-maplibre-lock-refresh.yml
+          if git diff --cached --quiet; then
+            echo "No lockfile change produced." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "M9-A: patch MapLibre sanitizer vulnerability"
+          git push origin HEAD:m9/security-authority-privacy
