@@ -307,7 +307,8 @@ jobs:
   postgresql-ops-product:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    # M9-A: every test step passed before the 18-minute runner cap cancelled cleanup.
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16-alpine
