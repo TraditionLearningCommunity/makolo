@@ -655,11 +655,7 @@ def process_sandbox_webhook(*, raw_body: bytes, signature: str) -> WebhookOutcom
     payment = None
     try:
         with transaction.atomic():
-            event = (
-                PaymentEvent.objects.select_for_update()
-                .select_related("payment")
-                .get(pk=event.pk)
-            )
+            event = PaymentEvent.objects.select_for_update(of=("self",)).get(pk=event.pk)
             if not hmac.compare_digest(event.payload_hash, payload_hash):
                 raise ValidationError("Identifiant d’événement webhook déjà utilisé avec un payload différent.")
             if event.processed:
