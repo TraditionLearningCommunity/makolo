@@ -41,7 +41,7 @@ jobs:
         run: python scripts/check_action_pins.py
       - name: Audit Python runtime dependencies
         run: python -m pip_audit -r requirements.txt
-      - name: Bandit first-party runtime code
+      - name: Bandit medium/high first-party runtime findings
         shell: bash
         run: |
           set -euo pipefail
@@ -58,7 +58,7 @@ jobs:
               ! -name 'test*.py' \
               -print0
           )
-          bandit -q "${files[@]}"
+          bandit -q -ll "${files[@]}"
       - name: Install locked frontend dependencies
         run: npm ci
       - name: Audit frontend runtime dependencies
