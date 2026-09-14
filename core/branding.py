@@ -32,7 +32,11 @@ def _load_mark_geometry():
     if not asset_path:
         raise FileNotFoundError(MAKOLO_MARK_INK)
 
-    root = ElementTree.fromstring(Path(asset_path).read_text(encoding="utf-8"))
+    # The source is a fixed first-party static asset resolved by Django's
+    # staticfiles finder, never uploaded or supplied by a request/provider.
+    root = ElementTree.fromstring(  # nosec B314
+        Path(asset_path).read_text(encoding="utf-8")
+    )
     view_box = root.attrib.get("viewBox", "").split()
     if len(view_box) != 4:
         raise ValueError("The Makolo Mark SVG must define a four-value viewBox.")
@@ -98,26 +102,21 @@ def render_makolo_qr_png(payload, *, branded=True, box_size=8):
 
     Branding is best-effort and presentation-only. If the official Mark cannot
     be loaded or rendered, the function returns the same high-correction QR
-    without an overlay rather than risking an unusable credential.
+    without the overlay rather than changing any Access fact.
     """
-    if not payload:
-        raise ValueError("A non-empty QR payload is required.")
-    if box_size < 4:
-        raise ValueError("Makolo QR box_size must be at least 4 for reliable presentation.")
-
     image = _base_qr(payload, box_size=box_size)
     if branded:
         try:
-            _overlay_official_mark(image)
-        except (FileNotFoundError, OSError, ValueError, ElementTree.ParseError):
-            # Branding must never make a valid credential unavailable.
-            image = _base_qr(payload, box_size=box_size)
-
-    buffer = BytesIO()
-    image.save(buffer, format="PNG", optimize=True)
-    return buffer.getvalue()
+            image = _overlay_official_mark(image)
+        except (FileNotFoundError, OSError, ValueError):
+            pass
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def render_makolo_qr_data_uri(payload, *, branded=True, box_size=8):
-    png = render_makolo_qr_png(payload, branded=branded, box_size=box_size)
-    return "data:image/png;base64," + b64encode(png).decode("ascii")
+    encoded = b64encode(
+        render_makolo_qr_png(payload, branded=branded, box_size=box_size)
+    ).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
