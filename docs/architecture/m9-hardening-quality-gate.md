@@ -67,7 +67,7 @@ M9-A ajoute un gate `Security supply chain` pour les workflows gouvernant `main`
 - `npm audit --omit=dev --audit-level=high` ;
 - garde-fou contre les refs GitHub Actions mutables dans les workflows actifs de `main`.
 
-Le premier run du nouveau gate a reproduit un finding critique réel : `maplibre-gl 6.4.0` était affecté par `GHSA-jrc7-96c5-q579` / `CVE-2026-85061`, un contournement du sanitizer XSS. La correction upstream ciblée est `6.4.1`. M9-A a donc mis à jour uniquement cette dépendance directe et son lockfile généré par npm ; `npm ci` puis `npm audit --omit=dev --audit-level=high` passent après correction. Aucun ignore d'advisory n'a été ajouté.
+Le premier run du nouveau gate a reproduit un finding critique réel : `maplibre-gl 6.4.0` était affecté par `GHSA-jrc7-96c5-q579` / `CVE-2026-85061`, un contournement du sanitizer XSS. La correction upstream ciblée est `6.4.1`. M9-A a donc mis à jour uniquement cette dépendance directe et son lockfile généré par npm ; `npm ci` puis `npm audit --omit=dev --audit-level=high` passent après correction. Les artifacts frontend versionnés ont ensuite été régénérés avec le lock corrigé afin que le gate de synchronisation du build reste strict. Aucun ignore d'advisory n'a été ajouté.
 
 Les SHA ont été résolus depuis les refs officielles `actions/*` :
 
