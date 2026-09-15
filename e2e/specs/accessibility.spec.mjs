@@ -10,6 +10,14 @@ async function audit(page, path) {
   await expectNoSeriousAxeViolations(page);
 }
 
+async function openM8cJourney(page, title) {
+  await page.goto(`/me/accesses/?q=${encodeURIComponent(title)}`);
+  const accessLink = page.getByRole('link').filter({ hasText: title }).first();
+  await expect(accessLink).toBeVisible();
+  await accessLink.click();
+  await page.getByRole('link', { name: 'Voir ma préparation' }).click();
+}
+
 
 test('public and account entry surfaces have no serious or critical axe violations', async ({ page }) => {
   await audit(page, '/');
@@ -65,4 +73,18 @@ test('Subscription Profile Space and Staff surfaces pass axe gate', async ({ pag
   await page.context().clearCookies();
   await login(page, 'staff@e2e.makolo.test');
   await audit(page, '/operations/subscriptions/catalog/');
+});
+
+
+test('Journey preparation and Occurrence Live pass the mature axe gate', async ({ page }) => {
+  await login(page, 'm8c.participant@e2e.makolo.test');
+
+  await openM8cJourney(page, 'M8-C préparation E2E');
+  await expect(page.getByText('Est-ce que tout est prêt ?')).toBeVisible();
+  await expectNoSeriousAxeViolations(page);
+
+  await openM8cJourney(page, 'M8-C départ E2E');
+  await page.getByRole('link', { name: 'Ouvrir l’action en cours' }).click();
+  await expect(page.getByText('Il est temps d’y aller')).toBeVisible();
+  await expectNoSeriousAxeViolations(page);
 });
