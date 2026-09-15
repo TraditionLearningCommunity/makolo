@@ -168,8 +168,112 @@ Côté performance, les garanties déjà présentes dans Goals, Trust, Readiness
 
 Les budgets ajoutés prouvent 12 Rewards avec les trois limites en une requête catalogue et 12 Conversations accessibles par participation explicite dans un budget fixe de 8 requêtes maximum. Aucun index, champ, modèle, cache distribué, dénormalisation ou vérité Readiness persistée n'est ajouté. Les détails d'audit et de handoff sont consignés dans `docs/architecture/m9-c-data-migrations-performance.md`.
 
-La fermeture M9-C reste conditionnée au HEAD PR entièrement vert, au merge, puis aux gates du `main` post-merge.
+M9-C est fermé : la PR #230 a été mergée et `main@bf5f5ffb902ff0a63a97ba95eee89466057e22c5` a été vérifié vert, avec `ci/aggregate = success`. M9-D repart de ce HEAD.
 
-## M9-D — à compléter après merge M9-C
+## M9-D — Cross-domain Quality Gate & Closure
 
-M9-D fermera avec des parcours cross-domain sélectifs, les gaps clavier/focus réellement observés, tous les workflows pertinents du runtime courant et le handoff M10.
+### Base, scope et non-duplication
+
+M9-D repart de `main@bf5f5ffb902ff0a63a97ba95eee89466057e22c5` sur la branche `m9/quality-gate`, PR #231. Le préflight confirme que #223 reste draft et limité à `frontiere_opportunite_lab/*`, sans collision runtime, migration ou dépendance M9.
+
+Le travail ne crée aucun domaine, modèle, endpoint général, BFF, scheduler, queue, nouvelle persistance ou migration. Les parcours déjà solides ne sont pas recopiés : en particulier Payment → Access → Scanner → AccessUse, les tests spécialisés Funding/Recognition/Subscriptions, les budgets SQL M9-C et les audits spécialisés M9-A/B restent leurs preuves propriétaires.
+
+### Parcours de convergence retenus
+
+Les preuves M9-D ajoutent ou consolident les jointures suivantes :
+
+- visiteur → Discover → possibilité publique → détail Activity/Event → CTA d'action nécessitant authentification, sans navigation préalable vers `/me/` ni fuite de contenu privé ;
+- Home avec action réelle puis Home calme avec `Tout est en ordre. ✓`, sans remplissage artificiel par Discover ;
+- Space : membre Finance sans autorité de contrôle refusé par le serveur, puis acteur propriétaire autorisé ;
+- ActionNeed → ActionProposal → acceptation → Conversation contextuelle unique, avec outsider refusé par l'autorité Conversation ;
+- M7 Connection autorisée → Action réussie → Connection désactivée → même Action refusée.
+
+La fixture Playwright globale conserve le garde-fou : tout HTTP `>=500`, erreur console, violation CSP ou asset statique manquant échoue le scénario.
+
+### Finding réel — verrouillage PostgreSQL Action Network
+
+Le nouveau parcours Action Network → Conversation a révélé sur PostgreSQL un défaut invisible sous SQLite : plusieurs opérations de `social/bilateral_services.py` combinaient `select_for_update()` et `select_related()` sur des relations nullable. PostgreSQL refusait alors la requête avec `FOR UPDATE cannot be applied to the nullable side of an outer join` avant même la création de l'ActionProposal.
+
+La correction reste dans le domaine Social et ne change aucun état métier : les verrous sont bornés aux lignes propriétaires avec `select_for_update(of=("self",))`, tandis que les relations restent chargées pour les décisions d'autorité et de contexte. Les chemins concernés sont ActionNeed/ActionProposal transactionnels qui utilisaient ce motif. Le test `conversations.test_m9d_cross_domain` est la non-régression PostgreSQL de la convergence jusqu'à Conversation.
+
+Après correction, le workflow `Conversation PostgreSQL` est vert.
+
+### Rituels M8
+
+M9-D ne redesigne aucun rituel. Les preuves existantes restent propriétaires pour `Est-ce que tout est prêt ?`, `Il est temps d'y aller`, Occurrence Live/terminal, Discover borné, Space Now et responsive. M9-D ajoute explicitement les deux états Home : priorité immédiate présente lorsque nécessaire, et `Tout est en ordre. ✓` lorsqu'aucune action pertinente n'exige d'attention.
+
+Discover reste distinct de Home et l'entrée visiteur prouve une exploration publique Activity-first avant authentification.
+
+### Autorité, confidentialité et API/server parity
+
+Les assertions de fermeture ne se limitent pas aux boutons :
+
+- le membre Space sans permission de contrôle reçoit un refus HTTP serveur ;
+- l'outsider Conversation est refusé par les services/audiences propriétaires ;
+- la désactivation d'une Connection M7 rend l'Action non autorisée côté serveur ;
+- Readiness, Payment, Access, Mandates et Conversation privacy ne sont pas déplacés vers JavaScript ou des fragments HTMX.
+
+L'invariant `Membership ≠ authority` reste démontré. Aucune normalisation artificielle 403/404 entre domaines n'est introduite.
+
+### Error states et no-500
+
+Les scénarios M9-D s'appuient sur les erreurs métier déjà contractualisées et sur le garde-fou Playwright `>=500`. Les suites existantes continuent de couvrir 403/404/500, Access/Payment/Occurrence/Conversation et providers selon leurs domaines propriétaires. Aucun faux succès ni 500 attendu n'a été conservé comme comportement acceptable.
+
+Le seul nouveau défaut cross-domain reproduit pendant M9-D est le verrouillage PostgreSQL Social décrit ci-dessus ; il est corrigé et couvert par non-régression.
+
+### Accessibilité, clavier, focus et responsive
+
+Axe existait déjà et reste l'outil unique. M9-D étend la couverture ciblée à Journey et Occurrence Live et ajoute un chemin clavier/focus sur l'authentification. Les contrats responsive M8-E existants (320–768) et les scénarios Space/mobile restent utilisés plutôt que dupliquer une matrice de screenshots.
+
+La matrice navigateur reste volontairement Chromium desktop, Chromium mobile et Firefox smoke ; aucun WebKit n'est ajouté sans contrat produit ou bug réel.
+
+### Migrations
+
+M9-D n'ajoute aucune migration. Les gates `python manage.py check`, `python manage.py makemigrations --check --dry-run`, fresh migrations SQLite/PostgreSQL et la suite Django passent sur la PR #231.
+
+### CI PR
+
+Sur le HEAD de PR M9-D vérifié avant merge, les workflows applicables sont verts :
+
+- `CI` — success, incluant Django complet, PostgreSQL shards et E2E ;
+- `Security supply chain` — success ;
+- `Beta seed validation` — success ;
+- `Conversation PostgreSQL` — success ;
+- `Funding PostgreSQL` — success ;
+- `Subscriptions` — success.
+
+`ci/aggregate` n'est pas présenté comme un check PR lorsqu'il reste publié selon sa sémantique réelle post-push `main`.
+
+### Governance externe
+
+Au préflight M9-D, `main` reste non protégée et aucun ruleset actif n'est visible. La connexion disponible ne possède pas les permissions admin permettant de configurer honnêtement la protection.
+
+Ce point ne bloque pas artificiellement le code M9-D mais reste un **gate administratif externe M10/pré-production** : un administrateur doit activer une règle de protection compatible avec les checks réellement publiés. M9 ne prétend pas que `main` est protégée.
+
+### Handoff M10 — Production Readiness & Mobile Handoff
+
+M10 doit partir du runtime et des décisions réellement présentes, sans transporter de dette M9 connue. Les sujets opérationnels à résoudre ou confirmer sont :
+
+- **Deployment** : cible de production réelle, procédure de déploiement et rollback ; PythonAnywhere reste un environnement temporaire de test/bêta tant qu'une décision officielle différente n'existe pas ;
+- **Database** : PostgreSQL de production, sizing des connexions et procédure de migration ;
+- **Workers** : tâches de fond, Automation, Notifications, Domain Events et schedules réellement nécessaires ;
+- **Static/media** : stockage, serving, confidentialité et lifecycle ;
+- **Secrets** : secrets runtime, credentials providers et rotation opérationnelle ;
+- **Backup/restore** : stratégie et exercice de restauration ;
+- **Observability** : logs, metrics, alerting externe et traitement des incidents ;
+- **Providers** : adapters réellement activés, configuration et modes de panne ;
+- **Mobile handoff** : contrats auth, Profile, Home, Discover, Activities/Occurrences, Journeys/Readiness, Conversations, Access, Commerce/Payment et autres surfaces réellement exposées, sans construire une API mobile spéculative dans M9.
+
+Le risque administratif de protection de `main` est explicitement transmis à M10. Aucun bug IDOR connu, race transactionnelle connue, migration cassée, N+1 majeur connu, E2E critique cassé ou finding accessibilité bloquant n'est accepté comme handoff M10.
+
+### État de fermeture
+
+M9-D peut être mergé lorsque le HEAD PR reste vert. La fermeture globale M9 n'est déclarée qu'après vérification du nouveau `main` post-merge, de `ci/aggregate`, des workflows spécialisés déclenchés et de l'absence de PR M9-D ouverte.
+
+État visé après ce contrôle post-merge :
+
+- M9-A ✅
+- M9-B ✅
+- M9-C ✅
+- M9-D ✅
+- **M9 — Mature Hardening & Quality Gate ✅**
