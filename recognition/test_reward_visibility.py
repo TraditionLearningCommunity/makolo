@@ -2,7 +2,9 @@ import uuid
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 from organizations.models import Organization
 
@@ -65,6 +67,36 @@ class RecognitionRewardVisibilityTests(TestCase):
         rendered = next(item for item in active_rewards(owner_account=account) if item.pk == reward.pk)
         self.assertTrue(rendered.recognition_self_eligible)
         self.assertFalse(rendered.recognition_requires_other_beneficiary)
+
+    def test_active_rewards_query_count_is_bounded_by_reward_count(self):
+        account = self._fund(profile=self.profile)
+        reward_count = 12
+        for index in range(reward_count):
+            RewardDefinition.objects.create(
+                code=f"bounded-reward-{index}",
+                version=1,
+                name=f"Bounded reward {index}",
+                kind=RewardKind.PROMOTION,
+                points_cost=1,
+                beneficiary_allowed=True,
+                stock=50,
+                eligibility={
+                    "beneficiary_subject_types": ["profile"],
+                    "max_per_owner": 50,
+                    "max_per_beneficiary": 50,
+                },
+                fulfillment={"promotion_id": str(uuid.uuid4())},
+            )
+
+        with CaptureQueriesContext(connection) as captured:
+            visible = active_rewards(owner_account=account)
+
+        self.assertEqual(len(visible), reward_count)
+        self.assertEqual(
+            len(captured),
+            1,
+            f"active_rewards must remain one batched query; got {len(captured)} queries for {reward_count} rewards",
+        )
 
     def test_giftable_introduction_requires_explicit_consent_policy(self):
         with self.assertRaises(ValidationError):
