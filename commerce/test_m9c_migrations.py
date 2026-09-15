@@ -64,7 +64,7 @@ class CommerceFinancialSnapshotMigrationTests(TransactionTestCase):
             discount_total=Decimal("25.00"),
             total=Decimal("225.00"),
         )
-        CommerceOrderItem.objects.create(
+        item = CommerceOrderItem.objects.create(
             order_id=order.pk,
             offer_id=offer.pk,
             beneficiary_id=user.pk,
@@ -83,15 +83,19 @@ class CommerceFinancialSnapshotMigrationTests(TransactionTestCase):
         MigratedItem = migrated_apps.get_model("commerce", "CommerceOrderItem")
 
         migrated_order = MigratedOrder.objects.get(pk=order.pk)
-        migrated_item = MigratedItem.objects.get(order_id=order.pk)
+        migrated_item = MigratedItem.objects.get(pk=item.pk)
+        self.assertEqual(migrated_order.pricing_policy, "seller_net_guaranteed")
         self.assertEqual(migrated_order.expected_payee_amount, Decimal("225.00"))
-        self.assertEqual(migrated_order.financial_snapshot["legacy_total"], "225.00")
-        self.assertEqual(migrated_order.financial_snapshot["legacy_currency"], "USD")
-        self.assertEqual(migrated_order.financial_snapshot["legacy_payment_mode"], "upfront")
-        self.assertEqual(migrated_order.financial_snapshot["source"], "commerce_v1_backfill")
+        self.assertEqual(migrated_order.makolo_amount, Decimal("0.00"))
+        self.assertEqual(migrated_order.financial_snapshot["version"], 1)
+        self.assertEqual(migrated_order.financial_snapshot["currency"], "USD")
+        self.assertEqual(migrated_order.financial_snapshot["subtotal"], "250.00")
+        self.assertEqual(migrated_order.financial_snapshot["discount_total"], "25.00")
+        self.assertEqual(migrated_order.financial_snapshot["net_base"], "225.00")
+        self.assertEqual(migrated_order.financial_snapshot["payer_total"], "225.00")
+        self.assertEqual(migrated_order.financial_snapshot["expected_payee_amount"], "225.00")
+        self.assertEqual(migrated_order.financial_snapshot["makolo_amount"], "0.00")
+        self.assertEqual(migrated_order.financial_snapshot["source"], "legacy_backfill")
         self.assertNotIn("provider", migrated_order.financial_snapshot)
         self.assertNotIn("destination", migrated_order.financial_snapshot)
-        self.assertEqual(migrated_item.expected_payee_amount, Decimal("225.00"))
-        self.assertEqual(migrated_item.financial_snapshot["legacy_line_total"], "225.00")
-        self.assertEqual(migrated_item.financial_snapshot["legacy_currency"], "USD")
-        self.assertEqual(migrated_item.financial_snapshot["source"], "commerce_v1_backfill")
+        self.assertEqual(migrated_item.line_total, Decimal("225.00"))
