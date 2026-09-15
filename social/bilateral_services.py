@@ -216,7 +216,7 @@ def create_action_need(
 
 @transaction.atomic
 def transition_action_need(*, actor, need: ActionNeed, status: str) -> ActionNeed:
-    locked = ActionNeed.objects.select_for_update().select_related(
+    locked = ActionNeed.objects.select_for_update(of=("self",)).select_related(
         "owner_profile", "space", "activity", "occurrence"
     ).get(pk=need.pk)
     if not can_manage_action_need(actor, locked):
@@ -255,7 +255,7 @@ def expire_action_need(*, need: ActionNeed, at=None) -> ActionNeed:
     """Expire a due Need without inventing an actor for scheduled automation."""
 
     at = at or timezone.now()
-    locked = ActionNeed.objects.select_for_update().select_related(
+    locked = ActionNeed.objects.select_for_update(of=("self",)).select_related(
         "owner_profile", "space", "activity", "occurrence"
     ).get(pk=need.pk)
     if locked.status not in {ActionNeedStatus.OPEN, ActionNeedStatus.PAUSED}:
@@ -352,7 +352,7 @@ def create_action_proposal(
 def respond_to_action_proposal(*, actor, proposal: ActionProposal, status: str, response_message="") -> ActionProposal:
     if status not in {ActionProposalStatus.ACCEPTED, ActionProposalStatus.DECLINED}:
         raise ValidationError({"status": "Réponse de proposition invalide."})
-    locked = ActionProposal.objects.select_for_update().select_related(
+    locked = ActionProposal.objects.select_for_update(of=("self",)).select_related(
         "need", "need__owner_profile", "need__space", "candidate_profile", "candidate_space"
     ).get(pk=proposal.pk)
     if locked.status != ActionProposalStatus.PENDING:
