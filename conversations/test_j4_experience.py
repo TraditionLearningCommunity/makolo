@@ -21,10 +21,10 @@ User = get_user_model()
 
 class ConversationExperienceTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user(username="j4-owner", email="j4-owner@example.test")
-        self.manager = User.objects.create_user(username="j4-manager", email="j4-manager@example.test")
-        self.member = User.objects.create_user(username="j4-member", email="j4-member@example.test")
-        self.outsider = User.objects.create_user(username="j4-outsider", email="j4-outsider@example.test")
+        self.owner = User.objects.create_user(username="j4-owner", email="j4-owner@example.test", password="StrongPass2026!")
+        self.manager = User.objects.create_user(username="j4-manager", email="j4-manager@example.test", password="StrongPass2026!")
+        self.member = User.objects.create_user(username="j4-member", email="j4-member@example.test", password="StrongPass2026!")
+        self.outsider = User.objects.create_user(username="j4-outsider", email="j4-outsider@example.test", password="StrongPass2026!")
         self.space = Organization.objects.create(name="J4 Space", created_by=self.owner)
         self.activity = Activity.objects.create(space=self.space, created_by=self.owner, title="J4 Activity")
         grant_activity_role(profile=self.manager, activity=self.activity, role_code=SystemRoleCode.ACTIVITY_COMMUNICATION_MANAGER, granted_by=self.owner, source="j4-test")
