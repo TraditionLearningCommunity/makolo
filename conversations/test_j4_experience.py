@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from activities.involvement_models import ActivityInvolvement, ActivityInvolvementConfirmationBasis, ActivityInvolvementFunction, ActivityInvolvementFunctionKind
@@ -13,7 +15,8 @@ from .audience_services import add_audience_rule, create_audience_set
 from .core_models import ConversationContextKind
 from .point_models import ConversationPointKind, ConversationPointResponseMode
 from .point_services import create_point
-from .services import ensure_context_conversation
+from .presentation import conversation_rows_for_profile
+from .services import activate_participation, ensure_context_conversation
 
 
 User = get_user_model()
@@ -56,6 +59,27 @@ class ConversationExperienceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "1 pour vous")
         self.assertContains(response, "J4 Activity")
+
+    def test_list_projection_query_count_is_bounded_by_conversation_count(self):
+        conversation_count = 12
+        for index in range(conversation_count):
+            conversation = ensure_context_conversation(
+                actor=self.manager,
+                kind=ConversationContextKind.ACTIVITY,
+                activity=self.activity,
+                purpose_key=f"m9c-bounded-{index}",
+            )
+            activate_participation(actor=self.member, conversation=conversation, profile=self.member)
+
+        with CaptureQueriesContext(connection) as captured:
+            rows = conversation_rows_for_profile(self.member, only_attention=False, limit=50)
+
+        self.assertEqual(len(rows), conversation_count + 1)
+        self.assertLessEqual(
+            len(captured),
+            12,
+            f"conversation list must use batched visibility/state/point reads; got {len(captured)} queries for {conversation_count + 1} conversations",
+        )
 
     def test_detail_does_not_leak_to_outsider(self):
         self.client.force_login(self.outsider)
