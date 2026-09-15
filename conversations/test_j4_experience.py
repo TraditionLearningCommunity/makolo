@@ -68,6 +68,7 @@ class ConversationExperienceTests(TestCase):
                 kind=ConversationContextKind.ACTIVITY,
                 activity=self.activity,
                 purpose_key=f"m9c-bounded-{index}",
+                separation_reason="M9-C query growth fixture",
             )
             activate_participation(actor=self.member, conversation=conversation, profile=self.member)
 
