@@ -6,8 +6,18 @@ from django.test import TransactionTestCase
 
 
 class CommerceFinancialSnapshotMigrationTests(TransactionTestCase):
-    migrate_from = [("commerce", "0002_payment_choices_personal_payee_beneficiary")]
-    migrate_to = [("commerce", "0003_financial_quote_snapshot")]
+    migrate_from = [
+        ("accounts", "0006_remove_legacy_account_truths"),
+        ("activities", "0004_occurrence_temporal_schedule"),
+        ("journeys", "0002_external_beneficiary"),
+        ("commerce", "0002_payment_choices_personal_payee_beneficiary"),
+    ]
+    migrate_to = [
+        ("accounts", "0006_remove_legacy_account_truths"),
+        ("activities", "0004_occurrence_temporal_schedule"),
+        ("journeys", "0002_external_beneficiary"),
+        ("commerce", "0003_financial_quote_snapshot"),
+    ]
 
     def tearDown(self):
         executor = MigrationExecutor(connection)
