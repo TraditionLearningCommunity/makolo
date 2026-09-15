@@ -70,16 +70,16 @@ class ConversationExperienceTests(TestCase):
                 purpose_key=f"m9c-bounded-{index}",
                 separation_reason="M9-C query growth fixture",
             )
-            activate_participation(actor=self.member, conversation=conversation, profile=self.member)
+            activate_participation(actor=self.manager, conversation=conversation, profile=self.outsider)
 
         with CaptureQueriesContext(connection) as captured:
-            rows = conversation_rows_for_profile(self.member, only_attention=False, limit=50)
+            rows = conversation_rows_for_profile(self.outsider, only_attention=False, limit=50)
 
-        self.assertEqual(len(rows), conversation_count + 1)
+        self.assertEqual(len(rows), conversation_count)
         self.assertLessEqual(
             len(captured),
             12,
-            f"conversation list must use batched visibility/state/point reads; got {len(captured)} queries for {conversation_count + 1} conversations",
+            f"conversation list must batch explicit participation/state/point reads; got {len(captured)} queries for {conversation_count} conversations",
         )
 
     def test_detail_does_not_leak_to_outsider(self):
