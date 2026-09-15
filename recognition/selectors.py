@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from .models import RecognitionAccount, RecognitionRedemption, RedemptionStatus, RewardDefinition
@@ -53,11 +53,9 @@ def _owner_can_spend_reward(reward, account):
     if account.lifetime_earned < int(eligibility.get("owner_lifetime_earned_gte", 0) or 0):
         return False
     max_owner = eligibility.get("max_per_owner")
-    if max_owner is not None:
-        used = reward.redemptions.exclude(status=RedemptionStatus.CANCELLED).filter(owner_account=account).count()
-        if used >= int(max_owner):
-            return False
-    if reward.stock is not None and reward.redemptions.exclude(status=RedemptionStatus.CANCELLED).count() >= reward.stock:
+    if max_owner is not None and reward.recognition_owner_redemption_count >= int(max_owner):
+        return False
+    if reward.stock is not None and reward.recognition_redemption_count >= reward.stock:
         return False
     return True
 
@@ -71,12 +69,39 @@ def _self_beneficiary_eligible(reward, account):
     if subject_type not in allowed:
         return False
     max_beneficiary = eligibility.get("max_per_beneficiary")
-    if max_beneficiary is not None:
-        query = {f"beneficiary_{subject_type}_id": account.subject.pk}
-        used = reward.redemptions.exclude(status=RedemptionStatus.CANCELLED).filter(**query).count()
-        if used >= int(max_beneficiary):
-            return False
+    if max_beneficiary is not None and reward.recognition_beneficiary_redemption_count >= int(max_beneficiary):
+        return False
     return True
+
+
+def _reward_catalog_queryset(*, at, owner_account):
+    queryset = (
+        RewardDefinition.objects.filter(is_active=True)
+        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=at))
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
+    )
+    if owner_account is None:
+        return queryset.order_by("code", "-version", "id")
+
+    active_redemptions = ~Q(redemptions__status=RedemptionStatus.CANCELLED)
+    beneficiary_filter = Q()
+    if owner_account.profile_id:
+        beneficiary_filter = Q(redemptions__beneficiary_profile_id=owner_account.profile_id)
+    elif owner_account.space_id:
+        beneficiary_filter = Q(redemptions__beneficiary_space_id=owner_account.space_id)
+    return queryset.annotate(
+        recognition_redemption_count=Count("redemptions", filter=active_redemptions, distinct=True),
+        recognition_owner_redemption_count=Count(
+            "redemptions",
+            filter=active_redemptions & Q(redemptions__owner_account_id=owner_account.pk),
+            distinct=True,
+        ),
+        recognition_beneficiary_redemption_count=Count(
+            "redemptions",
+            filter=active_redemptions & beneficiary_filter,
+            distinct=True,
+        ),
+    ).order_by("code", "-version", "id")
 
 
 def active_rewards(*, at=None, owner_account=None):
@@ -89,12 +114,7 @@ def active_rewards(*, at=None, owner_account=None):
     constraints transactionally.
     """
     at = at or timezone.now()
-    candidates = list(
-        RewardDefinition.objects.filter(is_active=True)
-        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=at))
-        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
-        .order_by("code", "-version", "id")
-    )
+    candidates = list(_reward_catalog_queryset(at=at, owner_account=owner_account))
     latest = {}
     for reward in candidates:
         latest.setdefault(reward.code, reward)

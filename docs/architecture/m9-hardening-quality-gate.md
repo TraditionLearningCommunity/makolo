@@ -152,15 +152,23 @@ M9-B n'ajoute aucune migration. Les corrections reposent sur les modèles, contr
 
 La première exécution tests-only de la PR #229 a volontairement échoué sur les deux reproductions PostgreSQL confirmées : Access dans `postgresql-core (identity)` et Payments dans `postgresql-ops-commerce`. Les autres shards observés, dont E2E, `postgresql-ops-events`, `postgresql-ops-product`, `postgresql-core (commerce/services)`, `pr-fast` et Security supply chain, étaient verts.
 
-La clôture de M9-B n'est pas déclarée par ce texte : elle requiert encore que le HEAD contenant les corrections ci-dessus passe intégralement les tests ciblés, les matrices PostgreSQL, la suite Django, Security supply chain, E2E et tous les workflows PR applicables avant merge, puis les gates push du `main` post-merge.
+M9-B est fermé : la PR #229 a été mergée et `main@787dd3ee6496d9ec94744e4ea3e36be57c354d66` a été vérifié vert après merge, y compris `ci/aggregate` et les gates applicables. M9-C repart exclusivement de ce HEAD vert.
 
 ### Risques résiduels / handoff M9-C
 
 M9-B ne traite pas les budgets de requêtes, N+1, indexes spéculatifs ni l'audit général `MigrationExecutor` : ces sujets restent à M9-C. Aucun besoin de migration destructive ou de backfill n'a été identifié dans M9-B.
 
-## M9-C — à compléter après merge M9-B
+## M9-C — Data, Migrations & Performance
 
-La fresh install est déjà un gate CI. Des tests `MigrationExecutor` et `assertNumQueries` existent déjà dans plusieurs domaines. M9-C cible seulement les data migrations réellement risquées sans preuve historique suffisante et les projections M8 sans budget de requêtes borné.
+M9-C repart de `main@787dd3ee6496d9ec94744e4ea3e36be57c354d66`. L'audit runtime a retrouvé 45 fichiers contenant `RunPython`, aucun `RunSQL`, un `SeparateDatabaseAndState`, les quatre familles de tests `MigrationExecutor` déjà présentes et `scripts/check_legacy_upgrade.py`. La fresh install reste couverte par la CI existante ; aucun framework parallèle n'est ajouté.
+
+Le risque migration retenu est `commerce/0003_financial_quote_snapshot`, transformation sémantique des anciens totaux Order/Item vers `expected_payee_amount` et un snapshot legacy explicite. Un test `MigrationExecutor` ciblé construit les données avec les historical models de `commerce/0002`, applique `0003`, vérifie qu'aucune vérité provider/destination n'est inventée puis restaure les leaf nodes. Aucune ancienne migration n'est modifiée et aucun nouveau backfill n'est ajouté.
+
+Côté performance, les garanties déjà présentes dans Goals, Trust, Readiness, Subscriptions, Preparation, Discover et Journey ne sont pas dupliquées. Deux croissances SQL ont été retenues : le catalogue Recognition recalculait jusqu'à trois comptes par Reward ; la liste Conversations relisait état personnel, participation/visibilité et fenêtres de Points objet par objet. Recognition utilise désormais des agrégations filtrées dans son selector propriétaire ; Conversations précharge uniquement l'état du Profile courant, ses participations explicites et les fenêtres de Points nécessaires, avec fallback vers l'autorité/audience canonique pour les accès dérivés.
+
+Les budgets ajoutés prouvent 12 Rewards avec les trois limites en une requête catalogue et 12 Conversations accessibles par participation explicite dans un budget fixe de 8 requêtes maximum. Aucun index, champ, modèle, cache distribué, dénormalisation ou vérité Readiness persistée n'est ajouté. Les détails d'audit et de handoff sont consignés dans `docs/architecture/m9-c-data-migrations-performance.md`.
+
+La fermeture M9-C reste conditionnée au HEAD PR entièrement vert, au merge, puis aux gates du `main` post-merge.
 
 ## M9-D — à compléter après merge M9-C
 

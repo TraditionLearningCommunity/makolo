@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 from .attention import point_attention_reason
-from .core_models import Conversation, ConversationContextKind
+from .core_models import (
+    Conversation,
+    ConversationContextKind,
+    ConversationParticipation,
+    ConversationParticipationStatus,
+    ConversationUserState,
+)
 from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle
 from .point_services import point_visible_to
 from .services import can_view_conversation
@@ -58,27 +64,73 @@ def conversation_context_label(conversation, profile=None):
     return "Conversation"
 
 
+def _list_projection_queryset(profile):
+    active_points = ConversationPoint.objects.filter(
+        lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}
+    ).select_related("visibility_audience", "response_audience", "expected_action_audience", "resolution_audience")
+    resolved_points = ConversationPoint.objects.filter(
+        lifecycle=ConversationPointLifecycle.RESOLVED
+    ).select_related("resolution", "visibility_audience").order_by("-resolved_at")
+    return (
+        Conversation.objects.select_related(
+            "context__space", "context__group", "context__activity", "context__occurrence__activity",
+            "context__dossier", "context__project", "context__journey__activity",
+            "context__action_proposal__need", "context__direct_profile_a", "context__direct_profile_b",
+        )
+        .prefetch_related(
+            Prefetch(
+                "user_states",
+                queryset=ConversationUserState.objects.filter(profile=profile),
+                to_attr="m9c_profile_states",
+            ),
+            Prefetch(
+                "explicit_participations",
+                queryset=ConversationParticipation.objects.filter(
+                    profile=profile,
+                    status=ConversationParticipationStatus.ACTIVE,
+                ),
+                to_attr="m9c_active_participations",
+            ),
+            Prefetch("points", queryset=active_points, to_attr="m9c_active_points"),
+            Prefetch("points", queryset=resolved_points, to_attr="m9c_resolved_points"),
+        )
+        .order_by("-updated_at")
+    )
+
+
+def _profile_state(conversation):
+    prefetched = getattr(conversation, "m9c_profile_states", None)
+    if prefetched is not None:
+        return prefetched[0] if prefetched else None
+    return None
+
+
+def _can_view_list_conversation(profile, conversation):
+    prefetched = getattr(conversation, "m9c_active_participations", None)
+    if prefetched:
+        return True
+    return can_view_conversation(profile, conversation)
+
+
 def _accessible_conversations(profile, *, include_archived=False, limit=300):
-    qs = Conversation.objects.select_related(
-        "context__space", "context__group", "context__activity", "context__occurrence__activity",
-        "context__dossier", "context__project", "context__journey__activity",
-        "context__action_proposal__need", "context__direct_profile_a", "context__direct_profile_b",
-    ).order_by("-updated_at")[:limit]
+    qs = _list_projection_queryset(profile)[:limit]
     rows = []
     for conversation in qs:
-        state = conversation.user_states.filter(profile=profile).first()
+        state = _profile_state(conversation)
         if state and state.hidden_at:
             continue
         if not include_archived and state and state.archived_at:
             continue
-        if can_view_conversation(profile, conversation):
+        if _can_view_list_conversation(profile, conversation):
             rows.append(conversation)
     return rows
 
 
 def _latest_resolution_summary(conversation, profile):
-    points = conversation.points.filter(lifecycle=ConversationPointLifecycle.RESOLVED).select_related("resolution", "visibility_audience").order_by("-resolved_at")[:20]
-    for point in points:
+    points = getattr(conversation, "m9c_resolved_points", None)
+    if points is None:
+        points = conversation.points.filter(lifecycle=ConversationPointLifecycle.RESOLVED).select_related("resolution", "visibility_audience").order_by("-resolved_at")[:20]
+    for point in points[:20]:
         if point_visible_to(profile, point):
             try:
                 return point.resolution.summary
@@ -90,13 +142,16 @@ def _latest_resolution_summary(conversation, profile):
 def conversation_rows_for_profile(profile, *, archived=False, only_attention=False, limit=100):
     rows = []
     for conversation in _accessible_conversations(profile, include_archived=archived, limit=max(limit * 4, 100)):
-        state = conversation.user_states.filter(profile=profile).first()
+        state = _profile_state(conversation)
         if archived and not (state and state.archived_at):
             continue
         attention = 0
-        for point in conversation.points.filter(lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}).select_related(
-            "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
-        )[:200]:
+        points = getattr(conversation, "m9c_active_points", None)
+        if points is None:
+            points = conversation.points.filter(lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}).select_related(
+                "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
+            )[:200]
+        for point in points[:200]:
             if point_attention_reason(profile, point):
                 attention += 1
         if only_attention and not attention:
@@ -128,10 +183,6 @@ def now_points_for_profile(profile, conversation, *, limit=100):
         if not point_visible_to(profile, point, at=now):
             continue
         reason = point_attention_reason(profile, point, at=now)
-        # "Maintenant" is personal: once a required Question/Request/Form has been
-        # handled by this Profile, it must not linger as generic information merely
-        # because other people may still have work. Information Points remain useful
-        # in "À savoir" even when they do not demand an explicit action.
         if reason is None and point.kind != ConversationPointKind.INFORMATION:
             continue
         section = "pour_moi" if reason in {"respond", "acknowledge", "form", "revisit"} else "a_regler" if reason == "resolve" else "a_savoir"
@@ -194,13 +245,7 @@ def search_conversation(profile, conversation, query, *, limit=50):
 
 
 def search_conversations_for_profile(profile, query, *, limit=50):
-    """Privacy-safe global Conversation search with outcome/current-state precedence.
-
-    The selector deliberately keeps the physical search implementation independent
-    from the Conversation domain so SQLite can serve beta while PostgreSQL search
-    can replace this implementation later without changing persisted truth.
-    """
-
+    """Privacy-safe global Conversation search with outcome/current-state precedence."""
     query = (query or "").strip()[:120]
     if not query or not getattr(profile, "is_authenticated", False):
         return []
