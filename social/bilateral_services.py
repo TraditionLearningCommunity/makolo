@@ -267,7 +267,7 @@ def transition_action_need(*, actor, need: ActionNeed, status: str) -> ActionNee
         ActionNeedStatus.CANCELLED: set(),
         ActionNeedStatus.EXPIRED: set(),
     }
-    locked = ActionNeed.objects.select_for_update().select_related(
+    locked = ActionNeed.objects.select_for_update(of=("self",)).select_related(
         "owner_profile", "space", "activity", "activity__space", "occurrence"
     ).get(pk=need.pk)
     if not can_manage_action_need(actor, locked):
@@ -300,7 +300,7 @@ def expire_action_need(*, need: ActionNeed, at=None) -> ActionNeed:
     """Expire a due Need without inventing an actor for scheduled automation."""
 
     at = at or timezone.now()
-    locked = ActionNeed.objects.select_for_update().select_related(
+    locked = ActionNeed.objects.select_for_update(of=("self",)).select_related(
         "owner_profile", "space", "activity", "occurrence"
     ).get(pk=need.pk)
     if locked.status not in {ActionNeedStatus.OPEN, ActionNeedStatus.PAUSED}:
@@ -324,7 +324,7 @@ def create_action_proposal(
     *, actor, need: ActionNeed, candidate_profile=None, candidate_space=None,
     direction=ActionProposalDirection.OWNER_TO_CANDIDATE, message="", client_reference=None,
 ) -> ActionProposal:
-    locked_need = ActionNeed.objects.select_for_update().select_related(
+    locked_need = ActionNeed.objects.select_for_update(of=("self",)).select_related(
         "owner_profile", "space", "activity", "activity__space", "occurrence", "created_by"
     ).get(pk=need.pk)
     _need_accepts_new_proposals(locked_need)
@@ -436,7 +436,7 @@ def expire_action_proposal(*, proposal: ActionProposal, at=None) -> ActionPropos
     """Expire a due Proposal without inventing an actor for scheduled automation."""
 
     at = at or timezone.now()
-    locked = ActionProposal.objects.select_for_update().select_related(
+    locked = ActionProposal.objects.select_for_update(of=("self",)).select_related(
         "need", "need__space", "need__activity", "need__occurrence"
     ).get(pk=proposal.pk)
     _expire_locked_proposal(locked, at=at)
@@ -449,7 +449,7 @@ def respond_to_action_proposal(*, actor, proposal: ActionProposal, status: str, 
 
     expired = False
     with transaction.atomic():
-        locked = ActionProposal.objects.select_for_update().select_related(
+        locked = ActionProposal.objects.select_for_update(of=("self",)).select_related(
             "candidate_profile", "candidate_space", "initiated_by", "need", "need__space",
             "need__owner_profile", "need__activity", "need__activity__space", "need__occurrence"
         ).get(pk=proposal.pk)
@@ -507,7 +507,7 @@ def respond_to_action_proposal(*, actor, proposal: ActionProposal, status: str, 
 
 @transaction.atomic
 def cancel_action_proposal(*, actor, proposal: ActionProposal) -> ActionProposal:
-    locked = ActionProposal.objects.select_for_update().select_related(
+    locked = ActionProposal.objects.select_for_update(of=("self",)).select_related(
         "need", "need__space", "need__activity", "need__occurrence"
     ).get(pk=proposal.pk)
     if locked.initiated_by_id != getattr(actor, "pk", None):
