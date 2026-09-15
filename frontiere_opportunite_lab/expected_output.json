@@ -1,0 +1,26 @@
+{
+  "model": "frontiere-opportunite-makolo-personal-lab-v2",
+  "base_main_sha": "a840455af8cd3cfc185404b4dc8c28a53bbb9eb6",
+  "snapshots": [
+    {"name":"t0_initial_personal_state","primary_attention":"journey:university-payment","gate_priority":"P1_REQUIRED","gate_deadline_state":"DUE_TODAY","frontier_targets":["journey:university-payment","journey:visa-form"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t1_after_payment","primary_attention":"journey:visa-form","gate_priority":"P1_REQUIRED","gate_deadline_state":"DUE_TODAY","frontier_targets":["journey:visa-form"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t2_after_required_form","primary_attention":"action-network:mentor","gate_priority":"P1_REQUIRED","gate_deadline_state":"FUTURE","frontier_targets":["action-network:mentor"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t3_capacity_hold_expired","primary_attention":"readiness:concert-capacity","gate_priority":null,"gate_deadline_state":null,"frontier_targets":[],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t4_capacity_committed","primary_attention":"action-network:mentor","gate_priority":"P1_REQUIRED","gate_deadline_state":"FUTURE","frontier_targets":["action-network:mentor"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t5_mentor_proposal_answered","primary_attention":"prepared-start:bank-letter","gate_priority":"P1_REQUIRED","gate_deadline_state":"NONE","frontier_targets":["prepared-start:identity"],"screened_targets":["action-network:personal-owner","prepared-start:bank-letter","recognition:benefit"],"inaccessible_targets":[]},
+    {"name":"t6_identity_reuse_confirmed","primary_attention":"prepared-start:bank-letter","gate_priority":"P1_REQUIRED","gate_deadline_state":"NONE","frontier_targets":["recognition:benefit"],"screened_targets":["action-network:personal-owner","prepared-start:bank-letter"],"inaccessible_targets":[]},
+    {"name":"t7_recognition_decided","primary_attention":"prepared-start:bank-letter","gate_priority":"P1_REQUIRED","gate_deadline_state":"NONE","frontier_targets":["action-network:personal-owner"],"screened_targets":["prepared-start:bank-letter"],"inaccessible_targets":[]},
+    {"name":"t8_personal_need_proposal_decided","primary_attention":"prepared-start:bank-letter","gate_priority":"P1_REQUIRED","gate_deadline_state":"NONE","frontier_targets":["prepared-start:bank-letter"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t9_bank_letter_prepared","primary_attention":"conversation:travel-revisit","gate_priority":"P3_PROGRESS","gate_deadline_state":"FUTURE","frontier_targets":["conversation:travel-revisit"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t10_hidden_dossier_influence","primary_attention":"dossier:study-abroad:hidden","gate_priority":null,"gate_deadline_state":null,"frontier_targets":[],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t11_leave_now","primary_attention":"m6:concert:leave-now","gate_priority":"P2_TIME_CONSTRAINED","gate_deadline_state":"DUE_TODAY","frontier_targets":["m6:concert:leave-now"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t12_access_revoked","primary_attention":"readiness:concert-access","gate_priority":"P0_CRITICAL","gate_deadline_state":"NONE","frontier_targets":["m6:concert:access"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t13_access_restored_by_action","primary_attention":"m6:concert:leave-now","gate_priority":"P2_TIME_CONSTRAINED","gate_deadline_state":"DUE_TODAY","frontier_targets":["m6:concert:leave-now"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t14_departed_for_concert","primary_attention":"conversation:travel-revisit","gate_priority":"P3_PROGRESS","gate_deadline_state":"FUTURE","frontier_targets":["conversation:travel-revisit"],"screened_targets":[],"inaccessible_targets":[]},
+    {"name":"t15_personal_actions_cleared","primary_attention":"discover:gallery","gate_priority":"P4_INFORMATION","gate_deadline_state":"FUTURE","frontier_targets":["discover:gallery","discover:workshop-ai"],"screened_targets":["discover:seminar"],"inaccessible_targets":["discover:soldout"]},
+    {"name":"t16_discovery_frontier","primary_attention":"discover:gallery","gate_priority":"P4_INFORMATION","gate_deadline_state":"FUTURE","frontier_targets":["discover:gallery","discover:workshop-ai"],"screened_targets":["discover:seminar"],"inaccessible_targets":["discover:soldout"]}
+  ],
+  "edge_cases": [
+    {"name":"edge_occurrence_cancelled","primary_attention":"readiness:concert-cancelled","primary_attention_actionability":"TERMINAL","primary_action_gate":null,"frontier_targets":[]}
+  ]
+}
