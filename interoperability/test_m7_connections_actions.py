@@ -119,3 +119,34 @@ class ActionRegistryTests(SimpleTestCase):
         )
         self.assertEqual(result, {"accepted": True})
         self.assertEqual(len(self.calls), 1)
+
+    def test_action_succeeds_then_stops_after_connection_is_disabled(self):
+        self._register()
+
+        def authorize(ref):
+            authorize_connection(
+                actor_id="p1",
+                connection=ref,
+                has_platform_authority=lambda: False,
+                has_space_authority=lambda _space_id: False,
+            )
+
+        enabled = ConnectionRef(id="c1", scope=ConnectionScope.PROFILE, enabled=True, profile_id="p1")
+        result = self.actions.execute(
+            "notifications.send",
+            context=ActionExecutionContext(actor=object(), connection=enabled),
+            payload={"message": "before-disable"},
+            authorize_connection=authorize,
+        )
+        self.assertEqual(result, {"accepted": True})
+        self.assertEqual(len(self.calls), 1)
+
+        disabled = ConnectionRef(id="c1", scope=ConnectionScope.PROFILE, enabled=False, profile_id="p1")
+        with self.assertRaises(ConnectionUnavailable):
+            self.actions.execute(
+                "notifications.send",
+                context=ActionExecutionContext(actor=object(), connection=disabled),
+                payload={"message": "after-disable"},
+                authorize_connection=authorize,
+            )
+        self.assertEqual(len(self.calls), 1)
