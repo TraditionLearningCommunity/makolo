@@ -56,7 +56,8 @@ class DashboardTests(TestCase):
 
         self.assertRedirects(response, reverse("core:participant-home"))
         personal = self.client.get(reverse("core:participant-home"))
-        self.assertContains(personal, "Voici ce qui mérite réellement votre attention maintenant.")
+        self.assertContains(personal, "Bonjour")
+        self.assertContains(personal, "Tout est en ordre. ✓")
         self.assertContains(personal, "Maintenant")
         self.assertContains(personal, "Découvrir")
         self.assertContains(personal, "En cours")
