@@ -30,6 +30,17 @@ class MaturePersonalExperienceTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, text)
 
+    def test_primary_shell_does_not_reintroduce_legacy_global_destinations(self):
+        response = self.client.get(reverse("core:participant-home"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        mobile_nav = html.split('id="mobile-primary-nav"', 1)[1].split("</nav>", 1)[0]
+        for label in ("Maintenant", "Découvrir", "Makolo", "En cours", "Moi"):
+            self.assertIn(f"<span>{label}</span>", mobile_nav)
+        for legacy_label in ("Démarches", "Conversations", "Profil", "Plus"):
+            self.assertNotIn(f"<span>{legacy_label}</span>", mobile_nav)
+
     def test_membership_is_visible_as_collective_but_not_as_authorized_space(self):
         owner = User.objects.create_user(
             username="mature-space-owner",
