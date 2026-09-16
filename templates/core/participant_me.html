@@ -45,11 +45,13 @@
   </section>
 
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Les pièces que vous avez déjà à disposition dans Makolo.</p></div><a href="{% url 'personal_assets:list' %}">Voir tout</a></div>
+    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Documents, faits établis et attestations restent distincts, mais se retrouvent au même endroit quand ils peuvent vous servir.</p></div><a href="{% url 'personal_assets:list' %}">Bibliothèque</a></div>
     <div class="mk-me-list">
-      {% for asset in resources %}<div><strong>{{ asset.title }}</strong>{% if asset.kind %}<span>{{ asset.get_kind_display }}</span>{% endif %}</div>{% endfor %}
+      {% for asset in resources %}<div><strong>{{ asset.title }}</strong><span>Document{% if asset.kind %} · {{ asset.get_kind_display }}{% endif %}</span></div>{% endfor %}
+      {% for proof in proofs %}<div><strong>{{ proof.get_proof_type_display }}</strong><span>Fait établi · {{ proof.journey.activity.title }}{% if proof.status %} · {{ proof.get_status_display }}{% endif %}</span></div>{% endfor %}
+      {% for credential in credentials %}<div><strong>{{ credential.title }}</strong><span>Attestation · {{ credential.issuer_display_name }}{% if credential.status %} · {{ credential.get_status_display }}{% endif %}</span></div>{% endfor %}
     </div>
-    {% if not resources %}<p class="mk-empty-copy">Aucune ressource personnelle à afficher.</p>{% endif %}
+    {% if not resources and not proofs and not credentials %}<p class="mk-empty-copy">Aucune ressource personnelle à afficher.</p>{% endif %}
   </section>
 
   <div class="mk-secondary-actions">
