@@ -7,24 +7,26 @@ async function expectNoHorizontalOverflow(page) {
 }
 
 
-test('mature personal navigation keeps action surfaces coherent on desktop', async ({ page }) => {
+test('mature personal navigation keeps the five canonical contexts on desktop', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/me/');
 
   const sidebar = page.locator('#desktop-sidebar');
-  await expect(sidebar.getByRole('link', { name: 'Accueil', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(sidebar.getByRole('link', { name: 'Mes démarches', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: 'Conversations', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: 'Profil', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: /Découvrir/ })).toHaveCount(1);
+  await expect(sidebar.getByRole('link', { name: 'Maintenant', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(sidebar.getByRole('link', { name: 'Découvrir', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Makolo', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'En cours', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Moi', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Conversations', exact: true })).toHaveCount(0);
+  await expect(sidebar.getByRole('link', { name: 'Profil', exact: true })).toHaveCount(0);
 
-  await sidebar.getByRole('link', { name: 'Conversations', exact: true }).click();
-  await expect(page.locator('h1').filter({ hasText: /^Conversations$/ })).toBeVisible();
-  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Conversations', exact: true })).toHaveAttribute('aria-current', 'page');
+  await sidebar.getByRole('link', { name: 'En cours', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Ce que vous avez déjà engagé', exact: true })).toBeVisible();
+  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'En cours', exact: true })).toHaveAttribute('aria-current', 'page');
 
-  await page.locator('#desktop-sidebar').getByRole('link', { name: 'Profil', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Mon profil', exact: true })).toBeVisible();
-  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Profil', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.locator('#desktop-sidebar').getByRole('link', { name: 'Moi', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /m8e-viewer/i })).toBeVisible();
+  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Moi', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
 
@@ -46,12 +48,26 @@ test('mature mobile shell stays usable from 320px through tablet @mobile', async
     if (viewport.width < 1024) {
       const mobileNav = page.locator('#mobile-primary-nav');
       await expect(mobileNav).toBeVisible();
-      for (const label of ['Accueil', 'Démarches', 'Conversations', 'Profil', 'Plus']) {
+      for (const label of ['Maintenant', 'Découvrir', 'Makolo', 'En cours', 'Moi']) {
         await expect(mobileNav.getByText(label, { exact: true })).toBeVisible();
       }
-      await expect(mobileNav.getByText('Découvrir', { exact: true })).toHaveCount(0);
+      await expect(mobileNav.getByText('Conversations', { exact: true })).toHaveCount(0);
+      await expect(mobileNav.getByText('Profil', { exact: true })).toHaveCount(0);
+      await expect(mobileNav.getByText('Plus', { exact: true })).toHaveCount(0);
     }
   }
+});
+
+
+test('Makolo Mark stays bounded to capabilities that exist in the runtime', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/mark/');
+
+  await expect(page.getByRole('heading', { name: 'Qu’est-ce que vous voulez faire avancer ?' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Je cherche quelque chose/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Je veux retrouver quelque chose/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /J’ai un document/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Je veux reprendre quelque chose/ })).toBeVisible();
 });
 
 
