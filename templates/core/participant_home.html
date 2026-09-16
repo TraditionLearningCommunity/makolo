@@ -5,14 +5,13 @@
   <section class="mk-mature-heading">
     <p class="mk-eyebrow">Maintenant</p>
     <h1>Bonjour{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}.</h1>
-    <p>Voici ce qui mérite réellement votre attention maintenant.</p>
   </section>
 
   {% if home.all_clear %}
     <section class="mk-calm-state" aria-labelledby="home-clear-title">
       <span class="mk-calm-state__icon" aria-hidden="true"><i data-lucide="circle-check-big"></i></span>
       <h2 id="home-clear-title">Tout est en ordre. ✓</h2>
-      <p>Rien ne demande votre intervention pour le moment.</p>
+      <p>Rien à faire pour le moment.</p>
     </section>
   {% else %}
     {% if home.primary_attention %}
