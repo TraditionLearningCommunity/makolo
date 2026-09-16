@@ -4,17 +4,27 @@
 <div class="mk-mark-page">
   <section class="mk-mark-intro">
     <span class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</span>
-    <h1>Qu’est-ce que vous voulez faire avancer ?</h1>
-    <p>Partez de votre situation. Makolo vous conduit ensuite vers le bon endroit.</p>
+    <h1>Qu’est-ce que vous avez en tête ?</h1>
+    <p>Dites-le comme vous le diriez à quelqu’un.</p>
   </section>
 
-  <div class="mk-mark-starts" aria-label="Points de départ">
-    <a href="{% url 'discovery:home' %}?focus=search" class="mk-mark-start"><i data-lucide="compass"></i><span><strong>Je cherche quelque chose</strong><small>Une activité, une aide, un trajet, une possibilité.</small></span></a>
-    <a href="{% url 'core:participant-me' %}" class="mk-mark-start"><i data-lucide="search-check"></i><span><strong>Je veux retrouver quelque chose</strong><small>Une ressource, un accès ou ce qui existe déjà autour de vous.</small></span></a>
-    <a href="{% url 'personal_assets:list' %}" class="mk-mark-start"><i data-lucide="file-up"></i><span><strong>J’ai un document</strong><small>Ajoutez-le seulement s’il doit réellement rester dans Makolo.</small></span></a>
-    <a href="{% url 'core:participant-ongoing' %}" class="mk-mark-start"><i data-lucide="route"></i><span><strong>Je veux reprendre quelque chose</strong><small>Revenez à ce que vous avez déjà engagé.</small></span></a>
-  </div>
+  <form method="post" class="mk-mark-form">
+    {% csrf_token %}
+    <label for="mark-intent" class="sr-only">Ce que vous voulez donner à Makolo</label>
+    <textarea id="mark-intent" name="intent" maxlength="600" rows="4" placeholder="Ex. Retrouve mon billet pour ce soir" autocomplete="off">{{ mark_text|default:'' }}</textarea>
+    {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
+    <button type="submit" class="mk-now-cta">Continuer</button>
+  </form>
 
-  <p class="mk-mark-runtime-note">Le Mark n’exécute pas encore une instruction libre en langage naturel. Cette surface n’affiche que les capacités réellement disponibles aujourd’hui.</p>
+  {% if mark_needs_clarification %}
+  <section class="mk-mark-clarify" aria-labelledby="mark-clarify-title">
+    <h2 id="mark-clarify-title">Qu’est-ce que vous voulez obtenir à partir de ça ?</h2>
+    <div class="mk-mark-starts">
+      <a href="{% url 'discovery:home' %}?q={{ mark_text|urlencode }}" class="mk-mark-start"><i data-lucide="compass"></i><span><strong>Explorer des possibilités</strong><small>Chercher quelque chose qui pourrait convenir.</small></span></a>
+      <a href="{% url 'core:participant-ongoing' %}" class="mk-mark-start"><i data-lucide="route"></i><span><strong>Reprendre quelque chose</strong><small>Revenir à une réalité déjà engagée.</small></span></a>
+      <a href="{% url 'core:participant-me' %}" class="mk-mark-start"><i data-lucide="search-check"></i><span><strong>Retrouver ce que j’ai déjà</strong><small>Revenir à ce qui existe déjà autour de vous.</small></span></a>
+    </div>
+  </section>
+  {% endif %}
 </div>
 {% endblock %}
