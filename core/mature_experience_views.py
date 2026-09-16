@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import TemplateView
@@ -20,6 +23,7 @@ from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _jo
 
 ONGOING_LIMIT = 18
 ME_PREVIEW_LIMIT = 6
+MARK_TEXT_MAX_LENGTH = 600
 
 
 def _ongoing_journey_item(card):
@@ -143,7 +147,6 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
             .select_related("organizer_profile")
             .order_by("-followed_at")[:ME_PREVIEW_LIMIT]
         )
-
         team_memberships = list(
             TeamMembership.objects.filter(user=profile, status=TeamMembershipStatus.ACTIVE)
             .select_related("team__organization")
@@ -174,3 +177,51 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
 class MakoloMarkView(LoginRequiredMixin, TemplateView):
     template_name = "core/makolo_mark.html"
     login_url = "core:login"
+
+    def post(self, request, *args, **kwargs):
+        text = (request.POST.get("intent") or "").strip()[:MARK_TEXT_MAX_LENGTH]
+        if not text:
+            context = self.get_context_data(mark_error="Dites simplement ce que vous voulez faire.")
+            return self.render_to_response(context, status=400)
+
+        normalized = " ".join(text.casefold().split())
+        discovery_phrases = (
+            "je cherche",
+            "trouve-moi",
+            "trouve moi",
+            "je veux trouver",
+            "je veux voyager",
+            "quoi faire",
+            "où aller",
+            "ou aller",
+        )
+        ongoing_phrases = (
+            "où en est",
+            "ou en est",
+            "reprendre ma",
+            "reprendre mon",
+            "continuer ma",
+            "continuer mon",
+            "déjà commencé",
+            "deja commence",
+        )
+        retrieve_phrases = (
+            "retrouve mon",
+            "retrouve ma",
+            "retrouver mon",
+            "retrouver ma",
+            "où est mon",
+            "où est ma",
+            "ou est mon",
+            "ou est ma",
+        )
+
+        if any(phrase in normalized for phrase in discovery_phrases):
+            return redirect(f"{reverse('discovery:home')}?{urlencode({'q': text})}")
+        if any(phrase in normalized for phrase in ongoing_phrases):
+            return redirect("core:participant-ongoing")
+        if any(phrase in normalized for phrase in retrieve_phrases):
+            return redirect("core:participant-me")
+
+        context = self.get_context_data(mark_text=text, mark_needs_clarification=True)
+        return self.render_to_response(context)
