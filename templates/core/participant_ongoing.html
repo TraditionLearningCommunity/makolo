@@ -1,0 +1,41 @@
+{% extends 'base/app.html' %}
+{% block title %}En cours | Makolo{% endblock %}
+{% block content %}
+<div class="mk-mature-page">
+  <section class="mk-mature-heading">
+    <p class="mk-eyebrow">En cours</p>
+    <h1>Ce qui continue</h1>
+    <p>Vos engagements restent ici tant qu’ils ont encore une suite pour vous.</p>
+  </section>
+
+  {% if ongoing_items %}
+    <div class="mk-ongoing-list" aria-label="Engagements en cours">
+      {% for item in ongoing_items %}
+        <a href="{{ item.url }}" class="mk-ongoing-card mk-tone-{{ item.tone }}">
+          <div class="mk-ongoing-card__body">
+            <div class="mk-ongoing-card__topline">
+              {% if item.timing %}<span>{{ item.timing.compact_label }}</span>{% endif %}
+              {% if item.place %}<span>{{ item.place.name }}</span>{% endif %}
+            </div>
+            <h2>{{ item.title }}</h2>
+            <p>{{ item.summary }}</p>
+            {% if item.next_action %}<strong>{{ item.next_action }}</strong>{% endif %}
+          </div>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <section class="mk-calm-state">
+      <span class="mk-calm-state__icon" aria-hidden="true"><i data-lucide="circle-check-big"></i></span>
+      <h2>Rien ne continue pour le moment.</h2>
+      <p>Vous n’avez aucun engagement actif qui demande d’être suivi ici.</p>
+    </section>
+  {% endif %}
+
+  <div class="mk-secondary-actions">
+    <a href="{% url 'core:participant-journeys' %}">Voir toutes mes démarches</a>
+    <a href="{% url 'core:participant-accesses' %}">Voir mes accès</a>
+  </div>
+</div>
+{% endblock %}
