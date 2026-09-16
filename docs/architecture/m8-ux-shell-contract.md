@@ -178,4 +178,5 @@ Leur existence ne leur donne plus le statut de destinations primaires.
 - les deep links secondaires restent utilisables ;
 - le shell conserve un fallback HTML complet ;
 - aucun changement de schéma n'est requis ;
+- les artefacts frontend commités sont synchronisés avec les sources avant validation CI ;
 - tests, migrations checks, sécurité et E2E restent verts.
