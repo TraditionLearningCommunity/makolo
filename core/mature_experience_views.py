@@ -16,6 +16,8 @@ from personal_assets.selectors import personal_assets_for_controller
 from readiness import ReadinessStatus, resolve_many
 from readiness.selectors import readiness_queryset
 from topics.models import ProfileInterest, ProfileOpenTo
+from trust.credential_selectors import credentials_for_profile
+from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
 from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _journey_card
@@ -100,12 +102,7 @@ class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
         )
         access_items = [_ongoing_access_item(_access_card(access)) for access in standalone_accesses]
 
-        context.update(
-            {
-                "ongoing_items": journey_items + access_items,
-                "calendar_mode": self.request.GET.get("view") == "calendar",
-            }
-        )
+        context["ongoing_items"] = journey_items + access_items
         return context
 
 
@@ -155,6 +152,8 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
         spaces = list(authorized_spaces(profile)[:ME_PREVIEW_LIMIT])
         groups = list(groups_for_profile(profile)[:ME_PREVIEW_LIMIT])
         resources = list(personal_assets_for_controller(profile)[:ME_PREVIEW_LIMIT])
+        credentials = list(credentials_for_profile(profile)[:ME_PREVIEW_LIMIT])
+        proofs = list(proofs_for_profile(profile)[:ME_PREVIEW_LIMIT])
 
         context.update(
             {
@@ -168,6 +167,8 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
                 "authorized_spaces": spaces,
                 "my_groups": groups,
                 "resources": resources,
+                "credentials": credentials,
+                "proofs": proofs,
                 "passport_url": reverse("sharing:passport-me"),
             }
         )
