@@ -1,131 +1,181 @@
-# M8 UX Shell Contract — navigation claire et transitions modernes
+# M8 UX Shell Contract — expérience personnelle mobile-first
 
-> Statut : contrat d'expérience pour le chantier M8-UX. Ce document complète `mature-experience-principles.md` et ne crée aucun bounded context. Le code, les migrations et les tests du `main` courant restent la vérité runtime.
+> Statut : contrat d'expérience du shell personnel Mature. Il complète `mature-experience-principles.md` sans créer de bounded context. Le code, les migrations et les tests du `main` courant restent la vérité runtime.
 
 ## Problème utilisateur
 
-Le retour bêta sur `/me/` montre une expérience trop proche d'un site Django classique : destinations répétées, rails concurrents, clics avec rafraîchissement pleine page visible, et impression de logiciel ancien.
+Le shell personnel historique exposait trop directement la structure interne de Makolo : Accueil, Démarches, Conversations, Profil, Espaces, Accès, Bibliothèque, Veilles et Historique se retrouvaient en concurrence dans les rails de navigation, tandis que certaines destinations étaient répétées dans la topbar.
 
-Makolo doit devenir un assistant d'action fluide : l'utilisateur comprend où il est, ce qui demande son attention et quelle action le fait avancer.
+Cette structure faisait ressembler Makolo à un site Django composé de modules plutôt qu'à une application qui aide une personne à avancer.
 
 ## Principe
 
-> Makolo ne doit pas multiplier les menus. Makolo doit exposer le prochain contexte utile.
+> **La situation humaine précède l'objet métier.**
 
 La promesse reste : **Makolo marche pour vous.**
 
 La règle d'expérience reste : **Pas le plaisir de rester. Le plaisir d'avancer.**
 
-## Hiérarchie de navigation
+Et le shell suit la règle :
 
-### 1. Navigation primaire personnelle
+> **Makolo doit être immense à l'intérieur et petit à l'extérieur.**
 
-La navigation personnelle permanente doit rester courte et stable.
+Les domaines Django restent propriétaires de leurs vérités. Le shell les compose selon la question humaine du moment ; il ne les transforme pas en navigation primaire.
 
-Destinations canoniques :
+## Architecture mobile de référence
 
-1. **Accueil** — ce qui compte maintenant.
-2. **Découvrir** — ouvrir une possibilité réelle.
-3. **Mes démarches** — ce que j'ai commencé ou ce qui reste à accomplir.
-4. **Mes Espaces** — agir dans un contexte d'autorité explicite.
+La navigation personnelle primaire est :
 
-`Découvrir` peut aussi rester présenté comme carte d'appel en bas de sidebar, parce que cette carte n'introduit pas une deuxième vérité de navigation : elle pointe vers la même destination canonique et sert de rappel visuel de la promesse exploratoire. Les autres destinations ne doivent pas être dupliquées en cartes permanentes équivalentes.
+> **Maintenant | Découvrir | [Makolo Mark] | En cours | Moi**
 
-### 2. Retrouver
+Elle contient quatre destinations et une action centrale.
 
-Les surfaces de récupération ne sont pas le rail d'action principal. Elles servent à retrouver ce qui existe déjà :
+### Maintenant
 
-- Mes accès ;
+Question : **« Qu'est-ce qui mérite que je fasse quelque chose maintenant ? »**
+
+`Maintenant` n'est ni un dashboard, ni un bulletin, ni une liste de toutes les actions possibles. Une réalité y entre seulement lorsqu'elle change ce que la personne doit faire, décider, éviter ou adapter maintenant.
+
+Lorsque rien ne passe ce filtre :
+
+> **Tout est en ordre. ✓**
+
+Cette réponse est complète. Aucun contenu de rétention ne doit être ajouté pour remplir le calme.
+
+### Découvrir
+
+Question : **« Qu'est-ce que je pourrais avoir envie de vivre, faire ou obtenir ? »**
+
+`Découvrir` est l'espace des possibilités, pas des nouveautés. Recherche, filtres, carte et médias sont des moyens d'exploration, pas des catégories métier. Lorsqu'une possibilité devient réellement choisie, Discover passe le relais aux domaines d'accomplissement.
+
+### Makolo Mark
+
+Sens : **« J'ai quelque chose à donner à Makolo. »**
+
+Le Mark est une porte d'intake et d'orchestration. Il n'est ni une destination métier, ni un bouton `+`, ni une boîte d'upload universelle, ni un chatbot générique. La personne commence dans son propre langage ; Makolo retrouve ensuite le contexte utile sans inventer de capacité, de vérité ou d'autorité.
+
+### En cours
+
+Question : **« Pour ce que j'ai déjà engagé, puis-je avancer tranquille — et sinon, quelle est la plus petite chose utile qu'il me reste à faire ? »**
+
+`En cours` compose la continuité de réalités déjà engagées. Journey, Payment, Access, Capacity, Occurrence et Readiness restent des vérités internes ; l'interface présente leur conséquence humaine.
+
+### Moi
+
+Question : **« Qu'est-ce qui est déjà en place autour de moi pour que Makolo marche mieux pour moi ? »**
+
+`Moi` compose identité, Passeport Makolo, ce que la personne a demandé à Makolo de considérer, ses collectifs et ses ressources. Il ne remplace ni Compte ni Paramètres.
+
+## Ce qui ne devient pas une destination primaire
+
+Le shell personnel ne crée pas d'onglet global pour :
+
+- Démarches ;
+- Conversations ;
+- Profil ;
+- Espaces ;
+- Accès ;
 - Bibliothèque ;
-- Mes veilles ;
-- Historique.
+- Veilles ;
+- Historique ;
+- Notifications ;
+- Paramètres ;
+- Plus.
 
-Elles restent visibles mais séparées du groupe `Avancer`.
+Ces capacités restent accessibles lorsqu'un contexte légitime les appelle, notamment depuis les surfaces secondaires ou l'Avatar.
 
-### 3. Compte et identité
+## Headers contextuels
 
-Le Profil n'est pas une destination primaire permanente. Il appartient au menu utilisateur et aux cartes d'activation lorsqu'une étape utile manque.
+Le Header reflète le mode mental courant ; il n'empile pas mécaniquement toutes les commandes globales.
 
-Un Profil reste une personne globale. La navigation ne doit pas le transformer en module métier central ni en rôle global.
+- `Maintenant` : **Makolo | Conversations | Notifications | Avatar**
+- `Découvrir` : **Découvrir | Recherche | Filtres / pertinence | Avatar**
+- `Makolo Mark` : **Makolo | Avatar**
+- `En cours` : **En cours | Calendrier / lecture temporelle | Avatar**
+- `Moi` : **Moi | Avatar**
 
-### 4. Conversations
+Les pages secondaires utilisent une flèche de retour vers leur surface propriétaire, un titre humain et seulement les actions contextuelles nécessaires.
 
-Conversations n'est pas une messagerie sociale générique. La surface doit apparaître comme action ou attention lorsqu'une réponse est utile.
+## Avatar
 
-Contrat actuel :
+L'Avatar contrôle identité, contexte d'acteur et compte. Il n'est pas `Moi`.
 
-- entrée topbar avec badge d'attention ;
-- accès possible depuis les contextes qui lient une action réelle ;
-- pas de lien permanent dans le rail primaire personnel.
+Il porte notamment :
 
-### 5. Espace / autorité
+- l'identité authentifiée ;
+- l'activation du Profil Makolo lorsqu'elle est utile ;
+- `Agir comme` ;
+- Compte et Paramètres ;
+- Abonnement et facturation lorsque pertinent ;
+- changement de compte ;
+- déconnexion.
 
-Entrer dans un Espace change de contexte. La navigation d'Espace est autorisée par `Mandate`/`Permission`, jamais par simple Membership.
+`Agir comme` ne liste que des contextes réellement autorisés. Sélectionner un contexte n'accorde jamais d'autorité. Membership et Assignment ne remplacent jamais Permission/Mandate.
 
-La composition visuelle ne transfère pas implicitement Permission, Mandate, Access, Payment ni données privées.
+## Adaptation desktop
 
-## Transitions modernes
+Le mobile fixe l'architecture sémantique. Le desktop exploite davantage d'espace sans réintroduire un index des domaines.
 
-Makolo peut utiliser un app shell progressif sans devenir une SPA lourde.
+La version desktop peut utiliser un rail latéral permanent, mais ce rail porte les mêmes repères :
 
-Contrat :
+> **Maintenant · Découvrir · Makolo · En cours · Moi**
 
-- Django reste source de vérité HTML et permission serveur ;
-- htmx peut remplacer progressivement des fragments sûrs ;
-- `#main-content` est le candidat de swap pour les routes personnelles stables ;
-- `hx-push-url` doit préserver back/forward ;
-- les icônes Lucide doivent être réinitialisées après swap ;
-- fallback HTML complet obligatoire sans JavaScript ;
-- aucun formulaire destructif ou flux critique ne passe en navigation partielle avant audit.
+Une surface secondaire peut utiliser une présentation master/detail ou davantage de largeur si cela aide l'action ; elle ne crée pas une seconde IA.
 
-Implémentation de ce slice :
+## Transitions
 
-- boost htmx limité au rail personnel `Avancer` / `Retrouver`, à la bottom nav mobile et à la carte `Découvrir` ;
+Django reste la source de vérité HTML et de permission serveur.
+
+Le shell peut utiliser htmx sur les routes personnelles sûres :
+
 - swap principal sur `#main-content` ;
-- swaps out-of-band pour topbar, sidebar desktop, sidebar mobile et bottom nav mobile afin de garder titre, active state et actions de contexte synchronisés ;
-- indicateur discret sur `#main-content` pendant la requête ;
-- les liens d'Espace, d'opérations, de plateformes et les formulaires restent en navigation HTML complète.
+- `hx-push-url` pour préserver back/forward ;
+- swaps out-of-band de la topbar, du rail desktop et de la bottom nav afin de synchroniser le contexte actif ;
+- fallback HTML complet sans JavaScript ;
+- aucun formulaire destructif ni side effect critique n'est transformé en navigation partielle par réflexe.
 
-Premières routes candidates :
+Les surfaces d'Espace conservent leur shell d'autorité propre.
 
-- `/me/` ;
-- `/me/journeys/` ;
-- `/me/accesses/` ;
-- `/me/history/` ;
-- `/account/profile/` depuis le menu compte ou une carte d'activation ;
-- `/conversations/` seulement comme surface d'attention/contextuelle.
+## Langage produit
 
-## Accueil mature
+Les principes de conception restent dans les documents ; ils ne deviennent pas du texte d'interface.
 
-`/me/` doit rester privé, contextuel et orienté accomplissement.
+L'interface doit parler de la situation de la personne et de la prochaine conséquence utile. Elle évite notamment les formulations qui expliquent la philosophie du produit, le ranking interne, les projections ou l'architecture.
 
-Structure cible :
+Préférer :
 
-1. **Maintenant** — une action prioritaire ou `Tout est en ordre. ✓`.
-2. **Ensuite** — peu d'éléments, ordonnés par utilité réelle.
-3. **Prêt / pas prêt** — projection dérivée quand disponible.
-4. **Retrouver** — raccourcis utiles, sans recréer un catalogue.
+> **Votre demande est envoyée. Ils doivent maintenant la vérifier. Rien à faire de votre côté.**
 
-Accueil ne devient pas un feed. Discover reste l'espace exploratoire.
+à une explication de la logique interne de Makolo.
+
+## Compatibilité des surfaces profondes
+
+Les routes historiques telles que `/me/journeys/`, `/me/accesses/` et `/me/history/` peuvent rester disponibles comme profondeurs contextuelles et comme cibles de deep links.
+
+Leur existence ne leur donne plus le statut de destinations primaires.
 
 ## Non-objectifs
 
-- Pas de migration React/Vue/SPA complète par réflexe.
-- Pas de feed, like, popularité ou watch-time.
-- Pas de nouveau modèle persistant pour la navigation.
-- Pas de contournement des permissions serveur.
-- Pas de duplication de vérités métier dans l'UI.
+- pas de nouveau modèle persistant pour le shell ;
+- pas de nouveau Readiness global ;
+- pas de copie de vérités métier ;
+- pas de migration React/Vue/SPA par réflexe ;
+- pas de feed, like, popularité ou watch-time ;
+- pas de contournement des permissions serveur ;
+- pas de faux support de voix, IA, upload ou automatisation lorsque le runtime ne le permet pas réellement.
 
-## Critères d'acceptation pour le premier slice
+## Critères d'acceptation
 
-- `Profil` n'apparaît plus comme lien primaire permanent dans la sidebar personnelle.
-- `Conversations` n'apparaît plus comme lien primaire permanent dans la sidebar personnelle ni dans la bottom nav mobile.
-- `Découvrir` devient une destination primaire explicite et conserve sa carte d'appel en bas de sidebar.
-- Le menu utilisateur garde l'accès au Profil.
-- La topbar garde l'accès Conversation seulement comme action d'attention.
-- Les routes personnelles stables peuvent utiliser le shell progressif htmx avec fallback HTML complet.
-- Les tests existants restent verts.
-
-## Suite
-
-Le prochain slice doit traiter la finition visuelle et comportementale après validation bêta : perception mobile/tablette, polish de `/me/`, tests E2E de back/forward htmx si les gates actuels valident le contrat, et audit no-JS/accessibilité.
+- mobile : `Maintenant | Découvrir | Makolo | En cours | Moi` est la seule navigation personnelle primaire ;
+- desktop : les mêmes repères structurent le rail personnel ;
+- Conversations n'est pas dupliqué dans le rail ;
+- Profil/Compte n'est pas une destination primaire ;
+- les headers sont contextuels ;
+- `Maintenant` peut se terminer par `Tout est en ordre. ✓` sans CTA de rétention ;
+- `En cours` compose la continuité sans exposer les tables ;
+- `Moi` compose les vérités personnelles sans dupliquer leurs propriétaires ;
+- le Mark commence par une entrée naturelle et n'invente pas de capacité runtime ;
+- les deep links secondaires restent utilisables ;
+- le shell conserve un fallback HTML complet ;
+- aucun changement de schéma n'est requis ;
+- tests, migrations checks, sécurité et E2E restent verts.
