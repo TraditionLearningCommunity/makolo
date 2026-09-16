@@ -25,7 +25,9 @@ test('mature personal navigation keeps the five canonical contexts on desktop', 
   await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'En cours', exact: true })).toHaveAttribute('aria-current', 'page');
 
   await page.locator('#desktop-sidebar').getByRole('link', { name: 'Moi', exact: true }).click();
-  await expect(page.getByRole('heading', { name: /m8e-viewer/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Passeport Makolo', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes collectifs', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes ressources', exact: true })).toBeVisible();
   await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Moi', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
