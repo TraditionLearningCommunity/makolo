@@ -9,7 +9,7 @@
   </section>
 
   {% if ongoing_items %}
-    <div class="mk-ongoing-list" aria-label="Engagements en cours">
+    <div id="ongoing-dates" class="mk-ongoing-list" aria-label="Engagements en cours">
       {% for item in ongoing_items %}
         <a href="{{ item.url }}" class="mk-ongoing-card mk-tone-{{ item.tone }}">
           <div class="mk-ongoing-card__body">
@@ -34,8 +34,8 @@
   {% endif %}
 
   <div class="mk-secondary-actions">
-    <a href="{% url 'core:participant-journeys' %}">Voir toutes mes démarches</a>
-    <a href="{% url 'core:participant-accesses' %}">Voir mes accès</a>
+    <a href="{% url 'core:participant-journeys' %}">Démarches</a>
+    <a href="{% url 'core:participant-accesses' %}">Accès</a>
   </div>
 </div>
 {% endblock %}
