@@ -56,7 +56,7 @@ class DashboardTests(TestCase):
 
         self.assertRedirects(response, reverse("core:participant-home"))
         personal = self.client.get(reverse("core:participant-home"))
-        self.assertContains(personal, "Qu’est-ce qui demande quelque chose de vous maintenant ?")
+        self.assertContains(personal, "Voici ce qui mérite réellement votre attention maintenant.")
         self.assertContains(personal, "Maintenant")
         self.assertContains(personal, "Découvrir")
         self.assertContains(personal, "En cours")
@@ -67,5 +67,8 @@ class DashboardTests(TestCase):
         self.assertContains(personal, reverse("core:makolo-mark"), html=False)
         self.assertNotContains(personal, "<span>Profil</span>", html=False)
         self.assertNotContains(personal, "<span>Conversations</span>", html=False)
+        self.assertNotContains(personal, "Mes démarches")
+        self.assertNotContains(personal, "Mes Espaces")
+        self.assertNotContains(personal, "Bibliothèque")
         self.assertNotContains(personal, "Paiements réussis")
         self.assertNotContains(personal, "CRM & audiences")
