@@ -18,25 +18,26 @@
   </section>
 
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Passeport Makolo</h2><p>Ce que vous choisissez de présenter dans un contexte donné.</p></div><a href="{{ passport_url }}">Ouvrir</a></div>
+    <div class="mk-section-heading"><div><h2>Passeport Makolo</h2><p>Choisissez ce que vous présentez selon le contexte.</p></div><a href="{{ passport_url }}">Ouvrir</a></div>
   </section>
 
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Ce qui compte pour moi</h2><p>Ce que vous avez demandé à Makolo de garder en tête.</p></div></div>
+    <div class="mk-section-heading"><div><h2>Ce qui compte pour moi</h2><p>Ce que vous avez choisi de suivre, garder ou demander à Makolo de chercher.</p></div></div>
     <div class="mk-chip-cloud">
       {% for interest in interests %}<span>{{ interest.topic.label }}</span>{% endfor %}
       {% for item in open_to %}<span>{{ item.get_kind_display }}{% if item.topic %} · {{ item.topic.label }}{% endif %}</span>{% endfor %}
       {% for watch in watches %}<a href="{% url 'discovery:watch-list' %}">{{ watch.name }}</a>{% endfor %}
       {% for bookmark in bookmarks %}<a href="{% url 'discovery:bookmarks' %}">{{ bookmark.activity.title }}</a>{% endfor %}
-      {% empty %}{% endfor %}
+      {% for follow in followed_spaces %}<span>{{ follow.organization.name }}</span>{% endfor %}
+      {% for follow in followed_profiles %}<span>{% if follow.organizer_profile.full_name %}{{ follow.organizer_profile.full_name }}{% else %}{{ follow.organizer_profile.username }}{% endif %}</span>{% endfor %}
     </div>
-    {% if not interests and not open_to and not watches and not bookmarks %}<p class="mk-empty-copy">Rien n’est encore enregistré ici.</p>{% endif %}
+    {% if not interests and not open_to and not watches and not bookmarks and not followed_spaces and not followed_profiles %}<p class="mk-empty-copy">Rien n’est encore enregistré ici.</p>{% endif %}
   </section>
 
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes collectifs</h2><p>Les contextes où vous avez une place ou pouvez agir.</p></div><a href="{% url 'organizations:list' %}">Voir</a></div>
+    <div class="mk-section-heading"><div><h2>Mes collectifs</h2><p>Les groupes, équipes et Espaces auxquels vous êtes réellement relié.</p></div><a href="{% url 'organizations:list' %}">Voir</a></div>
     <div class="mk-me-list">
-      {% for space in authorized_spaces %}<div><strong>{{ space.name }}</strong><span>Contexte autorisé</span></div>{% endfor %}
+      {% for space in authorized_spaces %}<div><strong>{{ space.name }}</strong><span>Vous pouvez agir dans cet Espace</span></div>{% endfor %}
       {% for membership in team_memberships %}<div><strong>{{ membership.team.name }}</strong><span>{{ membership.team.organization.name }}</span></div>{% endfor %}
       {% for group in my_groups %}<div><strong>{{ group.name }}</strong><span>Groupe</span></div>{% endfor %}
     </div>
@@ -44,7 +45,7 @@
   </section>
 
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Ce que vous avez déjà à disposition dans Makolo.</p></div><a href="{% url 'personal_assets:list' %}">Bibliothèque</a></div>
+    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Les pièces que vous avez déjà à disposition dans Makolo.</p></div><a href="{% url 'personal_assets:list' %}">Voir tout</a></div>
     <div class="mk-me-list">
       {% for asset in resources %}<div><strong>{{ asset.title }}</strong>{% if asset.kind %}<span>{{ asset.get_kind_display }}</span>{% endif %}</div>{% endfor %}
     </div>
