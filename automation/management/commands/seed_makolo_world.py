@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import os
-import random
-import urllib.request
 import uuid
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -135,10 +132,9 @@ def bulk(model, rows):
         model.objects.bulk_create(rows, ignore_conflicts=True, batch_size=500)
 
 
-def seed_world(scale, as_of, password, download_media=False, media_limit=20):
+def seed_world(scale, as_of, password):
     cfg = SCALES[scale]
     at = datetime.strptime(as_of, "%Y-%m-%d").replace(tzinfo=TZ)
-    random.Random(20260916)
     stats = {}
     for code, label in TOPIC_LABELS:
         Topic.objects.update_or_create(code=code, defaults={"label": label, "is_active": True})
@@ -273,17 +269,6 @@ def seed_world(scale, as_of, password, download_media=False, media_limit=20):
     kinds=[ContributionKind.UPDATE,ContributionKind.TIP,ContributionKind.FIELD_NOTE,ContributionKind.DISCUSSION];messages=["Les inscriptions sont ouvertes; vérifiez votre préparation.","Conseil terrain: préparez vos documents et votre accès.","Retour d'expérience: la coordination en amont réduit les blocages.","Qui souhaite coordonner le déplacement ou partager les points pratiques ?"]
     bulk(Contribution,[Contribution(id=sid(f"contrib:{i}"),author_profile=users[(i*7+1)%len(users)],kind=kinds[i%len(kinds)],body=messages[i%len(messages)],activity=activities[(i*13+2)%len(activities)],visibility=ContributionVisibility.PUBLIC if i%4 else ContributionVisibility.CONTEXT,status=ContributionStatus.PUBLISHED) for i in range(cfg["contributions"])])
     stats["contributions"]=cfg["contributions"]
-
-    if download_media:
-        done=0
-        for u in users:
-            if done>=media_limit:break
-            if u.avatar:continue
-            try:
-                with urllib.request.urlopen(u.metadata["avatar_url"],timeout=12) as r:payload=r.read(2_000_000)
-                u.avatar.save(f"world-{u.pk}.png",ContentFile(payload),save=True);done+=1
-            except Exception:pass
-        stats["media_downloaded"]=done
     return stats, users[:5]
 
 
@@ -295,12 +280,12 @@ def counts():
 class Command(BaseCommand):
     help="Seed a deterministic, explicitly synthetic Makolo world spanning Jan 2025-Dec 2026. Demo/beta only."
     def add_arguments(self,p):
-        p.add_argument("--profile",choices=sorted(SCALES),default="full");p.add_argument("--as-of",required=True);p.add_argument("--demo-password",default=None);p.add_argument("--download-media",action="store_true");p.add_argument("--media-limit",type=int,default=20)
+        p.add_argument("--profile",choices=sorted(SCALES),default="full");p.add_argument("--as-of",required=True);p.add_argument("--demo-password",default=None)
     def handle(self,*args,**o):
         password=o["demo_password"] or os.environ.get("MAKOLO_DEMO_PASSWORD")
         if not password:raise CommandError("Set MAKOLO_DEMO_PASSWORD or pass --demo-password.")
         try:
-            with transaction.atomic():stats,users=seed_world(o["profile"],o["as_of"],password,o["download_media"],max(0,o["media_limit"]))
+            with transaction.atomic():stats,users=seed_world(o["profile"],o["as_of"],password)
         except Exception as exc:raise CommandError(str(exc)) from exc
         self.stdout.write(self.style.SUCCESS("Makolo realistic synthetic world seed complete"));self.stdout.write(f"Profile: {o['profile']} | As of: {o['as_of']}")
         for k,v in sorted(stats.items()):self.stdout.write(f"{k}: {v}")
