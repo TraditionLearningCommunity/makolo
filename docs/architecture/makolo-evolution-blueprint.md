@@ -2,21 +2,21 @@
 
 ## Makolo Mature → Makolo Mobile → Makolo Intelligence Kernel → Makolo Agent
 
-> **Statut : proposition d’architecture à valider.**
+> **Statut : blueprint d’évolution canonique proposé.**
 >
-> Ce document ne remplace pas `makolo-domain-blueprint.md`, `mature-program-roadmap.md`, `strategic-action-roadmap.md`, `mature-experience-principles.md` ni `intelligence-discover-program.md`. Il propose une lecture d’évolution au-dessus de ces contrats : terminer **Makolo Mature**, construire **Makolo Mobile** comme client natif actif, étendre la fondation `intelligence` vers un **Makolo Intelligence Kernel**, puis ajouter progressivement **Makolo Agent** par spécialisations.
+> Ce document ne remplace pas [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md), [`mature-program-roadmap.md`](mature-program-roadmap.md), [`strategic-action-roadmap.md`](strategic-action-roadmap.md), [`mature-experience-principles.md`](mature-experience-principles.md) ni [`intelligence-discover-program.md`](intelligence-discover-program.md). Il fixe la trajectoire cumulative au-dessus de ces contrats.
 >
-> Le code, les migrations, les tests et le `main` courant restent la vérité sur ce qui est effectivement livré.
+> Le code, les migrations, les tests et l’état GitHub du `main` courant restent la vérité sur ce qui est effectivement livré. Pour l’état opérationnel daté, voir [`current-program-status.md`](current-program-status.md).
 
-**Snapshot de référence : 4 septembre 2026.**
+**Snapshot d’alignement : 17 septembre 2026.**
 
 ---
 
 ## 1. Décision de produit et d’architecture
 
-Makolo ne doit pas abandonner ce qui a déjà été construit pour « devenir une IA ».
+Makolo ne remplace pas son réseau d’action pour « devenir une IA ».
 
-La trajectoire proposée est cumulative :
+La trajectoire est cumulative :
 
 ```text
 Makolo Mature
@@ -27,16 +27,16 @@ Makolo Intelligence Kernel
     ↓
 Makolo Agent
     ↓
-Agents / compétences spécialisés
+Compétences / agents spécialisés
 ```
 
 Chaque étage conserve le précédent et l’augmente.
 
 - **Makolo Mature** est le réseau d’action fiable, déterministe et exploitable sans LLM.
-- **Makolo Mobile** est le client natif qui apporte présence ambiante, capacités OS, capteurs, actions locales et offline contrôlé sans déplacer la vérité métier hors du backend.
-- **Makolo Intelligence Kernel** est la couche transverse qui reçoit les observations du monde, le contexte Makolo, la mémoire autorisée et les capacités disponibles, puis fournit perception, contexte, raisonnement, planification, vérification et routage d’outils.
-- **Makolo Agent** est le comportement agentique visible dans l’expérience : Makolo observe, comprend, propose, prépare, agit dans des limites explicites, vérifie et se réajuste.
-- Les **spécialisations** viennent ensuite : bourses, emploi, événements/concerts, voyage, opérations, services, etc. Elles n’ont pas chacune leur propre plateforme IA ; elles utilisent le même Kernel avec des politiques, sources, outils et évaluateurs spécialisés.
+- **Makolo Mobile** est le client natif actif : présence ambiante, capacités OS, capteurs, actionneurs et offline borné, sans déplacer la vérité métier hors du backend.
+- **Makolo Intelligence Kernel** est la couche transverse qui reçoit les faits Makolo, observations du monde, contexte autorisé, mémoire utile et capacités disponibles, puis fournit perception, contexte, raisonnement, planification, policy, tools et vérification.
+- **Makolo Agent** est le comportement en boucle : Makolo observe, comprend, planifie, agit dans des limites explicites, vérifie puis se réajuste.
+- Les **spécialisations** viennent ensuite : bourses/opportunités, emploi, événements/concerts, voyage, opérations, services, etc.
 
 La séparation fondamentale reste :
 
@@ -44,7 +44,73 @@ La séparation fondamentale reste :
 
 ---
 
-## 2. Ce qui ne change pas
+## 2. État réel au 17 septembre 2026
+
+Le blueprint doit être lu avec l’état courant du dépôt, pas avec son ancien snapshot du 4 septembre.
+
+### 2.1 Makolo Mature
+
+Le dépôt documente désormais :
+
+```text
+M1 ✅ Readiness
+M2 ✅ Forms / Questionnaires / Preparation Resources
+M3 ✅ Presentation
+M4 ✅ Trust & Quality
+M5 ✅ Social Action Network
+M6 ✅ Spatiotemporal Intelligence
+M7 ✅ Interoperability / Connections / Extensions
+G  ✅ Profil, pertinence & réseau d’action
+```
+
+Les grands trains Q/R/D/O sont largement intégrés, ainsi que l’Intelligence Foundation et les fondations Discover.
+
+M9 a déjà été exécuté et fermé sur une base antérieure du runtime. La PR #234 rouvre M8 uniquement comme **convergence finale mobile-first de l’expérience personnelle**, sans annuler le hardening M9.
+
+La séquence actuelle doit être comprise ainsi :
+
+```text
+M1–M7 / G / grands trains        ✅
+M8 initial                        ✅
+M9 hardening                      ✅ fermé sur sa base auditée
+M8 convergence mobile-first       🔄 PR #234
+        ↓
+réconciliation post-M8
+        ↓
+M10 / Mature Closure actualisé
+        ↓
+Mobile A0/A1
+```
+
+### 2.2 Makolo Mobile
+
+La doctrine mobile est établie, Flutter est le choix retenu et une branche `mobile/a0-phase-0-foundation` existe. Au snapshot courant, elle ne porte pas encore une implémentation Flutter distincte de `main`.
+
+### 2.3 Intelligence Kernel
+
+Le Kernel n’est pas encore livré comme runtime agentique complet, mais plusieurs de ses fondations existent déjà :
+
+- app transverse `intelligence` ;
+- gateway / provider registry / routing ;
+- structured output / timeout / fallback / telemetry ;
+- Action Memory / Trusted Reuse ;
+- Domain Events ;
+- Automation / Autopilot ;
+- Notifications ;
+- Prepared Start / NextAction / Proactive Preparation ;
+- M7 Connections / Actions / Extensions ;
+- Geography / Hazards / spatiotemporal context ;
+- Opportunity source checks comme exemple de provenance et changement externe.
+
+Il faut donc **élever ces fondations en Kernel**, pas créer une seconde plateforme IA.
+
+### 2.4 Makolo Agent
+
+Makolo Agent n’est pas encore livré comme boucle générale multi-étapes. Les comportements déterministes actuels sont des précurseurs, pas un agent général.
+
+---
+
+## 3. Ce qui ne change pas
 
 Le principe architectural central reste :
 
@@ -72,52 +138,38 @@ Readiness
 Proof
 ```
 
-Le même invariant doit s’appliquer aux futurs agents spécialisés :
+Invariant :
 
 > **une spécialisation compose le cœur Makolo ; elle ne le recrée pas.**
 
 ---
 
-## 3. Les quatre couches
+## 4. Les quatre couches
 
 | Couche | Rôle | Source de vérité | Valeur principale |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **Makolo Mature** | Réseau d’action, préparation, accès, opérations, confiance | Backend et domaines canoniques | Fiabilité métier |
 | **Makolo Mobile** | Présence native et interaction avec le monde physique | Backend Makolo ; état local borné | Proximité, capteurs, ambient, offline |
-| **Makolo Intelligence Kernel** | Perception, contexte, mémoire, raisonnement, outils, vérification | Ne possède pas la vérité métier | Intelligence transverse |
+| **Makolo Intelligence Kernel** | Perception, contexte, mémoire, raisonnement, tools, vérification | Ne possède pas la vérité métier | Intelligence transverse |
 | **Makolo Agent** | Boucle autonome bornée orientée objectif | Agit via services canoniques | Proactivité et accomplissement |
 
-Ces couches ne sont pas quatre applications différentes pour l’utilisateur. Elles correspondent à quatre niveaux d’aptitude du même Makolo.
+Ces couches ne sont pas quatre produits distincts pour l’utilisateur. Elles décrivent quatre niveaux d’aptitude du même Makolo.
 
 ---
 
 # PARTIE I — MAKOLO MATURE
 
-## 4. Makolo Mature : le système fiable avant l’agent
+## 5. Makolo Mature : le système fiable avant l’agent
 
-Makolo Mature doit être un produit complet **backend + web + API**, même si aucun provider IA n’est configuré et même si l’application mobile n’existe pas encore.
+Makolo Mature doit rester un produit complet backend + web + API même si :
 
-Il porte notamment :
+- aucun modèle IA n’est disponible ;
+- un provider tombe en panne ;
+- Internet est partiellement inaccessible ;
+- une Connection est révoquée ;
+- une observation externe est stale ou contradictoire.
 
-```text
-Profile / Space / Group
-Activity / Occurrence
-Journey / JourneyRequest
-Requirements / Readiness
-Forms / Resources / Personal Assets
-Trust / Proof / Action Memory
-Capacity / Commerce / Payment
-Access / AccessCredential / AccessUse
-Notifications / Automation / Domain Events
-Social Action Network
-Spatiotemporal Intelligence
-Preparation
-Dossier / Project / Collaboration
-Operations
-Interoperability / Connections / Extensions
-```
-
-Makolo Mature répond déjà à des questions qui seront centrales pour l’agent :
+Le réseau d’action porte les vérités et projections permettant déjà de répondre à :
 
 ```text
 Que cherche la personne à accomplir ?
@@ -132,87 +184,48 @@ Qu’est-ce qui a changé ?
 Qu’est-ce qui peut être réutilisé ?
 ```
 
-Le réseau d’action constitue donc le **world model métier** de Makolo Agent.
+Le réseau d’action devient donc le **world model métier** du futur Agent.
 
-### 4.1 Résilience essentielle
+### 5.1 Fondations déjà agent-compatibles
 
-Makolo Mature doit rester utilisable si :
+Makolo possède déjà :
 
-- aucun modèle n’est disponible ;
-- un provider IA est en panne ;
-- Internet est partiellement inaccessible ;
-- un connecteur externe est révoqué ;
-- une observation externe est stale ou contradictoire.
+- Readiness ;
+- Requirements ;
+- Personal Assets ;
+- Action Memory ;
+- Trusted Reuse ;
+- Prepared Start ;
+- Contextual NextAction ;
+- Proactive Preparation ;
+- Domain Events ;
+- Automation ;
+- Notifications ;
+- Connections / Actions / Extension Platform ;
+- Intelligence Foundation ;
+- Geography / Hazards ;
+- Trust / Proof / Credentials ;
+- Dossiers / Journeys / Operations.
 
-L’IA augmente Makolo ; elle ne doit pas rendre le produit fragile.
-
----
-
-## 5. Fondations agentiques déjà présentes
-
-Le `main` courant possède déjà plusieurs briques qu’il faut **réutiliser plutôt que recommencer**.
-
-### 5.1 Intelligence Foundation
-
-Le programme Intelligence & Discover a déjà établi une app transverse `intelligence` avec :
-
-- capabilities provider-neutral ;
-- gateway ;
-- registry et routing ;
-- providers configurables ;
-- health / timeout / fallback ;
-- structured output ;
-- telemetry privacy-safe ;
-- fonctionnement provider-free.
-
-Cette fondation doit devenir un composant du futur **Intelligence Kernel**. Le Kernel ne doit pas être une deuxième infrastructure provider concurrente.
-
-### 5.2 Action Memory et Trusted Reuse
-
-Makolo possède déjà une mémoire d’action capable de retrouver des candidats issus de la bibliothèque personnelle, d’anciens JourneyArtifacts et de Proofs, en tenant compte de provenance, fraîcheur, sensibilité et confirmation.
-
-Le futur Kernel doit composer cette mémoire ; il ne doit pas créer un `AgentProfileMemory` qui recopierait les mêmes faits.
-
-### 5.3 Prepared Start / Contextual NextAction / Proactive Preparation
-
-Le train R fournit déjà une première forme de comportement intelligent déterministe :
-
-```text
-contexte actuel
-→ projection
-→ prochaine action
-→ changement matériel
-→ réévaluation
-→ notification utile
-```
-
-C’est une préfiguration directe de la boucle agentique.
-
-### 5.4 Domain Events + Automation
-
-Domain Events et Automation constituent déjà le système nerveux interne. Le futur agent doit s’y raccorder plutôt que créer une deuxième infrastructure de scheduler et de déclencheurs.
-
-### 5.5 Sources externes structurées
-
-Les Opportunities possèdent déjà des notions de source, contrôle de source, provenance, état de changement et révision. Cela fournit un exemple concret du principe :
-
-> **observation externe ≠ vérité canonique.**
+Le futur Kernel doit les composer, pas les recopier.
 
 ---
 
 # PARTIE II — MAKOLO MOBILE
 
-## 6. Makolo Mobile n’est pas un simple écran plus petit
+## 6. Le mobile n’est pas un simple écran plus petit
 
-Le programme mobile existant établit une règle forte :
+Règle :
 
 > **Le backend Makolo décide. Le mobile présente, orchestre et utilise les capacités du téléphone.**
 
-Makolo Mobile ne « refait » pas Makolo. Il devient un **nœud natif du réseau d’action**.
+Makolo Mobile devient un nœud natif du réseau d’action.
 
-### 6.1 A1 — Application Makolo
+### A0 — Foundation
 
-A1 fournit le client natif :
+Prépare le dépôt, le workspace Flutter, CI, contrats API, environnements et stratégie de tests.
+
+### A1 — Application native
 
 ```text
 navigation
@@ -226,11 +239,7 @@ error handling
 basic caching
 ```
 
-Il consomme les contrats Mature et ne réimplémente pas Readiness, permissions, Payment state, Access validity, Hazards ou ranking.
-
-### 6.2 A2 — Native Capabilities
-
-Le téléphone apporte des capacités que le web ne possède pas de la même manière :
+### A2 — Native Capabilities
 
 ```text
 push natif
@@ -244,11 +253,7 @@ voice / intents
 haptique
 ```
 
-Ces capacités deviennent plus tard des **capteurs et actionneurs** du Kernel, toujours avec consentement et policy.
-
-### 6.3 A3 — Ambient Makolo
-
-Makolo peut devenir présent sans exiger l’ouverture permanente de l’application :
+### A3 — Ambient Makolo
 
 ```text
 widgets
@@ -257,40 +262,29 @@ Live Activities / équivalents
 notifications contextuelles
 ```
 
-Exemples :
+Makolo peut ainsi accompagner l’utilisateur sans exiger l’ouverture constante de l’application.
 
-```text
-Tout est prêt.
-Partez maintenant.
-Votre entrée est désormais Porte B.
-Une place vient de se libérer.
-Une exigence de votre démarche a changé.
-```
+### A4 — Operations & Offline R&D
 
-Le mobile affiche une projection calculée par Makolo ; il n’invente pas sa propre vérité.
+Le téléphone peut devenir un nœud d’exécution terrain : scanner offline borné, données strictement nécessaires hors ligne, background sync et réconciliation.
 
-### 6.4 A4 — Operations & Offline R&D
-
-Le téléphone devient aussi un nœud d’exécution terrain : scanner offline borné, données participant nécessaires hors ligne, background sync et réconciliation.
-
-Le backend reste la source de vérité ; aucune stratégie naïve `last write wins` pour Access ou Payment.
+Le backend reste source de vérité ; pas de `last write wins` naïf pour Access ou Payment.
 
 ---
 
-## 7. Le mobile comme périphérie sensorielle de Makolo
+## 7. Le mobile comme périphérie sensorielle
 
-Une fois le Kernel introduit, le mobile peut alimenter Makolo en signaux autorisés :
+Avec le Kernel, le mobile peut alimenter Makolo en signaux autorisés :
 
 ```text
 heure locale
 géographie ponctuelle
-mouvement / proximité lorsque légitime
 caméra / document fourni
 scan
 notification interaction
 calendrier connecté
 contacts explicitement consentis
-intent/voice explicite
+intent / voice explicite
 état offline / connectivité
 ```
 
@@ -309,9 +303,7 @@ Le mobile rend Makolo **plus proche du monde**, pas plus intrusif.
 
 ## 8. Rôle du Kernel
 
-Le Makolo Intelligence Kernel est la **couche transverse qui reçoit et organise tout ce qui est nécessaire au raisonnement agentique**.
-
-Il doit réunir :
+Le Kernel est la couche transverse qui reçoit et organise tout ce qui est nécessaire au raisonnement agentique :
 
 ```text
 faits canoniques Makolo
@@ -323,18 +315,16 @@ sources officielles / APIs
 Connections autorisées
 signaux mobile consentis
 temps / espace / hazards
-état des outils et providers
+état des tools et providers
 objectif utilisateur courant
 contexte d’autorité
 ```
 
-Le Kernel ne devient pas un nouveau bounded context métier universel.
-
-Il fournit des primitives d’intelligence et d’orchestration aux domaines et aux futurs agents spécialisés.
+Il ne devient pas un bounded context métier universel.
 
 ---
 
-## 9. Architecture cible du Kernel
+## 9. Architecture cible
 
 ```text
                     MONDE EXTÉRIEUR
@@ -370,7 +360,6 @@ Il fournit des primitives d’intelligence et d’orchestration aux domaines et 
                          ▼
               ┌─────────────────────┐
               │ REASONER / PLANNER  │
-              │ models + strategies │
               └──────────┬──────────┘
                          │ proposal
                          ▼
@@ -381,8 +370,6 @@ Il fournit des primitives d’intelligence et d’orchestration aux domaines et 
                          ▼
               ┌─────────────────────┐
               │   TOOL GATEWAY      │
-              │ canonical services  │
-              │ external actions    │
               └──────────┬──────────┘
                          ▼
                  ACTION / RESULT
@@ -397,11 +384,9 @@ Il fournit des primitives d’intelligence et d’orchestration aux domaines et 
 
 ---
 
-## 10. Les composants du Kernel
+## 10. Perception et Observation
 
-### 10.1 Perception
-
-Makolo acquiert des « yeux et oreilles » :
+Makolo acquiert des « yeux et oreilles » via :
 
 - recherche Web ;
 - lecture/fetch de sources ;
@@ -414,13 +399,11 @@ Makolo acquiert des « yeux et oreilles » :
 - signaux device ;
 - change detection.
 
-La perception découvre et observe. Elle ne modifie pas directement le cœur métier.
+Invariant :
 
-### 10.2 Observation Layer
+> **Observation ≠ Fact.**
 
-Le Kernel a besoin d’un contrat commun pour décrire ce qui a été observé, sans décider trop tôt qu’il faut créer un modèle Django universel.
-
-Conceptuellement :
+Une observation doit conserver au minimum conceptuellement :
 
 ```text
 subject / entity candidate
@@ -437,15 +420,13 @@ fingerprint
 raw reference
 ```
 
-Invariant :
+Elle peut être vraie, stale, contradictoire, incomplète ou mal résolue. Le domaine propriétaire décide quand et comment elle devient révision, fait, alerte ou action.
 
-> **Observation ≠ Fact.**
+---
 
-Une observation peut être vraie, stale, contradictoire, incomplète ou mal résolue. Les domaines propriétaires décident quand et comment elle devient une révision, un fait, une alerte ou une action.
+## 11. Context Builder
 
-### 10.3 Context Builder
-
-Le Context Builder produit un état borné et explicable pour une situation donnée :
+Le Context Builder produit un contexte borné et explicable :
 
 ```text
 actor
@@ -465,22 +446,26 @@ available tools
 consent / permissions
 ```
 
-Le modèle ne doit pas recevoir « toute la base ».
+Le modèle ne reçoit pas « toute la base ».
 
-### 10.4 Memory
+---
+
+## 12. Mémoire
 
 Le Kernel distingue :
 
 - **mémoire métier canonique** : domaines Makolo ;
-- **Action Memory** : capital réutilisable déjà défini ;
-- **mémoire de travail** : état nécessaire à l’exécution agentique en cours ;
-- **mémoire cognitive éventuelle** : préférences, corrections, stratégies déjà essayées, uniquement si leur persistance est explicitement justifiée, auditable et contrôlable par l’utilisateur.
+- **Action Memory** : capital réutilisable existant ;
+- **working memory agentique** : état temporaire d’une exécution ;
+- **mémoire cognitive éventuelle** : uniquement si sa persistance est justifiée, auditable, contrôlable et distincte des faits métier.
 
-Ne pas créer de profil psychologique opaque ou de shadow profile.
+Pas de shadow profile psychologique opaque.
 
-### 10.5 Reasoner / Planner
+---
 
-Le Reasoner transforme contexte + objectif en hypothèses et actions proposées :
+## 13. Reasoner / Planner
+
+Le Reasoner peut :
 
 ```text
 comprendre
@@ -493,9 +478,11 @@ choisir un outil
 réévaluer après résultat
 ```
 
-Le Reasoner est probabiliste. Il ne possède aucune autorité métier implicite.
+Le modèle est probabiliste. Il ne possède aucune autorité métier implicite.
 
-### 10.6 Policy / Consent / Authorization Gate
+---
+
+## 14. Policy / Consent / Authorization Gate
 
 Avant toute action :
 
@@ -513,9 +500,11 @@ confirmation utilisateur requise ?
 
 Le LLM ne contourne jamais cette couche.
 
-### 10.7 Tool Gateway
+---
 
-Les outils sont les actionneurs de l’agent :
+## 15. Tool Gateway
+
+Les tools sont les actionneurs de l’agent :
 
 ```text
 search
@@ -525,12 +514,25 @@ extract
 notify
 draft
 prepare
-start a canonical workflow
+start canonical workflow
+reuse an asset
 call provider capability
 invoke external action
 ```
 
-Pour modifier Makolo : **outil → service du domaine propriétaire**.
+Pour modifier Makolo :
+
+```text
+LLM / Planner
+    ↓
+Tool Gateway
+    ↓
+Policy / Authorization
+    ↓
+Canonical service
+    ↓
+Domain Event
+```
 
 Jamais :
 
@@ -538,44 +540,46 @@ Jamais :
 LLM → ORM direct → vérité métier
 ```
 
-### 10.8 Verification / Evaluation
+---
 
-Le Kernel doit vérifier les résultats avec les meilleurs oracles disponibles :
+## 16. Verification / Evaluation
+
+Le Kernel vérifie les résultats avec les meilleurs oracles disponibles :
 
 - validation de schema ;
 - règles déterministes ;
-- tests ;
 - source primaire ;
 - statut canonique ;
 - comparaison avant/après ;
+- tests ;
 - confirmation utilisateur ;
-- score métier explicable lorsqu’un domaine le définit.
+- évaluateurs spécialisés.
 
-La capacité à vérifier est ce qui permet l’autonomie de longue durée sans transformer chaque hallucination en action.
+L’autonomie durable dépend davantage de la boucle **générer → vérifier → corriger** que de la seule puissance du modèle.
 
-### 10.9 Triggers et boucle
+---
+
+## 17. Exécution event-driven
 
 Le Kernel doit réutiliser :
 
 ```text
 Domain Events
 Automation / Autopilot
-deferred jobs existants
 notifications
+deferred jobs existants
 external change events
 ```
 
-pour réveiller un raisonnement seulement lorsqu’un signal pertinent apparaît.
+pour réveiller un raisonnement lorsqu’un signal matériel apparaît.
 
 Le modèle n’a pas besoin de tourner en permanence pour chaque utilisateur.
 
 ---
 
-## 11. Données froides, tièdes et chaudes
+## 18. Données froides, tièdes et chaudes
 
-### 11.1 Données froides / stables
-
-Faits canoniques relativement durables :
+### Froides / stables
 
 ```text
 Profile
@@ -588,9 +592,7 @@ Access
 Requirement publié
 ```
 
-### 11.2 Données tièdes / dérivées
-
-Projections recalculables :
+### Tièdes / dérivées
 
 ```text
 Readiness
@@ -600,9 +602,7 @@ recommendation
 Operational Readiness
 ```
 
-### 11.3 Données chaudes
-
-Observations à durée de validité courte :
+### Chaudes
 
 ```text
 source Web modifiée
@@ -617,15 +617,15 @@ deadline externe modifiée
 état live d’une Occurrence
 ```
 
-Makolo doit savoir **quand** une donnée a été observée, d’où elle vient, combien de temps elle reste pertinente et si elle peut influencer une décision.
+Makolo doit savoir quand une donnée a été observée, d’où elle vient, combien de temps elle reste pertinente et si elle peut influencer une décision.
 
 ---
 
-## 12. Conscience situationnelle Makolo
+## 19. Conscience situationnelle
 
-Dans ce document, « conscience » signifie **conscience situationnelle opérationnelle**, pas une affirmation de sentience.
+Dans ce blueprint, « conscience » signifie **conscience situationnelle opérationnelle**, pas une affirmation de sentience.
 
-À un instant `t`, Makolo doit pouvoir reconstruire un état tel que :
+À un instant `t`, Makolo doit pouvoir répondre :
 
 ```text
 Qui suis-je en train d’aider ?
@@ -633,7 +633,7 @@ Dans quel contexte d’autorité ?
 Qu’essaie cette personne ou ce Space d’accomplir ?
 Qu’est-ce que Makolo sait déjà ?
 Qu’est-ce que le monde vient de signaler ?
-Qu’est-ce qui a changé depuis la dernière observation ?
+Qu’est-ce qui a changé ?
 Qu’est-ce qui est certain, incertain ou stale ?
 Qu’est-ce qui manque ?
 Qu’est-ce qui est urgent ?
@@ -642,29 +642,13 @@ Qu’est-ce qu’il peut exécuter ?
 Qu’est-ce qui exige une confirmation humaine ?
 ```
 
-On peut résumer :
-
-```text
-Situational Awareness
-= Identity
-+ Goal
-+ Memory
-+ World
-+ Time
-+ Space
-+ Change
-+ Uncertainty
-+ Permissions
-+ Available Actions
-```
-
 ---
 
 # PARTIE IV — MAKOLO AGENT
 
-## 13. Quand le Kernel devient Agent
+## 20. Quand le Kernel devient Agent
 
-Le Kernel fournit les primitives. Makolo Agent apparaît lorsqu’on ferme la boucle :
+Makolo Agent apparaît lorsqu’on ferme la boucle :
 
 ```text
 Goal
@@ -680,42 +664,40 @@ Act
 Verify
   ↓
 Update context
-  └──────────────→ repeat
+  └──────────────→ repeat or stop
 ```
 
-Le passage important n’est donc pas « ajouter un chat ».
+Le passage important n’est pas « ajouter un chat ».
 
 C’est :
 
-> **Makolo peut poursuivre un objectif à travers plusieurs étapes, en utilisant des outils autorisés, en vérifiant les résultats et en s’arrêtant aux frontières qui exigent l’utilisateur.**
+> **Makolo peut poursuivre un objectif à travers plusieurs étapes, utiliser des tools autorisés, vérifier les résultats et s’arrêter aux frontières qui exigent l’utilisateur.**
 
 ---
 
-## 14. Échelle d’autonomie
+## 21. Échelle d’autonomie
 
 | Niveau | Exemple | Confirmation |
-|---|---|---|
-| **Observer** | « La source officielle a changé. » | Non |
-| **Comprendre** | « La deadline a avancé de 5 jours. » | Non |
-| **Conseiller** | « Cette démarche devient prioritaire. » | Non |
-| **Préparer** | Préremplir, réunir les pièces, produire un brouillon | Selon sensibilité |
-| **Agir réversiblement** | Sauvegarder, classer, créer un draft, planifier une veille | Policy |
-| **Agir avec impact** | Soumettre, réserver, envoyer à un tiers | Oui par défaut |
-| **Décision critique** | Paiement final, Permission, Mandate, Access, identité, validation réglementaire | Le domaine déterministe / humain reste autorité |
+| --- | --- | --- |
+| Observer | « La source officielle a changé. » | Non |
+| Comprendre | « La deadline a avancé de cinq jours. » | Non |
+| Conseiller | « Cette démarche devient prioritaire. » | Non |
+| Préparer | Préremplir, réunir des pièces, produire un draft | Selon sensibilité |
+| Agir réversiblement | Sauvegarder, classer, créer un draft, planifier une veille | Policy |
+| Agir avec impact | Soumettre, réserver, envoyer à un tiers | Oui par défaut |
+| Décision critique | Paiement final, Permission, Mandate, Access, identité, validation réglementaire | Domaine déterministe / humain |
 
 L’autonomie doit être progressive, mesurable et révocable.
 
 ---
 
-## 15. Agents spécialisés
+## 22. Agents / compétences spécialisés
 
-Une fois le Kernel suffisamment stable, Makolo peut recevoir des spécialisations.
-
-Le principe est :
+Une spécialisation doit être :
 
 ```text
 Specialized Agent
-= Kernel
+= Shared Kernel
 + Domain Playbook
 + Specialized Sources
 + Specialized Tools
@@ -729,168 +711,91 @@ et non :
 Specialized Agent
 = nouvelle plateforme
 + nouvelle base utilisateur
-+ nouvelle mémoire
-+ nouvelles permissions
++ nouvelle mémoire générale
++ nouvelles permissions implicites
 ```
 
-### 15.1 Scholarship / Opportunity Agent
+### Scholarship / Opportunity
 
-Comprend notamment :
+Compose Opportunity, Requirements, Prepared Start, Action Memory, Trusted Reuse, Journey, Notifications, Geography et sources officielles.
 
-```text
-éligibilité
-institution
-programme
-deadline
-nationalité
-niveau académique
-documents
-financement
-application process
-source officielle
-```
+### Events / Concerts
 
-Il compose Opportunity, Requirements, Prepared Start, Action Memory, Trusted Reuse, Journey et Notifications.
+Compose Activity, Occurrence, Discovery, Commerce, Capacity, Access, Operations, Sharing, Social et M6.
 
-### 15.2 Events / Concert Agent
+### Travel / Mobility
 
-Comprend notamment :
+Compose Geography, Journey, Occurrence, Providers, Hazards, Access/Commerce lorsque pertinents.
 
-```text
-artiste / type d’Activity
-Occurrence
-lieu
-horaire
-billetterie / Offer
-Capacity
-Access
-mobilité
-amis / partage
-jour J
-```
+### Operations
 
-Il compose Activity/Occurrence, Discovery, Commerce, Access, M6, O et Social/Sharing.
+Compose Operational Readiness, Placement, AccessUse, Scanner, Capacity, Queue/Flow et anomalies opérationnelles.
 
-### 15.3 Travel / Mobility Agent
-
-Comprend notamment :
-
-```text
-origine / destination
-horaire
-route / transport
-risque
-météo / trafic
-réservation
-documents
-correspondances
-arrival window
-```
-
-Il compose Geography, Journey, Activity/Occurrence, M6, providers, Access/Commerce lorsque pertinents.
-
-### 15.4 Operations Agent
-
-Comprend l’exécution terrain : Operational Readiness, Placement, AccessUse, Scanner, Capacity, Queue/Flow et anomalies opérationnelles.
-
-Il peut expliquer et coordonner ; il ne décide pas arbitrairement qu’un Access invalide devient valide.
+L’utilisateur n’a pas besoin de choisir quel agent utiliser : pour lui, **c’est toujours Makolo**.
 
 ---
 
-## 16. Orchestration des spécialisations
+# PARTIE V — EXPÉRIENCE
 
-L’utilisateur ne devrait pas être obligé de choisir « quel agent » utiliser.
+## 23. Pas d’onglet IA obligatoire
 
-Pour lui, c’est toujours **Makolo**.
+La transformation doit apparaître dans l’expérience existante.
 
-Conceptuellement :
-
-```text
-User intent / event
-        ↓
-Makolo Agent Supervisor / Router
-        ↓
-┌──────────────┬──────────────┬──────────────┐
-│ Scholarship  │ Events       │ Travel       │ ...
-│ competence   │ competence   │ competence   │
-└──────────────┴──────────────┴──────────────┘
-        ↓
-Shared Kernel + canonical Makolo tools
-```
-
-Les spécialisations peuvent être des agents distincts, des policies, des toolsets ou des stratégies différentes utilisant le même modèle. La séparation logique doit précéder une multiplication physique de runtimes.
-
----
-
-# PARTIE V — EXPÉRIENCE UTILISATEUR
-
-## 17. Aucun « onglet IA » obligatoire
-
-La transformation doit être visible dans **l’expérience**, pas nécessairement dans la navigation.
-
-Les surfaces actuelles restent : Accueil/Cockpit, Discover, Réseau, Activities, Journeys, Profil, consoles Space, etc.
-
-### Accueil
-
-Avant :
+Les surfaces restent :
 
 ```text
-Vos démarches
-Vos activités
-Vos notifications
+Maintenant
+Découvrir
+Makolo Mark
+En cours
+Moi
++ surfaces contextuelles Activity / Journey / Space / Operations
 ```
 
-Avec Agent :
+Exemples :
+
+### Maintenant
 
 ```text
 2 choses ont changé depuis hier.
 Votre dossier X peut maintenant avancer.
-Une nouvelle possibilité correspond à votre objectif.
 Makolo a déjà préparé les éléments réutilisables.
 ```
 
-### Discover
+### Découvrir
 
-Avant : recherche et recommandations.
-
-Avec Agent : nouvelles possibilités détectées, contexte chaud, source/fraîcheur, raisons personnalisées et capacité à préparer l’action.
+```text
+Une nouvelle possibilité a été détectée.
+Source officielle vérifiée.
+Voici pourquoi elle peut modifier votre trajectoire.
+```
 
 ### Journey
-
-Avant : étapes et Readiness.
-
-Avec Agent :
 
 ```text
 Makolo a préparé 6 éléments.
 1 confirmation est nécessaire.
 Cette exigence a changé.
-La prochaine action la plus utile est maintenant X.
 ```
 
 ### Activity / Occurrence
-
-Avant : fiche + contexte.
-
-Avec Agent :
 
 ```text
 Départ recommandé : 17:52.
 Le trafic a changé.
 Votre Access est prêt.
 La porte vient de changer.
-Makolo vous préviendra au bon moment.
 ```
 
-La navigation reste familière ; Makolo devient vivant.
+La navigation reste familière ; l’expérience devient plus vivante et proactive.
 
 ---
 
-## 18. Réseaux sociaux et données externes utilisateur
+## 24. Données externes et réseaux sociaux
 
-Le fait qu’une information existe publiquement ou qu’un utilisateur ait un compte sur un réseau social ne constitue pas automatiquement une autorisation à l’aspirer.
+Le fait qu’une information soit publique ou qu’un utilisateur possède un compte externe ne constitue pas automatiquement une autorisation à l’aspirer.
 
-Makolo doit privilégier :
+Makolo privilégie :
 
 ```text
 Connection explicitement autorisée
@@ -911,15 +816,13 @@ prouvé
 expiré
 ```
 
-Un profil externe peut proposer un **candidate fact** ; il ne devient pas automatiquement Proof, Permission, éligibilité ou vérité canonique.
-
-L’utilisateur doit pouvoir comprendre la provenance, corriger une interprétation et révoquer une Connection.
+Une donnée externe peut produire un **candidate fact** ; elle ne devient pas automatiquement Proof, Permission, éligibilité ou vérité canonique.
 
 ---
 
-# PARTIE VI — INVARIANTS DE SÉCURITÉ ET DE CONFIANCE
+# PARTIE VI — INVARIANTS
 
-## 19. Invariants non négociables
+## 25. Invariants non négociables
 
 1. **Canonical Core > Intelligence.** Le cœur décide ; l’intelligence propose/interprète.
 2. **Observation ≠ Fact.** Toute donnée chaude conserve provenance et fraîcheur.
@@ -928,8 +831,8 @@ L’utilisateur doit pouvoir comprendre la provenance, corriger une interprétat
 5. **Consent before external personal data.** Minimisation et scope avant accès.
 6. **Provider-neutral.** Le produit ne dépend pas d’un fournisseur unique.
 7. **Graceful degradation.** Makolo reste utile sans Agent.
-8. **Structured output + validation.** Les sorties utilisées par le produit sont validées.
-9. **Sensitive data minimization.** Pas de prompt/réponse brute sensible dans les logs par défaut.
+8. **Structured output + validation.** Les sorties produit sont validées.
+9. **Sensitive data minimization.** Pas de logs bruts sensibles par défaut.
 10. **Bounded autonomy.** Les actions à impact fort sont bornées et confirmées selon policy.
 11. **Explainability where action matters.** Source, raison et changement doivent pouvoir être expliqués.
 12. **No shadow social-credit profile.** Pas de score humain global ou de profil psychologique opaque.
@@ -938,41 +841,38 @@ L’utilisateur doit pouvoir comprendre la provenance, corriger une interprétat
 
 # PARTIE VII — TRAJECTOIRE DE LIVRAISON
 
-## 20. Séquencement recommandé
+## 26. Séquencement actuel
 
-Le séquencement reste volontairement conservateur : on ne met pas l’agent avant un produit stable.
+À partir du runtime observé le 17 septembre 2026 :
 
-### Étape 1 — Terminer Makolo Mature
+### Étape 1 — Fermer la convergence Mature
 
 ```text
-M7
-→ M8
-→ M9
-→ M10
+PR #234 M8 mobile-first
+→ merge
+→ gates post-merge
+→ M10 actualisé / Mobile handoff
 ```
 
-Objectif de sortie : produit backend/web/API complet, durci, observable et prêt pour mobile.
+M9 n’est pas à refaire comme programme complet ; ses garanties doivent être revalidées là où le runtime final M8 les touche.
 
-### Étape 2 — Construire Makolo Mobile
+### Étape 2 — Makolo Mobile
 
 ```text
-A1 — Application
-A2 — Native Capabilities
+A0 — foundation Flutter / repo / CI / tests
+A1 — application native
+A2 — native capabilities
 A3 — Ambient Makolo
-A4 — Operations & Offline R&D
+A4 — operations & offline
 ```
-
-Le mobile doit d’abord être excellent comme client de Makolo Mature.
 
 ### Étape 3 — Élever l’Intelligence Foundation en Kernel
-
-Ordre conceptuel proposé, à nommer officiellement seulement après audit :
 
 ```text
 Kernel contracts
 → Perception / Observation
 → Context Builder
-→ Agent working memory
+→ working memory
 → Reasoning / Planning
 → Tool Gateway
 → Policy / Consent gate
@@ -980,13 +880,11 @@ Kernel contracts
 → event-driven execution
 ```
 
-Ne pas créer tous les modèles à l’avance. Chaque persistance doit être justifiée par un besoin réel et par l’absence d’un domaine canonique existant.
+Ne pas créer tous les modèles à l’avance. Chaque persistance doit être justifiée par l’absence d’un domaine canonique existant.
 
 ### Étape 4 — Makolo Agent généraliste borné
 
-Premier objectif : un Makolo capable d’utiliser plusieurs outils communs et plusieurs domaines, pas encore un spécialiste parfait.
-
-Exemples :
+Premiers objectifs possibles :
 
 ```text
 « Qu’est-ce qui a changé ? »
@@ -998,14 +896,14 @@ Exemples :
 
 ### Étape 5 — Spécialisations
 
-Ajouter ensuite les compétences par valeur réelle et vérifiabilité : Opportunity/Scholarship, Events, Travel, Operations, etc.
+Ajouter les compétences par valeur réelle et vérifiabilité.
 
-Chaque spécialisation doit définir :
+Chaque spécialisation définit :
 
 ```text
 scope métier
 sources légitimes
-outils autorisés
+tools autorisés
 données nécessaires
 actions interdites
 confirmation policy
@@ -1016,24 +914,24 @@ métriques de succès
 
 ---
 
-## 21. Critères de réussite du Kernel
+## 27. Critères de réussite du Kernel
 
-Le Kernel est suffisamment mature pour accueillir des agents spécialisés lorsque :
+Le Kernel est suffisamment mûr pour accueillir des spécialisations lorsque :
 
-- Makolo Mature reste pleinement fonctionnel Intelligence OFF ;
-- un signal externe peut être observé avec provenance/fraîcheur ;
-- le Context Builder peut composer faits internes + observations pertinentes sans fuite de données ;
-- le Reasoner peut proposer une action structurée ;
-- toute action passe par Authorization/Policy puis par un Tool contrôlé ;
-- un résultat peut être vérifié ;
+- Makolo Mature reste fonctionnel Intelligence OFF ;
+- un signal externe est observé avec provenance/fraîcheur ;
+- le Context Builder compose faits internes + observations sans fuite de données ;
+- le Reasoner propose une action structurée ;
+- toute action passe par Authorization/Policy puis un Tool contrôlé ;
+- le résultat peut être vérifié ;
 - le système sait s’arrêter et demander confirmation ;
-- Domain Events permettent de reprendre la boucle après un changement ;
-- telemetry et audit permettent de comprendre pourquoi une action a été exécutée ;
-- un nouvel agent spécialisé peut être ajouté sans créer une nouvelle mémoire utilisateur, une nouvelle permission ou un nouveau système de providers.
+- Domain Events permettent de reprendre la boucle ;
+- telemetry/audit expliquent pourquoi une action a été exécutée ;
+- un agent spécialisé peut être ajouté sans créer une nouvelle mémoire utilisateur, permission ou plateforme providers.
 
 ---
 
-## 22. Non-objectifs
+## 28. Non-objectifs
 
 Cette trajectoire ne vise pas à :
 
@@ -1041,7 +939,7 @@ Cette trajectoire ne vise pas à :
 - remplacer l’application par une conversation ;
 - créer un chatbot comme nouvelle homepage ;
 - surveiller les utilisateurs en permanence ;
-- aspirer les réseaux sociaux sans consentement ou contrat légitime ;
+- aspirer les réseaux sociaux sans consentement ou base légitime ;
 - donner au LLM l’autorité sur Payment, Permission, Mandate, Access ou identité ;
 - créer un agent par verticale avant le Kernel commun ;
 - déplacer les vérités canoniques vers une vector database ;
@@ -1050,50 +948,22 @@ Cette trajectoire ne vise pas à :
 
 ---
 
-## 23. Questions d’architecture à décider avant implémentation du Kernel
-
-Ces points doivent faire l’objet d’un audit spécifique au moment de démarrer le programme :
+## 29. Questions avant implémentation du Kernel
 
 1. Quelle partie du contrat d’observation doit être persistée, et dans quel domaine ?
 2. Quelle mémoire cognitive est réellement utile au-delà d’Action Memory ?
 3. Où placer le runtime d’orchestration sans dupliquer `automation` et `intelligence` ?
-4. Quel contrat commun d’outil peut envelopper les services canoniques sans exposer l’ORM ?
+4. Quel contrat Tool peut envelopper les services canoniques sans exposer l’ORM ?
 5. Quelle policy de confirmation pour les actions externes ?
 6. Quelles données mobile peuvent être utilisées comme contexte, avec quelle rétention ?
 7. Comment représenter source, confiance, fraîcheur et contradictions ?
-8. Comment évaluer objectivement chaque agent spécialisé ?
-9. Comment sandboxer les outils et borner coût, temps, retries et appels réseau ?
-10. Comment rendre visibles à l’utilisateur les actions de Makolo et leur provenance sans transformer l’UX en console technique ?
+8. Comment évaluer objectivement chaque spécialisation ?
+9. Comment sandboxer tools, coût, temps, retries et appels réseau ?
+10. Comment rendre visibles actions et provenance sans transformer l’UX en console technique ?
 
 ---
 
-## 24. Scénario cible de bout en bout
-
-Exemple futur : un utilisateur cherche implicitement à financer ses études.
-
-```text
-1. Une source officielle publie une nouvelle bourse.
-2. Perception détecte la source.
-3. Observation Layer conserve provenance, date et fingerprint.
-4. Le domaine Opportunity résout/déduplique et publie la vérité canonique selon ses règles.
-5. Domain Event signale la nouvelle Opportunity.
-6. Kernel identifie les Profiles pour lesquels le changement est pertinent selon des contrats autorisés.
-7. Context Builder compose Profile + Goals + Action Memory + Requirements + lieu/temps utiles.
-8. Scholarship competence évalue ce qu’il faut rechercher et expliquer.
-9. Prepared Start détermine ce qui est déjà prêt sans demander au LLM d’inventer une éligibilité.
-10. Makolo prépare ce qui est réutilisable.
-11. Une action sensible manque : confirmation utilisateur.
-12. L’Accueil, Discover et la Journey existants reflètent le nouvel état.
-13. Si la source change, la boucle se réactive.
-```
-
-Pour l’utilisateur, aucune nouvelle architecture n’est visible. Il voit seulement :
-
-> **« Une possibilité pertinente vient d’apparaître. Vous avez déjà une grande partie de ce qu’il faut. Makolo a préparé ce qu’il peut ; il reste deux décisions à prendre. »**
-
----
-
-## 25. Formule de synthèse
+## 30. Formule de synthèse
 
 ```text
 Makolo Mature
@@ -1103,35 +973,29 @@ Makolo Mobile
 = Makolo Mature + présence native + capteurs/actionneurs device
 
 Makolo Intelligence Kernel
-= Mature + Mobile context + perception + mémoire + reasoning + tools + verification
+= Mature + Mobile context + perception + memory + reasoning + tools + verification
 
 Makolo Agent
 = Kernel + boucle observe/plan/act/verify + autonomie bornée
 
 Specialized Agent
-= Makolo Agent + playbook métier + sources + outils + policy + évaluateurs
+= Makolo Agent + playbook métier + sources + tools + policy + evaluators
 ```
 
-La cible n’est pas de transformer Makolo en « application IA ».
-
-> **La cible est que Makolo reste le réseau d’action, mais devienne progressivement capable de voir le monde, comprendre la situation de l’utilisateur, préparer ce qui peut l’être et agir utilement au bon moment.**
+> **La cible n’est pas de transformer Makolo en « application IA ». La cible est que Makolo reste le réseau d’action, mais devienne progressivement capable de voir le monde, comprendre la situation de l’utilisateur, préparer ce qui peut l’être et agir utilement au bon moment.**
 
 ---
 
-## 26. Relation avec les documents existants
+## 31. Documents liés
 
-Ce blueprint proposé doit rester compatible avec :
-
-- `docs/architecture/makolo-domain-blueprint.md` — domaines et frontières canoniques ;
-- `docs/architecture/strategic-action-roadmap.md` — réseau d’action, Prepared Start, Proactive Preparation, Proven Paths, opérations ;
-- `docs/architecture/mature-program-roadmap.md` — clôture Mature et programme mobile A1–A4 ;
-- `docs/architecture/mature-experience-principles.md` — expérience Accueil/Discover et Action Rituals ;
-- `docs/architecture/intelligence-discover-program.md` — fondation `intelligence`, provider-neutral, fallback et structured output ;
-- `docs/architecture/domain-events-automation.md` — système événementiel et automation ;
-- `docs/architecture/authorization-boundaries.md` — frontières d’autorisation ;
-- `docs/architecture/spatiotemporal-intelligence.md` — temps, espace, hazards et providers ;
+- [`makolo-domain-blueprint.md`](makolo-domain-blueprint.md) — domaines et frontières canoniques ;
+- [`current-program-status.md`](current-program-status.md) — snapshot opérationnel daté ;
+- [`mature-program-roadmap.md`](mature-program-roadmap.md) — stream Mature et handoff mobile ;
+- [`strategic-action-roadmap.md`](strategic-action-roadmap.md) — réseau d’action et capacités stratégiques ;
+- [`mature-experience-principles.md`](mature-experience-principles.md) — expérience Mature ;
+- [`intelligence-discover-program.md`](intelligence-discover-program.md) — Intelligence Foundation et Discover ;
+- [`domain-events-automation.md`](domain-events-automation.md) — système événementiel et automation ;
+- [`authorization-boundaries.md`](authorization-boundaries.md) — frontières d’autorisation ;
+- [`spatiotemporal-intelligence.md`](spatiotemporal-intelligence.md) — temps, espace, hazards et providers ;
+- [`m9-hardening-quality-gate.md`](m9-hardening-quality-gate.md) — preuves M9 ;
 - `docs/operations-runbook.md` — exploitation réelle.
-
-### État constaté au snapshot
-
-Le `main` consulté le 4 septembre 2026 contient déjà l’Intelligence Foundation/Discover 2027 et le train R1–R3 de préparation intelligente. Ce document propose donc une **extension de ces fondations**, pas leur remplacement.
