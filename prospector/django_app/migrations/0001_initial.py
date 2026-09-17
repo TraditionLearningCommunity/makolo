@@ -42,11 +42,14 @@ class Migration(migrations.Migration):
                     models.CheckConstraint(condition=models.Q(("discovery_count__gte", 1)), name="pros_frontier_count_gte_1"),
                     models.CheckConstraint(
                         condition=(
-                            models.Q(
-                                ("claim_token__isnull", False),
-                                ("claimed_at__isnull", False),
-                                ("lease_expires_at__isnull", False),
-                                ("status", "claimed"),
+                            (
+                                models.Q(
+                                    ("claim_token__isnull", False),
+                                    ("claimed_at__isnull", False),
+                                    ("lease_expires_at__isnull", False),
+                                    ("status", "claimed"),
+                                )
+                                & ~models.Q(("claimed_by", ""))
                             )
                             | (
                                 ~models.Q(("status", "claimed"))

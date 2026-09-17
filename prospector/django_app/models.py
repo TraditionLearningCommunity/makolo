@@ -48,11 +48,14 @@ class ProspectorFrontierEntry(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(
-                        status=FrontierState.CLAIMED.value,
-                        claim_token__isnull=False,
-                        claimed_at__isnull=False,
-                        lease_expires_at__isnull=False,
+                    (
+                        Q(
+                            status=FrontierState.CLAIMED.value,
+                            claim_token__isnull=False,
+                            claimed_at__isnull=False,
+                            lease_expires_at__isnull=False,
+                        )
+                        & ~Q(claimed_by="")
                     )
                     | (
                         ~Q(status=FrontierState.CLAIMED.value)

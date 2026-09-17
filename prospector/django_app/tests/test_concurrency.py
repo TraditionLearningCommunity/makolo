@@ -7,7 +7,10 @@ from django.test import TransactionTestCase
 
 from prospector.contracts import ProspectingCandidate, ProspectingEvidence
 from prospector.django_frontier import DjangoFrontierStore
-from prospector.django_app.models import ProspectorFrontierEntry
+from prospector.django_app.models import (
+    ProspectorFrontierEntry,
+    ProspectorFrontierEvidence,
+)
 
 
 POSTGRESQL = connection.vendor == "postgresql"
@@ -55,7 +58,9 @@ class PostgreSQLFrontierConcurrencyTests(TransactionTestCase):
 
         self.assertEqual(len(set(keys)), 1)
         entry = ProspectorFrontierEntry.objects.get()
+        evidence = ProspectorFrontierEvidence.objects.get()
         self.assertEqual(entry.discovery_count, 16)
+        self.assertEqual(evidence.discovery_count, 16)
 
     def test_concurrent_claimers_receive_disjoint_targets(self):
         store = DjangoFrontierStore()

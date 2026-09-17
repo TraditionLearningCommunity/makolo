@@ -218,6 +218,9 @@ class DjangoFrontierStore:
                     },
                 )
                 if not evidence_created:
+                    row = _lock_queryset(
+                        ProspectorFrontierEvidence.objects.filter(pk=row.pk)
+                    ).get()
                     row.first_discovered_at = min(
                         row.first_discovered_at,
                         evidence.discovered_at,
