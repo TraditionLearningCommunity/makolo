@@ -95,12 +95,11 @@ class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
             for journey in journeys[:ONGOING_LIMIT]
         ]
 
-        standalone_accesses = list(
+        active_accesses = list(
             participant_active_accesses(profile, at=now)
-            .filter(journey__isnull=True)
             .order_by("occurrence__start_date", "occurrence__start_time", "id")[:ONGOING_LIMIT]
         )
-        access_items = [_ongoing_access_item(_access_card(access)) for access in standalone_accesses]
+        access_items = [_ongoing_access_item(_access_card(access)) for access in active_accesses]
 
         context["ongoing_items"] = journey_items + access_items
         return context
