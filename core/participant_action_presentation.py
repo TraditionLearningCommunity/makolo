@@ -34,7 +34,7 @@ def journey_action_presentation(*, journey, readiness, live=None):
             "phase": phase,
             "eyebrow": PHASE_LABELS[phase],
             "label": live["next_action"]["label"],
-            "cta": "Ouvrir" if phase in {"arrival", "live"} else "Voir",
+            "cta": "Ouvrir l’action en cours" if phase in {"arrival", "live"} else "Voir l’occurrence",
         }
     elif live and phase == "before" and readiness.status == ReadinessStatus.READY:
         handoff = {
