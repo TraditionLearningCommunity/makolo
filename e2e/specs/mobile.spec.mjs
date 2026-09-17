@@ -11,6 +11,9 @@ test('participant Maintenant, Moi, history and Access QR stay usable on mobile @
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/me/');
   await expect(page.getByRole('heading', { name: /Qu’est-ce qui compte maintenant/i })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.goto('/me/ongoing/');
   await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
