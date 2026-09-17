@@ -14,7 +14,7 @@ test('mature personal navigation keeps the five canonical contexts on desktop', 
   const sidebar = page.locator('#desktop-sidebar');
   await expect(sidebar.getByRole('link', { name: 'Maintenant', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(sidebar.getByRole('link', { name: 'Découvrir', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: 'Makolo', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Makolo Mark', exact: true })).toBeVisible();
   await expect(sidebar.getByRole('link', { name: 'En cours', exact: true })).toBeVisible();
   await expect(sidebar.getByRole('link', { name: 'Moi', exact: true })).toBeVisible();
   await expect(sidebar.getByRole('link', { name: 'Conversations', exact: true })).toHaveCount(0);
