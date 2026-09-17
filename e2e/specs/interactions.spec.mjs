@@ -40,7 +40,7 @@ test('scanner explains denied camera permission while keeping image and manual f
 });
 
 
-test('keyboard supports Tab, Shift+Tab, Enter and Escape on the app shell', async ({ page }) => {
+test('keyboard supports Tab, Shift+Tab, Enter and Escape on the mature app shell', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
   await setAppearance(page, 'light');
   await page.goto('/me/');
@@ -50,16 +50,13 @@ test('keyboard supports Tab, Shift+Tab, Enter and Escape on the app shell', asyn
   await page.keyboard.press('Enter');
   await expect(page.locator('#main-content')).toBeFocused();
 
-  const appearanceLink = page.getByRole('link', { name: 'Apparence' });
-  const notifications = page.locator('header').getByRole('link', { name: 'Notifications' });
-  await appearanceLink.focus();
+  const conversations = page.locator('header').getByRole('link', { name: /^Conversations/ });
+  const notifications = page.locator('header').getByRole('link', { name: 'Notifications', exact: true });
+  await notifications.focus();
   await page.keyboard.press('Shift+Tab');
-  await expect(notifications).toBeFocused();
+  await expect(conversations).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(appearanceLink).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/account\/profile\/#appearance$/);
-  await expect(page.getByText('Apparence', { exact: true }).first()).toBeVisible();
+  await expect(notifications).toBeFocused();
 
   const userMenuButton = page.getByRole('button', { name: 'Menu utilisateur' });
   await expect(userMenuButton).toHaveAttribute('aria-expanded', 'false');
@@ -70,16 +67,23 @@ test('keyboard supports Tab, Shift+Tab, Enter and Escape on the app shell', asyn
   await page.keyboard.press('Escape');
   await expect(userMenuButton).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('menu')).toBeHidden();
+
+  await userMenuButton.click();
+  await page.getByRole('menuitem', { name: 'Compte et paramètres' }).click();
+  await expect(page).toHaveURL(/\/account\/profile\/$/);
+  await expect(page.getByText('Apparence', { exact: true }).first()).toBeVisible();
 });
 
 
-test('mobile navigation opens, closes with Escape and does not overflow @mobile', async ({ page }) => {
+test('mobile primary navigation stays visible and does not overflow @mobile', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
-  await page.getByRole('button', { name: 'Ouvrir la navigation' }).click();
-  await expect(page.getByRole('dialog', { name: 'Navigation Makolo' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Découvrir' }).last()).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Navigation Makolo' })).toBeHidden();
+  const mobileNav = page.locator('#mobile-primary-nav');
+  await expect(mobileNav).toBeVisible();
+  for (const label of ['Maintenant', 'Découvrir', 'En cours', 'Moi']) {
+    await expect(mobileNav.getByRole('link', { name: label, exact: true })).toBeVisible();
+  }
+  await expect(mobileNav.getByRole('link', { name: 'Makolo Mark' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ouvrir la navigation' })).toHaveCount(0);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
