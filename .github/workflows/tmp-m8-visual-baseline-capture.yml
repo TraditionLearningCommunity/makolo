@@ -6,7 +6,7 @@ on:
       - feat/m8-mobile-first-mature-experience-final
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   capture:
@@ -52,6 +52,15 @@ jobs:
         env:
           E2E_SKIP_PREP: "1"
         run: bash scripts/run-e2e.sh e2e/specs/visual.spec.mjs --update-snapshots --timeout=90000
+      - name: Commit reviewed visual baselines
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add e2e/specs/visual.spec.mjs-snapshots
+          if ! git diff --cached --quiet; then
+            git commit -m "test: refresh reviewed M8 visual baselines"
+            git push
+          fi
       - name: Upload regenerated snapshots
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
