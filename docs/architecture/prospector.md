@@ -1,147 +1,239 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut : PX0 — fondation du runtime Prospecteur.**
+> **Statut du train : PX1 — Frontier durable.**
 >
-> Base de travail initiale : `main@9c60119f4eab8628ff33b230562f85ed8500c632`.
-> Le code, les migrations, les tests et le `main` courant restent prioritaires sur ce document.
+> Base initiale du train : main@9c60119f4eab8628ff33b230562f85ed8500c632.
+> PX1 est empilé sur PX0@b5bc9e9cf2d0ea887857515661db924844e54476.
+> Le code, les migrations, les tests et le main courant restent prioritaires.
 
-## 1. Responsabilité
+## 1. Mission
 
-Le **Prospecteur** est l'acteur en amont qui prospecte le monde extérieur afin
-d'identifier de nouvelles sources et ressources susceptibles de révéler des
-réalités utiles au réseau d'action Makolo.
+Le **Prospecteur** cherche où existent potentiellement des **fragments utiles au
+réseau d'action Makolo**. Il ne cherche pas une page qui contiendrait une
+« opportunité complète » et il ne décide pas qu'un fragment est une vérité
+métier.
 
-Il ne correspond pas à la surface produit **Discover** :
+Une condition, une procédure, un centre, une session, un financement, une
+deadline, une ressource ou un moyen d'accès peuvent être aussi importants à
+prospecter qu'une page d'emploi ou de formation.
 
-```text
-Prospecteur : Makolo découvre ce qu'il ne connaît pas encore.
+~~~text
+Prospecteur : où Makolo devrait-il regarder ?
+Observateur : que dit réellement cette ressource ?
+Interpréteur: quels faits candidats contient l'observation ?
+Résolveur   : de quelles réalités ces faits parlent-ils ?
+~~~
+
+Le Prospecteur et la surface produit Discover restent distincts :
+
+~~~text
+Prospecteur : Makolo prospecte ce qu'il ne connaît pas encore.
 Discover    : l'utilisateur découvre ce que Makolo connaît déjà.
-```
+~~~
 
-Sa question opérationnelle est :
+## 2. Frontière de dépendances
 
-> **Où Makolo devrait-il aller regarder pour découvrir de nouvelles réalités ?**
+Le core importable prospector reste Python pur :
 
-Le Prospecteur produit des cibles. Il ne conclut pas qu'une cible est une
-`Activity`, une `Occurrence`, une organisation ou une autre vérité métier.
-
-## 2. Frontières PX0
-
-Le noyau `prospector/` est un package Python indépendant du framework Web.
-
-Invariant :
-
-```text
+~~~text
 prospector core -X-> Django
 prospector core -X-> modèles métier Makolo
 prospector core -X-> réseau
 prospector core -X-> Crawlee
-```
+~~~
 
-Django reste l'Orchestrateur Makolo et pourra fournir configuration, contrôle
-opérationnel et adaptateurs. PostgreSQL, Crawlee et les providers externes sont
-des dépendances d'infrastructure derrière des ports ; aucune d'elles n'est une
-propriété constitutive du core.
+PX1 ajoute un adaptateur de persistance :
 
-## 3. Pas de liste de sites à scraper
+~~~text
+prospector contracts / ports
+          ▲
+          │
+DjangoFrontierStore
+          │
+          ▼
+prospector.django_app
+          │
+          ▼
+PostgreSQL
+~~~
 
-Le Prospecteur n'est pas conçu autour d'un registre manuel du type :
+Django est utilisé ici pour le cycle de migrations et l'ORM déjà présents dans
+Makolo. Il n'est pas le moteur du Prospecteur et ne remonte pas dans le core.
 
-```python
-SITES_TO_SCRAPE = ["site-a", "site-b", "site-c"]
-```
+## 3. Identité technique
 
-Une éventuelle cible initiale n'est qu'une preuve ou une porte d'entrée parmi
-d'autres. Les checkpoints ultérieurs doivent permettre l'alimentation
-automatique de la Frontier par index externes, graphe Web, structures standard,
-catalogues et autres mécanismes génériques autorisés.
+PX1 supporte explicitement kind=web_url.
 
-## 4. Contrats introduits par PX0
+La canonicalisation v1 :
 
-### `ProspectingEvidence`
+- accepte uniquement HTTP(S) absolu ;
+- met scheme et hostname en minuscules ;
+- canonicalise les noms IDNA et les adresses IP ;
+- retire le port par défaut ;
+- transforme un path vide en / ;
+- retire le fragment ;
+- **préserve la query telle quelle** ;
+- refuse les credentials embarqués dans l'URL.
 
-Provenance minimale expliquant pourquoi une ressource a été révélée. Une
-preuve de prospection ne constitue pas une preuve métier.
+Aucun paramètre utm_*, pagination ou query « inutile » n'est supprimé par
+heuristique. Une telle suppression peut changer l'identité d'une ressource et
+appartiendra à une politique explicitement testée.
 
-### `ProspectingCandidate`
+target_key est versionné et borné :
 
-Locator non résolu produit par un mécanisme de prospection. Il possède au moins
-une provenance mais n'a pas encore reçu l'identité canonique de Frontier.
+~~~text
+web_url:v1:<sha256(kind + NUL + canonical_locator)>
+~~~
 
-### `ProspectingTarget`
+C'est l'identité **de cible technique**, jamais celle d'une Activity, d'une
+Occurrence, d'une organisation ou d'une autre réalité métier.
 
-Cible canonique admise par la Frontier. `target_key` représente son identité
-opérationnelle, pas l'identité d'une réalité métier.
+## 4. Frontier durable
 
-### `FrontierPort`
+PX1 persiste deux projections opérationnelles.
 
-Frontière abstraite d'admission et de claim. PX1 définira le stockage durable,
-la canonicalisation, la concurrence et le cycle de vie.
+### ProspectorFrontierEntry
 
-### `TargetSinkPort`
+Une ligne par target_key canonique :
 
-Sortie minimale vers l'acteur aval. Le contrat détaillé Prospecteur ->
-Observateur sera figé dans son checkpoint dédié.
+- locator et kind canoniques ;
+- état Frontier ;
+- priorité opérationnelle ;
+- disponibilité ;
+- première / dernière découverte ;
+- compteur de redécouvertes ;
+- contexte de politique courant ;
+- hints d'observation courants ;
+- lease de claim ;
+- date de complétion.
 
-## 5. Invariants du contrat
+### ProspectorFrontierEvidence
 
-- tout candidat possède une provenance ;
-- les dates du contrat sont timezone-aware et normalisées en UTC ;
-- les contrats sont immuables au niveau de leur structure ;
-- la version du contrat est explicite ;
-- aucune sémantique `Activity` / `Occurrence` / `Opportunity` n'est portée par
-  les contrats du Prospecteur ;
-- `target_key` est une identité de cible opérationnelle, pas une résolution
-  métier ;
-- aucune dépendance réseau ou framework n'est requise pour importer le core.
+Provenance compacte attachée à une cible :
 
-## 6. Train d'implémentation empilé
+- méthode de découverte ;
+- cible source éventuelle ;
+- observation source éventuelle ;
+- provider éventuel ;
+- attributs ;
+- contexte/hints au moment de cette provenance ;
+- première / dernière apparition ;
+- compteur.
 
-Le préfixe **PX** est réservé à ce chantier pour éviter les trains déjà nommés
-P/Q/R/D/O/U dans Makolo.
+Une redécouverte identique incrémente le compteur au lieu d'ajouter une suite
+infinie de lignes. Des provenances réellement distinctes sont conservées.
 
-```text
-main
-  └─ PX0  fondation Python pure
-       └─ PX1  Frontier PostgreSQL durable
-            └─ PX2  runtime Crawlee
-                 └─ PX3  sécurité réseau / SSRF / budgets
-                      └─ PX4  prospection autonome initiale
-                           └─ PX5  contrat Prospecteur -> Observateur
-                                └─ PX6  worker continu / recovery
-                                     └─ PX7  politique exploration/exploitation
-                                          └─ PX8  pilote Internet contrôlé
-                                               └─ PX9  hardening / échelle
-```
+## 5. Cycle de vie PX1
 
-Chaque branche suivante part du checkpoint précédent. L'intégration finale doit
-être réconciliée avec le `main` courant avant merge.
+~~~text
+admit
+  ↓
+READY ──claim──> CLAIMED ──complete──> COMPLETED
+  ▲                 │
+  └────defer────────┘
 
-## 7. Hors scope PX0
+COMPLETED ──requeue explicite──> READY
+~~~
 
-PX0 n'ajoute volontairement :
+Une simple redécouverte d'une cible COMPLETED **ne la réactive pas**.
 
-- aucune migration ;
-- aucun modèle Django ;
-- aucune dépendance Crawlee ;
-- aucun appel HTTP ;
-- aucune source Common Crawl ;
-- aucune liste manuelle de sites ;
-- aucun Elasticsearch ;
-- aucun LLM ;
-- aucun traitement Observateur/Interpréteur/Résolveur.
+Le statut SUPPRESSED est réservé par le contrat de stockage ; ses politiques
+effectives seront définies avec la sécurité/admissibilité en PX4.
 
-Ces absences sont intentionnelles : PX0 fixe les dépendances et contrats avant
-l'introduction des infrastructures.
+## 6. Leases et concurrence
 
-## 8. Validation PX0
+Un claim produit un FrontierClaim contenant :
 
-Validation ciblée :
+- la cible ;
+- le worker ;
+- un token opaque ;
+- l'expiration de lease.
 
-```text
-python -m unittest discover prospector/tests
-```
+Le token doit encore être le token durable courant pour terminer ou différer le
+travail. Un ancien worker ne peut donc pas clôturer une cible récupérée par un
+autre.
 
-Le test de frontière importe `prospector`, `prospector.contracts` et
-`prospector.ports` dans un interpréteur Python vierge et vérifie qu'aucun module
-Django n'est chargé.
+Sur PostgreSQL, les claims utilisent des verrous de ligne et SKIP LOCKED
+lorsqu'il est disponible. Une lease expirée redevient réclamable sans opération
+de réparation séparée.
+
+SQLite reste compatible pour les tests fonctionnels, mais les garanties de
+concurrence sont validées explicitement sur PostgreSQL.
+
+## 7. Idempotence
+
+L'admission est idempotente au niveau de l'identité :
+
+~~~text
+100 admissions concurrentes de la même URL canonique
+→ 1 FrontierEntry
+~~~
+
+Les admissions restent comptées et les provenances distinctes restent
+auditables.
+
+Une collision où le même target_key pointerait vers un couple kind/locator
+différent est refusée comme conflit, même si SHA-256 rend ce cas extrêmement
+improbable.
+
+## 8. Ce que PX1 ne fait pas
+
+PX1 ne :
+
+- contacte aucun site ;
+- n'intègre pas Crawlee ;
+- n'interroge pas Common Crawl ;
+- n'entretient aucune liste manuelle de sites ;
+- n'interprète aucun contenu ;
+- ne crée aucune vérité métier ;
+- ne décide pas qu'un fragment est un Requirement, Proof, Access ou Activity ;
+- n'introduit ni Elasticsearch, ni Redis, ni Kafka, ni LLM.
+
+## 9. Train après la correction « réseau de faits »
+
+~~~text
+PX0  fondation Python pure
+ ↓
+PX1  Frontier PostgreSQL durable
+ ↓
+PX2  sources de prospection autonomes / index externes
+ ↓
+PX3  contrat Prospecteur ↔ Observateur
+ ↓
+PX4  sécurité réseau / admissibilité / budgets
+ ↓
+PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps
+ ↓
+PX6  runtime continu + adapter Crawlee / recovery / backpressure
+ ↓
+PX7  feedback aval + exploration/exploitation
+ ↓
+PX8  pilote Internet réel
+ ↓
+PX9  hardening / échelle
+~~~
+
+## 10. Validation PX1
+
+Gates généraux :
+
+~~~text
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
+~~~
+
+Tests ciblés indépendants de Django :
+
+~~~text
+python -m unittest discover prospector/tests -v
+~~~
+
+Tests Frontier ORM :
+
+~~~text
+python manage.py test prospector.django_app.tests
+~~~
+
+Un workflow PostgreSQL dédié exécute migrations et tests de concurrence avec
+plusieurs threads afin de vérifier les garanties que SQLite ne peut pas fournir.

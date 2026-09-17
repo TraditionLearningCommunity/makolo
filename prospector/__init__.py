@@ -1,7 +1,7 @@
 """Makolo Prospecteur core contracts.
 
-This package is deliberately framework-independent. Django, PostgreSQL,
-Crawlee and provider integrations belong behind adapters/ports.
+The import surface is deliberately framework-independent. Django, PostgreSQL,
+Crawlee and provider integrations live behind adapters/ports.
 """
 
 from .contracts import (
@@ -10,12 +10,23 @@ from .contracts import (
     ProspectingEvidence,
     ProspectingTarget,
 )
-from .errors import ProspectorContractError
+from .errors import (
+    FrontierClaimError,
+    FrontierConflictError,
+    ProspectorContractError,
+    UnsupportedTargetKindError,
+)
+from .frontier import FrontierClaim, FrontierState
 
 __all__ = [
     "CONTRACT_VERSION",
     "ProspectingCandidate",
     "ProspectingEvidence",
     "ProspectingTarget",
+    "FrontierClaim",
+    "FrontierState",
     "ProspectorContractError",
+    "UnsupportedTargetKindError",
+    "FrontierConflictError",
+    "FrontierClaimError",
 ]
