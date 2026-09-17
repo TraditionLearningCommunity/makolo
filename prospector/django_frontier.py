@@ -89,6 +89,21 @@ def _lock_queryset(queryset, *, skip_locked: bool = False):
     return queryset.select_for_update(**kwargs)
 
 
+def _lock_admission_key(target_key: str) -> None:
+    """Serialize creation/update for one canonical target on PostgreSQL.
+
+    Row locks cannot protect an entry that does not exist yet. A transaction
+    advisory lock avoids exception-driven UNIQUE races while keeping unrelated
+    target keys fully concurrent. SQLite remains a functional fallback only.
+    """
+    if connection.vendor != "postgresql":
+        return
+    digest = hashlib.blake2b(target_key.encode("utf-8"), digest_size=8).digest()
+    lock_id = int.from_bytes(digest, byteorder="big", signed=True)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
+
+
 def _entry_target(entry: ProspectorFrontierEntry) -> ProspectingTarget:
     evidence = tuple(
         ProspectingEvidence(
@@ -136,6 +151,7 @@ class DjangoFrontierStore:
         )
 
         with transaction.atomic():
+            _lock_admission_key(canonical.target_key)
             entry, created = ProspectorFrontierEntry.objects.get_or_create(
                 target_key=canonical.target_key,
                 defaults={

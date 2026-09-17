@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone as dt_timezone
 from unittest import skipUnless
 
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from prospector.contracts import ProspectingCandidate, ProspectingEvidence
@@ -43,7 +43,10 @@ class PostgreSQLFrontierConcurrencyTests(TransactionTestCase):
         try:
             return callback()
         finally:
-            close_old_connections()
+            # Thread-local DB connections outlive the callback when executor
+            # threads stay alive. Close them explicitly so Django can destroy
+            # the PostgreSQL test database deterministically.
+            connections.close_all()
 
     def test_concurrent_admission_creates_one_target_and_counts_every_admission(self):
         candidate = self.candidate(1)
