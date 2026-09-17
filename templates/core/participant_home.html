@@ -4,7 +4,8 @@
 <div class="mk-mature-page">
   <section class="mk-mature-heading">
     <p class="mk-eyebrow">Maintenant</p>
-    <h1>Bonjour{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}.</h1>
+    <p>Bonjour{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}.</p>
+    <h1>Qu’est-ce qui compte maintenant ?</h1>
   </section>
 
   {% if home.all_clear %}
