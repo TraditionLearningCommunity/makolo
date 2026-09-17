@@ -1,31 +1,283 @@
 # Makolo
 
-Makolo est une plateforme événementielle multi-organisateurs : événements, équipes, billetterie numérique, paiements, notifications, automatisations, intelligence événementielle, acquisition par partenaires, CRM événementiel, promotions, communauté d'organisateurs et contrôle d’accès par QR code.
+> **Makolo marche pour vous.**
 
-## Vision
+Makolo est un **réseau d’action** : découvrir des possibilités réelles, préparer ce qui peut l’être, orchestrer ce qui reste à faire, accompagner l’action réelle et capitaliser ce qui facilitera la suite.
 
-Makolo n'est pas le back-office d'une seule société. Un utilisateur peut être participant, suivre des organisateurs, créer une organisation, rejoindre l'équipe d'un autre organisateur ou exercer un rôle limité (événements, finance, communication, accès) sans devenir administrateur de la plateforme.
+Le produit n’est plus limité à une plateforme événementielle. Event reste une verticale importante, mais le noyau canonique est désormais centré sur des domaines transverses comme `Profile`, `Activity`, `Occurrence`, `Journey`, `Requirement`, `Proof`, `Access`, `Capacity`, `Commerce`, `Payment`, `Geography`, `Authorization`, `Notifications`, `Automation`, `Sharing`, `Discovery` et les projections d’expérience qui les composent.
 
-La chaîne fonctionnelle couvre maintenant :
+Principe directeur :
 
-- organisations et équipes organisatrices ;
-- profils publics et abonnements/followers d'organisateurs avec préférences propres à chaque organisation ;
-- création et publication d’événements ;
-- catégories de billets, stock et capacité ;
-- commandes gratuites ou payantes ;
-- promotions/codes avec périodes, quotas, billets éligibles, minimums, limites client et attribution campagne ;
-- paiements sandbox/manuels et remboursements contrôlés ;
-- génération de tickets et QR uniques ;
-- listes d'attente FIFO avec offres temporaires et promotion automatique ;
-- transferts sécurisés de billets avec rotation du QR à l'acceptation ;
-- contrôle d’accès anti-double-scan ;
-- notifications transactionnelles ;
-- Makolo Autopilot pour les tâches temporelles et réactives ;
-- CRM Automation : déclencheurs métier, conditions, délais, actions multi-étapes, retries et audit ;
-- Analytics & Event Intelligence : ventes, remplissage, présence, waitlist, flux d'entrée, finances autorisées et signaux explicables ;
-- Partners / Ambassadeurs / Affiliation : campagnes, liens de recommandation, attribution, commissions et paiements partenaires ;
-- CRM événementiel : contacts organisationnels, audiences dynamiques, tags, champs personnalisés, consentements, modèles réutilisables et campagnes ;
-- attribution CRM campagne → clic → commande → vente confirmée, avec revenus séparés par devise.
+> **Pas le plaisir de rester. Le plaisir d’avancer.**
+
+---
+
+## Trajectoire produit
+
+La trajectoire actuelle est cumulative :
+
+```text
+Makolo Mature
+    ↓
+Makolo Mobile
+    ↓
+Makolo Intelligence Kernel
+    ↓
+Makolo Agent
+    ↓
+Compétences / agents spécialisés
+```
+
+- **Makolo Mature** : réseau d’action fiable, déterministe, backend/web/API, exploitable sans LLM.
+- **Makolo Mobile** : client Flutter natif, actif et ambient, utilisant les capacités du téléphone sans déplacer la vérité métier hors du backend.
+- **Makolo Intelligence Kernel** : perception, observations, contexte, mémoire, raisonnement, tools, policy et vérification.
+- **Makolo Agent** : boucle bornée `observe → understand → plan → act → verify`.
+- **Spécialisations** : bourses/opportunités, emploi, événements, voyage, opérations, services, etc., toutes construites sur le même Kernel.
+
+Voir :
+
+- [`docs/architecture/makolo-evolution-blueprint.md`](docs/architecture/makolo-evolution-blueprint.md)
+- [`docs/architecture/current-program-status.md`](docs/architecture/current-program-status.md)
+
+---
+
+## État courant
+
+L’état GitHub courant reste la vérité sur ce qui est réellement livré.
+
+Au snapshot du **17 septembre 2026** :
+
+- M1 → M7 sont documentés comme livrés ;
+- le programme G — Profil, pertinence & réseau d’action — est terminé ;
+- les grands trains Q/R/D/O sont largement intégrés ;
+- l’Intelligence Foundation et Discover Intelligence existent déjà ;
+- M9 Hardening a déjà été fermé sur une base auditée ;
+- la PR #234 porte la convergence finale **M8 mobile-first mature personal experience** ;
+- Mobile A0 est préparé mais Flutter n’est pas encore réellement engagé sur `main` ;
+- le futur Intelligence Kernel doit étendre les fondations existantes, pas les dupliquer ;
+- Makolo Agent n’est pas encore livré comme runtime agentique général.
+
+Le snapshot détaillé est dans [`current-program-status.md`](docs/architecture/current-program-status.md).
+
+---
+
+## Invariants d’architecture
+
+Quelques règles fondamentales :
+
+- **Event est une verticale. Activity est le noyau.**
+- Un `Profile` représente une personne globale ; il n’existe pas de « participant » ou « organisateur » global.
+- `Assignment` = responsabilité. `Mandate` / `Permission` = autorité.
+- Membership, Group ou Team n’accordent pas implicitement d’autorité.
+- `Readiness` est une projection dérivée, pas un état générique à dupliquer.
+- `Requirement`, `Form`, `Resource`, `JourneyArtifact`, `Proof`, `Credential Trust` et `AccessCredential` restent distincts.
+- `Access` = droit ; `AccessCredential` = représentation/secret ; `AccessUse` = observation d’usage/passage.
+- `Capacity` répond « combien ? » ; `Placement` répond « où ? ».
+- Waitlist = attendre une place ; Live Queue = attendre son tour avec le droit pertinent.
+- `JourneyStep` n’est pas un checkpoint opérationnel.
+- `Dossier` = objectif actif composé ; `Project` = horizon durable ; aucun ne devient task manager générique.
+- Posséder un document ≠ le retrouver ≠ satisfaire un Requirement.
+- Toute projection publique/collective applique la divulgation minimale.
+- Une composition ne transfère jamais implicitement Permission, Mandate, Access, Payment ou accès à des données privées.
+
+---
+
+## Expérience produit
+
+### Accueil / Maintenant
+
+Question centrale :
+
+> **Qu’est-ce qui compte maintenant ?**
+
+La surface doit rester privée, contextuelle et orientée accomplissement. Elle doit pouvoir conclure :
+
+> **Tout est en ordre. ✓**
+
+### Discover / Découvrir
+
+Question centrale :
+
+> **Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?**
+
+Discover est exploratoire, visuel, cartographique et éventuellement multimédia.
+
+Le produit ne doit pas être optimisé pour watch time, scroll infini artificiel, likes ou popularité. Les métriques centrales restent liées à l’action réelle.
+
+### No Orphan Content / No Orphan Media
+
+Tout contenu ou média doit avoir contexte et finalité. Presentation représente les faits ; elle ne les possède pas.
+
+---
+
+## Makolo Mature
+
+Le cœur Mature porte notamment :
+
+```text
+Profile / Space / Group
+Activity / Occurrence
+Journey / JourneyRequest
+Requirements / Readiness
+Forms / Resources / Personal Assets
+Trust / Proof / Action Memory
+Capacity / Commerce / Payment
+Access / AccessCredential / AccessUse
+Notifications / Automation / Domain Events
+Social Action Network
+Spatiotemporal Intelligence
+Preparation
+Dossier / Project / Collaboration
+Operations
+Interoperability / Connections / Extensions
+```
+
+Makolo Mature doit rester fonctionnel même si :
+
+- aucun provider IA n’est disponible ;
+- Internet est partiellement inaccessible ;
+- une Connection externe est révoquée ;
+- une observation est stale ou contradictoire.
+
+L’IA augmente Makolo ; elle ne doit jamais devenir sa seule source de vérité.
+
+---
+
+## Makolo Mobile
+
+Le mobile suit la règle :
+
+> **Le backend Makolo décide. Le mobile présente, orchestre et utilise les capacités du téléphone.**
+
+Programme :
+
+```text
+A0 — Phase 0 / foundation
+A1 — Application native Flutter
+A2 — Native Capabilities
+A3 — Ambient Makolo
+A4 — Operations & Offline R&D
+```
+
+Capacités natives prévues progressivement :
+
+```text
+push
+biométrie locale
+caméra / scanner
+share sheet
+contacts consentis
+localisation native
+geofencing
+voice / intents
+haptique
+widgets / lock screen / Live Activities
+background sync / offline borné
+```
+
+Le mobile ne réimplémente pas Readiness, Permissions, Payment state, Access validity, Hazards ou ranking.
+
+---
+
+## Makolo Intelligence Kernel
+
+Le Kernel futur doit étendre les fondations déjà présentes :
+
+```text
+intelligence gateway / providers / routing
+Action Memory / Trusted Reuse
+Domain Events
+Automation / Autopilot
+Notifications
+Prepared Start / NextAction
+M7 Connections / Actions / Extensions
+Geography / Hazards
+Opportunity source provenance / checks
+```
+
+Architecture cible :
+
+```text
+MONDE EXTÉRIEUR
+      │
+      ▼
+PERCEPTION
+      │
+      ▼
+OBSERVATIONS
+      │
+      ├──────── Makolo Core
+      ├──────── Action Memory
+      ├──────── Domain Events
+      └──────── Mobile signals
+                │
+                ▼
+         CONTEXT BUILDER
+                │
+                ▼
+         REASONER / PLANNER
+                │
+                ▼
+     POLICY / CONSENT / AUTH
+                │
+                ▼
+           TOOL GATEWAY
+                │
+                ▼
+        ACTION / RESULT
+                │
+                ▼
+      VERIFIER / FEEDBACK
+                └──────→ nouveau contexte
+```
+
+Invariant central :
+
+> **Observation ≠ Fact.**
+
+Une donnée externe doit conserver provenance, fraîcheur et scope avant d’influencer une vérité ou une action.
+
+---
+
+## Makolo Agent
+
+Makolo Agent n’est pas « un chatbot ajouté dans l’application ».
+
+Il existe lorsque Makolo peut poursuivre un objectif sur plusieurs étapes :
+
+```text
+Goal
+  ↓
+Observe
+  ↓
+Understand
+  ↓
+Plan
+  ↓
+Act through allowed tools
+  ↓
+Verify
+  ↓
+Replan or stop
+```
+
+Le modèle n’écrit jamais directement dans l’ORM pour modifier une vérité métier.
+
+```text
+LLM / Planner
+    ↓
+Tool Gateway
+    ↓
+Policy / Authorization
+    ↓
+Canonical service
+    ↓
+Domain Event
+```
+
+Les actions à fort impact restent bornées par Permission, Mandate, Consent, Access, Payment et confirmation utilisateur lorsque nécessaire.
+
+---
 
 ## Stack actuelle
 
@@ -37,154 +289,11 @@ La chaîne fonctionnelle couvre maintenant :
 - Alpine.js
 - Tailwind CSS
 - SQLite pour le développement initial
-- PostgreSQL prévu pour la production, notamment pour les opérations concurrentes
+- PostgreSQL pour les gates et opérations qui exigent ses garanties
 
-## Applications Django
+Flutter est le choix retenu pour l’application mobile native à venir.
 
-- `core`
-- `accounts`
-- `organizations`
-- `events`
-- `tickets`
-- `scanner`
-- `payments`
-- `notifications`
-- `automation`
-- `partners`
-- `crm`
-- `promotions`
-- `analytics_app`
-
-## Organisations, équipes et followers
-
-`is_staff` et `is_superuser` sont des privilèges de **plateforme Makolo**. Ils ne sont pas nécessaires pour organiser un événement.
-
-Une `Organization` possède sa propre équipe :
-
-- Owner : propriété de l'espace organisateur ;
-- Admin : équipe et paramètres de l'organisation ;
-- Event manager : événements et billetterie ;
-- Finance : commandes, paiements et remboursements ;
-- Marketing : communication, acquisition, partenaires, promotions et CRM ;
-- Scanner manager : contrôle d'accès et agents scanner.
-
-Une appartenance à l'organisation ne donne pas accès à toutes ses données. Les lectures des commandes, paiements, billets, journaux de scan, commissions, promotions financières, CRM et métriques sont limitées par capacité métier. Voir `docs/architecture/authorization-boundaries.md`.
-
-`OrganizationFollow` est une relation sociale différente de `OrganizationMembership`. Suivre un organisateur ne donne aucun droit d'équipe et ne vaut jamais consentement e-mail automatique. Le participant choisit séparément les notifications Makolo et les e-mails pour les nouveaux événements et annonces de chaque organisateur. Un désabonnement de l'organisation A ne modifie ni ses préférences globales Makolo ni celles de l'organisation B.
-
-Les événements existants sont automatiquement rattachés à une organisation personnelle lors de la migration vers ce modèle.
-
-## Makolo Autopilot
-
-Les opérations récurrentes ne doivent pas dépendre d'un développeur. En production, un worker persistant tourne à côté du serveur web :
-
-```text
-python manage.py autopilot_worker --poll-seconds 30 --delivery-limit 100
-```
-
-Il exécute automatiquement :
-
-- expiration des commandes non payées et libération du stock ;
-- traitement/retry de la file de notifications ;
-- traitement des campagnes CRM planifiées et retries de livraison ;
-- traitement des scénarios CRM multi-étapes et reprise des actions interrompues ;
-- déclencheurs CRM temporels avant/après événement, no-show et anniversaires ;
-- rappels configurables à J-7, H-24 et H-2 ;
-- alertes de remplissage ;
-- alertes de stock faible ;
-- fermeture automatique des ventes au démarrage ;
-- passage automatique de l'événement à `completed` après sa fin ;
-- promotion des listes d'attente lorsqu'une place se libère ;
-- expiration des offres waitlist et transferts non acceptés ;
-- suivi post-événement.
-
-L'organisateur configure les règles d'exploitation d'un événement dans :
-
-```text
-/autopilot/events/<event-slug>/
-```
-
-et les parcours CRM d'une organisation dans :
-
-```text
-/autopilot/crm/<organization-slug>/
-```
-
-Le moteur décide ensuite quand les exécuter. `run_autopilot` reste disponible pour un cron ou le diagnostic, mais ce n'est pas une action quotidienne d'un développeur.
-
-Des exemples de déploiement sont fournis dans :
-
-```text
-deploy/systemd/makolo-autopilot.service.example
-deploy/cron/makolo-autopilot.cron.example
-```
-
-## Analytics & Event Intelligence
-
-Le tableau de bord Analytics est disponible sous :
-
-```text
-/analytics/
-/analytics/events/<event-slug>/
-```
-
-Il calcule directement depuis les sources de vérité Makolo : billets actifs, capacité, commandes, conversions, waitlist, transferts, scans, vitesse des ventes et projection simple de sold-out. Les rôles Finance/Owner/Admin peuvent aussi voir les revenus brut, remboursé et net ; les autres rôles reçoivent uniquement les agrégats opérationnels compatibles avec leurs droits.
-
-Les devises ne sont jamais additionnées entre elles. Les réponses Analytics n'exposent aucun nom, e-mail, téléphone, QR ou référence de paiement client. Les insights sont des règles déterministes et explicables, pas des décisions automatiques opaques.
-
-## Partners / Ambassadeurs / Affiliation
-
-L'espace acquisition est disponible sous `/partners/`. Une organisation peut enregistrer des ambassadeurs, influenceurs, médias, agences, communautés ou partenaires commerciaux, puis créer une campagne liée à un événement.
-
-Chaque couple campagne/partenaire reçoit un `ReferralCode` unique et un lien public du type :
-
-```text
-/partners/r/ALICE10/
-```
-
-Makolo enregistre une visite avec un UUID anonyme, le chemin de destination et uniquement le domaine référent. L'adresse IP et l'URL référente complète ne sont pas conservées. Le dernier code valide est mémorisé dans la session pendant la fenêtre d'attribution de la campagne, jusqu'à 90 jours.
-
-Une réservation n'acquiert aucune commission. La commission devient `earned` uniquement lorsque la commande est réellement confirmée. Un remboursement ou une annulation inverse automatiquement une commission non payée. Une commission déjà payée bloque une inversion silencieuse : l'équipe Finance doit d'abord traiter l'ajustement comptable.
-
-Les commissions peuvent être un pourcentage du montant de la commande ou un montant fixe. Les paiements de commissions sont groupés par devise ; Makolo ne mélange jamais USD, CDF ou d'autres monnaies dans un même solde. Les rôles Marketing gèrent partenaires/campagnes sans voir les montants financiers ; Finance gère commissions et paiements sans obtenir de droits marketing implicites. Un partenaire relié à un compte Makolo dispose de son propre portail de performance agrégé.
-
-## Promotions, codes et offres avancées
-
-L'espace Promotions est disponible sous `/promotions/`. Owner/Admin/Marketing peuvent créer une offre en pourcentage ou montant fixe, la limiter à un événement et à certains types de billets, définir un minimum de commande, une période, un quota global et une limite par client. Chaque offre peut porter plusieurs codes, chacun avec sa propre période, son quota, son état public/privé et une campagne CRM associée facultative.
-
-Le participant transmet seulement le code. Makolo recalcule toujours la remise côté serveur à partir des prix réels et verrouille l'offre/code pendant la création de commande. Une redemption `reserved` consomme temporairement le quota ; elle devient `confirmed` lorsque la commande est réellement confirmée et `reversed` en cas d'annulation ou expiration. Les snapshots sous-total, montant éligible, remise et total final restent attachés à la commande même si l'offre est modifiée plus tard.
-
-Une remise qui ramène un total payant exactement à zéro confirme immédiatement la commande et émet les billets. Une commande waitlist encore `pending` peut recevoir un code avant tout paiement. Payments, affiliation et CRM voient ensuite le vrai `TicketOrder.total_amount` après remise.
-
-Les mécanismes d'attribution restent indépendants et peuvent coexister : partenaire pour l'acquisition, campagne CRM signée pour le clic, et promotion pour le prix. Une campagne CRM peut aussi être liée explicitement à un code ; Makolo mesure alors séparément campagne → code → vente sans inventer un clic.
-
-Finance/Owner/Admin peuvent consulter les lignes financières de redemption ; Marketing gère la stratégie et les codes sans obtenir cette liste monétaire détaillée ; Event Manager conserve une lecture opérationnelle.
-
-## CRM, audiences et conversion
-
-Le CRM est disponible sous `/crm/`. Chaque organisation possède son propre espace de contacts, alimenté par ses commandes, billets, waitlists et followers. Les segments sont dynamiques et peuvent cibler : tous les contacts, followers, acheteurs confirmés, détenteurs de billets, participants présents, no-shows, waitlist ou acquisition partenaire.
-
-Les segments peuvent combiner événement, type de billet, ville/pays, consentement, plusieurs tags avec logique ET et filtres exacts sur les champs personnalisés de l'organisation. Les champs disponibles sont texte, nombre, oui/non, date ou liste de choix.
-
-Un achat ne vaut jamais consentement marketing. Le consentement CRM est propre à l'organisation. Les préférences globales Makolo restent prioritaires, mais un membre Marketing ne peut plus changer les préférences globales d'un participant en modifiant un contact local. Les campagnes marketing vérifient encore le consentement et les préférences au moment de la livraison.
-
-Les équipes peuvent créer des `CampaignTemplate` réutilisables. Le contenu est copié dans chaque campagne afin de préserver l'historique même si le modèle évolue ensuite.
-
-Lorsqu'une campagne active le suivi de conversion, son CTA passe par un jeton signé Makolo. Le clic est compté et une commande compatible peut être attribuée à la campagne. Une commande payante reste `pending` jusqu'à confirmation réelle ; l'attribution devient alors `confirmed`. Une annulation ou expiration la passe à `reversed`. Les revenus attribués sont toujours groupés par devise. Aucun pixel d'ouverture invisible n'est installé.
-
-L'attribution CRM et l'attribution partenaire peuvent coexister sur une même commande sans s'écraser : l'une mesure la campagne de communication, l'autre le partenaire commercial.
-
-### CRM Automation
-
-Les rôles Owner/Admin/Marketing peuvent créer des scénarios sous `/autopilot/crm/<organization-slug>/`. Event Manager peut les consulter, mais pas les modifier. Finance et Scanner Manager n'obtiennent aucun accès CRM implicite.
-
-Les déclencheurs disponibles couvrent : nouvel abonné, commande confirmée, commande expirée, entrée en waitlist, check-in, délai avant événement, fin d'événement, no-show et anniversaire. Un scénario peut ensuite enchaîner des actions avec délais : e-mail depuis un `CampaignTemplate`, notification Makolo, ajout/retrait de tag et notification de l'équipe.
-
-Les conditions optionnelles portent sur l'événement, le segment dynamique, le type de billet, le montant minimum et la devise. Les segments sont revalidés au déclenchement ; les no-shows sont calculés uniquement parmi les détenteurs de billets.
-
-Chaque parcours et chaque étape sont persistés, dédupliqués et audités. Les actions e-mail ont retries/backoff, les actions `processing` abandonnées sont reprises par Autopilot, et un workflow mis en pause ne consomme pas ses étapes en attente. Les contenus utilisent uniquement un petit ensemble de variables sûres, sans exécuter de template arbitraire fourni par un organisateur.
-
-Une automatisation ne contourne jamais le consentement : les modèles marketing exigent le consentement CRM et les préférences globales/organisationnelles au moment exact de l'envoi. Une notification Makolo promotionnelle doit être explicitement déclarée comme telle et passe par les mêmes garde-fous.
+---
 
 ## Installation locale sous PowerShell
 
@@ -199,15 +308,15 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-L'application est disponible sur <http://127.0.0.1:8000/>.
+L’application est disponible sur <http://127.0.0.1:8000/>.
 
-Pour observer Autopilot en développement, lancer **dans un second terminal** :
+Pour observer Autopilot en développement, lancer dans un second terminal :
 
 ```powershell
 python manage.py autopilot_worker --poll-seconds 10
 ```
 
-Ce second processus simule le worker qui sera géré automatiquement par le système de déploiement en production.
+---
 
 ## Vérifications avant commit
 
@@ -218,110 +327,83 @@ python manage.py makemigrations --check --dry-run
 python manage.py test
 ```
 
-La CI exécute aussi `python manage.py check --deploy --fail-level WARNING` avec un environnement de production synthétique afin de détecter les régressions de configuration de sécurité avant fusion.
+Les changements importants doivent passer par une branche dédiée + PR, sauf décision explicite contraire. Ne jamais merger avec CI rouge et ne jamais affaiblir un test pour obtenir du vert.
 
-## Environnement
-
-En développement, Makolo utilise `DJANGO_ENV=development` par défaut. Les vraies clés et informations d'hébergement ne doivent jamais être versionnées.
-
-`.env.example` documente notamment :
-
-- URL publique Makolo ;
-- sandbox et secret webhook Payments ;
-- paramètres SMTP de production.
-
-Le fournisseur de paiement `sandbox` reste réservé au développement/test sauf activation explicite. Aucun PAN, CVV ou secret bancaire n'est stocké par Makolo.
-
-## API
-
-Les endpoints principaux de la v1 sont :
-
-```text
-/api/v1/accounts/
-/api/v1/organizations/follows/
-/api/v1/events/
-/api/v1/events/categories/
-/api/v1/events/venues/
-/api/v1/tickets/types/
-/api/v1/tickets/orders/
-/api/v1/tickets/tickets/
-/api/v1/tickets/waitlist/
-/api/v1/tickets/transfers/
-/api/v1/scanner/events/
-/api/v1/scanner/assignments/
-/api/v1/scanner/logs/
-/api/v1/scanner/scan/
-/api/v1/payments/configuration/
-/api/v1/payments/payments/
-/api/v1/payments/events/
-/api/v1/payments/webhooks/sandbox/
-/api/v1/notifications/
-/api/v1/notifications/unread-count/
-/api/v1/analytics/overview/
-/api/v1/analytics/events/<event-slug>/
-/api/v1/partners/partners/
-/api/v1/partners/campaigns/
-/api/v1/partners/codes/
-/api/v1/partners/commissions/
-/api/v1/partners/payouts/
-/api/v1/partners/partners/<partner-id>/metrics/
-/api/v1/crm/contacts/
-/api/v1/crm/tags/
-/api/v1/crm/custom-fields/
-/api/v1/crm/templates/
-/api/v1/crm/segments/
-/api/v1/crm/segments/<segment-id>/preview/
-/api/v1/crm/campaigns/
-/api/v1/crm/campaigns/<campaign-id>/metrics/
-/api/v1/automation/workflows/
-/api/v1/automation/workflows/<workflow-id>/
-/api/v1/automation/workflows/<workflow-id>/actions/
-/api/v1/automation/workflows/<workflow-id>/runs/
-/api/v1/promotions/promotions/
-/api/v1/promotions/promotions/<promotion-id>/metrics/
-/api/v1/promotions/codes/
-/api/v1/promotions/redemptions/
-```
-
-`POST /api/v1/tickets/orders/` accepte `referral_code` pour l'affiliation, `campaign_token` pour préserver une attribution CRM signée et `promotion_code` pour demander une remise validée côté serveur.
-
-## Notifications
-
-Le centre de notifications est disponible sous `/notifications/`. Les e-mails transactionnels passent par une outbox persistante `NotificationDelivery` avec retry et respect des préférences/heures silencieuses. Autopilot consomme cette file automatiquement en production. Les campagnes CRM disposent d'une outbox séparée afin de conserver leur audit de destinataires et leur politique de consentement. SMS et push sont préparés mais aucun fournisseur externe n'est simulé.
-
-## Contrôle d’accès
-
-Le QR est validé côté serveur. Le premier scan valide marque le billet `used`; les scans suivants sont rejetés et journalisés. Un `Scanner manager` d'organisation peut administrer l'accès sans obtenir les droits finance ou plateforme.
-
-## Prochains axes produit
-
-Le socle actuel prépare désormais les fonctionnalités majeures suivantes :
-
-- découverte sociale et feed personnalisé d'événements ;
-- intelligence avancée des flux d'entrée ;
-- recommandations selon préférences, localisation et organisateurs suivis ;
-- opérations et modération de plateforme avancées ;
-- cohortes, attribution multi-touch et prévisions analytiques plus avancées ;
-- Customer 360, scoring comportemental et fidélisation.
+---
 
 ## CI
 
-GitHub Actions vérifie automatiquement chaque Pull Request vers `main` : dépendances, contrôles Django, configuration de sécurité production, cohérence des migrations, application des migrations et tests.
+La CI couvre plusieurs niveaux :
 
-## Architecture
+- checks Django ;
+- migrations ;
+- matrices PostgreSQL ;
+- sécurité / supply chain ;
+- E2E ;
+- agrégation `ci/aggregate` sur `main`.
 
-- rôles historiques : `docs/architecture/accounts-rbac.md` ;
-- domaine événementiel : `docs/architecture/events.md` ;
-- billetterie et QR : `docs/architecture/tickets.md` ;
-- waitlist et transferts : `docs/architecture/waitlist-transfers.md` ;
-- contrôle d’accès : `docs/architecture/scanner.md` ;
-- paiements : `docs/architecture/payments.md` ;
-- notifications : `docs/architecture/notifications.md` ;
-- organisations, équipes et Autopilot : `docs/architecture/platform-autopilot-organizations.md` ;
-- frontières d'autorisation : `docs/architecture/authorization-boundaries.md` ;
-- Analytics & Event Intelligence : `docs/architecture/analytics-event-intelligence.md` ;
-- Partners / Ambassadeurs / Affiliation : `docs/architecture/partners-affiliation.md` ;
-- CRM événementiel, audiences et campagnes : `docs/architecture/event-crm-audiences-campaigns.md` ;
-- followers, tags/champs, modèles et attribution campagne → vente : `docs/architecture/followers-crm-growth-attribution.md` ;
-- CRM Automation, déclencheurs, parcours et reprise : `docs/architecture/crm-automation-engine.md` ;
-- promotions, codes, quotas et attribution : `docs/architecture/promotions-coupons-offers.md`.
+Le détail exact des workflows évolue : toujours vérifier l’état GitHub courant avant un changement important.
+
+---
+
+## Autopilot
+
+Les opérations temporelles et réactives utilisent le moteur Automation/Autopilot existant. En environnement approprié, un worker persistant peut être lancé avec :
+
+```text
+python manage.py autopilot_worker --poll-seconds 30 --delivery-limit 100
+```
+
+Le futur Agent doit réutiliser Automation et Domain Events ; il ne doit pas créer un second scheduler générique.
+
+---
+
+## Sécurité et confidentialité
+
+- aucune clé réelle, token, secret ou credential ne doit être versionné ;
+- Permission / Mandate / Access restent vérifiés côté serveur ;
+- les données privées sont minimisées dans les projections, logs et analytics ;
+- un compte externe ou réseau social ne constitue pas automatiquement un consentement d’import ;
+- les agents futurs restent provider-neutral, auditables et bornés ;
+- aucun profil psychologique opaque ou score humain universel ne doit être introduit.
+
+Voir :
+
+- [`docs/architecture/authorization-boundaries.md`](docs/architecture/authorization-boundaries.md)
+- [`docs/architecture/security-threat-model.md`](docs/architecture/security-threat-model.md)
+- [`docs/architecture/m9-hardening-quality-gate.md`](docs/architecture/m9-hardening-quality-gate.md)
+
+---
+
+## Documents canoniques à lire en priorité
+
+1. [`docs/architecture/makolo-domain-blueprint.md`](docs/architecture/makolo-domain-blueprint.md)
+2. [`docs/architecture/mature-program-roadmap.md`](docs/architecture/mature-program-roadmap.md)
+3. [`docs/architecture/strategic-action-roadmap.md`](docs/architecture/strategic-action-roadmap.md)
+4. [`docs/architecture/profile-relevance-action-network.md`](docs/architecture/profile-relevance-action-network.md)
+5. [`docs/architecture/mature-experience-principles.md`](docs/architecture/mature-experience-principles.md)
+6. [`docs/architecture/makolo-evolution-blueprint.md`](docs/architecture/makolo-evolution-blueprint.md)
+7. [`docs/architecture/current-program-status.md`](docs/architecture/current-program-status.md)
+8. [`docs/operations-runbook.md`](docs/operations-runbook.md)
+
+Documents transverses utiles :
+
+- [`docs/architecture/domain-events-automation.md`](docs/architecture/domain-events-automation.md)
+- [`docs/architecture/spatiotemporal-intelligence.md`](docs/architecture/spatiotemporal-intelligence.md)
+- [`docs/architecture/intelligence-discover-program.md`](docs/architecture/intelligence-discover-program.md)
+- [`docs/architecture/m9-hardening-quality-gate.md`](docs/architecture/m9-hardening-quality-gate.md)
+
+---
+
+## Source de vérité
+
+Toujours privilégier, dans cet ordre :
+
+1. code, migrations et tests actuels ;
+2. `makolo-domain-blueprint.md` ;
+3. roadmaps et docs canoniques pertinentes ;
+4. `docs/operations-runbook.md` ;
+5. état GitHub courant ;
+6. historique et documents de transfert comme contexte.
+
+Une roadmap décrit une cible et un séquencement ; elle ne prouve pas qu’un élément est déjà livré.
