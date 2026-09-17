@@ -1,4 +1,4 @@
-name: Temporary frontend artifact capture
+name: Temporary frontend artifact synchronization
 
 on:
   push:
@@ -6,13 +6,15 @@ on:
       - feat/m8-mobile-first-mature-experience-final
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  capture:
+  synchronize:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: feat/m8-mobile-first-mature-experience-final
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24.18.0"
@@ -22,9 +24,12 @@ jobs:
         run: npm ci
       - name: Build production frontend
         run: npm run build
-      - name: Upload generated frontend bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-frontend-bundle
-          path: static/dist/makolo.js
-          if-no-files-found: error
+      - name: Commit synchronized bundle and remove temporary workflow
+        run: |
+          rm .github/workflows/tmp-frontend-artifact-capture.yml
+          git add static/dist/makolo.js .github/workflows/tmp-frontend-artifact-capture.yml
+          git diff --cached --exit-code && exit 1 || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: synchronize generated frontend bundle"
+          git push origin HEAD:feat/m8-mobile-first-mature-experience-final
