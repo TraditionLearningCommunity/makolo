@@ -455,3 +455,23 @@ class ExpansionTests(IsolatedAsyncioTestCase):
         self.frontier.targets.clear()
         with self.assertRaises(ExpansionContractError):
             await self.expand(self.report(()))
+
+    async def test_report_locator_must_match_parent_target(self):
+        report = ObservationReport(
+            handoff_key=make_handoff_key(
+                target_key=self.parent.target_key,
+                handoff_generation=1,
+            ),
+            target_key=self.parent.target_key,
+            handoff_generation=1,
+            observation_ref="obs:test:mismatch",
+            status=ObservationStatus.OBSERVED,
+            observed_at=self.now,
+            requested_locator="https://other.test/wrong-source",
+            final_locator="https://other.test/wrong-source",
+            response_status=200,
+            media_type="text/html",
+            references=(),
+        )
+        with self.assertRaises(ExpansionContractError):
+            await self.expand(report)

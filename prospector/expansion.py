@@ -244,6 +244,20 @@ class ObservationExpansionSink:
                 f"source target {report.target_key!r} is missing from Frontier"
             )
 
+        try:
+            requested = canonicalize_locator(
+                kind=parent.kind,
+                locator=report.requested_locator,
+            )
+        except ProspectorContractError as exc:
+            raise ExpansionContractError(
+                "report requested_locator is invalid for the source target"
+            ) from exc
+        if requested.target_key != parent.target_key:
+            raise ExpansionContractError(
+                "report requested_locator does not match source target"
+            )
+
         parent_depth = parent.policy_context.get("depth", 0)
         if (
             not isinstance(parent_depth, int)
