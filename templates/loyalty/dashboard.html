@@ -12,7 +12,7 @@
   <section class="grid gap-4 md:grid-cols-2">
     {% for account in accounts %}
     <article class="mk-panel p-5 sm:p-6">
-      <span class="mk-kicker">{{ account.program.organization.name }}</span>
+      <div class="flex items-center gap-2"><i data-lucide="gem" class="h-4 w-4" aria-hidden="true"></i><span class="mk-kicker">{{ account.program.organization.name }}</span></div>
       <h2 class="mt-2 text-lg font-extrabold">{% if account.current_tier %}Relation {{ account.current_tier.name }}{% else %}Relation active{% endif %}</h2>
       <p class="mt-2 text-sm" style="color:var(--mk-muted)">Cette organisation reconnaît votre relation dans son propre programme.</p>
       <a href="{% url 'loyalty:portal' account.program.organization.slug %}" class="mk-btn mk-btn-primary mt-4">Voir ce qui m’est disponible</a>
