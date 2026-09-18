@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional, Protocol, Sequence, runtime_checkable
+from typing import Mapping, Optional, Protocol, Sequence, runtime_checkable
 
+from .budget import BudgetReservationDecision
 from .contracts import ProspectingCandidate, ProspectingTarget
 from .frontier import FrontierClaim
 from .observation_contracts import (
@@ -40,12 +41,48 @@ class FrontierPort(Protocol):
     ) -> ProspectingTarget:
         ...
 
+    async def suppress(
+        self,
+        claim: FrontierClaim,
+        *,
+        reason_code: str,
+    ) -> ProspectingTarget:
+        ...
+
     async def requeue(
         self,
         *,
         target_key: str,
         available_at: Optional[datetime] = None,
     ) -> ProspectingTarget:
+        ...
+
+
+@runtime_checkable
+class DnsResolverPort(Protocol):
+    async def resolve(self, hostname: str) -> Sequence[str]:
+        ...
+
+
+@runtime_checkable
+class DomainScopePort(Protocol):
+    def registrable_domain(self, hostname: str) -> str:
+        ...
+
+
+@runtime_checkable
+class BudgetReservationPort(Protocol):
+    async def reserve(
+        self,
+        *,
+        handoff_key: str,
+        policy_key: str,
+        scopes: Mapping[str, str],
+        limits: Mapping[str, int],
+        period_start: datetime,
+        period_end: datetime,
+        now: datetime,
+    ) -> BudgetReservationDecision:
         ...
 
 

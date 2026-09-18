@@ -6,4 +6,5 @@ Pillow==12.3.0
 psycopg[binary]==3.3.4
 python-dotenv==1.2.2
 qrcode==8.2
+tldextract==5.3.2
 whitenoise[brotli]==6.12.0
