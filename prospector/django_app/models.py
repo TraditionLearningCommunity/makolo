@@ -137,3 +137,33 @@ class ProspectorFrontierEvidence(models.Model):
 
     def __str__(self):
         return f"{self.frontier_entry_id}:{self.method}:{self.evidence_key[:12]}"
+
+
+class ProspectorSourceCheckpoint(models.Model):
+    source_name = models.CharField(max_length=120)
+    mission_key = models.CharField(max_length=160)
+    mission_fingerprint = models.CharField(max_length=64)
+    source_revision = models.CharField(max_length=120)
+    cursor = models.JSONField(default=dict, blank=True)
+    exhausted = models.BooleanField(default=False)
+    checkpoint_updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "prospector_source_checkpoint"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_name", "mission_key"],
+                name="pros_source_checkpoint_uq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["source_name", "exhausted", "updated_at"],
+                name="pros_source_progress_idx",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.source_name}:{self.mission_key}"

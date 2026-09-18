@@ -5,6 +5,7 @@ from typing import Optional, Protocol, Sequence, runtime_checkable
 
 from .contracts import ProspectingCandidate, ProspectingTarget
 from .frontier import FrontierClaim
+from .source_contracts import ProspectingMission, SourceBatch, SourceCheckpoint
 
 
 @runtime_checkable
@@ -40,6 +41,34 @@ class FrontierPort(Protocol):
         target_key: str,
         available_at: Optional[datetime] = None,
     ) -> ProspectingTarget:
+        ...
+
+
+@runtime_checkable
+class ExternalIndexSourcePort(Protocol):
+    name: str
+
+    async def discover(
+        self,
+        mission: ProspectingMission,
+        *,
+        checkpoint: Optional[SourceCheckpoint] = None,
+    ) -> SourceBatch:
+        ...
+
+
+@runtime_checkable
+class SourceCheckpointPort(Protocol):
+    async def load(
+        self,
+        *,
+        source_name: str,
+        mission_key: str,
+        mission_fingerprint: str,
+    ) -> Optional[SourceCheckpoint]:
+        ...
+
+    async def save(self, checkpoint: SourceCheckpoint) -> None:
         ...
 
 

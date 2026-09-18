@@ -1,202 +1,147 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX1 — Frontier durable.**
+> **Statut du train : PX2 — sources autonomes / index externes.**
 >
 > Base initiale du train : main@9c60119f4eab8628ff33b230562f85ed8500c632.
-> PX1 est empilé sur PX0@b5bc9e9cf2d0ea887857515661db924844e54476.
+> PX2 est empilé sur PX1@9c2654bac8b8cfc54234359e18c65afb66138edc.
 > Le code, les migrations, les tests et le main courant restent prioritaires.
 
 ## 1. Mission
 
-Le **Prospecteur** cherche où existent potentiellement des **fragments utiles au
-réseau d'action Makolo**. Il ne cherche pas une page qui contiendrait une
-« opportunité complète » et il ne décide pas qu'un fragment est une vérité
-métier.
+Le Prospecteur cherche **où regarder** pour révéler des fragments utiles au
+réseau d'action Makolo. Il ne cherche pas une « opportunité complète ».
 
-Une condition, une procédure, un centre, une session, un financement, une
-deadline, une ressource ou un moyen d'accès peuvent être aussi importants à
-prospecter qu'une page d'emploi ou de formation.
+Une condition, une procédure, une session, un centre, un financement, une
+deadline, une ressource ou un moyen d'accès peuvent être des découvertes
+importantes même si aucune source ne contient la chaîne d'action complète.
 
-~~~text
-Prospecteur : où Makolo devrait-il regarder ?
-Observateur : que dit réellement cette ressource ?
-Interpréteur: quels faits candidats contient l'observation ?
-Résolveur   : de quelles réalités ces faits parlent-ils ?
-~~~
+Le Prospecteur ne comprend pas la sémantique métier du contenu. Il remet des
+cibles à l'Observateur ; Interpréteur et Résolveur établissent ensuite les faits
+et les identités métier.
 
-Le Prospecteur et la surface produit Discover restent distincts :
+## 2. PX2 : aucune liste de sites à scraper
 
-~~~text
-Prospecteur : Makolo prospecte ce qu'il ne connaît pas encore.
-Discover    : l'utilisateur découvre ce que Makolo connaît déjà.
-~~~
+PX2 introduit ProspectingMission. Une mission décrit un **périmètre de
+couverture**, pas un registre de sites :
 
-## 2. Frontière de dépendances
+- TLD ou espaces techniques à couvrir ;
+- langues recherchées comme contexte de mission ;
+- termes de chemins servant à borner la prospection d'index ;
+- types MIME ;
+- budget maximum de candidats ;
+- contexte de couverture.
 
-Le core importable prospector reste Python pur :
+Il n'existe pas de champ sites/domains_to_scrape.
 
-~~~text
-prospector core -X-> Django
-prospector core -X-> modèles métier Makolo
-prospector core -X-> réseau
-prospector core -X-> Crawlee
-~~~
-
-PX1 ajoute un adaptateur de persistance :
+Exemple conceptuel :
 
 ~~~text
-prospector contracts / ports
-          ▲
-          │
-DjangoFrontierStore
-          │
-          ▼
-prospector.django_app
-          │
-          ▼
-PostgreSQL
+mission
+  host_tlds = [cd]
+  path_terms = [formation, admission, inscription]
+  max_candidates = 500
 ~~~
 
-Django est utilisé ici pour le cycle de migrations et l'ORM déjà présents dans
-Makolo. Il n'est pas le moteur du Prospecteur et ne remonte pas dans le core.
+Ces sélecteurs sont des politiques de prospection, jamais des assertions selon
+lesquelles les URLs trouvées contiennent effectivement une formation ou une
+admission.
 
-## 3. Identité technique
-
-PX1 supporte explicitement kind=web_url.
-
-La canonicalisation v1 :
-
-- accepte uniquement HTTP(S) absolu ;
-- met scheme et hostname en minuscules ;
-- canonicalise les noms IDNA et les adresses IP ;
-- retire le port par défaut ;
-- transforme un path vide en / ;
-- retire le fragment ;
-- **préserve la query telle quelle** ;
-- refuse les credentials embarqués dans l'URL.
-
-Aucun paramètre utm_*, pagination ou query « inutile » n'est supprimé par
-heuristique. Une telle suppression peut changer l'identité d'une ressource et
-appartiendra à une politique explicitement testée.
-
-target_key est versionné et borné :
+## 3. Port générique d'index externe
 
 ~~~text
-web_url:v1:<sha256(kind + NUL + canonical_locator)>
+ProspectingMission
+        ↓
+ExternalIndexSourcePort
+        ↓
+SourceBatch
+        ↓
+IndexProspector
+        ↓
+ProspectingCandidate
+        ↓
+Frontier
 ~~~
 
-C'est l'identité **de cible technique**, jamais celle d'une Activity, d'une
-Occurrence, d'une organisation ou d'une autre réalité métier.
+Une source externe renvoie IndexedResource :
 
-## 4. Frontier durable
+- locator ;
+- provider ;
+- révision de l'index ;
+- référence de provenance ;
+- timestamp observé ;
+- métadonnées techniques éventuelles.
 
-PX1 persiste deux projections opérationnelles.
+Aucun IndexedResource n'est une Activity, Occurrence, Requirement, Proof,
+Access ou autre vérité métier.
 
-### ProspectorFrontierEntry
+## 4. Common Crawl
 
-Une ligne par target_key canonique :
+Le premier adapter est CommonCrawlIndexSource.
 
-- locator et kind canoniques ;
-- état Frontier ;
-- priorité opérationnelle ;
-- disponibilité ;
-- première / dernière découverte ;
-- compteur de redécouvertes ;
-- contexte de politique courant ;
-- hints d'observation courants ;
-- lease de claim ;
-- date de complétion.
+PX2 utilise le **CDXJ Index public** pour obtenir des URLs déjà présentes dans
+les crawls Common Crawl. Il ne télécharge pas les corps WARC.
 
-### ProspectorFrontierEvidence
+Règles PX2 :
 
-Provenance compacte attachée à une cible :
+- le crawl courant est découvert dynamiquement via collinfo.json ;
+- User-Agent descriptif obligatoire ;
+- HTTP(S) uniquement vers les endpoints Common Crawl codés dans l'adapter ;
+- pagination ZipNum avec pageSize=1 ;
+- budget dur de requêtes par passage ;
+- status 200 et MIME sont filtrés côté index ;
+- une regex de chemin borne la mission ;
+- les réponses sont dédupliquées avant admission ;
+- un scan TLD sans path_terms est refusé afin de ne pas transformer l'API
+  publique en mécanisme de bulk scan.
 
-- méthode de découverte ;
-- cible source éventuelle ;
-- observation source éventuelle ;
-- provider éventuel ;
-- attributs ;
-- contexte/hints au moment de cette provenance ;
-- première / dernière apparition ;
-- compteur.
+Common Crawl lui-même recommande le CDXJ pour retrouver des captures/URLs
+individuelles et le URL Index columnar pour les requêtes analytiques ou bulk.
+Si Makolo a besoin plus tard de scans massifs, un autre adapter pourra utiliser
+le URL Index via DuckDB/Spark/Athena sans modifier le core du Prospecteur.
 
-Une redécouverte identique incrémente le compteur au lieu d'ajouter une suite
-infinie de lignes. Des provenances réellement distinctes sont conservées.
+## 5. Checkpoint durable
 
-## 5. Cycle de vie PX1
+ProspectorSourceCheckpoint persiste pour chaque source + mission :
 
-~~~text
-admit
-  ↓
-READY ──claim──> CLAIMED ──complete──> COMPLETED
-  ▲                 │
-  └────defer────────┘
+- fingerprint exact de la mission ;
+- révision du fournisseur ;
+- curseur ;
+- état exhausted ;
+- date du checkpoint.
 
-COMPLETED ──requeue explicite──> READY
-~~~
+Le curseur n'avance **qu'après** admission réussie de tout le SourceBatch.
+Ainsi, un crash pendant l'admission rejoue le lot précédent ; la Frontier PX1
+absorbe ce replay idempotent.
 
-Une simple redécouverte d'une cible COMPLETED **ne la réactive pas**.
+Quand une mission change, son fingerprint change et l'ancien curseur n'est pas
+réutilisé.
 
-Le statut SUPPRESSED est réservé par le contrat de stockage ; ses politiques
-effectives seront définies avec la sécurité/admissibilité en PX4.
+Pour Common Crawl, un checkpoint exhausted vérifie périodiquement la collection
+courante : une nouvelle révision recommence à selector/page/offset zéro.
 
-## 6. Leases et concurrence
+## 6. Ce que PX2 ne fait pas
 
-Un claim produit un FrontierClaim contenant :
+PX2 ne :
 
-- la cible ;
-- le worker ;
-- un token opaque ;
-- l'expiration de lease.
-
-Le token doit encore être le token durable courant pour terminer ou différer le
-travail. Un ancien worker ne peut donc pas clôturer une cible récupérée par un
-autre.
-
-Sur PostgreSQL, les claims utilisent des verrous de ligne et SKIP LOCKED
-lorsqu'il est disponible. Une lease expirée redevient réclamable sans opération
-de réparation séparée.
-
-SQLite reste compatible pour les tests fonctionnels, mais les garanties de
-concurrence sont validées explicitement sur PostgreSQL.
-
-## 7. Idempotence
-
-L'admission est idempotente au niveau de l'identité :
-
-~~~text
-100 admissions concurrentes de la même URL canonique
-→ 1 FrontierEntry
-~~~
-
-Les admissions restent comptées et les provenances distinctes restent
-auditables.
-
-Une collision où le même target_key pointerait vers un couple kind/locator
-différent est refusée comme conflit, même si SHA-256 rend ce cas extrêmement
-improbable.
-
-## 8. Ce que PX1 ne fait pas
-
-PX1 ne :
-
-- contacte aucun site ;
-- n'intègre pas Crawlee ;
-- n'interroge pas Common Crawl ;
-- n'entretient aucune liste manuelle de sites ;
-- n'interprète aucun contenu ;
+- maintient aucune liste manuelle de sites ;
+- ne récupère aucun HTML de page ;
+- n'utilise pas Crawlee ;
+- n'interprète pas le contenu ;
+- ne décide pas qu'une URL est une opportunité ;
 - ne crée aucune vérité métier ;
-- ne décide pas qu'un fragment est un Requirement, Proof, Access ou Activity ;
-- n'introduit ni Elasticsearch, ni Redis, ni Kafka, ni LLM.
+- n'utilise ni Elasticsearch, Redis, Kafka, LLM ni navigateur headless ;
+- ne fait pas encore de WebGraph, sitemap ou feed expansion : PX5 ;
+- ne définit pas encore le contrat complet Prospecteur ↔ Observateur : PX3 ;
+- ne porte pas encore la sécurité réseau générique SSRF/DNS : PX4.
 
-## 9. Train après la correction « réseau de faits »
+## 7. Train
 
 ~~~text
 PX0  fondation Python pure
  ↓
 PX1  Frontier PostgreSQL durable
  ↓
-PX2  sources de prospection autonomes / index externes
+PX2  sources autonomes / index externes
  ↓
 PX3  contrat Prospecteur ↔ Observateur
  ↓
@@ -204,7 +149,7 @@ PX4  sécurité réseau / admissibilité / budgets
  ↓
 PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps
  ↓
-PX6  runtime continu + adapter Crawlee / recovery / backpressure
+PX6  runtime continu + Crawlee / recovery / backpressure
  ↓
 PX7  feedback aval + exploration/exploitation
  ↓
@@ -213,27 +158,27 @@ PX8  pilote Internet réel
 PX9  hardening / échelle
 ~~~
 
-## 10. Validation PX1
+## 8. Validation PX2
 
-Gates généraux :
-
-~~~text
-python manage.py check
-python manage.py makemigrations --check --dry-run
-python manage.py test
-~~~
-
-Tests ciblés indépendants de Django :
+Tests core :
 
 ~~~text
 python -m unittest discover prospector/tests -v
 ~~~
 
-Tests Frontier ORM :
+Tests stockage :
 
 ~~~text
 python manage.py test prospector.django_app.tests
 ~~~
 
-Un workflow PostgreSQL dédié exécute migrations et tests de concurrence avec
-plusieurs threads afin de vérifier les garanties que SQLite ne peut pas fournir.
+Gates :
+
+~~~text
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py migrate --noinput
+~~~
+
+Tous les tests Common Crawl utilisent un transport factice. La CI ne dépend
+jamais d'Internet réel.
