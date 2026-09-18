@@ -36,6 +36,10 @@
   <div class="mk-secondary-actions">
     <a href="{% url 'core:participant-journeys' %}">Démarches</a>
     <a href="{% url 'core:participant-accesses' %}">Accès</a>
+    {% if has_personal_dossiers %}<a href="{% url 'objectives:dossier-list' %}">Dossiers</a>{% endif %}
+    {% if has_personal_projects %}<a href="{% url 'objectives:project-list' %}">Projets</a>{% endif %}
+    {% if has_waitlist %}<a href="{% url 'tickets:waitlist-list' %}">Liste d’attente</a>{% endif %}
+    {% if has_transfers %}<a href="{% url 'tickets:transfer-list' %}">Transferts</a>{% endif %}
   </div>
 </div>
 {% endblock %}
