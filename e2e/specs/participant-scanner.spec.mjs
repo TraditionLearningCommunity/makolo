@@ -34,7 +34,7 @@ test('participant experience works for a canonical non-Event registration', asyn
   await login(page, 'participant@e2e.makolo.test');
   await expect(page.getByRole('heading', { name: /Qu’est-ce qui compte maintenant/i })).toBeVisible();
   await page.goto('/me/ongoing/');
-  await expect(page.locator('article').filter({ hasText: 'Inscription communautaire E2E' }).first()).toBeVisible();
+  await expect(page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' }).first()).toBeVisible();
 
   await page.goto('/me/journeys/');
   await expect(page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' })).toHaveCount(0);
@@ -65,7 +65,7 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await page.goto('/me/');
   await expect(page.getByRole('heading', { name: 'Ensuite', exact: true })).toHaveCount(0);
   await page.goto('/me/ongoing/');
-  const ongoing = page.locator('article').filter({ hasText: 'Festival Makolo E2E' }).first();
+  const ongoing = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' }).first();
   await expect(ongoing).toBeVisible();
 
   await page.goto('/discover/?q=Festival+Makolo+E2E');
