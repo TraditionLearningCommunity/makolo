@@ -109,6 +109,67 @@ class ExpansionTests(IsolatedAsyncioTestCase):
         )
         return await sink.submit_report(report)
 
+    async def test_expansion_kill_switch_does_not_touch_frontier(self):
+        policy = ExpansionPolicy(
+            max_depth=4,
+            max_references_per_report=10,
+            max_candidates_per_report=10,
+            max_same_host_candidates=10,
+            max_cross_host_candidates=10,
+            max_unique_cross_hosts=10,
+            max_per_host_candidates=10,
+            max_per_url_shape=10,
+            max_query_parameters=4,
+            max_path_segments=8,
+            enabled=False,
+        )
+        sink = ObservationExpansionSink(
+            frontier=self.frontier,
+            lookup=self.frontier,
+            policy=policy,
+        )
+        report = self.report(
+            (
+                ObservedReference(
+                    "link",
+                    "https://example.test/child",
+                    self.now,
+                ),
+            )
+        )
+        result = await sink.submit_report(report)
+        self.assertEqual(result.admitted, 0)
+        self.assertEqual(result.skip_counts["expansion_disabled"], 1)
+        self.assertEqual(self.frontier.candidates, [])
+
+    async def test_zero_cross_host_and_zero_query_are_valid_hard_limits(self):
+        policy = ExpansionPolicy(
+            max_depth=4,
+            max_references_per_report=10,
+            max_candidates_per_report=10,
+            max_same_host_candidates=10,
+            max_cross_host_candidates=0,
+            max_unique_cross_hosts=0,
+            max_per_host_candidates=10,
+            max_per_url_shape=10,
+            max_query_parameters=0,
+            max_path_segments=8,
+        )
+        sink = ObservationExpansionSink(
+            frontier=self.frontier,
+            lookup=self.frontier,
+            policy=policy,
+        )
+        refs = (
+            ObservedReference("link", "https://other.test/a", self.now),
+            ObservedReference("link", "https://example.test/a?x=1", self.now),
+            ObservedReference("link", "https://example.test/b", self.now),
+        )
+        result = await sink.submit_report(self.report(refs))
+        self.assertEqual(result.admitted, 1)
+        self.assertEqual(result.skip_counts["cross_host_limit"], 1)
+        self.assertEqual(result.skip_counts["query_parameter_limit"], 1)
+
     async def test_web_sitemap_and_feed_relations_become_candidates(self):
         result = await self.expand(
             self.report(

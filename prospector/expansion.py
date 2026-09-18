@@ -91,6 +91,7 @@ class ExpansionPolicy:
     max_per_url_shape: int
     max_query_parameters: int
     max_path_segments: int
+    enabled: bool = True
     allowed_families: Tuple[str, ...] = ("web_graph", "sitemap", "feed")
     technical_attribute_names: Tuple[str, ...] = tuple(
         sorted(TECHNICAL_REFERENCE_ATTRIBUTES)
@@ -106,19 +107,28 @@ class ExpansionPolicy:
         for name in (
             "max_references_per_report",
             "max_candidates_per_report",
-            "max_same_host_candidates",
-            "max_cross_host_candidates",
-            "max_unique_cross_hosts",
             "max_per_host_candidates",
             "max_per_url_shape",
-            "max_query_parameters",
-            "max_path_segments",
         ):
             object.__setattr__(
                 self,
                 name,
                 _positive_int(name, getattr(self, name)),
             )
+        for name in (
+            "max_same_host_candidates",
+            "max_cross_host_candidates",
+            "max_unique_cross_hosts",
+            "max_query_parameters",
+            "max_path_segments",
+        ):
+            object.__setattr__(
+                self,
+                name,
+                _positive_int(name, getattr(self, name), allow_zero=True),
+            )
+        if not isinstance(self.enabled, bool):
+            raise ProspectorContractError("enabled must be a boolean")
 
         allowed = tuple(dict.fromkeys(str(value).strip() for value in self.allowed_families))
         if not allowed or any(not value for value in allowed):
@@ -161,6 +171,7 @@ class ExpansionPolicy:
             "max_per_url_shape": self.max_per_url_shape,
             "max_query_parameters": self.max_query_parameters,
             "max_path_segments": self.max_path_segments,
+            "enabled": self.enabled,
             "allowed_families": self.allowed_families,
             "technical_attribute_names": self.technical_attribute_names,
             "sensitive_query_names": self.sensitive_query_names,
@@ -207,6 +218,17 @@ class ObservationExpansionSink:
     async def submit_report(self, report: ObservationReport) -> ExpansionResult:
         if not isinstance(report, ObservationReport):
             raise ExpansionContractError("report must be an ObservationReport")
+
+        if not self.policy.enabled:
+            return ExpansionResult(
+                observation_ref=report.observation_ref,
+                policy_fingerprint=self.policy.fingerprint,
+                considered=0,
+                admitted=0,
+                skip_counts={"expansion_disabled": len(report.references)}
+                if report.references
+                else {},
+            )
 
         if report.status is not ObservationStatus.OBSERVED:
             return ExpansionResult(
