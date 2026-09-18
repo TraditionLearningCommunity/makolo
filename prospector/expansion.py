@@ -15,6 +15,7 @@ from .observation_contracts import (
     ObservationStatus,
     ObservedReference,
 )
+from .policy import DEFAULT_SENSITIVE_QUERY_NAMES
 from .traps import inspect_web_url
 
 WEB_GRAPH_RELATIONS = frozenset(
@@ -85,6 +86,7 @@ class ExpansionPolicy:
     technical_attribute_names: Tuple[str, ...] = tuple(
         sorted(TECHNICAL_REFERENCE_ATTRIBUTES)
     )
+    sensitive_query_names: Tuple[str, ...] = DEFAULT_SENSITIVE_QUERY_NAMES
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -128,6 +130,15 @@ class ExpansionPolicy:
             )
         object.__setattr__(self, "technical_attribute_names", attributes)
 
+        sensitive = tuple(
+            dict.fromkeys(str(value).strip().lower() for value in self.sensitive_query_names)
+        )
+        if any(not value for value in sensitive):
+            raise ProspectorContractError(
+                "sensitive_query_names must not contain blanks"
+            )
+        object.__setattr__(self, "sensitive_query_names", sensitive)
+
     @property
     def fingerprint(self) -> str:
         payload = {
@@ -143,6 +154,7 @@ class ExpansionPolicy:
             "max_path_segments": self.max_path_segments,
             "allowed_families": self.allowed_families,
             "technical_attribute_names": self.technical_attribute_names,
+            "sensitive_query_names": self.sensitive_query_names,
         }
         encoded = json.dumps(
             payload,
@@ -288,6 +300,9 @@ class ObservationExpansionSink:
                 skip["duplicate_reference"] += 1
                 continue
 
+            if set(structure.query_names) & set(self.policy.sensitive_query_names):
+                skip["sensitive_query"] += 1
+                continue
             if structure.query_parameter_count > self.policy.max_query_parameters:
                 skip["query_parameter_limit"] += 1
                 continue

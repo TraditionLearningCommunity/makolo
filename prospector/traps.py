@@ -21,6 +21,7 @@ class UrlStructure:
     canonical_locator: str
     host: str
     query_parameter_count: int
+    query_names: tuple[str, ...]
     path_segment_count: int
     shape: str
 
@@ -67,6 +68,7 @@ def inspect_web_url(locator: str) -> UrlStructure:
         canonical_locator=canonical,
         host=hostname.lower(),
         query_parameter_count=len(query_pairs),
+        query_names=tuple(query_names),
         path_segment_count=len(segments),
         shape=shape,
     )

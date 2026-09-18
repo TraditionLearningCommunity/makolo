@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from unittest import IsolatedAsyncioTestCase
 
+from prospector.canonicalization import canonicalize_locator
 from prospector.contracts import (
     ProspectingEvidence,
     ProspectingTarget,
@@ -48,9 +49,14 @@ class ExpansionTests(IsolatedAsyncioTestCase):
             discovered_at=self.now,
             provider="test",
         )
+        parent_locator = "https://example.test/root"
+        parent_canonical = canonicalize_locator(
+            kind="web_url",
+            locator=parent_locator,
+        )
         self.parent = ProspectingTarget(
-            target_key="web_url:v1:" + ("a" * 64),
-            locator="https://example.test/root",
+            target_key=parent_canonical.target_key,
+            locator=parent_canonical.locator,
             kind="web_url",
             first_discovered_at=self.now,
             evidence=(evidence,),
@@ -249,6 +255,49 @@ class ExpansionTests(IsolatedAsyncioTestCase):
         self.assertEqual(result.admitted, 3)
         self.assertEqual(result.skip_counts["same_host_limit"], 1)
         self.assertEqual(result.skip_counts["unique_cross_host_limit"], 1)
+
+    async def test_sensitive_query_is_rejected_before_frontier_admission(self):
+        result = await self.expand(
+            self.report(
+                (
+                    ObservedReference(
+                        relation="link",
+                        locator="https://example.test/private?access_token=secret",
+                        discovered_at=self.now,
+                    ),
+                )
+            )
+        )
+        self.assertEqual(result.admitted, 0)
+        self.assertEqual(result.skip_counts["sensitive_query"], 1)
+        self.assertEqual(self.frontier.candidates, [])
+
+    async def test_query_and_path_limits_are_enforced(self):
+        policy = ExpansionPolicy(
+            max_depth=4,
+            max_references_per_report=10,
+            max_candidates_per_report=10,
+            max_same_host_candidates=10,
+            max_cross_host_candidates=10,
+            max_unique_cross_hosts=10,
+            max_per_host_candidates=10,
+            max_per_url_shape=10,
+            max_query_parameters=1,
+            max_path_segments=2,
+        )
+        sink = ObservationExpansionSink(
+            frontier=self.frontier,
+            lookup=self.frontier,
+            policy=policy,
+        )
+        refs = (
+            ObservedReference("link", "https://example.test/a?x=1&y=2", self.now),
+            ObservedReference("link", "https://example.test/a/b/c", self.now),
+        )
+        result = await sink.submit_report(self.report(refs))
+        self.assertEqual(result.admitted, 0)
+        self.assertEqual(result.skip_counts["query_parameter_limit"], 1)
+        self.assertEqual(result.skip_counts["path_segment_limit"], 1)
 
     async def test_query_path_depth_and_report_caps_fail_closed(self):
         shallow_policy = ExpansionPolicy(
