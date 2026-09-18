@@ -71,6 +71,7 @@ class ObservationGateTests(IsolatedAsyncioTestCase):
         return ObservationPolicy(
             policy_key="test-v1",
             dns_retry_seconds=60,
+            pause_retry_seconds=120,
             **kwargs,
         )
 
@@ -81,6 +82,23 @@ class ObservationGateTests(IsolatedAsyncioTestCase):
             budget_store=budget or FakeBudgetStore(),
         )
         return await gate.evaluate(claim, policy=policy, now=self.now)
+
+    async def test_kill_switch_defers_without_contacting_dns_or_budget(self):
+        budget = FakeBudgetStore()
+        gate = ObservationGate(
+            dns_resolver=FakeDnsResolver(error=AssertionError("DNS must not run")),
+            domain_scope=FakeDomainScope(),
+            budget_store=budget,
+        )
+        decision = await gate.evaluate(
+            self.claim("https://example.test/path"),
+            policy=self.policy(enabled=False),
+            now=self.now,
+        )
+        self.assertEqual(decision.disposition, GateDisposition.DEFER)
+        self.assertEqual(decision.reason_code, "policy.disabled")
+        self.assertEqual(decision.retry_at, self.now + timedelta(seconds=120))
+        self.assertEqual(budget.calls, [])
 
     async def test_rejects_localhost_private_literal_and_private_dns_answer(self):
         local = await self.evaluate(

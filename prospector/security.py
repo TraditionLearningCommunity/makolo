@@ -52,6 +52,13 @@ class ObservationGate:
         now = now.astimezone(timezone.utc)
         target = claim.target
 
+        if not policy.enabled:
+            return GateDecision(
+                GateDisposition.DEFER,
+                "policy.disabled",
+                retry_at=now + timedelta(seconds=policy.pause_retry_seconds),
+            )
+
         if target.kind not in policy.allowed_kinds:
             return GateDecision(
                 GateDisposition.REJECT,

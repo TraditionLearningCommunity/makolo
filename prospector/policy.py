@@ -91,6 +91,8 @@ class BudgetPolicy:
 class ObservationPolicy:
     policy_key: str
     dns_retry_seconds: int
+    pause_retry_seconds: int
+    enabled: bool = True
     allowed_kinds: Tuple[str, ...] = ("web_url",)
     allowed_host_suffixes: Tuple[str, ...] = ()
     denied_host_suffixes: Tuple[str, ...] = ()
@@ -110,6 +112,16 @@ class ObservationPolicy:
             raise ProspectorContractError(
                 "dns_retry_seconds must be a positive integer"
             )
+        if (
+            not isinstance(self.pause_retry_seconds, int)
+            or isinstance(self.pause_retry_seconds, bool)
+            or self.pause_retry_seconds < 1
+        ):
+            raise ProspectorContractError(
+                "pause_retry_seconds must be a positive integer"
+            )
+        if not isinstance(self.enabled, bool):
+            raise ProspectorContractError("enabled must be a boolean")
         kinds = tuple(
             _required_text("allowed kind", value)
             for value in tuple(self.allowed_kinds)

@@ -1,6 +1,6 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX3 — contrat Prospecteur ↔ Observateur.**
+> **Statut du train : PX4 — sécurité, admissibilité et budgets.**
 >
 > Base initiale du train : main@9c60119f4eab8628ff33b230562f85ed8500c632.
 > PX3 est empilé sur PX2@a3b676303c4144db80e68a0515064e906e7c0c92.
@@ -229,9 +229,113 @@ Cela distingue deux choses :
 Cette génération est durable en PostgreSQL et ne dépend pas de l'identité du
 worker.
 
-## 8. Ce que PX3 ne fait pas
+## 8. PX4 : découverte ≠ droit de collecte
 
-PX3 ne :
+Une cible peut exister dans la Frontier sans être admissible pour une collecte.
+PX4 ajoute donc un `ObservationGate` **après le claim Frontier et avant le
+handoff Observateur**.
+
+Ordre des gates :
+
+~~~text
+claim Frontier
+  ↓
+kill switch
+  ↓
+kind / locator
+  ↓
+scope host / path / profondeur
+  ↓
+secret dans query
+  ↓
+IP littérale / DNS preflight
+  ↓
+domaine enregistrable PSL
+  ↓
+budgets atomiques
+  ↓
+ALLOW / REJECT / DEFER
+~~~
+
+### Sécurité réseau
+
+Le gate rejette notamment :
+
+- localhost et sous-domaines `.localhost` ;
+- IP littérales non globales ;
+- toute résolution DNS contenant une adresse non globale ;
+- credentials embarqués ;
+- paramètres de query portant des noms sensibles connus ;
+- hosts/paths explicitement interdits par politique.
+
+Une résolution DNS impossible est **différée**, pas supprimée définitivement.
+
+Le DNS du Prospecteur est uniquement un preflight. L'Observateur doit refaire
+la résolution et la validation de l'adresse réellement connectée **à chaque
+connexion et à chaque redirect** afin de couvrir DNS rebinding et redirect vers
+réseau privé.
+
+### Kill switch
+
+`ObservationPolicy.enabled = false` retourne DEFER avant DNS et avant budget.
+Aucune cible n'est supprimée par une pause opérationnelle.
+
+### Domaine enregistrable
+
+PX4 utilise `tldextract==5.3.2` derrière `DomainScopePort`, avec :
+
+~~~text
+suffix_list_urls=()
+include_psl_private_domains=True
+~~~
+
+La Public Suffix List embarquée est donc utilisée **sans fetch réseau runtime**.
+Cela évite les erreurs de type `bbc.co.uk → co.uk` et sépare les tenants de
+suffixes privés comme `github.io`.
+
+### Budgets
+
+Les limites sont explicitement injectées par politique ; PX4 n'invente aucune
+valeur de production.
+
+Scopes disponibles :
+
+~~~text
+host
+domain
+mission
+campaign
+branch
+~~~
+
+Chaque réservation est atomique en PostgreSQL et idempotente par :
+
+~~~text
+handoff_key + policy_key + period_start
+~~~
+
+Un retry du même handoff ne consomme pas deux fois. Des handoffs concurrents
+sur le même scope utilisent des advisory locks et ne peuvent pas dépasser la
+limite.
+
+Une politique demandant un scope absent échoue fermée.
+
+### Suppression durable
+
+La Frontier peut maintenant passer :
+
+~~~text
+CLAIMED → SUPPRESSED
+~~~
+
+avec `suppressed_at` et `suppression_reason`.
+
+Une simple redécouverte ne réactive pas la cible. Un `requeue` explicite
+efface la suppression et incrémente `handoff_generation`.
+
+## 9. Ce que PX4 ne fait pas
+
+PX4 ne :
 
 - maintient aucune liste manuelle de sites ;
 - ne récupère aucun HTML de page ;
@@ -243,7 +347,7 @@ PX3 ne :
 - ne fait pas encore de WebGraph, sitemap ou feed expansion : PX5 ;
 - ne porte pas encore la sécurité réseau générique SSRF/DNS : PX4.
 
-## 9. Train
+## 10. Train
 
 ~~~text
 PX0  fondation Python pure
@@ -267,7 +371,7 @@ PX8  pilote Internet réel
 PX9  hardening / échelle
 ~~~
 
-## 10. Validation PX3
+## 11. Validation PX4
 
 Tests core :
 
@@ -309,3 +413,17 @@ Ils vérifient notamment :
 - refus d'un receipt qui accuse réception d'une autre cible ;
 - absence de corps ou faits métier dans ObservationReport ;
 - conservation de la génération lors de defer/reclaim.
+
+
+Tests PX4 spécifiques :
+
+~~~text
+python -m unittest   prospector.tests.test_security   prospector.tests.test_domain_scope
+
+python manage.py test   prospector.django_app.tests.test_budget   prospector.django_app.tests.test_frontier   prospector.django_app.tests.test_concurrency
+~~~
+
+La CI ne résout aucun host Internet pour ces tests : DNS et budgets sont
+contrôlés par fakes, sauf les tests PostgreSQL de verrouillage. La PSL est la
+snapshot embarquée par tldextract et aucun téléchargement de suffix list n'est
+autorisé au runtime.
