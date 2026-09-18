@@ -382,6 +382,16 @@ class MakoloMarkView(LoginRequiredMixin, TemplateView):
 
         if any(phrase in normalized for phrase in discovery_phrases):
             return redirect(f"{reverse('discovery:home')}?{urlencode({'q': text})}")
+        if any(word in normalized for word in ("mon billet", "mon accès", "mon acces", "mes accès", "mes acces")):
+            return redirect("core:participant-accesses")
+        if any(word in normalized for word in ("mon passeport", "passeport makolo")):
+            return redirect("sharing:passport-me")
+        if any(word in normalized for word in ("mon historique", "mes anciennes activités", "mes anciennes activites")):
+            return redirect("core:participant-history")
+        if any(word in normalized for word in ("ma veille", "mes veilles")):
+            return redirect("discovery:watch-list")
+        if any(word in normalized for word in ("mon dossier", "mon projet", "ma démarche", "ma demarche", "mes démarches", "mes demarches")):
+            return redirect("core:participant-ongoing")
         if any(phrase in normalized for phrase in ongoing_phrases):
             return redirect("core:participant-ongoing")
         if any(phrase in normalized for phrase in retrieve_phrases):
