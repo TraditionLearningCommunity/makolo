@@ -76,7 +76,7 @@ class M8CJourneyOccurrenceActionWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Est-ce que tout est prêt ?")
         self.assertContains(response, "Tout est prêt.")
-        self.assertContains(response, "Vous n’avez rien d’autre à préparer maintenant.")
+        self.assertContains(response, "Vous n’avez rien d’autre à préparer pour l’instant.")
         self.assertContains(response, "Voir les informations pratiques")
         self.assertContains(response, reverse("core:participant-occurrence-live", args=[self.occurrence.pk]))
 
@@ -99,7 +99,7 @@ class M8CJourneyOccurrenceActionWebTests(TestCase):
         self.client.force_login(self.participant)
         response = self.client.get(reverse("core:participant-journey-detail", args=[self.journey.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "En attente.")
+        self.assertContains(response, "Vous avez fait votre part. Rien à faire pour le moment.")
         self.assertContains(response, "Le droit d’accès est en préparation.")
         self.assertContains(response, "En attente de quelqu’un d’autre")
 
