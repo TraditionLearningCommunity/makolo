@@ -4,7 +4,7 @@
 
 ## Promesse fonctionnelle
 
-Makolo permet de faire à distance les démarches nécessaires avant un déplacement, afin de ne se déplacer que lorsque c’est réellement nécessaire.
+Makolo permet de préparer et d’orchestrer ce qui peut l’être avant que la présence ou la décision de la personne devienne réellement nécessaire.
 
 ## Principes
 
@@ -15,6 +15,8 @@ Makolo permet de faire à distance les démarches nécessaires avant un déplace
 5. Product Language ne décide jamais de l’éligibilité, de la capacité, du paiement, de l’autorisation ou de l’émission d’un accès.
 6. Une Journey peut exister sans CommerceOrder ni Payment. Un Access peut être issu d’une inscription gratuite, d’une invitation ou d’une décision administrative.
 7. Aucun second système de wording legacy n’est maintenu.
+8. **L’interface décrit la situation de la personne ; elle n’explique pas sa propre conception.** Les principes UX, le ranking, les projections, les garde-fous et les choix d’architecture restent dans la documentation et les tests.
+9. **Une phrase n’est ajoutée que si elle aide à comprendre, décider ou agir.** Le silence et les espaces calmes sont légitimes.
 
 Le resolver partagé est `core/product_language.py`. Les surfaces peuvent enrichir une phrase ou un CTA, mais les noms contextuels transversaux doivent provenir de ce contrat.
 
@@ -39,13 +41,13 @@ Le resolver partagé est `core/product_language.py`. Les surfaces peuvent enrich
 
 ## Matrice surface × concept
 
-| Concept | Navigation générique | Participant Event | Participant Transport | Space Console |
+| Concept | Surface générique | Participant Event | Participant Transport | Space Console |
 | --- | --- | --- | --- | --- |
-| Journey | Mes démarches | Inscription / Achat de billet / Invitation | Réservation | Demandes / Commandes selon vue |
-| Access | Mes accès | Billet / Invitation / Confirmation | Billet | Accès |
+| Journey | En cours / profondeur Démarche | Inscription / Achat de billet / Invitation | Réservation | Demandes / Commandes selon vue |
+| Access | En cours / Mes ressources selon conséquence | Billet / Invitation / Confirmation | Billet | Accès |
 | Offer | Tarif | Type de billet / Tarif | Tarif | Tarifs |
 | Occurrence | implicite | Date / séance | Départ | Dates / Départs |
-| Space | Espace | Organisé par… | Opéré par… | Espace |
+| Space | Collectif / contexte d’action | Organisé par… | Opéré par… | Espace |
 
 ## Résolution par workflow
 
@@ -117,13 +119,58 @@ Les valeurs d’enum brutes ne sont jamais affichées sur les surfaces utilisate
 
 `on_site` n’est jamais présenté comme « impayé » au participant.
 
-## Participant
+## Expérience personnelle
 
-Navigation de référence : **Accueil**, **Mes démarches**, **Mes accès**, **Notifications**, **Profil**.
+La navigation primaire mobile de référence est :
 
-Accueil : **À faire**, **À venir**, **Mes accès**. Un état vide d’accès dit qu’aucun billet, pass ou confirmation n’est encore disponible et propose **Découvrir**.
+> **Maintenant | Découvrir | Makolo | En cours | Moi**
 
-CTA privilégiés : **S’inscrire**, **Réserver**, **Payer**, **Voir mon billet**, **Accepter l’invitation**, **Refuser**. Utiliser **Continuer** uniquement lorsque l’action exacte ne peut pas être nommée.
+Le desktop adapte ces mêmes repères ; il ne réintroduit pas un index de domaines.
+
+### Maintenant
+
+Parler du prochain pas réel. Ne pas expliquer pourquoi Makolo classe ou ne classe pas quelque chose ici.
+
+Préférer :
+
+- **Tout est en ordre. ✓**
+- **Rien à faire pour le moment.**
+- **Votre demande est envoyée.**
+- **Il reste une action de votre côté.**
+- **C’est votre tour.**
+
+Éviter :
+
+- « Makolo n’invente pas une urgence pour remplir cet espace. »
+- « dans l’ordre canonique de priorité » ;
+- « sans transformer l’Accueil en catalogue » ;
+- toute phrase qui commente le design du produit.
+
+### En cours
+
+Parler de la continuité humaine :
+
+- **Vous avez fait votre part. Ça suit son cours.**
+- **Tout est prêt pour la suite.**
+- **Un point doit être réglé avant de continuer.**
+
+Ne pas exposer les états techniques `Readiness.WAITING`, `JourneyStatus.PENDING_APPROVAL`, etc.
+
+### Moi
+
+Employer les territoires humains : **Passeport Makolo**, **Ce qui compte pour moi**, **Mes collectifs**, **Mes ressources**.
+
+Compte et Paramètres restent sous l’Avatar. `Moi` n’est ni « Mon profil » ni une copie de tous les modèles rattachés au Profile.
+
+### Makolo Mark
+
+Le premier geste est une entrée naturelle, pas une taxonomie de fonctionnalités.
+
+Préférer : **Qu’est-ce que vous avez en tête ?**
+
+Une clarification n’apparaît que lorsqu’elle débloque réellement l’interprétation suivante. Les capacités internes `Comprendre`, `Retrouver`, `Réutiliser`, `Conserver`, `Faire avancer`, `Faire exister`, `Continuer pour moi` ne deviennent pas sept boutons.
+
+CTA privilégiés dans les profondeurs métier : **S’inscrire**, **Réserver**, **Payer**, **Voir mon billet**, **Accepter**, **Refuser**, **Continuer** lorsque l’action exacte ne peut pas être nommée plus précisément.
 
 ## Space Console
 
@@ -157,13 +204,15 @@ Exemple : **Trajet Lubumbashi → Kolwezi — Départ vendredi à 08:00**.
 
 Surface : **Découvrir**.
 
-Questions : **Que voulez-vous faire ?**, **Où ?**, **Quand ?**.
+Question : **Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?**
+
+La recherche peut partir d’une intention naturelle. Les filtres précisent le contexte sans devenir l’architecture visible.
 
 Filtres temporels : **Aujourd’hui**, **Demain**, **Ce week-end**, **Cette semaine**, **À venir**. Géolocalisation : **Autour de moi**.
 
 Prix : **Gratuit** ou **À partir de 20 USD**. Disponibilité : **Disponible**, **Quelques places**, **Complet**, ou une quantité lisible.
 
-Liste et carte doivent partager la même sémantique.
+Liste et carte partagent la même sémantique. Une raison de pertinence, lorsqu’elle aide, reste courte et humaine : **Près de vous**, **Pendant votre séjour**, **Avec votre pass**, **Correspond à votre veille**.
 
 ## Notifications et emails
 
@@ -192,7 +241,7 @@ Les erreurs décrivent une action ou une situation compréhensible :
 - déjà utilisé → **Ce billet a déjà été utilisé.**
 - sold out → **Complet**.
 
-Un état vide explique la situation puis propose une action utile lorsque possible.
+Un état vide peut simplement constater la situation. Il ne doit pas inventer une action pour remplir l’écran.
 
 ## Scanner
 
@@ -214,6 +263,8 @@ Texte QR : **Présentez ce QR au contrôle.**
 
 Makolo est clair, direct, professionnel et simple. Éviter jargon administratif, jargon startup, infantilisation et exclamations inutiles.
 
+Le texte visible ne doit pas ressembler à une note de conception ou à une justification générée : pas de phrase méta sur ce que Makolo « cherche à éviter », pas de rappel du contrat UX dans le corps de l’interface, pas de remplissage éditorial lorsque le titre, l’état et l’action suffisent.
+
 Capitalisation en style phrase français : **Mes démarches**, **Contrôle d’accès**, **Paiements encaissés**.
 
 Les boutons n’ont pas de point final. Éviter les fragments concaténés qui compliqueraient une future i18n.
@@ -223,3 +274,5 @@ Les boutons n’ont pas de point final. Éviter les fragments concaténés qui c
 Avant chaque livraison Product Language, rechercher dans les surfaces produit : `Activity`, `Occurrence`, `Journey`, `JourneyRequest`, `Offer`, `CapacityPool`, `CommerceOrder`, `AccessCredential`, `AccessUse`, `Mandate`, `PermissionDenied`, `TicketOrder`. Chaque occurrence restante doit être technique/admin/documentation, ou être corrigée.
 
 Rechercher également `Event`, `Ticket` et `Organizer` dans les surfaces génériques et Transport pour détecter les restes Event-centric.
+
+Enfin, auditer les phrases visibles contenant des formulations de documentation telles que `canonique`, `projection`, `sans transformer`, `Makolo ne doit pas`, `moteur`, `baseline`, `ranking`, `score` ou `algorithme`. Elles sont légitimes dans les docs, rarement dans une interface destinée à la personne.

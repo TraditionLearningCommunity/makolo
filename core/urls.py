@@ -3,6 +3,7 @@ from django.urls import path
 
 from .home_views import MatureParticipantHomeView
 from .m8c_participant_views import ParticipantJourneyDetailView, ParticipantOccurrenceLiveView
+from .mature_experience_views import MakoloMarkView, MatureParticipantMeView, MatureParticipantOngoingView
 from .participant_views import (
     ParticipantAccessDetailView,
     ParticipantAccessListView,
@@ -24,6 +25,9 @@ urlpatterns = [
         name="logout",
     ),
     path("me/", MatureParticipantHomeView.as_view(), name="participant-home"),
+    path("me/ongoing/", MatureParticipantOngoingView.as_view(), name="participant-ongoing"),
+    path("me/moi/", MatureParticipantMeView.as_view(), name="participant-me"),
+    path("mark/", MakoloMarkView.as_view(), name="makolo-mark"),
     path("me/journeys/", ParticipantJourneyListView.as_view(), name="participant-journeys"),
     path(
         "me/journeys/<uuid:pk>/",

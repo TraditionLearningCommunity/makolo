@@ -2,19 +2,19 @@ from readiness import ReadinessStatus
 
 
 JOURNEY_HEADLINES = {
-    ReadinessStatus.BLOCKED: "Il manque quelque chose.",
-    ReadinessStatus.ACTION_REQUIRED: "Une action est nécessaire.",
-    ReadinessStatus.WAITING: "En attente.",
+    ReadinessStatus.BLOCKED: "La suite est bloquée.",
+    ReadinessStatus.ACTION_REQUIRED: "Il reste quelque chose à faire.",
+    ReadinessStatus.WAITING: "Ça suit son cours.",
     ReadinessStatus.READY: "Tout est prêt.",
     ReadinessStatus.COMPLETE: "Démarche terminée.",
 }
 
 JOURNEY_SUMMARIES = {
-    ReadinessStatus.BLOCKED: "Un élément bloque encore cette démarche. Consultez le point concerné avant de poursuivre.",
-    ReadinessStatus.ACTION_REQUIRED: "Makolo a identifié ce que vous pouvez faire maintenant pour avancer.",
-    ReadinessStatus.WAITING: "Rien à faire pour le moment : cette démarche attend une action extérieure.",
-    ReadinessStatus.READY: "Vous n’avez rien d’autre à préparer maintenant.",
-    ReadinessStatus.COMPLETE: "Cette démarche ne demande plus de préparation.",
+    ReadinessStatus.BLOCKED: "Un point doit être réglé avant de continuer.",
+    ReadinessStatus.ACTION_REQUIRED: "Il reste une action de votre côté pour avancer.",
+    ReadinessStatus.WAITING: "Vous avez fait votre part. Rien à faire pour le moment.",
+    ReadinessStatus.READY: "Vous n’avez rien d’autre à préparer pour l’instant.",
+    ReadinessStatus.COMPLETE: "Cette démarche est terminée.",
 }
 
 PHASE_LABELS = {
@@ -39,7 +39,7 @@ def journey_action_presentation(*, journey, readiness, live=None):
     elif live and phase == "before" and readiness.status == ReadinessStatus.READY:
         handoff = {
             "phase": phase,
-            "eyebrow": "Prochaine étape",
+            "eyebrow": "À venir",
             "label": live["next_action"]["label"],
             "cta": "Voir les informations pratiques",
         }
@@ -58,12 +58,12 @@ def journey_action_presentation(*, journey, readiness, live=None):
 
 def _access_presentation(rows):
     if not rows:
-        return {"state": "not_required", "label": "Aucun accès distinct requis", "detail": "Vous n’avez pas de droit d’accès séparé à présenter pour cette occurrence."}
+        return {"state": "not_required", "label": "Aucun accès à présenter", "detail": "Vous n’avez pas d’accès distinct à présenter ici."}
     if any(row["usable"] for row in rows):
-        return {"state": "ready", "label": "Votre accès est prêt", "detail": "Votre droit d’accès est utilisable pour cette occurrence."}
+        return {"state": "ready", "label": "Votre accès est prêt", "detail": "Vous pouvez l’utiliser pour cette occurrence."}
     if any(row["status"] == "pending" for row in rows):
-        return {"state": "waiting", "label": "Votre accès est en préparation", "detail": "Aucune action n’est nécessaire tant que sa confirmation est en attente."}
-    return {"state": "unavailable", "label": "Votre accès n’est pas disponible", "detail": "Consultez votre démarche avant de vous déplacer."}
+        return {"state": "waiting", "label": "Votre accès est en préparation", "detail": "Rien à faire de votre côté pour le moment."}
+    return {"state": "unavailable", "label": "Votre accès n’est pas disponible", "detail": "Ouvrez la démarche avant de vous déplacer."}
 
 
 def _placement_presentation(payload):
@@ -75,13 +75,13 @@ def _placement_presentation(payload):
         detail = " · ".join(value for value in [first.get("parent_unit"), first.get("unit")] if value)
         return {"state": "ready", "label": "Votre place", "detail": detail, "rows": rows}
     if missing:
-        return {"state": "waiting", "label": "Placement en attente", "detail": "Votre placement doit encore être attribué. Vous n’avez rien à deviner.", "rows": ()}
-    return {"state": "not_required", "label": "Aucun placement requis", "detail": "Aucune place précise n’est nécessaire pour cette occurrence.", "rows": ()}
+        return {"state": "waiting", "label": "Place en attente", "detail": "Votre place doit encore être attribuée.", "rows": ()}
+    return {"state": "not_required", "label": "Aucune place attribuée", "detail": "Aucune place précise n’est nécessaire ici.", "rows": ()}
 
 
 def _queue_presentation(rows):
     if not rows:
-        return {"state": "none", "label": "Aucune file en cours", "detail": "Vous n’attendez pas votre tour dans une file live.", "rows": ()}
+        return {"state": "none", "label": "Pas de file en cours", "detail": "Vous n’attendez pas votre tour pour le moment.", "rows": ()}
     called = next((row for row in rows if row["status"] == "called"), None)
     if called:
         return {"state": "called", "label": "C’est votre tour", "detail": called["label"], "rows": rows}

@@ -33,7 +33,8 @@ async function completeSandboxPayment(page) {
 test('participant experience works for a canonical non-Event registration', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await expect(page.getByRole('heading', { name: /Qu’est-ce qui compte maintenant/i })).toBeVisible();
-  await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
+  await page.goto('/me/ongoing/');
+  await expect(page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' }).first()).toBeVisible();
 
   await page.goto('/me/journeys/');
   await expect(page.getByRole('link').filter({ hasText: 'Inscription communautaire E2E' })).toHaveCount(0);
@@ -62,10 +63,10 @@ test('visitor resumes paid Event after auth, then Discovery exposes canonical Ac
   await completeSandboxPayment(page);
 
   await page.goto('/me/');
-  const actionSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Ce qui demande quelque chose de moi', exact: true }) });
-  await expect(actionSection.getByText('Festival Makolo E2E', { exact: true })).toHaveCount(0);
-  const upcomingSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Ensuite', exact: true }) });
-  await expect(upcomingSection.getByText('Festival Makolo E2E', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ensuite', exact: true })).toHaveCount(0);
+  await page.goto('/me/ongoing/');
+  const ongoing = page.getByRole('link').filter({ hasText: 'Festival Makolo E2E' }).first();
+  await expect(ongoing).toBeVisible();
 
   await page.goto('/discover/?q=Festival+Makolo+E2E');
   const discoveryCard = page.locator('article').filter({ hasText: 'Festival Makolo E2E' });

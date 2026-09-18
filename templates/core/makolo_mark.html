@@ -1,0 +1,30 @@
+{% extends 'base/app.html' %}
+{% block title %}Makolo | Mark{% endblock %}
+{% block content %}
+<div class="mk-mark-page">
+  <section class="mk-mark-intro">
+    <span class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</span>
+    <h1>Qu’est-ce que vous avez en tête ?</h1>
+    <p>Dites-le comme vous le diriez à quelqu’un.</p>
+  </section>
+
+  <form method="post" class="mk-mark-form">
+    {% csrf_token %}
+    <label for="mark-intent" class="sr-only">Ce que vous voulez donner à Makolo</label>
+    <textarea id="mark-intent" name="intent" maxlength="600" rows="4" placeholder="Ex. Retrouve mon billet pour ce soir" autocomplete="off">{{ mark_text|default:'' }}</textarea>
+    {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
+    <button type="submit" class="mk-now-cta">Continuer</button>
+  </form>
+
+  {% if mark_needs_clarification %}
+  <section class="mk-mark-clarify" aria-labelledby="mark-clarify-title">
+    <h2 id="mark-clarify-title">Qu’est-ce que vous voulez obtenir à partir de ça ?</h2>
+    <div class="mk-mark-starts">
+      <a href="{% url 'discovery:home' %}?q={{ mark_text|urlencode }}" class="mk-mark-start"><i data-lucide="compass"></i><span><strong>Explorer des possibilités</strong><small>Chercher quelque chose qui pourrait convenir.</small></span></a>
+      <a href="{% url 'core:participant-ongoing' %}" class="mk-mark-start"><i data-lucide="route"></i><span><strong>Reprendre quelque chose</strong><small>Revenir à une réalité déjà engagée.</small></span></a>
+      <a href="{% url 'core:participant-me' %}" class="mk-mark-start"><i data-lucide="search-check"></i><span><strong>Retrouver ce que j’ai déjà</strong><small>Revenir à ce qui existe déjà autour de vous.</small></span></a>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
