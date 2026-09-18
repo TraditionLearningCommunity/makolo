@@ -426,6 +426,10 @@ max_path_segments
 
 Aucune valeur de production n'est codée en dur.
 
+`ExpansionPolicy.enabled = false` coupe uniquement l'expansion structurelle ;
+l'Observation peut continuer. Les limites same-host/cross-host/query/path
+acceptent explicitement `0` pour exprimer « interdit » sans règle implicite.
+
 Les formes d'URL compactent uniquement des structures susceptibles d'exploser
 dans un même report : valeurs de pagination, dates, identifiants numériques,
 UUID et longs identifiants hexadécimaux. Les query values sont ignorées dans
