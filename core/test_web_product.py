@@ -20,27 +20,18 @@ User = get_user_model()
 @override_settings(DEBUG=False)
 class RoleAwareWebProductTests(TestCase):
     def setUp(self):
-        self.participant = User.objects.create_user(
-            username="participant-web",
-            email="participant-web@example.com",
-            password="Strong-participant-web-2026!",
-        )
-        self.event_manager = User.objects.create_user(
-            username="event-manager-web",
-            email="event-manager-web@example.com",
-            password="Strong-event-manager-web-2026!",
-        )
-        self.finance_member = User.objects.create_user(
-            username="finance-web",
-            email="finance-web@example.com",
-            password="Strong-finance-web-2026!",
-        )
-        self.staff = User.objects.create_user(
-            username="staff-web",
-            email="staff-web@example.com",
-            password="Strong-staff-web-2026!",
-            is_staff=True,
-        )
+        self.participant = User.objects.create_user(username="participant-web", email="participant-web@example.com")
+        self.participant.set_password("Strong-participant-web-2026!")
+        self.participant.save(update_fields=["password"])
+        self.event_manager = User.objects.create_user(username="event-manager-web", email="event-manager-web@example.com")
+        self.event_manager.set_password("Strong-event-manager-web-2026!")
+        self.event_manager.save(update_fields=["password"])
+        self.finance_member = User.objects.create_user(username="finance-web", email="finance-web@example.com")
+        self.finance_member.set_password("Strong-finance-web-2026!")
+        self.finance_member.save(update_fields=["password"])
+        self.staff = User.objects.create_user(username="staff-web", email="staff-web@example.com", is_staff=True)
+        self.staff.set_password("Strong-staff-web-2026!")
+        self.staff.save(update_fields=["password"])
         self.organization = Organization.objects.create(
             name="Role UX Organization",
             created_by=self.event_manager,
@@ -64,13 +55,15 @@ class RoleAwareWebProductTests(TestCase):
         response = self.client.get(reverse("core:participant-home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Accueil")
-        self.assertContains(response, "Mes démarches")
-        self.assertContains(response, "Mes accès")
-        self.assertContains(response, "Historique")
+        self.assertContains(response, "Maintenant")
+        self.assertContains(response, "Découvrir")
+        self.assertContains(response, "En cours")
+        self.assertContains(response, "Moi")
         self.assertContains(response, 'aria-label="Notifications"')
-        self.assertContains(response, "Mon profil et réglages")
-        self.assertNotContains(response, ">Notifications</span>")
+        self.assertContains(response, "Compte et paramètres")
+        self.assertNotContains(response, "Mes démarches")
+        self.assertNotContains(response, "Mes accès")
+        self.assertNotContains(response, ">Historique</span>")
         self.assertNotContains(response, "CRM")
         self.assertNotContains(response, "Contrôle d’accès")
 

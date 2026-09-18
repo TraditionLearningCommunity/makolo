@@ -22,64 +22,58 @@ class UnifiedNavigationUxTests(TestCase):
         request.resolver_match = resolve(path)
         return request
 
-    def test_personal_navigation_keeps_mature_action_surfaces_primary(self):
+    def test_personal_sidebar_uses_only_mature_primary_anchors(self):
         html = render_to_string(
-            "partials/navigation_links.html",
+            "partials/sidebar.html",
             {"request": self._request(), "space_console": None},
         )
 
-        for label in ("Accueil", "Mes démarches", "Conversations", "Profil"):
+        for label in ("Maintenant", "Découvrir", "Makolo", "En cours", "Moi"):
             self.assertIn(f"<span>{label}</span>", html)
-        for label in ("Mes Espaces", "Mes accès", "Bibliothèque", "Mes veilles", "Historique"):
-            self.assertIn(f"<span>{label}</span>", html)
-        self.assertNotIn("<span>Découvrir</span>", html)
-        self.assertNotIn(">Services<", html)
-        self.assertNotIn(">Opportunités<", html)
-        self.assertNotIn(">Abonnement<", html)
+        for legacy_label in ("Accueil", "Mes démarches", "Conversations", "Profil", "Mes Espaces", "Mes accès", "Bibliothèque", "Mes veilles", "Historique"):
+            self.assertNotIn(f"<span>{legacy_label}</span>", html)
 
-    def test_discover_stays_distinct_and_accessible_from_anchored_sidebar_cta(self):
+    def test_discover_is_a_primary_destination_without_a_second_sidebar_cta(self):
         request = self._request()
         sidebar_html = render_to_string(
             "partials/sidebar.html",
             {"request": request, "space_console": None},
         )
-        navigation_html = render_to_string(
-            "partials/navigation_links.html",
-            {"request": request, "space_console": None},
-        )
-
         discover_href = f'href="{reverse("discovery:home")}"'
-        self.assertEqual(navigation_html.count(discover_href), 0)
-        # The shell renders one anchored Discover CTA per responsive sidebar:
-        # desktop plus the mobile drawer.
-        self.assertEqual(sidebar_html.count(discover_href), 2)
-        self.assertIn("Trouver une prochaine possibilité", sidebar_html)
-        self.assertIn("Découvrir", sidebar_html)
 
-    def test_conversations_and_profile_expose_current_page_state(self):
+        self.assertEqual(sidebar_html.count(discover_href), 1)
+        self.assertIn("<span>Découvrir</span>", sidebar_html)
+        self.assertNotIn("Trouver une prochaine possibilité", sidebar_html)
+
+    def test_secondary_personal_pages_do_not_become_primary_destinations(self):
         conversations_html = render_to_string(
-            "partials/navigation_links.html",
+            "partials/sidebar.html",
             {"request": self._request("conversations:list"), "space_console": None},
         )
         profile_html = render_to_string(
-            "partials/navigation_links.html",
+            "partials/sidebar.html",
             {"request": self._request("account:profile"), "space_console": None},
         )
 
-        self.assertIn('href="{}" class="mk-nav-item is-active" aria-current="page"'.format(reverse("conversations:list")), conversations_html)
-        self.assertIn('href="{}" class="mk-nav-item is-active" aria-current="page"'.format(reverse("account:profile")), profile_html)
+        for html in (conversations_html, profile_html):
+            for label in ("Maintenant", "Découvrir", "Makolo", "En cours", "Moi"):
+                self.assertIn(f"<span>{label}</span>", html)
+            self.assertNotIn("<span>Conversations</span>", html)
+            self.assertNotIn("<span>Profil</span>", html)
 
-    def test_personal_account_menu_contains_billing_entry(self):
+    def test_personal_account_menu_contains_context_and_account_actions(self):
         html = render_to_string(
             "partials/navbar.html",
             {"request": self._request(), "space_console": None},
         )
 
-        self.assertIn("Mes Espaces", html)
-        self.assertIn("Mon profil et réglages", html)
-        self.assertIn("Mon abonnement et facturation", html)
+        self.assertIn("Agir comme", html)
+        self.assertIn("Compte et paramètres", html)
+        self.assertIn("Abonnement et facturation", html)
         self.assertIn("Changer de compte", html)
         self.assertIn("Se déconnecter", html)
+        self.assertNotIn("Mes Espaces", html)
+        self.assertNotIn("Mon profil et réglages", html)
 
     def test_space_navigation_uses_explicit_subscription_authority_label(self):
         request = self._request()
@@ -110,4 +104,4 @@ class UnifiedNavigationUxTests(TestCase):
         )
 
         self.assertIn("Abonnement de l’espace", html)
-        self.assertNotIn("Mon abonnement et facturation", html)
+        self.assertNotIn("Abonnement et facturation", html)

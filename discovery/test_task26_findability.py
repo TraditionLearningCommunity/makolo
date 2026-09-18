@@ -177,9 +177,9 @@ class Task26FindabilityTests(TestCase):
         self.assertEqual(search_occurrences({"q": "SecretGuest"}, now=self.now).total, 0)
         self.assertEqual(search_occurrences({"q": "secretguest@example.test"}, now=self.now).total, 0)
 
-    def test_global_search_link_is_in_authenticated_navbar(self):
+    def test_search_link_is_in_discovery_header(self):
         self.client.force_login(self.participant)
-        response = self.client.get(reverse("core:participant-home"))
+        response = self.client.get(reverse("discovery:home"))
         self.assertContains(response, 'aria-label="Rechercher sur Makolo"')
         self.assertContains(response, reverse("discovery:home") + "?focus=search")
 

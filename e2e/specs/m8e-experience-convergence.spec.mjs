@@ -7,24 +7,28 @@ async function expectNoHorizontalOverflow(page) {
 }
 
 
-test('mature personal navigation keeps action surfaces coherent on desktop', async ({ page }) => {
+test('mature personal navigation keeps the five canonical contexts on desktop', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/me/');
 
   const sidebar = page.locator('#desktop-sidebar');
-  await expect(sidebar.getByRole('link', { name: 'Accueil', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(sidebar.getByRole('link', { name: 'Mes démarches', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: 'Conversations', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: 'Profil', exact: true })).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: /Découvrir/ })).toHaveCount(1);
+  await expect(sidebar.getByRole('link', { name: 'Maintenant', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(sidebar.getByRole('link', { name: 'Découvrir', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Makolo Mark', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'En cours', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Moi', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('link', { name: 'Conversations', exact: true })).toHaveCount(0);
+  await expect(sidebar.getByRole('link', { name: 'Profil', exact: true })).toHaveCount(0);
 
-  await sidebar.getByRole('link', { name: 'Conversations', exact: true }).click();
-  await expect(page.locator('h1').filter({ hasText: /^Conversations$/ })).toBeVisible();
-  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Conversations', exact: true })).toHaveAttribute('aria-current', 'page');
+  await sidebar.getByRole('link', { name: 'En cours', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Ce qui continue', exact: true })).toBeVisible();
+  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'En cours', exact: true })).toHaveAttribute('aria-current', 'page');
 
-  await page.locator('#desktop-sidebar').getByRole('link', { name: 'Profil', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Mon profil', exact: true })).toBeVisible();
-  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Profil', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.locator('#desktop-sidebar').getByRole('link', { name: 'Moi', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Passeport Makolo', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes collectifs', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes ressources', exact: true })).toBeVisible();
+  await expect(page.locator('#desktop-sidebar').getByRole('link', { name: 'Moi', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
 
@@ -43,15 +47,39 @@ test('mature mobile shell stays usable from 320px through tablet @mobile', async
     await page.goto('/me/');
     await expectNoHorizontalOverflow(page);
 
-    if (viewport.width < 1024) {
-      const mobileNav = page.locator('#mobile-primary-nav');
-      await expect(mobileNav).toBeVisible();
-      for (const label of ['Accueil', 'Démarches', 'Conversations', 'Profil', 'Plus']) {
-        await expect(mobileNav.getByText(label, { exact: true })).toBeVisible();
-      }
-      await expect(mobileNav.getByText('Découvrir', { exact: true })).toHaveCount(0);
+    const mobileNav = page.locator('#mobile-primary-nav');
+    await expect(mobileNav).toBeVisible();
+    for (const label of ['Maintenant', 'Découvrir', 'Makolo', 'En cours', 'Moi']) {
+      await expect(mobileNav.getByText(label, { exact: true })).toBeVisible();
     }
+    await expect(mobileNav.getByText('Conversations', { exact: true })).toHaveCount(0);
+    await expect(mobileNav.getByText('Profil', { exact: true })).toHaveCount(0);
+    await expect(mobileNav.getByText('Plus', { exact: true })).toHaveCount(0);
   }
+});
+
+
+test('Maintenant can end calmly without filling the screen', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/me/');
+
+  const home = page.locator('#main-content');
+  await expect(home.getByText('Ensuite', { exact: true })).toHaveCount(0);
+  await expect(home.getByText('Et maintenant ?', { exact: true })).toHaveCount(0);
+  await expect(home.getByText('Ce que je dois savoir', { exact: true })).toHaveCount(0);
+});
+
+
+test('Makolo Mark starts from one natural-language intake and stays conservative', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/mark/');
+
+  await expect(page.getByRole('heading', { name: 'Qu’est-ce que vous avez en tête ?' })).toBeVisible();
+  const input = page.getByLabel('Ce que vous voulez donner à Makolo');
+  await expect(input).toBeVisible();
+  await input.fill('Je cherche quelque chose à faire ce soir');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await expect(page).toHaveURL(/\/discover\/\?q=/);
 });
 
 

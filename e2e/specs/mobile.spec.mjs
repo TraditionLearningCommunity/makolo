@@ -7,28 +7,26 @@ async function expectNoHorizontalOverflow(page) {
 }
 
 
-test('participant home, memory and Access QR stay usable on mobile @mobile', async ({ page }) => {
+test('participant Maintenant, Moi, history and Access QR stay usable on mobile @mobile', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/me/');
   await expect(page.getByRole('heading', { name: /Qu’est-ce qui compte maintenant/i })).toBeVisible();
-  await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /Groupes/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Favoris/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Mes Espaces/i })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
-  const menuButton = page.getByRole('button', { name: 'Ouvrir la navigation' });
-  if (await menuButton.count()) {
-    await menuButton.click();
-    const sidebar = page.locator('#app-sidebar');
-    await expect(sidebar.getByRole('link', { name: 'Historique', exact: true })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Notifications', exact: true })).toHaveCount(0);
-    await sidebar.getByRole('link', { name: 'Historique', exact: true }).click();
-  } else {
-    await page.goto('/me/history/');
-  }
+  await page.goto('/me/ongoing/');
+  await expect(page.getByText('Inscription communautaire E2E').first()).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  const mobileNav = page.locator('#mobile-primary-nav');
+  await expect(mobileNav).toBeVisible();
+  await mobileNav.getByRole('link', { name: 'Moi', exact: true }).click();
+  await expect(page).toHaveURL('/me/moi/');
+  await expect(page.getByRole('heading', { name: 'Passeport Makolo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes collectifs' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes ressources' })).toBeVisible();
+  await page.getByRole('link', { name: 'Historique', exact: true }).click();
   await expect(page.getByRole('main').getByRole('heading', { name: 'Historique', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Notifications/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Retour à Moi' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.goto('/me/accesses/');

@@ -31,6 +31,7 @@ test('discovery finds Event and Transport by place and date @firefox', async ({ 
 test('global search focuses Discovery and Activity save stays independent', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/me/');
+  await page.getByRole('link', { name: 'Découvrir', exact: true }).first().click();
   await page.getByRole('link', { name: 'Rechercher sur Makolo' }).click();
   await expect(page).toHaveURL(/\/discover\/\?focus=search/);
   await expect(page.locator('#discover-query')).toBeFocused();

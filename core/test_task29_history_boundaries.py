@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from access.models import Access, AccessStatus
 from activities.models import Activity, ActivityStatus
+from activities.selectors import activities_owned_by
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
 
@@ -106,7 +107,6 @@ class Task29HistoryBoundaryTests(TestCase):
             status=ActivityStatus.PUBLISHED,
         )
 
-        response = self.client.get(reverse("core:participant-home"))
-        organized_ids = {activity.pk for activity in response.context["organized_activities"]}
+        organized_ids = {activity.pk for activity in activities_owned_by(self.profile)}
         self.assertIn(personal.pk, organized_ids)
         self.assertEqual(len(organized_ids), 1)
