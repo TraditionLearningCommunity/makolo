@@ -90,6 +90,37 @@ class DjangoPilotSnapshotTests(TestCase):
             )
         )
 
+        # Feedback emitted after another mission becomes the target's current
+        # context must not be attributed back to the PX8 mission merely because
+        # the target_key is shared.
+        self.frontier.admit_sync(
+            ProspectingCandidate(
+                locator="https://example.test/a",
+                kind="web_url",
+                evidence=(
+                    ProspectingEvidence(
+                        method="external_index",
+                        provider="other-index-2",
+                        discovered_at=self.now,
+                    ),
+                ),
+                policy_context={
+                    "mission_key": "later-other",
+                    "mission_fingerprint": "z" * 64,
+                },
+            )
+        )
+        DjangoFeedbackStore().record_sync(
+            ProspectingFeedback(
+                event_key="other-feedback-1",
+                target_key=target.target_key,
+                signal=FeedbackSignal.DOWNSTREAM_REJECTED,
+                producer=FeedbackProducer.RESOLVER,
+                source_ref="resolver:other",
+                occurred_at=self.now,
+            )
+        )
+
         # Same fingerprint but another mission_key must remain isolated.
         self.frontier.admit_sync(
             ProspectingCandidate(

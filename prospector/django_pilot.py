@@ -41,9 +41,20 @@ class DjangoPilotSnapshotReader:
         entries = ProspectorFrontierEntry.objects.filter(id__in=entry_ids)
         aggregate = evidence.aggregate(total_discoveries=Sum("discovery_count"))
         target_keys = list(entries.values_list("target_key", flat=True))
-        feedback = ProspectorFeedbackEvent.objects.filter(
+        feedback_candidates = ProspectorFeedbackEvent.objects.filter(
             target_key__in=target_keys
         )
+        feedback_ids = []
+        for row in feedback_candidates.only("id", "scopes"):
+            scopes = row.scopes if isinstance(row.scopes, list) else []
+            if any(
+                isinstance(scope, dict)
+                and scope.get("kind") == "mission"
+                and scope.get("key") == mission_key
+                for scope in scopes
+            ):
+                feedback_ids.append(row.id)
+        feedback = ProspectorFeedbackEvent.objects.filter(id__in=feedback_ids)
 
         return PilotSnapshot(
             entry_count=entries.count(),
