@@ -59,6 +59,14 @@ class FrontierPort(Protocol):
 
 
 @runtime_checkable
+class FrontierLookupPort(Protocol):
+    """Read-only target lookup used by bounded structural expansion."""
+
+    async def get(self, target_key: str) -> Optional[ProspectingTarget]:
+        ...
+
+
+@runtime_checkable
 class DnsResolverPort(Protocol):
     async def resolve(self, hostname: str) -> Sequence[str]:
         ...

@@ -16,3 +16,7 @@ class FrontierClaimError(ProspectorContractError):
 
 class ObservationContractError(ProspectorContractError):
     """Raised when the Prospecteur/Observateur contract is inconsistent."""
+
+
+class ExpansionContractError(ProspectorContractError):
+    """Raised when bounded structural expansion cannot be performed safely."""

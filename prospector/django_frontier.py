@@ -261,6 +261,16 @@ class DjangoFrontierStore:
     async def admit(self, candidate: ProspectingCandidate) -> ProspectingTarget:
         return await sync_to_async(self.admit_sync, thread_sensitive=True)(candidate)
 
+    def get_sync(self, target_key: str) -> Optional[ProspectingTarget]:
+        target_key = _required_text("target_key", target_key, max_length=96)
+        entry = ProspectorFrontierEntry.objects.filter(target_key=target_key).first()
+        if entry is None:
+            return None
+        return _entry_target(entry)
+
+    async def get(self, target_key: str) -> Optional[ProspectingTarget]:
+        return await sync_to_async(self.get_sync, thread_sensitive=True)(target_key)
+
     def claim_sync(
         self,
         *,

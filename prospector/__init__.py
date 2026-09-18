@@ -13,11 +13,13 @@ from .contracts import (
 from .errors import (
     FrontierClaimError,
     FrontierConflictError,
+    ExpansionContractError,
     ObservationContractError,
     ProspectorContractError,
     UnsupportedTargetKindError,
 )
 from .frontier import FrontierClaim, FrontierState
+from .expansion import ExpansionPolicy, ExpansionResult, ObservationExpansionSink
 from .observation_contracts import (
     OBSERVATION_CONTRACT_VERSION,
     ObservationDisposition,
@@ -61,4 +63,8 @@ __all__ = [
     "FrontierConflictError",
     "FrontierClaimError",
     "ObservationContractError",
+    "ExpansionContractError",
+    "ExpansionPolicy",
+    "ExpansionResult",
+    "ObservationExpansionSink",
 ]

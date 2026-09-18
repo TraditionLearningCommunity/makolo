@@ -1,9 +1,9 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX4 — sécurité, admissibilité et budgets.**
+> **Statut du train : PX5 — expansion autonome Web / sitemap / feed.**
 >
-> Base initiale du train : main@9c60119f4eab8628ff33b230562f85ed8500c632.
-> PX3 est empilé sur PX2@a3b676303c4144db80e68a0515064e906e7c0c92.
+> Base réconciliée : main@dcef775870afec0736cbfc018ad09d40913e01c6.
+> PX5 est empilé sur PX4@fe42bcfaba595569f6357a6db08e4f2b035fbc01.
 > Le code, les migrations, les tests et le main courant restent prioritaires.
 
 ## 1. Mission
@@ -333,21 +333,161 @@ avec `suppressed_at` et `suppression_reason`.
 Une simple redécouverte ne réactive pas la cible. Un `requeue` explicite
 efface la suppression et incrémente `handoff_generation`.
 
-## 9. Ce que PX4 ne fait pas
+## 9. PX5 : expansion autonome bornée
 
-PX4 ne :
+PX5 ferme la boucle structurelle :
+
+~~~text
+Frontier parent
+      ↓
+Observateur
+      ↓ ObservationReport.references
+PX5 Expansion
+      ↓
+Frontier enfants
+      ↓
+Observateur
+~~~
+
+Le Prospecteur ne reparcourt jamais le HTML/XML pour découvrir ces enfants.
+L'Observateur est responsable de produire les références structurelles ; PX5
+ne fait que les classer, borner et admettre.
+
+### Familles génériques
+
+PX5 reconnaît trois familles techniques :
+
+~~~text
+web_graph
+  link
+  redirect
+  redirect_final
+  canonical
+  alternate
+
+sitemap
+  sitemap
+  sitemap_index
+  sitemap_entry
+
+feed
+  feed
+  feed_entry
+~~~
+
+Ce vocabulaire ne crée aucune vérité métier. Une `sitemap_entry` signifie
+uniquement qu'une ressource a été révélée par une structure sitemap.
+
+Il n'existe aucun agent par site, média, université ou domaine.
+
+### Héritage du contexte
+
+Le report Observateur ne répète pas mission/campagne/branche/profondeur.
+PX5 relit le parent par `target_key` dans la Frontier puis propage :
+
+~~~text
+mission_key
+campaign_key
+branch_key
+autres contextes de politique
+depth + 1
+~~~
+
+La provenance durable de l'enfant contient :
+
+~~~text
+source_target_key
+source_observation_ref
+method = web_graph | sitemap | feed
+relation technique
+handoff_generation source
+fingerprint de politique d'expansion
+~~~
+
+Ainsi le graphe utile reste un **graphe borné de provenance dans la Frontier**,
+pas une copie générale du Web.
+
+### Anti-traps
+
+`ExpansionPolicy` exige explicitement les limites suivantes :
+
+~~~text
+max_depth
+max_references_per_report
+max_candidates_per_report
+max_same_host_candidates
+max_cross_host_candidates
+max_unique_cross_hosts
+max_per_host_candidates
+max_per_url_shape
+max_query_parameters
+max_path_segments
+~~~
+
+Aucune valeur de production n'est codée en dur.
+
+Les formes d'URL compactent uniquement des structures susceptibles d'exploser
+dans un même report : valeurs de pagination, dates, identifiants numériques,
+UUID et longs identifiants hexadécimaux. Les query values sont ignorées dans
+la forme, mais les noms de paramètres sont conservés.
+
+Exemple :
+
+~~~text
+/calendar/2026-09-18?page=1
+/calendar/2026-09-19?page=999
+                 ↓
+même forme bornable
+~~~
+
+Cela ne fusionne pas les identités Frontier : la canonicalisation cible
+conserve toujours l'URL complète et sa query. La forme sert uniquement au
+budget anti-explosion.
+
+### Dédoublonnage local et boucles
+
+Dans un même report, PX5 élimine avant admission :
+
+- self-reference vers le parent ;
+- duplicata de target_key ;
+- relation inconnue ;
+- kind non supporté ;
+- locator invalide ;
+- dépassement de profondeur/query/path/fan-out/host/forme.
+
+Une rediffusion du même ObservationReport ne crée ni nouvelle FrontierEntry ni
+nouvelle ligne d'arête : les identités PX1 compactent le replay.
+
+### Divulgation minimale
+
+PX5 ne copie pas librement `ObservedReference.attributes`.
+
+Seuls les attributs techniques explicitement autorisés sont propagés, par
+défaut :
+
+~~~text
+media_type
+hreflang
+rel
+type
+~~~
+
+Un titre, du texte, un pseudo-fait, un secret ou une annotation sémantique
+arbitraire ne devient donc pas de la provenance Prospecteur.
+
+## 10. Ce que PX5 ne fait pas
+
+PX5 ne :
 
 - maintient aucune liste manuelle de sites ;
 - ne récupère aucun HTML de page ;
-- n'utilise pas Crawlee ;
+- n'utilise pas encore Crawlee : PX6 ;
 - n'interprète pas le contenu ;
 - ne décide pas qu'une URL est une opportunité ;
 - ne crée aucune vérité métier ;
 - n'utilise ni Elasticsearch, Redis, Kafka, LLM ni navigateur headless ;
-- ne fait pas encore de WebGraph, sitemap ou feed expansion : PX5 ;
-- ne porte pas encore la sécurité réseau générique SSRF/DNS : PX4.
 
-## 10. Train
+## 11. Train
 
 ~~~text
 PX0  fondation Python pure
@@ -356,11 +496,11 @@ PX1  Frontier PostgreSQL durable
  ↓
 PX2  sources autonomes / index externes
  ↓
-PX3  contrat Prospecteur ↔ Observateur            ← courant
+PX3  contrat Prospecteur ↔ Observateur
  ↓
 PX4  sécurité réseau / admissibilité / budgets
  ↓
-PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps
+PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps  ← courant
  ↓
 PX6  runtime continu + Crawlee / recovery / backpressure
  ↓
@@ -371,7 +511,7 @@ PX8  pilote Internet réel
 PX9  hardening / échelle
 ~~~
 
-## 11. Validation PX4
+## 12. Validation PX5
 
 Tests core :
 
@@ -427,3 +567,26 @@ La CI ne résout aucun host Internet pour ces tests : DNS et budgets sont
 contrôlés par fakes, sauf les tests PostgreSQL de verrouillage. La PSL est la
 snapshot embarquée par tldextract et aucun téléchargement de suffix list n'est
 autorisé au runtime.
+
+
+Tests PX5 spécifiques :
+
+~~~text
+python -m unittest   prospector.tests.test_traps   prospector.tests.test_expansion
+
+python manage.py test   prospector.django_app.tests.test_expansion
+~~~
+
+Ils vérifient notamment :
+
+- WebGraph, sitemap et feed sans parsing de contenu dans le Prospecteur ;
+- propagation de mission/campagne/branche/profondeur depuis le parent ;
+- provenance parent + observation ;
+- dédoublonnage self/duplicate ;
+- limites same-host/cross-host/hôtes uniques ;
+- limite par forme d'URL ;
+- bornes query/path/profondeur/fan-out ;
+- whitelist d'attributs techniques ;
+- replay sans duplication de cible ni de ligne de provenance.
+
+PX5 n'ajoute aucune migration.
