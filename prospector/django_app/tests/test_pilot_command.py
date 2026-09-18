@@ -76,7 +76,7 @@ class ProspectorLivePilotCommandTests(TestCase):
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["kind"], "prospector_px8_pilot")
         self.assertEqual(payload["source"]["received"], 1)
-        self.assertEqual(payload["frontier"]["new_entries"], 1)
+        self.assertEqual(payload["frontier"]["new_to_mission_targets"], 1)
         self.assertIn(
             "observer_runtime_not_run",
             payload["limitations"],
