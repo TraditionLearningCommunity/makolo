@@ -13,6 +13,7 @@ from discovery.models import ActivityBookmark, DiscoveryWatch
 from groups.selectors import groups_for_profile
 from organizations.console_context import authorized_spaces
 from organizations.models import OrganizationFollow, ProfileFollow, TeamMembership, TeamMembershipStatus
+from objectives.models import DossierLifecycle, ProjectLifecycle
 from objectives.selectors import dossiers_for_profile, projects_for_profile
 from partners.models import Partner, PartnerStatus
 from payments.models import PaymentStatus
