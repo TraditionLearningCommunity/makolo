@@ -3,6 +3,7 @@ from __future__ import annotations
 from urllib.parse import urlencode
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -12,6 +13,14 @@ from discovery.models import ActivityBookmark, DiscoveryWatch
 from groups.selectors import groups_for_profile
 from organizations.console_context import authorized_spaces
 from organizations.models import OrganizationFollow, ProfileFollow, TeamMembership, TeamMembershipStatus
+from objectives.selectors import dossiers_for_profile, projects_for_profile
+from partners.models import Partner, PartnerStatus
+from payments.models import PaymentStatus
+from payments.selectors import get_payments_visible_to
+from recognition.selectors import account_for_profile, redemptions_requiring_beneficiary_response
+from loyalty.selectors import get_accounts_visible_to, get_subscriptions_visible_to
+from tickets.models import TransferStatus, WaitlistStatus
+from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
 from personal_assets.selectors import personal_assets_for_controller
 from readiness import ReadinessStatus, resolve_many
 from readiness.selectors import readiness_queryset
@@ -75,6 +84,73 @@ def _ongoing_access_item(card):
     }
 
 
+def _ongoing_dossier_item(dossier):
+    return {
+        "kind": "dossier",
+        "title": dossier.title,
+        "summary": "Cet objectif composé continue.",
+        "tone": "calm",
+        "next_action": "",
+        "timing": None,
+        "place": None,
+        "url": reverse("objectives:dossier-detail", kwargs={"dossier_id": dossier.pk}),
+    }
+
+
+def _ongoing_project_item(project):
+    return {
+        "kind": "project",
+        "title": project.title,
+        "summary": "Cet horizon durable est toujours actif.",
+        "tone": "calm",
+        "next_action": "",
+        "timing": None,
+        "place": None,
+        "url": reverse("objectives:project-detail", kwargs={"project_id": project.pk}),
+    }
+
+
+def _ongoing_waitlist_item(entry):
+    offered = entry.status == WaitlistStatus.OFFERED and entry.is_offer_active
+    return {
+        "kind": "waitlist",
+        "title": entry.ticket_type.event.title,
+        "summary": "Une place vous est proposée." if offered else "Vous attendez qu’une place se libère.",
+        "tone": "action" if offered else "calm",
+        "next_action": "Répondre à l’offre" if offered else "",
+        "timing": None,
+        "place": None,
+        "url": reverse("tickets:waitlist-list"),
+    }
+
+
+def _ongoing_transfer_item(transfer, profile):
+    incoming = transfer.recipient_id == profile.pk
+    return {
+        "kind": "transfer",
+        "title": transfer.ticket.event.title,
+        "summary": "Un transfert attend votre décision." if incoming else "Votre transfert attend la réponse du destinataire.",
+        "tone": "action" if incoming else "calm",
+        "next_action": "Accepter ou refuser" if incoming else "",
+        "timing": None,
+        "place": None,
+        "url": reverse("tickets:transfer-list"),
+    }
+
+
+def _ongoing_payment_item(payment):
+    return {
+        "kind": "payment",
+        "title": "Paiement en cours",
+        "summary": f"{payment.amount} {payment.currency} · {payment.get_status_display()}",
+        "tone": "calm",
+        "next_action": "",
+        "timing": None,
+        "place": None,
+        "url": reverse("payments:detail", kwargs={"pk": payment.pk}),
+    }
+
+
 class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
     template_name = "core/participant_ongoing.html"
     login_url = "core:login"
@@ -101,7 +177,61 @@ class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
         )
         access_items = [_ongoing_access_item(_access_card(access)) for access in active_accesses]
 
-        context["ongoing_items"] = journey_items + access_items
+        personal_dossiers = list(
+            dossiers_for_profile(profile)
+            .filter(owner_profile=profile, lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE})
+            .order_by("-updated_at", "id")[:ONGOING_LIMIT]
+        )
+        dossier_items = [_ongoing_dossier_item(dossier) for dossier in personal_dossiers]
+
+        personal_projects = list(
+            projects_for_profile(profile)
+            .filter(owner_profile=profile, lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE})
+            .order_by("-updated_at", "id")[:ONGOING_LIMIT]
+        )
+        project_items = [_ongoing_project_item(project) for project in personal_projects]
+
+        waitlist_entries = list(
+            get_waitlist_entries_visible_to(profile)
+            .filter(user=profile, status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED})
+            .order_by("created_at", "id")[:ONGOING_LIMIT]
+        )
+        waitlist_items = [_ongoing_waitlist_item(entry) for entry in waitlist_entries]
+
+        transfers = list(
+            get_ticket_transfers_visible_to(profile)
+            .filter(status=TransferStatus.PENDING)
+            .filter(models.Q(sender=profile) | models.Q(recipient=profile))
+            .order_by("-created_at", "id")[:ONGOING_LIMIT]
+        )
+        transfer_items = [_ongoing_transfer_item(transfer, profile) for transfer in transfers if transfer.is_pending_active]
+
+        standalone_payments = list(
+            get_payments_visible_to(profile)
+            .filter(
+                initiated_by=profile,
+                status__in={PaymentStatus.PENDING, PaymentStatus.PROCESSING},
+                commerce_order__journey__isnull=True,
+                obligation__journey__isnull=True,
+                order__journey__isnull=True,
+            )
+            .order_by("-created_at", "id")[:ONGOING_LIMIT]
+        )
+        payment_items = [_ongoing_payment_item(payment) for payment in standalone_payments]
+
+        context["ongoing_items"] = (
+            journey_items
+            + access_items
+            + dossier_items
+            + project_items
+            + waitlist_items
+            + transfer_items
+            + payment_items
+        )[:ONGOING_LIMIT]
+        context["has_personal_dossiers"] = bool(personal_dossiers)
+        context["has_personal_projects"] = bool(personal_projects)
+        context["has_waitlist"] = bool(waitlist_entries)
+        context["has_transfers"] = bool(transfers)
         return context
 
 
@@ -154,6 +284,38 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
         credentials = list(credentials_for_profile(profile)[:ME_PREVIEW_LIMIT])
         proofs = list(proofs_for_profile(profile)[:ME_PREVIEW_LIMIT])
 
+        support_links = []
+        recognition_account = account_for_profile(profile)
+        if recognition_account is not None or redemptions_requiring_beneficiary_response(profile).exists():
+            support_links.append(
+                {
+                    "label": "Reconnaissance",
+                    "detail": "Voir ce que vos contributions ont rendu disponible.",
+                    "url": reverse("recognition:dashboard"),
+                }
+            )
+        if get_accounts_visible_to(profile).filter(user=profile).exists() or get_subscriptions_visible_to(profile).filter(user=profile).exists():
+            support_links.append(
+                {
+                    "label": "Mes avantages",
+                    "detail": "Retrouver vos relations de fidélité organisation par organisation.",
+                    "url": reverse("loyalty:dashboard"),
+                }
+            )
+        personal_partners = list(
+            Partner.objects.filter(user=profile, status=PartnerStatus.ACTIVE)
+            .select_related("organization")
+            .order_by("organization__name", "name")[:ME_PREVIEW_LIMIT]
+        )
+        for partner in personal_partners:
+            support_links.append(
+                {
+                    "label": partner.organization.name,
+                    "detail": "Ma relation partenaire",
+                    "url": reverse("partners:my-detail", kwargs={"pk": partner.pk}),
+                }
+            )
+
         context.update(
             {
                 "interests": interests,
@@ -169,6 +331,7 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
                 "credentials": credentials,
                 "proofs": proofs,
                 "passport_url": reverse("sharing:passport-me"),
+                "support_links": support_links,
             }
         )
         return context
