@@ -245,7 +245,7 @@ class ProspectorBudgetReservation(models.Model):
         indexes = [
             models.Index(
                 fields=["policy_key", "period_end"],
-                name="pros_budget_reservation_period_idx",
+                name="pros_budget_resv_period_idx",
             )
         ]
 

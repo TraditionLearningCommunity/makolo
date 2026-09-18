@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "prospector_budget_reservation",
                 "indexes": [
-                    models.Index(fields=["policy_key", "period_end"], name="pros_budget_reservation_period_idx")
+                    models.Index(fields=["policy_key", "period_end"], name="pros_budget_resv_period_idx")
                 ],
                 "constraints": [
                     models.UniqueConstraint(
