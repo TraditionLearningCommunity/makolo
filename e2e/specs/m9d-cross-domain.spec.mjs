@@ -33,7 +33,7 @@ test('Home distinguishes immediate action from a genuinely calm state', async ({
   await login(page, 'empty.participant@e2e.makolo.test');
   await page.goto('/me/');
   await expect(page.getByRole('heading', { name: 'Tout est en ordre. ✓' })).toBeVisible();
-  await expect(page.getByText('Aucune action, décision ou information importante ne réclame votre attention maintenant.')).toBeVisible();
+  await expect(page.getByText('Rien à faire pour le moment.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Ce qui demande quelque chose de moi' })).toHaveCount(0);
 });
 
