@@ -360,6 +360,8 @@ class DjangoFrontierStore:
             raise FrontierClaimError("claim token is stale or belongs to another worker")
         if entry.claimed_by != claim.worker_id:
             raise FrontierClaimError("claim worker does not match durable owner")
+        if entry.handoff_generation != claim.handoff_generation:
+            raise FrontierClaimError("claim handoff generation is stale")
         return entry
 
     def complete_sync(
@@ -377,6 +379,8 @@ class DjangoFrontierStore:
             entry.claimed_at = None
             entry.lease_expires_at = None
             entry.completed_at = now
+            entry.suppressed_at = None
+            entry.suppression_reason = ""
             entry.save(
                 update_fields=[
                     "status",
@@ -385,6 +389,8 @@ class DjangoFrontierStore:
                     "claimed_at",
                     "lease_expires_at",
                     "completed_at",
+                    "suppressed_at",
+                    "suppression_reason",
                     "updated_at",
                 ]
             )
@@ -409,6 +415,8 @@ class DjangoFrontierStore:
             entry.claimed_at = None
             entry.lease_expires_at = None
             entry.completed_at = None
+            entry.suppressed_at = None
+            entry.suppression_reason = ""
             entry.save(
                 update_fields=[
                     "status",
@@ -419,6 +427,8 @@ class DjangoFrontierStore:
                     "claimed_at",
                     "lease_expires_at",
                     "completed_at",
+                    "suppressed_at",
+                    "suppression_reason",
                     "updated_at",
                 ]
             )
@@ -433,6 +443,51 @@ class DjangoFrontierStore:
         return await sync_to_async(self.defer_sync, thread_sensitive=True)(
             claim,
             available_at=available_at,
+        )
+
+    def suppress_sync(
+        self,
+        claim: FrontierClaim,
+        *,
+        reason_code: str,
+        now: Optional[datetime] = None,
+    ) -> ProspectingTarget:
+        reason_code = _required_text("reason_code", reason_code, max_length=120)
+        now = _aware("now", now or timezone.now())
+        with transaction.atomic():
+            entry = self._claimed_entry(claim)
+            entry.status = FrontierState.SUPPRESSED.value
+            entry.claim_token = None
+            entry.claimed_by = ""
+            entry.claimed_at = None
+            entry.lease_expires_at = None
+            entry.completed_at = None
+            entry.suppressed_at = now
+            entry.suppression_reason = reason_code
+            entry.save(
+                update_fields=[
+                    "status",
+                    "claim_token",
+                    "claimed_by",
+                    "claimed_at",
+                    "lease_expires_at",
+                    "completed_at",
+                    "suppressed_at",
+                    "suppression_reason",
+                    "updated_at",
+                ]
+            )
+            return _entry_target(entry)
+
+    async def suppress(
+        self,
+        claim: FrontierClaim,
+        *,
+        reason_code: str,
+    ) -> ProspectingTarget:
+        return await sync_to_async(self.suppress_sync, thread_sensitive=True)(
+            claim,
+            reason_code=reason_code,
         )
 
     def requeue_sync(
@@ -459,6 +514,8 @@ class DjangoFrontierStore:
             entry.claimed_at = None
             entry.lease_expires_at = None
             entry.completed_at = None
+            entry.suppressed_at = None
+            entry.suppression_reason = ""
             entry.save(
                 update_fields=[
                     "status",
@@ -469,6 +526,8 @@ class DjangoFrontierStore:
                     "claimed_at",
                     "lease_expires_at",
                     "completed_at",
+                    "suppressed_at",
+                    "suppression_reason",
                     "updated_at",
                 ]
             )

@@ -36,6 +36,8 @@ class ProspectorFrontierEntry(models.Model):
     claimed_at = models.DateTimeField(null=True, blank=True)
     lease_expires_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    suppressed_at = models.DateTimeField(null=True, blank=True)
+    suppression_reason = models.CharField(max_length=120, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -83,6 +85,25 @@ class ProspectorFrontierEntry(models.Model):
                     | ~Q(status=FrontierState.COMPLETED.value)
                 ),
                 name="pros_frontier_completed_at",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(
+                            status=FrontierState.SUPPRESSED.value,
+                            suppressed_at__isnull=False,
+                        )
+                        & ~Q(suppression_reason="")
+                    )
+                    | (
+                        ~Q(status=FrontierState.SUPPRESSED.value)
+                        & Q(
+                            suppressed_at__isnull=True,
+                            suppression_reason="",
+                        )
+                    )
+                ),
+                name="pros_frontier_suppression_consistent",
             ),
         ]
         indexes = [
