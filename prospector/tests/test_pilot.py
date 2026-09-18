@@ -181,8 +181,9 @@ class PilotScorecardTests(TestCase):
             started_at=now,
             finished_at=now,
         )
-        self.assertEqual(card["frontier"]["new_entries"], 3)
-        self.assertEqual(card["frontier"]["rediscoveries"], 2)
+        self.assertEqual(card["frontier"]["new_to_mission_targets"], 3)
+        self.assertEqual(card["frontier"]["new_mission_evidence"], 5)
+        self.assertEqual(card["frontier"]["evidence_replays"], 0)
         self.assertFalse(card["feedback"]["downstream_evaluable"])
         self.assertIn(
             "observer_runtime_not_run",
