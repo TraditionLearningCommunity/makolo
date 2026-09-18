@@ -879,7 +879,7 @@ requêtes. Un pilote live exige une valeur strictement positive.
 HTTP 429/503 devient une erreur opérationnelle de rate limit et **n'entraîne
 aucune boucle de retry agressive**.
 
-Les pages CDX 400/404 sont traitées comme fin du sélecteur courant.
+Une réponse CDX 400 de pagination est traitée comme fin du sélecteur courant. Un 404 reste une erreur source visible : le pilote ne masque pas un endpoint ou une collection invalide.
 
 La CI continue d'utiliser un transport factice et ne contacte jamais Internet.
 
@@ -1150,7 +1150,7 @@ Ils vérifient notamment :
 - bornes de termes URL (`formation` ne matche pas `information`) ;
 - cadence entre requêtes Common Crawl ;
 - arrêt explicite sur 503/rate limit ;
-- 404 CDX traité comme fin de sélecteur ;
+- 400 CDX traité comme fin de pagination et 404 conservé comme erreur source ;
 - source passes bornées ;
 - runtime cycles bornés lorsqu'un runtime est injecté ;
 - refus d'un runtime demandé mais absent ;
