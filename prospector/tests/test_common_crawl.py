@@ -200,7 +200,7 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         with self.assertRaises(ProspectorSourceRateLimitError):
             await source.discover(self.mission())
 
-    async def test_404_index_page_is_treated_as_exhausted_selector(self):
+    async def test_404_index_endpoint_is_visible_source_error(self):
         source = CommonCrawlIndexSource(
             user_agent="Makolo PX8 test",
             transport=FakeTransport(
@@ -211,9 +211,9 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
             ),
             max_requests_per_run=1,
         )
-        batch = await source.discover(self.mission())
-        self.assertTrue(batch.exhausted)
-        self.assertEqual(batch.records, ())
+        from prospector.errors import ProspectorSourceError
+        with self.assertRaises(ProspectorSourceError):
+            await source.discover(self.mission())
 
     def test_path_term_filter_uses_url_token_boundaries(self):
         pattern = re.compile(_path_filter_regex(("formation", "admission")))
