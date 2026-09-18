@@ -178,3 +178,36 @@ class DjangoFrontierStoreTests(TestCase):
             now=future + timedelta(seconds=61),
         )[0]
         self.assertEqual(reclaimed.handoff_generation, 1)
+
+
+    def test_suppress_is_durable_and_rediscovery_does_not_reactivate(self):
+        target = self.store.admit_sync(self.candidate())
+        claim = self.store.claim_sync(
+            worker_id="worker-a",
+            limit=1,
+            now=self.now,
+        )[0]
+        self.store.suppress_sync(
+            claim,
+            reason_code="security.non_global_address",
+            now=self.now + timedelta(seconds=1),
+        )
+
+        entry = ProspectorFrontierEntry.objects.get(target_key=target.target_key)
+        self.assertEqual(entry.status, FrontierState.SUPPRESSED.value)
+        self.assertEqual(entry.suppression_reason, "security.non_global_address")
+        self.assertIsNotNone(entry.suppressed_at)
+
+        self.store.admit_sync(self.candidate())
+        entry.refresh_from_db()
+        self.assertEqual(entry.status, FrontierState.SUPPRESSED.value)
+
+        self.store.requeue_sync(
+            target_key=target.target_key,
+            available_at=self.now + timedelta(minutes=1),
+        )
+        entry.refresh_from_db()
+        self.assertEqual(entry.status, FrontierState.READY.value)
+        self.assertEqual(entry.suppression_reason, "")
+        self.assertIsNone(entry.suppressed_at)
+        self.assertEqual(entry.handoff_generation, 2)

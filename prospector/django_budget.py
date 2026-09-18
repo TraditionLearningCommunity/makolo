@@ -81,6 +81,10 @@ class DjangoBudgetStore:
                 period_start=period_start,
             ).first()
             if existing is not None:
+                if dict(existing.scopes) != scope_map:
+                    raise ProspectorContractError(
+                        "existing handoff reservation scopes do not match current policy context"
+                    )
                 return BudgetReservationDecision(
                     allowed=True,
                     retry_at=None,

@@ -38,6 +38,10 @@ def _suffixes(values) -> Tuple[str, ...]:
     result = []
     for value in tuple(values or ()):
         value = _required_text("host suffix", value).lower().lstrip(".")
+        try:
+            value = value.encode("idna").decode("ascii")
+        except UnicodeError as exc:
+            raise ProspectorContractError("host suffix must be valid IDNA") from exc
         if value not in result:
             result.append(value)
     return tuple(result)

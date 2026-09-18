@@ -6,8 +6,11 @@ from django.db import close_old_connections, connection, connections
 from django.test import TransactionTestCase
 
 from prospector.contracts import ProspectingCandidate, ProspectingEvidence
+from prospector.django_budget import DjangoBudgetStore
 from prospector.django_frontier import DjangoFrontierStore
 from prospector.django_app.models import (
+    ProspectorBudgetCounter,
+    ProspectorBudgetReservation,
     ProspectorFrontierEntry,
     ProspectorFrontierEvidence,
 )
@@ -93,3 +96,47 @@ class PostgreSQLFrontierConcurrencyTests(TransactionTestCase):
         self.assertEqual(len(second), 6)
         self.assertTrue(first.isdisjoint(second))
         self.assertEqual(len(first | second), 12)
+
+
+
+@skipUnless(POSTGRESQL, "PX4 budget concurrency contracts require PostgreSQL advisory locks")
+class PostgreSQLBudgetConcurrencyTests(TransactionTestCase):
+    reset_sequences = True
+
+    def setUp(self):
+        self.now = datetime(2026, 9, 18, 9, 0, tzinfo=dt_timezone.utc)
+        self.period_end = datetime(2026, 9, 18, 10, 0, tzinfo=dt_timezone.utc)
+
+    @staticmethod
+    def _in_thread(callback):
+        close_old_connections()
+        try:
+            return callback()
+        finally:
+            connections.close_all()
+
+    def test_concurrent_unique_handoffs_never_exceed_host_limit(self):
+        def reserve(index):
+            return self._in_thread(
+                lambda: DjangoBudgetStore().reserve_sync(
+                    handoff_key=f"observation:v1:{index:064x}",
+                    policy_key="px4-test-v1",
+                    scopes={"host": "example.test"},
+                    limits={"host": 5},
+                    period_start=self.now,
+                    period_end=self.period_end,
+                    now=self.now,
+                ).allowed
+            )
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            decisions = list(executor.map(reserve, range(12)))
+
+        self.assertEqual(sum(decisions), 5)
+        counter = ProspectorBudgetCounter.objects.get(
+            policy_key="px4-test-v1",
+            scope_kind="host",
+            scope_key="example.test",
+        )
+        self.assertEqual(counter.used_count, 5)
+        self.assertEqual(ProspectorBudgetReservation.objects.count(), 5)
