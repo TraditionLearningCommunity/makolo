@@ -32,6 +32,7 @@ from .observation_contracts import (
     observation_target_from_claim,
 )
 from .policy import BudgetPolicy, GateDecision, GateDisposition, ObservationPolicy
+from .runtime import ProspectorRuntime, RuntimeCycleStats, RuntimePolicy
 from .security import ObservationGate
 from .safe_handoff import SafeHandoffResult, SafeObservationHandoff
 
@@ -58,6 +59,9 @@ __all__ = [
     "ObservationGate",
     "SafeHandoffResult",
     "SafeObservationHandoff",
+    "RuntimePolicy",
+    "RuntimeCycleStats",
+    "ProspectorRuntime",
     "ProspectorContractError",
     "UnsupportedTargetKindError",
     "FrontierConflictError",

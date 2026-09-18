@@ -1,9 +1,9 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX5 — expansion autonome Web / sitemap / feed.**
+> **Statut du train : PX6 — runtime continu, recovery et backpressure avec Crawlee.**
 >
 > Base réconciliée : main@dcef775870afec0736cbfc018ad09d40913e01c6.
-> PX5 est empilé sur PX4@fe42bcfaba595569f6357a6db08e4f2b035fbc01.
+> PX6 est empilé sur PX5@27529f2971727f0c024111af59b6b38d1df32fab.
 > Le code, les migrations, les tests et le main courant restent prioritaires.
 
 ## 1. Mission
@@ -479,19 +479,156 @@ type
 Un titre, du texte, un pseudo-fait, un secret ou une annotation sémantique
 arbitraire ne devient donc pas de la provenance Prospecteur.
 
-## 10. Ce que PX5 ne fait pas
+## 10. PX6 : runtime continu et frontière Crawlee
 
-PX5 ne :
+PX6 transforme les contrats PX1→PX5 en une boucle d'exécution continue :
+
+~~~text
+Frontier READY
+    ↓ claim + lease PostgreSQL
+ObservationGate PX4
+    ↓
+Observateur durable
+    ↓ receipt
+    ├── ACCEPTED / ALREADY_ACCEPTED → Frontier COMPLETED
+    ├── DEFERRED                   → Frontier READY à retry_at
+    └── REJECTED                   → Frontier SUPPRESSED
+~~~
+
+Le runtime est `ProspectorRuntime`. Ses paramètres sont injectés via
+`RuntimePolicy` :
+
+- worker_id ;
+- taille de claim ;
+- durée de lease ;
+- délai de retry sur panne technique ;
+- cadence de polling ;
+- choix explicite de propager ou non le backpressure Observateur au reste du
+  batch déjà claimé.
+
+Aucune valeur de production n'est codée en dur.
+
+### Recovery
+
+Avant l'accusé de réception Observateur, la lease PX1 reste la source de
+recovery.
+
+~~~text
+worker A claim
+  ↓
+crash avant ACCEPTED
+  ↓ expiration lease
+worker B reclaim
+  ↓
+même target_key
+même handoff_generation
+même handoff_key
+~~~
+
+Le nouvel envoi reste donc idempotent côté Observateur.
+
+Une exception technique lors du handoff libère explicitement le claim vers
+`READY` avec le délai `exception_retry_seconds`.
+
+Une violation de contrat `ProspectorContractError` n'est jamais masquée par
+ce retry : elle remonte pour être corrigée.
+
+### Backpressure
+
+Un receipt Observateur `DEFERRED` porte déjà son `retry_at`.
+
+Par défaut PX6 considère ce signal comme un backpressure du consumer :
+
+- le claim courant est différé ;
+- les autres claims déjà acquis dans le batch sont libérés au même
+  `retry_at` ;
+- aucun appel Observateur supplémentaire n'est effectué dans ce batch.
+
+Cette propagation est désactivable explicitement par
+`stop_on_observer_deferred=False`.
+
+### Crawlee
+
+PX6 ajoute `crawlee==1.10.1` comme dépendance explicite.
+
+Makolo utilise ici **RequestQueue comme frontière d'exécution**, pas comme
+Frontier ni comme vérité métier.
+
+`CrawleeObservationInbox` :
+
+- reçoit uniquement `ObservationTarget` ;
+- construit un `Request` Crawlee ;
+- force `unique_key = handoff_key` ;
+- place le contrat technique sous `user_data["makolo"]` ;
+- ne transmet ni provenance complète, ni contexte métier, ni faits ;
+- détecte un handoff déjà présent avant le contrôle de capacité ;
+- retourne `ALREADY_ACCEPTED` pour les replays ;
+- retourne `DEFERRED / observer.capacity` lorsque la queue atteint le plafond
+  explicite.
+
+Le seuil de queue et le délai de retry sont injectés via
+`CrawleeQueuePolicy`. Une capacité `0` est une pause dure valide.
+
+### Stockage Crawlee
+
+PX6 **ne choisit pas** le stockage Crawlee de production.
+
+Le caller doit injecter une `RequestQueue` appartenant à l'Observateur avec
+la durabilité requise par son déploiement. Makolo ne suppose donc ni disque
+local, ni Redis, ni SQL Crawlee, ni credentials.
+
+La Frontier PostgreSQL Makolo reste la seule vérité durable du Prospecteur.
+
+### Séparation des acteurs
+
+PX6 ne transforme pas le Prospecteur en crawler HTTP.
+
+~~~text
+Prospecteur
+  ↓ ObservationTarget
+Crawlee RequestQueue
+  ↓
+Observateur
+  ↓ fetch / robots / redirects / contenu
+~~~
+
+Le fetch réel, la revalidation DNS à chaque connexion/redirect, robots,
+politeness, contenu et production d'`ObservationReport` restent propriété de
+l'Observateur.
+
+C'est volontaire : utiliser Crawlee dans PX6 ne doit pas faire disparaître la
+frontière architecturale validée en PX3.
+
+### Assemblage Django
+
+`build_django_crawlee_runtime(...)` compose :
+
+- DjangoFrontierStore ;
+- ObservationGate ;
+- SystemDnsResolver ;
+- TldExtractDomainScope ;
+- DjangoBudgetStore ;
+- CrawleeObservationInbox ;
+- SafeObservationHandoff ;
+- ProspectorRuntime.
+
+La RequestQueue est injectée par l'appelant ; aucune configuration de
+production n'est inventée.
+
+## 11. Ce que PX6 ne fait pas
+
+PX6 ne :
 
 - maintient aucune liste manuelle de sites ;
 - ne récupère aucun HTML de page ;
-- n'utilise pas encore Crawlee : PX6 ;
 - n'interprète pas le contenu ;
 - ne décide pas qu'une URL est une opportunité ;
 - ne crée aucune vérité métier ;
-- n'utilise ni Elasticsearch, Redis, Kafka, LLM ni navigateur headless ;
+- n'utilise ni Elasticsearch, Kafka, LLM ni navigateur headless ;
+- ne choisit pas le stockage de production de la queue Observateur ;
+- n'implémente pas le fetch HTTP/JS de l'Observateur ;
 
-## 11. Train
+## 12. Train
 
 ~~~text
 PX0  fondation Python pure
@@ -504,9 +641,9 @@ PX3  contrat Prospecteur ↔ Observateur
  ↓
 PX4  sécurité réseau / admissibilité / budgets
  ↓
-PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps  ← courant
+PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps
  ↓
-PX6  runtime continu + Crawlee / recovery / backpressure
+PX6  runtime continu + Crawlee / recovery / backpressure          ← courant
  ↓
 PX7  feedback aval + exploration/exploitation
  ↓
@@ -515,7 +652,7 @@ PX8  pilote Internet réel
 PX9  hardening / échelle
 ~~~
 
-## 12. Validation PX5
+## 13. Validation PX6
 
 Tests core :
 
@@ -594,3 +731,31 @@ Ils vérifient notamment :
 - replay sans duplication de cible ni de ligne de provenance.
 
 PX5 n'ajoute aucune migration.
+
+
+Tests PX6 spécifiques :
+
+~~~text
+python -m unittest   prospector.tests.test_runtime   prospector.tests.test_crawlee_queue
+
+python manage.py test   prospector.django_app.tests.test_runtime
+~~~
+
+Ils vérifient notamment :
+
+- ACCEPTED / ALREADY_ACCEPTED → complete ;
+- gate REJECT → suppress ;
+- gate DEFER → defer ;
+- observer REJECTED → suppress ;
+- observer DEFERRED → backpressure du batch ;
+- panne technique → defer/retry sans perte ;
+- violation de contrat → erreur visible, pas retry silencieux ;
+- boucle continue bornable par superviseur/tests ;
+- unique_key Crawlee = handoff_key ;
+- user_data minimal et technique ;
+- duplicate Crawlee → ALREADY_ACCEPTED ;
+- queue saturée → DEFERRED ;
+- capacité zéro → pause dure ;
+- transitions réelles PostgreSQL completed/ready.
+
+PX6 n'ajoute aucune migration.

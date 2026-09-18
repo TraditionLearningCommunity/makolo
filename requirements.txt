@@ -7,4 +7,5 @@ psycopg[binary]==3.3.4
 python-dotenv==1.2.2
 qrcode==8.2
 tldextract==5.3.2
+crawlee==1.10.1
 whitenoise[brotli]==6.12.0
