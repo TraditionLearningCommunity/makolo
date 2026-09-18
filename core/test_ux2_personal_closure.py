@@ -170,7 +170,7 @@ class UX2PersonalWaitlistTransferTests(TestCase):
 
     def test_incoming_transfer_is_actionable_now_and_continues(self):
         ticket = self.owner_order.tickets.first()
-        transfer = create_ticket_transfer(ticket=ticket, sender=self.owner, recipient=self.user)
+        transfer = create_ticket_transfer(ticket=ticket, sender=self.owner, recipient_email=self.user.email)
         self.assertTrue(transfer.is_pending_active)
 
         home = self.client.get(reverse("core:participant-home"))
