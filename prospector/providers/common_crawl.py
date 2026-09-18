@@ -338,7 +338,7 @@ class CommonCrawlIndexSource:
             )
             requests_used += 1
 
-            if response.status in {400, 404}:
+            if response.status == 400:
                 selector_index += 1
                 page = 0
                 offset = 0
