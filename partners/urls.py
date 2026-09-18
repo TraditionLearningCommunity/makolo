@@ -8,6 +8,7 @@ from .views import (
     PartnerCreateView,
     PartnerDashboardView,
     PartnerDetailView,
+    MyPartnerDetailView,
     PayoutCancelView,
     PayoutCreateView,
     PayoutMarkPaidView,
@@ -19,6 +20,7 @@ app_name = "partners"
 
 urlpatterns = [
     path("", PartnerDashboardView.as_view(), name="dashboard"),
+    path("me/<uuid:pk>/", MyPartnerDetailView.as_view(), name="my-detail"),
     path("r/<str:code>/", ReferralLandingView.as_view(), name="referral-landing"),
     path("org/<slug:slug>/", OrganizationPartnerView.as_view(), name="organization"),
     path("org/<slug:slug>/partners/new/", PartnerCreateView.as_view(), name="partner-create"),
