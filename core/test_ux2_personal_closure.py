@@ -7,6 +7,8 @@ from django.utils import timezone
 
 from events.models import Event, EventStatus, EventVisibility
 from objectives.models import Dossier, DossierLifecycle, Project, ProjectLifecycle
+from organizations.models import Organization
+from partners.models import Partner, PartnerKind, PartnerStatus
 from tickets.models import TicketWaitlistEntry, WaitlistStatus
 from tickets.services import create_order, create_ticket_transfer
 
@@ -101,6 +103,34 @@ class UX2PersonalNavigationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Objectifs atteints")
         self.assertNotContains(response, reverse("goals:list"))
+
+
+    def test_personal_partner_is_reachable_from_moi_and_idor_safe(self):
+        organization = Organization.objects.create(
+            name="UX2 Partner Org",
+            created_by=self.other,
+        )
+        partner = Partner.objects.create(
+            organization=organization,
+            user=self.user,
+            kind=PartnerKind.AMBASSADOR,
+            status=PartnerStatus.ACTIVE,
+            name="UX2 Ambassador",
+            email=self.user.email,
+            created_by=self.other,
+        )
+        self.client.force_login(self.user)
+        me = self.client.get(reverse("core:participant-me"))
+        personal_url = reverse("partners:my-detail", args=[partner.pk])
+        self.assertContains(me, personal_url)
+
+        detail = self.client.get(personal_url)
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Ma relation partenaire")
+        self.assertContains(detail, "ne donne aucun droit de gestion sur l’Espace")
+
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(personal_url).status_code, 404)
 
 
 class UX2PersonalWaitlistTransferTests(TestCase):
