@@ -79,3 +79,12 @@ class DjangoBudgetStoreTests(TestCase):
         }
         with self.assertRaises(ProspectorContractError):
             self.store.reserve_sync(handoff_key=key, **changed)
+
+
+    def test_same_handoff_with_changed_limits_is_rejected(self):
+        key = "observation:v1:" + ("e" * 64)
+        self.store.reserve_sync(handoff_key=key, **self.kwargs)
+        changed = dict(self.kwargs)
+        changed["limits"] = {"host": 3, "domain": 3}
+        with self.assertRaises(ProspectorContractError):
+            self.store.reserve_sync(handoff_key=key, **changed)

@@ -81,9 +81,9 @@ class DjangoBudgetStore:
                 period_start=period_start,
             ).first()
             if existing is not None:
-                if dict(existing.scopes) != scope_map:
+                if dict(existing.scopes) != scope_map or dict(existing.limits) != limit_map:
                     raise ProspectorContractError(
-                        "existing handoff reservation scopes do not match current policy context"
+                        "existing handoff reservation does not match current policy scopes/limits"
                     )
                 return BudgetReservationDecision(
                     allowed=True,
@@ -114,6 +114,10 @@ class DjangoBudgetStore:
                 counter = ProspectorBudgetCounter.objects.select_for_update().get(
                     pk=counter.pk
                 )
+                if counter.period_end != period_end:
+                    raise ProspectorContractError(
+                        "existing budget counter period_end does not match current policy"
+                    )
                 counters[kind] = counter
 
             for kind, counter in counters.items():
@@ -137,6 +141,7 @@ class DjangoBudgetStore:
                 period_start=period_start,
                 period_end=period_end,
                 scopes=scope_map,
+                limits=limit_map,
                 reserved_at=now,
             )
             return BudgetReservationDecision(

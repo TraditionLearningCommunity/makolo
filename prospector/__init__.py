@@ -31,6 +31,7 @@ from .observation_contracts import (
 )
 from .policy import BudgetPolicy, GateDecision, GateDisposition, ObservationPolicy
 from .security import ObservationGate
+from .safe_handoff import SafeHandoffResult, SafeObservationHandoff
 
 __all__ = [
     "CONTRACT_VERSION",
@@ -53,6 +54,8 @@ __all__ = [
     "GateDecision",
     "GateDisposition",
     "ObservationGate",
+    "SafeHandoffResult",
+    "SafeObservationHandoff",
     "ProspectorContractError",
     "UnsupportedTargetKindError",
     "FrontierConflictError",

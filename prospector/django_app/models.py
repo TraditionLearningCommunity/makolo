@@ -231,6 +231,7 @@ class ProspectorBudgetReservation(models.Model):
     period_start = models.DateTimeField()
     period_end = models.DateTimeField()
     scopes = models.JSONField(default=dict)
+    limits = models.JSONField(default=dict)
     reserved_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
