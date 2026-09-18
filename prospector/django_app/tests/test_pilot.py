@@ -90,8 +90,28 @@ class DjangoPilotSnapshotTests(TestCase):
             )
         )
 
+        # Same fingerprint but another mission_key must remain isolated.
+        self.frontier.admit_sync(
+            ProspectingCandidate(
+                locator="https://same-fingerprint.test/other-mission",
+                kind="web_url",
+                evidence=(
+                    ProspectingEvidence(
+                        method="external_index",
+                        provider="other",
+                        discovered_at=self.now,
+                    ),
+                ),
+                policy_context={
+                    "mission_key": "other-mission",
+                    "mission_fingerprint": self.fingerprint,
+                },
+            )
+        )
+
         snapshot = DjangoPilotSnapshotReader().snapshot_sync(
-            mission_fingerprint=self.fingerprint
+            mission_key="pilot",
+            mission_fingerprint=self.fingerprint,
         )
 
         self.assertEqual(snapshot.entry_count, 2)

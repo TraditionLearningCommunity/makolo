@@ -1155,7 +1155,7 @@ Ils vérifient notamment :
 - runtime cycles bornés lorsqu'un runtime est injecté ;
 - refus d'un runtime demandé mais absent ;
 - scorecard sans URL ;
-- snapshot Django scoped par le fingerprint porté par la provenance durable, même si le policy_context courant de la Frontier est ensuite remplacé ;
+- snapshot Django scoped par `mission_key + fingerprint` portés par la provenance durable, même si le policy_context courant de la Frontier est ensuite remplacé ;
 - refus de la commande live sans confirmation explicite ;
 - commande testée sans Internet via provider factice.
 

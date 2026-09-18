@@ -82,6 +82,7 @@ class Command(BaseCommand):
         )
         snapshots = DjangoPilotSnapshotReader()
         before = snapshots.snapshot_sync(
+            mission_key=mission.mission_key,
             mission_fingerprint=mission.fingerprint,
         )
 
@@ -104,6 +105,7 @@ class Command(BaseCommand):
 
         finished_at = timezone.now()
         after = snapshots.snapshot_sync(
+            mission_key=mission.mission_key,
             mission_fingerprint=mission.fingerprint,
         )
         scorecard = build_pilot_scorecard(

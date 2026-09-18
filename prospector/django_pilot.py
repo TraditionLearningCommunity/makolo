@@ -24,9 +24,15 @@ def _count_map(queryset, field: str) -> dict[str, int]:
 class DjangoPilotSnapshotReader:
     """Read-only PX8 scorecard projection scoped to one mission fingerprint."""
 
-    def snapshot_sync(self, *, mission_fingerprint: str) -> PilotSnapshot:
+    def snapshot_sync(
+        self,
+        *,
+        mission_key: str,
+        mission_fingerprint: str,
+    ) -> PilotSnapshot:
         evidence = ProspectorFrontierEvidence.objects.filter(
-            policy_context__mission_fingerprint=mission_fingerprint
+            policy_context__mission_key=mission_key,
+            policy_context__mission_fingerprint=mission_fingerprint,
         )
         entry_ids = evidence.values_list(
             "frontier_entry_id",
