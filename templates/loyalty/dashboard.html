@@ -16,7 +16,7 @@
       <h2 class="mt-2 text-lg font-extrabold">{% if account.current_tier %}Relation {{ account.current_tier.name }}{% else %}Relation active{% endif %}</h2>
       <p class="mt-2 text-sm" style="color:var(--mk-muted)">Cette organisation reconnaît votre relation dans son propre programme.</p>
       <a href="{% url 'loyalty:portal' account.program.organization.slug %}" class="mk-btn mk-btn-primary mt-4">Voir ce qui m’est disponible</a>
-      <p class="mt-4 text-xs" style="color:var(--mk-subtle)">Solde : {{ account.points_balance }} {{ account.program.points_name }}</p>
+      <p class="mt-4 text-xs tracking-normal" style="color:var(--mk-subtle)">Solde : {{ account.points_balance }} {{ account.program.points_name }}</p>
     </article>
     {% endfor %}
   </section>
