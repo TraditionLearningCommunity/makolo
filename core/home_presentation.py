@@ -186,7 +186,8 @@ def _journey_actions(profile, *, observed_at, metadata):
 def _dossier_actions(profile, *, observed_at, metadata):
     actions = []
     dossiers = dossiers_for_profile(profile).filter(
-        lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE}
+        owner_profile=profile,
+        lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
     ).order_by("-updated_at", "id")[:HOME_DOSSIER_CANDIDATE_LIMIT]
     for dossier in dossiers:
         try:
