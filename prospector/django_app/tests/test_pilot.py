@@ -58,6 +58,17 @@ class DjangoPilotSnapshotTests(TestCase):
                 },
             )
         )
+        DjangoFeedbackStore().record_sync(
+            ProspectingFeedback(
+                event_key="pilot-feedback-1",
+                target_key=target.target_key,
+                signal=FeedbackSignal.REALITY_NEW,
+                producer=FeedbackProducer.RESOLVER,
+                source_ref="resolver:1",
+                occurred_at=self.now,
+            )
+        )
+
         # A later admission from another mission overwrites the entry's current
         # policy_context, but must not erase PX8 mission attribution from its
         # durable evidence.
@@ -76,17 +87,6 @@ class DjangoPilotSnapshotTests(TestCase):
                     "mission_key": "later-other",
                     "mission_fingerprint": "y" * 64,
                 },
-            )
-        )
-
-        DjangoFeedbackStore().record_sync(
-            ProspectingFeedback(
-                event_key="pilot-feedback-1",
-                target_key=target.target_key,
-                signal=FeedbackSignal.REALITY_NEW,
-                producer=FeedbackProducer.RESOLVER,
-                source_ref="resolver:1",
-                occurred_at=self.now,
             )
         )
 
