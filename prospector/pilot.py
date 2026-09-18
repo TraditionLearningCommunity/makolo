@@ -201,9 +201,10 @@ def build_pilot_scorecard(
     for name, value in (("started_at", started_at), ("finished_at", finished_at)):
         if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
             raise ProspectorContractError(f"{name} must be timezone-aware")
-    new_entries = after.entry_count - before.entry_count
+    new_to_mission = after.entry_count - before.entry_count
     discovery_delta = after.discovery_count - before.discovery_count
-    rediscoveries = max(discovery_delta - max(new_entries, 0), 0)
+    evidence_delta = after.evidence_count - before.evidence_count
+    evidence_replays = max(discovery_delta - max(evidence_delta, 0), 0)
     feedback_delta = after.feedback_events - before.feedback_events
 
     scorecard = {
@@ -234,9 +235,10 @@ def build_pilot_scorecard(
             "exhausted": run.source_exhausted,
         },
         "frontier": {
-            "new_entries": new_entries,
-            "rediscoveries": rediscoveries,
-            "entry_count_after": after.entry_count,
+            "new_to_mission_targets": new_to_mission,
+            "new_mission_evidence": evidence_delta,
+            "evidence_replays": evidence_replays,
+            "mission_target_count_after": after.entry_count,
             "status_counts_after": dict(after.statuses),
             "suppression_reasons_after": dict(after.suppression_reasons),
             "evidence_methods_after": dict(after.evidence_methods),
@@ -261,8 +263,8 @@ def build_pilot_scorecard(
             "downstream_evaluable": feedback_delta > 0,
         },
         "ratios": {
-            "new_unique_targets_per_admission_attempt": _ratio(
-                max(new_entries, 0),
+            "new_to_mission_targets_per_admission_attempt": _ratio(
+                max(new_to_mission, 0),
                 run.source_admitted,
             ),
             "handoff_acceptance": _ratio(

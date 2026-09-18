@@ -895,8 +895,9 @@ source:
   admissions tentées
 
 Frontier:
-  nouvelles cibles uniques
-  redécouvertes
+  cibles nouvelles pour cette mission
+  nouvelles preuves de découverte
+  replays d'une même preuve
   statuts
   suppressions
   méthodes de provenance
@@ -1154,7 +1155,7 @@ Ils vérifient notamment :
 - runtime cycles bornés lorsqu'un runtime est injecté ;
 - refus d'un runtime demandé mais absent ;
 - scorecard sans URL ;
-- snapshot Django strictement scoped par mission fingerprint ;
+- snapshot Django scoped par le fingerprint porté par la provenance durable, même si le policy_context courant de la Frontier est ensuite remplacé ;
 - refus de la commande live sans confirmation explicite ;
 - commande testée sans Internet via provider factice.
 

@@ -58,6 +58,27 @@ class DjangoPilotSnapshotTests(TestCase):
                 },
             )
         )
+        # A later admission from another mission overwrites the entry's current
+        # policy_context, but must not erase PX8 mission attribution from its
+        # durable evidence.
+        self.frontier.admit_sync(
+            ProspectingCandidate(
+                locator="https://example.test/a",
+                kind="web_url",
+                evidence=(
+                    ProspectingEvidence(
+                        method="external_index",
+                        provider="other-index",
+                        discovered_at=self.now,
+                    ),
+                ),
+                policy_context={
+                    "mission_key": "later-other",
+                    "mission_fingerprint": "y" * 64,
+                },
+            )
+        )
+
         DjangoFeedbackStore().record_sync(
             ProspectingFeedback(
                 event_key="pilot-feedback-1",
@@ -74,6 +95,7 @@ class DjangoPilotSnapshotTests(TestCase):
         )
 
         self.assertEqual(snapshot.entry_count, 2)
+        self.assertEqual(snapshot.evidence_count, 2)
         self.assertEqual(snapshot.feedback_events, 1)
         self.assertEqual(snapshot.feedback_signals["reality_new"], 1)
         self.assertEqual(snapshot.evidence_methods["external_index"], 1)

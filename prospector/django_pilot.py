@@ -25,13 +25,15 @@ class DjangoPilotSnapshotReader:
     """Read-only PX8 scorecard projection scoped to one mission fingerprint."""
 
     def snapshot_sync(self, *, mission_fingerprint: str) -> PilotSnapshot:
-        entries = ProspectorFrontierEntry.objects.filter(
+        evidence = ProspectorFrontierEvidence.objects.filter(
             policy_context__mission_fingerprint=mission_fingerprint
         )
-        aggregate = entries.aggregate(total_discoveries=Sum("discovery_count"))
-        evidence = ProspectorFrontierEvidence.objects.filter(
-            frontier_entry__in=entries
-        )
+        entry_ids = evidence.values_list(
+            "frontier_entry_id",
+            flat=True,
+        ).distinct()
+        entries = ProspectorFrontierEntry.objects.filter(id__in=entry_ids)
+        aggregate = evidence.aggregate(total_discoveries=Sum("discovery_count"))
         target_keys = list(entries.values_list("target_key", flat=True))
         feedback = ProspectorFeedbackEvent.objects.filter(
             target_key__in=target_keys
