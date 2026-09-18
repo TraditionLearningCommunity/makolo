@@ -105,7 +105,13 @@ class DjangoFeedbackStoreTests(TestCase):
         projection = ProspectorFeedbackProjection.objects.get(
             policy_fingerprint=policy.fingerprint
         )
-        self.assertEqual(projection.last_event_id, 2)
+        self.assertEqual(
+            projection.last_event_id,
+            ProspectorFeedbackEvent.objects.order_by("-id").values_list(
+                "id",
+                flat=True,
+            ).first(),
+        )
 
         stat = ProspectorFeedbackStat.objects.get(
             policy_fingerprint=policy.fingerprint,
