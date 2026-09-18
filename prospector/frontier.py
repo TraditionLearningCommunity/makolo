@@ -40,6 +40,7 @@ class FrontierClaim:
     worker_id: str
     leased_until: datetime
     target: ProspectingTarget
+    handoff_generation: int = 1
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -55,3 +56,11 @@ class FrontierClaim:
         )
         if not isinstance(self.target, ProspectingTarget):
             raise ProspectorContractError("target must be a ProspectingTarget")
+        if (
+            not isinstance(self.handoff_generation, int)
+            or isinstance(self.handoff_generation, bool)
+            or self.handoff_generation < 1
+        ):
+            raise ProspectorContractError(
+                "handoff_generation must be a positive integer"
+            )

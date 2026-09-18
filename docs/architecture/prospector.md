@@ -1,9 +1,9 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX2 — sources autonomes / index externes.**
+> **Statut du train : PX3 — contrat Prospecteur ↔ Observateur.**
 >
 > Base initiale du train : main@9c60119f4eab8628ff33b230562f85ed8500c632.
-> PX2 est empilé sur PX1@9c2654bac8b8cfc54234359e18c65afb66138edc.
+> PX3 est empilé sur PX2@a3b676303c4144db80e68a0515064e906e7c0c92.
 > Le code, les migrations, les tests et le main courant restent prioritaires.
 
 ## 1. Mission
@@ -119,9 +119,119 @@ réutilisé.
 Pour Common Crawl, un checkpoint exhausted vérifie périodiquement la collection
 courante : une nouvelle révision recommence à selector/page/offset zéro.
 
-## 6. Ce que PX2 ne fait pas
+## 6. PX3 : contrat Prospecteur ↔ Observateur
 
-PX2 ne :
+PX3 fige la frontière sans implémenter encore l'Observateur réseau.
+
+### Prospecteur → Observateur
+
+`ObservationTarget` contient uniquement les informations techniques minimales :
+
+- `handoff_key` idempotent et versionné ;
+- `target_key` de la Frontier ;
+- `handoff_generation` ;
+- locator et kind ;
+- date de demande ;
+- `observation_hints` techniques.
+
+Le contrat ne transmet pas la provenance complète, le contexte métier, des
+Activity/Requirement/Proof/Access, ni une supposition sur ce que contient la
+page.
+
+La clé de handoff est dérivée de :
+
+~~~text
+target_key + handoff_generation
+~~~
+
+et **pas** du `claim_token`. Un worker qui meurt après soumission peut donc
+être remplacé : la nouvelle lease obtient un nouveau claim token, mais le même
+handoff reste idempotent côté Observateur.
+
+Un `requeue` explicite incrémente `handoff_generation` et crée donc une
+nouvelle observation intentionnelle.
+
+### Accusé de réception
+
+L'Observateur renvoie `ObservationReceipt` avec une disposition :
+
+~~~text
+ACCEPTED
+ALREADY_ACCEPTED
+DEFERRED
+REJECTED
+~~~
+
+`DEFERRED` exige un `reason_code` et un `retry_at`.
+`REJECTED` exige un `reason_code` et est terminal au niveau du contrat.
+
+PX3 ne décide pas encore comment un REJECTED devient suppression, revue ou
+autre politique Frontier : cette décision appartient à PX4/PX6.
+
+### Observateur → Prospecteur
+
+Le retour structurel est `ObservationReport`.
+
+Il peut contenir :
+
+- locator demandé et locator final ;
+- statut HTTP et MIME ;
+- références découvertes ;
+- métadonnées techniques ;
+- échec technique éventuel.
+
+Une `ObservedReference` transporte une relation technique ouverte, par exemple :
+
+~~~text
+link
+redirect
+canonical
+sitemap
+feed
+alternate
+~~~
+
+Le vocabulaire reste extensible sans transformer ces relations en vérités
+métier.
+
+Le report ne transporte **jamais le corps HTML**, ni les faits sémantiques
+extraits. Le contenu et les faits candidats suivent la frontière
+Observateur → Interpréteur, hors du Prospecteur.
+
+### Statuts de résultat
+
+~~~text
+OBSERVED
+NOT_MODIFIED
+FAILED
+~~~
+
+Un résultat FAILED doit porter un `failure_code`; il peut porter un
+`retry_at`. Les résultats réussis ne portent pas de code d'échec.
+
+## 7. Génération durable de handoff
+
+PX3 ajoute `handoff_generation` à chaque FrontierEntry.
+
+~~~text
+nouvelle cible       generation = 1
+lease expirée        generation inchangée
+defer                generation inchangée
+redécouverte         generation inchangée
+requeue explicite    generation += 1
+~~~
+
+Cela distingue deux choses :
+
+- **retry technique du même besoin d'observation** ;
+- **nouvelle intention explicite de réobserver**.
+
+Cette génération est durable en PostgreSQL et ne dépend pas de l'identité du
+worker.
+
+## 8. Ce que PX3 ne fait pas
+
+PX3 ne :
 
 - maintient aucune liste manuelle de sites ;
 - ne récupère aucun HTML de page ;
@@ -131,10 +241,9 @@ PX2 ne :
 - ne crée aucune vérité métier ;
 - n'utilise ni Elasticsearch, Redis, Kafka, LLM ni navigateur headless ;
 - ne fait pas encore de WebGraph, sitemap ou feed expansion : PX5 ;
-- ne définit pas encore le contrat complet Prospecteur ↔ Observateur : PX3 ;
 - ne porte pas encore la sécurité réseau générique SSRF/DNS : PX4.
 
-## 7. Train
+## 9. Train
 
 ~~~text
 PX0  fondation Python pure
@@ -143,7 +252,7 @@ PX1  Frontier PostgreSQL durable
  ↓
 PX2  sources autonomes / index externes
  ↓
-PX3  contrat Prospecteur ↔ Observateur
+PX3  contrat Prospecteur ↔ Observateur            ← courant
  ↓
 PX4  sécurité réseau / admissibilité / budgets
  ↓
@@ -158,7 +267,7 @@ PX8  pilote Internet réel
 PX9  hardening / échelle
 ~~~
 
-## 8. Validation PX2
+## 10. Validation PX3
 
 Tests core :
 
@@ -182,3 +291,21 @@ python manage.py migrate --noinput
 
 Tous les tests Common Crawl utilisent un transport factice. La CI ne dépend
 jamais d'Internet réel.
+
+
+Tests PX3 spécifiques :
+
+~~~text
+python -m unittest   prospector.tests.test_observation_contracts   prospector.tests.test_observation_handoff
+
+python manage.py test   prospector.django_app.tests.test_frontier
+~~~
+
+Ils vérifient notamment :
+
+- stabilité de la clé de handoff lors d'un reclaim de lease ;
+- changement de clé après requeue explicite ;
+- idempotence d'un FakeObserver ;
+- refus d'un receipt qui accuse réception d'une autre cible ;
+- absence de corps ou faits métier dans ObservationReport ;
+- conservation de la génération lors de defer/reclaim.

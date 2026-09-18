@@ -28,6 +28,7 @@ class ProspectorFrontierEntry(models.Model):
     first_discovered_at = models.DateTimeField()
     last_discovered_at = models.DateTimeField()
     discovery_count = models.PositiveBigIntegerField(default=1)
+    handoff_generation = models.PositiveBigIntegerField(default=1)
     policy_context = models.JSONField(default=dict, blank=True)
     observation_hints = models.JSONField(default=dict, blank=True)
     claim_token = models.UUIDField(null=True, blank=True, db_index=True)
@@ -45,6 +46,10 @@ class ProspectorFrontierEntry(models.Model):
             models.CheckConstraint(
                 condition=Q(discovery_count__gte=1),
                 name="pros_frontier_count_gte_1",
+            ),
+            models.CheckConstraint(
+                condition=Q(handoff_generation__gte=1),
+                name="pros_frontier_handoff_gen_gte_1",
             ),
             models.CheckConstraint(
                 condition=(

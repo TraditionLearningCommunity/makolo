@@ -148,3 +148,33 @@ class DjangoFrontierStoreTests(TestCase):
         entry = ProspectorFrontierEntry.objects.get(target_key=target.target_key)
         self.assertEqual(entry.status, FrontierState.READY.value)
         self.assertIsNone(entry.completed_at)
+        self.assertEqual(entry.handoff_generation, 2)
+
+
+    def test_defer_and_expired_reclaim_keep_same_handoff_generation(self):
+        self.store.admit_sync(self.candidate())
+        first = self.store.claim_sync(
+            worker_id="worker-a",
+            limit=1,
+            lease_seconds=60,
+            now=self.now,
+        )[0]
+        self.assertEqual(first.handoff_generation, 1)
+
+        future = self.now + timedelta(minutes=5)
+        self.store.defer_sync(first, available_at=future)
+        second = self.store.claim_sync(
+            worker_id="worker-b",
+            limit=1,
+            lease_seconds=60,
+            now=future,
+        )[0]
+        self.assertEqual(second.handoff_generation, 1)
+
+        reclaimed = self.store.claim_sync(
+            worker_id="worker-c",
+            limit=1,
+            lease_seconds=60,
+            now=future + timedelta(seconds=61),
+        )[0]
+        self.assertEqual(reclaimed.handoff_generation, 1)

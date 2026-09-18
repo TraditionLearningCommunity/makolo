@@ -315,6 +315,7 @@ class DjangoFrontierStore:
                         worker_id=worker_id,
                         leased_until=leased_until,
                         target=_entry_target(entry),
+                        handoff_generation=entry.handoff_generation,
                     )
                 )
             if entries:
@@ -412,6 +413,7 @@ class DjangoFrontierStore:
                 update_fields=[
                     "status",
                     "available_at",
+                    "handoff_generation",
                     "claim_token",
                     "claimed_by",
                     "claimed_at",
@@ -451,6 +453,7 @@ class DjangoFrontierStore:
                 raise FrontierClaimError("cannot requeue a target owned by an active claim")
             entry.status = FrontierState.READY.value
             entry.available_at = ready_at
+            entry.handoff_generation += 1
             entry.claim_token = None
             entry.claimed_by = ""
             entry.claimed_at = None

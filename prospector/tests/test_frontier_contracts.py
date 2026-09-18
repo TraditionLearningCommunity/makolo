@@ -25,6 +25,7 @@ class FrontierClaimTests(TestCase):
             worker_id="worker-a",
             leased_until=datetime(2026, 9, 18, 9, 5, tzinfo=timezone.utc),
             target=target,
+            handoff_generation=1,
         )
         self.assertEqual(claim.worker_id, "worker-a")
 
@@ -34,4 +35,5 @@ class FrontierClaimTests(TestCase):
                 worker_id="worker-b",
                 leased_until=datetime(2026, 9, 18, 9, 5),
                 target=target,
+                handoff_generation=1,
             )

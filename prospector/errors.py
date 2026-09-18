@@ -12,3 +12,7 @@ class FrontierConflictError(ProspectorContractError):
 
 class FrontierClaimError(ProspectorContractError):
     """Raised when a worker attempts an invalid or stale Frontier transition."""
+
+
+class ObservationContractError(ProspectorContractError):
+    """Raised when the Prospecteur/Observateur contract is inconsistent."""
