@@ -47,3 +47,43 @@ def build_django_crawlee_runtime(
         observation_policy=observation_policy,
         runtime_policy=runtime_policy,
     )
+
+
+
+def build_django_adaptive_crawlee_runtime(
+    *,
+    request_queue,
+    observation_policy: ObservationPolicy,
+    runtime_policy: RuntimePolicy,
+    queue_policy: CrawleeQueuePolicy,
+    adaptive_policy,
+) -> ProspectorRuntime:
+    """Compose PX7 adaptive selection without changing PX6 boundaries."""
+
+    from prospector.adaptive_frontier import DjangoAdaptiveFrontierStore
+    from prospector.django_feedback import DjangoFeedbackStore
+
+    feedback_store = DjangoFeedbackStore()
+    frontier = DjangoAdaptiveFrontierStore(
+        feedback_store=feedback_store,
+        policy=adaptive_policy,
+    )
+    gate = ObservationGate(
+        dns_resolver=SystemDnsResolver(),
+        domain_scope=TldExtractDomainScope(),
+        budget_store=DjangoBudgetStore(),
+    )
+    observer = CrawleeObservationInbox(
+        request_queue=request_queue,
+        policy=queue_policy,
+    )
+    handoff = SafeObservationHandoff(
+        gate=gate,
+        observer=observer,
+    )
+    return ProspectorRuntime(
+        frontier=frontier,
+        handoff=handoff,
+        observation_policy=observation_policy,
+        runtime_policy=runtime_policy,
+    )

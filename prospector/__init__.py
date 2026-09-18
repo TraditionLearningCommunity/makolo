@@ -18,6 +18,18 @@ from .errors import (
     ProspectorContractError,
     UnsupportedTargetKindError,
 )
+from .feedback import (
+    AdaptivePolicy,
+    CandidateLearning,
+    FeedbackPolicy,
+    FeedbackProducer,
+    FeedbackSignal,
+    LearningScope,
+    LearningStat,
+    ProspectingFeedback,
+    feedback_scopes_for_target,
+    score_target,
+)
 from .frontier import FrontierClaim, FrontierState
 from .expansion import ExpansionPolicy, ExpansionResult, ObservationExpansionSink
 from .observation_contracts import (
@@ -44,6 +56,16 @@ __all__ = [
     "ProspectingTarget",
     "FrontierClaim",
     "FrontierState",
+    "FeedbackSignal",
+    "FeedbackProducer",
+    "LearningScope",
+    "ProspectingFeedback",
+    "FeedbackPolicy",
+    "AdaptivePolicy",
+    "LearningStat",
+    "CandidateLearning",
+    "feedback_scopes_for_target",
+    "score_target",
     "ObservationTarget",
     "ObservationReceipt",
     "ObservationReport",

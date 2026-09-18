@@ -1,9 +1,9 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX6 — runtime continu, recovery et backpressure avec Crawlee.**
+> **Statut du train : PX7 — feedback aval et exploration/exploitation.**
 >
 > Base réconciliée : main@dcef775870afec0736cbfc018ad09d40913e01c6.
-> PX6 est empilé sur PX5@27529f2971727f0c024111af59b6b38d1df32fab.
+> PX7 est empilé sur PX6@ff48529510c18c2a508f007efe0198b0568fdd98.
 > Le code, les migrations, les tests et le main courant restent prioritaires.
 
 ## 1. Mission
@@ -615,9 +615,163 @@ frontière architecturale validée en PX3.
 La RequestQueue est injectée par l'appelant ; aucune configuration de
 production n'est inventée.
 
-## 11. Ce que PX6 ne fait pas
+## 11. PX7 : apprentissage opérationnel sans vérité métier
 
-PX6 ne :
+PX7 ajoute un retour aval borné permettant au Prospecteur d'apprendre **où
+prospecter davantage**, sans conclure lui-même qu'une page est une Activity,
+Requirement, Proof ou autre fait métier.
+
+### Signaux aval
+
+Le contrat `ProspectingFeedback` est volontairement petit :
+
+~~~text
+event_key
+target_key
+signal
+producer
+source_ref
+occurred_at
+~~~
+
+Signaux admis :
+
+~~~text
+observation_valid
+structured_information
+reality_new
+reality_refreshed
+no_useful_information
+downstream_rejected
+~~~
+
+Ces valeurs signifient uniquement qu'un acteur aval a déclaré un résultat de
+pipeline. Le Prospecteur ne reçoit ni contenu, ni faits extraits, ni objets
+métier.
+
+Le `event_key` rend chaque feedback idempotent. Une collision du même
+event_key avec un autre payload est une erreur de contrat.
+
+### Attribution technique
+
+Au moment d'enregistrer l'événement, PX7 photographie uniquement des dimensions
+déjà connues dans la Frontier :
+
+~~~text
+lineage_target
+method
+provider
+mission
+campaign
+branch
+~~~
+
+`lineage_target` inclut la cible elle-même et les parents
+`source_target_key`. Ainsi un enfant découvert à partir d'une cible productive
+peut bénéficier de ce signal sans copier le contenu ni la vérité métier du
+parent.
+
+### Journal brut et projection
+
+PX7 sépare :
+
+~~~text
+ProspectorFeedbackEvent
+        = événement brut immuable
+
+ProspectorFeedbackStat
+        = projection de score reconstruisible
+
+ProspectorFeedbackProjection
+        = checkpoint de projection par politique
+~~~
+
+Les poids appartiennent à `FeedbackPolicy` et doivent être explicitement
+fournis pour **chaque signal**.
+
+Le fingerprint dépend du policy_key et de tous les poids. Changer les poids
+crée donc une nouvelle projection qui peut rejouer le même journal brut depuis
+l'événement 1. Aucun historique n'est réécrit.
+
+### Score
+
+PX7 n'emploie ni modèle opaque ni float caché.
+
+Pour chaque dimension configurée :
+
+~~~text
+sample_count
+score_sum
+~~~
+
+sont combinés par des poids de dimension explicites.
+
+Le score moyen est une fraction exacte :
+
+~~~text
+weighted_score_sum / weighted_samples
+~~~
+
+Il n'existe aucun prior implicite.
+
+### Exploration / exploitation
+
+`AdaptivePolicy` exige explicitement :
+
+~~~text
+dimension_weights
+min_samples_for_exploitation
+exploration_numerator
+exploration_denominator
+candidate_pool_multiplier
+projection_batch_size
+~~~
+
+La Frontier garde son `priority` existant comme contrôle de base.
+
+PX7 procède en deux étages :
+
+~~~text
+1. priority / available_at
+   → bornent le candidate pool
+
+2. dans ce pool :
+   - cibles peu échantillonnées → exploration
+   - cibles suffisamment échantillonnées → exploitation par rendement
+~~~
+
+Une part du batch est réservée à l'exploration. Le reste exploite les routes
+mieux documentées. Si l'une des classes manque de candidats, l'autre remplit
+les places restantes.
+
+Une exploration_numerator = 0 désactive explicitement la réserve
+d'exploration.
+
+### Concurrence
+
+`DjangoAdaptiveFrontierStore` conserve les verrous PX1 :
+
+- `select_for_update(skip_locked=True)` sur PostgreSQL ;
+- leases ;
+- claim tokens ;
+- handoff_generation.
+
+L'apprentissage ne crée donc pas une deuxième file d'attente et ne permet pas
+à deux workers de prendre la même cible.
+
+### Intégration runtime
+
+PX7 ajoute `build_django_adaptive_crawlee_runtime(...)`.
+
+La seule différence avec PX6 est la stratégie de claim. Gates, budgets,
+Crawlee, receipts, recovery et transitions restent inchangés.
+
+Le runtime non adaptatif PX6 reste disponible : activer l'apprentissage est
+donc une décision explicite, pas un changement silencieux de comportement.
+
+## 12. Ce que PX7 ne fait pas
+
+PX7 ne :
 
 - maintient aucune liste manuelle de sites ;
 - ne récupère aucun HTML de page ;
@@ -625,10 +779,12 @@ PX6 ne :
 - ne décide pas qu'une URL est une opportunité ;
 - ne crée aucune vérité métier ;
 - n'utilise ni Elasticsearch, Kafka, LLM ni navigateur headless ;
+- ne produit aucune vérité métier à partir du score ;
+- ne modifie pas les Permissions, Mandates, Access, Readiness ou données privées ;
 - ne choisit pas le stockage de production de la queue Observateur ;
 - n'implémente pas le fetch HTTP/JS de l'Observateur ;
 
-## 12. Train
+## 13. Train
 
 ~~~text
 PX0  fondation Python pure
@@ -643,16 +799,16 @@ PX4  sécurité réseau / admissibilité / budgets
  ↓
 PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps
  ↓
-PX6  runtime continu + Crawlee / recovery / backpressure          ← courant
+PX6  runtime continu + Crawlee / recovery / backpressure
  ↓
-PX7  feedback aval + exploration/exploitation
+PX7  feedback aval + exploration/exploitation                     ← courant
  ↓
 PX8  pilote Internet réel
  ↓
 PX9  hardening / échelle
 ~~~
 
-## 13. Validation PX6
+## 14. Validation PX7
 
 Tests core :
 
@@ -759,3 +915,31 @@ Ils vérifient notamment :
 - transitions réelles PostgreSQL completed/ready.
 
 PX6 n'ajoute aucune migration.
+
+
+Tests PX7 spécifiques :
+
+~~~text
+python -m unittest   prospector.tests.test_feedback
+
+python manage.py test   prospector.django_app.tests.test_feedback   prospector.django_app.tests.test_feedback_concurrency   prospector.django_app.tests.test_adaptive_frontier
+~~~
+
+Ils vérifient notamment :
+
+- contrat feedback sans payload métier ;
+- fingerprint de politique ;
+- scopes lineage/method/provider/mission/campaign/branch ;
+- propagation du rendement parent vers enfant ;
+- replay idempotent d'un événement ;
+- collision event_key détectée ;
+- projection positive/neutre/négative ;
+- changement de poids → projection indépendante reconstruite ;
+- exploration réservée ;
+- exploitation par rendement ;
+- exploration désactivable explicitement ;
+- recovery de lease inchangé ;
+- feedback concurrent compté une seule fois ;
+- deux workers adaptatifs sans double claim.
+
+PX7 ajoute la migration `prospector_storage.0005_feedback_learning`.

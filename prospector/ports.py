@@ -5,6 +5,7 @@ from typing import Mapping, Optional, Protocol, Sequence, runtime_checkable
 
 from .budget import BudgetReservationDecision
 from .contracts import ProspectingCandidate, ProspectingTarget
+from .feedback import ProspectingFeedback
 from .frontier import FrontierClaim
 from .observation_contracts import (
     ObservationReceipt,
@@ -135,6 +136,14 @@ class ObservationReportSinkPort(Protocol):
     """Prospecteur-side boundary for structure-only Observateur feedback."""
 
     async def submit_report(self, report: ObservationReport) -> None:
+        ...
+
+
+@runtime_checkable
+class ProspectingFeedbackSinkPort(Protocol):
+    """Downstream outcome feedback boundary for Prospecteur learning."""
+
+    async def record(self, feedback: ProspectingFeedback) -> bool:
         ...
 
 
