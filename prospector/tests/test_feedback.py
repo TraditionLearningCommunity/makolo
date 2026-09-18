@@ -138,6 +138,18 @@ class FeedbackContractsTests(TestCase):
         self.assertEqual(empty, CandidateLearning(0, 0, 0))
         self.assertEqual(empty.mean_score, 0)
 
+    def test_adaptive_policy_requires_feedback_policy(self):
+        with self.assertRaises(ValueError):
+            AdaptivePolicy(
+                feedback="not-a-policy",
+                dimension_weights={"lineage_target": 1},
+                min_samples_for_exploitation=3,
+                exploration_numerator=1,
+                exploration_denominator=4,
+                candidate_pool_multiplier=4,
+                projection_batch_size=10,
+            )
+
     def test_exploration_slots_are_explicit_and_ceil_small_batches(self):
         policy = self.adaptive()
         self.assertEqual(policy.exploration_slots(1), 1)

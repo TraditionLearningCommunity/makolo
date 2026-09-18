@@ -149,6 +149,48 @@ class AdaptiveFrontierTests(TransactionTestCase):
             [high.target_key, medium.target_key],
         )
 
+    def test_base_priority_bounds_candidate_pool_before_learning(self):
+        protected = self.admit("protected")
+        high_yield = self.admit("high-yield-outside-pool")
+        ProspectorFrontierEntry.objects.filter(
+            target_key=protected.target_key
+        ).update(priority=1)
+        ProspectorFrontierEntry.objects.filter(
+            target_key=high_yield.target_key
+        ).update(priority=100)
+
+        self.feedback(
+            protected,
+            prefix="protected-low",
+            signal=FeedbackSignal.DOWNSTREAM_REJECTED,
+        )
+        self.feedback(
+            high_yield,
+            prefix="outside-high",
+            signal=FeedbackSignal.REALITY_NEW,
+        )
+        policy = AdaptivePolicy(
+            feedback=feedback_policy(),
+            dimension_weights={"lineage_target": 1},
+            min_samples_for_exploitation=3,
+            exploration_numerator=0,
+            exploration_denominator=1,
+            candidate_pool_multiplier=1,
+            projection_batch_size=10,
+        )
+        store = DjangoAdaptiveFrontierStore(
+            feedback_store=self.base,
+            policy=policy,
+        )
+        claim = store.claim_sync(
+            worker_id="priority-worker",
+            limit=1,
+            lease_seconds=60,
+            now=self.now,
+        )[0]
+
+        self.assertEqual(claim.target.target_key, protected.target_key)
+
     def test_expired_claim_can_be_recovered_by_adaptive_worker(self):
         target = self.admit("recover")
         first = self.store.claim_sync(

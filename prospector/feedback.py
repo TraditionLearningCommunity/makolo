@@ -154,6 +154,8 @@ class AdaptivePolicy:
     projection_batch_size: int
 
     def __post_init__(self) -> None:
+        if not isinstance(self.feedback, FeedbackPolicy):
+            raise ProspectorContractError("feedback must be a FeedbackPolicy")
         if not isinstance(self.dimension_weights, Mapping):
             raise ProspectorContractError("dimension_weights must be a mapping")
         weights = {}

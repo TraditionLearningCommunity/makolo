@@ -81,91 +81,112 @@ class DjangoAdaptiveFrontierStore(DjangoFrontierStore):
                 limit * self.adaptive_policy.candidate_pool_multiplier,
             ),
         )
+        eligible = (
+            Q(
+                status=FrontierState.READY.value,
+                available_at__lte=now,
+            )
+            | Q(
+                status=FrontierState.CLAIMED.value,
+                lease_expires_at__lte=now,
+            )
+        )
 
+        # Ranking is a snapshot, not a lock. Locking the whole candidate pool
+        # would make concurrent workers skip useful rows that this worker will
+        # never claim. Final eligibility is revalidated under a row lock below.
+        pool = list(
+            ProspectorFrontierEntry.objects.filter(eligible)
+            .order_by("priority", "available_at", "id")[:pool_size]
+        )
+        if not pool:
+            return ()
+
+        targets = [_entry_target(entry) for entry in pool]
+        learning = self.feedback_store.learning_for_targets_sync(
+            targets,
+            policy=self.adaptive_policy,
+        )
+        target_by_entry = {
+            entry.pk: target
+            for entry, target in zip(pool, targets)
+        }
+
+        exploration = []
+        exploitation = []
+        for entry in pool:
+            target = target_by_entry[entry.pk]
+            learned = learning[target.target_key]
+            item = (entry, target, learned)
+            if (
+                learned.support_samples
+                < self.adaptive_policy.min_samples_for_exploitation
+            ):
+                exploration.append(item)
+            else:
+                exploitation.append(item)
+
+        exploration.sort(
+            key=lambda item: (
+                item[2].support_samples,
+                item[0].priority,
+                item[0].available_at,
+                item[0].id,
+            )
+        )
+        exploitation.sort(
+            key=lambda item: (
+                -item[2].mean_score,
+                item[0].priority,
+                item[0].available_at,
+                item[0].id,
+            )
+        )
+
+        exploration_slots = self.adaptive_policy.exploration_slots(limit)
         with transaction.atomic():
-            queryset = ProspectorFrontierEntry.objects.filter(
-                Q(
-                    status=FrontierState.READY.value,
-                    available_at__lte=now,
-                )
-                | Q(
-                    status=FrontierState.CLAIMED.value,
-                    lease_expires_at__lte=now,
-                )
-            ).order_by("priority", "available_at", "id")
-            queryset = _lock_queryset(queryset, skip_locked=True)
-            pool = list(queryset[:pool_size])
-            if not pool:
-                return ()
+            selected = []
+            selected_ids = set()
 
-            targets = [_entry_target(entry) for entry in pool]
-            learning = self.feedback_store.learning_for_targets_sync(
-                targets,
-                policy=self.adaptive_policy,
-            )
-            target_by_entry = {
-                entry.pk: target
-                for entry, target in zip(pool, targets)
-            }
+            def try_add(item) -> bool:
+                entry, _snapshot_target, learned = item
+                if entry.pk in selected_ids or len(selected) >= limit:
+                    return False
+                locked = _lock_queryset(
+                    ProspectorFrontierEntry.objects.filter(
+                        Q(pk=entry.pk) & eligible
+                    ),
+                    skip_locked=True,
+                ).first()
+                if locked is None:
+                    return False
+                selected.append((locked, _entry_target(locked), learned))
+                selected_ids.add(locked.pk)
+                return True
 
-            exploration = []
-            exploitation = []
-            for entry in pool:
-                target = target_by_entry[entry.pk]
-                learned = learning[target.target_key]
-                item = (entry, target, learned)
-                if (
-                    learned.support_samples
-                    < self.adaptive_policy.min_samples_for_exploitation
-                ):
-                    exploration.append(item)
-                else:
-                    exploitation.append(item)
-
-            exploration.sort(
-                key=lambda item: (
-                    item[2].support_samples,
-                    item[0].priority,
-                    item[0].available_at,
-                    item[0].id,
-                )
-            )
-            exploitation.sort(
-                key=lambda item: (
-                    -item[2].mean_score,
-                    item[0].priority,
-                    item[0].available_at,
-                    item[0].id,
-                )
-            )
-
-            exploration_slots = self.adaptive_policy.exploration_slots(limit)
-            selected = exploration[:exploration_slots]
-            selected_ids = {item[0].pk for item in selected}
+            explored = 0
+            for item in exploration:
+                if explored >= exploration_slots:
+                    break
+                if try_add(item):
+                    explored += 1
 
             for item in exploitation:
                 if len(selected) >= limit:
                     break
-                selected.append(item)
-                selected_ids.add(item[0].pk)
+                try_add(item)
 
             if len(selected) < limit:
-                for item in exploration[exploration_slots:]:
+                for item in exploration:
                     if len(selected) >= limit:
                         break
-                    if item[0].pk in selected_ids:
-                        continue
-                    selected.append(item)
-                    selected_ids.add(item[0].pk)
+                    try_add(item)
 
             if len(selected) < limit:
                 for item in exploitation:
                     if len(selected) >= limit:
                         break
-                    if item[0].pk in selected_ids:
-                        continue
-                    selected.append(item)
-                    selected_ids.add(item[0].pk)
+                    try_add(item)
 
             claims = []
             entries = []

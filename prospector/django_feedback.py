@@ -132,6 +132,12 @@ class DjangoFeedbackStore:
             raise ProspectorContractError("batch_size must be a positive integer")
 
         with transaction.atomic():
+            _advisory_lock(
+                "feedback-projection:"
+                + policy.policy_key
+                + ":"
+                + policy.fingerprint
+            )
             projection, _created = ProspectorFeedbackProjection.objects.get_or_create(
                 policy_key=policy.policy_key,
                 policy_fingerprint=policy.fingerprint,
