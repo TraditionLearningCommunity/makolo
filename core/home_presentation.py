@@ -39,6 +39,8 @@ from recognition.selectors import redemptions_requiring_beneficiary_response
 from social.models import ActionProposalDirection
 from social.profile_search import action_proposals_requiring_actor_response
 from spatiotemporal.hazards import get_action_advices, get_hazards
+from tickets.models import TransferStatus, WaitlistStatus
+from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
 
 from .participant_presentation import occurrence_timing
 from .participant_selectors import ACTIVE_JOURNEY_STATUSES, participant_active_accesses
@@ -50,6 +52,7 @@ HOME_PREPARED_START_LIMIT = 3
 HOME_CONVERSATION_LIMIT = 6
 HOME_ACTION_PROPOSAL_LIMIT = 6
 HOME_RECOGNITION_LIMIT = 4
+HOME_LEGACY_ACTION_LIMIT = 4
 HOME_UPCOMING_CANDIDATE_LIMIT = 12
 HOME_SECTION_LIMIT = 5
 ACTION_PROPOSAL_ACTION_KEY = "respond"
@@ -433,6 +436,84 @@ def _recognition_actions(profile, *, observed_at, metadata):
     return actions
 
 
+def _waitlist_transfer_actions(profile, *, observed_at, metadata):
+    actions = []
+
+    offered_entries = (
+        get_waitlist_entries_visible_to(profile)
+        .filter(user=profile, status=WaitlistStatus.OFFERED)
+        .order_by("offer_expires_at", "created_at", "id")[:HOME_LEGACY_ACTION_LIMIT]
+    )
+    for entry in offered_entries:
+        if not entry.is_offer_active:
+            continue
+        action = _presentation_action(
+            identity=ContextualActionIdentity(
+                source_domain="tickets",
+                source_key=f"waitlist:{entry.pk}",
+                action_key="accept_offer",
+                context_type="waitlist",
+                context_id=str(entry.pk),
+            ),
+            kind="waitlist.offer_decision",
+            reason_code="waitlist.offer_requires_decision",
+            label="Accepter ou laisser passer",
+            summary="Une place s’est libérée et attend votre décision.",
+            observed_at=observed_at,
+            priority=ContextualActionPriority.P1_REQUIRED,
+            url=reverse("tickets:waitlist-list"),
+            deadline=entry.offer_expires_at,
+            mandatory=True,
+        )
+        actions.append(action)
+        _register_meta(
+            metadata,
+            (action,),
+            HomeActionMeta(
+                context_label=entry.ticket_type.event.title,
+                source_label="Liste d’attente",
+                fallback_url=action.url,
+            ),
+        )
+
+    incoming_transfers = (
+        get_ticket_transfers_visible_to(profile)
+        .filter(recipient=profile, status=TransferStatus.PENDING, expires_at__gt=observed_at)
+        .order_by("expires_at", "created_at", "id")[:HOME_LEGACY_ACTION_LIMIT]
+    )
+    for transfer in incoming_transfers:
+        action = _presentation_action(
+            identity=ContextualActionIdentity(
+                source_domain="tickets",
+                source_key=f"transfer:{transfer.pk}",
+                action_key="recipient_decision",
+                context_type="ticket_transfer",
+                context_id=str(transfer.pk),
+            ),
+            kind="transfer.recipient_decision",
+            reason_code="transfer.recipient_decision_required",
+            label="Accepter ou refuser",
+            summary="Un transfert de droit vous est proposé.",
+            observed_at=observed_at,
+            priority=ContextualActionPriority.P1_REQUIRED,
+            url=reverse("tickets:transfer-list"),
+            deadline=transfer.expires_at,
+            mandatory=True,
+        )
+        actions.append(action)
+        _register_meta(
+            metadata,
+            (action,),
+            HomeActionMeta(
+                context_label=transfer.ticket.event.title,
+                source_label="Transfert",
+                fallback_url=action.url,
+            ),
+        )
+
+    return actions
+
+
 def _status_label(action):
     return {
         ContextualActionability.TERMINAL: "À savoir",
@@ -540,6 +621,7 @@ def build_mature_home(profile, *, observed_at=None):
     actions.extend(_conversation_actions(profile, observed_at=observed_at, metadata=metadata))
     actions.extend(_action_proposal_actions(profile, observed_at=observed_at, metadata=metadata))
     actions.extend(_recognition_actions(profile, observed_at=observed_at, metadata=metadata))
+    actions.extend(_waitlist_transfer_actions(profile, observed_at=observed_at, metadata=metadata))
 
     result = resolve_contextual_actions(actions, observed_at=observed_at)
     primary_attention = _project_action(result.primary_attention, metadata) if result.primary_attention else None
