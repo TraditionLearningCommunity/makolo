@@ -55,21 +55,28 @@ class Task29PersonalHubTests(TestCase):
             status=status,
         )
 
-    def test_home_does_not_repeat_upcoming_access_as_second_access_card(self):
-        access = Access.objects.create(
+    def test_upcoming_access_stays_out_of_maintenant_and_is_visible_in_ongoing(self):
+        Access.objects.create(
             beneficiary=self.profile,
             activity=self.activity,
             occurrence=self.occurrence,
             status=AccessStatus.VALID,
         )
-        response = self.client.get(reverse("core:participant-home"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual([item["access"].pk for item in response.context["upcoming"]], [access.pk])
-        self.assertEqual(response.context["active_access_count"], 1)
-        self.assertNotIn("active_accesses", response.context)
-        self.assertContains(response, "1 accès actif")
 
-    def test_actionable_journey_is_not_recent_history(self):
+        home = self.client.get(reverse("core:participant-home"))
+        self.assertEqual(home.status_code, 200)
+        self.assertTrue(home.context["home"].all_clear)
+        self.assertNotIn("upcoming", home.context)
+        self.assertNotIn("active_access_count", home.context)
+        self.assertContains(home, "Tout est en ordre. ✓")
+        self.assertNotContains(home, self.activity.title)
+
+        ongoing = self.client.get(reverse("core:participant-ongoing"))
+        self.assertEqual(ongoing.status_code, 200)
+        self.assertContains(ongoing, self.activity.title)
+        self.assertContains(ongoing, "Votre accès est déjà disponible.")
+
+    def test_actionable_journey_is_in_maintenant_but_not_history(self):
         journey = self._journey(status=JourneyStatus.PENDING_PAYMENT)
         CommerceOrder.objects.create(
             journey=journey,
@@ -80,11 +87,24 @@ class Task29PersonalHubTests(TestCase):
             discount_total=Decimal("0.00"),
             total=Decimal("10.00"),
         )
-        response = self.client.get(reverse("core:participant-home"))
-        self.assertIn(journey.pk, [item["journey"].pk for item in response.context["actionable"]])
+
+        home = self.client.get(reverse("core:participant-home"))
+        self.assertFalse(home.context["home"].all_clear)
+        projected = [
+            item
+            for item in (
+                home.context["home"].primary_attention,
+                home.context["home"].primary_action,
+                *home.context["home"].action_items,
+            )
+            if item is not None
+        ]
+        self.assertIn(self.activity.title, [item.context_label for item in projected])
+
+        history = self.client.get(reverse("core:participant-history"))
         recent_journey_ids = {
             item["journey_card"]["journey"].pk
-            for item in response.context["recent_history"]
+            for item in history.context["history_items"]
             if item["journey_card"] is not None
         }
         self.assertNotIn(journey.pk, recent_journey_ids)
@@ -137,8 +157,8 @@ class Task29PersonalHubTests(TestCase):
             occurrence=past,
             status=AccessStatus.VALID,
         )
-        home = self.client.get(reverse("core:participant-home"))
-        self.assertNotIn(access.pk, [item["access"].pk for item in home.context["upcoming"]])
+        ongoing = self.client.get(reverse("core:participant-ongoing"))
+        self.assertNotContains(ongoing, self.activity.title)
         history = self.client.get(reverse("core:participant-history"))
         self.assertIn(access.pk, [
             item["access_card"]["access"].pk
@@ -202,24 +222,29 @@ class Task29PersonalHubTests(TestCase):
         self.assertTrue(first.context["page_obj"].has_next())
         self.assertGreater(len(second.context["history_items"]), 0)
 
-    def test_personal_navigation_uses_history_and_bell_for_notifications(self):
+    def test_personal_navigation_keeps_attention_in_header_and_history_under_moi(self):
         notification = Notification.objects.create(
             recipient=self.profile,
             title="Action test T29",
             message="Ne doit pas être marquée lue par le hub.",
         )
-        response = self.client.get(reverse("core:participant-home"))
-        self.assertContains(response, reverse("core:participant-history"))
-        self.assertContains(response, reverse("notifications:list"))
-        self.assertNotContains(response, ">Notifications</span>")
+        home = self.client.get(reverse("core:participant-home"))
+        self.assertContains(home, reverse("notifications:list"))
+        self.assertNotContains(home, reverse("core:participant-history"))
+        self.assertNotContains(home, ">Notifications</span>")
+
+        me = self.client.get(reverse("core:participant-me"))
+        self.assertContains(me, reverse("core:participant-history"))
+
         notification.refresh_from_db()
         self.assertIsNone(notification.read_at)
 
-    def test_hub_shortcuts_reuse_canonical_surfaces(self):
-        response = self.client.get(reverse("core:participant-home"))
-        self.assertContains(response, reverse("groups:list"))
-        self.assertContains(response, reverse("discovery:bookmarks"))
+    def test_moi_reuses_canonical_secondary_surfaces_without_global_shortcuts(self):
+        response = self.client.get(reverse("core:participant-me"))
         self.assertContains(response, reverse("organizations:list"))
+        self.assertContains(response, reverse("personal_assets:list"))
+        self.assertContains(response, reverse("discovery:bookmarks"))
+        self.assertContains(response, reverse("core:participant-history"))
 
     def test_hub_query_count_does_not_scale_with_recent_history_rows(self):
         with CaptureQueriesContext(connection) as baseline:
