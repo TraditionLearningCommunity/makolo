@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Mapping, Optional, Protocol, Sequence
+from typing import Awaitable, Callable, Mapping, Optional, Protocol, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from prospector.errors import ProspectorContractError
+from prospector.errors import (
+    ProspectorContractError,
+    ProspectorSourceError,
+    ProspectorSourceRateLimitError,
+)
 from prospector.source_contracts import (
     IndexedResource,
     ProspectingMission,
@@ -63,7 +68,7 @@ class UrllibHttpTransport:
             body = exc.read().decode("utf-8", errors="replace")
             return HttpResponse(status=int(exc.code), body=body)
         except URLError as exc:
-            raise ProspectorContractError(
+            raise ProspectorSourceError(
                 f"Common Crawl request failed: {exc.reason}"
             ) from exc
 
@@ -84,7 +89,15 @@ def _path_filter_regex(path_terms: Sequence[str]) -> str:
         raise ProspectorContractError(
             "Common Crawl TLD discovery requires at least one path term"
         )
-    return ".*(?:%s).*" % "|".join(escaped)
+    # Terms are URL-token selectors, not arbitrary substrings. In particular,
+    # "formation" must not match "information". RE2-compatible boundaries are
+    # expressed with URL separators instead of look-around assertions.
+    separators = r"[-/:?&=#._~%+]"
+    return (
+        r".*" + separators
+        + r"(?:" + "|".join(escaped) + r")"
+        + r"(?:" + separators + r".*|$)"
+    )
 
 
 class CommonCrawlIndexSource:
@@ -103,6 +116,8 @@ class CommonCrawlIndexSource:
         transport: Optional[HttpTransport] = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
         max_requests_per_run: int = DEFAULT_MAX_REQUESTS_PER_RUN,
+        request_interval_seconds: float = 0.0,
+        sleeper: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         user_agent = (user_agent or "").strip()
         if not user_agent:
@@ -113,6 +128,22 @@ class CommonCrawlIndexSource:
         self.transport = transport or UrllibHttpTransport()
         self.timeout_seconds = max(int(timeout_seconds), 1)
         self.max_requests_per_run = max(int(max_requests_per_run), 1)
+        try:
+            interval = float(request_interval_seconds)
+        except (TypeError, ValueError) as exc:
+            raise ProspectorContractError(
+                "request_interval_seconds must be numeric"
+            ) from exc
+        if not math.isfinite(interval) or interval < 0:
+            raise ProspectorContractError(
+                "request_interval_seconds must be finite and non-negative"
+            )
+        if not callable(sleeper):
+            raise ProspectorContractError("sleeper must be callable")
+        self.request_interval_seconds = interval
+        self.sleeper = sleeper
+        self._request_started = False
+        self._request_lock = asyncio.Lock()
 
     @property
     def _headers(self) -> Mapping[str, str]:
@@ -122,17 +153,29 @@ class CommonCrawlIndexSource:
         }
 
     async def _get(self, url: str) -> HttpResponse:
-        return await asyncio.to_thread(
-            self.transport.get,
-            url,
-            headers=self._headers,
-            timeout_seconds=self.timeout_seconds,
-        )
+        # One Common Crawl source instance never issues concurrent requests.
+        # PX8 live pilots additionally inject a positive interval.
+        async with self._request_lock:
+            if self._request_started and self.request_interval_seconds > 0:
+                await self.sleeper(self.request_interval_seconds)
+            response = await asyncio.to_thread(
+                self.transport.get,
+                url,
+                headers=self._headers,
+                timeout_seconds=self.timeout_seconds,
+            )
+            self._request_started = True
+            return response
 
     async def _latest_collection(self) -> str:
         response = await self._get(COLLECTIONS_URL)
+        if response.status in {429, 503}:
+            raise ProspectorSourceRateLimitError(
+                f"Common Crawl collections request returned HTTP {response.status}; "
+                "stop the live run and retry later"
+            )
         if response.status != 200:
-            raise ProspectorContractError(
+            raise ProspectorSourceError(
                 f"Common Crawl collections request returned HTTP {response.status}"
             )
         try:
@@ -178,8 +221,7 @@ class CommonCrawlIndexSource:
         page: int,
     ) -> str:
         params = [
-            ("url", f"*.{tld}"),
-            ("matchType", "domain"),
+            ("url", f"*.{tld}/*"),
             ("output", "json"),
             ("page", str(page)),
             ("pageSize", str(DEFAULT_PAGE_SIZE_BLOCKS)),
@@ -296,13 +338,18 @@ class CommonCrawlIndexSource:
             )
             requests_used += 1
 
-            if response.status == 400:
+            if response.status in {400, 404}:
                 selector_index += 1
                 page = 0
                 offset = 0
                 continue
+            if response.status in {429, 503}:
+                raise ProspectorSourceRateLimitError(
+                    f"Common Crawl index request returned HTTP {response.status}; "
+                    "stop the live run and retry later"
+                )
             if response.status != 200:
-                raise ProspectorContractError(
+                raise ProspectorSourceError(
                     f"Common Crawl index request returned HTTP {response.status}"
                 )
 

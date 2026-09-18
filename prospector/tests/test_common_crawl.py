@@ -1,12 +1,17 @@
 import json
+import re
 from datetime import datetime, timezone
 from unittest import IsolatedAsyncioTestCase
 
-from prospector.errors import ProspectorContractError
+from prospector.errors import (
+    ProspectorContractError,
+    ProspectorSourceRateLimitError,
+)
 from prospector.providers.common_crawl import (
     COLLECTIONS_URL,
     CommonCrawlIndexSource,
     HttpResponse,
+    _path_filter_regex,
 )
 from prospector.source_contracts import ProspectingMission, SourceCheckpoint
 
@@ -88,7 +93,8 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         self.assertEqual(batch.records[0].provider, "common_crawl")
         self.assertIn("page=0", transport.calls[1][0])
         self.assertIn("pageSize=1", transport.calls[1][0])
-        self.assertIn("matchType=domain", transport.calls[1][0])
+        self.assertIn("url=%2A.cd%2F%2A", transport.calls[1][0])
+        self.assertNotIn("matchType=domain", transport.calls[1][0])
         self.assertEqual(transport.calls[0][0], COLLECTIONS_URL)
 
     async def test_deduplicates_same_locator_inside_batch(self):
@@ -149,3 +155,77 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         )
         with self.assertRaises(ProspectorContractError):
             await source.discover(mission)
+
+
+    async def test_live_query_pacing_is_serial_and_explicit(self):
+        sleeps = []
+
+        async def sleeper(seconds):
+            sleeps.append(seconds)
+
+        transport = FakeTransport(
+            [
+                HttpResponse(200, json.dumps([{"id": "CC-MAIN-2026-30"}])),
+                HttpResponse(
+                    200,
+                    ndjson(
+                        {
+                            "timestamp": "20260701010203",
+                            "url": "https://uni.cd/formation/network",
+                            "mime": "text/html",
+                            "status": "200",
+                        }
+                    ),
+                ),
+            ]
+        )
+        source = CommonCrawlIndexSource(
+            user_agent="Makolo PX8 test",
+            transport=transport,
+            max_requests_per_run=1,
+            request_interval_seconds=1.25,
+            sleeper=sleeper,
+        )
+
+        await source.discover(self.mission(max_candidates=1))
+
+        self.assertEqual(sleeps, [1.25])
+        self.assertEqual(len(transport.calls), 2)
+
+    async def test_rate_limit_stops_instead_of_retrying_aggressively(self):
+        source = CommonCrawlIndexSource(
+            user_agent="Makolo PX8 test",
+            transport=FakeTransport([HttpResponse(503, "slow down")]),
+        )
+        with self.assertRaises(ProspectorSourceRateLimitError):
+            await source.discover(self.mission())
+
+    async def test_404_index_page_is_treated_as_exhausted_selector(self):
+        source = CommonCrawlIndexSource(
+            user_agent="Makolo PX8 test",
+            transport=FakeTransport(
+                [
+                    HttpResponse(200, json.dumps([{"id": "CC-MAIN-2026-30"}])),
+                    HttpResponse(404, "not found"),
+                ]
+            ),
+            max_requests_per_run=1,
+        )
+        batch = await source.discover(self.mission())
+        self.assertTrue(batch.exhausted)
+        self.assertEqual(batch.records, ())
+
+    def test_path_term_filter_uses_url_token_boundaries(self):
+        pattern = re.compile(_path_filter_regex(("formation", "admission")))
+        self.assertRegex(
+            "https://uni.cd/formation/network",
+            pattern,
+        )
+        self.assertRegex(
+            "https://uni.cd/programme-admission-2026",
+            pattern,
+        )
+        self.assertNotRegex(
+            "https://news.cd/information-generale",
+            pattern,
+        )

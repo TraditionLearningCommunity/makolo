@@ -31,6 +31,13 @@ from .feedback import (
     score_target,
 )
 from .frontier import FrontierClaim, FrontierState
+from .pilot import (
+    PilotPolicy,
+    PilotRunStats,
+    PilotSnapshot,
+    ProspectorPilotRunner,
+    build_pilot_scorecard,
+)
 from .expansion import ExpansionPolicy, ExpansionResult, ObservationExpansionSink
 from .observation_contracts import (
     OBSERVATION_CONTRACT_VERSION,
@@ -66,6 +73,11 @@ __all__ = [
     "CandidateLearning",
     "feedback_scopes_for_target",
     "score_target",
+    "PilotPolicy",
+    "PilotRunStats",
+    "PilotSnapshot",
+    "ProspectorPilotRunner",
+    "build_pilot_scorecard",
     "ObservationTarget",
     "ObservationReceipt",
     "ObservationReport",

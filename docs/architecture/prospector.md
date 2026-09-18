@@ -1,9 +1,9 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX7 — feedback aval et exploration/exploitation.**
+> **Statut du train : PX8 — pilote Internet réel borné et mesurable.**
 >
 > Base réconciliée : main@dcef775870afec0736cbfc018ad09d40913e01c6.
-> PX7 est empilé sur PX6@ff48529510c18c2a508f007efe0198b0568fdd98.
+> PX8 est empilé sur PX7@1dc377cd96b3a3c876e9066bad571fa1a061347e.
 > Le code, les migrations, les tests et le main courant restent prioritaires.
 
 ## 1. Mission
@@ -769,9 +769,193 @@ Crawlee, receipts, recovery et transitions restent inchangés.
 Le runtime non adaptatif PX6 reste disponible : activer l'apprentissage est
 donc une décision explicite, pas un changement silencieux de comportement.
 
-## 12. Ce que PX7 ne fait pas
+## 12. PX8 : pilote Internet réel borné
 
-PX7 ne :
+PX8 ne transforme pas le Prospecteur en crawler général. Il rend possible un
+**pilotage live explicite** de la chaîne que l'acteur Prospecteur possède déjà :
+
+~~~text
+Common Crawl public
+      ↓
+ProspectingMission bornée
+      ↓
+IndexProspector
+      ↓
+Frontier PostgreSQL
+      ↓
+(scorecard PX8)
+~~~
+
+Si un runtime Observateur est injecté par le déploiement, le runner PX8 sait
+également exécuter un nombre borné de cycles :
+
+~~~text
+Frontier
+  ↓
+PX4 gates / budgets
+  ↓
+RequestQueue Observateur
+~~~
+
+PX8 n'invente cependant aucune RequestQueue de production. La commande Django
+live fournie dans ce checkpoint reste donc **source → Frontier** par défaut.
+
+### 12.1 Confirmation et bornes obligatoires
+
+La commande `prospector_live_pilot` refuse tout accès Internet sans
+`--confirm-live-internet`.
+
+Elle exige explicitement :
+
+~~~text
+user_agent
+mission_key
+host_tld
+path_term
+max_candidates
+max_source_requests
+source_passes
+request_interval_seconds
+timeout_seconds
+~~~
+
+Il n'existe ni site seedé, ni domaine métier codé en dur, ni valeur de
+production cachée.
+
+Une mission reste une couverture :
+
+~~~text
+TLD + termes de chemin + langues + MIME + budget
+~~~
+
+et jamais une liste de sites à scraper.
+
+### 12.2 Corrections découvertes par le premier probe live
+
+Le premier probe PX8 contre Common Crawl a invalidé deux hypothèses PX2.
+
+**1. Forme TLD CDXJ**
+
+La forme précédente :
+
+~~~text
+url=*.cd
+matchType=domain
+~~~
+
+n'est pas la bonne forme pour le scan TLD borné utilisé ici.
+
+PX8 utilise :
+
+~~~text
+url=*.cd/*
+~~~
+
+sans `matchType=domain`.
+
+**2. Termes de chemin ≠ sous-chaînes arbitraires**
+
+Le filtre précédent :
+
+~~~text
+formation
+~~~
+
+pouvait sélectionner une URL contenant :
+
+~~~text
+information
+~~~
+
+PX8 génère donc une regex avec des séparateurs URL explicites. Les termes
+restent des sélecteurs techniques ; ils ne constituent toujours pas une
+interprétation métier.
+
+### 12.3 Politesse Common Crawl
+
+Le provider accepte désormais `request_interval_seconds` et sérialise ses
+requêtes. Un pilote live exige une valeur strictement positive.
+
+HTTP 429/503 devient une erreur opérationnelle de rate limit et **n'entraîne
+aucune boucle de retry agressive**.
+
+Les pages CDX 400/404 sont traitées comme fin du sélecteur courant.
+
+La CI continue d'utiliser un transport factice et ne contacte jamais Internet.
+
+### 12.4 Scorecard
+
+PX8 mesure uniquement des faits techniques agrégés :
+
+~~~text
+source:
+  passes
+  revision
+  records reçus
+  admissions tentées
+
+Frontier:
+  nouvelles cibles uniques
+  redécouvertes
+  statuts
+  suppressions
+  méthodes de provenance
+  providers
+
+runtime, si injecté:
+  claimed
+  handoff accepted
+  deferred
+  suppressed
+  errors
+  backpressure released
+
+feedback aval:
+  événements
+  signaux réellement reçus
+~~~
+
+Le scorecard ne contient ni liste d'URLs, ni contenu Web, ni PII, ni objets
+métier.
+
+Les ratios sont représentés par `numerator/denominator`, pas par un score
+flottant opaque.
+
+Si l'Observateur ou le feedback aval ne sont pas exécutés, le rapport indique
+explicitement :
+
+~~~text
+observer_runtime_not_run
+downstream_feedback_not_observed
+~~~
+
+Il ne transforme jamais l'absence de données en succès.
+
+### 12.5 Commande live
+
+Exemple **illustratif, non production** :
+
+~~~text
+python manage.py prospector_live_pilot \
+  --confirm-live-internet \
+  --user-agent "Makolo Prospecteur PX8 (operator contact)" \
+  --mission-key px8-rdc-fragments \
+  --host-tld cd \
+  --path-term formation \
+  --path-term admission \
+  --max-candidates 25 \
+  --max-source-requests 2 \
+  --source-passes 1 \
+  --request-interval-seconds 2 \
+  --timeout-seconds 20 \
+  --report-file /existing/path/px8-scorecard.json
+~~~
+
+L'exemple n'est pas une configuration permanente du produit.
+
+## 13. Ce que PX8 ne fait pas
+
+PX8 ne :
 
 - maintient aucune liste manuelle de sites ;
 - ne récupère aucun HTML de page ;
@@ -783,8 +967,10 @@ PX7 ne :
 - ne modifie pas les Permissions, Mandates, Access, Readiness ou données privées ;
 - ne choisit pas le stockage de production de la queue Observateur ;
 - n'implémente pas le fetch HTTP/JS de l'Observateur ;
+- ne transforme pas une correspondance de chemin en fait métier ;
+- ne considère pas l'absence de feedback aval comme une preuve de qualité ;
 
-## 13. Train
+## 14. Train
 
 ~~~text
 PX0  fondation Python pure
@@ -801,14 +987,14 @@ PX5  expansion autonome : graphe Web, sitemaps, feeds, anti-traps
  ↓
 PX6  runtime continu + Crawlee / recovery / backpressure
  ↓
-PX7  feedback aval + exploration/exploitation                     ← courant
+PX7  feedback aval + exploration/exploitation
  ↓
-PX8  pilote Internet réel
+PX8  pilote Internet réel                                          ← courant
  ↓
 PX9  hardening / échelle
 ~~~
 
-## 14. Validation PX7
+## 15. Validation PX8
 
 Tests core :
 
@@ -943,3 +1129,33 @@ Ils vérifient notamment :
 - deux workers adaptatifs sans double claim.
 
 PX7 ajoute la migration `prospector_storage.0005_feedback_learning`.
+
+
+Tests PX8 spécifiques :
+
+~~~text
+python -m unittest \
+  prospector.tests.test_common_crawl \
+  prospector.tests.test_pilot
+
+python manage.py test \
+  prospector.django_app.tests.test_pilot \
+  prospector.django_app.tests.test_pilot_command
+~~~
+
+Ils vérifient notamment :
+
+- forme live `*.tld/*` sans `matchType=domain` ;
+- bornes de termes URL (`formation` ne matche pas `information`) ;
+- cadence entre requêtes Common Crawl ;
+- arrêt explicite sur 503/rate limit ;
+- 404 CDX traité comme fin de sélecteur ;
+- source passes bornées ;
+- runtime cycles bornés lorsqu'un runtime est injecté ;
+- refus d'un runtime demandé mais absent ;
+- scorecard sans URL ;
+- snapshot Django strictement scoped par mission fingerprint ;
+- refus de la commande live sans confirmation explicite ;
+- commande testée sans Internet via provider factice.
+
+PX8 n'ajoute aucune migration.

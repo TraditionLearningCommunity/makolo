@@ -20,3 +20,12 @@ class ObservationContractError(ProspectorContractError):
 
 class ExpansionContractError(ProspectorContractError):
     """Raised when bounded structural expansion cannot be performed safely."""
+
+
+
+class ProspectorSourceError(RuntimeError):
+    """Raised when an external prospecting source is operationally unavailable."""
+
+
+class ProspectorSourceRateLimitError(ProspectorSourceError):
+    """Raised when an external source asks the Prospecteur to slow down."""
