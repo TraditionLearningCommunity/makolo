@@ -48,7 +48,10 @@ PERSONAL_TICKET_NAMES = {
 }
 
 DISCOVER_NAMESPACES = {"discovery", "events", "transport", "services", "opportunities", "funding"}
-ME_NAMESPACES = {"personal_assets", "groups", "sharing"}
+ME_NAMESPACES = {"personal_assets"}
+ME_GROUP_NAMES = {"list", "detail", "members", "invitation", "join", "join-request", "join-request-cancel"}
+DISCOVER_GROUP_NAMES = {"explore"}
+ME_SHARING_NAMES = {"passport-me", "inbound-create", "inbound-detail", "delivery"}
 HEADER_NAMESPACES = {"account", "subscriptions", "organizations", "conversations", "notifications"}
 
 
@@ -99,12 +102,17 @@ def personal_surface_owner(request) -> PersonalSurface:
         return PersonalSurface("ongoing", title, _reverse("core:participant-ongoing"), False)
 
     if namespace in ME_NAMESPACES:
-        titles = {
-            "personal_assets": "Mes ressources",
-            "groups": "Mes collectifs",
-            "sharing": "Passeport Makolo",
-        }
-        return PersonalSurface("me", titles[namespace], _reverse("core:participant-me"), False)
+        return PersonalSurface("me", "Mes ressources", _reverse("core:participant-me"), False)
+
+    if namespace == "groups" and url_name in DISCOVER_GROUP_NAMES:
+        return PersonalSurface("discover", "Découvrir", _reverse("discovery:home"), False)
+
+    if namespace == "groups" and url_name in ME_GROUP_NAMES:
+        return PersonalSurface("me", "Mes collectifs", _reverse("core:participant-me"), False)
+
+    if namespace == "sharing" and url_name in ME_SHARING_NAMES:
+        title = "Passeport Makolo" if url_name == "passport-me" else "Partage"
+        return PersonalSurface("me", title, _reverse("core:participant-me"), False)
 
     if namespace == "recognition" and url_name == "dashboard":
         return PersonalSurface("me", "Ce qui peut déjà vous aider", _reverse("core:participant-me"), False)
