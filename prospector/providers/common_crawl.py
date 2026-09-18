@@ -293,13 +293,16 @@ class CommonCrawlIndexSource:
         checkpoint: Optional[SourceCheckpoint] = None,
     ) -> SourceBatch:
         selectors = self._selectors(mission)
+        requests_used = 0
         if checkpoint is None:
             collection_id = await self._latest_collection()
+            requests_used += 1
             selector_index = 0
             page = 0
             offset = 0
         elif checkpoint.exhausted:
             latest = await self._latest_collection()
+            requests_used += 1
             if latest == checkpoint.source_revision:
                 return SourceBatch(
                     source_name=self.name,
@@ -319,7 +322,6 @@ class CommonCrawlIndexSource:
             offset = int(checkpoint.cursor.get("offset", 0))
 
         collected = []
-        requests_used = 0
 
         while (
             selector_index < len(selectors)

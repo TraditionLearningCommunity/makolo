@@ -83,7 +83,7 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         source = CommonCrawlIndexSource(
             user_agent="Makolo Prospector test",
             transport=transport,
-            max_requests_per_run=1,
+            max_requests_per_run=2,
         )
 
         batch = await source.discover(self.mission())
@@ -113,7 +113,7 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         source = CommonCrawlIndexSource(
             user_agent="Makolo Prospector test",
             transport=transport,
-            max_requests_per_run=1,
+            max_requests_per_run=2,
         )
         batch = await source.discover(self.mission(max_candidates=10))
         self.assertEqual(len(batch.records), 1)
@@ -137,7 +137,7 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         source = CommonCrawlIndexSource(
             user_agent="Makolo Prospector test",
             transport=transport,
-            max_requests_per_run=1,
+            max_requests_per_run=2,
         )
         batch = await source.discover(self.mission(), checkpoint=checkpoint)
         self.assertEqual(batch.source_revision, "CC-MAIN-2026-34")
@@ -182,7 +182,7 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         source = CommonCrawlIndexSource(
             user_agent="Makolo PX8 test",
             transport=transport,
-            max_requests_per_run=1,
+            max_requests_per_run=2,
             request_interval_seconds=1.25,
             sleeper=sleeper,
         )
@@ -191,6 +191,33 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
 
         self.assertEqual(sleeps, [1.25])
         self.assertEqual(len(transport.calls), 2)
+
+
+    async def test_request_budget_counts_collection_lookup(self):
+        transport = FakeTransport(
+            [
+                HttpResponse(
+                    200,
+                    json.dumps([{"id": "CC-MAIN-2026-30"}]),
+                ),
+            ]
+        )
+        source = CommonCrawlIndexSource(
+            user_agent="Makolo PX8 test",
+            transport=transport,
+            max_requests_per_run=1,
+        )
+
+        batch = await source.discover(self.mission())
+
+        self.assertEqual(len(transport.calls), 1)
+        self.assertEqual(transport.calls[0][0], COLLECTIONS_URL)
+        self.assertEqual(batch.records, ())
+        self.assertFalse(batch.exhausted)
+        self.assertEqual(
+            dict(batch.next_cursor),
+            {"selector_index": 0, "page": 0, "offset": 0},
+        )
 
     async def test_rate_limit_stops_instead_of_retrying_aggressively(self):
         source = CommonCrawlIndexSource(
@@ -209,7 +236,7 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
                     HttpResponse(404, "not found"),
                 ]
             ),
-            max_requests_per_run=1,
+            max_requests_per_run=2,
         )
         from prospector.errors import ProspectorSourceError
         with self.assertRaises(ProspectorSourceError):

@@ -822,6 +822,8 @@ timeout_seconds
 Il n'existe ni site seedé, ni domaine métier codé en dur, ni valeur de
 production cachée.
 
+`max_source_requests` borne **tous** les appels Common Crawl d'un passage, y compris la découverte `collinfo.json`. Un passage initial avec une limite de 1 peut donc uniquement mémoriser la collection courante ; le passage suivant reprend au curseur sans dépasser le budget.
+
 Une mission reste une couverture :
 
 ~~~text
