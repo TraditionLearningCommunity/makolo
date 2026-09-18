@@ -463,6 +463,7 @@ class DjangoFrontierStore:
                 update_fields=[
                     "status",
                     "available_at",
+                    "handoff_generation",
                     "claim_token",
                     "claimed_by",
                     "claimed_at",
