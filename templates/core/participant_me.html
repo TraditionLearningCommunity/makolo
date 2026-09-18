@@ -39,7 +39,7 @@
     <div class="mk-me-list">
       {% for space in authorized_spaces %}<div><strong>{{ space.name }}</strong><span>Vous pouvez agir dans cet Espace</span></div>{% endfor %}
       {% for membership in team_memberships %}<div><strong>{{ membership.team.name }}</strong><span>{{ membership.team.organization.name }}</span></div>{% endfor %}
-      {% for group in my_groups %}<div><strong>{{ group.name }}</strong><span>Groupe</span></div>{% endfor %}
+      {% for group in my_groups %}<a href="{% url 'groups:detail' group.slug %}"><strong>{{ group.name }}</strong><span>Groupe · ouvrir</span></a>{% endfor %}
     </div>
     {% if not authorized_spaces and not team_memberships and not my_groups %}<p class="mk-empty-copy">Aucun collectif à afficher pour le moment.</p>{% endif %}
   </section>
@@ -53,6 +53,15 @@
     </div>
     {% if not resources and not proofs and not credentials %}<p class="mk-empty-copy">Aucune ressource personnelle à afficher.</p>{% endif %}
   </section>
+
+  {% if support_links %}
+  <section class="mk-me-section">
+    <div class="mk-section-heading"><div><h2>Ce qui peut déjà vous aider</h2><p>Des relations ou avantages déjà établis, seulement lorsqu’ils peuvent réellement vous servir.</p></div></div>
+    <div class="mk-me-list">
+      {% for item in support_links %}<a href="{{ item.url }}"><strong>{{ item.label }}</strong><span>{{ item.detail }}</span></a>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   <div class="mk-secondary-actions">
     <a href="{% url 'core:participant-history' %}">Historique</a>
