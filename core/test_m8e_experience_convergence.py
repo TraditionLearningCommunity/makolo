@@ -44,9 +44,18 @@ class M8EExperienceConvergenceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         mobile_nav = html.split('id="mobile-primary-nav"', 1)[1].split("</nav>", 1)[0]
-        for label in ("Accueil", "Démarches", "Conversations", "Profil", "Plus"):
+        for label in ("Maintenant", "Découvrir", "Makolo", "En cours", "Moi"):
             self.assertIn(f"<span>{label}</span>", mobile_nav)
-        self.assertNotIn("<span>Actions</span>", mobile_nav)
-        self.assertNotIn("<span>Découvrir</span>", mobile_nav)
-        self.assertIn(reverse("conversations:list"), mobile_nav)
-        self.assertIn(reverse("account:profile"), mobile_nav)
+        self.assertIn(reverse("core:participant-home"), mobile_nav)
+        self.assertIn(reverse("discovery:home"), mobile_nav)
+        self.assertIn(reverse("core:makolo-mark"), mobile_nav)
+        self.assertIn(reverse("core:participant-ongoing"), mobile_nav)
+        self.assertIn(reverse("core:participant-me"), mobile_nav)
+        self.assertNotIn(reverse("conversations:list"), mobile_nav)
+        self.assertNotIn(reverse("account:profile"), mobile_nav)
+
+    def test_new_personal_destinations_are_private(self):
+        for route_name in ("core:participant-home", "core:participant-ongoing", "core:participant-me", "core:makolo-mark"):
+            response = self.client.get(reverse(route_name))
+            self.assertEqual(response.status_code, 302)
+            self.assertIn(reverse("core:login"), response.url)

@@ -26,12 +26,13 @@ async function selectSpace(page, name, slug) {
 
 test('participant sees personal navigation and can enter personal Event creation', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
-  await expect(page.getByRole('link', { name: 'Accueil', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Mes démarches', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Mes accès', exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Notifications', exact: true }).first()).toBeVisible();
+  for (const label of ['Maintenant', 'Découvrir', 'En cours', 'Moi']) {
+    await expect(page.getByRole('link', { name: label, exact: true }).first()).toBeVisible();
+  }
+  await expect(page.getByRole('link', { name: 'Makolo Mark' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Notifications/ })).toBeVisible();
   await page.getByRole('button', { name: 'Menu utilisateur' }).click();
-  await expect(page.getByRole('menuitem', { name: 'Mon profil et réglages' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Compte et paramètres' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Activités', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Operations Center' })).toHaveCount(0);
   await expectPersonalEventCreation(page);

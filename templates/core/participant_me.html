@@ -1,0 +1,63 @@
+{% extends 'base/app.html' %}
+{% load profile_activation_tags %}
+{% block title %}Moi | Makolo{% endblock %}
+{% block content %}
+{% profile_activation_summary as activation %}
+<div class="mk-mature-page">
+  <section class="mk-me-identity">
+    <div class="mk-me-avatar" aria-hidden="true">
+      {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="">{% else %}<span>{{ request.user.username|first|upper }}</span>{% endif %}
+    </div>
+    <div>
+      <p class="mk-eyebrow">Moi</p>
+      <h1>{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</h1>
+      {% if request.user.email %}<p>{{ request.user.email }}</p>{% endif %}
+      {% if activation %}<p class="mk-me-activation">Profil Makolo · {{ activation.percentage }} % activé</p>{% endif %}
+    </div>
+    <a href="{% url 'account:profile' %}" class="mk-compact-action">Modifier</a>
+  </section>
+
+  <section class="mk-me-section">
+    <div class="mk-section-heading"><div><h2>Passeport Makolo</h2><p>Choisissez ce que vous présentez selon le contexte.</p></div><a href="{{ passport_url }}">Ouvrir</a></div>
+  </section>
+
+  <section class="mk-me-section">
+    <div class="mk-section-heading"><div><h2>Ce qui compte pour moi</h2><p>Ce que vous avez choisi de suivre, garder ou demander à Makolo de chercher.</p></div></div>
+    <div class="mk-chip-cloud">
+      {% for interest in interests %}<span>{{ interest.topic.label }}</span>{% endfor %}
+      {% for item in open_to %}<span>{{ item.get_kind_display }}{% if item.topic %} · {{ item.topic.label }}{% endif %}</span>{% endfor %}
+      {% for watch in watches %}<a href="{% url 'discovery:watch-list' %}">{{ watch.name }}</a>{% endfor %}
+      {% for bookmark in bookmarks %}<a href="{% url 'discovery:bookmarks' %}">{{ bookmark.activity.title }}</a>{% endfor %}
+      {% for follow in followed_spaces %}<span>{{ follow.organization.name }}</span>{% endfor %}
+      {% for follow in followed_profiles %}<span>{% if follow.organizer_profile.full_name %}{{ follow.organizer_profile.full_name }}{% else %}{{ follow.organizer_profile.username }}{% endif %}</span>{% endfor %}
+    </div>
+    {% if not interests and not open_to and not watches and not bookmarks and not followed_spaces and not followed_profiles %}<p class="mk-empty-copy">Rien n’est encore enregistré ici.</p>{% endif %}
+  </section>
+
+  <section class="mk-me-section">
+    <div class="mk-section-heading"><div><h2>Mes collectifs</h2><p>Les groupes, équipes et Espaces auxquels vous êtes réellement relié.</p></div><a href="{% url 'organizations:list' %}">Voir</a></div>
+    <div class="mk-me-list">
+      {% for space in authorized_spaces %}<div><strong>{{ space.name }}</strong><span>Vous pouvez agir dans cet Espace</span></div>{% endfor %}
+      {% for membership in team_memberships %}<div><strong>{{ membership.team.name }}</strong><span>{{ membership.team.organization.name }}</span></div>{% endfor %}
+      {% for group in my_groups %}<div><strong>{{ group.name }}</strong><span>Groupe</span></div>{% endfor %}
+    </div>
+    {% if not authorized_spaces and not team_memberships and not my_groups %}<p class="mk-empty-copy">Aucun collectif à afficher pour le moment.</p>{% endif %}
+  </section>
+
+  <section class="mk-me-section">
+    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Documents, faits établis et attestations restent distincts, mais se retrouvent au même endroit quand ils peuvent vous servir.</p></div><a href="{% url 'personal_assets:list' %}">Bibliothèque</a></div>
+    <div class="mk-me-list">
+      {% for asset in resources %}<div><strong>{{ asset.title }}</strong><span>Document{% if asset.kind %} · {{ asset.get_kind_display }}{% endif %}</span></div>{% endfor %}
+      {% for proof in proofs %}<div><strong>{{ proof.get_proof_type_display }}</strong><span>Fait établi · {{ proof.journey.activity.title }}{% if proof.status %} · {{ proof.get_status_display }}{% endif %}</span></div>{% endfor %}
+      {% for credential in credentials %}<div><strong>{{ credential.title }}</strong><span>Attestation · {{ credential.issuer_display_name }}{% if credential.status %} · {{ credential.get_status_display }}{% endif %}</span></div>{% endfor %}
+    </div>
+    {% if not resources and not proofs and not credentials %}<p class="mk-empty-copy">Aucune ressource personnelle à afficher.</p>{% endif %}
+  </section>
+
+  <div class="mk-secondary-actions">
+    <a href="{% url 'core:participant-history' %}">Historique</a>
+    <a href="{% url 'discovery:bookmarks' %}">Éléments gardés</a>
+    <a href="{% url 'discovery:watch-list' %}">Veilles</a>
+  </div>
+</div>
+{% endblock %}

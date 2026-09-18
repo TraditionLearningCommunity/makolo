@@ -2,15 +2,50 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.views.generic import TemplateView
 
-from activities.selectors import activities_owned_by
+from .home_presentation import MatureHomePresentation, build_mature_home
 
-from .home_presentation import build_mature_home
-from .participant_selectors import (
-    participant_actionable_journeys,
-    participant_active_accesses,
-    participant_upcoming_engagements,
-)
-from .participant_views import HOME_SECTION_LIMIT, _access_card, _journey_card, _recent_history_items
+
+_NOW_ACTIONABILITIES = {"terminal", "blocking", "actionable"}
+
+
+def _now_projection(home):
+    """Keep Maintenant limited to facts that change a next step now.
+
+    Waiting, advice and generic information remain available to their owner
+    surfaces (notably En cours) but do not make the Home look busy.
+    """
+    ordered = []
+    seen = set()
+    for item in (
+        home.primary_attention,
+        home.primary_action,
+        *home.action_items,
+        *home.knowledge_items,
+    ):
+        if item is None or item.actionability not in _NOW_ACTIONABILITIES:
+            continue
+        if item.identity in seen:
+            continue
+        seen.add(item.identity)
+        ordered.append(item)
+
+    primary_attention = ordered[0] if ordered else None
+    primary_action = next((item for item in ordered if item.actionability == "actionable"), None)
+    primary_ids = {
+        item.identity
+        for item in (primary_attention, primary_action)
+        if item is not None
+    }
+    remaining = tuple(item for item in ordered if item.identity not in primary_ids)
+
+    return MatureHomePresentation(
+        primary_attention=primary_attention,
+        primary_action=primary_action,
+        action_items=remaining,
+        knowledge_items=(),
+        upcoming=home.upcoming,
+        all_clear=not ordered,
+    )
 
 
 class MatureParticipantHomeView(LoginRequiredMixin, TemplateView):
@@ -19,24 +54,6 @@ class MatureParticipantHomeView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        profile = self.request.user
-        now = timezone.now()
-        home = build_mature_home(profile, observed_at=now)
-
-        # Keep the established personal-hub context contract for downstream
-        # templates/tests while M8-A makes ``home`` the only rendered ranking.
-        # These compatibility projections use owner selectors and do not create
-        # a second readiness/priority engine.
-        upcoming = list(participant_upcoming_engagements(profile, at=now)[:HOME_SECTION_LIMIT])
-        actionable = list(participant_actionable_journeys(profile)[:HOME_SECTION_LIMIT])
-        context.update(
-            {
-                "home": home,
-                "actionable": [_journey_card(journey) for journey in actionable],
-                "upcoming": [_access_card(access) for access in upcoming],
-                "active_access_count": participant_active_accesses(profile, at=now).count(),
-                "recent_history": _recent_history_items(profile, at=now),
-                "organized_activities": list(activities_owned_by(profile)[:HOME_SECTION_LIMIT]),
-            }
-        )
+        home = build_mature_home(self.request.user, observed_at=timezone.now())
+        context["home"] = _now_projection(home)
         return context

@@ -213,8 +213,11 @@ class ParticipantExperienceTests(TestCase):
     def test_participant_pages_show_canonical_occurrence_place_and_access(self):
         self.client.force_login(self.user)
         home = self.client.get(reverse("core:participant-home"))
-        self.assertContains(home, "Atelier communautaire")
-        self.assertContains(home, "Kinshasa")
+        self.assertContains(home, "Tout est en ordre. ✓")
+        self.assertNotContains(home, "Atelier communautaire")
+        ongoing = self.client.get(reverse("core:participant-ongoing"))
+        self.assertContains(ongoing, "Atelier communautaire")
+        self.assertContains(ongoing, "Maison des initiatives")
         detail = self.client.get(reverse("core:participant-journey-detail", kwargs={"pk": self.journey.pk}))
         self.assertContains(detail, "Inscription")
         self.assertContains(detail, "Maison des initiatives")
