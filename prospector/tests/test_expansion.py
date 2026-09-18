@@ -6,6 +6,7 @@ from prospector.contracts import (
     ProspectingEvidence,
     ProspectingTarget,
 )
+from prospector.errors import ExpansionContractError
 from prospector.expansion import ExpansionPolicy, ObservationExpansionSink
 from prospector.observation_contracts import (
     ObservationReport,
@@ -347,6 +348,7 @@ class ExpansionTests(IsolatedAsyncioTestCase):
                             "hreflang": "fr",
                             "secret": "must-not-propagate",
                             "title": "semantic-looking text",
+                            "rel": {"not": "a scalar"},
                         },
                     ),
                 )
@@ -357,3 +359,38 @@ class ExpansionTests(IsolatedAsyncioTestCase):
         self.assertEqual(attrs["hreflang"], "fr")
         self.assertNotIn("secret", attrs)
         self.assertNotIn("title", attrs)
+        self.assertNotIn("rel", attrs)
+
+    async def test_disabled_family_and_candidate_budget_are_enforced(self):
+        policy = ExpansionPolicy(
+            max_depth=4,
+            max_references_per_report=10,
+            max_candidates_per_report=1,
+            max_same_host_candidates=10,
+            max_cross_host_candidates=10,
+            max_unique_cross_hosts=10,
+            max_per_host_candidates=10,
+            max_per_url_shape=10,
+            max_query_parameters=4,
+            max_path_segments=8,
+            allowed_families=("web_graph",),
+        )
+        sink = ObservationExpansionSink(
+            frontier=self.frontier,
+            lookup=self.frontier,
+            policy=policy,
+        )
+        refs = (
+            ObservedReference("sitemap", "https://example.test/sitemap.xml", self.now),
+            ObservedReference("link", "https://example.test/a", self.now),
+            ObservedReference("link", "https://example.test/b", self.now),
+        )
+        result = await sink.submit_report(self.report(refs))
+        self.assertEqual(result.admitted, 1)
+        self.assertEqual(result.skip_counts["family_disabled"], 1)
+        self.assertEqual(result.skip_counts["candidate_budget"], 1)
+
+    async def test_missing_parent_fails_instead_of_inventing_context(self):
+        self.frontier.targets.clear()
+        with self.assertRaises(ExpansionContractError):
+            await self.expand(self.report(()))

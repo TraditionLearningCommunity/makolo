@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections import Counter
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -68,6 +69,14 @@ def _positive_int(name: str, value: int, *, allow_zero: bool = False) -> int:
 
 def _frozen_counts(value: Mapping[str, int]) -> Mapping[str, int]:
     return MappingProxyType(dict(value))
+
+
+def _safe_technical_scalar(value):
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float) and math.isfinite(value):
+        return value
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,7 +348,9 @@ class ObservationExpansionSink:
             }
             for name in self.policy.technical_attribute_names:
                 if name in reference.attributes:
-                    attributes[name] = reference.attributes[name]
+                    value = _safe_technical_scalar(reference.attributes[name])
+                    if value is not None:
+                        attributes[name] = value
 
             policy_context = dict(parent.policy_context)
             policy_context["depth"] = child_depth
