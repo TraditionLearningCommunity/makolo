@@ -16,6 +16,7 @@
       <a href="{% url 'objectives:dossier-detail' row.dossier.id %}" class="mk-panel mk-panel-interactive block p-5">
         <h3 class="font-extrabold">{{ row.dossier.title }}</h3>
         <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ row.readiness.status_label }}</p>
+        {% if can_manage and row.can_manage %}<form method="post" action="{% url 'objectives:project-unlink-dossier' project.id row.dossier.id %}" class="mt-3" onclick="event.stopPropagation()">{% csrf_token %}<button class="mk-btn mk-btn-ghost" type="submit">Retirer du Projet</button></form>{% endif %}
       </a>
       {% empty %}<div class="mk-calm-state"><h3>Aucun Dossier visible.</h3><p>Ce Projet peut rester un horizon durable sans devenir une liste artificielle de tâches.</p></div>{% endfor %}
     </div>
