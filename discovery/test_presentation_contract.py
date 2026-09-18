@@ -255,9 +255,9 @@ class DiscoveryPresentationWebTests(TestCase):
         discovery = self.client.get(reverse("discovery:home"))
         self.assertEqual(home.status_code, 200)
         self.assertEqual(discovery.status_code, 200)
-        self.assertContains(home, "Et maintenant ?")
+        self.assertContains(home, "Qu’est-ce qui compte maintenant ?")
         self.assertContains(home, reverse("discovery:home"))
-        self.assertContains(discovery, "Mon espace")
+        self.assertContains(discovery, "Découvrir")
         self.assertContains(discovery, reverse("core:participant-home"))
         self.assertNotEqual(reverse("core:participant-home"), reverse("discovery:home"))
 
