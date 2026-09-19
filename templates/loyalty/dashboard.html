@@ -1,10 +1,49 @@
 {% extends 'base/app.html' %}
-{% block title %}Fidélité | Makolo{% endblock %}
+{% block title %}Mes avantages | Makolo{% endblock %}
 {% block content %}
-<div class="space-y-9 lg:space-y-11">
-  <section class="max-w-3xl"><span class="mk-kicker">Memberships & fidélité</span><h1 class="mk-page-title">Mes avantages Makolo</h1><p class="mk-page-copy mt-4 text-[15px]">Points, niveaux, memberships et récompenses, organisateur par organisateur.</p></section>
-  <section><h2 class="text-xl font-[740] tracking-[-.035em] sm:text-2xl">Programmes actifs</h2><div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{% for account in accounts %}<article class="mk-panel p-5 sm:p-6"><div class="flex items-center justify-between gap-3"><p class="truncate text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-muted)">{{ account.program.organization.name }}</p><div class="grid h-9 w-9 place-items-center rounded-xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="gem" class="h-4 w-4"></i></div></div><div class="mt-6 text-3xl font-[760] tracking-[-.05em]">{{ account.points_balance }} <span class="text-sm font-semibold tracking-normal" style="color:var(--mk-muted)">{{ account.program.points_name }}</span></div><p class="mt-2 text-xs" style="color:var(--mk-muted)">{% if account.current_tier %}Niveau {{ account.current_tier.name }}{% else %}Niveau en construction{% endif %} · {{ account.lifetime_earned }} gagnés à vie</p><a href="{% url 'loyalty:portal' account.program.organization.slug %}" class="mk-btn mk-btn-secondary mt-5 w-full">Voir les récompenses<i data-lucide="arrow-right" class="h-4 w-4"></i></a></article>{% empty %}<div class="mk-empty col-span-full py-14 text-center"><p class="text-sm font-semibold">Aucun compte fidélité pour l’instant.</p><p class="mt-1 text-xs" style="color:var(--mk-muted)">Vos premiers points apparaîtront après une action éligible.</p></div>{% endfor %}</div></section>
-  <section><h2 class="text-xl font-[740] tracking-[-.035em] sm:text-2xl">Mes memberships</h2><div class="mk-panel mt-4 overflow-hidden">{% for subscription in subscriptions %}<article class="flex flex-col gap-4 border-b px-5 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between" style="border-color:var(--mk-border)"><div><p class="text-sm font-bold">{{ subscription.plan.name }} · {{ subscription.program.organization.name }}</p><p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ subscription.get_status_display }}{% if subscription.ends_at %} · jusqu’au {{ subscription.ends_at|date:'d M Y · H:i' }}{% endif %}</p>{% if subscription.benefit_code %}<p class="mt-2 text-xs font-bold" style="color:var(--mk-brand)">Code avantage · {{ subscription.benefit_code.code }}</p>{% endif %}</div>{% if subscription.status == 'active' or subscription.status == 'pending' %}<form method="post" action="{% url 'loyalty:membership-cancel' subscription.pk %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-secondary !min-h-9 !px-3 !py-2 text-xs">Annuler</button></form>{% endif %}</article>{% empty %}<div class="py-10 text-center text-sm" style="color:var(--mk-muted)">Aucun membership demandé.</div>{% endfor %}</div></section>
-  {% if managed_programs %}<section class="mk-panel p-5 sm:p-6"><h2 class="text-lg font-[730] tracking-[-.03em]">Espaces organisateur</h2><div class="mt-4 flex flex-wrap gap-2">{% for program in managed_programs %}<a href="{% url 'loyalty:workspace' program.organization.slug %}" class="mk-btn mk-btn-secondary !min-h-9 !px-3 !py-2 text-xs">{{ program.organization.name }}</a>{% endfor %}</div></section>{% endif %}
+<div class="mx-auto max-w-5xl space-y-7 pb-10">
+  <section>
+    <span class="mk-kicker">Relations avec mes organisations</span>
+    <h1 class="mk-page-title mt-2">Mes avantages</h1>
+    <p class="mk-page-copy mt-3">Retrouvez ce que chaque organisation rend réellement disponible pour vous. Les points restent un détail de la relation, pas son centre.</p>
+  </section>
+
+  {% if accounts %}
+  <section class="grid gap-4 md:grid-cols-2">
+    {% for account in accounts %}
+    <article class="mk-panel p-5 sm:p-6">
+      <div class="flex items-center gap-2"><i data-lucide="gem" class="h-4 w-4" aria-hidden="true"></i><span class="mk-kicker">{{ account.program.organization.name }}</span></div>
+      <h2 class="mt-2 text-lg font-extrabold">{% if account.current_tier %}Relation {{ account.current_tier.name }}{% else %}Relation active{% endif %}</h2>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">Cette organisation reconnaît votre relation dans son propre programme.</p>
+      <a href="{% url 'loyalty:portal' account.program.organization.slug %}" class="mk-btn mk-btn-primary mt-4">Voir ce qui m’est disponible</a>
+      <p class="mt-4 text-xs tracking-normal" style="color:var(--mk-subtle)">Solde : {{ account.points_balance }} {{ account.program.points_name }}</p>
+    </article>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if subscriptions %}
+  <section class="mk-panel p-5 sm:p-6">
+    <h2 class="font-extrabold">Mes memberships</h2>
+    <div class="mt-4 space-y-3">
+      {% for subscription in subscriptions %}
+      <article class="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between" style="border-color:var(--mk-border)">
+        <div>
+          <p class="font-bold">{{ subscription.program.organization.name }} · {{ subscription.plan.name }}</p>
+          <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ subscription.get_status_display }}{% if subscription.ends_at %} · jusqu’au {{ subscription.ends_at|date:'d M Y · H:i' }}{% endif %}</p>
+          {% if subscription.benefit_code %}<p class="mt-2 text-sm font-semibold">Avantage disponible : {{ subscription.benefit_code.code }}</p>{% endif %}
+        </div>
+        {% if subscription.status == 'active' or subscription.status == 'pending' %}
+        <form method="post" action="{% url 'loyalty:membership-cancel' subscription.pk %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-secondary">Annuler</button></form>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if not accounts and not subscriptions %}
+  <section class="mk-calm-state"><h2>Aucune relation de fidélité active.</h2><p>Lorsqu’une organisation vous accorde un avantage ou une relation active, elle apparaîtra ici.</p></section>
+  {% endif %}
 </div>
 {% endblock %}
