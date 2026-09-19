@@ -16,7 +16,10 @@ from observer.contracts import (
 )
 from observer.django_artifacts import read_artifact_bytes, store_blob
 from observer.django_material import build_observation_material
-from observer.django_store import absorb_observation_target
+from observer.django_store import (
+    absorb_observation_target,
+    get_or_create_observation_series,
+)
 from observer.errors import ObserverStateConflictError
 from observer.identifiers import make_reference_key
 
@@ -71,9 +74,19 @@ class ObserverFoundationTests(TestCase):
     def absorb(self):
         return absorb_observation_target(
             self.target,
-            profile_key="public-http",
-            profile_fingerprint="profile-public-http-v1",
             absorbed_at=self.now + timedelta(seconds=1),
+        )
+
+    def series(
+        self,
+        *,
+        profile_key="public-http",
+        profile_fingerprint="profile-public-http-v1",
+    ):
+        return get_or_create_observation_series(
+            self.target,
+            profile_key=profile_key,
+            profile_fingerprint=profile_fingerprint,
         )
 
     def finalized_observation(
@@ -82,8 +95,9 @@ class ObserverFoundationTests(TestCase):
         outcome=ObservationOutcome.OBSERVED.value,
     ):
         handoff, _created = self.absorb()
+        series, _series_created = self.series()
         return Observation.objects.create(
-            series=handoff.series,
+            series=series,
             source_handoff=handoff,
             trigger=ObservationTrigger.HANDOFF.value,
             lifecycle="finalized",
@@ -112,7 +126,7 @@ class ObserverFoundationTests(TestCase):
         self.assertFalse(created_again)
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(
-            first.series.observations.count(),
+            Observation.objects.count(),
             0,
         )
 
@@ -132,10 +146,22 @@ class ObserverFoundationTests(TestCase):
         with self.assertRaises(ObserverStateConflictError):
             absorb_observation_target(
                 conflicting,
-                profile_key="public-http",
-                profile_fingerprint="profile-public-http-v1",
                 absorbed_at=self.now + timedelta(seconds=1),
             )
+
+    def test_one_handoff_can_back_multiple_observation_profiles(self):
+        handoff, _created = self.absorb()
+        public_series, public_created = self.series()
+        fr_series, fr_created = self.series(
+            profile_key="public-http-fr",
+            profile_fingerprint="profile-public-http-fr-v1",
+        )
+
+        self.assertTrue(public_created)
+        self.assertTrue(fr_created)
+        self.assertNotEqual(public_series.pk, fr_series.pk)
+        self.assertEqual(public_series.target_key, handoff.target_key)
+        self.assertEqual(fr_series.target_key, handoff.target_key)
 
     def test_private_storage_is_outside_media_root_and_has_no_url(self):
         self.assertNotEqual(
@@ -272,8 +298,9 @@ class ObserverFoundationTests(TestCase):
 
     def test_only_one_open_observation_per_series(self):
         handoff, _created = self.absorb()
+        series, _series_created = self.series()
         common = dict(
-            series=handoff.series,
+            series=series,
             source_handoff=handoff,
             trigger=ObservationTrigger.HANDOFF.value,
             lifecycle="open",
