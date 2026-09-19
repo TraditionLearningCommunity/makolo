@@ -5,7 +5,11 @@ import hashlib
 from django.core.files.base import ContentFile
 from django.db import transaction
 
-from .django_app.models import ObservedArtifact, ObserverBlob
+from .django_app.models import (
+    ObservedArtifact,
+    ObserverBlob,
+    observer_blob_upload_to,
+)
 from .errors import ArtifactStorageError
 
 
@@ -21,9 +25,21 @@ def _bytes(value) -> bytes:
     )
 
 
+def _verify_payload(*, payload: bytes, digest: str) -> None:
+    if hashlib.sha256(payload).hexdigest() != digest:
+        raise ArtifactStorageError(
+            "observer blob content does not match its digest"
+        )
+
+
 @transaction.atomic
 def store_blob(content) -> tuple[ObserverBlob, bool]:
-    """Store bytes once by SHA-256 while logical artifacts stay distinct."""
+    """Store bytes once by SHA-256 while logical artifacts stay distinct.
+
+    A matching orphaned file can be adopted after a crash that happened
+    between durable file write and database commit. Conflicting bytes are
+    never overwritten or silently renamed.
+    """
 
     payload = _bytes(content)
     digest = hashlib.sha256(payload).hexdigest()
@@ -47,21 +63,41 @@ def store_blob(content) -> tuple[ObserverBlob, bool]:
         content_digest=digest,
         byte_length=len(payload),
     )
-    blob.full_clean(exclude=["file"])
-    saved_name = None
-    try:
-        blob.file.save(
-            "artifact.bin",
-            ContentFile(payload),
-            save=False,
+    expected_name = observer_blob_upload_to(
+        blob,
+        "artifact.bin",
+    )
+    storage = blob.file.storage
+
+    if storage.exists(expected_name):
+        with storage.open(expected_name, "rb") as handle:
+            existing_payload = handle.read()
+        if len(existing_payload) != len(payload):
+            raise ArtifactStorageError(
+                "orphaned observer blob has inconsistent byte length"
+            )
+        _verify_payload(
+            payload=existing_payload,
+            digest=digest,
         )
-        saved_name = blob.file.name
+        blob.file.name = expected_name
         blob.full_clean()
         blob.save(force_insert=True)
-    except Exception:
-        if saved_name:
-            blob.file.storage.delete(saved_name)
-        raise
+        return blob, True
+
+    saved_name = storage.save(
+        expected_name,
+        ContentFile(payload),
+    )
+    if saved_name != expected_name:
+        storage.delete(saved_name)
+        raise ArtifactStorageError(
+            "observer artifact storage refused content-addressed path"
+        )
+
+    blob.file.name = saved_name
+    blob.full_clean()
+    blob.save(force_insert=True)
     return blob, True
 
 
@@ -96,8 +132,8 @@ def read_artifact_bytes(artifact_ref: str) -> bytes:
         raise ArtifactStorageError(
             "artifact byte length does not match durable metadata"
         )
-    if hashlib.sha256(payload).hexdigest() != blob.content_digest:
-        raise ArtifactStorageError(
-            "artifact digest does not match durable metadata"
-        )
+    _verify_payload(
+        payload=payload,
+        digest=blob.content_digest,
+    )
     return payload
