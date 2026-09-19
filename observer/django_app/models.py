@@ -357,6 +357,10 @@ class ObserverBlob(models.Model):
                 {"content_digest": "SHA-256 hex digest invalide."}
             )
         self.content_digest = digest
+        if self.purged_at is None and not self.file:
+            raise ValidationError(
+                {"file": "Un blob actif exige un fichier privé."}
+            )
         if self.purged_at is not None and self.file:
             raise ValidationError(
                 {
