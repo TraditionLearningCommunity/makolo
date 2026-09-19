@@ -71,16 +71,18 @@ class DjangoOperationsReader:
             value=Min("checkpoint_updated_at")
         )["value"]
 
-        feedback_max_id = (
-            ProspectorFeedbackEvent.objects.aggregate(value=Max("id"))["value"] or 0
-        )
         projection_max_id = (
             ProspectorFeedbackProjection.objects.aggregate(
                 value=Max("last_event_id")
             )["value"]
             or 0
         )
-        feedback_lag = max(int(feedback_max_id) - int(projection_max_id), 0)
+        # IDs are monotonic but not gap-free (rollbacks/deletes can consume
+        # sequence values). Operational lag is the number of real events still
+        # beyond the most advanced projection checkpoint, not an ID distance.
+        feedback_lag = ProspectorFeedbackEvent.objects.filter(
+            id__gt=projection_max_id
+        ).count()
 
         return OperationsSnapshot(
             captured_at=now,

@@ -45,8 +45,8 @@ class OperationsCommandTests(TestCase):
                         discovered_at=self.now,
                     ),
                 ),
-                available_at=self.now,
-            )
+            ),
+            available_at=self.now,
         )
         ProspectorFrontierEntry.objects.filter(
             target_key=target.target_key
