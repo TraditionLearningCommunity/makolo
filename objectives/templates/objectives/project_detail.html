@@ -10,7 +10,7 @@
   </section>
 
   <section>
-    <div class="flex items-end justify-between gap-4"><div><span class="mk-kicker">Ce qui avance dans ce Projet</span><h2 class="mt-2 text-xl font-extrabold">Dossiers</h2></div><span class="mk-badge">{{ visible_dossier_count }} visible{{ visible_dossier_count|pluralize }}</span></div>
+    <div class="flex items-end justify-between gap-4"><div><span class="mk-kicker">Ce qui avance dans ce Projet</span><h2 class="mt-2 text-xl font-extrabold">Dossiers</h2></div><span class="mk-badge">{{ visible_dossier_count }} dossier{{ visible_dossier_count|pluralize }} visible{{ visible_dossier_count|pluralize }}</span></div>
     <div class="mt-4 space-y-3">
       {% for row in dossier_rows %}
       <article class="mk-panel p-5">
@@ -23,13 +23,13 @@
   </section>
 
   {% if can_manage %}
-  <details class="mk-panel p-5">
-    <summary class="cursor-pointer font-extrabold">Gérer ce Projet</summary>
+  <section class="mk-panel p-5">
+    <h2 class="font-extrabold">Gérer ce Projet</h2>
     <div class="mt-5 space-y-6">
-      <section><h3 class="font-bold">Rattacher un Dossier</h3><form method="post" action="{% url 'objectives:project-link-dossier' project.id %}" class="mt-3">{% csrf_token %}{{ link_form.as_p }}<button class="mk-btn mk-btn-secondary">Rattacher</button></form></section>
+      <section><h3 class="font-bold">Rattacher un Dossier</h3><form method="post" action="{% url 'objectives:project-link-dossier' project.id %}" class="mt-3">{% csrf_token %}{{ link_form.as_p }}<button class="mk-btn mk-btn-secondary">Rattacher le Dossier</button></form></section>
       <section><h3 class="font-bold">Cycle de vie</h3><form method="post" action="{% url 'objectives:project-lifecycle' project.id %}" class="mt-3">{% csrf_token %}{{ lifecycle_form.as_p }}<button class="mk-btn mk-btn-secondary">Mettre à jour</button></form></section>
     </div>
-  </details>
+  </section>
   {% endif %}
 </div>
 {% endblock %}
