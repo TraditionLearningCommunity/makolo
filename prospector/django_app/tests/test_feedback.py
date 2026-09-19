@@ -178,3 +178,54 @@ class DjangoFeedbackStoreTests(TestCase):
         self.assertEqual(stat.sample_count, 1)
         self.assertEqual(stat.score_sum, 0)
         self.assertEqual(stat.neutral_count, 1)
+
+
+    def test_projection_rebuild_recovers_same_derived_stats_from_raw_events(self):
+        self.feedback.record_sync(self.event(key="rebuild-a"))
+        self.feedback.record_sync(
+            self.event(
+                key="rebuild-b",
+                signal=FeedbackSignal.DOWNSTREAM_REJECTED,
+            )
+        )
+        policy = make_policy()
+        self.feedback.refresh_all_sync(policy, batch_size=10)
+        before = ProspectorFeedbackStat.objects.get(
+            policy_fingerprint=policy.fingerprint,
+            scope_kind="lineage_target",
+            scope_key=self.target.target_key,
+        )
+        expected = (
+            before.sample_count,
+            before.score_sum,
+            before.positive_count,
+            before.negative_count,
+        )
+
+        dry = self.feedback.rebuild_projection_sync(
+            policy,
+            batch_size=1,
+            apply=False,
+        )
+        self.assertFalse(dry["apply"])
+        self.assertEqual(ProspectorFeedbackEvent.objects.count(), 2)
+
+        rebuilt = self.feedback.rebuild_projection_sync(
+            policy,
+            batch_size=1,
+            apply=True,
+        )
+        self.assertEqual(rebuilt["processed"], 2)
+        after = ProspectorFeedbackStat.objects.get(
+            policy_fingerprint=policy.fingerprint,
+            scope_kind="lineage_target",
+            scope_key=self.target.target_key,
+        )
+        actual = (
+            after.sample_count,
+            after.score_sum,
+            after.positive_count,
+            after.negative_count,
+        )
+        self.assertEqual(actual, expected)
+        self.assertEqual(ProspectorFeedbackEvent.objects.count(), 2)

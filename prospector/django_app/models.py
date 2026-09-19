@@ -115,6 +115,10 @@ class ProspectorFrontierEntry(models.Model):
                 fields=["last_discovered_at", "id"],
                 name="pros_frontier_seen_idx",
             ),
+            models.Index(
+                fields=["status", "lease_expires_at", "priority", "id"],
+                name="pros_frontier_lease_idx",
+            ),
         ]
 
     def __str__(self):

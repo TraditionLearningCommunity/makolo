@@ -50,6 +50,12 @@ from .observation_contracts import (
     make_handoff_key,
     observation_target_from_claim,
 )
+from .operations import (
+    OperationsHealth,
+    OperationsSnapshot,
+    OperationsThresholds,
+    evaluate_operations_health,
+)
 from .policy import BudgetPolicy, GateDecision, GateDisposition, ObservationPolicy
 from .runtime import ProspectorRuntime, RuntimeCycleStats, RuntimePolicy
 from .security import ObservationGate
@@ -91,6 +97,10 @@ __all__ = [
     "GateDecision",
     "GateDisposition",
     "ObservationGate",
+    "OperationsSnapshot",
+    "OperationsThresholds",
+    "OperationsHealth",
+    "evaluate_operations_health",
     "SafeHandoffResult",
     "SafeObservationHandoff",
     "RuntimePolicy",

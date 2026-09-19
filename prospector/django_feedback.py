@@ -287,3 +287,65 @@ class DjangoFeedbackStore:
             )
             for target in targets
         }
+
+
+
+    def rebuild_projection_sync(
+        self,
+        policy: FeedbackPolicy,
+        *,
+        batch_size: int,
+        apply: bool,
+    ) -> dict:
+        if not isinstance(policy, FeedbackPolicy):
+            raise ProspectorContractError("policy must be FeedbackPolicy")
+        if not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size < 1:
+            raise ProspectorContractError("batch_size must be a positive integer")
+        if not isinstance(apply, bool):
+            raise ProspectorContractError("apply must be a boolean")
+
+        fingerprint = policy.fingerprint
+        current_projection = ProspectorFeedbackProjection.objects.filter(
+            policy_key=policy.policy_key,
+            policy_fingerprint=fingerprint,
+        ).first()
+        current_stats = ProspectorFeedbackStat.objects.filter(
+            policy_fingerprint=fingerprint
+        ).count()
+        event_count = ProspectorFeedbackEvent.objects.count()
+        result = {
+            "policy_key": policy.policy_key,
+            "policy_fingerprint": fingerprint,
+            "apply": apply,
+            "feedback_events": event_count,
+            "existing_stats": current_stats,
+            "existing_last_event_id": (
+                current_projection.last_event_id
+                if current_projection is not None
+                else 0
+            ),
+        }
+        if not apply:
+            return result
+
+        with transaction.atomic():
+            _advisory_lock(
+                "feedback-rebuild:"
+                + policy.policy_key
+                + ":"
+                + fingerprint
+            )
+            ProspectorFeedbackStat.objects.filter(
+                policy_fingerprint=fingerprint
+            ).delete()
+            ProspectorFeedbackProjection.objects.filter(
+                policy_key=policy.policy_key,
+                policy_fingerprint=fingerprint,
+            ).delete()
+
+        processed = self.refresh_all_sync(policy, batch_size=batch_size)
+        result["processed"] = processed
+        result["rebuilt_stats"] = ProspectorFeedbackStat.objects.filter(
+            policy_fingerprint=fingerprint
+        ).count()
+        return result

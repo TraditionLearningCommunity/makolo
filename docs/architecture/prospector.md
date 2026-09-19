@@ -1,9 +1,9 @@
 # Makolo — Acteur 1 : Prospecteur
 
-> **Statut du train : PX8 — pilote Internet réel borné et mesurable.**
+> **Statut du train : PX9 — hardening, opérations et fermeture du train Prospecteur.**
 >
 > Base réconciliée : main@dcef775870afec0736cbfc018ad09d40913e01c6.
-> PX8 est empilé sur PX7@1dc377cd96b3a3c876e9066bad571fa1a061347e.
+> PX9 est empilé sur PX8@04f0357c6ce13ab88e16ab82142c2235eaae7c82.
 > Le code, les migrations, les tests et le main courant restent prioritaires.
 
 ## 1. Mission
@@ -956,9 +956,172 @@ python manage.py prospector_live_pilot \
 
 L'exemple n'est pas une configuration permanente du produit.
 
-## 13. Ce que PX8 ne fait pas
+## 13. PX9 : hardening et opérations
 
-PX8 ne :
+PX9 ferme le train sans ajouter une infrastructure hypothétique.
+
+Les mesures PX8 disponibles montrent que les frontières actuelles sont encore
+bornées par PostgreSQL, les budgets, la cadence Common Crawl et la queue
+Observateur. Elles ne justifient pas aujourd'hui :
+
+~~~text
+Kafka
+Redis
+sharding
+service Prospecteur séparé
+partitionnement physique par host
+nouvelle base WebGraph
+~~~
+
+Ces options restent possibles plus tard si une mesure réelle montre que le
+socle courant est insuffisant.
+
+### 13.1 Observabilité agrégée
+
+`DjangoOperationsReader` produit un snapshot sans locator, contenu ni PII :
+
+~~~text
+Frontier:
+  total
+  ready_due
+  claimed
+  stale_claims
+  completed
+  suppressed
+  oldest_ready_age
+  suppression reasons
+
+Provenance:
+  evidence rows
+
+Sources:
+  checkpoints
+  active checkpoints
+  oldest active checkpoint age
+
+Feedback:
+  events
+  projections
+  lag events
+
+Budgets:
+  expired counters
+  expired reservations
+~~~
+
+`prospector_healthcheck` transforme ces mesures en état `ok/degraded`
+uniquement à partir de seuils **fournis explicitement par l'opérateur**.
+
+Aucun seuil de production n'est codé en dur.
+
+Avec `--fail-on-degraded`, la commande retourne une erreur exploitable par un
+scheduler/monitoring externe.
+
+### 13.2 Recovery des leases
+
+La Frontier sait déjà récupérer un claim expiré sans mutation préalable :
+
+~~~text
+CLAIMED + lease expirée
+        ↓
+claim worker suivant
+        ↓
+même target_key
+même handoff_generation
+nouveau claim_token
+~~~
+
+PX9 ajoute l'index PostgreSQL :
+
+~~~text
+(status, lease_expires_at, priority, id)
+~~~
+
+pour le chemin de reclaim.
+
+### 13.3 DR du feedback
+
+`ProspectorFeedbackEvent` reste le journal brut.
+
+`prospector_rebuild_feedback` peut supprimer et reconstruire uniquement :
+
+~~~text
+ProspectorFeedbackProjection
+ProspectorFeedbackStat
+~~~
+
+pour un fingerprint de politique donné.
+
+Par défaut la commande est un dry-run. `--apply` est requis pour la
+reconstruction.
+
+Les événements bruts ne sont jamais supprimés.
+
+### 13.4 Nettoyage de l'état expiré
+
+`prospector_prune_state` ne touche qu'aux :
+
+~~~text
+ProspectorBudgetCounter expirés
+ProspectorBudgetReservation expirées
+~~~
+
+La commande est dry-run par défaut et nécessite `--apply` pour supprimer.
+
+Elle ne supprime jamais :
+
+- FrontierEntry ;
+- FrontierEvidence ;
+- SourceCheckpoint ;
+- FeedbackEvent.
+
+### 13.5 Provenance
+
+Aucune compaction destructive supplémentaire n'est ajoutée.
+
+PX1 compacte déjà les replays strictement identiques grâce à :
+
+~~~text
+frontier_entry + evidence_key
+discovery_count
+first_discovered_at
+last_discovered_at
+~~~
+
+Une provenance distincte reste distincte. PX9 ne sacrifie donc pas la capacité
+d'audit pour réduire quelques lignes.
+
+### 13.6 Inspection PostgreSQL
+
+`prospector_frontier_plan --limit N` exécute un `EXPLAIN (FORMAT JSON)`
+**read-only** sur le chemin critique READY + reclaim de lease.
+
+La commande expose le coût/planner rows/node type, sans URLs.
+
+PX9 ne fixe pas de seuil de latence arbitraire en CI : les volumes réels ne
+sont pas encore suffisants pour transformer un temps synthétique en SLA.
+
+### 13.7 Disaster recovery
+
+Ordre de récupération :
+
+~~~text
+1. restaurer PostgreSQL depuis le backup opérationnel
+2. vérifier migrations
+3. exécuter prospector_healthcheck
+4. les leases expirées sont reclaimables automatiquement
+5. reconstruire les projections feedback si nécessaire
+6. reprendre les missions depuis leurs checkpoints
+7. si Frontier est perdue mais les sources/configurations subsistent,
+   relancer les missions pour convergence fonctionnelle
+~~~
+
+La reconstruction après perte totale de Frontier vise la **convergence
+fonctionnelle**, pas la reproduction du même ordre historique de découverte.
+
+## 14. Ce que PX9 ne fait pas
+
+PX9 ne :
 
 - maintient aucune liste manuelle de sites ;
 - ne récupère aucun HTML de page ;
@@ -973,7 +1136,7 @@ PX8 ne :
 - ne transforme pas une correspondance de chemin en fait métier ;
 - ne considère pas l'absence de feedback aval comme une preuve de qualité ;
 
-## 14. Train
+## 15. Train
 
 ~~~text
 PX0  fondation Python pure
@@ -992,12 +1155,12 @@ PX6  runtime continu + Crawlee / recovery / backpressure
  ↓
 PX7  feedback aval + exploration/exploitation
  ↓
-PX8  pilote Internet réel                                          ← courant
+PX8  pilote Internet réel
  ↓
-PX9  hardening / échelle
+PX9  hardening / opérations / fermeture                            ← courant
 ~~~
 
-## 15. Validation PX8
+## 16. Validation PX9
 
 Tests core :
 
@@ -1162,3 +1325,27 @@ Ils vérifient notamment :
 - commande testée sans Internet via provider factice.
 
 PX8 n'ajoute aucune migration.
+
+
+Tests PX9 spécifiques :
+
+~~~text
+python -m unittest prospector.tests.test_operations
+
+python manage.py test   prospector.django_app.tests.test_operations   prospector.django_app.tests.test_ops_commands   prospector.django_app.tests.test_feedback
+~~~
+
+Ils vérifient notamment :
+
+- seuils health explicites et absence de politique cachée ;
+- snapshot ops sans locator ;
+- détection des leases expirées ;
+- lag de projection feedback ;
+- purge budget dry-run/apply ;
+- reconstruction identique d'une projection depuis les événements bruts ;
+- healthcheck non-zéro en mode fail-on-degraded ;
+- EXPLAIN PostgreSQL read-only ;
+- cohérence modèle/migration de l'index reclaim.
+
+PX9 ajoute uniquement la migration
+`prospector_storage.0006_frontier_reclaim_index`.
