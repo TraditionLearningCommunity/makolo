@@ -133,6 +133,8 @@ class CrawleeObservationInbox:
                     "target_key": target.target_key,
                     "handoff_key": target.handoff_key,
                     "handoff_generation": target.handoff_generation,
+                    "locator": target.locator,
+                    "kind": target.kind,
                     "requested_at": target.requested_at.isoformat(),
                     "observation_hints": dict(target.observation_hints),
                 }
