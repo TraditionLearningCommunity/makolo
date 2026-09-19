@@ -94,10 +94,19 @@ def build_observation_material(
             )
         )
 
-    revalidated_refs = tuple(
+    revalidated = list(
         observation.revalidated_artifacts
+        .select_related("observation__series")
         .order_by("artifact_ref")
-        .values_list("artifact_ref", flat=True)
+    )
+    for artifact in revalidated:
+        if artifact.observation.series_id != observation.series_id:
+            raise ObserverContractError(
+                "revalidated artifact must belong to the same observation series"
+            )
+    revalidated_refs = tuple(
+        artifact.artifact_ref
+        for artifact in revalidated
     )
     return ObservationMaterial(
         material_key=make_material_key(
