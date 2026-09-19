@@ -1,8 +1,10 @@
+import hashlib
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 
@@ -20,7 +22,7 @@ from observer.django_store import (
     absorb_observation_target,
     get_or_create_observation_series,
 )
-from observer.errors import ObserverStateConflictError
+from observer.errors import ObserverContractError, ObserverStateConflictError
 from observer.identifiers import make_reference_key
 
 from .models import (
@@ -28,6 +30,7 @@ from .models import (
     ObservationAttempt,
     ObservedArtifact,
     ObservedReference,
+    observer_blob_upload_to,
 )
 from .storage import private_observer_artifact_storage
 
@@ -192,6 +195,26 @@ class ObserverFoundationTests(TestCase):
                 b"same bytes",
             )
 
+    def test_blob_storage_recovers_matching_orphan_file(self):
+        payload = b"orphaned before database commit"
+        digest = hashlib.sha256(payload).hexdigest()
+        probe = type("BlobProbe", (), {"content_digest": digest})()
+        expected_name = observer_blob_upload_to(
+            probe,
+            "artifact.bin",
+        )
+        saved_name = private_observer_artifact_storage.save(
+            expected_name,
+            ContentFile(payload),
+        )
+        self.assertEqual(saved_name, expected_name)
+
+        blob, created = store_blob(payload)
+
+        self.assertTrue(created)
+        self.assertEqual(blob.file.name, expected_name)
+        self.assertEqual(blob.content_digest, digest)
+
     def test_material_projects_artifact_without_storage_path(self):
         observation = self.finalized_observation()
         attempt = ObservationAttempt.objects.create(
@@ -295,6 +318,42 @@ class ObserverFoundationTests(TestCase):
             material.revalidated_artifact_refs,
             (artifact.artifact_ref,),
         )
+
+    def test_not_modified_cannot_revalidate_artifact_from_other_profile(self):
+        first = self.finalized_observation()
+        blob, _created = store_blob(b"stable")
+        artifact = ObservedArtifact.objects.create(
+            observation=first,
+            blob=blob,
+            role="response_body",
+            origin=ArtifactOrigin.CAPTURED.value,
+            completeness=ArtifactCompleteness.COMPLETE.value,
+            captured_at=self.now + timedelta(seconds=3),
+        )
+        other_series, _created = self.series(
+            profile_key="public-http-fr",
+            profile_fingerprint="profile-public-http-fr-v1",
+        )
+        second = Observation.objects.create(
+            series=other_series,
+            source_handoff=first.source_handoff,
+            trigger=ObservationTrigger.WATCH.value,
+            lifecycle="finalized",
+            outcome=ObservationOutcome.NOT_MODIFIED.value,
+            started_at=self.now + timedelta(days=1),
+            observed_at=self.now + timedelta(days=1, seconds=1),
+            completed_at=self.now + timedelta(days=1, seconds=2),
+            requested_locator=self.target.locator,
+            final_locator=self.target.locator,
+            response_status=304,
+            profile_ref="public-http-fr",
+            profile_fingerprint="profile-public-http-fr-v1",
+            policy_fingerprint="observer-policy-v1",
+        )
+        second.revalidated_artifacts.add(artifact)
+
+        with self.assertRaises(ObserverContractError):
+            build_observation_material(second.observation_ref)
 
     def test_only_one_open_observation_per_series(self):
         handoff, _created = self.absorb()
