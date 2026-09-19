@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from django.conf import settings
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 
 from prospector.observation_contracts import ObservationTarget, make_handoff_key
@@ -285,7 +285,7 @@ class ObserverFoundationTests(TestCase):
         )
         Observation.objects.create(**common)
         with self.assertRaises(IntegrityError):
-            with self.captureOnCommitCallbacks(execute=True):
+            with transaction.atomic():
                 Observation.objects.create(**common)
 
     def test_reference_identity_is_explicit_not_global_locator_identity(self):
