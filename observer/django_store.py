@@ -41,28 +41,10 @@ def _json_mapping(name: str, value) -> dict:
     return data
 
 
-def _verify_series(
-    series: ObservationSeries,
-    *,
-    target: ObservationTarget,
-    profile_key: str,
-) -> None:
-    if (
-        series.target_key != target.target_key
-        or series.kind != target.kind
-        or series.locator != target.locator
-        or series.profile_key != profile_key
-    ):
-        raise ObserverStateConflictError(
-            "existing observation series conflicts with target/profile identity"
-        )
-
-
 def _verify_handoff(
     handoff: ObserverHandoff,
     *,
     target: ObservationTarget,
-    series: ObservationSeries,
     observation_hints: dict,
 ) -> None:
     expected = {
@@ -73,7 +55,6 @@ def _verify_handoff(
         "requested_at": target.requested_at,
         "contract_version": target.contract_version,
         "observation_hints": observation_hints,
-        "series_id": series.pk,
     }
     actual = {
         "target_key": handoff.target_key,
@@ -83,7 +64,6 @@ def _verify_handoff(
         "requested_at": handoff.requested_at,
         "contract_version": handoff.contract_version,
         "observation_hints": handoff.observation_hints,
-        "series_id": handoff.series_id,
     }
     if actual != expected:
         raise ObserverStateConflictError(
@@ -95,21 +75,14 @@ def _verify_handoff(
 def absorb_observation_target(
     target: ObservationTarget,
     *,
-    profile_key: str,
-    profile_fingerprint: str,
     absorbed_at: datetime | None = None,
 ) -> Tuple[ObserverHandoff, bool]:
-    """Persist one accepted ObservationTarget without creating an Observation."""
+    """Persist one accepted ObservationTarget without choosing a profile."""
 
     if not isinstance(target, ObservationTarget):
         raise ObserverContractError(
             "target must be an ObservationTarget"
         )
-    profile_key = _required_text("profile_key", profile_key)
-    profile_fingerprint = _required_text(
-        "profile_fingerprint",
-        profile_fingerprint,
-    )
     absorbed_at = _aware(
         "absorbed_at",
         absorbed_at or timezone.now(),
@@ -117,21 +90,6 @@ def absorb_observation_target(
     hints = _json_mapping(
         "observation_hints",
         target.observation_hints,
-    )
-
-    series, _created = ObservationSeries.objects.get_or_create(
-        target_key=target.target_key,
-        profile_fingerprint=profile_fingerprint,
-        defaults={
-            "kind": target.kind,
-            "locator": target.locator,
-            "profile_key": profile_key,
-        },
-    )
-    _verify_series(
-        series,
-        target=target,
-        profile_key=profile_key,
     )
 
     existing = (
@@ -147,7 +105,6 @@ def absorb_observation_target(
         _verify_handoff(
             existing,
             target=target,
-            series=series,
             observation_hints=hints,
         )
         return existing, False
@@ -162,7 +119,6 @@ def absorb_observation_target(
             requested_at=target.requested_at,
             contract_version=target.contract_version,
             observation_hints=hints,
-            series=series,
             absorbed_at=absorbed_at,
         )
     except IntegrityError:
@@ -180,8 +136,45 @@ def absorb_observation_target(
         _verify_handoff(
             handoff,
             target=target,
-            series=series,
             observation_hints=hints,
         )
         return handoff, False
     return handoff, True
+
+
+@transaction.atomic
+def get_or_create_observation_series(
+    target: ObservationTarget,
+    *,
+    profile_key: str,
+    profile_fingerprint: str,
+) -> Tuple[ObservationSeries, bool]:
+    """Create Observer-owned longitudinal state for one comparable profile."""
+
+    if not isinstance(target, ObservationTarget):
+        raise ObserverContractError(
+            "target must be an ObservationTarget"
+        )
+    profile_key = _required_text("profile_key", profile_key)
+    profile_fingerprint = _required_text(
+        "profile_fingerprint",
+        profile_fingerprint,
+    )
+    series, created = ObservationSeries.objects.get_or_create(
+        target_key=target.target_key,
+        profile_fingerprint=profile_fingerprint,
+        defaults={
+            "kind": target.kind,
+            "locator": target.locator,
+            "profile_key": profile_key,
+        },
+    )
+    if (
+        series.kind != target.kind
+        or series.locator != target.locator
+        or series.profile_key != profile_key
+    ):
+        raise ObserverStateConflictError(
+            "existing observation series conflicts with target/profile identity"
+        )
+    return series, created
