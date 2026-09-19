@@ -76,6 +76,8 @@ class CrawleeObservationInboxTests(IsolatedAsyncioTestCase):
         makolo = request.user_data["makolo"]
         self.assertEqual(makolo["target_key"], self.target.target_key)
         self.assertEqual(makolo["handoff_generation"], 1)
+        self.assertEqual(makolo["locator"], self.target.locator)
+        self.assertEqual(makolo["kind"], self.target.kind)
         self.assertEqual(
             makolo["observation_hints"],
             {"indexed_mime_type": "text/html"},
