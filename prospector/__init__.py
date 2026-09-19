@@ -1,7 +1,7 @@
 """Makolo Prospecteur core contracts.
 
-This package is deliberately framework-independent. Django, PostgreSQL,
-Crawlee and provider integrations belong behind adapters/ports.
+The import surface is deliberately framework-independent. Django, PostgreSQL,
+Crawlee and provider integrations live behind adapters/ports.
 """
 
 from .contracts import (
@@ -10,12 +10,109 @@ from .contracts import (
     ProspectingEvidence,
     ProspectingTarget,
 )
-from .errors import ProspectorContractError
+from .errors import (
+    FrontierClaimError,
+    FrontierConflictError,
+    ExpansionContractError,
+    ObservationContractError,
+    ProspectorContractError,
+    UnsupportedTargetKindError,
+)
+from .feedback import (
+    AdaptivePolicy,
+    CandidateLearning,
+    FeedbackPolicy,
+    FeedbackProducer,
+    FeedbackSignal,
+    LearningScope,
+    LearningStat,
+    ProspectingFeedback,
+    feedback_scopes_for_target,
+    score_target,
+)
+from .frontier import FrontierClaim, FrontierState
+from .pilot import (
+    PilotPolicy,
+    PilotRunStats,
+    PilotSnapshot,
+    ProspectorPilotRunner,
+    build_pilot_scorecard,
+)
+from .expansion import ExpansionPolicy, ExpansionResult, ObservationExpansionSink
+from .observation_contracts import (
+    OBSERVATION_CONTRACT_VERSION,
+    ObservationDisposition,
+    ObservationReceipt,
+    ObservationReport,
+    ObservationStatus,
+    ObservationTarget,
+    ObservedReference,
+    make_handoff_key,
+    observation_target_from_claim,
+)
+from .operations import (
+    OperationsHealth,
+    OperationsSnapshot,
+    OperationsThresholds,
+    evaluate_operations_health,
+)
+from .policy import BudgetPolicy, GateDecision, GateDisposition, ObservationPolicy
+from .runtime import ProspectorRuntime, RuntimeCycleStats, RuntimePolicy
+from .security import ObservationGate
+from .safe_handoff import SafeHandoffResult, SafeObservationHandoff
 
 __all__ = [
     "CONTRACT_VERSION",
+    "OBSERVATION_CONTRACT_VERSION",
     "ProspectingCandidate",
     "ProspectingEvidence",
     "ProspectingTarget",
+    "FrontierClaim",
+    "FrontierState",
+    "FeedbackSignal",
+    "FeedbackProducer",
+    "LearningScope",
+    "ProspectingFeedback",
+    "FeedbackPolicy",
+    "AdaptivePolicy",
+    "LearningStat",
+    "CandidateLearning",
+    "feedback_scopes_for_target",
+    "score_target",
+    "PilotPolicy",
+    "PilotRunStats",
+    "PilotSnapshot",
+    "ProspectorPilotRunner",
+    "build_pilot_scorecard",
+    "ObservationTarget",
+    "ObservationReceipt",
+    "ObservationReport",
+    "ObservedReference",
+    "ObservationDisposition",
+    "ObservationStatus",
+    "make_handoff_key",
+    "observation_target_from_claim",
+    "BudgetPolicy",
+    "ObservationPolicy",
+    "GateDecision",
+    "GateDisposition",
+    "ObservationGate",
+    "OperationsSnapshot",
+    "OperationsThresholds",
+    "OperationsHealth",
+    "evaluate_operations_health",
+    "SafeHandoffResult",
+    "SafeObservationHandoff",
+    "RuntimePolicy",
+    "RuntimeCycleStats",
+    "ProspectorRuntime",
     "ProspectorContractError",
+    "UnsupportedTargetKindError",
+    "FrontierConflictError",
+    "FrontierClaimError",
+    "ObservationContractError",
+    "ExpansionContractError",
+    "ExpansionPolicy",
+    "ExpansionResult",
+    "ObservationExpansionSink",
 ]
