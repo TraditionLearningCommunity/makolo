@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone as dt_timezone
 
 from django.db import connection
@@ -150,32 +151,28 @@ class DjangoProspectorMaintenance:
                 "frontier query-plan inspection requires PostgreSQL"
             )
 
-        table = ProspectorFrontierEntry._meta.db_table
-        sql = f"""
-            EXPLAIN (FORMAT JSON)
-            SELECT id
-            FROM {table}
-            WHERE (
-                (status = %s AND available_at <= %s)
-                OR
-                (status = %s AND lease_expires_at <= %s)
+        queryset = (
+            ProspectorFrontierEntry.objects.filter(
+                Q(
+                    status=FrontierState.READY.value,
+                    available_at__lte=now,
+                )
+                | Q(
+                    status=FrontierState.CLAIMED.value,
+                    lease_expires_at__lte=now,
+                )
             )
-            ORDER BY priority, available_at, id
-            LIMIT %s
-        """
-        with connection.cursor() as cursor:
-            cursor.execute(
-                sql,
-                [
-                    FrontierState.READY.value,
-                    now,
-                    FrontierState.CLAIMED.value,
-                    now,
-                    limit,
-                ],
-            )
-            raw = cursor.fetchone()[0]
-        plan = raw[0]["Plan"]
+            .order_by("priority", "available_at", "id")
+            .values("id")[:limit]
+        )
+        raw = queryset.explain(format="json")
+        try:
+            explained = json.loads(raw)
+            plan = explained[0]["Plan"]
+        except (TypeError, ValueError, KeyError, IndexError) as exc:
+            raise ProspectorContractError(
+                "PostgreSQL returned an invalid EXPLAIN JSON payload"
+            ) from exc
         return {
             "database": "postgresql",
             "limit": limit,

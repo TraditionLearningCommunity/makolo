@@ -4,12 +4,11 @@ import asyncio
 import json
 import math
 import re
+from http.client import HTTPException, HTTPSConnection
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, Mapping, Optional, Protocol, Sequence
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
 
 from prospector.errors import (
     ProspectorContractError,
@@ -48,7 +47,9 @@ class HttpTransport(Protocol):
 
 
 class UrllibHttpTransport:
-    """Small stdlib transport. PX4 adds destination-security policy."""
+    """Strict HTTPS transport dedicated to Common Crawl's public index."""
+
+    ALLOWED_HOST = "index.commoncrawl.org"
 
     def get(
         self,
@@ -57,20 +58,50 @@ class UrllibHttpTransport:
         headers: Mapping[str, str],
         timeout_seconds: int,
     ) -> HttpResponse:
-        request = Request(url, headers=dict(headers), method="GET")
-        try:
-            with urlopen(request, timeout=timeout_seconds) as response:
-                return HttpResponse(
-                    status=int(response.status),
-                    body=response.read().decode("utf-8"),
-                )
-        except HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            return HttpResponse(status=int(exc.code), body=body)
-        except URLError as exc:
+        parsed = urlsplit(url)
+        if parsed.scheme != "https":
             raise ProspectorSourceError(
-                f"Common Crawl request failed: {exc.reason}"
+                "Common Crawl transport requires https"
+            )
+        if parsed.hostname != self.ALLOWED_HOST:
+            raise ProspectorSourceError(
+                "Common Crawl transport rejected unexpected host"
+            )
+        if parsed.username is not None or parsed.password is not None:
+            raise ProspectorSourceError(
+                "Common Crawl transport rejects URL credentials"
+            )
+        try:
+            port = parsed.port
+        except ValueError as exc:
+            raise ProspectorSourceError(
+                "Common Crawl transport rejected invalid port"
             ) from exc
+        if port not in {None, 443}:
+            raise ProspectorSourceError(
+                "Common Crawl transport requires the default HTTPS port"
+            )
+
+        target = parsed.path or "/"
+        if parsed.query:
+            target += "?" + parsed.query
+
+        connection = HTTPSConnection(
+            self.ALLOWED_HOST,
+            port=443,
+            timeout=timeout_seconds,
+        )
+        try:
+            connection.request("GET", target, headers=dict(headers))
+            response = connection.getresponse()
+            body = response.read().decode("utf-8", errors="replace")
+            return HttpResponse(status=int(response.status), body=body)
+        except (OSError, HTTPException) as exc:
+            raise ProspectorSourceError(
+                f"Common Crawl request failed: {exc}"
+            ) from exc
+        finally:
+            connection.close()
 
 
 def _parse_timestamp(value: str) -> datetime:

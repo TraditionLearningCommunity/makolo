@@ -5,12 +5,14 @@ from unittest import IsolatedAsyncioTestCase
 
 from prospector.errors import (
     ProspectorContractError,
+    ProspectorSourceError,
     ProspectorSourceRateLimitError,
 )
 from prospector.providers.common_crawl import (
     COLLECTIONS_URL,
     CommonCrawlIndexSource,
     HttpResponse,
+    UrllibHttpTransport,
     _path_filter_regex,
 )
 from prospector.source_contracts import ProspectingMission, SourceCheckpoint
@@ -241,6 +243,24 @@ class CommonCrawlIndexSourceTests(IsolatedAsyncioTestCase):
         from prospector.errors import ProspectorSourceError
         with self.assertRaises(ProspectorSourceError):
             await source.discover(self.mission())
+
+    def test_default_transport_rejects_non_https_and_unexpected_hosts(self):
+        transport = UrllibHttpTransport()
+        headers = {"User-Agent": "Makolo test"}
+        for url in (
+            "http://index.commoncrawl.org/collinfo.json",
+            "file:///tmp/collinfo.json",
+            "https://example.com/collinfo.json",
+            "https://user@index.commoncrawl.org/collinfo.json",
+            "https://index.commoncrawl.org:8443/collinfo.json",
+        ):
+            with self.subTest(url=url):
+                with self.assertRaises(ProspectorSourceError):
+                    transport.get(
+                        url,
+                        headers=headers,
+                        timeout_seconds=1,
+                    )
 
     def test_path_term_filter_uses_url_token_boundaries(self):
         pattern = re.compile(_path_filter_regex(("formation", "admission")))
