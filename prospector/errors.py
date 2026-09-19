@@ -1,0 +1,31 @@
+class ProspectorContractError(ValueError):
+    """Raised when a Prospector contract value violates a core invariant."""
+
+
+class UnsupportedTargetKindError(ProspectorContractError):
+    """Raised when no canonicalization contract exists for a target kind."""
+
+
+class FrontierConflictError(ProspectorContractError):
+    """Raised when durable state conflicts with a canonical target identity."""
+
+
+class FrontierClaimError(ProspectorContractError):
+    """Raised when a worker attempts an invalid or stale Frontier transition."""
+
+
+class ObservationContractError(ProspectorContractError):
+    """Raised when the Prospecteur/Observateur contract is inconsistent."""
+
+
+class ExpansionContractError(ProspectorContractError):
+    """Raised when bounded structural expansion cannot be performed safely."""
+
+
+
+class ProspectorSourceError(RuntimeError):
+    """Raised when an external prospecting source is operationally unavailable."""
+
+
+class ProspectorSourceRateLimitError(ProspectorSourceError):
+    """Raised when an external source asks the Prospecteur to slow down."""

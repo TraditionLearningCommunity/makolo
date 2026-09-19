@@ -696,3 +696,109 @@ Si aucun scheduler horaire/persistant correct n'est disponible, documenter expli
 ### 25.7 Rollback
 
 Conserver dans le rapport opérateur : ancien SHA, nouveau SHA, backup pré-déploiement et état média pertinent. Si la candidate ou le code live présente un blocage, revenir au SHA connu bon selon la section 21 et restaurer la DB sauvegardée uniquement si nécessaire pour rétablir le service. La vieille DB reste un mécanisme de rollback opérationnel, jamais une source de vérité fonctionnelle à réintroduire dans le seed canonique.
+
+
+## 11. Prospecteur — opérations, health et DR
+
+Le train Prospecteur PX0→PX9 conserve PostgreSQL comme vérité opérationnelle
+de la Frontier. Ne pas introduire Redis/Kafka ou un service séparé uniquement
+pour « préparer l'échelle » : une extraction doit être justifiée par des
+mesures réelles.
+
+### 11.1 Health agrégé
+
+Commande :
+
+~~~bash
+python manage.py prospector_healthcheck   --max-stale-claims <N>   --max-ready-age-seconds <SECONDS>   --max-feedback-lag-events <N>   --max-checkpoint-age-seconds <SECONDS>
+~~~
+
+Les seuils sont propres à l'environnement. Le dépôt ne fournit aucune valeur
+de production implicite.
+
+Pour une intégration monitoring :
+
+~~~bash
+python manage.py prospector_healthcheck ... --fail-on-degraded
+~~~
+
+Le JSON retourné ne contient ni URL de cible, ni contenu observé, ni PII.
+
+### 11.2 Claims expirés
+
+Ne pas écrire un job qui « remet READY » tous les claims expirés.
+
+Le claim PostgreSQL considère déjà une ligne `CLAIMED` dont la lease est
+expirée comme reclaimable. Le worker suivant la reprend avec un nouveau
+claim_token et conserve la handoff_generation.
+
+L'index `pros_frontier_lease_idx` accélère ce chemin.
+
+### 11.3 Projection feedback
+
+Le journal `ProspectorFeedbackEvent` est brut et ne doit pas être supprimé
+pour corriger un score.
+
+Dry-run d'une reconstruction :
+
+~~~bash
+python manage.py prospector_rebuild_feedback   --policy-key <KEY>   --weight observation_valid=<INT>   --weight structured_information=<INT>   --weight reality_new=<INT>   --weight reality_refreshed=<INT>   --weight no_useful_information=<INT>   --weight downstream_rejected=<INT>   --batch-size <N>
+~~~
+
+Ajouter `--apply` uniquement après revue du fingerprint et du dry-run.
+
+La commande supprime/reconstruit les projections/stats du fingerprint, jamais
+les événements bruts.
+
+### 11.4 Purge de budgets expirés
+
+Dry-run :
+
+~~~bash
+python manage.py prospector_prune_state   --before 2026-09-19T00:00:00+02:00
+~~~
+
+Application :
+
+~~~bash
+python manage.py prospector_prune_state   --before 2026-09-19T00:00:00+02:00   --apply
+~~~
+
+Seuls les compteurs et réservations dont `period_end < before` sont
+supprimés.
+
+### 11.5 Inspection du plan PostgreSQL
+
+~~~bash
+python manage.py prospector_frontier_plan --limit <N>
+~~~
+
+Cette commande est read-only. Elle expose les métadonnées `EXPLAIN` du
+chemin READY/reclaim sans modifier la Frontier et sans exposer de locator.
+
+Ne pas transformer un coût planner ou un benchmark synthétique en SLA de
+production. Conserver des mesures datées sur les volumes réels avant toute
+décision de partitionnement.
+
+### 11.6 Récupération
+
+Après restauration de base :
+
+~~~bash
+python manage.py check
+python manage.py migrate --noinput
+python manage.py prospector_healthcheck ...
+~~~
+
+Puis :
+
+1. laisser les workers reclaim les leases expirées ;
+2. vérifier les checkpoints source ;
+3. reconstruire une projection feedback seulement si elle est incohérente ;
+4. reprendre les missions bornées ;
+5. vérifier la progression via health + scorecards.
+
+Si la Frontier est perdue mais que les programmes/missions, sources et
+politiques sont encore disponibles, repartir des sources et accepter une
+convergence fonctionnelle. Ne pas inventer un backfill historique pour
+reproduire artificiellement l'ancien ordre des découvertes.
