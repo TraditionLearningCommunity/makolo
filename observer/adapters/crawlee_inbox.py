@@ -45,14 +45,19 @@ def observation_target_from_crawlee_request(
             "unexpected Crawlee request label"
         )
     user_data = getattr(request, "user_data", None)
-    if not isinstance(user_data, dict):
+    if user_data is None or not hasattr(user_data, "__getitem__"):
         raise ObserverContractError(
-            "Crawlee request user_data must be a mapping"
+            "Crawlee request user_data must support keyed access"
         )
-    makolo = user_data.get("makolo")
-    if not isinstance(makolo, dict):
+    try:
+        makolo = user_data["makolo"]
+    except (KeyError, TypeError) as exc:
         raise ObserverContractError(
             "Crawlee request is missing makolo handoff data"
+        ) from exc
+    if not isinstance(makolo, dict):
+        raise ObserverContractError(
+            "Crawlee makolo handoff data must be a JSON object"
         )
     hints = makolo.get("observation_hints", {})
     if not isinstance(hints, dict):
