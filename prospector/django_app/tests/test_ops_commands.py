@@ -7,6 +7,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection
 from django.test import TestCase, TransactionTestCase
+from django.utils import timezone as django_timezone
 
 from prospector.contracts import ProspectingCandidate, ProspectingEvidence
 from prospector.django_app.models import ProspectorFrontierEntry
@@ -19,7 +20,7 @@ POSTGRESQL = connection.vendor == "postgresql"
 
 class OperationsCommandTests(TestCase):
     def setUp(self):
-        self.now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
+        self.now = django_timezone.now()
 
     def test_healthcheck_outputs_aggregate_json(self):
         stdout = io.StringIO()
