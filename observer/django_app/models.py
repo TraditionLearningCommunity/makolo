@@ -79,19 +79,7 @@ class ObserverHandoff(models.Model):
     requested_at = models.DateTimeField()
     contract_version = models.PositiveIntegerField(default=1)
     observation_hints = models.JSONField(default=dict, blank=True)
-    series = models.ForeignKey(
-        ObservationSeries,
-        on_delete=models.PROTECT,
-        related_name="handoffs",
-    )
     absorbed_at = models.DateTimeField()
-    satisfied_by_observation = models.OneToOneField(
-        "Observation",
-        on_delete=models.SET_NULL,
-        related_name="satisfied_handoff",
-        null=True,
-        blank=True,
-    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -106,26 +94,6 @@ class ObserverHandoff(models.Model):
                 name="obs_handoff_gen_gte_1",
             ),
         ]
-        indexes = [
-            models.Index(
-                fields=["series", "handoff_generation"],
-                name="obs_handoff_series_gen_idx",
-            )
-        ]
-
-    def clean(self):
-        super().clean()
-        errors = {}
-        if self.series_id:
-            if self.series.target_key != self.target_key:
-                errors["target_key"] = (
-                    "Le handoff doit appartenir à la même cible que sa série."
-                )
-            if self.series.kind != self.kind or self.series.locator != self.locator:
-                errors["series"] = "Le handoff doit conserver kind/locator de la série."
-        if errors:
-            raise ValidationError(errors)
-
     def __str__(self):
         return self.handoff_key
 
@@ -246,14 +214,18 @@ class Observation(models.Model):
     def clean(self):
         super().clean()
         errors = {}
-        if (
-            self.source_handoff_id
-            and self.series_id
-            and self.source_handoff.series_id != self.series_id
-        ):
-            errors["source_handoff"] = (
-                "Le handoff source doit appartenir à la même série."
-            )
+        if self.source_handoff_id and self.series_id:
+            if self.source_handoff.target_key != self.series.target_key:
+                errors["source_handoff"] = (
+                    "Le handoff source doit viser la même cible que la série."
+                )
+            if (
+                self.source_handoff.kind != self.series.kind
+                or self.source_handoff.locator != self.series.locator
+            ):
+                errors["source_handoff"] = (
+                    "Le handoff source doit conserver kind/locator de la série."
+                )
         if self.series_id:
             if self.profile_fingerprint != self.series.profile_fingerprint:
                 errors["profile_fingerprint"] = (
