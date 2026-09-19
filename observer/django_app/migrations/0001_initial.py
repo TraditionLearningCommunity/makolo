@@ -94,23 +94,9 @@ class Migration(migrations.Migration):
                 ),
                 ("absorbed_at", models.DateTimeField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
-                (
-                    "series",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.PROTECT,
-                        related_name="handoffs",
-                        to="observer_storage.observationseries",
-                    ),
-                ),
             ],
             options={
                 "db_table": "observer_handoff",
-                "indexes": [
-                    models.Index(
-                        fields=["series", "handoff_generation"],
-                        name="obs_handoff_series_gen_idx",
-                    ),
-                ],
                 "constraints": [
                     models.UniqueConstraint(
                         fields=("target_key", "handoff_generation"),
@@ -288,17 +274,6 @@ class Migration(migrations.Migration):
                     ),
                 ],
             },
-        ),
-        migrations.AddField(
-            model_name="observerhandoff",
-            name="satisfied_by_observation",
-            field=models.OneToOneField(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
-                related_name="satisfied_handoff",
-                to="observer_storage.observation",
-            ),
         ),
         migrations.CreateModel(
             name="ObservationAttempt",
