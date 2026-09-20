@@ -110,17 +110,22 @@ def absorb_observation_target(
         return existing, False
 
     try:
-        handoff = ObserverHandoff.objects.create(
-            handoff_key=target.handoff_key,
-            target_key=target.target_key,
-            handoff_generation=target.handoff_generation,
-            locator=target.locator,
-            kind=target.kind,
-            requested_at=target.requested_at,
-            contract_version=target.contract_version,
-            observation_hints=hints,
-            absorbed_at=absorbed_at,
-        )
+        # Keep the uniqueness race inside its own savepoint. Catching an
+        # IntegrityError directly in the outer @atomic block would leave that
+        # transaction marked for rollback and make the idempotent lookup below
+        # unusable under real concurrent admission.
+        with transaction.atomic():
+            handoff = ObserverHandoff.objects.create(
+                handoff_key=target.handoff_key,
+                target_key=target.target_key,
+                handoff_generation=target.handoff_generation,
+                locator=target.locator,
+                kind=target.kind,
+                requested_at=target.requested_at,
+                contract_version=target.contract_version,
+                observation_hints=hints,
+                absorbed_at=absorbed_at,
+            )
     except IntegrityError:
         handoff = (
             ObserverHandoff.objects.filter(
