@@ -58,6 +58,26 @@ class PartnerDashboardView(LoginRequiredMixin, ListView):
         return context
 
 
+class MyPartnerDetailView(LoginRequiredMixin, DetailView):
+    """Profile-only partner relationship; never exposes Space management controls."""
+
+    model = Partner
+    template_name = "partners/my_partner_detail.html"
+    context_object_name = "partner"
+    login_url = "core:login"
+
+    def get_queryset(self):
+        return Partner.objects.filter(user=self.request.user).select_related("organization")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["metrics"] = build_partner_metrics(self.object, finance_visible=True)
+        context["codes"] = get_referral_codes_visible_to(self.request.user).filter(partner=self.object)
+        context["balances"] = partner_balance(self.object)
+        context["payouts"] = get_payouts_visible_to(self.request.user).filter(partner=self.object)[:20]
+        return context
+
+
 class OrganizationPartnerView(LoginRequiredMixin, View):
     login_url = "core:login"
 

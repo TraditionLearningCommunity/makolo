@@ -1,28 +1,35 @@
 {% extends "base/app.html" %}
+{% block title %}{{ project.title }} | En cours{% endblock %}
 {% block content %}
-<div style="max-width:760px;margin:0 auto;padding:1rem;">
-  <p><a class="mk-btn mk-btn-ghost" href="{% url 'objectives:project-list' %}">← Projets</a></p>
-  <p style="margin:1rem 0 0;color:#5232DB;font-weight:700;">Projet</p>
-  <h1>{{ project.title }}</h1>
-  {% if project.description %}<p>{{ project.description }}</p>{% endif %}
-  <p>{{ project.get_lifecycle_display }}{% if project.starts_on or project.ends_on %} · {% if project.starts_on %}du {{ project.starts_on }}{% endif %}{% if project.ends_on %} au {{ project.ends_on }}{% endif %}{% endif %}</p>
+<div class="mx-auto max-w-4xl space-y-6 pb-10">
+  <section class="mk-panel p-5 sm:p-7">
+    <span class="mk-kicker">Horizon durable</span>
+    <h1 class="mk-page-title mt-2">{{ project.title }}</h1>
+    {% if project.description %}<p class="mk-page-copy mt-3">{{ project.description }}</p>{% endif %}
+    <div class="mt-4 flex flex-wrap gap-2"><span class="mk-badge">{{ project.get_lifecycle_display }}</span>{% if project.starts_on or project.ends_on %}<span class="mk-badge">{% if project.starts_on %}Depuis {{ project.starts_on }}{% endif %}{% if project.ends_on %} · jusqu’au {{ project.ends_on }}{% endif %}</span>{% endif %}</div>
+  </section>
 
-  <section style="margin-top:2rem;">
-    <h2>Dossiers</h2>
-    <p><small>{{ visible_dossier_count }} dossier{{ visible_dossier_count|pluralize }} visible{{ visible_dossier_count|pluralize }}</small></p>
-    <div style="display:grid;gap:.75rem;">
+  <section>
+    <div class="flex items-end justify-between gap-4"><div><span class="mk-kicker">Ce qui avance dans ce Projet</span><h2 class="mt-2 text-xl font-extrabold">Dossiers</h2></div><span class="mk-badge">{{ visible_dossier_count }} dossier{{ visible_dossier_count|pluralize }} visible{{ visible_dossier_count|pluralize }}</span></div>
+    <div class="mt-4 space-y-3">
       {% for row in dossier_rows %}
-        <article style="padding:1rem;border:1px solid #ddd;border-radius:16px;">
-          <a href="{% url 'objectives:dossier-detail' row.dossier.id %}"><strong>{{ row.dossier.title }}</strong></a> — {{ row.readiness.status_label }}
-          {% if can_manage and row.can_manage %}<form method="post" action="{% url 'objectives:project-unlink-dossier' project.id row.dossier.id %}" style="margin-top:.75rem;">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Retirer du Projet</button></form>{% endif %}
-        </article>
-      {% empty %}<p>Aucun Dossier visible dans ce Projet.</p>{% endfor %}
+      <article class="mk-panel p-5">
+        <a href="{% url 'objectives:dossier-detail' row.dossier.id %}" class="font-extrabold">{{ row.dossier.title }}</a>
+        <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ row.readiness.status_label }}</p>
+        {% if can_manage and row.can_manage %}<form method="post" action="{% url 'objectives:project-unlink-dossier' project.id row.dossier.id %}" class="mt-3">{% csrf_token %}<button class="mk-btn mk-btn-ghost" type="submit">Retirer du Projet</button></form>{% endif %}
+      </article>
+      {% empty %}<div class="mk-calm-state"><h3>Aucun Dossier visible dans ce Projet.</h3><p>Ce Projet peut rester un horizon durable sans devenir une liste artificielle de tâches.</p></div>{% endfor %}
     </div>
   </section>
 
   {% if can_manage %}
-    <section style="margin-top:2rem;"><h2>Rattacher un Dossier</h2><form method="post" action="{% url 'objectives:project-link-dossier' project.id %}">{% csrf_token %}{{ link_form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Rattacher le Dossier</button></form></section>
-    <section style="margin-top:2rem;"><h2>Cycle de vie</h2><form method="post" action="{% url 'objectives:project-lifecycle' project.id %}">{% csrf_token %}{{ lifecycle_form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Mettre à jour l’état</button></form></section>
+  <section class="mk-panel p-5">
+    <h2 class="font-extrabold">Gérer ce Projet</h2>
+    <div class="mt-5 space-y-6">
+      <section><h3 class="font-bold">Rattacher un Dossier</h3><form method="post" action="{% url 'objectives:project-link-dossier' project.id %}" class="mt-3">{% csrf_token %}{{ link_form.as_p }}<button class="mk-btn mk-btn-secondary">Rattacher le Dossier</button></form></section>
+      <section><h3 class="font-bold">Cycle de vie</h3><form method="post" action="{% url 'objectives:project-lifecycle' project.id %}" class="mt-3">{% csrf_token %}{{ lifecycle_form.as_p }}<button class="mk-btn mk-btn-secondary">Mettre à jour</button></form></section>
+    </div>
+  </section>
   {% endif %}
 </div>
 {% endblock %}
