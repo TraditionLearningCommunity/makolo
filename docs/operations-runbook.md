@@ -50,7 +50,43 @@ Ne pas lancer simultanément un worker persistant et un `run_autopilot` horaire 
 
 Le cycle Autopilot est conçu pour être court sur la taille bêta. Il borne les livraisons par `--delivery-limit` et ne reparcourt plus tout l'historique des événements terminés : le rattrapage post-événement est borné aux 30 derniers jours. Surveiller le temps réel dans les logs ; il n'existe pas de SLA de durée garanti.
 
-### 1.4 Dépendances spécifiques à PythonAnywhere
+### 1.4 Observateur — control-plane du Lot 2
+
+Le Lot 2 introduit un worker **Observateur** distinct d'Autopilot. Sa frontière actuelle est volontairement limitée au control-plane :
+
+- absorber de manière durable les handoffs déjà admis dans la `RequestQueue` Crawlee ;
+- rendre cette absorption idempotente même si le process tombe après commit DB mais avant acknowledgement de la queue ;
+- récupérer les Observations dont la lease a expiré ;
+- exposer le backlog opérationnel (`pending_handoffs`, retries, watches, Observations ouvertes) dans `WorkerHeartbeat` ;
+- honorer le contrôle Operations `observer` **avant** toute ouverture de la queue.
+
+Commande disponible :
+
+~~~bash
+python manage.py observer_worker --queue-name <QUEUE_NAME>
+~~~
+
+Pour un diagnostic ponctuel :
+
+~~~bash
+python manage.py observer_worker --queue-name <QUEUE_NAME> --once
+~~~
+
+`<QUEUE_NAME>` doit être la queue réellement configurée pour le handoff Prospecteur → Observateur dans l'environnement concerné. Ne pas inventer un nom de queue dans le runbook ou un déploiement.
+
+**Frontière importante du Lot 2 :** ce worker n'effectue encore **aucune acquisition HTTP ou Browser**. Il ne claim pas de travail d'observation réel tant que le Lot 3 n'a pas branché l'adapter d'acquisition. Une cible seulement due reste une intention durable dans `ObserverHandoff` / `ObservationSeries` ; une `Observation` historique ne doit naître qu'au moment d'un claim réel.
+
+Conséquences opérationnelles :
+
+- ne pas présenter `observer_worker` comme un crawler actif ;
+- ne pas promettre qu'une ressource externe est observée parce que le worker tourne ;
+- si le worker est lancé avant le Lot 3, il peut absorber les handoffs et montrer le backlog, mais ce backlog peut naturellement croître ;
+- le kill switch Operations `observer` doit être utilisé pour suspendre proprement ce control-plane en cas d'incident ;
+- le heartbeat attendu utilise `worker_name="observer"` ; une absence ou un état `degraded` doit être traitée comme un problème du control-plane, pas comme une preuve qu'une donnée métier externe est fausse ou indisponible.
+
+Le worker ouvre Crawlee avec `purge_on_start=False` : redémarrer le process ne doit jamais vider la queue. Les locators et contenus observés ne doivent pas être ajoutés aux heartbeats Operations.
+
+### 1.5 Dépendances spécifiques à PythonAnywhere
 
 Le cœur métier ne dépend pas de PythonAnywhere. Les éléments spécifiques à l'hébergement courant sont :
 
@@ -216,6 +252,8 @@ Ne pas exécuter npm, Playwright, Chromium ou le seed démo pendant ce déploiem
 ## 5. Scheduler PythonAnywhere
 
 ### Option A — compte payant : Always-on Task, recommandé
+
+> Cette section concerne **Autopilot**. Le worker Observateur est indépendant. Tant que le Lot 3 n'a pas activé l'acquisition réelle, ne pas ajouter automatiquement `observer_worker` aux tâches de bêta comme s'il s'agissait d'un crawler fonctionnel.
 
 Dans **Tasks > Always-on**, utiliser une commande unique :
 
@@ -458,6 +496,7 @@ Au minimum :
 - `/api/v1/readiness/` répond 200 ;
 - Web/Always-on task en état attendu ;
 - dernière exécution Autopilot récente ;
+- si l'Observateur control-plane est activé dans cet environnement : heartbeat `observer` récent, état non `degraded`, et backlog compris ; avant le Lot 3, un backlog non nul signifie « travail en attente », pas « acquisition en cours » ;
 - pas d'accumulation anormale de notifications/CRM en queue ;
 - pas de hausse de paiements/webhooks/scans en échec ;
 - incidents Operations ouverts ;
@@ -564,7 +603,8 @@ Cette passe ne met pas en place :
 - nouveau provider de paiement ;
 - object storage ;
 - Redis ;
-- PostgreSQL sur le PythonAnywhere actuel.
+- PostgreSQL sur le PythonAnywhere actuel ;
+- acquisition réseau réelle de l'Observateur (HTTP/Browser), robots/SSRF runtime et parsing de contenu : ces capacités commencent au Lot 3 et ne sont pas activées par le Lot 2.
 
 Risques restant volontairement ouverts : plafond de concurrence SQLite, rate limiting web local-cache non distribué, médias sur filesystem local, dépendance à l'offre PythonAnywhere pour Always-on/scheduling, backend e-mail réel à choisir, sauvegarde off-host à opérer, migration PostgreSQL future à planifier.
 
