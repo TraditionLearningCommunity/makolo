@@ -156,8 +156,13 @@ class ObserverRuntimeTests(TestCase):
         self.assertEqual(ObserverHandoff.objects.count(), 1)
 
     def test_malformed_inbox_item_is_reclaimed_without_durable_handoff(self):
-        request = crawlee_request_for(self.target(1))
-        request.label = "unexpected"
+        target = self.target(1)
+        request = Request.from_url(
+            target.locator,
+            unique_key=target.handoff_key,
+            label="unexpected",
+            user_data={"makolo": {}},
+        )
         queue = FakeDrainQueue([request])
 
         with self.assertRaises(Exception):
