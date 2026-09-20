@@ -537,6 +537,102 @@ class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
             now=self.now + timedelta(seconds=1),
         )
 
+    def _run_concurrently(self, callable_factory):
+        barrier = threading.Barrier(2)
+        results = []
+        errors = []
+
+        def run(index):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                results.append(callable_factory(index))
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                close_old_connections()
+
+        threads = [
+            threading.Thread(target=run, args=(0,)),
+            threading.Thread(target=run, args=(1,)),
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        return results, errors
+
+    def test_concurrent_handoff_absorption_is_idempotent(self):
+        target_key = "web_url:v1:" + ("c" * 64)
+        target = ObservationTarget(
+            handoff_key=make_handoff_key(
+                target_key=target_key,
+                handoff_generation=1,
+            ),
+            target_key=target_key,
+            handoff_generation=1,
+            locator="https://example.test/absorb-race",
+            kind="web_url",
+            requested_at=self.now,
+            observation_hints={},
+        )
+
+        results, errors = self._run_concurrently(
+            lambda _index: absorb_observation_target(
+                target,
+                absorbed_at=self.now,
+            )
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(results), 2)
+        self.assertEqual(sum(1 for _handoff, created in results if created), 1)
+        self.assertEqual(
+            len({handoff.pk for handoff, _created in results}),
+            1,
+        )
+        self.assertEqual(
+            ObserverHandoff.objects.filter(
+                handoff_key=target.handoff_key
+            ).count(),
+            1,
+        )
+
+    def test_concurrent_schedulers_create_one_open_observation(self):
+        target_key = "web_url:v1:" + ("d" * 64)
+        target = ObservationTarget(
+            handoff_key=make_handoff_key(
+                target_key=target_key,
+                handoff_generation=1,
+            ),
+            target_key=target_key,
+            handoff_generation=1,
+            locator="https://example.test/schedule-race",
+            kind="web_url",
+            requested_at=self.now,
+            observation_hints={},
+        )
+        absorb_observation_target(target, absorbed_at=self.now)
+
+        results, errors = self._run_concurrently(
+            lambda _index: schedule_due_observations(
+                policy=self.policy,
+                now=self.now + timedelta(seconds=1),
+                limit=1,
+            )
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(sum(len(item) for item in results), 1)
+        self.assertEqual(
+            Observation.objects.filter(
+                series__target_key=target_key,
+                lifecycle="open",
+            ).count(),
+            1,
+        )
+
     def test_concurrent_workers_never_claim_same_observation(self):
         barrier = threading.Barrier(2)
         results = []
