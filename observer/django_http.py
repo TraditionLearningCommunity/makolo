@@ -39,10 +39,18 @@ class DjangoHttpScopeState:
             lease_seconds=lease_seconds,
         )
 
-    def renew(self, lease, *, lease_seconds, now):
+    def renew(
+        self,
+        lease,
+        *,
+        lease_seconds,
+        min_interval_seconds,
+        now,
+    ):
         return renew_host_lease(
             lease,
             lease_seconds=lease_seconds,
+            min_interval_seconds=min_interval_seconds,
             now=now,
         )
 
