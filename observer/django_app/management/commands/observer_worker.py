@@ -12,8 +12,8 @@ from django.core.management.base import BaseCommand, CommandError
 from core.logging_filters import redact_sensitive_text
 from observer.django_inbox import drain_crawlee_inbox
 from observer.django_runtime import (
+    observation_backlog,
     recover_expired_observations,
-    schedule_due_observations,
 )
 from observer.runtime_contracts import ObserverRuntimePolicy
 from operations.emergency_controls import is_operational_control_enabled
@@ -39,7 +39,15 @@ class Command(BaseCommand):
         parser.add_argument("--instance-id", default=socket.gethostname())
         parser.add_argument("--interval-seconds", type=float, default=5.0)
         parser.add_argument("--inbox-limit", type=int, default=100)
-        parser.add_argument("--schedule-limit", type=int, default=100)
+        parser.add_argument(
+            "--schedule-limit",
+            type=int,
+            default=100,
+            help=(
+                "Réservé à la compatibilité Lot 2; aucun travail n'est "
+                "démarré avant un claim réel."
+            ),
+        )
         parser.add_argument("--recovery-limit", type=int, default=100)
         parser.add_argument("--lease-seconds", type=int, default=300)
         parser.add_argument("--recovery-retry-seconds", type=int, default=60)
@@ -156,19 +164,21 @@ class Command(BaseCommand):
                         policy=policy,
                         limit=recovery_limit,
                     )
-                    scheduled = await sync_to_async(
-                        schedule_due_observations,
+                    backlog = await sync_to_async(
+                        observation_backlog,
                         thread_sensitive=True,
                     )(
                         policy=policy,
-                        limit=schedule_limit,
                     )
                     last_stats = {
                         "inbox_fetched": inbox.fetched,
                         "inbox_absorbed": inbox.absorbed,
                         "inbox_replayed": inbox.replayed,
                         "recovered_observations": recovered,
-                        "scheduled_observations": len(scheduled),
+                        "pending_handoffs": backlog.pending_handoffs,
+                        "due_retries": backlog.due_retries,
+                        "due_watches": backlog.due_watches,
+                        "open_observations": backlog.open_observations,
                         "acquisition": "not_configured",
                     }
                 except Exception as exc:
