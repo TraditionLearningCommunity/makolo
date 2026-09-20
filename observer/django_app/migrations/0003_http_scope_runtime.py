@@ -7,6 +7,18 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name="observerscopestate",
+            name="scope_kind",
+            field=models.CharField(
+                choices=[
+                    ("host", "Host"),
+                    ("domain", "Domain"),
+                    ("origin", "Origin"),
+                ],
+                max_length=16,
+            ),
+        ),
         migrations.AddField(
             model_name="observerscopestate",
             name="lease_token",
