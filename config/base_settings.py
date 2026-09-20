@@ -239,6 +239,12 @@ MAKOLO_PERMISSIONS_POLICY = "camera=(self), microphone=(), geolocation=()"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
+MAKOLO_OBSERVER_ARTIFACT_ROOT = Path(
+    os.environ.get(
+        "MAKOLO_OBSERVER_ARTIFACT_ROOT",
+        MEDIA_ROOT.parent / "observer_artifacts",
+    )
+)
 MAKOLO_BACKUP_DIR = Path(os.environ.get("MAKOLO_BACKUP_DIR", BASE_DIR / "backups"))
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(
     os.environ.get("DJANGO_DATA_UPLOAD_MAX_MEMORY_SIZE", str(12 * 1024 * 1024))

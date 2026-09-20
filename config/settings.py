@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "recognition.apps.RecognitionConfig",
     "funding.apps.FundingConfig",
     "prospector.django_app.apps.ProspectorStorageConfig",
+    "observer.django_app.apps.ObserverStorageConfig",
 ]
 
 # MapLibre is the renderer. Tile data remains an explicit, replaceable runtime
