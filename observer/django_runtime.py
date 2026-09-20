@@ -551,6 +551,7 @@ def execute_claim(
     acquisition: ObservationAcquisitionPort,
     policy: ObserverRuntimePolicy,
     now: datetime | None = None,
+    completed_at: datetime | None = None,
 ) -> Observation:
     started_at = _aware("now", now)
     attempt = _open_attempt_for_claim(
@@ -571,7 +572,7 @@ def execute_claim(
             retry_at=started_at
             + timedelta(seconds=policy.recovery_retry_seconds),
         )
-    finished_at = timezone.now()
+    finished_at = _aware("completed_at", completed_at)
     return _finalize_claim(
         claim,
         attempt_id=attempt.pk,
