@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 from django.db import connection, transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.db.models.functions import Coalesce
 from django.db.models import Max
 from django.utils import timezone
@@ -230,12 +230,30 @@ def schedule_due_observations(
     scheduled: list[Observation] = []
 
     # Explicit handoff generations always have priority over autonomous retry/watch.
+    already_scheduled = Observation.objects.filter(
+        source_handoff_id=OuterRef("pk"),
+        series__profile_fingerprint=policy.profile_fingerprint,
+    )
+    target_has_open_observation = Observation.objects.filter(
+        series__target_key=OuterRef("target_key"),
+        series__profile_fingerprint=policy.profile_fingerprint,
+        lifecycle=ObservationLifecycle.OPEN.value,
+    )
     handoff_ids = list(
-        ObserverHandoff.objects.order_by(
+        ObserverHandoff.objects.annotate(
+            scheduled_for_profile=Exists(already_scheduled),
+            target_blocked_by_open=Exists(target_has_open_observation),
+        )
+        .filter(
+            scheduled_for_profile=False,
+            target_blocked_by_open=False,
+        )
+        .order_by(
             "requested_at",
             "handoff_generation",
             "id",
-        ).values_list("id", flat=True)[: max(limit * 4, limit)]
+        )
+        .values_list("id", flat=True)[:limit]
     )
     for handoff_id in handoff_ids:
         if len(scheduled) >= limit:
@@ -251,6 +269,10 @@ def schedule_due_observations(
     if len(scheduled) >= limit:
         return tuple(scheduled)
 
+    open_for_series = Observation.objects.filter(
+        series_id=OuterRef("pk"),
+        lifecycle=ObservationLifecycle.OPEN.value,
+    )
     due_series_ids = list(
         ObservationSeries.objects.filter(
             profile_fingerprint=policy.profile_fingerprint,
@@ -260,10 +282,12 @@ def schedule_due_observations(
             | Q(watch_due_at__lte=now)
         )
         .annotate(
-            due_at=Coalesce("retry_due_at", "watch_due_at")
+            has_open_observation=Exists(open_for_series),
+            due_at=Coalesce("retry_due_at", "watch_due_at"),
         )
+        .filter(has_open_observation=False)
         .order_by("due_at", "id")
-        .values_list("id", flat=True)[: max((limit - len(scheduled)) * 4, limit)]
+        .values_list("id", flat=True)[: (limit - len(scheduled))]
     )
     for series_id in due_series_ids:
         if len(scheduled) >= limit:
