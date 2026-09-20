@@ -164,14 +164,14 @@ def defer_host_until(
 
 
 def get_cached_robots(
-    hostname: str,
+    origin_key: str,
     *,
     now: datetime | None = None,
 ) -> RobotsCache | None:
     now = _aware("now", now)
     state = ObserverScopeState.objects.filter(
-        scope_kind="host",
-        scope_key=_scope_key(hostname),
+        scope_kind="origin",
+        scope_key=(origin_key or "").strip().lower(),
     ).first()
     if (
         state is None
@@ -191,7 +191,7 @@ def get_cached_robots(
 
 @transaction.atomic
 def cache_robots(
-    hostname: str,
+    origin_key: str,
     *,
     status: int,
     body: str,
@@ -206,7 +206,27 @@ def cache_robots(
         checked_at=checked_at,
         expires_at=expires_at,
     )
-    state = _get_or_create_locked(hostname)
+    key = (origin_key or "").strip().lower()
+    if not key:
+        raise ValueError("origin_key must not be empty")
+    state = (
+        ObserverScopeState.objects.select_for_update()
+        .filter(scope_kind="origin", scope_key=key)
+        .first()
+    )
+    if state is None:
+        try:
+            with transaction.atomic():
+                ObserverScopeState.objects.create(
+                    scope_kind="origin",
+                    scope_key=key,
+                )
+        except IntegrityError:
+            pass
+        state = ObserverScopeState.objects.select_for_update().get(
+            scope_kind="origin",
+            scope_key=key,
+        )
     state.robots_status = cache.status
     state.robots_body = cache.body
     state.robots_checked_at = cache.checked_at
