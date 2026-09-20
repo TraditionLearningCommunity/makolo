@@ -76,12 +76,24 @@ def target_from_handoff(handoff: ObserverHandoff) -> ObservationTarget:
     )
 
 
-def _clear_due_if_started(series: ObservationSeries, *, now: datetime) -> None:
+def _clear_due_if_started(
+    series: ObservationSeries,
+    *,
+    trigger: ObservationTrigger,
+    now: datetime,
+) -> None:
     fields = []
-    if series.retry_due_at is not None and series.retry_due_at <= now:
+    clear_all = trigger is ObservationTrigger.HANDOFF
+    if (
+        series.retry_due_at is not None
+        and (clear_all or series.retry_due_at <= now)
+    ):
         series.retry_due_at = None
         fields.append("retry_due_at")
-    if series.watch_due_at is not None and series.watch_due_at <= now:
+    if (
+        series.watch_due_at is not None
+        and (clear_all or series.watch_due_at <= now)
+    ):
         series.watch_due_at = None
         fields.append("watch_due_at")
     if fields:
@@ -251,7 +263,11 @@ def _create_claimed_observation(
         claimed_by=worker_id,
         lease_expires_at=leased_until,
     )
-    _clear_due_if_started(series, now=now)
+    _clear_due_if_started(
+        series,
+        trigger=trigger,
+        now=now,
+    )
     return _claim_payload(
         observation,
         token=token,
