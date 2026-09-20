@@ -369,6 +369,9 @@ class DirectHttpAcquisition:
         url = _normalize_http_url(url)
         parts = urlsplit(url)
         hostname = parts.hostname or ""
+        port = parts.port or (443 if parts.scheme == "https" else 80)
+        if port not in self.policy.allowed_ports:
+            raise NetworkSafetyFailure("security.port_not_allowed")
         now = _utc_now(self.clock)
         self._lease_for(
             hostname,
