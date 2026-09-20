@@ -180,6 +180,11 @@ class PinnedStdlibHttpTransport:
                     "security.unsupported_locator"
                 )
 
+            connection.connect()
+            if connection.sock is not None:
+                connection.sock.settimeout(
+                    remaining_timeout(read_timeout_seconds)
+                )
             connection.request(
                 "GET",
                 request_target,
