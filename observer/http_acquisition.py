@@ -313,6 +313,7 @@ class DirectHttpAcquisition:
         *,
         active_leases: dict[str, object],
         now: datetime,
+        deadline_at: datetime,
     ):
         lease = active_leases.get(hostname)
         if lease is not None:
@@ -330,10 +331,23 @@ class DirectHttpAcquisition:
                     0.0,
                     (exc.retry_at - now).total_seconds(),
                 )
-                if wait_seconds > self.policy.max_inline_wait_seconds:
+                remaining = max(
+                    0.0,
+                    (deadline_at - now).total_seconds(),
+                )
+                if (
+                    wait_seconds > self.policy.max_inline_wait_seconds
+                    or wait_seconds >= remaining
+                ):
                     raise
                 self.sleeper(wait_seconds)
                 now = _utc_now(self.clock)
+                if now >= deadline_at:
+                    raise _ExpectedFailure(
+                        "http.observation_timeout",
+                        retry_at=now
+                        + timedelta(seconds=self.policy.retry_seconds),
+                    )
                 lease = self.scope_state.renew(
                     lease,
                     lease_seconds=self.policy.host_lease_seconds,
@@ -361,6 +375,7 @@ class DirectHttpAcquisition:
         max_wire_bytes: int,
         active_leases: dict[str, object],
         stats: _Stats,
+        deadline_at: datetime,
     ):
         url = _normalize_http_url(url)
         parts = urlsplit(url)
@@ -369,10 +384,17 @@ class DirectHttpAcquisition:
         if port not in self.policy.allowed_ports:
             raise NetworkSafetyFailure("security.port_not_allowed")
         now = _utc_now(self.clock)
+        if now >= deadline_at:
+            raise _ExpectedFailure(
+                "http.observation_timeout",
+                retry_at=now
+                + timedelta(seconds=self.policy.retry_seconds),
+            )
         self._lease_for(
             hostname,
             active_leases=active_leases,
             now=now,
+            deadline_at=deadline_at,
         )
         addresses = self._resolve_public_addresses(hostname)
         selected = addresses[0]
@@ -386,6 +408,10 @@ class DirectHttpAcquisition:
                 ),
                 read_timeout_seconds=self.policy.read_timeout_seconds,
                 max_wire_bytes=max_wire_bytes,
+                total_timeout_seconds=max(
+                    0.001,
+                    (deadline_at - _utc_now(self.clock)).total_seconds(),
+                ),
             )
         except HttpTransportFailure as exc:
             retry_at = None
@@ -419,6 +445,7 @@ class DirectHttpAcquisition:
         max_wire_bytes: int,
         active_leases: dict[str, object],
         stats: _Stats,
+        deadline_at: datetime,
         redirect_guard=None,
     ):
         current = _normalize_http_url(start_url)
@@ -438,6 +465,7 @@ class DirectHttpAcquisition:
                 max_wire_bytes=max_wire_bytes,
                 active_leases=active_leases,
                 stats=stats,
+                deadline_at=deadline_at,
             )
             stats.final_locator = current
             if exchange.status not in REDIRECT_STATUSES:
@@ -502,6 +530,7 @@ class DirectHttpAcquisition:
         *,
         active_leases: dict[str, object],
         stats: _Stats,
+        deadline_at: datetime,
     ) -> tuple[RobotsCache, bool]:
         hostname = urlsplit(target_url).hostname or ""
         origin_key = self._robots_scope_key(target_url)
@@ -518,6 +547,7 @@ class DirectHttpAcquisition:
             max_wire_bytes=self.policy.robots_max_bytes,
             active_leases=active_leases,
             stats=robots_stats,
+            deadline_at=deadline_at,
         )
         stats.wire_bytes += robots_stats.wire_bytes
         stats.decoded_bytes += robots_stats.decoded_bytes
@@ -590,6 +620,7 @@ class DirectHttpAcquisition:
         *,
         active_leases: dict[str, object],
         stats: _Stats,
+        deadline_at: datetime,
     ) -> None:
         if (urlsplit(target_url).path or "/") == "/robots.txt":
             return
@@ -597,6 +628,7 @@ class DirectHttpAcquisition:
             target_url,
             active_leases=active_leases,
             stats=stats,
+            deadline_at=deadline_at,
         )
         allowed, crawl_delay = self._robots_allows(
             target_url,
@@ -628,6 +660,9 @@ class DirectHttpAcquisition:
 
     def acquire(self, claim: ObservationClaim) -> AcquisitionResult:
         now = _utc_now(self.clock)
+        deadline_at = now + timedelta(
+            seconds=self.policy.max_observation_seconds
+        )
         stats = _Stats(final_locator=claim.locator)
         active_leases: dict[str, object] = {}
         try:
@@ -645,6 +680,7 @@ class DirectHttpAcquisition:
                 target_url,
                 active_leases=active_leases,
                 stats=stats,
+                deadline_at=deadline_at,
             )
 
             final_url, exchange = self._follow(
@@ -653,10 +689,12 @@ class DirectHttpAcquisition:
                 max_wire_bytes=self.policy.max_wire_bytes,
                 active_leases=active_leases,
                 stats=stats,
+                deadline_at=deadline_at,
                 redirect_guard=lambda next_url: self._ensure_robots(
                     next_url,
                     active_leases=active_leases,
                     stats=stats,
+                    deadline_at=deadline_at,
                 ),
             )
             stats.final_locator = final_url
