@@ -514,6 +514,20 @@ class DirectHttpAcquisitionTests(TestCase):
         self.assertEqual(result.outcome, ObservationOutcome.FAILED)
         self.assertEqual(result.failure_code, "security.peer_mismatch")
 
+    def test_non_allowed_port_is_rejected_before_transport(self):
+        acquisition = self.acquisition({})
+
+        result = acquisition.acquire(
+            self.claim("https://example.test:8443/resource")
+        )
+
+        self.assertEqual(result.outcome, ObservationOutcome.FAILED)
+        self.assertEqual(
+            result.failure_code,
+            "security.port_not_allowed",
+        )
+        self.assertEqual(acquisition.transport.calls, [])
+
     def test_https_to_http_redirect_is_rejected_by_default(self):
         acquisition = self.acquisition(
             {
