@@ -541,17 +541,19 @@ class DirectHttpAcquisition:
 
         robots_url = self._robots_url(target_url)
         robots_stats = _Stats(final_locator=robots_url)
-        _final, exchange = self._follow(
-            robots_url,
-            initial_headers=self._base_headers(),
-            max_wire_bytes=self.policy.robots_max_bytes,
-            active_leases=active_leases,
-            stats=robots_stats,
-            deadline_at=deadline_at,
-        )
-        stats.wire_bytes += robots_stats.wire_bytes
-        stats.decoded_bytes += robots_stats.decoded_bytes
-        stats.redirect_count += robots_stats.redirect_count
+        try:
+            _final, exchange = self._follow(
+                robots_url,
+                initial_headers=self._base_headers(),
+                max_wire_bytes=self.policy.robots_max_bytes,
+                active_leases=active_leases,
+                stats=robots_stats,
+                deadline_at=deadline_at,
+            )
+        finally:
+            stats.wire_bytes += robots_stats.wire_bytes
+            stats.decoded_bytes += robots_stats.decoded_bytes
+            stats.redirect_count += robots_stats.redirect_count
         now = _utc_now(self.clock)
         status = exchange.status
         if status == 429 or status >= 500:
@@ -564,7 +566,6 @@ class DirectHttpAcquisition:
             raise _ExpectedFailure(
                 "robots.unavailable",
                 retry_at=retry_at,
-                response_status=status,
             )
 
         body = ""
