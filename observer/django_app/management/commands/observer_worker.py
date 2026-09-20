@@ -111,6 +111,16 @@ class Command(BaseCommand):
             default=60,
         )
         parser.add_argument(
+            "--http-allowed-port",
+            action="append",
+            type=int,
+            default=None,
+            help=(
+                "Port TCP HTTP(S) autorisé. Répéter l'option pour "
+                "plusieurs ports. Par défaut : 80 et 443."
+            ),
+        )
+        parser.add_argument(
             "--allow-https-to-http-redirect",
             action="store_true",
             help=(
@@ -147,6 +157,16 @@ class Command(BaseCommand):
                 raise CommandError(
                     f"--{option_name.replace('_', '-')} doit être >= 1."
                 )
+        allowed_ports = tuple(
+            options["http_allowed_port"] or (80, 443)
+        )
+        if any(
+            port < 1 or port > 65535
+            for port in allowed_ports
+        ):
+            raise CommandError(
+                "--http-allowed-port doit être compris entre 1 et 65535."
+            )
         if options["http_max_redirects"] < 0:
             raise CommandError("--http-max-redirects doit être >= 0.")
         for option_name in (
@@ -185,6 +205,7 @@ class Command(BaseCommand):
             ),
             host_lease_seconds=options["http_host_lease_seconds"],
             retry_seconds=options["http_retry_seconds"],
+            allowed_ports=allowed_ports,
             allow_https_to_http_redirect=(
                 options["allow_https_to_http_redirect"]
             ),
