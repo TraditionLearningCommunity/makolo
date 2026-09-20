@@ -214,7 +214,7 @@ class DirectHttpAcquisitionTests(TestCase):
     def setUp(self):
         self.clock = FakeClock()
         self.scope = FakeScopeState()
-        self.scope.allow_robots("example.test", self.clock())
+        self.scope.allow_robots("https://example.test", self.clock())
         self.policy = HttpAcquisitionPolicy(
             user_agent="Makolo Observer Test",
             host_min_interval_seconds=1.0,
@@ -551,7 +551,7 @@ class DirectHttpAcquisitionTests(TestCase):
         )
 
     def test_redirect_destination_robots_is_checked_before_fetch(self):
-        self.scope.deny_robots("other.test", self.clock())
+        self.scope.deny_robots("https://other.test", self.clock())
         resolver = FakeResolver(
             {
                 "example.test": [[GLOBAL_IP]],
