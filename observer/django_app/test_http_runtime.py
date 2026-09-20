@@ -343,7 +343,7 @@ class ObserverHttpScopeStateTests(TestCase):
 
     def test_robots_cache_expires(self):
         cache_robots(
-            "example.test",
+            "https://example.test",
             status=200,
             body="User-agent: *\nAllow: /\n",
             checked_at=self.now,
@@ -352,13 +352,13 @@ class ObserverHttpScopeStateTests(TestCase):
 
         self.assertIsNotNone(
             get_cached_robots(
-                "example.test",
+                "https://example.test",
                 now=self.now + timedelta(minutes=4),
             )
         )
         self.assertIsNone(
             get_cached_robots(
-                "example.test",
+                "https://example.test",
                 now=self.now + timedelta(minutes=6),
             )
         )
