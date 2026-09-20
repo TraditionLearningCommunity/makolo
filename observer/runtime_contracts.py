@@ -85,6 +85,33 @@ class ObservationClaim:
             )
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class ObservationBacklog:
+    pending_handoffs: int
+    due_retries: int
+    due_watches: int
+    open_observations: int
+
+    def __post_init__(self) -> None:
+        for name in (
+            "pending_handoffs",
+            "due_retries",
+            "due_watches",
+            "open_observations",
+        ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value < 0
+            ):
+                raise ObserverContractError(
+                    f"{name} must be a non-negative integer"
+                )
+
+
 @dataclass(frozen=True, slots=True)
 class AcquisitionResult:
     outcome: ObservationOutcome
