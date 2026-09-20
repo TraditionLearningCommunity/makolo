@@ -216,6 +216,37 @@ def observation_backlog(
     )
 
 
+def observation_backlog_all_profiles(
+    *,
+    now: datetime | None = None,
+) -> ObservationBacklog:
+    """Read-only operational backlog across every Observer profile."""
+
+    now = _aware("now", now)
+    started_anywhere = Observation.objects.filter(
+        source_handoff_id=OuterRef("pk"),
+    )
+    pending_handoffs = (
+        ObserverHandoff.objects.annotate(
+            started_anywhere=Exists(started_anywhere),
+        )
+        .filter(started_anywhere=False)
+        .count()
+    )
+    return ObservationBacklog(
+        pending_handoffs=pending_handoffs,
+        due_retries=ObservationSeries.objects.filter(
+            retry_due_at__lte=now,
+        ).count(),
+        due_watches=ObservationSeries.objects.filter(
+            watch_due_at__lte=now,
+        ).count(),
+        open_observations=Observation.objects.filter(
+            lifecycle=ObservationLifecycle.OPEN.value,
+        ).count(),
+    )
+
+
 def _claim_payload(
     observation: Observation,
     *,
