@@ -19,6 +19,7 @@ from observer.django_runtime import (
     observation_backlog_all_profiles,
     recover_expired_observations,
 )
+from observer.errors import ObserverContractError
 from observer.http_contracts import HttpAcquisitionPolicy
 from observer.runtime_contracts import ObserverRuntimePolicy
 from operations.emergency_controls import is_operational_control_enabled
@@ -233,35 +234,38 @@ class Command(BaseCommand):
             )
 
         if acquisition_enabled:
-            http_policy = HttpAcquisitionPolicy(
-                user_agent=options["http_user_agent"],
-                robots_user_agent=options["robots_user_agent"],
-                connect_timeout_seconds=(
-                    options["http_connect_timeout_seconds"]
-                ),
-                read_timeout_seconds=(
-                    options["http_read_timeout_seconds"]
-                ),
-                max_observation_seconds=(
-                    options["http_max_observation_seconds"]
-                ),
-                max_redirects=options["http_max_redirects"],
-                max_wire_bytes=options["http_max_wire_bytes"],
-                max_decoded_bytes=options["http_max_decoded_bytes"],
-                robots_max_bytes=options["robots_max_bytes"],
-                robots_cache_seconds=options["robots_cache_seconds"],
-                host_min_interval_seconds=(
-                    options["http_host_interval_seconds"]
-                ),
-                host_lease_seconds=(
-                    options["http_host_lease_seconds"]
-                ),
-                retry_seconds=options["http_retry_seconds"],
-                allowed_ports=allowed_ports,
-                allow_https_to_http_redirect=(
-                    options["allow_https_to_http_redirect"]
-                ),
-            )
+            try:
+                http_policy = HttpAcquisitionPolicy(
+                    user_agent=options["http_user_agent"],
+                    robots_user_agent=options["robots_user_agent"],
+                    connect_timeout_seconds=(
+                        options["http_connect_timeout_seconds"]
+                    ),
+                    read_timeout_seconds=(
+                        options["http_read_timeout_seconds"]
+                    ),
+                    max_observation_seconds=(
+                        options["http_max_observation_seconds"]
+                    ),
+                    max_redirects=options["http_max_redirects"],
+                    max_wire_bytes=options["http_max_wire_bytes"],
+                    max_decoded_bytes=options["http_max_decoded_bytes"],
+                    robots_max_bytes=options["robots_max_bytes"],
+                    robots_cache_seconds=options["robots_cache_seconds"],
+                    host_min_interval_seconds=(
+                        options["http_host_interval_seconds"]
+                    ),
+                    host_lease_seconds=(
+                        options["http_host_lease_seconds"]
+                    ),
+                    retry_seconds=options["http_retry_seconds"],
+                    allowed_ports=allowed_ports,
+                    allow_https_to_http_redirect=(
+                        options["allow_https_to_http_redirect"]
+                    ),
+                )
+            except ObserverContractError as exc:
+                raise CommandError(str(exc)) from exc
             runtime_policy = ObserverRuntimePolicy(
                 profile_key="public-http",
                 profile_fingerprint=http_policy.profile_fingerprint,
