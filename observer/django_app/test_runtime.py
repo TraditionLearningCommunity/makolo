@@ -601,6 +601,43 @@ class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
             1,
         )
 
+    def test_concurrent_workers_cannot_start_newer_generation_first(self):
+        second = ObservationTarget(
+            handoff_key=make_handoff_key(
+                target_key=self.target_key,
+                handoff_generation=2,
+            ),
+            target_key=self.target_key,
+            handoff_generation=2,
+            locator=self.target.locator,
+            kind=self.target.kind,
+            requested_at=self.now + timedelta(seconds=1),
+            observation_hints={},
+        )
+        absorb_observation_target(
+            second,
+            absorbed_at=self.now + timedelta(seconds=1),
+        )
+
+        results, errors = self._run_concurrently(
+            lambda index: claim_observations(
+                worker_id=f"ordered-worker-{index}",
+                policy=self.policy,
+                now=self.now + timedelta(seconds=2),
+                limit=1,
+            )
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(sum(len(item) for item in results), 1)
+        observation = Observation.objects.get(
+            series__target_key=self.target_key
+        )
+        self.assertEqual(
+            observation.source_handoff.handoff_generation,
+            1,
+        )
+
     def test_concurrent_workers_start_only_one_observation(self):
         results, errors = self._run_concurrently(
             lambda index: claim_observations(
