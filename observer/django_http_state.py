@@ -96,6 +96,7 @@ def renew_host_lease(
     lease: HostLease,
     *,
     lease_seconds: int,
+    min_interval_seconds: float,
     now: datetime | None = None,
 ) -> HostLease:
     now = _aware("now", now)
@@ -107,8 +108,19 @@ def renew_host_lease(
         raise ObserverStateConflictError(
             "HTTP host lease is no longer current"
         )
+    if state.not_before is not None and state.not_before > now:
+        raise ScopeDeferred(state.not_before)
     state.lease_expires_at = now + timedelta(seconds=lease_seconds)
-    state.save(update_fields=["lease_expires_at", "updated_at"])
+    state.last_request_at = now
+    state.not_before = now + timedelta(seconds=min_interval_seconds)
+    state.save(
+        update_fields=[
+            "lease_expires_at",
+            "last_request_at",
+            "not_before",
+            "updated_at",
+        ]
+    )
     return HostLease(
         scope_key=state.scope_key,
         token=lease.token,
