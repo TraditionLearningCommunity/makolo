@@ -216,7 +216,7 @@ class DirectHttpAcquisitionTests(TestCase):
         self.scope = FakeScopeState()
         self.scope.allow_robots("https://example.test", self.clock())
         self.policy = HttpAcquisitionPolicy(
-            user_agent="Makolo Observer Test",
+            user_agent="MakoloObserver/1.0 Test",
             host_min_interval_seconds=1.0,
             max_inline_wait_seconds=2.0,
             retry_seconds=30,
@@ -398,7 +398,7 @@ class DirectHttpAcquisitionTests(TestCase):
 
     def test_redirect_limit_is_per_chain_not_shared_with_cached_robots(self):
         policy = HttpAcquisitionPolicy(
-            user_agent="Makolo Observer Test",
+            user_agent="MakoloObserver/1.0 Test",
             host_min_interval_seconds=0,
             max_redirects=1,
         )
@@ -687,7 +687,7 @@ class DirectHttpAcquisitionTests(TestCase):
         payload = b"A" * 100
         compressed = gzip.compress(payload)
         policy = HttpAcquisitionPolicy(
-            user_agent="Makolo Observer Test",
+            user_agent="MakoloObserver/1.0 Test",
             host_min_interval_seconds=0,
             max_decoded_bytes=32,
         )
@@ -788,7 +788,7 @@ class DirectHttpAcquisitionTests(TestCase):
         transport = SlowRedirectTransport()
         acquisition = DirectHttpAcquisition(
             policy=HttpAcquisitionPolicy(
-                user_agent="Makolo Observer Test",
+                user_agent="MakoloObserver/1.0 Test",
                 host_min_interval_seconds=0,
                 max_observation_seconds=180,
                 host_lease_seconds=240,
