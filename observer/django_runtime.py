@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta
+
 from django.db import connection, transaction
 from django.db.models import Exists, OuterRef, Q
-from django.db.models.functions import Coalesce
 from django.db.models import Max
 from django.utils import timezone
 
@@ -29,6 +29,7 @@ from .errors import ObserverContractError, ObserverStateConflictError
 from .ports import ObservationAcquisitionPort
 from .runtime_contracts import (
     AcquisitionResult,
+    ObservationBacklog,
     ObservationClaim,
     ObserverRuntimePolicy,
 )
@@ -73,7 +74,7 @@ def target_from_handoff(handoff: ObserverHandoff) -> ObservationTarget:
     )
 
 
-def _clear_due_if_satisfied(series: ObservationSeries, *, now: datetime) -> None:
+def _clear_due_if_started(series: ObservationSeries, *, now: datetime) -> None:
     fields = []
     if series.retry_due_at is not None and series.retry_due_at <= now:
         series.retry_due_at = None
@@ -86,7 +87,7 @@ def _clear_due_if_satisfied(series: ObservationSeries, *, now: datetime) -> None
         series.save(update_fields=fields)
 
 
-def _handoff_already_scheduled(
+def _handoff_started_for_series(
     *,
     handoff: ObserverHandoff,
     series: ObservationSeries,
@@ -97,19 +98,29 @@ def _handoff_already_scheduled(
     ).exists()
 
 
-def _pending_handoff_for_series(series: ObservationSeries) -> ObserverHandoff | None:
-    handoffs = ObserverHandoff.objects.filter(
-        target_key=series.target_key,
-        kind=series.kind,
-        locator=series.locator,
-    ).order_by("requested_at", "handoff_generation", "id")
-    for handoff in handoffs.iterator():
-        if not _handoff_already_scheduled(handoff=handoff, series=series):
-            return handoff
-    return None
+def _pending_handoff_for_series(
+    series: ObservationSeries,
+) -> ObserverHandoff | None:
+    started_for_series = Observation.objects.filter(
+        source_handoff_id=OuterRef("pk"),
+        series=series,
+    )
+    return (
+        ObserverHandoff.objects.filter(
+            target_key=series.target_key,
+            kind=series.kind,
+            locator=series.locator,
+        )
+        .annotate(started_for_series=Exists(started_for_series))
+        .filter(started_for_series=False)
+        .order_by("requested_at", "handoff_generation", "id")
+        .first()
+    )
 
 
-def _latest_scheduled_handoff(series: ObservationSeries) -> ObserverHandoff | None:
+def _latest_started_handoff(
+    series: ObservationSeries,
+) -> ObserverHandoff | None:
     return (
         ObserverHandoff.objects.filter(observations__series=series)
         .distinct()
@@ -118,18 +129,144 @@ def _latest_scheduled_handoff(series: ObservationSeries) -> ObserverHandoff | No
     )
 
 
-@transaction.atomic
-def _schedule_handoff_observation(
-    handoff_id: int,
+def _actionable_handoffs(policy: ObserverRuntimePolicy):
+    started_for_profile = Observation.objects.filter(
+        source_handoff_id=OuterRef("pk"),
+        series__profile_fingerprint=policy.profile_fingerprint,
+    )
+    target_has_open_observation = Observation.objects.filter(
+        series__target_key=OuterRef("target_key"),
+        series__profile_fingerprint=policy.profile_fingerprint,
+        lifecycle=ObservationLifecycle.OPEN.value,
+    )
+    return (
+        ObserverHandoff.objects.annotate(
+            started_for_profile=Exists(started_for_profile),
+            target_blocked_by_open=Exists(target_has_open_observation),
+        )
+        .filter(
+            started_for_profile=False,
+            target_blocked_by_open=False,
+        )
+        .order_by("requested_at", "handoff_generation", "id")
+    )
+
+
+def _due_series(policy: ObserverRuntimePolicy, *, now: datetime):
+    open_for_series = Observation.objects.filter(
+        series_id=OuterRef("pk"),
+        lifecycle=ObservationLifecycle.OPEN.value,
+    )
+    return (
+        ObservationSeries.objects.filter(
+            profile_fingerprint=policy.profile_fingerprint,
+        )
+        .filter(
+            Q(retry_due_at__lte=now)
+            | Q(watch_due_at__lte=now)
+        )
+        .annotate(has_open_observation=Exists(open_for_series))
+        .filter(has_open_observation=False)
+        .order_by("retry_due_at", "watch_due_at", "id")
+    )
+
+
+def observation_backlog(
     *,
     policy: ObserverRuntimePolicy,
+    now: datetime | None = None,
+) -> ObservationBacklog:
+    """Read-only control-plane projection; never starts an Observation."""
+
+    now = _aware("now", now)
+    return ObservationBacklog(
+        pending_handoffs=_actionable_handoffs(policy).count(),
+        due_retries=ObservationSeries.objects.filter(
+            profile_fingerprint=policy.profile_fingerprint,
+            retry_due_at__lte=now,
+        ).count(),
+        due_watches=ObservationSeries.objects.filter(
+            profile_fingerprint=policy.profile_fingerprint,
+            watch_due_at__lte=now,
+        ).count(),
+        open_observations=Observation.objects.filter(
+            series__profile_fingerprint=policy.profile_fingerprint,
+            lifecycle=ObservationLifecycle.OPEN.value,
+        ).count(),
+    )
+
+
+def _claim_payload(
+    observation: Observation,
+    *,
+    token: uuid.UUID,
+    worker_id: str,
+    leased_until: datetime,
+) -> ObservationClaim:
+    return ObservationClaim(
+        observation_ref=observation.observation_ref,
+        claim_token=str(token),
+        worker_id=worker_id,
+        leased_until=leased_until,
+        target_key=observation.series.target_key,
+        kind=observation.series.kind,
+        locator=observation.requested_locator,
+        source_handoff_key=observation.source_handoff.handoff_key,
+        source_handoff_generation=(
+            observation.source_handoff.handoff_generation
+        ),
+    )
+
+
+def _create_claimed_observation(
+    *,
+    series: ObservationSeries,
+    source_handoff: ObserverHandoff,
+    trigger: ObservationTrigger,
+    worker_id: str,
+    policy: ObserverRuntimePolicy,
     now: datetime,
-) -> Observation | None:
+) -> ObservationClaim:
+    token = uuid.uuid4()
+    leased_until = now + timedelta(seconds=policy.lease_seconds)
+    observation = Observation.objects.create(
+        series=series,
+        source_handoff=source_handoff,
+        trigger=trigger.value,
+        lifecycle=ObservationLifecycle.OPEN.value,
+        started_at=now,
+        requested_locator=series.locator,
+        profile_ref=policy.profile_key,
+        profile_fingerprint=policy.profile_fingerprint,
+        policy_fingerprint=policy.policy_fingerprint,
+        claim_token=token,
+        claimed_by=worker_id,
+        lease_expires_at=leased_until,
+    )
+    _clear_due_if_started(series, now=now)
+    return _claim_payload(
+        observation,
+        token=token,
+        worker_id=worker_id,
+        leased_until=leased_until,
+    )
+
+
+@transaction.atomic
+def _claim_handoff(
+    handoff_id: int,
+    *,
+    worker_id: str,
+    policy: ObserverRuntimePolicy,
+    now: datetime,
+) -> ObservationClaim | None:
     handoff = _lock_queryset(
-        ObserverHandoff.objects.filter(pk=handoff_id)
+        ObserverHandoff.objects.filter(pk=handoff_id),
+        skip_locked=True,
     ).first()
     if handoff is None:
         return None
+
     target = target_from_handoff(handoff)
     series, _created = get_or_create_observation_series(
         target,
@@ -137,43 +274,46 @@ def _schedule_handoff_observation(
         profile_fingerprint=policy.profile_fingerprint,
     )
     series = _lock_queryset(
-        ObservationSeries.objects.filter(pk=series.pk)
-    ).get()
+        ObservationSeries.objects.filter(pk=series.pk),
+        skip_locked=True,
+    ).first()
+    if series is None:
+        return None
     if Observation.objects.filter(
         series=series,
         lifecycle=ObservationLifecycle.OPEN.value,
     ).exists():
         return None
-    if _handoff_already_scheduled(handoff=handoff, series=series):
+    if _handoff_started_for_series(
+        handoff=handoff,
+        series=series,
+    ):
         return None
 
-    observation = Observation.objects.create(
+    return _create_claimed_observation(
         series=series,
         source_handoff=handoff,
-        trigger=ObservationTrigger.HANDOFF.value,
-        lifecycle=ObservationLifecycle.OPEN.value,
-        started_at=now,
-        requested_locator=series.locator,
-        profile_ref=policy.profile_key,
-        profile_fingerprint=policy.profile_fingerprint,
-        policy_fingerprint=policy.policy_fingerprint,
+        trigger=ObservationTrigger.HANDOFF,
+        worker_id=worker_id,
+        policy=policy,
+        now=now,
     )
-    _clear_due_if_satisfied(series, now=now)
-    return observation
 
 
 @transaction.atomic
-def _schedule_series_due_observation(
+def _claim_series_due(
     series_id: int,
     *,
+    worker_id: str,
     policy: ObserverRuntimePolicy,
     now: datetime,
-) -> Observation | None:
+) -> ObservationClaim | None:
     series = _lock_queryset(
         ObservationSeries.objects.filter(
             pk=series_id,
             profile_fingerprint=policy.profile_fingerprint,
-        )
+        ),
+        skip_locked=True,
     ).first()
     if series is None:
         return None
@@ -196,7 +336,7 @@ def _schedule_series_due_observation(
     if not retry_due and not watch_due:
         return None
 
-    source_handoff = _latest_scheduled_handoff(series)
+    source_handoff = _latest_started_handoff(series)
     if source_handoff is None:
         return None
     trigger = (
@@ -204,102 +344,75 @@ def _schedule_series_due_observation(
         if retry_due
         else ObservationTrigger.WATCH
     )
-    observation = Observation.objects.create(
+    return _create_claimed_observation(
         series=series,
         source_handoff=source_handoff,
-        trigger=trigger.value,
-        lifecycle=ObservationLifecycle.OPEN.value,
-        started_at=now,
-        requested_locator=series.locator,
-        profile_ref=policy.profile_key,
-        profile_fingerprint=policy.profile_fingerprint,
-        policy_fingerprint=policy.policy_fingerprint,
+        trigger=trigger,
+        worker_id=worker_id,
+        policy=policy,
+        now=now,
     )
-    _clear_due_if_satisfied(series, now=now)
-    return observation
 
 
-def schedule_due_observations(
+def claim_observations(
     *,
+    worker_id: str,
     policy: ObserverRuntimePolicy,
     now: datetime | None = None,
-    limit: int = 100,
-) -> tuple[Observation, ...]:
+    limit: int = 10,
+) -> tuple[ObservationClaim, ...]:
+    """Atomically start due observation episodes and lease them to a worker.
+
+    Pending handoffs and series due-times are the durable scheduling state.
+    Merely being due never creates an Observation. The historical Observation
+    begins only when a worker actually claims the episode.
+    """
+
+    worker_id = (worker_id or "").strip()
+    if not worker_id:
+        raise ObserverContractError("worker_id must not be empty")
     now = _aware("now", now)
     limit = _positive_limit(limit)
-    scheduled: list[Observation] = []
+    claims: list[ObservationClaim] = []
 
-    # Explicit handoff generations always have priority over autonomous retry/watch.
-    already_scheduled = Observation.objects.filter(
-        source_handoff_id=OuterRef("pk"),
-        series__profile_fingerprint=policy.profile_fingerprint,
-    )
-    target_has_open_observation = Observation.objects.filter(
-        series__target_key=OuterRef("target_key"),
-        series__profile_fingerprint=policy.profile_fingerprint,
-        lifecycle=ObservationLifecycle.OPEN.value,
-    )
+    # Explicit handoff generations always outrank autonomous retry/watch work.
     handoff_ids = list(
-        ObserverHandoff.objects.annotate(
-            scheduled_for_profile=Exists(already_scheduled),
-            target_blocked_by_open=Exists(target_has_open_observation),
-        )
-        .filter(
-            scheduled_for_profile=False,
-            target_blocked_by_open=False,
-        )
-        .order_by(
-            "requested_at",
-            "handoff_generation",
-            "id",
-        )
-        .values_list("id", flat=True)[:limit]
+        _actionable_handoffs(policy)
+        .values_list("id", flat=True)[: max(limit * 2, limit)]
     )
     for handoff_id in handoff_ids:
-        if len(scheduled) >= limit:
+        if len(claims) >= limit:
             break
-        observation = _schedule_handoff_observation(
+        claim = _claim_handoff(
             handoff_id,
+            worker_id=worker_id,
             policy=policy,
             now=now,
         )
-        if observation is not None:
-            scheduled.append(observation)
+        if claim is not None:
+            claims.append(claim)
 
-    if len(scheduled) >= limit:
-        return tuple(scheduled)
+    if len(claims) >= limit:
+        return tuple(claims)
 
-    open_for_series = Observation.objects.filter(
-        series_id=OuterRef("pk"),
-        lifecycle=ObservationLifecycle.OPEN.value,
-    )
     due_series_ids = list(
-        ObservationSeries.objects.filter(
-            profile_fingerprint=policy.profile_fingerprint,
-        )
-        .filter(
-            Q(retry_due_at__lte=now)
-            | Q(watch_due_at__lte=now)
-        )
-        .annotate(
-            has_open_observation=Exists(open_for_series),
-            due_at=Coalesce("retry_due_at", "watch_due_at"),
-        )
-        .filter(has_open_observation=False)
-        .order_by("due_at", "id")
-        .values_list("id", flat=True)[: (limit - len(scheduled))]
+        _due_series(policy, now=now)
+        .values_list("id", flat=True)[
+            : max((limit - len(claims)) * 2, limit)
+        ]
     )
     for series_id in due_series_ids:
-        if len(scheduled) >= limit:
+        if len(claims) >= limit:
             break
-        observation = _schedule_series_due_observation(
+        claim = _claim_series_due(
             series_id,
+            worker_id=worker_id,
             policy=policy,
             now=now,
         )
-        if observation is not None:
-            scheduled.append(observation)
-    return tuple(scheduled)
+        if claim is not None:
+            claims.append(claim)
+    return tuple(claims)
 
 
 @transaction.atomic
@@ -362,64 +475,6 @@ def recover_expired_observations(
             series.save(update_fields=["retry_due_at", "updated_at"])
         recovered += 1
     return recovered
-
-
-@transaction.atomic
-def claim_observations(
-    *,
-    worker_id: str,
-    policy: ObserverRuntimePolicy,
-    now: datetime | None = None,
-    limit: int = 10,
-) -> tuple[ObservationClaim, ...]:
-    worker_id = (worker_id or "").strip()
-    if not worker_id:
-        raise ObserverContractError("worker_id must not be empty")
-    now = _aware("now", now)
-    limit = _positive_limit(limit)
-    leased_until = now + timedelta(seconds=policy.lease_seconds)
-
-    queryset = (
-        Observation.objects.filter(
-            lifecycle=ObservationLifecycle.OPEN.value,
-            claim_token__isnull=True,
-        )
-        .select_related("series", "source_handoff")
-        .order_by("started_at", "id")
-    )
-    observations = list(
-        _lock_queryset(queryset, skip_locked=True)[:limit]
-    )
-    claims: list[ObservationClaim] = []
-    for observation in observations:
-        token = uuid.uuid4()
-        observation.claim_token = token
-        observation.claimed_by = worker_id
-        observation.lease_expires_at = leased_until
-        observation.save(
-            update_fields=[
-                "claim_token",
-                "claimed_by",
-                "lease_expires_at",
-                "updated_at",
-            ]
-        )
-        claims.append(
-            ObservationClaim(
-                observation_ref=observation.observation_ref,
-                claim_token=str(token),
-                worker_id=worker_id,
-                leased_until=leased_until,
-                target_key=observation.series.target_key,
-                kind=observation.series.kind,
-                locator=observation.requested_locator,
-                source_handoff_key=observation.source_handoff.handoff_key,
-                source_handoff_generation=(
-                    observation.source_handoff.handoff_generation
-                ),
-            )
-        )
-    return tuple(claims)
 
 
 @transaction.atomic
@@ -510,7 +565,10 @@ def _finalize_claim(
     attempt.response_status = result.response_status
     if result.outcome is ObservationOutcome.FAILED:
         attempt.outcome = AttemptOutcome.FAILED.value
-        attempt.failure_code = result.failure_code or ACQUISITION_EXCEPTION_FAILURE
+        attempt.failure_code = (
+            result.failure_code
+            or ACQUISITION_EXCEPTION_FAILURE
+        )
     else:
         attempt.outcome = AttemptOutcome.SUCCEEDED.value
         attempt.failure_code = ""
@@ -533,7 +591,10 @@ def _finalize_claim(
     observation.response_status = result.response_status
     observation.failure_code = result.failure_code or ""
     retry_at = result.retry_at
-    if result.outcome is ObservationOutcome.FAILED and retry_at is None:
+    if (
+        result.outcome is ObservationOutcome.FAILED
+        and retry_at is None
+    ):
         retry_at = now + timedelta(
             seconds=policy.recovery_retry_seconds
         )
