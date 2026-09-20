@@ -11,6 +11,7 @@ CONTROL_DISABLED_MESSAGES = {
     OperationalControlCode.ACCESS_ISSUANCE: "L’émission de nouveaux Access est temporairement suspendue par Makolo Operations.",
     OperationalControlCode.PAYMENT_CREATION: "La création de nouveaux paiements est temporairement suspendue par Makolo Operations.",
     OperationalControlCode.AUTOPILOT: "Makolo Autopilot est temporairement suspendu par Makolo Operations.",
+    OperationalControlCode.OBSERVER: "L’Observateur Makolo est temporairement suspendu par Makolo Operations.",
 }
 
 
