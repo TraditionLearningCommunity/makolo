@@ -405,6 +405,7 @@ def _open_attempt_for_claim(
     claim: ObservationClaim,
     *,
     now: datetime,
+    strategy: AttemptStrategy,
 ) -> ObservationAttempt:
     observation = _lock_queryset(
         Observation.objects.filter(
@@ -436,7 +437,7 @@ def _open_attempt_for_claim(
     return ObservationAttempt.objects.create(
         observation=observation,
         ordinal=ordinal,
-        strategy=AttemptStrategy.DIRECT_HTTP.value,
+        strategy=AttemptStrategy(strategy).value,
         lifecycle=AttemptLifecycle.OPEN.value,
         started_at=now,
         requested_locator=observation.requested_locator,
@@ -554,9 +555,16 @@ def execute_claim(
     completed_at: datetime | None = None,
 ) -> Observation:
     started_at = _aware("now", now)
+    try:
+        strategy = AttemptStrategy(acquisition.strategy)
+    except (AttributeError, ValueError) as exc:
+        raise ObserverContractError(
+            "acquisition port must declare a valid strategy"
+        ) from exc
     attempt = _open_attempt_for_claim(
         claim,
         now=started_at,
+        strategy=strategy,
     )
     try:
         result = acquisition.acquire(claim)
