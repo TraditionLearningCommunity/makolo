@@ -356,6 +356,24 @@ class ObserverFoundationTests(TestCase):
         with self.assertRaises(ObserverContractError):
             build_observation_material(second.observation_ref)
 
+    def test_open_observation_requires_real_claim_lease(self):
+        handoff, _created = self.absorb()
+        series, _series_created = self.series()
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Observation.objects.create(
+                    series=series,
+                    source_handoff=handoff,
+                    trigger=ObservationTrigger.HANDOFF.value,
+                    lifecycle="open",
+                    started_at=self.now + timedelta(seconds=2),
+                    requested_locator=self.target.locator,
+                    profile_ref="public-http",
+                    profile_fingerprint="profile-public-http-v1",
+                    policy_fingerprint="observer-policy-v1",
+                )
+
     def test_only_one_open_observation_per_series(self):
         handoff, _created = self.absorb()
         series, _series_created = self.series()
