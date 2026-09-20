@@ -120,6 +120,7 @@ def build_direct_http_acquisition(
     scope_state=None,
     context_source=None,
     clock=None,
+    sleeper=None,
 ) -> DirectHttpAcquisition:
     return DirectHttpAcquisition(
         policy=policy,
@@ -128,4 +129,5 @@ def build_direct_http_acquisition(
         scope_state=scope_state or DjangoHttpScopeState(),
         context_source=context_source or DjangoHttpContextSource(),
         clock=clock or timezone.now,
+        sleeper=sleeper,
     )
