@@ -342,6 +342,25 @@ class DirectHttpAcquisitionTests(TestCase):
             "Sat, 19 Sep 2026 10:00:00 GMT",
         )
 
+    def test_304_without_durable_baseline_is_rejected(self):
+        acquisition = self.acquisition(
+            {
+                "https://example.test/resource": [
+                    exchange(304, headers={"ETag": '"orphan"'})
+                ]
+            },
+            context=HttpObservationContext(etag='"orphan"'),
+        )
+
+        result = acquisition.acquire(self.claim())
+
+        self.assertEqual(result.outcome, ObservationOutcome.FAILED)
+        self.assertEqual(
+            result.failure_code,
+            "http.not_modified_without_baseline",
+        )
+        self.assertIsNone(result.retry_at)
+
     def test_conditional_headers_are_not_forwarded_after_redirect(self):
         context = HttpObservationContext(
             etag='"old"',
