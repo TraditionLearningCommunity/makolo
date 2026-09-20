@@ -63,6 +63,7 @@ class HttpAcquisitionPolicy:
     robots_max_bytes: int = 256 * 1024
     robots_cache_seconds: int = 3600
     host_min_interval_seconds: float = 1.0
+    max_inline_wait_seconds: float = 2.0
     host_lease_seconds: int = 120
     retry_seconds: int = 60
     allow_https_to_http_redirect: bool = False
@@ -103,6 +104,15 @@ class HttpAcquisitionPolicy:
             _positive_number(
                 "host_min_interval_seconds",
                 self.host_min_interval_seconds,
+                allow_zero=True,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "max_inline_wait_seconds",
+            _positive_number(
+                "max_inline_wait_seconds",
+                self.max_inline_wait_seconds,
                 allow_zero=True,
             ),
         )
@@ -157,6 +167,7 @@ class HttpAcquisitionPolicy:
             "robots_max_bytes": self.robots_max_bytes,
             "robots_cache_seconds": self.robots_cache_seconds,
             "host_min_interval_seconds": self.host_min_interval_seconds,
+            "max_inline_wait_seconds": self.max_inline_wait_seconds,
             "host_lease_seconds": self.host_lease_seconds,
             "retry_seconds": self.retry_seconds,
             "allow_https_to_http_redirect": self.allow_https_to_http_redirect,
