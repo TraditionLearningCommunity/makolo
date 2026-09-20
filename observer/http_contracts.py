@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from types import MappingProxyType
@@ -84,6 +85,14 @@ class HttpAcquisitionPolicy:
                 self.robots_user_agent,
             ),
         )
+        if re.fullmatch(r"[A-Za-z_-]+", self.robots_user_agent) is None:
+            raise ObserverContractError(
+                "robots_user_agent must be an RFC 9309 product token"
+            )
+        if self.robots_user_agent.lower() not in self.user_agent.lower():
+            raise ObserverContractError(
+                "robots_user_agent must be present in user_agent"
+            )
         object.__setattr__(
             self,
             "connect_timeout_seconds",
@@ -149,6 +158,10 @@ class HttpAcquisitionPolicy:
         if not isinstance(self.allow_https_to_http_redirect, bool):
             raise ObserverContractError(
                 "allow_https_to_http_redirect must be boolean"
+            )
+        if self.robots_cache_seconds > 24 * 60 * 60:
+            raise ObserverContractError(
+                "robots_cache_seconds must not exceed 24 hours"
             )
         if self.robots_max_bytes > self.max_wire_bytes:
             raise ObserverContractError(
