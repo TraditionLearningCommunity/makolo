@@ -216,6 +216,41 @@ class ObserverRuntimeTests(TestCase):
             ObservationTrigger.HANDOFF.value,
         )
 
+    def test_historical_handoffs_do_not_starve_new_generation(self):
+        for generation in range(1, 5):
+            self.absorb(generation)
+            scheduled = schedule_due_observations(
+                policy=self.policy,
+                now=self.now + timedelta(seconds=20 + generation * 10),
+                limit=1,
+            )
+            self.assertEqual(len(scheduled), 1)
+            claim = claim_observations(
+                worker_id="worker-a",
+                policy=self.policy,
+                now=self.now + timedelta(seconds=21 + generation * 10),
+                limit=1,
+            )[0]
+            execute_claim(
+                claim,
+                acquisition=self.observed_fake(
+                    self.now + timedelta(seconds=22 + generation * 10)
+                ),
+                policy=self.policy,
+                now=self.now + timedelta(seconds=21 + generation * 10),
+                completed_at=self.now + timedelta(seconds=23 + generation * 10),
+            )
+
+        newest = self.absorb(5)
+        scheduled = schedule_due_observations(
+            policy=self.policy,
+            now=self.now + timedelta(seconds=100),
+            limit=1,
+        )
+
+        self.assertEqual(len(scheduled), 1)
+        self.assertEqual(scheduled[0].source_handoff, newest)
+
     def test_pending_generation_wins_over_due_watch(self):
         first_handoff = self.absorb(1)
         scheduled = schedule_due_observations(
