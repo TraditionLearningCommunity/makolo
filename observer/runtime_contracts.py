@@ -323,10 +323,12 @@ class AcquisitionResult:
                 raise ObserverContractError(
                     "successful acquisition must not carry failure_code or retry_at"
                 )
-            if (
-                outcome is ObservationOutcome.NOT_MODIFIED
-                and artifacts
-            ):
-                raise ObserverContractError(
-                    "not-modified acquisition must not create new artifacts"
-                )
+            if outcome is ObservationOutcome.NOT_MODIFIED:
+                if artifacts:
+                    raise ObserverContractError(
+                        "not-modified acquisition must not create new artifacts"
+                    )
+                if self.revalidated_artifact_ref is None:
+                    raise ObserverContractError(
+                        "not-modified acquisition requires a revalidated artifact"
+                    )
