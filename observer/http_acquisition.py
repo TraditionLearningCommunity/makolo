@@ -365,7 +365,6 @@ class DirectHttpAcquisition:
         max_wire_bytes: int,
         active_leases: dict[str, object],
         stats: _Stats,
-        redirect_guard=None,
     ):
         url = _normalize_http_url(url)
         parts = urlsplit(url)
@@ -421,6 +420,7 @@ class DirectHttpAcquisition:
         max_wire_bytes: int,
         active_leases: dict[str, object],
         stats: _Stats,
+        redirect_guard=None,
     ):
         current = _normalize_http_url(start_url)
         visited = {current}
