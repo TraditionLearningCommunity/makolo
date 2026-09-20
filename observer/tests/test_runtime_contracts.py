@@ -6,6 +6,7 @@ from observer.contracts import (
     ObservationOutcome,
 )
 from observer.errors import ObserverContractError
+from observer.http_contracts import HttpAcquisitionPolicy
 from observer.runtime_contracts import (
     AcquiredArtifact,
     AcquisitionResult,
@@ -90,4 +91,25 @@ class ObserverRuntimeContractTests(TestCase):
                 outcome=ObservationOutcome.NOT_MODIFIED,
                 observed_at=self.now,
                 artifacts=(artifact,),
+            )
+
+
+    def test_http_policy_requires_robots_token_inside_user_agent(self):
+        with self.assertRaises(ObserverContractError):
+            HttpAcquisitionPolicy(
+                user_agent="DifferentCrawler/1.0",
+                robots_user_agent="MakoloObserver",
+            )
+
+    def test_http_policy_rejects_invalid_robots_product_token(self):
+        with self.assertRaises(ObserverContractError):
+            HttpAcquisitionPolicy(
+                user_agent="Makolo Observer/1.0",
+                robots_user_agent="Makolo Observer",
+            )
+
+    def test_http_policy_caps_normal_robots_cache_at_24_hours(self):
+        with self.assertRaises(ObserverContractError):
+            HttpAcquisitionPolicy(
+                robots_cache_seconds=24 * 60 * 60 + 1,
             )
