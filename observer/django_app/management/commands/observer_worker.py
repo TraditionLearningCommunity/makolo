@@ -106,12 +106,7 @@ class Command(BaseCommand):
         policy,
         once,
     ):
-        # A named queue must never be purged merely because the Observer opens it.
-        configuration = Configuration(purge_on_start=False)
-        request_queue = await RequestQueue.open(
-            name=queue_name,
-            configuration=configuration,
-        )
+        request_queue = None
         last_stats = None
         while True:
             metadata = {
@@ -134,6 +129,14 @@ class Command(BaseCommand):
                     cycle_finished=True,
                 )
             else:
+                if request_queue is None:
+                    # A named queue must never be purged merely because the
+                    # Observer opens it.
+                    configuration = Configuration(purge_on_start=False)
+                    request_queue = await RequestQueue.open(
+                        name=queue_name,
+                        configuration=configuration,
+                    )
                 await self._heartbeat(
                     worker_name="observer",
                     instance_id=instance_id,
