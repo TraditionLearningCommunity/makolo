@@ -19,11 +19,13 @@ from .contracts import (
     ObservationTrigger,
 )
 from .django_app.models import (
+    ObservedArtifact,
     Observation,
     ObservationAttempt,
     ObservationSeries,
     ObserverHandoff,
 )
+from .django_artifacts import store_blob
 from .django_store import get_or_create_observation_series
 from .errors import ObserverContractError, ObserverStateConflictError
 from .ports import ObservationAcquisitionPort
@@ -572,6 +574,10 @@ def _finalize_claim(
     attempt.completed_at = now
     attempt.final_locator = result.final_locator or ""
     attempt.response_status = result.response_status
+    attempt.retry_after_at = result.retry_at
+    attempt.redirect_count = result.redirect_count
+    attempt.wire_bytes = result.wire_bytes
+    attempt.decoded_bytes = result.decoded_bytes
     if result.outcome is ObservationOutcome.FAILED:
         attempt.outcome = AttemptOutcome.FAILED.value
         attempt.failure_code = (
@@ -587,10 +593,37 @@ def _finalize_claim(
             "completed_at",
             "final_locator",
             "response_status",
+            "retry_after_at",
+            "redirect_count",
+            "wire_bytes",
+            "decoded_bytes",
             "outcome",
             "failure_code",
         ]
     )
+
+    created_artifacts = []
+    if result.outcome is not ObservationOutcome.FAILED:
+        for acquired in result.artifacts:
+            blob, _created = store_blob(acquired.content)
+            artifact = ObservedArtifact(
+                observation=observation,
+                producing_attempt=attempt,
+                blob=blob,
+                role=acquired.role,
+                origin=acquired.origin.value,
+                completeness=acquired.completeness.value,
+                declared_media_type=acquired.declared_media_type or "",
+                detected_media_type=acquired.detected_media_type or "",
+                charset=acquired.charset or "",
+                captured_at=acquired.captured_at,
+                protection_context_ref=(
+                    acquired.protection_context_ref or ""
+                ),
+            )
+            artifact.full_clean()
+            artifact.save(force_insert=True)
+            created_artifacts.append(artifact)
 
     observation.lifecycle = ObservationLifecycle.FINALIZED.value
     observation.outcome = result.outcome.value
@@ -599,15 +632,7 @@ def _finalize_claim(
     observation.final_locator = result.final_locator or ""
     observation.response_status = result.response_status
     observation.failure_code = result.failure_code or ""
-    retry_at = result.retry_at
-    if (
-        result.outcome is ObservationOutcome.FAILED
-        and retry_at is None
-    ):
-        retry_at = now + timedelta(
-            seconds=policy.recovery_retry_seconds
-        )
-    observation.retry_at = retry_at
+    observation.retry_at = result.retry_at
     observation.save(
         update_fields=[
             "lifecycle",
@@ -625,16 +650,78 @@ def _finalize_claim(
     series = _lock_queryset(
         ObservationSeries.objects.filter(pk=observation.series_id)
     ).get()
+
+    if result.revalidated_artifact_ref:
+        artifact = (
+            ObservedArtifact.objects.select_related("observation__series")
+            .filter(
+                artifact_ref=result.revalidated_artifact_ref,
+                observation__series=series,
+            )
+            .first()
+        )
+        if artifact is None:
+            raise ObserverStateConflictError(
+                "revalidated artifact does not belong to this observation series"
+            )
+        observation.revalidated_artifacts.add(artifact)
+
+    series_fields = []
     if result.outcome is ObservationOutcome.FAILED:
-        if (
+        if result.retry_at is not None and (
             series.retry_due_at is None
-            or retry_at < series.retry_due_at
+            or result.retry_at < series.retry_due_at
         ):
-            series.retry_due_at = retry_at
-            series.save(update_fields=["retry_due_at", "updated_at"])
-    elif series.retry_due_at is not None:
-        series.retry_due_at = None
-        series.save(update_fields=["retry_due_at", "updated_at"])
+            series.retry_due_at = result.retry_at
+            series_fields.append("retry_due_at")
+    else:
+        if series.retry_due_at is not None:
+            series.retry_due_at = None
+            series_fields.append("retry_due_at")
+        if policy.watch_interval_seconds is not None:
+            watch_due_at = now + timedelta(
+                seconds=policy.watch_interval_seconds
+            )
+            series.watch_due_at = watch_due_at
+            series_fields.append("watch_due_at")
+
+        # A successful response replaces the HTTP validator snapshot. Missing
+        # validators on a fresh representation must clear stale values.
+        if result.outcome is ObservationOutcome.OBSERVED:
+            series.http_etag = result.validator_etag or ""
+            series.http_last_modified = (
+                result.validator_last_modified or ""
+            )
+            series.validator_artifact_ref = (
+                created_artifacts[0].artifact_ref
+                if created_artifacts
+                else ""
+            )
+            series_fields.extend(
+                [
+                    "http_etag",
+                    "http_last_modified",
+                    "validator_artifact_ref",
+                ]
+            )
+        elif result.outcome is ObservationOutcome.NOT_MODIFIED:
+            if result.validator_etag is not None:
+                series.http_etag = result.validator_etag
+                series_fields.append("http_etag")
+            if result.validator_last_modified is not None:
+                series.http_last_modified = result.validator_last_modified
+                series_fields.append("http_last_modified")
+            if result.revalidated_artifact_ref:
+                series.validator_artifact_ref = (
+                    result.revalidated_artifact_ref
+                )
+                series_fields.append("validator_artifact_ref")
+
+    if series_fields:
+        deduplicated = list(dict.fromkeys(series_fields))
+        deduplicated.append("updated_at")
+        series.save(update_fields=deduplicated)
+
     return observation
 
 
