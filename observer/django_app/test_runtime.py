@@ -12,12 +12,7 @@ from django.core.management import call_command
 from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase
 
-from operations.models import (
-    OperationalControl,
-    OperationalControlCode,
-    WorkerHeartbeat,
-    WorkerState,
-)
+from operations.models import WorkerState
 from prospector.observation_contracts import ObservationTarget, make_handoff_key
 
 from observer.contracts import (
@@ -25,7 +20,7 @@ from observer.contracts import (
     ObservationOutcome,
     ObservationTrigger,
 )
-from observer.django_inbox import drain_crawlee_inbox
+from observer.django_inbox import InboxDrainStats, drain_crawlee_inbox
 from observer.django_runtime import (
     LEASE_EXPIRED_FAILURE,
     claim_observations,
@@ -35,7 +30,11 @@ from observer.django_runtime import (
 )
 from observer.django_store import absorb_observation_target
 from observer.errors import ObserverStateConflictError
-from observer.runtime_contracts import AcquisitionResult, ObserverRuntimePolicy
+from observer.runtime_contracts import (
+    AcquisitionResult,
+    ObservationBacklog,
+    ObserverRuntimePolicy,
+)
 from observer.testing import FakeAcquisition
 
 from .models import (
@@ -443,14 +442,24 @@ class ObserverRuntimeTests(TestCase):
         self.assertEqual(second, ())
 
     def test_worker_kill_switch_prevents_queue_access(self):
-        OperationalControl.objects.filter(
-            pk=OperationalControlCode.OBSERVER
-        ).update(is_enabled=False)
         stdout = StringIO()
-        with patch(
-            "observer.django_app.management.commands.observer_worker.RequestQueue.open",
-            new_callable=AsyncMock,
-        ) as open_queue:
+        command_path = (
+            "observer.django_app.management.commands.observer_worker"
+        )
+        with (
+            patch(
+                f"{command_path}.is_operational_control_enabled",
+                return_value=False,
+            ),
+            patch(
+                f"{command_path}.RequestQueue.open",
+                new_callable=AsyncMock,
+            ) as open_queue,
+            patch(
+                f"{command_path}.Command._heartbeat",
+                new_callable=AsyncMock,
+            ) as heartbeat,
+        ):
             call_command(
                 "observer_worker",
                 "--queue-name",
@@ -462,23 +471,57 @@ class ObserverRuntimeTests(TestCase):
             )
 
         open_queue.assert_not_awaited()
-        heartbeat = WorkerHeartbeat.objects.get(
-            worker_name="observer",
-            instance_id="observer-kill-switch-test",
-        )
-        self.assertEqual(heartbeat.state, WorkerState.STOPPED)
+        self.assertEqual(heartbeat.await_count, 1)
+        kwargs = heartbeat.await_args.kwargs
+        self.assertEqual(kwargs["state"], WorkerState.STOPPED)
         self.assertEqual(
-            heartbeat.metadata["last_stats"]["operational_control"],
+            kwargs["metadata"]["last_stats"]["operational_control"],
             "disabled",
         )
 
-    def test_worker_one_shot_absorbs_but_does_not_start_observation(self):
-        target = self.target(1)
-        queue = FakeDrainQueue([crawlee_request_for(target)])
+    def test_worker_one_shot_reports_backlog_without_starting_work(self):
+        queue = FakeDrainQueue()
         stdout = StringIO()
-        with patch(
-            "observer.django_app.management.commands.observer_worker.RequestQueue.open",
-            new=AsyncMock(return_value=queue),
+        command_path = (
+            "observer.django_app.management.commands.observer_worker"
+        )
+        backlog = ObservationBacklog(
+            pending_handoffs=3,
+            due_retries=2,
+            due_watches=1,
+            open_observations=0,
+        )
+        with (
+            patch(
+                f"{command_path}.is_operational_control_enabled",
+                return_value=True,
+            ),
+            patch(
+                f"{command_path}.RequestQueue.open",
+                new=AsyncMock(return_value=queue),
+            ) as open_queue,
+            patch(
+                f"{command_path}.drain_crawlee_inbox",
+                new=AsyncMock(
+                    return_value=InboxDrainStats(
+                        fetched=1,
+                        absorbed=1,
+                        replayed=0,
+                    )
+                ),
+            ) as drain,
+            patch(
+                f"{command_path}.recover_expired_observations",
+                return_value=0,
+            ) as recover,
+            patch(
+                f"{command_path}.observation_backlog",
+                return_value=backlog,
+            ) as read_backlog,
+            patch(
+                f"{command_path}.Command._heartbeat",
+                new_callable=AsyncMock,
+            ) as heartbeat,
         ):
             call_command(
                 "observer_worker",
@@ -490,25 +533,27 @@ class ObserverRuntimeTests(TestCase):
                 stdout=stdout,
             )
 
-        heartbeat = WorkerHeartbeat.objects.get(
-            worker_name="observer",
-            instance_id="observer-once-test",
-        )
-        self.assertEqual(heartbeat.state, WorkerState.STOPPED)
+        open_queue.assert_awaited_once()
+        drain.assert_awaited_once()
+        recover.assert_called_once()
+        read_backlog.assert_called_once()
+        self.assertEqual(heartbeat.await_count, 3)
+        final_kwargs = heartbeat.await_args.kwargs
+        self.assertEqual(final_kwargs["state"], WorkerState.STOPPED)
         self.assertEqual(
-            heartbeat.metadata["acquisition"],
-            "unconfigured_lot2",
+            final_kwargs["metadata"]["last_stats"],
+            {
+                "inbox_fetched": 1,
+                "inbox_absorbed": 1,
+                "inbox_replayed": 0,
+                "recovered_observations": 0,
+                "pending_handoffs": 3,
+                "due_retries": 2,
+                "due_watches": 1,
+                "open_observations": 0,
+                "acquisition": "not_configured",
+            },
         )
-        self.assertEqual(
-            heartbeat.metadata["last_stats"]["acquisition"],
-            "not_configured",
-        )
-        self.assertEqual(
-            heartbeat.metadata["last_stats"]["pending_handoffs"],
-            1,
-        )
-        self.assertEqual(ObserverHandoff.objects.count(), 1)
-        self.assertEqual(Observation.objects.count(), 0)
 
 
 @skipUnless(
