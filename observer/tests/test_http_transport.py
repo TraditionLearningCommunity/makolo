@@ -122,8 +122,9 @@ class PinnedHttpTransportTests(TestCase):
                 connect_ip=GLOBAL_IP,
                 connect_timeout=3,
                 read_timeout=4,
-                context=context,
+                context=ssl.create_default_context(),
             )
+            connection._context = context
             connection.connect()
 
         create_connection.assert_called_once_with(
