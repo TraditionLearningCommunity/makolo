@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta
-from typing import Iterable
-
 from django.db import connection, transaction
 from django.db.models import Q
 from django.db.models.functions import Coalesce
@@ -566,13 +564,15 @@ def execute_claim(
         now=started_at,
         strategy=strategy,
     )
+    unexpected_error = None
     try:
         result = acquisition.acquire(claim)
         if not isinstance(result, AcquisitionResult):
             raise ObserverContractError(
                 "acquisition port must return AcquisitionResult"
             )
-    except Exception:
+    except Exception as exc:
+        unexpected_error = exc
         result = AcquisitionResult(
             outcome=ObservationOutcome.FAILED,
             observed_at=started_at,
@@ -581,10 +581,13 @@ def execute_claim(
             + timedelta(seconds=policy.recovery_retry_seconds),
         )
     finished_at = _aware("completed_at", completed_at)
-    return _finalize_claim(
+    observation = _finalize_claim(
         claim,
         attempt_id=attempt.pk,
         result=result,
         policy=policy,
         now=finished_at,
     )
+    if unexpected_error is not None:
+        raise unexpected_error
+    return observation
