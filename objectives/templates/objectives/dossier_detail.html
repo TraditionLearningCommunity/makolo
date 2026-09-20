@@ -11,7 +11,8 @@
 
   <section class="mk-panel p-5 sm:p-6">
     <span class="mk-kicker">Où j’en suis</span>
-    <h2 class="mt-2 text-xl font-extrabold">{{ collective_readiness.status_label }}</h2>
+    <h2 class="mt-2 text-xl font-extrabold">Avancement</h2>
+    <p class="mt-2 font-semibold">{{ collective_readiness.status_label }}</p>
     {% if collective_readiness.primary_next_action %}
       <div class="mt-4 rounded-2xl border p-4" style="border-color:var(--mk-border)">
         <p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">Prochaine conséquence utile</p>
@@ -45,7 +46,7 @@
   {% if dependencies %}
   <section class="mk-panel p-5 sm:p-6">
     <h2 class="font-extrabold">Dépendances utiles à comprendre</h2>
-    <div class="mt-4 space-y-3">{% for dependency in dependencies %}<div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p><strong>{{ dependency.dependent_link.journey.activity.title }}</strong> dépend de <strong>{{ dependency.required_link.journey.activity.title }}</strong>.</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">{% if dependency.state == dependency_waived_state %}Prérequis levé{% elif dependency.is_satisfied %}Prérequis satisfait{% else %}Prérequis à satisfaire{% endif %}</p>
+    <div class="mt-4 space-y-3">{% for dependency in dependencies %}<div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p><strong>{{ dependency.dependent_link.journey.activity.title }}</strong> nécessite <strong>{{ dependency.required_link.journey.activity.title }}</strong>.</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">{% if dependency.state == dependency_waived_state %}Prérequis levé{% elif dependency.is_satisfied %}Prérequis satisfait{% else %}Prérequis à satisfaire{% endif %}</p>
         {% if can_manage and dependency.state == dependency_active_state %}
         <div class="mt-3 flex flex-wrap gap-2">
           <form method="post" action="{% url 'objectives:dossier-remove-dependency' dossier.id dependency.id %}">{% csrf_token %}<button class="mk-btn mk-btn-ghost" type="submit">Retirer</button></form>
@@ -64,19 +65,19 @@
       {% if can_manage_project_context %}<section><h3 class="font-bold">Projet</h3><form method="post" action="{% url 'objectives:dossier-project' dossier.id %}" class="mt-3">{% csrf_token %}{{ project_form.as_p }}<button class="mk-btn mk-btn-secondary" type="submit">Mettre à jour</button></form></section>{% endif %}
       <section><h3 class="font-bold">Responsabilité</h3><div class="mt-3 space-y-2">{% for assignment in assignments %}<div><strong>{{ assignment.assignee.get_full_name|default:assignment.assignee.username }}</strong><form method="post" action="{% url 'objectives:dossier-unassign' dossier.id assignment.id %}" class="inline">{% csrf_token %}<button class="mk-btn mk-btn-ghost" type="submit">Retirer</button></form></div>{% endfor %}</div><form method="post" action="{% url 'objectives:dossier-assign' dossier.id %}" class="mt-3">{% csrf_token %}{{ assignment_form.as_p }}<button class="mk-btn mk-btn-secondary" type="submit">Désigner</button></form></section>
       <section><h3 class="font-bold">Lier une démarche</h3><form method="post" action="{% url 'objectives:dossier-link-journey' dossier.id %}" class="mt-3">{% csrf_token %}{{ link_form.as_p }}<button class="mk-btn mk-btn-secondary">Lier la démarche</button></form></section>
-      <section><h3 class="font-bold">Ajouter une dépendance</h3><form method="post" action="{% url 'objectives:dossier-add-dependency' dossier.id %}" class="mt-3">{% csrf_token %}{{ dependency_form.as_p }}<button class="mk-btn mk-btn-secondary">Ajouter</button></form></section>
+      <section><h3 class="font-bold">Ajouter une dépendance</h3><form method="post" action="{% url 'objectives:dossier-add-dependency' dossier.id %}" class="mt-3">{% csrf_token %}{{ dependency_form.as_p }}<button class="mk-btn mk-btn-secondary">Ajouter la dépendance</button></form></section>
       <section><h3 class="font-bold">Cycle de vie</h3><form method="post" action="{% url 'objectives:dossier-lifecycle' dossier.id %}" class="mt-3">{% csrf_token %}{{ lifecycle_form.as_p }}<button class="mk-btn mk-btn-secondary">Mettre à jour</button></form></section>
     </div>
   </section>
   {% endif %}
 
   {% if can_manage_authority %}
-  <details class="mk-panel p-5">
-    <summary class="cursor-pointer font-extrabold">Autorité sur ce Dossier</summary>
+  <section class="mk-panel p-5">
+    <h2 class="font-extrabold">Autorité sur ce Dossier</h2>
     <p class="mt-2 text-sm" style="color:var(--mk-muted)">Une autorité sur le Dossier n’accorde aucun droit automatique sur ses démarches.</p>
     <div class="mt-4 space-y-3">{% for mandate in authority_mandates %}<div><strong>{{ mandate.profile.get_full_name|default:mandate.profile.username }}</strong> · {{ mandate.role.name }}<form method="post" action="{% url 'objectives:dossier-revoke-authority' dossier.id mandate.id %}">{% csrf_token %}<button class="mk-btn mk-btn-ghost">Révoquer</button></form></div>{% endfor %}</div>
-    <form method="post" action="{% url 'objectives:dossier-grant-authority' dossier.id %}" class="mt-4">{% csrf_token %}{{ authority_form.as_p }}<button class="mk-btn mk-btn-secondary">Accorder</button></form>
-  </details>
+    <form method="post" action="{% url 'objectives:dossier-grant-authority' dossier.id %}" class="mt-4">{% csrf_token %}{{ authority_form.as_p }}<button class="mk-btn mk-btn-secondary">Accorder l’accès</button></form>
+  </section>
   {% endif %}
 </div>
 {% endblock %}
