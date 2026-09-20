@@ -753,6 +753,21 @@ class DirectHttpAcquisitionTests(TestCase):
         )
         self.assertIsNone(result.retry_at)
 
+    def test_tls_failure_is_visible_but_not_immediately_retried(self):
+        acquisition = self.acquisition(
+            {
+                "https://example.test/resource": [
+                    HttpTransportFailure("http.tls_error")
+                ]
+            }
+        )
+
+        result = acquisition.acquire(self.claim())
+
+        self.assertEqual(result.outcome, ObservationOutcome.FAILED)
+        self.assertEqual(result.failure_code, "http.tls_error")
+        self.assertIsNone(result.retry_at)
+
     def test_transport_timeout_is_retryable(self):
         acquisition = self.acquisition(
             {
