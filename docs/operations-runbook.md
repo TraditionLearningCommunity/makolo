@@ -50,41 +50,86 @@ Ne pas lancer simultanément un worker persistant et un `run_autopilot` horaire 
 
 Le cycle Autopilot est conçu pour être court sur la taille bêta. Il borne les livraisons par `--delivery-limit` et ne reparcourt plus tout l'historique des événements terminés : le rattrapage post-événement est borné aux 30 derniers jours. Surveiller le temps réel dans les logs ; il n'existe pas de SLA de durée garanti.
 
-### 1.4 Observateur — control-plane du Lot 2
+### 1.4 Observateur — acquisition HTTP publique du Lot 3
 
-Le Lot 2 introduit un worker **Observateur** distinct d'Autopilot. Sa frontière actuelle est volontairement limitée au control-plane :
+Le worker **Observateur** reste distinct d'Autopilot. Le Lot 3 conserve tout le control-plane du Lot 2 et ajoute une capacité d'acquisition **HTTP directe publique** :
 
-- absorber de manière durable les handoffs déjà admis dans la `RequestQueue` Crawlee ;
-- rendre cette absorption idempotente même si le process tombe après commit DB mais avant acknowledgement de la queue ;
-- récupérer les Observations dont la lease a expiré ;
-- exposer le backlog opérationnel (`pending_handoffs`, retries, watches, Observations ouvertes) dans `WorkerHeartbeat` ;
-- honorer le contrôle Operations `observer` **avant** toute ouverture de la queue.
+- absorption durable et idempotente des handoffs déjà admis dans la `RequestQueue` Crawlee ;
+- recovery des Observations dont la lease a expiré ;
+- claim atomique d'une Observation seulement lorsqu'un worker commence réellement l'épisode ;
+- revalidation DNS à chaque connexion et redirect ;
+- connexion à l'IP littérale validée, avec le hostname d'origine conservé pour Host/SNI/TLS ;
+- refus de localhost, adresses non globales, réponses DNS mixtes, peer mismatch et ports non autorisés ;
+- redirects bornés, boucles détectées et downgrade HTTPS→HTTP refusé par défaut ;
+- `robots.txt` mis en cache par origine (schéma + host + port) ;
+- politeness partagée par host entre workers, avec lease et `not_before` persistants ;
+- réponses et décompression bornées ;
+- `Retry-After`, ETag, Last-Modified et 304 ;
+- capture brute dans le storage privé Observer et métriques techniques d'Attempt ;
+- heartbeat Operations sans locator, contenu ni secret.
 
-Commande disponible :
+### Activation explicite
+
+Le déploiement d'un nouveau SHA **ne doit pas activer Internet implicitement**. Sans flag, la commande reste compatible avec le Lot 2 et fonctionne en control-plane uniquement :
 
 ~~~bash
 python manage.py observer_worker --queue-name <QUEUE_NAME>
 ~~~
 
-Pour un diagnostic ponctuel :
+L'acquisition HTTP réelle exige simultanément :
 
 ~~~bash
-python manage.py observer_worker --queue-name <QUEUE_NAME> --once
+python manage.py observer_worker \
+  --queue-name <QUEUE_NAME> \
+  --enable-http-acquisition \
+  --http-user-agent "<IDENTITE_BOT_EXPLICITE>"
 ~~~
 
-`<QUEUE_NAME>` doit être la queue réellement configurée pour le handoff Prospecteur → Observateur dans l'environnement concerné. Ne pas inventer un nom de queue dans le runbook ou un déploiement.
+`<QUEUE_NAME>` et `<IDENTITE_BOT_EXPLICITE>` sont propres à l'environnement réel. Le dépôt n'invente ni nom de queue de production, ni URL de contact opérateur. L'identité bot doit être choisie explicitement avant activation live.
 
-**Frontière importante du Lot 2 :** ce worker n'effectue encore **aucune acquisition HTTP ou Browser**. Il ne claim pas de travail d'observation réel tant que le Lot 3 n'a pas branché l'adapter d'acquisition. Une cible seulement due reste une intention durable dans `ObserverHandoff` / `ObservationSeries` ; une `Observation` historique ne doit naître qu'au moment d'un claim réel.
+Pour un cycle diagnostique unique, ajouter `--once`.
 
-Conséquences opérationnelles :
+### Garde-fous techniques
 
-- ne pas présenter `observer_worker` comme un crawler actif ;
-- ne pas promettre qu'une ressource externe est observée parce que le worker tourne ;
-- si le worker est lancé avant le Lot 3, il peut absorber les handoffs et montrer le backlog, mais ce backlog peut naturellement croître ;
-- le kill switch Operations `observer` doit être utilisé pour suspendre proprement ce control-plane en cas d'incident ;
-- le heartbeat attendu utilise `worker_name="observer"` ; une absence ou un état `degraded` doit être traitée comme un problème du control-plane, pas comme une preuve qu'une donnée métier externe est fausse ou indisponible.
+Les valeurs par défaut sont des **bornes de sécurité**, pas des SLA ni des recommandations universelles de crawl :
 
-Le worker ouvre Crawlee avec `purge_on_start=False` : redémarrer le process ne doit jamais vider la queue. Les locators et contenus observés ne doivent pas être ajoutés aux heartbeats Operations.
+- ports autorisés : 80 et 443 ; utiliser `--http-allowed-port` uniquement pour une cible explicitement nécessaire ;
+- redirects : 5 maximum ;
+- corps réseau : 8 MiB maximum ;
+- corps décodé : 16 MiB maximum ;
+- `robots.txt` : 256 KiB maximum, cache 1 h ;
+- intervalle minimal par host : 1 s ;
+- timeouts connect/read : 10 s / 20 s ;
+- retries automatiques immédiats réservés aux pannes plausiblement transitoires ; 429 respecte `Retry-After`.
+
+Toute extension de port, downgrade HTTPS→HTTP ou cadence plus agressive doit être une décision opérateur explicite. Les `observation_hints` reçus du Prospecteur ne peuvent jamais affaiblir ces contrôles.
+
+### Robots, politeness et retries
+
+Le cache robots est **origin-scoped** ; la cadence et l'exclusion mutuelle sont **host-scoped**. Ainsi HTTP et HTTPS ne partagent pas aveuglément un même `robots.txt`, tandis que deux workers ne peuvent pas frapper simultanément le même host.
+
+Un petit délai de politeness peut être attendu dans le même épisode ; un délai plus long devient un retry planifié plutôt qu'un sleep non borné. Une réponse 404 reste une Observation technique et ne signifie jamais « Activity supprimée ». Un 304 produit une nouvelle Observation sans copier l'ancien artefact et peut revalider le précédent.
+
+### Frontières qui restent fermées
+
+Le Lot 3 **n'ajoute pas** :
+
+- Browser/Playwright ou rendu JavaScript ;
+- cookies, session privée, Authorization ou contournement d'accès ;
+- extraction sémantique ou vérité métier ;
+- création/modification d'Activity, Occurrence, Requirement, Proof, Access, etc. ;
+- cadence autonome de watch par défaut : `--watch-interval-seconds` doit être fourni explicitement ;
+- politique d'expansion Prospecteur inventée.
+
+L'Observateur sait construire un `ObservationReport` structure-only et un `ObservationMaterial` pour l'aval. La soumission vers un sink Prospecteur reste injectée : l'Observateur ne choisit pas seul une politique d'expansion.
+
+### Arrêt et incident
+
+Le contrôle Operations `observer` est vérifié avant l'ouverture de la queue puis avant chaque nouveau claim. Le désactiver suspend les nouveaux travaux sans purger Crawlee. Le worker ouvre toujours la queue avec `purge_on_start=False`.
+
+En cas de crash après claim, la lease protège l'unicité ; son expiration finalise conservativement l'Attempt en `INTERRUPTED`, l'Observation en échec technique et programme uniquement le retry prévu par le contrat.
+
+Le heartbeat attendu utilise `worker_name="observer"`. Un état `degraded` décrit un problème du pipeline technique ; il ne constitue jamais une conclusion sur la réalité métier externe.
 
 ### 1.5 Dépendances spécifiques à PythonAnywhere
 
@@ -253,7 +298,7 @@ Ne pas exécuter npm, Playwright, Chromium ou le seed démo pendant ce déploiem
 
 ### Option A — compte payant : Always-on Task, recommandé
 
-> Cette section concerne **Autopilot**. Le worker Observateur est indépendant. Tant que le Lot 3 n'a pas activé l'acquisition réelle, ne pas ajouter automatiquement `observer_worker` aux tâches de bêta comme s'il s'agissait d'un crawler fonctionnel.
+> Cette section concerne **Autopilot**. Le worker Observateur est indépendant. Ne l'ajouter aux tâches live qu'après choix explicite de la queue, de l'identité bot et de l'activation `--enable-http-acquisition`.
 
 Dans **Tasks > Always-on**, utiliser une commande unique :
 
@@ -496,7 +541,7 @@ Au minimum :
 - `/api/v1/readiness/` répond 200 ;
 - Web/Always-on task en état attendu ;
 - dernière exécution Autopilot récente ;
-- si l'Observateur control-plane est activé dans cet environnement : heartbeat `observer` récent, état non `degraded`, et backlog compris ; avant le Lot 3, un backlog non nul signifie « travail en attente », pas « acquisition en cours » ;
+- si l'Observateur est activé : heartbeat `observer` récent, état non `degraded`, backlog compris et mode attendu (`observer-control-plane` ou `observer-direct-http`) ;
 - pas d'accumulation anormale de notifications/CRM en queue ;
 - pas de hausse de paiements/webhooks/scans en échec ;
 - incidents Operations ouverts ;
@@ -604,7 +649,7 @@ Cette passe ne met pas en place :
 - object storage ;
 - Redis ;
 - PostgreSQL sur le PythonAnywhere actuel ;
-- acquisition réseau réelle de l'Observateur (HTTP/Browser), robots/SSRF runtime et parsing de contenu : ces capacités commencent au Lot 3 et ne sont pas activées par le Lot 2.
+- rendu Browser/JavaScript de l'Observateur et acquisition authentifiée/privée ; le Lot 3 reste HTTP public direct uniquement.
 
 Risques restant volontairement ouverts : plafond de concurrence SQLite, rate limiting web local-cache non distribué, médias sur filesystem local, dépendance à l'offre PythonAnywhere pour Always-on/scheduling, backend e-mail réel à choisir, sauvegarde off-host à opérer, migration PostgreSQL future à planifier.
 
