@@ -3,6 +3,7 @@ from __future__ import annotations
 import http.client
 import socket
 import ssl
+import time
 from urllib.parse import urlsplit, urlunsplit
 
 from observer.http_contracts import HttpExchange, HttpTransportFailure
@@ -113,6 +114,7 @@ class PinnedStdlibHttpTransport:
         connect_timeout_seconds: float,
         read_timeout_seconds: float,
         max_wire_bytes: int,
+        total_timeout_seconds: float | None = None,
     ) -> HttpExchange:
         parts = urlsplit(url)
         hostname = parts.hostname
@@ -131,6 +133,21 @@ class PinnedStdlibHttpTransport:
         request_target = urlunsplit(
             ("", "", path, parts.query, "")
         )
+        total_timeout = (
+            float(total_timeout_seconds)
+            if total_timeout_seconds is not None
+            else connect_timeout_seconds + read_timeout_seconds
+        )
+        if total_timeout <= 0:
+            raise HttpTransportFailure("http.timeout")
+        deadline = time.monotonic() + total_timeout
+
+        def remaining_timeout(configured: float) -> float:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise HttpTransportFailure("http.timeout")
+            return min(configured, remaining)
+
         connection = None
         try:
             if parts.scheme == "https":
@@ -138,8 +155,12 @@ class PinnedStdlibHttpTransport:
                     hostname,
                     port=port,
                     connect_ip=connect_ip,
-                    connect_timeout=connect_timeout_seconds,
-                    read_timeout=read_timeout_seconds,
+                    connect_timeout=remaining_timeout(
+                        connect_timeout_seconds
+                    ),
+                    read_timeout=remaining_timeout(
+                        read_timeout_seconds
+                    ),
                     context=self.ssl_context,
                 )
             elif parts.scheme == "http":
@@ -147,8 +168,12 @@ class PinnedStdlibHttpTransport:
                     hostname,
                     port=port,
                     connect_ip=connect_ip,
-                    connect_timeout=connect_timeout_seconds,
-                    read_timeout=read_timeout_seconds,
+                    connect_timeout=remaining_timeout(
+                        connect_timeout_seconds
+                    ),
+                    read_timeout=remaining_timeout(
+                        read_timeout_seconds
+                    ),
                 )
             else:
                 raise HttpTransportFailure(
@@ -160,6 +185,10 @@ class PinnedStdlibHttpTransport:
                 request_target,
                 headers=headers,
             )
+            if connection.sock is not None:
+                connection.sock.settimeout(
+                    remaining_timeout(read_timeout_seconds)
+                )
             response = connection.getresponse()
             peer_ip = connect_ip
             if connection.sock is not None:
@@ -195,6 +224,10 @@ class PinnedStdlibHttpTransport:
             chunks = []
             total = 0
             while True:
+                if connection.sock is not None:
+                    connection.sock.settimeout(
+                        remaining_timeout(read_timeout_seconds)
+                    )
                 chunk = response.read(
                     min(64 * 1024, max_wire_bytes - total + 1)
                 )
