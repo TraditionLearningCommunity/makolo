@@ -84,6 +84,11 @@ class Command(BaseCommand):
             default=20.0,
         )
         parser.add_argument(
+            "--http-max-observation-seconds",
+            type=int,
+            default=180,
+        )
+        parser.add_argument(
             "--http-max-redirects",
             type=int,
             default=5,
@@ -116,7 +121,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--http-host-lease-seconds",
             type=int,
-            default=120,
+            default=240,
         )
         parser.add_argument(
             "--http-retry-seconds",
@@ -167,6 +172,7 @@ class Command(BaseCommand):
             "claim_limit",
             "lease_seconds",
             "recovery_retry_seconds",
+            "http_max_observation_seconds",
             "http_max_wire_bytes",
             "http_max_decoded_bytes",
             "robots_max_bytes",
@@ -187,6 +193,14 @@ class Command(BaseCommand):
         ):
             raise CommandError(
                 "--http-allowed-port doit être compris entre 1 et 65535."
+            )
+        if acquisition_enabled and (
+            options["lease_seconds"]
+            <= options["http_max_observation_seconds"]
+        ):
+            raise CommandError(
+                "--lease-seconds doit être strictement supérieur à "
+                "--http-max-observation-seconds."
             )
         if options["http_max_redirects"] < 0:
             raise CommandError("--http-max-redirects doit être >= 0.")
@@ -218,6 +232,9 @@ class Command(BaseCommand):
                 ),
                 read_timeout_seconds=(
                     options["http_read_timeout_seconds"]
+                ),
+                max_observation_seconds=(
+                    options["http_max_observation_seconds"]
                 ),
                 max_redirects=options["http_max_redirects"],
                 max_wire_bytes=options["http_max_wire_bytes"],
