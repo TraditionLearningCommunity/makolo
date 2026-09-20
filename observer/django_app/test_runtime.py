@@ -305,6 +305,45 @@ class ObserverRuntimeTests(TestCase):
             ObservationTrigger.RETRY.value,
         )
 
+    def test_unexpected_acquisition_exception_is_durable_and_re_raised(self):
+        self.absorb(1)
+        schedule_due_observations(
+            policy=self.policy,
+            now=self.now + timedelta(seconds=20),
+        )
+        claim = claim_observations(
+            worker_id="worker-a",
+            policy=self.policy,
+            now=self.now + timedelta(seconds=21),
+        )[0]
+
+        def explode(_claim):
+            raise RuntimeError("adapter bug")
+
+        with self.assertRaisesRegex(RuntimeError, "adapter bug"):
+            execute_claim(
+                claim,
+                acquisition=FakeAcquisition(explode),
+                policy=self.policy,
+                now=self.now + timedelta(seconds=21),
+                completed_at=self.now + timedelta(seconds=23),
+            )
+
+        observation = Observation.objects.get(
+            observation_ref=claim.observation_ref
+        )
+        self.assertEqual(
+            observation.outcome,
+            ObservationOutcome.FAILED.value,
+        )
+        self.assertEqual(
+            observation.failure_code,
+            "runtime.acquisition_exception",
+        )
+        self.assertIsNotNone(observation.retry_at)
+        attempt = observation.attempts.get()
+        self.assertEqual(attempt.outcome, AttemptOutcome.FAILED.value)
+
     def test_expired_lease_finalizes_attempt_and_rejects_old_claim(self):
         self.absorb(1)
         observation = schedule_due_observations(
