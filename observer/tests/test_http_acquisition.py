@@ -645,6 +645,7 @@ class DirectHttpAcquisitionTests(TestCase):
 
         self.assertEqual(result.outcome, ObservationOutcome.FAILED)
         self.assertEqual(result.failure_code, "robots.unavailable")
+        self.assertIsNone(result.response_status)
         self.assertEqual(
             result.retry_at,
             self.clock() + timedelta(seconds=120),
@@ -696,6 +697,7 @@ class DirectHttpAcquisitionTests(TestCase):
 
         self.assertEqual(result.outcome, ObservationOutcome.FAILED)
         self.assertEqual(result.failure_code, "http.rate_limited")
+        self.assertEqual(result.response_status, 429)
         self.assertEqual(
             result.retry_at,
             self.clock() + timedelta(seconds=90),
