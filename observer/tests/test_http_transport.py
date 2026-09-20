@@ -152,6 +152,39 @@ class PinnedHttpTransportTests(TestCase):
 
         self.assertEqual(addresses, (GLOBAL_IP, "1.1.1.1"))
 
+    def test_transport_deadline_caps_repeated_reads(self):
+        FakeConnection.created = []
+        FakeConnection.response = FakeResponse(
+            status=200,
+            headers=[],
+            body=b"hello",
+        )
+        transport = PinnedStdlibHttpTransport()
+        monotonic_values = iter([0.0, 0.0, 0.4, 1.1])
+        with (
+            patch(
+                "observer.adapters.http_transport._PinnedHTTPConnection",
+                FakeConnection,
+            ),
+            patch(
+                "observer.adapters.http_transport.time.monotonic",
+                side_effect=lambda: next(monotonic_values),
+            ),
+        ):
+            with self.assertRaises(HttpTransportFailure) as ctx:
+                transport.request(
+                    url="http://example.test/resource",
+                    connect_ip=GLOBAL_IP,
+                    headers={"User-Agent": "test"},
+                    connect_timeout_seconds=1,
+                    read_timeout_seconds=1,
+                    max_wire_bytes=10,
+                    total_timeout_seconds=1,
+                )
+
+        self.assertEqual(ctx.exception.code, "http.timeout")
+        self.assertTrue(FakeConnection.created[0].closed)
+
     def test_transport_refuses_declared_body_larger_than_budget(self):
         FakeConnection.created = []
         FakeConnection.response = FakeResponse(
