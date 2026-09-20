@@ -75,6 +75,9 @@ class FakeConnection:
         self.closed = False
         type(self).created.append(self)
 
+    def connect(self):
+        return None
+
     def request(self, method, target, headers):
         self.requests.append((method, target, dict(headers)))
 
