@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -32,6 +33,9 @@ class FakeSocket:
 
 
 class FakeSslContext:
+    verify_mode = ssl.CERT_REQUIRED
+    check_hostname = True
+
     def __init__(self):
         self.calls = []
         self.wrapped = FakeSocket()
