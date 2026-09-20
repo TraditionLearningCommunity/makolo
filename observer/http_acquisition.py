@@ -398,12 +398,16 @@ class DirectHttpAcquisition:
         stats: _Stats,
     ):
         current = _normalize_http_url(start_url)
-        initial_origin = _origin(current)
         visited = {current}
         first_request = True
+        chain_redirects = 0
 
         while True:
-            headers = dict(initial_headers if first_request else self._base_headers())
+            headers = dict(
+                initial_headers
+                if first_request
+                else self._base_headers()
+            )
             current, exchange = self._exchange(
                 current,
                 headers=headers,
@@ -418,7 +422,7 @@ class DirectHttpAcquisition:
             location = exchange.headers.get("location")
             if not location:
                 return current, exchange
-            if stats.redirect_count >= self.policy.max_redirects:
+            if chain_redirects >= self.policy.max_redirects:
                 raise _ExpectedFailure(
                     "http.redirect_limit",
                     response_status=exchange.status,
@@ -439,14 +443,11 @@ class DirectHttpAcquisition:
                     "security.redirect_downgrade"
                 )
 
+            chain_redirects += 1
             stats.redirect_count += 1
             visited.add(next_url)
             current = next_url
             first_request = False
-
-            # Conditional validators belong only to the original resource.
-            if _origin(current) != initial_origin:
-                first_request = False
 
     def _base_headers(self) -> dict[str, str]:
         return {
@@ -476,13 +477,17 @@ class DirectHttpAcquisition:
             return cached
 
         robots_url = self._robots_url(target_url)
+        robots_stats = _Stats(final_locator=robots_url)
         _final, exchange = self._follow(
             robots_url,
             initial_headers=self._base_headers(),
             max_wire_bytes=self.policy.robots_max_bytes,
             active_leases=active_leases,
-            stats=stats,
+            stats=robots_stats,
         )
+        stats.wire_bytes += robots_stats.wire_bytes
+        stats.decoded_bytes += robots_stats.decoded_bytes
+        stats.redirect_count += robots_stats.redirect_count
         now = _utc_now(self.clock)
         status = exchange.status
         if status == 429 or status >= 500:
@@ -507,6 +512,7 @@ class DirectHttpAcquisition:
                 ),
                 max_decoded_bytes=self.policy.robots_max_bytes,
             )
+            robots_stats.decoded_bytes += len(decoded)
             stats.decoded_bytes += len(decoded)
             body = decoded.decode("utf-8", errors="replace")
 
