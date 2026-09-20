@@ -129,26 +129,32 @@ def _latest_started_handoff(
     )
 
 
-def _actionable_handoffs(policy: ObserverRuntimePolicy):
+def _pending_handoffs(policy: ObserverRuntimePolicy):
     started_for_profile = Observation.objects.filter(
         source_handoff_id=OuterRef("pk"),
         series__profile_fingerprint=policy.profile_fingerprint,
     )
+    return (
+        ObserverHandoff.objects.annotate(
+            started_for_profile=Exists(started_for_profile),
+        )
+        .filter(started_for_profile=False)
+        .order_by("requested_at", "handoff_generation", "id")
+    )
+
+
+def _actionable_handoffs(policy: ObserverRuntimePolicy):
     target_has_open_observation = Observation.objects.filter(
         series__target_key=OuterRef("target_key"),
         series__profile_fingerprint=policy.profile_fingerprint,
         lifecycle=ObservationLifecycle.OPEN.value,
     )
     return (
-        ObserverHandoff.objects.annotate(
-            started_for_profile=Exists(started_for_profile),
+        _pending_handoffs(policy)
+        .annotate(
             target_blocked_by_open=Exists(target_has_open_observation),
         )
-        .filter(
-            started_for_profile=False,
-            target_blocked_by_open=False,
-        )
-        .order_by("requested_at", "handoff_generation", "id")
+        .filter(target_blocked_by_open=False)
     )
 
 
@@ -180,7 +186,7 @@ def observation_backlog(
 
     now = _aware("now", now)
     return ObservationBacklog(
-        pending_handoffs=_actionable_handoffs(policy).count(),
+        pending_handoffs=_pending_handoffs(policy).count(),
         due_retries=ObservationSeries.objects.filter(
             profile_fingerprint=policy.profile_fingerprint,
             retry_due_at__lte=now,
