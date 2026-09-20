@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from .contracts import ObservationMaterial
+from .contracts import AttemptStrategy, ObservationMaterial
+from .runtime_contracts import AcquisitionResult, ObservationClaim
 
 
 class ArtifactReaderPort(Protocol):
@@ -14,4 +15,12 @@ class ArtifactReaderPort(Protocol):
 class ObservationMaterialSourcePort(Protocol):
     def get_material(self, observation_ref: str) -> ObservationMaterial:
         """Project one finalized observation for downstream interpretation."""
+        ...
+
+
+class ObservationAcquisitionPort(Protocol):
+    strategy: AttemptStrategy
+
+    def acquire(self, claim: ObservationClaim) -> AcquisitionResult:
+        """Acquire one claimed observation using an injected strategy."""
         ...
