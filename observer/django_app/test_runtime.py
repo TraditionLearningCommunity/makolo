@@ -521,7 +521,7 @@ class ObserverRuntimeTests(TestCase):
                 f"{command_path}.execute_claim",
             ) as execute,
             patch(
-                f"{command_path}.observation_backlog",
+                f"{command_path}.observation_backlog_all_profiles",
                 return_value=backlog,
             ),
             patch(
