@@ -16,6 +16,7 @@ from observer.django_runtime import (
     claim_observations,
     execute_claim,
     observation_backlog,
+    observation_backlog_all_profiles,
     recover_expired_observations,
 )
 from observer.http_contracts import HttpAcquisitionPolicy
@@ -405,12 +406,18 @@ class Command(BaseCommand):
                             if observation.outcome in outcomes:
                                 outcomes[observation.outcome] += 1
 
-                    backlog = await sync_to_async(
-                        observation_backlog,
-                        thread_sensitive=True,
-                    )(
-                        policy=policy,
-                    )
+                    if acquisition is not None:
+                        backlog = await sync_to_async(
+                            observation_backlog,
+                            thread_sensitive=True,
+                        )(
+                            policy=policy,
+                        )
+                    else:
+                        backlog = await sync_to_async(
+                            observation_backlog_all_profiles,
+                            thread_sensitive=True,
+                        )()
                     last_stats = {
                         "inbox_fetched": inbox.fetched,
                         "inbox_absorbed": inbox.absorbed,
