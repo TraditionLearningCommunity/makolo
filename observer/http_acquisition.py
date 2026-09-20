@@ -702,6 +702,13 @@ class DirectHttpAcquisition:
             status = exchange.status
 
             if status == 304:
+                if context.validator_artifact_ref is None:
+                    return self._failure(
+                        code="http.not_modified_without_baseline",
+                        now=now,
+                        stats=stats,
+                        response_status=status,
+                    )
                 return AcquisitionResult(
                     outcome=ObservationOutcome.NOT_MODIFIED,
                     observed_at=now,
