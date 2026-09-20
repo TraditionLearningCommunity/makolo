@@ -39,15 +39,6 @@ class Command(BaseCommand):
         parser.add_argument("--instance-id", default=socket.gethostname())
         parser.add_argument("--interval-seconds", type=float, default=5.0)
         parser.add_argument("--inbox-limit", type=int, default=100)
-        parser.add_argument(
-            "--schedule-limit",
-            type=int,
-            default=100,
-            help=(
-                "Réservé à la compatibilité Lot 2; aucun travail n'est "
-                "démarré avant un claim réel."
-            ),
-        )
         parser.add_argument("--recovery-limit", type=int, default=100)
         parser.add_argument("--lease-seconds", type=int, default=300)
         parser.add_argument("--recovery-retry-seconds", type=int, default=60)
@@ -65,7 +56,6 @@ class Command(BaseCommand):
             raise CommandError("--interval-seconds doit être > 0.")
         for option_name in (
             "inbox_limit",
-            "schedule_limit",
             "recovery_limit",
             "lease_seconds",
             "recovery_retry_seconds",
@@ -83,7 +73,6 @@ class Command(BaseCommand):
                 instance_id=options["instance_id"] or socket.gethostname(),
                 interval_seconds=options["interval_seconds"],
                 inbox_limit=options["inbox_limit"],
-                schedule_limit=options["schedule_limit"],
                 recovery_limit=options["recovery_limit"],
                 policy=policy,
                 once=bool(options["once"]),
@@ -109,7 +98,6 @@ class Command(BaseCommand):
         instance_id,
         interval_seconds,
         inbox_limit,
-        schedule_limit,
         recovery_limit,
         policy,
         once,
