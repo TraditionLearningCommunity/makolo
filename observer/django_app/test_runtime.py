@@ -203,6 +203,12 @@ class ObserverRuntimeTests(TestCase):
         first = self.observation_for_claim(first_claims[0])
         self.assertEqual(first.source_handoff, first_handoff)
         self.assertEqual(first.trigger, ObservationTrigger.HANDOFF.value)
+        backlog_while_first_is_open = observation_backlog(
+            policy=self.policy,
+            now=self.now + timedelta(seconds=20),
+        )
+        self.assertEqual(backlog_while_first_is_open.pending_handoffs, 1)
+        self.assertEqual(backlog_while_first_is_open.open_observations, 1)
         execute_claim(
             first_claims[0],
             acquisition=self.observed_fake(
