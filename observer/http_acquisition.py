@@ -34,11 +34,7 @@ TRANSIENT_TRANSPORT_FAILURES = frozenset(
     {
         "security.dns_unresolved",
         "http.timeout",
-        "http.tls_error",
         "http.network_error",
-        "http.protocol_error",
-        "http.invalid_content_length",
-        "http.invalid_content_encoding",
     }
 )
 
