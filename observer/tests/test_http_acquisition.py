@@ -768,6 +768,54 @@ class DirectHttpAcquisitionTests(TestCase):
         self.assertEqual(result.failure_code, "http.tls_error")
         self.assertIsNone(result.retry_at)
 
+    def test_absolute_observation_deadline_stops_redirect_chain(self):
+        clock = FakeClock()
+        scope = FakeScopeState()
+        scope.allow_robots("https://example.test", clock())
+
+        class SlowRedirectTransport:
+            def __init__(self):
+                self.calls = []
+
+            def request(self, **kwargs):
+                self.calls.append(kwargs)
+                clock.sleep(181)
+                return exchange(
+                    302,
+                    headers={"Location": "/next"},
+                )
+
+        transport = SlowRedirectTransport()
+        acquisition = DirectHttpAcquisition(
+            policy=HttpAcquisitionPolicy(
+                user_agent="Makolo Observer Test",
+                host_min_interval_seconds=0,
+                max_observation_seconds=180,
+                host_lease_seconds=240,
+                retry_seconds=30,
+            ),
+            resolver=FakeResolver(),
+            transport=transport,
+            scope_state=scope,
+            context_source=FakeContextSource(),
+            clock=clock,
+            sleeper=clock.sleep,
+        )
+
+        result = acquisition.acquire(self.claim())
+
+        self.assertEqual(result.outcome, ObservationOutcome.FAILED)
+        self.assertEqual(
+            result.failure_code,
+            "http.observation_timeout",
+        )
+        self.assertIsNotNone(result.retry_at)
+        self.assertEqual(len(transport.calls), 1)
+        self.assertLessEqual(
+            transport.calls[0]["total_timeout_seconds"],
+            180,
+        )
+
     def test_transport_timeout_is_retryable(self):
         acquisition = self.acquisition(
             {
