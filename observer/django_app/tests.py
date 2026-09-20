@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -368,6 +369,9 @@ class ObserverFoundationTests(TestCase):
             profile_ref="public-http",
             profile_fingerprint="profile-public-http-v1",
             policy_fingerprint="observer-policy-v1",
+            claim_token=uuid.uuid4(),
+            claimed_by="observer-test",
+            lease_expires_at=self.now + timedelta(minutes=5),
         )
         Observation.objects.create(**common)
         with self.assertRaises(IntegrityError):
