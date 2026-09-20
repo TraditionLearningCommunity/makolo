@@ -57,8 +57,20 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--enable-http-acquisition",
+            action="store_true",
+            help=(
+                "Active explicitement les connexions Internet HTTP du Lot 3. "
+                "Sans ce flag, le worker reste control-plane uniquement."
+            ),
+        )
+        parser.add_argument(
             "--http-user-agent",
-            default="MakoloObserver/1.0",
+            default=None,
+            help=(
+                "User-Agent opérateur explicite utilisé pour l'acquisition "
+                "HTTP. Obligatoire avec --enable-http-acquisition."
+            ),
         )
         parser.add_argument(
             "--http-connect-timeout-seconds",
@@ -140,6 +152,14 @@ class Command(BaseCommand):
             raise CommandError("--queue-name ne peut pas être vide.")
         if options["interval_seconds"] <= 0:
             raise CommandError("--interval-seconds doit être > 0.")
+        acquisition_enabled = bool(options["enable_http_acquisition"])
+        if acquisition_enabled and not (
+            options["http_user_agent"] or ""
+        ).strip():
+            raise CommandError(
+                "--http-user-agent est obligatoire avec "
+                "--enable-http-acquisition."
+            )
         for option_name in (
             "inbox_limit",
             "recovery_limit",
@@ -189,38 +209,60 @@ class Command(BaseCommand):
                 "--watch-interval-seconds doit être >= 1."
             )
 
-        http_policy = HttpAcquisitionPolicy(
-            user_agent=options["http_user_agent"],
-            connect_timeout_seconds=(
-                options["http_connect_timeout_seconds"]
-            ),
-            read_timeout_seconds=options["http_read_timeout_seconds"],
-            max_redirects=options["http_max_redirects"],
-            max_wire_bytes=options["http_max_wire_bytes"],
-            max_decoded_bytes=options["http_max_decoded_bytes"],
-            robots_max_bytes=options["robots_max_bytes"],
-            robots_cache_seconds=options["robots_cache_seconds"],
-            host_min_interval_seconds=(
-                options["http_host_interval_seconds"]
-            ),
-            host_lease_seconds=options["http_host_lease_seconds"],
-            retry_seconds=options["http_retry_seconds"],
-            allowed_ports=allowed_ports,
-            allow_https_to_http_redirect=(
-                options["allow_https_to_http_redirect"]
-            ),
-        )
-        runtime_policy = ObserverRuntimePolicy(
-            profile_key="public-http",
-            profile_fingerprint=http_policy.profile_fingerprint,
-            policy_fingerprint=http_policy.policy_fingerprint,
-            lease_seconds=options["lease_seconds"],
-            recovery_retry_seconds=options["recovery_retry_seconds"],
-            watch_interval_seconds=options["watch_interval_seconds"],
-        )
-        acquisition = build_direct_http_acquisition(
-            policy=http_policy,
-        )
+        if acquisition_enabled:
+            http_policy = HttpAcquisitionPolicy(
+                user_agent=options["http_user_agent"],
+                connect_timeout_seconds=(
+                    options["http_connect_timeout_seconds"]
+                ),
+                read_timeout_seconds=(
+                    options["http_read_timeout_seconds"]
+                ),
+                max_redirects=options["http_max_redirects"],
+                max_wire_bytes=options["http_max_wire_bytes"],
+                max_decoded_bytes=options["http_max_decoded_bytes"],
+                robots_max_bytes=options["robots_max_bytes"],
+                robots_cache_seconds=options["robots_cache_seconds"],
+                host_min_interval_seconds=(
+                    options["http_host_interval_seconds"]
+                ),
+                host_lease_seconds=(
+                    options["http_host_lease_seconds"]
+                ),
+                retry_seconds=options["http_retry_seconds"],
+                allowed_ports=allowed_ports,
+                allow_https_to_http_redirect=(
+                    options["allow_https_to_http_redirect"]
+                ),
+            )
+            runtime_policy = ObserverRuntimePolicy(
+                profile_key="public-http",
+                profile_fingerprint=http_policy.profile_fingerprint,
+                policy_fingerprint=http_policy.policy_fingerprint,
+                lease_seconds=options["lease_seconds"],
+                recovery_retry_seconds=(
+                    options["recovery_retry_seconds"]
+                ),
+                watch_interval_seconds=(
+                    options["watch_interval_seconds"]
+                ),
+            )
+            acquisition = build_direct_http_acquisition(
+                policy=http_policy,
+            )
+        else:
+            http_policy = None
+            runtime_policy = ObserverRuntimePolicy(
+                lease_seconds=options["lease_seconds"],
+                recovery_retry_seconds=(
+                    options["recovery_retry_seconds"]
+                ),
+                watch_interval_seconds=(
+                    options["watch_interval_seconds"]
+                ),
+            )
+            acquisition = None
+
         stats = asyncio.run(
             self._run(
                 queue_name=queue_name,
@@ -274,13 +316,26 @@ class Command(BaseCommand):
         last_stats = None
         while True:
             metadata = {
-                "mode": "observer-direct-http",
+                "mode": (
+                    "observer-direct-http"
+                    if acquisition is not None
+                    else "observer-control-plane"
+                ),
                 "queue_name": queue_name,
-                "acquisition": "direct_http_v1",
-                "profile_fingerprint": http_policy.profile_fingerprint,
-                "policy_fingerprint": http_policy.policy_fingerprint,
+                "acquisition": (
+                    "direct_http_v1"
+                    if acquisition is not None
+                    else "disabled"
+                ),
                 "expected_interval_seconds": interval_seconds,
             }
+            if http_policy is not None:
+                metadata["profile_fingerprint"] = (
+                    http_policy.profile_fingerprint
+                )
+                metadata["policy_fingerprint"] = (
+                    http_policy.policy_fingerprint
+                )
             enabled = await self._control_enabled()
             if not enabled:
                 last_stats = {"operational_control": "disabled"}
@@ -324,30 +379,31 @@ class Command(BaseCommand):
                         "not_modified": 0,
                         "failed": 0,
                     }
-                    for _index in range(claim_limit):
-                        if not await self._control_enabled():
-                            break
-                        claims = await sync_to_async(
-                            claim_observations,
-                            thread_sensitive=True,
-                        )(
-                            worker_id=instance_id,
-                            policy=policy,
-                            limit=1,
-                        )
-                        if not claims:
-                            break
-                        outcomes["claimed_observations"] += 1
-                        observation = await sync_to_async(
-                            execute_claim,
-                            thread_sensitive=True,
-                        )(
-                            claims[0],
-                            acquisition=acquisition,
-                            policy=policy,
-                        )
-                        if observation.outcome in outcomes:
-                            outcomes[observation.outcome] += 1
+                    if acquisition is not None:
+                        for _index in range(claim_limit):
+                            if not await self._control_enabled():
+                                break
+                            claims = await sync_to_async(
+                                claim_observations,
+                                thread_sensitive=True,
+                            )(
+                                worker_id=instance_id,
+                                policy=policy,
+                                limit=1,
+                            )
+                            if not claims:
+                                break
+                            outcomes["claimed_observations"] += 1
+                            observation = await sync_to_async(
+                                execute_claim,
+                                thread_sensitive=True,
+                            )(
+                                claims[0],
+                                acquisition=acquisition,
+                                policy=policy,
+                            )
+                            if observation.outcome in outcomes:
+                                outcomes[observation.outcome] += 1
 
                     backlog = await sync_to_async(
                         observation_backlog,
@@ -365,7 +421,11 @@ class Command(BaseCommand):
                         "due_retries": backlog.due_retries,
                         "due_watches": backlog.due_watches,
                         "open_observations": backlog.open_observations,
-                        "acquisition": "direct_http_v1",
+                        "acquisition": (
+                            "direct_http_v1"
+                            if acquisition is not None
+                            else "disabled"
+                        ),
                     }
                 except Exception as exc:
                     await self._heartbeat(
