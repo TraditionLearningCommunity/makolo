@@ -735,15 +735,18 @@ def _finalize_claim(
         # A successful response replaces the HTTP validator snapshot. Missing
         # validators on a fresh representation must clear stale values.
         if result.outcome is ObservationOutcome.OBSERVED:
-            series.http_etag = result.validator_etag or ""
-            series.http_last_modified = (
-                result.validator_last_modified or ""
-            )
-            series.validator_artifact_ref = (
-                created_artifacts[0].artifact_ref
-                if created_artifacts
-                else ""
-            )
+            if created_artifacts:
+                series.http_etag = result.validator_etag or ""
+                series.http_last_modified = (
+                    result.validator_last_modified or ""
+                )
+                series.validator_artifact_ref = (
+                    created_artifacts[0].artifact_ref
+                )
+            else:
+                series.http_etag = ""
+                series.http_last_modified = ""
+                series.validator_artifact_ref = ""
             series_fields.extend(
                 [
                     "http_etag",
