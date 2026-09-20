@@ -29,7 +29,11 @@ ARTIFACT_ORIGIN_CHOICES = [(item.value, item.value) for item in ArtifactOrigin]
 ARTIFACT_COMPLETENESS_CHOICES = [
     (item.value, item.value) for item in ArtifactCompleteness
 ]
-SCOPE_KIND_CHOICES = [("host", "Host"), ("domain", "Domain")]
+SCOPE_KIND_CHOICES = [
+    ("host", "Host"),
+    ("domain", "Domain"),
+    ("origin", "Origin"),
+]
 
 
 def observer_blob_upload_to(instance, filename):
