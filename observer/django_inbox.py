@@ -47,7 +47,14 @@ async def drain_crawlee_inbox(
                 forefront=False,
             )
             raise
-        await request_queue.mark_request_as_handled(request)
+        try:
+            await request_queue.mark_request_as_handled(request)
+        except Exception:
+            await request_queue.reclaim_request(
+                request,
+                forefront=False,
+            )
+            raise
         if created:
             absorbed += 1
         else:
