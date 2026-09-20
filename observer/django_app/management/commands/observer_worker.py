@@ -74,6 +74,14 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--robots-user-agent",
+            default="MakoloObserver",
+            help=(
+                "Product token RFC 9309 utilisé pour robots.txt. "
+                "Il doit être inclus dans --http-user-agent."
+            ),
+        )
+        parser.add_argument(
             "--http-connect-timeout-seconds",
             type=float,
             default=10.0,
@@ -227,6 +235,7 @@ class Command(BaseCommand):
         if acquisition_enabled:
             http_policy = HttpAcquisitionPolicy(
                 user_agent=options["http_user_agent"],
+                robots_user_agent=options["robots_user_agent"],
                 connect_timeout_seconds=(
                     options["http_connect_timeout_seconds"]
                 ),
