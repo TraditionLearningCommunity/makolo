@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import io
 import ipaddress
+import time
 import zlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -246,6 +247,7 @@ class DirectHttpAcquisition:
         scope_state,
         context_source,
         clock,
+        sleeper=None,
     ) -> None:
         self.policy = policy
         self.resolver = resolver
@@ -253,6 +255,7 @@ class DirectHttpAcquisition:
         self.scope_state = scope_state
         self.context_source = context_source
         self.clock = clock
+        self.sleeper = sleeper or time.sleep
 
     def _failure(
         self,
@@ -317,11 +320,32 @@ class DirectHttpAcquisition:
     ):
         lease = active_leases.get(hostname)
         if lease is not None:
-            lease = self.scope_state.renew(
-                lease,
-                lease_seconds=self.policy.host_lease_seconds,
-                now=now,
-            )
+            try:
+                lease = self.scope_state.renew(
+                    lease,
+                    lease_seconds=self.policy.host_lease_seconds,
+                    min_interval_seconds=(
+                        self.policy.host_min_interval_seconds
+                    ),
+                    now=now,
+                )
+            except ScopeDeferred as exc:
+                wait_seconds = max(
+                    0.0,
+                    (exc.retry_at - now).total_seconds(),
+                )
+                if wait_seconds > self.policy.max_inline_wait_seconds:
+                    raise
+                self.sleeper(wait_seconds)
+                now = _utc_now(self.clock)
+                lease = self.scope_state.renew(
+                    lease,
+                    lease_seconds=self.policy.host_lease_seconds,
+                    min_interval_seconds=(
+                        self.policy.host_min_interval_seconds
+                    ),
+                    now=now,
+                )
             active_leases[hostname] = lease
             return lease
         lease = self.scope_state.reserve(
@@ -341,6 +365,7 @@ class DirectHttpAcquisition:
         max_wire_bytes: int,
         active_leases: dict[str, object],
         stats: _Stats,
+        redirect_guard=None,
     ):
         url = _normalize_http_url(url)
         parts = urlsplit(url)
@@ -443,6 +468,9 @@ class DirectHttpAcquisition:
                     "security.redirect_downgrade"
                 )
 
+            if redirect_guard is not None:
+                redirect_guard(next_url)
+
             chain_redirects += 1
             stats.redirect_count += 1
             visited.add(next_url)
@@ -469,12 +497,12 @@ class DirectHttpAcquisition:
         *,
         active_leases: dict[str, object],
         stats: _Stats,
-    ) -> RobotsCache:
+    ) -> tuple[RobotsCache, bool]:
         hostname = urlsplit(target_url).hostname or ""
         now = _utc_now(self.clock)
         cached = self.scope_state.get_robots(hostname, now=now)
         if cached is not None:
-            return cached
+            return cached, False
 
         robots_url = self._robots_url(target_url)
         robots_stats = _Stats(final_locator=robots_url)
@@ -524,7 +552,7 @@ class DirectHttpAcquisition:
             expires_at=now
             + timedelta(seconds=self.policy.robots_cache_seconds),
         )
-        return cache
+        return cache, True
 
     def _robots_allows(
         self,
@@ -549,6 +577,37 @@ class DirectHttpAcquisition:
         if rate is not None and rate.requests > 0:
             delay = max(delay, rate.seconds / rate.requests)
         return allowed, float(delay)
+
+    def _ensure_robots(
+        self,
+        target_url: str,
+        *,
+        active_leases: dict[str, object],
+        stats: _Stats,
+    ) -> None:
+        if (urlsplit(target_url).path or "/") == "/robots.txt":
+            return
+        cache, fetched = self._robots_cache(
+            target_url,
+            active_leases=active_leases,
+            stats=stats,
+        )
+        allowed, crawl_delay = self._robots_allows(
+            target_url,
+            cache=cache,
+        )
+        hostname = urlsplit(target_url).hostname or ""
+        if fetched and crawl_delay > 0:
+            self.scope_state.defer(
+                hostname,
+                not_before=_utc_now(self.clock)
+                + timedelta(seconds=crawl_delay),
+            )
+        if not allowed:
+            raise _ExpectedFailure(
+                "robots.disallowed",
+                retry_at=cache.expires_at,
+            )
 
     def _target_headers(
         self,
@@ -576,31 +635,11 @@ class DirectHttpAcquisition:
             stats.final_locator = target_url
             context = self.context_source.get_context(claim)
 
-            target_path = urlsplit(target_url).path or "/"
-            if target_path != "/robots.txt":
-                cache = self._robots_cache(
-                    target_url,
-                    active_leases=active_leases,
-                    stats=stats,
-                )
-                allowed, crawl_delay = self._robots_allows(
-                    target_url,
-                    cache=cache,
-                )
-                hostname = urlsplit(target_url).hostname or ""
-                if crawl_delay > 0:
-                    self.scope_state.defer(
-                        hostname,
-                        not_before=_utc_now(self.clock)
-                        + timedelta(seconds=crawl_delay),
-                    )
-                if not allowed:
-                    return self._failure(
-                        code="robots.disallowed",
-                        now=_utc_now(self.clock),
-                        stats=stats,
-                        retry_at=cache.expires_at,
-                    )
+            self._ensure_robots(
+                target_url,
+                active_leases=active_leases,
+                stats=stats,
+            )
 
             final_url, exchange = self._follow(
                 target_url,
@@ -608,6 +647,11 @@ class DirectHttpAcquisition:
                 max_wire_bytes=self.policy.max_wire_bytes,
                 active_leases=active_leases,
                 stats=stats,
+                redirect_guard=lambda next_url: self._ensure_robots(
+                    next_url,
+                    active_leases=active_leases,
+                    stats=stats,
+                ),
             )
             stats.final_locator = final_url
             now = _utc_now(self.clock)
