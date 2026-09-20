@@ -623,7 +623,7 @@ class ObserverRuntimeTests(TestCase):
                 "observer-once-test",
                 "--enable-http-acquisition",
                 "--http-user-agent",
-                "Makolo Observer Test",
+                "MakoloObserver/1.0 Test",
                 "--http-host-interval-seconds",
                 "0",
                 "--once",
@@ -725,7 +725,7 @@ class ObserverRuntimeTests(TestCase):
                 "observer-midcycle-stop",
                 "--enable-http-acquisition",
                 "--http-user-agent",
-                "Makolo Observer Test",
+                "MakoloObserver/1.0 Test",
                 "--once",
                 stdout=stdout,
             )
