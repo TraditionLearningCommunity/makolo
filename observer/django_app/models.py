@@ -165,6 +165,19 @@ class Observation(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
+                    ~Q(lifecycle=ObservationLifecycle.OPEN.value)
+                    | (
+                        Q(
+                            claim_token__isnull=False,
+                            lease_expires_at__isnull=False,
+                        )
+                        & ~Q(claimed_by="")
+                    )
+                ),
+                name="obs_open_requires_claim",
+            ),
+            models.CheckConstraint(
+                condition=(
                     Q(
                         lifecycle=ObservationLifecycle.OPEN.value,
                         outcome="",
