@@ -295,6 +295,9 @@ def _claim_handoff(
         series=series,
     ):
         return None
+    earliest_pending = _pending_handoff_for_series(series)
+    if earliest_pending is None or earliest_pending.pk != handoff.pk:
+        return None
 
     return _create_claimed_observation(
         series=series,
