@@ -57,6 +57,7 @@ class HttpAcquisitionPolicy:
     robots_user_agent: str = "MakoloObserver"
     connect_timeout_seconds: float = 10.0
     read_timeout_seconds: float = 20.0
+    max_observation_seconds: int = 180
     max_redirects: int = 5
     max_wire_bytes: int = 8 * 1024 * 1024
     max_decoded_bytes: int = 16 * 1024 * 1024
@@ -64,7 +65,7 @@ class HttpAcquisitionPolicy:
     robots_cache_seconds: int = 3600
     host_min_interval_seconds: float = 1.0
     max_inline_wait_seconds: float = 2.0
-    host_lease_seconds: int = 120
+    host_lease_seconds: int = 240
     retry_seconds: int = 60
     allowed_ports: Tuple[int, ...] = (80, 443)
     allow_https_to_http_redirect: bool = False
@@ -118,6 +119,7 @@ class HttpAcquisitionPolicy:
             ),
         )
         for name in (
+            "max_observation_seconds",
             "max_redirects",
             "max_wire_bytes",
             "max_decoded_bytes",
@@ -152,6 +154,10 @@ class HttpAcquisitionPolicy:
             raise ObserverContractError(
                 "robots_max_bytes must not exceed max_wire_bytes"
             )
+        if self.host_lease_seconds <= self.max_observation_seconds:
+            raise ObserverContractError(
+                "host_lease_seconds must exceed max_observation_seconds"
+            )
 
     @property
     def profile_fingerprint(self) -> str:
@@ -175,6 +181,7 @@ class HttpAcquisitionPolicy:
             "version": 1,
             "connect_timeout_seconds": self.connect_timeout_seconds,
             "read_timeout_seconds": self.read_timeout_seconds,
+            "max_observation_seconds": self.max_observation_seconds,
             "max_redirects": self.max_redirects,
             "max_wire_bytes": self.max_wire_bytes,
             "max_decoded_bytes": self.max_decoded_bytes,
