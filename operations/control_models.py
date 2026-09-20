@@ -7,6 +7,7 @@ class OperationalControlCode(models.TextChoices):
     ACCESS_ISSUANCE = "access_issuance", "Émission de nouveaux Access"
     PAYMENT_CREATION = "payment_creation", "Création de nouveaux paiements"
     AUTOPILOT = "autopilot", "Autopilot"
+    OBSERVER = "observer", "Observateur"
 
 
 class OperationalControl(models.Model):
