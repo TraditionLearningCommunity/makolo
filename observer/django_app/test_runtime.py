@@ -30,8 +30,8 @@ from observer.django_runtime import (
     LEASE_EXPIRED_FAILURE,
     claim_observations,
     execute_claim,
+    observation_backlog,
     recover_expired_observations,
-    schedule_due_observations,
 )
 from observer.django_store import absorb_observation_target
 from observer.errors import ObserverStateConflictError
@@ -41,7 +41,6 @@ from observer.testing import FakeAcquisition
 from .models import (
     Observation,
     ObservationAttempt,
-    ObservationSeries,
     ObserverHandoff,
 )
 
@@ -137,6 +136,12 @@ class ObserverRuntimeTests(TestCase):
             )
         )
 
+    def observation_for_claim(self, claim):
+        return Observation.objects.select_related(
+            "series",
+            "source_handoff",
+        ).get(observation_ref=claim.observation_ref)
+
     def test_inbox_ack_failure_replays_idempotently(self):
         target = self.target(1)
         request = crawlee_request_for(target)
@@ -171,120 +176,119 @@ class ObserverRuntimeTests(TestCase):
         self.assertEqual(ObserverHandoff.objects.count(), 0)
         self.assertEqual(len(queue.reclaimed), 1)
 
-    def test_explicit_generations_are_scheduled_sequentially(self):
+    def test_backlog_never_creates_observation_before_claim(self):
+        self.absorb(1)
+
+        backlog = observation_backlog(
+            policy=self.policy,
+            now=self.now + timedelta(seconds=20),
+        )
+
+        self.assertEqual(backlog.pending_handoffs, 1)
+        self.assertEqual(backlog.open_observations, 0)
+        self.assertEqual(Observation.objects.count(), 0)
+
+    def test_explicit_generations_start_sequentially(self):
         first_handoff = self.absorb(1)
         second_handoff = self.absorb(2)
 
-        scheduled = schedule_due_observations(
+        first_claims = claim_observations(
+            worker_id="worker-a",
             policy=self.policy,
             now=self.now + timedelta(seconds=20),
             limit=10,
         )
 
-        self.assertEqual(len(scheduled), 1)
-        self.assertEqual(scheduled[0].source_handoff, first_handoff)
-        claims = claim_observations(
-            worker_id="worker-a",
-            policy=self.policy,
-            now=self.now + timedelta(seconds=21),
-            limit=10,
-        )
-        self.assertEqual(len(claims), 1)
+        self.assertEqual(len(first_claims), 1)
+        first = self.observation_for_claim(first_claims[0])
+        self.assertEqual(first.source_handoff, first_handoff)
+        self.assertEqual(first.trigger, ObservationTrigger.HANDOFF.value)
         execute_claim(
-            claims[0],
+            first_claims[0],
             acquisition=self.observed_fake(
-                self.now + timedelta(seconds=22)
+                self.now + timedelta(seconds=21)
             ),
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
-            completed_at=self.now + timedelta(seconds=23),
+            now=self.now + timedelta(seconds=20),
+            completed_at=self.now + timedelta(seconds=22),
         )
 
-        next_scheduled = schedule_due_observations(
+        second_claims = claim_observations(
+            worker_id="worker-a",
             policy=self.policy,
-            now=self.now + timedelta(seconds=24),
+            now=self.now + timedelta(seconds=23),
             limit=10,
         )
 
-        self.assertEqual(len(next_scheduled), 1)
-        self.assertEqual(
-            next_scheduled[0].source_handoff,
-            second_handoff,
-        )
-        self.assertEqual(
-            next_scheduled[0].trigger,
-            ObservationTrigger.HANDOFF.value,
-        )
+        self.assertEqual(len(second_claims), 1)
+        second = self.observation_for_claim(second_claims[0])
+        self.assertEqual(second.source_handoff, second_handoff)
+        self.assertEqual(second.trigger, ObservationTrigger.HANDOFF.value)
 
     def test_historical_handoffs_do_not_starve_new_generation(self):
         for generation in range(1, 5):
             self.absorb(generation)
-            scheduled = schedule_due_observations(
+            claims = claim_observations(
+                worker_id="worker-a",
                 policy=self.policy,
                 now=self.now + timedelta(seconds=20 + generation * 10),
                 limit=1,
             )
-            self.assertEqual(len(scheduled), 1)
-            claim = claim_observations(
-                worker_id="worker-a",
-                policy=self.policy,
-                now=self.now + timedelta(seconds=21 + generation * 10),
-                limit=1,
-            )[0]
+            self.assertEqual(len(claims), 1)
             execute_claim(
-                claim,
+                claims[0],
                 acquisition=self.observed_fake(
-                    self.now + timedelta(seconds=22 + generation * 10)
+                    self.now + timedelta(seconds=21 + generation * 10)
                 ),
                 policy=self.policy,
-                now=self.now + timedelta(seconds=21 + generation * 10),
-                completed_at=self.now + timedelta(seconds=23 + generation * 10),
+                now=self.now + timedelta(seconds=20 + generation * 10),
+                completed_at=self.now + timedelta(seconds=22 + generation * 10),
             )
 
         newest = self.absorb(5)
-        scheduled = schedule_due_observations(
+        claims = claim_observations(
+            worker_id="worker-a",
             policy=self.policy,
             now=self.now + timedelta(seconds=100),
             limit=1,
         )
 
-        self.assertEqual(len(scheduled), 1)
-        self.assertEqual(scheduled[0].source_handoff, newest)
+        self.assertEqual(len(claims), 1)
+        observation = self.observation_for_claim(claims[0])
+        self.assertEqual(observation.source_handoff, newest)
 
     def test_pending_generation_wins_over_due_watch(self):
         first_handoff = self.absorb(1)
-        scheduled = schedule_due_observations(
-            policy=self.policy,
-            now=self.now + timedelta(seconds=20),
-        )
-        claim = claim_observations(
+        first_claim = claim_observations(
             worker_id="worker-a",
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
+            now=self.now + timedelta(seconds=20),
         )[0]
+        first = self.observation_for_claim(first_claim)
         execute_claim(
-            claim,
+            first_claim,
             acquisition=self.observed_fake(
-                self.now + timedelta(seconds=22)
+                self.now + timedelta(seconds=21)
             ),
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
-            completed_at=self.now + timedelta(seconds=23),
+            now=self.now + timedelta(seconds=20),
+            completed_at=self.now + timedelta(seconds=22),
         )
-        series = scheduled[0].series
+        series = first.series
         series.watch_due_at = self.now + timedelta(seconds=30)
         series.save(update_fields=["watch_due_at", "updated_at"])
         second_handoff = self.absorb(2)
 
-        next_scheduled = schedule_due_observations(
+        claim = claim_observations(
+            worker_id="worker-a",
             policy=self.policy,
             now=self.now + timedelta(seconds=31),
-        )
+        )[0]
 
-        self.assertEqual(len(next_scheduled), 1)
-        self.assertEqual(next_scheduled[0].source_handoff, second_handoff)
+        observation = self.observation_for_claim(claim)
+        self.assertEqual(observation.source_handoff, second_handoff)
         self.assertEqual(
-            next_scheduled[0].trigger,
+            observation.trigger,
             ObservationTrigger.HANDOFF.value,
         )
         series.refresh_from_db()
@@ -293,20 +297,16 @@ class ObserverRuntimeTests(TestCase):
 
     def test_failed_acquisition_schedules_retry_not_watch(self):
         self.absorb(1)
-        schedule_due_observations(
-            policy=self.policy,
-            now=self.now + timedelta(seconds=20),
-        )
         claim = claim_observations(
             worker_id="worker-a",
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
+            now=self.now + timedelta(seconds=20),
         )[0]
         retry_at = self.now + timedelta(seconds=40)
         fake = FakeAcquisition(
             lambda _claim: AcquisitionResult(
                 outcome=ObservationOutcome.FAILED,
-                observed_at=self.now + timedelta(seconds=22),
+                observed_at=self.now + timedelta(seconds=21),
                 failure_code="fake.transient",
                 retry_at=retry_at,
             )
@@ -315,41 +315,40 @@ class ObserverRuntimeTests(TestCase):
             claim,
             acquisition=fake,
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
-            completed_at=self.now + timedelta(seconds=23),
+            now=self.now + timedelta(seconds=20),
+            completed_at=self.now + timedelta(seconds=22),
         )
 
         self.assertEqual(failed.outcome, ObservationOutcome.FAILED.value)
         failed.series.refresh_from_db()
         self.assertEqual(failed.series.retry_due_at, retry_at)
         self.assertEqual(
-            schedule_due_observations(
+            claim_observations(
+                worker_id="worker-a",
                 policy=self.policy,
                 now=self.now + timedelta(seconds=39),
             ),
             (),
         )
 
-        retry = schedule_due_observations(
+        retry_claims = claim_observations(
+            worker_id="worker-a",
             policy=self.policy,
             now=self.now + timedelta(seconds=41),
         )
-        self.assertEqual(len(retry), 1)
+        self.assertEqual(len(retry_claims), 1)
+        retry_observation = self.observation_for_claim(retry_claims[0])
         self.assertEqual(
-            retry[0].trigger,
+            retry_observation.trigger,
             ObservationTrigger.RETRY.value,
         )
 
     def test_unexpected_acquisition_exception_is_durable_and_re_raised(self):
         self.absorb(1)
-        schedule_due_observations(
-            policy=self.policy,
-            now=self.now + timedelta(seconds=20),
-        )
         claim = claim_observations(
             worker_id="worker-a",
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
+            now=self.now + timedelta(seconds=20),
         )[0]
 
         def explode(_claim):
@@ -360,13 +359,11 @@ class ObserverRuntimeTests(TestCase):
                 claim,
                 acquisition=FakeAcquisition(explode),
                 policy=self.policy,
-                now=self.now + timedelta(seconds=21),
-                completed_at=self.now + timedelta(seconds=23),
+                now=self.now + timedelta(seconds=20),
+                completed_at=self.now + timedelta(seconds=22),
             )
 
-        observation = Observation.objects.get(
-            observation_ref=claim.observation_ref
-        )
+        observation = self.observation_for_claim(claim)
         self.assertEqual(
             observation.outcome,
             ObservationOutcome.FAILED.value,
@@ -381,29 +378,26 @@ class ObserverRuntimeTests(TestCase):
 
     def test_expired_lease_finalizes_attempt_and_rejects_old_claim(self):
         self.absorb(1)
-        observation = schedule_due_observations(
-            policy=self.policy,
-            now=self.now + timedelta(seconds=20),
-        )[0]
         claim = claim_observations(
             worker_id="dead-worker",
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
+            now=self.now + timedelta(seconds=20),
         )[0]
+        observation = self.observation_for_claim(claim)
         ObservationAttempt.objects.create(
             observation=observation,
             ordinal=1,
             strategy="direct_http",
             lifecycle="open",
-            started_at=self.now + timedelta(seconds=22),
+            started_at=self.now + timedelta(seconds=21),
             requested_locator=observation.requested_locator,
         )
-        observation.lease_expires_at = self.now + timedelta(seconds=23)
+        observation.lease_expires_at = self.now + timedelta(seconds=22)
         observation.save(update_fields=["lease_expires_at", "updated_at"])
 
         recovered = recover_expired_observations(
             policy=self.policy,
-            now=self.now + timedelta(seconds=24),
+            now=self.now + timedelta(seconds=23),
         )
 
         self.assertEqual(recovered, 1)
@@ -418,29 +412,25 @@ class ObserverRuntimeTests(TestCase):
             execute_claim(
                 claim,
                 acquisition=self.observed_fake(
-                    self.now + timedelta(seconds=25)
+                    self.now + timedelta(seconds=24)
                 ),
                 policy=self.policy,
-                now=self.now + timedelta(seconds=25),
-                completed_at=self.now + timedelta(seconds=26),
+                now=self.now + timedelta(seconds=24),
+                completed_at=self.now + timedelta(seconds=25),
             )
 
     def test_claim_is_not_given_to_second_worker(self):
         self.absorb(1)
-        schedule_due_observations(
-            policy=self.policy,
-            now=self.now + timedelta(seconds=20),
-        )
 
         first = claim_observations(
             worker_id="worker-a",
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
+            now=self.now + timedelta(seconds=20),
         )
         second = claim_observations(
             worker_id="worker-b",
             policy=self.policy,
-            now=self.now + timedelta(seconds=21),
+            now=self.now + timedelta(seconds=20),
         )
 
         self.assertEqual(len(first), 1)
@@ -476,8 +466,9 @@ class ObserverRuntimeTests(TestCase):
             "disabled",
         )
 
-    def test_worker_one_shot_records_heartbeat_without_acquisition(self):
-        queue = FakeDrainQueue()
+    def test_worker_one_shot_absorbs_but_does_not_start_observation(self):
+        target = self.target(1)
+        queue = FakeDrainQueue([crawlee_request_for(target)])
         stdout = StringIO()
         with patch(
             "observer.django_app.management.commands.observer_worker.RequestQueue.open",
@@ -506,11 +497,17 @@ class ObserverRuntimeTests(TestCase):
             heartbeat.metadata["last_stats"]["acquisition"],
             "not_configured",
         )
+        self.assertEqual(
+            heartbeat.metadata["last_stats"]["pending_handoffs"],
+            1,
+        )
+        self.assertEqual(ObserverHandoff.objects.count(), 1)
+        self.assertEqual(Observation.objects.count(), 0)
 
 
 @skipUnless(
     connection.vendor == "postgresql",
-    "Observer concurrent claim contract requires PostgreSQL",
+    "Observer concurrent runtime contracts require PostgreSQL",
 )
 class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
     reset_sequences = True
@@ -518,24 +515,20 @@ class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
     def setUp(self):
         self.now = datetime(2026, 9, 20, 4, 0, tzinfo=timezone.utc)
         self.policy = ObserverRuntimePolicy(lease_seconds=60)
-        target_key = "web_url:v1:" + ("b" * 64)
-        target = ObservationTarget(
+        self.target_key = "web_url:v1:" + ("b" * 64)
+        self.target = ObservationTarget(
             handoff_key=make_handoff_key(
-                target_key=target_key,
+                target_key=self.target_key,
                 handoff_generation=1,
             ),
-            target_key=target_key,
+            target_key=self.target_key,
             handoff_generation=1,
             locator="https://example.test/concurrent",
             kind="web_url",
             requested_at=self.now,
             observation_hints={},
         )
-        absorb_observation_target(target, absorbed_at=self.now)
-        schedule_due_observations(
-            policy=self.policy,
-            now=self.now + timedelta(seconds=1),
-        )
+        absorb_observation_target(self.target, absorbed_at=self.now)
 
     def _run_concurrently(self, callable_factory):
         barrier = threading.Barrier(2)
@@ -587,7 +580,10 @@ class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
 
         self.assertEqual(errors, [])
         self.assertEqual(len(results), 2)
-        self.assertEqual(sum(1 for _handoff, created in results if created), 1)
+        self.assertEqual(
+            sum(1 for _handoff, created in results if created),
+            1,
+        )
         self.assertEqual(
             len({handoff.pk for handoff, _created in results}),
             1,
@@ -599,26 +595,12 @@ class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
             1,
         )
 
-    def test_concurrent_schedulers_create_one_open_observation(self):
-        target_key = "web_url:v1:" + ("d" * 64)
-        target = ObservationTarget(
-            handoff_key=make_handoff_key(
-                target_key=target_key,
-                handoff_generation=1,
-            ),
-            target_key=target_key,
-            handoff_generation=1,
-            locator="https://example.test/schedule-race",
-            kind="web_url",
-            requested_at=self.now,
-            observation_hints={},
-        )
-        absorb_observation_target(target, absorbed_at=self.now)
-
+    def test_concurrent_workers_start_only_one_observation(self):
         results, errors = self._run_concurrently(
-            lambda _index: schedule_due_observations(
+            lambda index: claim_observations(
+                worker_id=f"worker-{index}",
                 policy=self.policy,
-                now=self.now + timedelta(seconds=1),
+                now=self.now + timedelta(seconds=2),
                 limit=1,
             )
         )
@@ -627,44 +609,13 @@ class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
         self.assertEqual(sum(len(item) for item in results), 1)
         self.assertEqual(
             Observation.objects.filter(
-                series__target_key=target_key,
+                series__target_key=self.target_key,
                 lifecycle="open",
             ).count(),
             1,
         )
-
-    def test_concurrent_workers_never_claim_same_observation(self):
-        barrier = threading.Barrier(2)
-        results = []
-        errors = []
-
-        def run(worker_id):
-            close_old_connections()
-            try:
-                barrier.wait(timeout=5)
-                claims = claim_observations(
-                    worker_id=worker_id,
-                    policy=self.policy,
-                    now=self.now + timedelta(seconds=2),
-                    limit=1,
-                )
-                results.append(claims)
-            except Exception as exc:
-                errors.append(exc)
-            finally:
-                close_old_connections()
-
-        threads = [
-            threading.Thread(target=run, args=("worker-a",)),
-            threading.Thread(target=run, args=("worker-b",)),
-        ]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join(timeout=10)
-
-        self.assertEqual(errors, [])
-        self.assertEqual(sum(len(item) for item in results), 1)
-        observation = Observation.objects.get()
+        observation = Observation.objects.get(
+            series__target_key=self.target_key
+        )
         self.assertIsNotNone(observation.claim_token)
-        self.assertIn(observation.claimed_by, {"worker-a", "worker-b"})
+        self.assertIn(observation.claimed_by, {"worker-0", "worker-1"})
