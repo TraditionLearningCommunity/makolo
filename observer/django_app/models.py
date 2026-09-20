@@ -29,7 +29,11 @@ ARTIFACT_ORIGIN_CHOICES = [(item.value, item.value) for item in ArtifactOrigin]
 ARTIFACT_COMPLETENESS_CHOICES = [
     (item.value, item.value) for item in ArtifactCompleteness
 ]
-SCOPE_KIND_CHOICES = [("host", "Host"), ("domain", "Domain")]
+SCOPE_KIND_CHOICES = [
+    ("host", "Host"),
+    ("domain", "Domain"),
+    ("origin", "Origin"),
+]
 
 
 def observer_blob_upload_to(instance, filename):
@@ -548,6 +552,12 @@ class ObserverScopeState(models.Model):
     scope_key = models.CharField(max_length=255)
     not_before = models.DateTimeField(null=True, blank=True, db_index=True)
     last_request_at = models.DateTimeField(null=True, blank=True)
+    lease_token = models.UUIDField(null=True, blank=True, db_index=True)
+    lease_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    robots_checked_at = models.DateTimeField(null=True, blank=True)
+    robots_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    robots_status = models.PositiveSmallIntegerField(null=True, blank=True)
+    robots_body = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -557,13 +567,37 @@ class ObserverScopeState(models.Model):
             models.UniqueConstraint(
                 fields=["scope_kind", "scope_key"],
                 name="obs_scope_state_uq",
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        lease_token__isnull=True,
+                        lease_expires_at__isnull=True,
+                    )
+                    | Q(
+                        lease_token__isnull=False,
+                        lease_expires_at__isnull=False,
+                    )
+                ),
+                name="obs_scope_lease_consist",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(robots_status__isnull=True)
+                    | Q(robots_status__gte=100, robots_status__lte=599)
+                ),
+                name="obs_scope_robots_status_valid",
+            ),
         ]
         indexes = [
             models.Index(
                 fields=["scope_kind", "not_before", "id"],
                 name="obs_scope_due_idx",
-            )
+            ),
+            models.Index(
+                fields=["scope_kind", "lease_expires_at", "id"],
+                name="obs_scope_lease_idx",
+            ),
         ]
 
     def __str__(self):

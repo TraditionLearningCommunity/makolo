@@ -1,0 +1,405 @@
+# Observateur Makolo — architecture runtime et Lot 3 HTTP direct
+
+## 1. Rôle
+
+L’Observateur est l’acteur interne chargé d’exécuter des tentatives d’observation sur des ressources externes déjà identifiées, de capturer fidèlement ce qui a été techniquement obtenu ou constaté, puis de rendre ce résultat traçable aux acteurs suivants.
+
+Question de responsabilité :
+
+> **Qu’est-ce que Makolo a effectivement pu obtenir ou constater de cette ressource, ici et maintenant, dans ce contexte d’observation ?**
+
+L’Observateur ne déclare jamais qu’un contenu constitue une Activity, Occurrence, Requirement, Proof, Access ou autre vérité métier. Cette interprétation appartient aux acteurs aval.
+
+## 2. Frontières
+
+~~~text
+Prospecteur
+  ↓ ObservationTarget
+Observateur
+  ↓ Observation / Attempt / ObservedArtifact
+Interpréteur
+  ↓ faits candidats
+Résolveur
+  ↓ réalité réconciliée
+Orchestrateur
+~~~
+
+Le Prospecteur possède la découverte, la Frontier et l’intention explicite de réobserver. L’Observateur référence les identifiants du handoff mais ne possède pas la vérité du Prospecteur.
+
+Le Lot 3 reste strictement :
+
+~~~text
+HTTP public direct
++ sécurité réseau
++ robots
++ politeness
++ redirects
++ capture brute
++ revalidation HTTP
+~~~
+
+Il n’introduit pas :
+
+- Browser ou Playwright ;
+- rendu JavaScript ;
+- cookies ou session privée ;
+- credentials / Authorization ;
+- contournement de contrôle d’accès ;
+- extraction sémantique ;
+- vérité métier ;
+- action externe au nom d’un utilisateur.
+
+## 3. Modèle durable
+
+### ObserverHandoff
+
+Copie durable et idempotente du contrat reçu du Prospecteur. Un handoff décrit une intention amont, pas une Observation déjà réalisée.
+
+### ObservationSeries
+
+État longitudinal mutable d’une cible sous un profil d’observation comparable.
+
+Elle porte notamment :
+
+- cible et locator ;
+- profil et fingerprint ;
+- prochaine échéance de retry ;
+- prochaine échéance de watch ;
+- validators HTTP lorsqu’ils sont attachés à un artefact durable.
+
+Une nouvelle génération explicite du Prospecteur ne modifie jamais rétroactivement une Observation déjà ouverte.
+
+### Observation
+
+Épisode borné et traçable commencé uniquement au moment du claim réel.
+
+~~~text
+due / handoff présent
+      ↓
+claim atomique
+      ↓
+Observation OPEN
+      ↓
+Attempt(s)
+      ↓
+Observation FINALIZED
+~~~
+
+Un item seulement planifié ou en attente n’est pas une Observation.
+
+### ObservationAttempt
+
+Invocation concrète d’une stratégie d’acquisition. Le Lot 3 utilise `direct_http`.
+
+Un Attempt mémorise notamment :
+
+- locator demandé / final ;
+- statut HTTP ;
+- outcome technique ;
+- code d’échec ;
+- retry_after_at ;
+- nombre de redirects ;
+- octets réseau capturés ;
+- octets décodés.
+
+### ObservedArtifact
+
+Occurrence immuable d’une représentation effectivement obtenue.
+
+L’identité logique d’artefact est distincte du stockage physique :
+
+~~~text
+lundi  : HTTP 200 → artefact A
+mardi  : HTTP 200 mêmes octets → artefact B
+
+blob physique :
+SHA-256 identique → stockage dédupliqué possible
+~~~
+
+Le stockage Observer est privé et hors des médias publics.
+
+## 4. Statuts HTTP et résultat d’Observation
+
+### 2xx et réponses ordinaires
+
+Une réponse HTTP effectivement obtenue est une observation technique. Un 404 peut donc être `OBSERVED` avec un artefact de corps éventuel.
+
+Cela ne signifie jamais « l’Activity est supprimée » ou toute autre conclusion métier.
+
+### 304
+
+Un 304 produit une nouvelle Observation `NOT_MODIFIED`, mais aucun nouvel artefact.
+
+Il doit référencer un artefact durable antérieur de la même série.
+
+~~~text
+O1 → artefact A + ETag
+O2 → 304
+     └─ revalidated_artifacts = [A]
+~~~
+
+Un 304 sans baseline durable devient un échec technique explicite ; l’Observateur ne fabrique pas de représentation antérieure.
+
+### 429 / erreurs transitoires
+
+Un 429 devient un échec technique avec `retry_at`, en respectant `Retry-After` lorsqu’il est exploitable.
+
+Les retries automatiques courts sont limités aux pannes plausiblement transitoires : DNS non résolu, timeout et erreur réseau.
+
+Les erreurs TLS, protocole malformé, taille excessive ou violation de sécurité restent visibles sans boucle de retry agressive.
+
+## 5. Sécurité réseau
+
+Le contrôle effectué par le Prospecteur avant handoff ne suffit pas : l’Observateur revalide au moment où la connexion réelle est exécutée.
+
+Pour chaque connexion, y compris après redirect :
+
+1. normalisation stricte de l’URL ;
+2. schéma HTTP/HTTPS seulement ;
+3. credentials embarqués refusés ;
+4. port explicitement autorisé ;
+5. résolution DNS immédiate ;
+6. validation de **toutes** les adresses retournées ;
+7. refus si une adresse n’est pas globale ;
+8. sélection d’une IP validée ;
+9. connexion TCP directe à cette IP ;
+10. hostname original conservé pour Host/SNI/TLS ;
+11. vérification que le peer réellement connecté est l’IP validée.
+
+Cette séquence protège notamment contre :
+
+- localhost ;
+- RFC1918 / loopback / link-local ;
+- metadata cloud ;
+- DNS rebinding ;
+- réponses DNS mixtes public/privé ;
+- redirects vers réseaux privés ;
+- scanner de ports arbitraires ;
+- second lookup DNS implicite de la bibliothèque HTTP.
+
+Ports par défaut : 80 et 443. Toute extension est explicite.
+
+Le downgrade HTTPS → HTTP est refusé par défaut.
+
+## 6. Redirects
+
+Les redirects sont suivis manuellement afin que chaque hop repasse par :
+
+- politique de port ;
+- DNS ;
+- sécurité IP ;
+- politeness ;
+- robots de la destination lorsque la destination n’est pas elle-même un `robots.txt`.
+
+Les boucles sont détectées et le nombre de redirects est borné.
+
+Les validators conditionnels d’une ressource ne sont jamais transférés vers une ressource différente après redirect.
+
+## 7. Robots Exclusion Protocol
+
+Le Lot 3 traite `robots.txt` par **origine** :
+
+~~~text
+scheme + host + port
+~~~
+
+La politeness reste, elle, partagée au niveau du host.
+
+Le product token robots doit être un token RFC 9309 valide et apparaître dans le User-Agent envoyé.
+
+Le cache normal ne peut pas dépasser 24 heures.
+
+Makolo applique une politique volontairement conservatrice :
+
+- 2xx : règles parseables appliquées ;
+- 401/403 : ne pas crawler ;
+- autres 4xx : ressource robots considérée indisponible, accès possible ;
+- 5xx/429 : ne pas crawler maintenant ; retry borné ;
+- erreur réseau : échec technique, pas de contournement.
+
+Les redirects de `robots.txt` restent soumis à la sécurité réseau. Les règles finalement obtenues s’appliquent à l’origine initiale observée.
+
+## 8. Politeness et concurrence
+
+`ObserverScopeState` porte un état partagé entre workers.
+
+### Host scope
+
+Il assure :
+
+- lease exclusive ;
+- `not_before` ;
+- dernière requête ;
+- cadence minimale.
+
+Deux workers PostgreSQL ne peuvent donc pas lancer simultanément une requête pour le même host sous le contrat courant.
+
+Le même worker doit lui aussi respecter `not_before` entre deux requêtes.
+
+Un petit délai peut être attendu inline. Un délai supérieur à la borne inline ferme l’épisode courant avec un retry planifié au lieu de bloquer un worker arbitrairement longtemps.
+
+### Origin scope
+
+Il porte le cache robots sans confondre HTTP et HTTPS ni deux ports différents.
+
+## 9. Bornes de ressources
+
+Le Lot 3 possède des limites explicites sur :
+
+- timeout de connexion ;
+- timeout de lecture ;
+- durée totale d’une Observation HTTP ;
+- redirects ;
+- taille du corps reçu ;
+- taille après décompression ;
+- taille de `robots.txt` ;
+- temps d’attente inline ;
+- ports autorisés.
+
+La deadline totale traverse robots, redirects et fetch final : une chaîne de réponses lentes ne peut pas maintenir une Observation ouverte indéfiniment.
+
+La lease d’Observation doit être strictement supérieure à cette deadline.
+
+Le transport accepte `gzip` et `deflate` sous limite décodée. Un encodage non supporté ou une expansion au-delà de la limite échoue avant création d’artefact.
+
+## 10. Revalidation HTTP
+
+Lorsqu’un artefact durable existe, sa série peut retenir :
+
+- `ETag` ;
+- `Last-Modified` ;
+- `validator_artifact_ref`.
+
+Le fetch suivant peut envoyer `If-None-Match` / `If-Modified-Since`.
+
+Les validators ne sont pas conservés comme baseline si aucune représentation durable n’existe.
+
+## 11. Scheduling
+
+Les sources d’une nouvelle Observation sont :
+
+- nouveau handoff explicite ;
+- retry arrivé à échéance ;
+- watch arrivé à échéance.
+
+Priorité :
+
+~~~text
+handoff explicite
+    > retry/watch autonome
+~~~
+
+Le watch autonome n’a aucune cadence de production par défaut. Il n’existe que si `watch_interval_seconds` est fourni explicitement.
+
+Un handoff explicite nouveau efface les timers autonomes devenus secondaires pour cette série au moment du claim.
+
+## 12. Crash et recovery
+
+Une Observation ouverte appartient à un worker via :
+
+- claim token ;
+- worker id ;
+- lease expiration.
+
+Si la lease expire, le recovery :
+
+1. finalise les Attempts ouverts en `INTERRUPTED` ;
+2. finalise l’Observation en échec technique ;
+3. programme le retry de recovery ;
+4. rend l’ancien claim inutilisable.
+
+L’identité d’une Observation n’est donc pas simplement la durée de vie d’un process.
+
+## 13. Sorties
+
+### Vers Prospecteur
+
+`ObservationReport` reste structure-only :
+
+- handoff / target / generation ;
+- observation_ref ;
+- status ;
+- dates ;
+- locator demandé/final ;
+- statut HTTP ;
+- media type ;
+- références structurelles lorsqu’elles existent ;
+- failure/retry ;
+- métriques techniques bornées.
+
+Aucun corps de page ni fait métier n’est transmis dans ce contrat.
+
+La construction et la soumission du rapport sont séparées. L’ack Observer n’est écrit qu’après succès du sink. Un replay après crash reste donc possible et le sink aval doit conserver son propre contrat d’idempotence.
+
+### Vers Interpréteur
+
+`ObservationMaterial` expose les descriptors d’artefacts ou les références revalidées, sans exposer le chemin physique de stockage.
+
+Le Lot 3 ne choisit pas encore la stratégie d’interprétation.
+
+## 14. Activation opérationnelle
+
+L’acquisition HTTP live est **opt-in**.
+
+Sans activation explicite, `observer_worker` garde le comportement control-plane du Lot 2.
+
+Pour autoriser Internet il faut notamment :
+
+- `--enable-http-acquisition` ;
+- une identité `--http-user-agent` explicite ;
+- la queue réellement configurée dans l’environnement.
+
+Aucune queue, URL opérateur, hostname de production ou credential n’est codé dans le dépôt.
+
+Le kill switch Operations `observer` est vérifié avant l’ouverture de la queue puis avant chaque nouveau claim.
+
+## 15. Tests de sortie du Lot 3
+
+Le Lot 3 est fermé seulement si les tests couvrent au minimum :
+
+- HTML/texte 200 ;
+- 404 observé sans conclusion métier ;
+- 304 avec baseline ;
+- 304 sans baseline ;
+- redirects et boucle ;
+- downgrade HTTPS→HTTP ;
+- DNS revalidé à chaque hop ;
+- DNS public + privé ;
+- localhost / private / link-local / metadata ;
+- peer mismatch ;
+- port non autorisé ;
+- robots allow/disallow ;
+- robots indisponible/unreachable ;
+- destination de redirect régie par robots ;
+- host lease et concurrence PostgreSQL ;
+- crawl-delay ;
+- 429 / Retry-After ;
+- timeout réseau ;
+- deadline totale ;
+- corps trop grand ;
+- gzip bomb ;
+- encodage non supporté ;
+- absence Authorization/Cookie ;
+- artefact privé ;
+- validators persistés ;
+- revalidation sans copie d’artefact ;
+- failure terminal sans retry artificiel ;
+- kill switch ;
+- activation live explicitement opt-in ;
+- rapport Prospecteur structure-only.
+
+Les tests HTTP utilisent des transports/résolveurs factices. La CI ne dépend pas d’Internet.
+
+## 16. Hors Lot 3
+
+Restent à traiter dans des lots ultérieurs, uniquement si justifiés :
+
+- Browser/render JavaScript ;
+- politiques d’escalade HTTP → Browser ;
+- extraction de liens ou structures riches depuis les artefacts ;
+- interprétation sémantique ;
+- credentials privés explicitement autorisés ;
+- stratégie de rétention à grande échelle ;
+- orchestration aval complète Prospecteur/Interpréteur lorsque leurs politiques runtime sont définies.
+
+Le Lot 3 ne doit pas anticiper ces capacités en cassant les frontières présentes.

@@ -10,11 +10,17 @@ from crawlee.storages import RequestQueue
 from django.core.management.base import BaseCommand, CommandError
 
 from core.logging_filters import redact_sensitive_text
+from observer.django_http import build_direct_http_acquisition
 from observer.django_inbox import drain_crawlee_inbox
 from observer.django_runtime import (
+    claim_observations,
+    execute_claim,
     observation_backlog,
+    observation_backlog_all_profiles,
     recover_expired_observations,
 )
+from observer.errors import ObserverContractError
+from observer.http_contracts import HttpAcquisitionPolicy
 from observer.runtime_contracts import ObserverRuntimePolicy
 from operations.emergency_controls import is_operational_control_enabled
 from operations.models import OperationalControlCode, WorkerState
@@ -23,8 +29,8 @@ from operations.services import record_worker_heartbeat
 
 class Command(BaseCommand):
     help = (
-        "Lance le worker de contrôle Observer (inbox, scheduling, recovery). "
-        "Le Lot 2 n'exécute encore aucune acquisition réseau."
+        "Lance le worker Observer : inbox, recovery et acquisition HTTP "
+        "publique sécurisée. Aucun rendu Browser/JS n'est effectué."
     )
 
     def add_arguments(self, parser):
@@ -40,8 +46,115 @@ class Command(BaseCommand):
         parser.add_argument("--interval-seconds", type=float, default=5.0)
         parser.add_argument("--inbox-limit", type=int, default=100)
         parser.add_argument("--recovery-limit", type=int, default=100)
+        parser.add_argument("--claim-limit", type=int, default=1)
         parser.add_argument("--lease-seconds", type=int, default=300)
         parser.add_argument("--recovery-retry-seconds", type=int, default=60)
+        parser.add_argument(
+            "--watch-interval-seconds",
+            type=int,
+            default=None,
+            help=(
+                "Cadence autonome de revisit en secondes. Absente par "
+                "défaut : aucune cadence de production n'est inventée."
+            ),
+        )
+        parser.add_argument(
+            "--enable-http-acquisition",
+            action="store_true",
+            help=(
+                "Active explicitement les connexions Internet HTTP du Lot 3. "
+                "Sans ce flag, le worker reste control-plane uniquement."
+            ),
+        )
+        parser.add_argument(
+            "--http-user-agent",
+            default=None,
+            help=(
+                "User-Agent opérateur explicite utilisé pour l'acquisition "
+                "HTTP. Obligatoire avec --enable-http-acquisition."
+            ),
+        )
+        parser.add_argument(
+            "--robots-user-agent",
+            default="MakoloObserver",
+            help=(
+                "Product token RFC 9309 utilisé pour robots.txt. "
+                "Il doit être inclus dans --http-user-agent."
+            ),
+        )
+        parser.add_argument(
+            "--http-connect-timeout-seconds",
+            type=float,
+            default=10.0,
+        )
+        parser.add_argument(
+            "--http-read-timeout-seconds",
+            type=float,
+            default=20.0,
+        )
+        parser.add_argument(
+            "--http-max-observation-seconds",
+            type=int,
+            default=180,
+        )
+        parser.add_argument(
+            "--http-max-redirects",
+            type=int,
+            default=5,
+        )
+        parser.add_argument(
+            "--http-max-wire-bytes",
+            type=int,
+            default=8 * 1024 * 1024,
+        )
+        parser.add_argument(
+            "--http-max-decoded-bytes",
+            type=int,
+            default=16 * 1024 * 1024,
+        )
+        parser.add_argument(
+            "--robots-max-bytes",
+            type=int,
+            default=256 * 1024,
+        )
+        parser.add_argument(
+            "--robots-cache-seconds",
+            type=int,
+            default=3600,
+        )
+        parser.add_argument(
+            "--http-host-interval-seconds",
+            type=float,
+            default=1.0,
+        )
+        parser.add_argument(
+            "--http-host-lease-seconds",
+            type=int,
+            default=240,
+        )
+        parser.add_argument(
+            "--http-retry-seconds",
+            type=int,
+            default=60,
+        )
+        parser.add_argument(
+            "--http-allowed-port",
+            action="append",
+            type=int,
+            default=None,
+            help=(
+                "Port TCP HTTP(S) autorisé. Répéter l'option pour "
+                "plusieurs ports. Par défaut : 80 et 443."
+            ),
+        )
+        parser.add_argument(
+            "--allow-https-to-http-redirect",
+            action="store_true",
+            help=(
+                "Autorise explicitement un downgrade HTTPS→HTTP. "
+                "Refusé par défaut."
+            ),
+        )
         parser.add_argument(
             "--once",
             action="store_true",
@@ -54,27 +167,146 @@ class Command(BaseCommand):
             raise CommandError("--queue-name ne peut pas être vide.")
         if options["interval_seconds"] <= 0:
             raise CommandError("--interval-seconds doit être > 0.")
+        acquisition_enabled = bool(options["enable_http_acquisition"])
+        if acquisition_enabled and not (
+            options["http_user_agent"] or ""
+        ).strip():
+            raise CommandError(
+                "--http-user-agent est obligatoire avec "
+                "--enable-http-acquisition."
+            )
         for option_name in (
             "inbox_limit",
             "recovery_limit",
+            "claim_limit",
             "lease_seconds",
             "recovery_retry_seconds",
+            "http_max_observation_seconds",
+            "http_max_wire_bytes",
+            "http_max_decoded_bytes",
+            "robots_max_bytes",
+            "robots_cache_seconds",
+            "http_host_lease_seconds",
+            "http_retry_seconds",
         ):
             if options[option_name] < 1:
-                raise CommandError(f"--{option_name.replace('_', '-')} doit être >= 1.")
-
-        policy = ObserverRuntimePolicy(
-            lease_seconds=options["lease_seconds"],
-            recovery_retry_seconds=options["recovery_retry_seconds"],
+                raise CommandError(
+                    f"--{option_name.replace('_', '-')} doit être >= 1."
+                )
+        allowed_ports = tuple(
+            options["http_allowed_port"] or (80, 443)
         )
+        if any(
+            port < 1 or port > 65535
+            for port in allowed_ports
+        ):
+            raise CommandError(
+                "--http-allowed-port doit être compris entre 1 et 65535."
+            )
+        if acquisition_enabled and (
+            options["lease_seconds"]
+            <= options["http_max_observation_seconds"]
+        ):
+            raise CommandError(
+                "--lease-seconds doit être strictement supérieur à "
+                "--http-max-observation-seconds."
+            )
+        if options["http_max_redirects"] < 0:
+            raise CommandError("--http-max-redirects doit être >= 0.")
+        for option_name in (
+            "http_connect_timeout_seconds",
+            "http_read_timeout_seconds",
+        ):
+            if options[option_name] <= 0:
+                raise CommandError(
+                    f"--{option_name.replace('_', '-')} doit être > 0."
+                )
+        if options["http_host_interval_seconds"] < 0:
+            raise CommandError(
+                "--http-host-interval-seconds doit être >= 0."
+            )
+        if (
+            options["watch_interval_seconds"] is not None
+            and options["watch_interval_seconds"] < 1
+        ):
+            raise CommandError(
+                "--watch-interval-seconds doit être >= 1."
+            )
+
+        if acquisition_enabled:
+            try:
+                http_policy = HttpAcquisitionPolicy(
+                    user_agent=options["http_user_agent"],
+                    robots_user_agent=options["robots_user_agent"],
+                    connect_timeout_seconds=(
+                        options["http_connect_timeout_seconds"]
+                    ),
+                    read_timeout_seconds=(
+                        options["http_read_timeout_seconds"]
+                    ),
+                    max_observation_seconds=(
+                        options["http_max_observation_seconds"]
+                    ),
+                    max_redirects=options["http_max_redirects"],
+                    max_wire_bytes=options["http_max_wire_bytes"],
+                    max_decoded_bytes=options["http_max_decoded_bytes"],
+                    robots_max_bytes=options["robots_max_bytes"],
+                    robots_cache_seconds=options["robots_cache_seconds"],
+                    host_min_interval_seconds=(
+                        options["http_host_interval_seconds"]
+                    ),
+                    host_lease_seconds=(
+                        options["http_host_lease_seconds"]
+                    ),
+                    retry_seconds=options["http_retry_seconds"],
+                    allowed_ports=allowed_ports,
+                    allow_https_to_http_redirect=(
+                        options["allow_https_to_http_redirect"]
+                    ),
+                )
+            except ObserverContractError as exc:
+                raise CommandError(str(exc)) from exc
+            runtime_policy = ObserverRuntimePolicy(
+                profile_key="public-http",
+                profile_fingerprint=http_policy.profile_fingerprint,
+                policy_fingerprint=http_policy.policy_fingerprint,
+                lease_seconds=options["lease_seconds"],
+                recovery_retry_seconds=(
+                    options["recovery_retry_seconds"]
+                ),
+                watch_interval_seconds=(
+                    options["watch_interval_seconds"]
+                ),
+            )
+            acquisition = build_direct_http_acquisition(
+                policy=http_policy,
+            )
+        else:
+            http_policy = None
+            runtime_policy = ObserverRuntimePolicy(
+                lease_seconds=options["lease_seconds"],
+                recovery_retry_seconds=(
+                    options["recovery_retry_seconds"]
+                ),
+                watch_interval_seconds=(
+                    options["watch_interval_seconds"]
+                ),
+            )
+            acquisition = None
+
         stats = asyncio.run(
             self._run(
                 queue_name=queue_name,
-                instance_id=options["instance_id"] or socket.gethostname(),
+                instance_id=(
+                    options["instance_id"] or socket.gethostname()
+                ),
                 interval_seconds=options["interval_seconds"],
                 inbox_limit=options["inbox_limit"],
                 recovery_limit=options["recovery_limit"],
-                policy=policy,
+                claim_limit=options["claim_limit"],
+                policy=runtime_policy,
+                acquisition=acquisition,
+                http_policy=http_policy,
                 once=bool(options["once"]),
             )
         )
@@ -91,6 +323,12 @@ class Command(BaseCommand):
             thread_sensitive=True,
         )(**kwargs)
 
+    async def _control_enabled(self):
+        return await sync_to_async(
+            is_operational_control_enabled,
+            thread_sensitive=True,
+        )(OperationalControlCode.OBSERVER)
+
     async def _run(
         self,
         *,
@@ -99,22 +337,37 @@ class Command(BaseCommand):
         interval_seconds,
         inbox_limit,
         recovery_limit,
+        claim_limit,
         policy,
+        acquisition,
+        http_policy,
         once,
     ):
         request_queue = None
         last_stats = None
         while True:
             metadata = {
-                "mode": "observer-control-plane",
+                "mode": (
+                    "observer-direct-http"
+                    if acquisition is not None
+                    else "observer-control-plane"
+                ),
                 "queue_name": queue_name,
-                "acquisition": "unconfigured_lot2",
+                "acquisition": (
+                    "direct_http_v1"
+                    if acquisition is not None
+                    else "disabled"
+                ),
                 "expected_interval_seconds": interval_seconds,
             }
-            enabled = await sync_to_async(
-                is_operational_control_enabled,
-                thread_sensitive=True,
-            )(OperationalControlCode.OBSERVER)
+            if http_policy is not None:
+                metadata["profile_fingerprint"] = (
+                    http_policy.profile_fingerprint
+                )
+                metadata["policy_fingerprint"] = (
+                    http_policy.policy_fingerprint
+                )
+            enabled = await self._control_enabled()
             if not enabled:
                 last_stats = {"operational_control": "disabled"}
                 await self._heartbeat(
@@ -126,8 +379,6 @@ class Command(BaseCommand):
                 )
             else:
                 if request_queue is None:
-                    # A named queue must never be purged merely because the
-                    # Observer opens it.
                     configuration = Configuration(purge_on_start=False)
                     request_queue = await RequestQueue.open(
                         name=queue_name,
@@ -152,22 +403,66 @@ class Command(BaseCommand):
                         policy=policy,
                         limit=recovery_limit,
                     )
-                    backlog = await sync_to_async(
-                        observation_backlog,
-                        thread_sensitive=True,
-                    )(
-                        policy=policy,
-                    )
+
+                    outcomes = {
+                        "claimed_observations": 0,
+                        "observed": 0,
+                        "not_modified": 0,
+                        "failed": 0,
+                    }
+                    if acquisition is not None:
+                        for _index in range(claim_limit):
+                            if not await self._control_enabled():
+                                break
+                            claims = await sync_to_async(
+                                claim_observations,
+                                thread_sensitive=True,
+                            )(
+                                worker_id=instance_id,
+                                policy=policy,
+                                limit=1,
+                            )
+                            if not claims:
+                                break
+                            outcomes["claimed_observations"] += 1
+                            observation = await sync_to_async(
+                                execute_claim,
+                                thread_sensitive=True,
+                            )(
+                                claims[0],
+                                acquisition=acquisition,
+                                policy=policy,
+                            )
+                            if observation.outcome in outcomes:
+                                outcomes[observation.outcome] += 1
+
+                    if acquisition is not None:
+                        backlog = await sync_to_async(
+                            observation_backlog,
+                            thread_sensitive=True,
+                        )(
+                            policy=policy,
+                        )
+                    else:
+                        backlog = await sync_to_async(
+                            observation_backlog_all_profiles,
+                            thread_sensitive=True,
+                        )()
                     last_stats = {
                         "inbox_fetched": inbox.fetched,
                         "inbox_absorbed": inbox.absorbed,
                         "inbox_replayed": inbox.replayed,
                         "recovered_observations": recovered,
+                        **outcomes,
                         "pending_handoffs": backlog.pending_handoffs,
                         "due_retries": backlog.due_retries,
                         "due_watches": backlog.due_watches,
                         "open_observations": backlog.open_observations,
-                        "acquisition": "not_configured",
+                        "acquisition": (
+                            "direct_http_v1"
+                            if acquisition is not None
+                            else "disabled"
+                        ),
                     }
                 except Exception as exc:
                     await self._heartbeat(

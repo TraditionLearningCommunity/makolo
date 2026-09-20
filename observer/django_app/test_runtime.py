@@ -479,18 +479,98 @@ class ObserverRuntimeTests(TestCase):
             "disabled",
         )
 
-    def test_worker_one_shot_reports_backlog_without_starting_work(self):
+    def test_worker_remains_control_plane_without_explicit_http_opt_in(self):
         queue = FakeDrainQueue()
         stdout = StringIO()
         command_path = (
             "observer.django_app.management.commands.observer_worker"
         )
         backlog = ObservationBacklog(
-            pending_handoffs=3,
-            due_retries=2,
-            due_watches=1,
+            pending_handoffs=2,
+            due_retries=1,
+            due_watches=0,
             open_observations=0,
         )
+        with (
+            patch(
+                f"{command_path}.is_operational_control_enabled",
+                return_value=True,
+            ),
+            patch(
+                f"{command_path}.RequestQueue.open",
+                new=AsyncMock(return_value=queue),
+            ),
+            patch(
+                f"{command_path}.drain_crawlee_inbox",
+                new=AsyncMock(
+                    return_value=InboxDrainStats(
+                        fetched=0,
+                        absorbed=0,
+                        replayed=0,
+                    )
+                ),
+            ),
+            patch(
+                f"{command_path}.recover_expired_observations",
+                return_value=0,
+            ),
+            patch(
+                f"{command_path}.claim_observations",
+            ) as claim,
+            patch(
+                f"{command_path}.execute_claim",
+            ) as execute,
+            patch(
+                f"{command_path}.observation_backlog_all_profiles",
+                return_value=backlog,
+            ),
+            patch(
+                f"{command_path}.build_direct_http_acquisition",
+            ) as build_acquisition,
+            patch(
+                f"{command_path}.Command._heartbeat",
+                new_callable=AsyncMock,
+            ) as heartbeat,
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--instance-id",
+                "observer-control-plane-test",
+                "--once",
+                stdout=stdout,
+            )
+
+        build_acquisition.assert_not_called()
+        claim.assert_not_called()
+        execute.assert_not_called()
+        final_kwargs = heartbeat.await_args.kwargs
+        self.assertEqual(final_kwargs["state"], WorkerState.STOPPED)
+        self.assertEqual(
+            final_kwargs["metadata"]["last_stats"]["acquisition"],
+            "disabled",
+        )
+
+    def test_worker_one_shot_claims_and_executes_direct_http_work(self):
+        queue = FakeDrainQueue()
+        stdout = StringIO()
+        command_path = (
+            "observer.django_app.management.commands.observer_worker"
+        )
+        backlog = ObservationBacklog(
+            pending_handoffs=2,
+            due_retries=1,
+            due_watches=0,
+            open_observations=0,
+        )
+        fake_claim = object()
+        fake_observation = type(
+            "FinalizedObservation",
+            (),
+            {"outcome": ObservationOutcome.OBSERVED.value},
+        )()
+        fake_acquisition = object()
         with (
             patch(
                 f"{command_path}.is_operational_control_enabled",
@@ -515,9 +595,21 @@ class ObserverRuntimeTests(TestCase):
                 return_value=0,
             ) as recover,
             patch(
+                f"{command_path}.claim_observations",
+                return_value=(fake_claim,),
+            ) as claim,
+            patch(
+                f"{command_path}.execute_claim",
+                return_value=fake_observation,
+            ) as execute,
+            patch(
                 f"{command_path}.observation_backlog",
                 return_value=backlog,
             ) as read_backlog,
+            patch(
+                f"{command_path}.build_direct_http_acquisition",
+                return_value=fake_acquisition,
+            ) as build_acquisition,
             patch(
                 f"{command_path}.Command._heartbeat",
                 new_callable=AsyncMock,
@@ -529,6 +621,11 @@ class ObserverRuntimeTests(TestCase):
                 "observer-test",
                 "--instance-id",
                 "observer-once-test",
+                "--enable-http-acquisition",
+                "--http-user-agent",
+                "MakoloObserver/1.0 Test",
+                "--http-host-interval-seconds",
+                "0",
                 "--once",
                 stdout=stdout,
             )
@@ -536,6 +633,13 @@ class ObserverRuntimeTests(TestCase):
         open_queue.assert_awaited_once()
         drain.assert_awaited_once()
         recover.assert_called_once()
+        claim.assert_called_once()
+        execute.assert_called_once()
+        build_acquisition.assert_called_once()
+        self.assertIs(
+            execute.call_args.kwargs["acquisition"],
+            fake_acquisition,
+        )
         read_backlog.assert_called_once()
         self.assertEqual(heartbeat.await_count, 3)
         final_kwargs = heartbeat.await_args.kwargs
@@ -547,13 +651,87 @@ class ObserverRuntimeTests(TestCase):
                 "inbox_absorbed": 1,
                 "inbox_replayed": 0,
                 "recovered_observations": 0,
-                "pending_handoffs": 3,
-                "due_retries": 2,
-                "due_watches": 1,
+                "claimed_observations": 1,
+                "observed": 1,
+                "not_modified": 0,
+                "failed": 0,
+                "pending_handoffs": 2,
+                "due_retries": 1,
+                "due_watches": 0,
                 "open_observations": 0,
-                "acquisition": "not_configured",
+                "acquisition": "direct_http_v1",
             },
         )
+
+    def test_worker_rechecks_kill_switch_before_claim(self):
+        queue = FakeDrainQueue()
+        stdout = StringIO()
+        command_path = (
+            "observer.django_app.management.commands.observer_worker"
+        )
+        backlog = ObservationBacklog(
+            pending_handoffs=1,
+            due_retries=0,
+            due_watches=0,
+            open_observations=0,
+        )
+        with (
+            patch(
+                f"{command_path}.is_operational_control_enabled",
+                side_effect=[True, False],
+            ),
+            patch(
+                f"{command_path}.RequestQueue.open",
+                new=AsyncMock(return_value=queue),
+            ),
+            patch(
+                f"{command_path}.drain_crawlee_inbox",
+                new=AsyncMock(
+                    return_value=InboxDrainStats(
+                        fetched=0,
+                        absorbed=0,
+                        replayed=0,
+                    )
+                ),
+            ),
+            patch(
+                f"{command_path}.recover_expired_observations",
+                return_value=0,
+            ),
+            patch(
+                f"{command_path}.claim_observations",
+            ) as claim,
+            patch(
+                f"{command_path}.execute_claim",
+            ) as execute,
+            patch(
+                f"{command_path}.observation_backlog",
+                return_value=backlog,
+            ),
+            patch(
+                f"{command_path}.build_direct_http_acquisition",
+                return_value=object(),
+            ),
+            patch(
+                f"{command_path}.Command._heartbeat",
+                new_callable=AsyncMock,
+            ),
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--instance-id",
+                "observer-midcycle-stop",
+                "--enable-http-acquisition",
+                "--http-user-agent",
+                "MakoloObserver/1.0 Test",
+                "--once",
+                stdout=stdout,
+            )
+
+        claim.assert_not_called()
+        execute.assert_not_called()
 
 
 @skipUnless(
