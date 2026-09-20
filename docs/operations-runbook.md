@@ -82,10 +82,10 @@ L'acquisition HTTP réelle exige simultanément :
 python manage.py observer_worker \
   --queue-name <QUEUE_NAME> \
   --enable-http-acquisition \
-  --http-user-agent "<IDENTITE_BOT_EXPLICITE>"
+  --http-user-agent "MakoloObserver/1.0 (<CONTACT_OPS>)"
 ~~~
 
-`<QUEUE_NAME>` et `<IDENTITE_BOT_EXPLICITE>` sont propres à l'environnement réel. Le dépôt n'invente ni nom de queue de production, ni URL de contact opérateur. L'identité bot doit être choisie explicitement avant activation live.
+`<QUEUE_NAME>` et `<CONTACT_OPS>` sont propres à l'environnement réel. Le dépôt n'invente ni nom de queue de production, ni URL de contact opérateur. Par défaut, le product token robots est `MakoloObserver` : il doit apparaître dans `--http-user-agent`. Pour utiliser un autre token RFC 9309, fournir aussi `--robots-user-agent <TOKEN>` et garder ce même token dans le User-Agent.
 
 Pour un cycle diagnostique unique, ajouter `--once`.
 
@@ -100,6 +100,8 @@ Les valeurs par défaut sont des **bornes de sécurité**, pas des SLA ni des re
 - `robots.txt` : 256 KiB maximum, cache 1 h ;
 - intervalle minimal par host : 1 s ;
 - timeouts connect/read : 10 s / 20 s ;
+- durée totale maximale d'une Observation HTTP : 180 s ;
+- lease host HTTP : 240 s par défaut, donc supérieure à la deadline totale ;
 - retries automatiques immédiats réservés aux pannes plausiblement transitoires ; 429 respecte `Retry-After`.
 
 Toute extension de port, downgrade HTTPS→HTTP ou cadence plus agressive doit être une décision opérateur explicite. Les `observation_hints` reçus du Prospecteur ne peuvent jamais affaiblir ces contrôles.
