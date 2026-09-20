@@ -66,6 +66,7 @@ class HttpAcquisitionPolicy:
     max_inline_wait_seconds: float = 2.0
     host_lease_seconds: int = 120
     retry_seconds: int = 60
+    allowed_ports: Tuple[int, ...] = (80, 443)
     allow_https_to_http_redirect: bool = False
 
     def __post_init__(self) -> None:
@@ -130,6 +131,19 @@ class HttpAcquisitionPolicy:
                 name,
                 _positive_int(name, getattr(self, name), allow_zero=(name == "max_redirects")),
             )
+        ports = tuple(dict.fromkeys(self.allowed_ports))
+        if not ports:
+            raise ObserverContractError("allowed_ports must not be empty")
+        for port in ports:
+            if (
+                not isinstance(port, int)
+                or isinstance(port, bool)
+                or not 1 <= port <= 65535
+            ):
+                raise ObserverContractError(
+                    "allowed_ports must contain valid TCP ports"
+                )
+        object.__setattr__(self, "allowed_ports", ports)
         if not isinstance(self.allow_https_to_http_redirect, bool):
             raise ObserverContractError(
                 "allow_https_to_http_redirect must be boolean"
@@ -170,6 +184,7 @@ class HttpAcquisitionPolicy:
             "max_inline_wait_seconds": self.max_inline_wait_seconds,
             "host_lease_seconds": self.host_lease_seconds,
             "retry_seconds": self.retry_seconds,
+            "allowed_ports": self.allowed_ports,
             "allow_https_to_http_redirect": self.allow_https_to_http_redirect,
             "robots_user_agent": self.robots_user_agent,
         }
