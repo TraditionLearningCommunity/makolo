@@ -488,6 +488,12 @@ class DirectHttpAcquisition:
             "Connection": "close",
         }
 
+    def _robots_scope_key(self, target_url: str) -> str:
+        parts = urlsplit(target_url)
+        return urlunsplit(
+            (parts.scheme, parts.netloc, "", "", "")
+        ).lower()
+
     def _robots_url(self, target_url: str) -> str:
         parts = urlsplit(target_url)
         return urlunsplit(
@@ -502,8 +508,9 @@ class DirectHttpAcquisition:
         stats: _Stats,
     ) -> tuple[RobotsCache, bool]:
         hostname = urlsplit(target_url).hostname or ""
+        origin_key = self._robots_scope_key(target_url)
         now = _utc_now(self.clock)
-        cached = self.scope_state.get_robots(hostname, now=now)
+        cached = self.scope_state.get_robots(origin_key, now=now)
         if cached is not None:
             return cached, False
 
@@ -548,7 +555,7 @@ class DirectHttpAcquisition:
             body = decoded.decode("utf-8", errors="replace")
 
         cache = self.scope_state.cache_robots(
-            hostname,
+            origin_key,
             status=status,
             body=body,
             checked_at=now,
