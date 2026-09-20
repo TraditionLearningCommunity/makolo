@@ -479,6 +479,79 @@ class ObserverRuntimeTests(TestCase):
             "disabled",
         )
 
+    def test_worker_remains_control_plane_without_explicit_http_opt_in(self):
+        queue = FakeDrainQueue()
+        stdout = StringIO()
+        command_path = (
+            "observer.django_app.management.commands.observer_worker"
+        )
+        backlog = ObservationBacklog(
+            pending_handoffs=2,
+            due_retries=1,
+            due_watches=0,
+            open_observations=0,
+        )
+        with (
+            patch(
+                f"{command_path}.is_operational_control_enabled",
+                return_value=True,
+            ),
+            patch(
+                f"{command_path}.RequestQueue.open",
+                new=AsyncMock(return_value=queue),
+            ),
+            patch(
+                f"{command_path}.drain_crawlee_inbox",
+                new=AsyncMock(
+                    return_value=InboxDrainStats(
+                        fetched=0,
+                        absorbed=0,
+                        replayed=0,
+                    )
+                ),
+            ),
+            patch(
+                f"{command_path}.recover_expired_observations",
+                return_value=0,
+            ),
+            patch(
+                f"{command_path}.claim_observations",
+            ) as claim,
+            patch(
+                f"{command_path}.execute_claim",
+            ) as execute,
+            patch(
+                f"{command_path}.observation_backlog",
+                return_value=backlog,
+            ),
+            patch(
+                f"{command_path}.build_direct_http_acquisition",
+            ) as build_acquisition,
+            patch(
+                f"{command_path}.Command._heartbeat",
+                new_callable=AsyncMock,
+            ) as heartbeat,
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--instance-id",
+                "observer-control-plane-test",
+                "--once",
+                stdout=stdout,
+            )
+
+        build_acquisition.assert_not_called()
+        claim.assert_not_called()
+        execute.assert_not_called()
+        final_kwargs = heartbeat.await_args.kwargs
+        self.assertEqual(final_kwargs["state"], WorkerState.STOPPED)
+        self.assertEqual(
+            final_kwargs["metadata"]["last_stats"]["acquisition"],
+            "disabled",
+        )
+
     def test_worker_one_shot_claims_and_executes_direct_http_work(self):
         queue = FakeDrainQueue()
         stdout = StringIO()
@@ -548,6 +621,9 @@ class ObserverRuntimeTests(TestCase):
                 "observer-test",
                 "--instance-id",
                 "observer-once-test",
+                "--enable-http-acquisition",
+                "--http-user-agent",
+                "Makolo Observer Test",
                 "--http-host-interval-seconds",
                 "0",
                 "--once",
@@ -647,6 +723,9 @@ class ObserverRuntimeTests(TestCase):
                 "observer-test",
                 "--instance-id",
                 "observer-midcycle-stop",
+                "--enable-http-acquisition",
+                "--http-user-agent",
+                "Makolo Observer Test",
                 "--once",
                 stdout=stdout,
             )
