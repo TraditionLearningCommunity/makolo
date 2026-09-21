@@ -10,7 +10,9 @@ from crawlee.storages import RequestQueue
 from django.core.management.base import BaseCommand, CommandError
 
 from core.logging_filters import redact_sensitive_text
+from observer.adaptive_contracts import AdaptiveAcquisitionPolicy
 from observer.browser_contracts import BrowserAcquisitionPolicy
+from observer.django_adaptive import build_adaptive_observation_plan
 from observer.django_browser import build_browser_render_acquisition
 from observer.django_http import build_direct_http_acquisition
 from observer.django_inbox import drain_crawlee_inbox
@@ -72,8 +74,15 @@ class Command(BaseCommand):
             "--enable-browser-acquisition",
             action="store_true",
             help=(
-                "Active explicitement le profil Browser/JS public du Lot 4. "
-                "Mutuellement exclusif avec --enable-http-acquisition."
+                "Active explicitement le profil Browser/JS public du Lot 4."
+            ),
+        )
+        parser.add_argument(
+            "--enable-adaptive-acquisition",
+            action="store_true",
+            help=(
+                "Active explicitement le profil Lot 5 : HTTP d'abord, puis "
+                "Browser seulement sur signal technique déterministe."
             ),
         )
         parser.add_argument(
@@ -205,6 +214,15 @@ class Command(BaseCommand):
             default=4 * 1024 * 1024,
         )
         parser.add_argument(
+            "--adaptive-html-probe-bytes",
+            type=int,
+            default=256 * 1024,
+            help=(
+                "Préfixe HTML maximal inspecté pour décider une escalade "
+                "technique vers Browser."
+            ),
+        )
+        parser.add_argument(
             "--once",
             action="store_true",
             help="Exécute un seul cycle puis s'arrête proprement.",
@@ -218,12 +236,19 @@ class Command(BaseCommand):
             raise CommandError("--interval-seconds doit être > 0.")
         http_enabled = bool(options["enable_http_acquisition"])
         browser_enabled = bool(options["enable_browser_acquisition"])
-        if http_enabled and browser_enabled:
+        adaptive_enabled = bool(options["enable_adaptive_acquisition"])
+        if sum(
+            int(value)
+            for value in (http_enabled, browser_enabled, adaptive_enabled)
+        ) > 1:
             raise CommandError(
-                "--enable-http-acquisition et "
-                "--enable-browser-acquisition sont mutuellement exclusifs."
+                "Les modes --enable-http-acquisition, "
+                "--enable-browser-acquisition et "
+                "--enable-adaptive-acquisition sont mutuellement exclusifs."
             )
-        acquisition_enabled = http_enabled or browser_enabled
+        acquisition_enabled = (
+            http_enabled or browser_enabled or adaptive_enabled
+        )
         if acquisition_enabled and not (
             options["http_user_agent"] or ""
         ).strip():
@@ -251,6 +276,7 @@ class Command(BaseCommand):
             "browser_max_total_wire_bytes",
             "browser_max_total_decoded_bytes",
             "browser_max_rendered_dom_bytes",
+            "adaptive_html_probe_bytes",
         ):
             if options[option_name] < 1:
                 raise CommandError(
@@ -298,6 +324,7 @@ class Command(BaseCommand):
 
         http_policy = None
         browser_policy = None
+        adaptive_policy = None
         acquisition = None
         acquisition_mode = "observer-control-plane"
         acquisition_label = "disabled"
@@ -333,7 +360,7 @@ class Command(BaseCommand):
                         options["allow_https_to_http_redirect"]
                     ),
                 )
-                if browser_enabled:
+                if browser_enabled or adaptive_enabled:
                     browser_policy = BrowserAcquisitionPolicy(
                         http_policy=http_policy,
                         locale=options["browser_locale"],
@@ -359,10 +386,40 @@ class Command(BaseCommand):
                             "browser_max_rendered_dom_bytes"
                         ],
                     )
+                if adaptive_enabled:
+                    adaptive_policy = AdaptiveAcquisitionPolicy(
+                        http_policy=http_policy,
+                        browser_policy=browser_policy,
+                        html_probe_bytes=options[
+                            "adaptive_html_probe_bytes"
+                        ],
+                    )
             except ObserverContractError as exc:
                 raise CommandError(str(exc)) from exc
 
-        if browser_policy is not None:
+        if adaptive_policy is not None:
+            runtime_policy = ObserverRuntimePolicy(
+                profile_key=adaptive_policy.profile_key,
+                profile_fingerprint=(
+                    adaptive_policy.profile_fingerprint
+                ),
+                policy_fingerprint=(
+                    adaptive_policy.policy_fingerprint
+                ),
+                lease_seconds=options["lease_seconds"],
+                recovery_retry_seconds=(
+                    options["recovery_retry_seconds"]
+                ),
+                watch_interval_seconds=(
+                    options["watch_interval_seconds"]
+                ),
+            )
+            acquisition = build_adaptive_observation_plan(
+                policy=adaptive_policy,
+            )
+            acquisition_mode = "observer-adaptive-render"
+            acquisition_label = "adaptive_http_browser_v1"
+        elif browser_policy is not None:
             runtime_policy = ObserverRuntimePolicy(
                 profile_key=browser_policy.profile_key,
                 profile_fingerprint=(
