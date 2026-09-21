@@ -293,7 +293,10 @@ def derive_requirement_consequence(assessment):
     prefetched = getattr(assessment, "_prefetched_objects_cache", {})
 
     payment_links = prefetched.get("payment_obligation_links")
-    if payment_links is None:
+    if payment_links is None or any(
+        "obligation" not in link._state.fields_cache
+        for link in payment_links
+    ):
         payment_links = list(
             assessment.payment_obligation_links.select_related("obligation").all()
         )
@@ -323,7 +326,10 @@ def derive_requirement_consequence(assessment):
         JourneyStepStatus.BLOCKED,
     }
     step_links = prefetched.get("step_links")
-    if step_links is None:
+    if step_links is None or any(
+        "journey_step" not in link._state.fields_cache
+        for link in step_links
+    ):
         step_links = list(
             assessment.step_links.select_related("journey_step").all()
         )
