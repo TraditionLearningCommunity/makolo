@@ -9,7 +9,10 @@ from activities.models import ActivityStatus, ActivityVisibility
 from core.participant_activity_context import participant_state_context_for_activities
 from core.participant_presentation import resolve_participant_activity_state
 from core.product_language import vocabulary_for
-from groups.selectors import eligible_activity_ids_for_profile
+from groups.selectors import (
+    eligible_activity_ids_for_profile,
+    filter_queryset_by_activity_group_eligibility,
+)
 from opportunities.selectors import open_opportunities, upcoming_opportunities
 from services.models import OpportunityPolicy, ServiceDetails
 
@@ -254,12 +257,13 @@ def public_service_discovery_items(
         else:
             services = services.filter(activity_match | ~Q(opportunity_policy=OpportunityPolicy.NONE))
 
-    service_rows = list(services.distinct()[:DISCOVERY_FAMILY_CANDIDATE_LIMIT])
-    eligible_ids = eligible_activity_ids_for_profile(
+    services = filter_queryset_by_activity_group_eligibility(
+        services,
         profile,
-        [service.activity_id for service in service_rows],
     )
-    service_rows = [service for service in service_rows if service.activity_id in eligible_ids]
+    service_rows = list(
+        services.distinct()[:DISCOVERY_FAMILY_CANDIDATE_LIMIT]
+    )
     participant_context = participant_state_context_for_activities(
         profile,
         [service.activity for service in service_rows],
