@@ -10,6 +10,7 @@ from .contracts import (
     ObservationAttempt as ObservationAttemptContract,
     ObservationMaterial,
     ObservationOutcome,
+    ObservationTrigger,
     TransformationDescriptor,
     make_material_key,
 )
@@ -161,6 +162,7 @@ def build_observation_material(
         ),
         observation_ref=observation.observation_ref,
         target_key=observation.series.target_key,
+        target_kind=observation.series.kind,
         source_handoff_key=(
             observation.source_handoff.handoff_key
         ),
@@ -177,6 +179,7 @@ def build_observation_material(
             observation.profile_fingerprint
         ),
         policy_fingerprint=observation.policy_fingerprint,
+        trigger=ObservationTrigger(observation.trigger),
         outcome=ObservationOutcome(observation.outcome),
         response_status=observation.response_status,
         failure_code=observation.failure_code or None,
