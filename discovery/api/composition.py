@@ -257,34 +257,58 @@ def _assessment(projection: dict) -> list[dict]:
     return facts
 
 
-def _event_handoffs(activity_ids) -> dict[str, dict]:
+def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     if not activity_ids:
         return {}
+    from capacity.selectors import is_sold_out
+    from commerce.models import OfferStatus
     from events.models import Event
+    from tickets.models import TicketType
 
-    rows = Event.objects.filter(activity_id__in=activity_ids).values(
-        "activity_id",
-        "slug",
+    events = list(Event.objects.filter(activity_id__in=activity_ids))
+    event_ids = [event.pk for event in events]
+    ticket_types = (
+        TicketType.objects.filter(
+            event_id__in=event_ids,
+            offer__status=OfferStatus.ACTIVE,
+            capacity_pool__is_active=True,
+            is_public=True,
+        )
+        .select_related("capacity_pool")
+        .prefetch_related("capacity_pool__reservations")
     )
+    types_by_event = {}
+    for ticket_type in ticket_types:
+        types_by_event.setdefault(ticket_type.event_id, []).append(ticket_type)
+
+    authenticated = _authenticated(profile)
     result = {}
-    for row in rows:
-        activity_id = str(row["activity_id"])
-        slug = row["slug"]
+    for event in events:
+        activity_id = str(event.activity_id)
+        capabilities = ["inspect", "inspect_offers"]
+        links = {
+            "detail": reverse(
+                "participant-event-detail",
+                kwargs={"slug": event.slug},
+            ),
+            "offers": reverse(
+                "participant-ticket-type-list",
+                kwargs={"slug": event.slug},
+            ),
+            "orders": reverse("ticket-orders-list"),
+        }
+        public_types = types_by_event.get(event.pk, [])
+        if authenticated and any(
+            is_sold_out(ticket_type.capacity_pool)
+            for ticket_type in public_types
+        ):
+            capabilities.append("join_waitlist")
+            links["waitlist"] = reverse("ticket-waitlist-list")
         result[activity_id] = {
             "state": "owner_api",
             "owner": "events",
-            "capabilities": ["inspect", "inspect_offers"],
-            "links": {
-                "detail": reverse(
-                    "participant-event-detail",
-                    kwargs={"slug": slug},
-                ),
-                "offers": reverse(
-                    "participant-ticket-type-list",
-                    kwargs={"slug": slug},
-                ),
-                "orders": reverse("ticket-orders-list"),
-            },
+            "capabilities": capabilities,
+            "links": links,
         }
     return result
 
@@ -357,7 +381,10 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     saved_activity_ids = _saved_activity_ids(profile, activity_ids)
     saved_opportunity_ids = _saved_opportunity_ids(profile, opportunity_ids)
     can_save = _authenticated(profile)
-    event_handoffs = _event_handoffs(activity_ids)
+    event_handoffs = _event_handoffs(
+        activity_ids,
+        profile=profile,
+    )
 
     projections = []
     for family, _, candidate in rows:
