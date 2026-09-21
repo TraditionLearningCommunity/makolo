@@ -802,6 +802,76 @@ class ObserverRuntimeTests(TestCase):
                 stdout=StringIO(),
             )
 
+    def test_worker_builds_explicit_adaptive_mode(self):
+        stdout = StringIO()
+        command_path = (
+            "observer.django_app.management.commands.observer_worker"
+        )
+        fake_plan = object()
+        with (
+            patch(
+                f"{command_path}.build_adaptive_observation_plan",
+                return_value=fake_plan,
+            ) as build_adaptive,
+            patch(
+                f"{command_path}.build_browser_render_acquisition",
+            ) as build_browser,
+            patch(
+                f"{command_path}.build_direct_http_acquisition",
+            ) as build_http,
+            patch(
+                f"{command_path}.Command._run",
+                new_callable=AsyncMock,
+                return_value={"acquisition": "adaptive_http_browser_v1"},
+            ) as run,
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--instance-id",
+                "observer-adaptive-test",
+                "--enable-adaptive-acquisition",
+                "--http-user-agent",
+                "MakoloObserver/1.0 AdaptiveTest",
+                "--http-host-interval-seconds",
+                "0",
+                "--once",
+                stdout=stdout,
+            )
+
+        build_adaptive.assert_called_once()
+        build_browser.assert_not_called()
+        build_http.assert_not_called()
+        self.assertIs(run.await_args.kwargs["acquisition"], fake_plan)
+        self.assertEqual(
+            run.await_args.kwargs["acquisition_mode"],
+            "observer-adaptive-render",
+        )
+        self.assertEqual(
+            run.await_args.kwargs["acquisition_label"],
+            "adaptive_http_browser_v1",
+        )
+        policy = run.await_args.kwargs["policy"]
+        self.assertEqual(policy.profile_key, "public-adaptive")
+
+    def test_worker_rejects_adaptive_with_other_acquisition_mode(self):
+        with self.assertRaisesRegex(
+            CommandError,
+            "mutuellement exclusifs",
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--enable-adaptive-acquisition",
+                "--enable-browser-acquisition",
+                "--http-user-agent",
+                "MakoloObserver/1.0 Test",
+                "--once",
+                stdout=StringIO(),
+            )
+
     def test_worker_rechecks_kill_switch_before_claim(self):
         queue = FakeDrainQueue()
         stdout = StringIO()
