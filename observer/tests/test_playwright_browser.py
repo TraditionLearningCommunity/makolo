@@ -118,6 +118,114 @@ document.body.dataset.webrtc =
             ],
         )
 
+    def test_blocked_browser_capabilities_do_not_create_network_requests(self):
+        html = b"""<!doctype html>
+<html><body>
+<script>
+document.body.dataset.webtransport =
+  typeof WebTransport === 'undefined' ? 'blocked' : 'open';
+document.body.dataset.beacon =
+  navigator.sendBeacon('/beacon', 'x') ? 'sent' : 'blocked';
+document.body.dataset.popup =
+  window.open('/popup') === null ? 'blocked' : 'open';
+</script>
+</body></html>"""
+        seen = []
+
+        def loader(request):
+            seen.append(request.url)
+            if request.url != "https://example.test/app":
+                self.fail(f"unexpected routed URL {request.url}")
+            return SafeHttpResourceResult(
+                requested_url=request.url,
+                response_url=request.url,
+                status=200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                body=html,
+                wire_bytes=len(html),
+                decoded_bytes=len(html),
+            )
+
+        result = self.renderer.render(
+            start_url="https://example.test/app",
+            policy=self.policy,
+            resource_loader=loader,
+            deadline_at=_clock() + timedelta(seconds=30),
+            clock=_clock,
+        )
+
+        dom = result.rendered_dom.decode("utf-8")
+        self.assertIn('data-webtransport="blocked"', dom)
+        self.assertIn('data-beacon="blocked"', dom)
+        self.assertIn('data-popup="blocked"', dom)
+        self.assertEqual(seen, ["https://example.test/app"])
+
+    def test_non_get_main_navigation_is_blocked(self):
+        html = b"""<!doctype html>
+<html><body>
+<form id="write" method="post" action="/write"></form>
+<script>document.querySelector('#write').submit();</script>
+</body></html>"""
+
+        def loader(request):
+            if request.url != "https://example.test/app":
+                self.fail(f"unsafe request reached Observer loader: {request.url}")
+            return SafeHttpResourceResult(
+                requested_url=request.url,
+                response_url=request.url,
+                status=200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                body=html,
+                wire_bytes=len(html),
+                decoded_bytes=len(html),
+            )
+
+        with self.assertRaisesRegex(Exception, "browser.unsafe_method"):
+            self.renderer.render(
+                start_url="https://example.test/app",
+                policy=self.policy,
+                resource_loader=loader,
+                deadline_at=_clock() + timedelta(seconds=30),
+                clock=_clock,
+            )
+
+    def test_iframe_is_routed_through_observer_loader(self):
+        html = (
+            b"<!doctype html><html><body>"
+            b"<iframe src='/frame'></iframe></body></html>"
+        )
+        frame = b"<!doctype html><html><body>frame</body></html>"
+        seen = []
+
+        def loader(request):
+            seen.append(request.url)
+            if request.url == "https://example.test/app":
+                body = html
+            elif request.url == "https://example.test/frame":
+                body = frame
+            else:
+                self.fail(f"unexpected routed URL {request.url}")
+            return SafeHttpResourceResult(
+                requested_url=request.url,
+                response_url=request.url,
+                status=200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                body=body,
+                wire_bytes=len(body),
+                decoded_bytes=len(body),
+            )
+
+        result = self.renderer.render(
+            start_url="https://example.test/app",
+            policy=self.policy,
+            resource_loader=loader,
+            deadline_at=_clock() + timedelta(seconds=30),
+            clock=_clock,
+        )
+
+        self.assertEqual(result.response_status, 200)
+        self.assertIn("https://example.test/frame", seen)
+
     def test_https_to_http_redirect_is_blocked_before_browser_network(self):
         def loader(request):
             return SafeHttpResourceResult(
