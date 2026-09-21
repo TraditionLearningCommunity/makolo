@@ -260,7 +260,10 @@ def _assessment(projection: dict) -> list[dict]:
 def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     if not activity_ids:
         return {}
-    from capacity.selectors import is_sold_out
+    from django.db.models import Q, Sum
+    from django.utils import timezone
+
+    from capacity.models import CapacityReservation, CapacityReservationStatus
     from commerce.models import OfferStatus
     from events.models import Event
     from tickets.models import TicketType
@@ -275,11 +278,42 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
             is_public=True,
         )
         .select_related("capacity_pool")
-        .prefetch_related("capacity_pool__reservations")
     )
+    ticket_types = list(ticket_types)
+    pool_ids = {ticket_type.capacity_pool_id for ticket_type in ticket_types}
+    now = timezone.now()
+    totals = {
+        row["pool_id"]: (
+            row["held"] or 0,
+            row["committed"] or 0,
+        )
+        for row in CapacityReservation.objects.filter(pool_id__in=pool_ids)
+        .values("pool_id")
+        .annotate(
+            held=Sum(
+                "quantity",
+                filter=Q(status=CapacityReservationStatus.HELD)
+                & (
+                    Q(expires_at__isnull=True)
+                    | Q(expires_at__gt=now)
+                ),
+            ),
+            committed=Sum(
+                "quantity",
+                filter=Q(status=CapacityReservationStatus.COMMITTED),
+            ),
+        )
+    }
     types_by_event = {}
     for ticket_type in ticket_types:
         types_by_event.setdefault(ticket_type.event_id, []).append(ticket_type)
+
+    def sold_out(ticket_type):
+        total = ticket_type.capacity_pool.total_quantity
+        if total is None:
+            return False
+        held, committed = totals.get(ticket_type.capacity_pool_id, (0, 0))
+        return max(total - held - committed, 0) == 0
 
     authenticated = _authenticated(profile)
     result = {}
@@ -299,7 +333,7 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
         }
         public_types = types_by_event.get(event.pk, [])
         if authenticated and any(
-            is_sold_out(ticket_type.capacity_pool)
+            sold_out(ticket_type)
             for ticket_type in public_types
         ):
             capabilities.append("join_waitlist")
