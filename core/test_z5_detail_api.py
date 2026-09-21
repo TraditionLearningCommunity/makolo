@@ -14,12 +14,16 @@ from activities.models import (
     Activity,
     ActivityStatus,
     ActivityVisibility,
+    OccurrencePlace,
+    OccurrencePlaceRole,
     OccurrenceStatus,
     OccurrenceTimingKind,
 )
 from activities.services import create_occurrence
 from capacity.models import CapacityPool, CapacityReservation, CapacityReservationStatus
+from capacity.selectors import capacity_availability_many
 from commerce.models import CommerceOrder, PaymentMode
+from geography.models import Place
 from journeys.collaboration_models import JourneyBlocker, JourneyBlockerStatus
 from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestStatus, WorkflowKind
 from objectives.models import DossierAssignment, DossierJourneyDependency, DossierJourneyLink
@@ -259,6 +263,19 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertIsNone(pool["available"])
         self.assertFalse(pool["sold_out"])
 
+        second_pool = CapacityPool.objects.create(
+            activity=self.activity,
+            total_quantity=5,
+            label="Batch",
+        )
+        with self.assertNumQueries(1):
+            snapshots = capacity_availability_many(
+                [unlimited, second_pool],
+                now=timezone.now(),
+            )
+        self.assertIsNone(snapshots[unlimited.pk].available)
+        self.assertEqual(snapshots[second_pool.pk].available, 5)
+
         revoked = Access.objects.create(
             beneficiary=self.user,
             activity=self.activity,
@@ -320,6 +337,7 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()["data"]
         self.assertEqual(data["holder"]["relationship"], "purchased_for_other")
+        self.assertEqual(data["right"]["state"], "valid")
         self.assertIsNone(data["journey"])
         self.assertNotIn(self.other.email, str(response.json()))
 
@@ -341,6 +359,18 @@ class Z5DetailAPIContractTests(TestCase):
             timing_kind=OccurrenceTimingKind.DATE_ONLY,
             timezone="Africa/Lubumbashi",
             status=OccurrenceStatus.SCHEDULED,
+        )
+        place = Place.objects.create(
+            name="Maison Z5",
+            locality="Lubumbashi",
+            country_code="CD",
+            timezone="Africa/Lubumbashi",
+            created_by=self.user,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=occurrence,
+            place=place,
+            role=OccurrencePlaceRole.PRIMARY,
         )
         pool = CapacityPool.objects.create(
             activity=self.activity,
@@ -366,11 +396,16 @@ class Z5DetailAPIContractTests(TestCase):
         data = occurrence_response.json()["data"]
         self.assertEqual(data["timing"]["start_date"], "2026-11-04")
         self.assertIsNone(data["timing"]["start_at"])
+        self.assertEqual(data["place"]["name"], "Maison Z5")
+        self.assertEqual(data["place"]["locality"], "Lubumbashi")
         self.assertEqual(data["capacity"][0]["available"], 0)
         self.assertTrue(data["capacity"][0]["sold_out"])
         self.assertNotIn("held", data["capacity"][0])
         self.assertNotIn("committed", data["capacity"][0])
         self.assertNotIn("live", data["links"])
+        self.assertNotIn("queue", data)
+        self.assertNotIn("placement", data)
+        self.assertNotIn("checkpoint", data)
 
     def test_private_activity_and_occurrence_do_not_leak_by_uuid(self):
         private = Activity.objects.create(
@@ -454,6 +489,13 @@ class Z5DetailAPIContractTests(TestCase):
             timezone="Africa/Lubumbashi",
             status=OccurrenceStatus.SCHEDULED,
         )
+        draft_occurrence = create_occurrence(
+            activity=private,
+            start_date=date(2026, 12, 12),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.DRAFT,
+        )
         Journey.objects.create(
             initiated_by=self.user,
             beneficiary=self.user,
@@ -474,6 +516,10 @@ class Z5DetailAPIContractTests(TestCase):
         )
         self.assertEqual(
             self.client.get(f"/api/v1/occurrences/{other_occurrence.pk}/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/occurrences/{draft_occurrence.pk}/").status_code,
             404,
         )
 
