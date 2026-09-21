@@ -19,7 +19,7 @@ from activities.selectors import primary_place_for_occurrence
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission
 from capacity.selectors import (
-    capacity_availability,
+    capacity_availability_many,
     pools_for_activity,
     pools_for_occurrence,
 )
@@ -29,12 +29,17 @@ from core.participant_presentation import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
 from core.product_language import vocabulary_for
 from operations.participant_occurrence_live import resolve_participant_occurrence_live
+from organizations.models import OrganizationVerificationStatus
 
 
 PUBLIC_ACTIVITY_STATUSES = {
     ActivityStatus.PUBLISHED,
     ActivityStatus.CANCELLED,
     ActivityStatus.COMPLETED,
+}
+DIRECT_ACTIVITY_VISIBILITIES = {
+    ActivityVisibility.PUBLIC,
+    ActivityVisibility.UNLISTED,
 }
 PUBLIC_OCCURRENCE_STATUSES = {
     OccurrenceStatus.SCHEDULED,
@@ -47,6 +52,23 @@ def _authenticated(user):
     return bool(getattr(user, "is_authenticated", False))
 
 
+def _public_activity_detail_filter():
+    return (
+        Q(
+            visibility__in=DIRECT_ACTIVITY_VISIBILITIES,
+            status__in=PUBLIC_ACTIVITY_STATUSES,
+        )
+        & (
+            Q(space__isnull=True)
+            | ~Q(space__verification_status=OrganizationVerificationStatus.SUSPENDED)
+        )
+    )
+
+
+def _participant_activity_filter(user):
+    return Q(journeys__beneficiary=user) | Q(access_rights__beneficiary=user)
+
+
 def _visible_activity_queryset(user):
     queryset = Activity.objects.select_related(
         "space",
@@ -55,33 +77,62 @@ def _visible_activity_queryset(user):
     ).prefetch_related(
         "occurrences__place_links__place",
     )
-    public = Q(
-        visibility=ActivityVisibility.PUBLIC,
-        status__in=PUBLIC_ACTIVITY_STATUSES,
-    )
+    public = _public_activity_detail_filter()
     if not _authenticated(user):
-        return queryset.filter(public)
+        return queryset.filter(public).distinct()
 
-    allowed = activity_ids_with_permission(user, PermissionCode.ACTIVITY_MANAGE)
+    allowed = activity_ids_with_permission(user, PermissionCode.ACTIVITY_VIEW)
     if allowed is None:
         return queryset
-    personal = Q(owner_profile=user)
-    if allowed:
-        personal |= Q(pk__in=allowed)
-    return queryset.filter(public | personal).distinct()
+    contextual = Q(pk__in=allowed) if allowed else Q(pk__isnull=True)
+    return queryset.filter(
+        public
+        | Q(owner_profile=user)
+        | contextual
+        | _participant_activity_filter(user)
+    ).distinct()
+
+
+def _has_structural_activity_visibility(user, activity):
+    if not _authenticated(user):
+        return False
+    if activity.owner_profile_id == getattr(user, "pk", None):
+        return True
+    allowed = activity_ids_with_permission(user, PermissionCode.ACTIVITY_VIEW)
+    return allowed is None or activity.pk in set(allowed)
 
 
 def _visible_occurrence_queryset(user):
-    activities = _visible_activity_queryset(user).values_list("pk", flat=True)
-    queryset = Occurrence.objects.filter(activity_id__in=activities).select_related(
+    queryset = Occurrence.objects.select_related(
         "activity",
         "activity__space",
         "activity__owner_profile",
         "activity__event_vertical",
     ).prefetch_related("place_links__place")
+    public = Q(
+        status__in=PUBLIC_OCCURRENCE_STATUSES,
+        activity__visibility__in=DIRECT_ACTIVITY_VISIBILITIES,
+        activity__status__in=PUBLIC_ACTIVITY_STATUSES,
+    ) & (
+        Q(activity__space__isnull=True)
+        | ~Q(
+            activity__space__verification_status=OrganizationVerificationStatus.SUSPENDED
+        )
+    )
     if not _authenticated(user):
-        queryset = queryset.filter(status__in=PUBLIC_OCCURRENCE_STATUSES)
-    return queryset
+        return queryset.filter(public).distinct()
+
+    allowed = activity_ids_with_permission(user, PermissionCode.ACTIVITY_VIEW)
+    if allowed is None:
+        return queryset
+    contextual = Q(activity_id__in=allowed) if allowed else Q(pk__isnull=True)
+    return queryset.filter(
+        public
+        | Q(activity__owner_profile=user)
+        | contextual
+        | Q(activity__journeys__beneficiary=user)
+        | Q(activity__access_rights__beneficiary=user)
+    ).distinct()
 
 
 def _iso(value):
@@ -114,11 +165,11 @@ def _owner(activity):
 
 
 def _capacity_rows(pools, *, now):
+    pools = [pool for pool in pools if pool.is_active]
+    availability_by_id = capacity_availability_many(pools, now=now)
     result = []
     for pool in pools:
-        if not pool.is_active:
-            continue
-        availability = capacity_availability(pool, now=now)
+        availability = availability_by_id[pool.pk]
         state = (
             "unlimited"
             if availability.unlimited
@@ -218,9 +269,18 @@ class ActivityDetailAPIView(APIView):
     def get(self, request, pk):
         observed_at = timezone.now()
         activity = get_object_or_404(_visible_activity_queryset(request.user), pk=pk)
-        authorized_private = not (
-            activity.visibility == ActivityVisibility.PUBLIC
+        public_detail = (
+            activity.visibility in DIRECT_ACTIVITY_VISIBILITIES
             and activity.status in PUBLIC_ACTIVITY_STATUSES
+            and (
+                activity.space_id is None
+                or activity.space.verification_status
+                != OrganizationVerificationStatus.SUSPENDED
+            )
+        )
+        structural_visibility = _has_structural_activity_visibility(
+            request.user,
+            activity,
         )
         occurrences = list(
             activity.occurrences.prefetch_related("place_links__place").order_by(
@@ -229,11 +289,17 @@ class ActivityDetailAPIView(APIView):
                 "id",
             )
         )
-        if not authorized_private:
+        if not structural_visibility:
             occurrences = [
                 row for row in occurrences if row.status in PUBLIC_OCCURRENCE_STATUSES
             ]
-        capacity = _capacity_rows(pools_for_activity(activity), now=observed_at)
+        visible_occurrence_ids = {row.pk for row in occurrences}
+        pools = [
+            pool
+            for pool in pools_for_activity(activity)
+            if pool.occurrence_id is None or pool.occurrence_id in visible_occurrence_ids
+        ]
+        capacity = _capacity_rows(pools, now=observed_at)
         availability = (
             "cancelled"
             if activity.status == ActivityStatus.CANCELLED
@@ -285,7 +351,7 @@ class ActivityDetailAPIView(APIView):
                 projection="activity.detail",
                 data=data,
                 generated_at=observed_at,
-                scope="authorized" if authorized_private else "public",
+                scope="authorized" if structural_visibility or not public_detail else "public",
             )
         )
 
@@ -297,10 +363,19 @@ class OccurrenceDetailAPIView(APIView):
         observed_at = timezone.now()
         occurrence = get_object_or_404(_visible_occurrence_queryset(request.user), pk=pk)
         activity = occurrence.activity
-        authorized_private = not (
-            activity.visibility == ActivityVisibility.PUBLIC
+        public_detail = (
+            activity.visibility in DIRECT_ACTIVITY_VISIBILITIES
             and activity.status in PUBLIC_ACTIVITY_STATUSES
             and occurrence.status in PUBLIC_OCCURRENCE_STATUSES
+            and (
+                activity.space_id is None
+                or activity.space.verification_status
+                != OrganizationVerificationStatus.SUSPENDED
+            )
+        )
+        structural_visibility = _has_structural_activity_visibility(
+            request.user,
+            activity,
         )
         pools = list(pools_for_occurrence(occurrence))
         if not pools:
@@ -367,6 +442,6 @@ class OccurrenceDetailAPIView(APIView):
                 projection="occurrence.detail",
                 data=data,
                 generated_at=observed_at,
-                scope="authorized" if authorized_private else "public",
+                scope="authorized" if structural_visibility or not public_detail else "public",
             )
         )
