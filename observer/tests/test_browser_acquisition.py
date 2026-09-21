@@ -279,3 +279,51 @@ class BrowserRenderAcquisitionTests(TestCase):
             self.policy.profile_fingerprint,
             other.profile_fingerprint,
         )
+
+
+    def test_total_wire_budget_overflow_fails_without_artifact(self):
+        response = SafeHttpResourceResult(
+            requested_url="https://example.test/app",
+            response_url="https://example.test/app",
+            status=200,
+            headers={"content-type": "text/html"},
+            body=b"12345",
+            wire_bytes=5,
+            decoded_bytes=5,
+        )
+        session = FakeSession(response)
+        policy = BrowserAcquisitionPolicy(
+            http_policy=self.http_policy,
+            playwright_version="test",
+            max_total_wire_bytes=4,
+            max_total_decoded_bytes=8,
+        )
+        acquisition, _session = self.acquisition(
+            StaticRenderer(
+                self.render_result(),
+                call_loader=True,
+            ),
+            session=session,
+            policy=policy,
+        )
+
+        result = acquisition.acquire(self.claim)
+
+        self.assertEqual(result.outcome, ObservationOutcome.FAILED)
+        self.assertEqual(
+            result.failure_code,
+            "browser.total_wire_budget_exceeded",
+        )
+        self.assertEqual(result.artifacts, ())
+        self.assertTrue(session.closed)
+
+    def test_browser_policy_rejects_unaudited_engine(self):
+        with self.assertRaisesRegex(
+            Exception,
+            "audited chromium",
+        ):
+            BrowserAcquisitionPolicy(
+                http_policy=self.http_policy,
+                engine="firefox",
+                playwright_version="test",
+            )
