@@ -50,6 +50,12 @@ from payments.models import (
     PaymentObligationReason,
     PaymentObligationStatus,
 )
+from questionnaires.services import (
+    create_form,
+    create_form_version,
+    publish_form_version,
+    request_form,
+)
 from requirements.contracts import RequirementAssessmentState
 from services.models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment
 from services.requirement_services import assess_requirement, derive_requirement_consequence
@@ -199,6 +205,54 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertEqual(
             satisfied_data["payment"]["obligations"][0]["state"],
             "satisfied",
+        )
+
+    def test_journey_exposes_complete_form_only_from_canonical_readiness_and_api(self):
+        grant_activity_role(
+            profile=self.user,
+            activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.user,
+            source="z5-test",
+        )
+        form = create_form(
+            activity=self.activity,
+            key="z5-form",
+            title="Formulaire Z5",
+            actor=self.user,
+        )
+        version = create_form_version(
+            form=form,
+            actor=self.user,
+            title="Formulaire Z5",
+        )
+        publish_form_version(form_version=version, actor=self.user)
+        journey = self.journey(status=JourneyStatus.CONFIRMED)
+        form_request = request_form(
+            form_version=version,
+            journey=journey,
+            actor=self.user,
+            required=True,
+        )
+
+        self.client.force_authenticate(self.user)
+        response = self.client.get(f"/api/v1/me/journeys/{journey.pk}/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        row = next(item for item in data["forms"] if item["id"] == str(form_request.pk))
+        self.assertIn("complete_form", data["capabilities"])
+        self.assertEqual(row["capabilities"], ["complete_form"])
+        self.assertEqual(
+            row["links"]["detail"],
+            f"/api/v1/questionnaires/requests/{form_request.pk}/",
+        )
+        self.assertEqual(
+            row["links"]["save"],
+            f"/api/v1/questionnaires/requests/{form_request.pk}/save/",
+        )
+        self.assertEqual(
+            row["links"]["submit"],
+            f"/api/v1/questionnaires/requests/{form_request.pk}/submit/",
         )
 
     def test_activity_personal_relation_reuses_existing_journey_and_access(self):
