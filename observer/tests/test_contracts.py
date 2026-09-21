@@ -87,6 +87,10 @@ class ObserverContractTests(TestCase):
             artifact.artifact_ref,
         )
         self.assertEqual(
+            descriptor.observation_ref,
+            artifact.observation_ref,
+        )
+        self.assertEqual(
             descriptor.transformation.name,
             "pdf_text",
         )
@@ -121,6 +125,7 @@ class ObserverContractTests(TestCase):
     def test_not_modified_material_cannot_manufacture_new_artifact(self):
         descriptor = ArtifactDescriptor(
             artifact_ref="observer:artifact:v1:new",
+            observation_ref="observer:observation:v1:bad-304",
             role="response_body",
             origin=ArtifactOrigin.CAPTURED,
             completeness=ArtifactCompleteness.COMPLETE,
@@ -175,6 +180,7 @@ class ObserverContractTests(TestCase):
         )
         descriptor = ArtifactDescriptor(
             artifact_ref="observer:artifact:v1:body",
+            observation_ref=observation_ref,
             producing_attempt_ref=attempt.attempt_ref,
             role="http_response_body",
             origin=ArtifactOrigin.CAPTURED,
@@ -209,6 +215,8 @@ class ObserverContractTests(TestCase):
             artifacts=(descriptor,),
         )
 
+        self.assertEqual(material.contract_version, 2)
+        self.assertTrue(material.material_key.startswith("observer-material:v2:"))
         self.assertTrue(material.has_interpretation_material)
         self.assertEqual(
             material.attempts[0].strategy,
