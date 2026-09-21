@@ -4,7 +4,7 @@
 >
 > Branche de réalisation : `task-z5-engaged-detail-projections`.
 >
-> Réconciliation initiale : Z2 déjà intégré, Z3 intégré avant le wiring Z5. Z4 restait parallèle ; Z5 isole donc ses routes personnelles dans `core.api.detail_urls` au lieu de réécrire la composition `core.api.urls`.
+> Réconciliation finale : Z2, Z3 et Z4 sont intégrés. Z5 est réconcilié sur `main@50f47015df7f19dea274bee15e2cee1bd82a3807` et conserve ses profondeurs personnelles dans `core.api.detail_urls` sans réécrire la composition `core.api.urls` de Z4.
 
 ## 1. Mission
 
@@ -120,7 +120,7 @@ Un PersonalAsset, JourneyArtifact, Proof ou Credential existant ne change jamais
 
 Les détails owner-domain sont distincts du détail exploratoire Z3.
 
-Une Activity publique non-draft/non-archived peut être ouverte publiquement. Une Activity privée n'est ouverte que par son propriétaire ou une autorité Activity canonique.
+Une Activity `public` ou `unlisted` non-draft/non-archived peut être ouverte directement ; `unlisted` reste exclue de la collection Discover. Une Activity privée est ouverte uniquement par son propriétaire, une autorité `ACTIVITY_VIEW` canonique ou un participant qui possède déjà une Journey/Access légitime. Cette relation participant n'accorde aucune autorité de gestion et, pour Occurrence, reste bornée à l'Occurrence réellement engagée.
 
 La relation personnelle réutilise :
 
@@ -144,7 +144,7 @@ Le lien Live n'est exposé que si `resolve_participant_occurrence_live()` fourni
 
 Z5 ne crée pas d'endpoint Capacity universel.
 
-Activity/Occurrence projettent seulement les agrégats autorisés de `CapacityAvailability` :
+Activity/Occurrence projettent seulement les agrégats autorisés de `CapacityAvailability`. Z5 résout plusieurs pools en une agrégation batchée afin d'éviter un N+1 :
 
 ```text
 total
@@ -239,7 +239,7 @@ Z5 n'annonce une capability que lorsque le serveur connaît réellement l'action
 
 Dans la v1, le principal handoff explicitement exposé est `open_live` lorsqu'Operations confirme la perspective participant.
 
-Les mutations qui n'ont aujourd'hui qu'une surface Web ne sont pas maquillées en capabilities Flutter. Le détail Journey lie les APIs existantes Preparation, Questionnaire, Payment et les nouveaux détails owner-domain sans copier leur contenu profond.
+Les mutations qui n'ont aujourd'hui qu'une surface Web ne sont pas maquillées en capabilities Flutter. Le détail Journey lie les APIs existantes Preparation, Questionnaire, Payment et les nouveaux détails owner-domain sans copier leur contenu profond. Les `PaymentObligation` restent owner-derived et sont projetées avec leur état/montant/devise ; une capability `pay` n'est pas inventée tant qu'une mutation API consommable correspondante n'est pas vérifiée.
 
 ## 11. Confidentialité et IDOR
 

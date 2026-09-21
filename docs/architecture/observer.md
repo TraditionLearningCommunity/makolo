@@ -1,4 +1,4 @@
-# Observateur Makolo — architecture runtime, Lot 3 HTTP et Lot 4 Browser public
+# Observateur Makolo — architecture runtime complète, Lots 1 à 5 et contrat Interpréteur
 
 ## 1. Rôle
 
@@ -333,7 +333,7 @@ La construction et la soumission du rapport sont séparées. L’ack Observer n�
 
 ### Vers Interpréteur
 
-`ObservationMaterial` expose les descriptors d’artefacts ou les références revalidées, sans exposer le chemin physique de stockage.
+`ObservationMaterial v2` expose les descriptors d’artefacts ou les références revalidées, sans exposer le chemin physique de stockage.
 
 Le Lot 3 ne choisit pas encore la stratégie d’interprétation.
 
@@ -744,8 +744,98 @@ explicitement :
 - orchestration live du `ObservationReport` vers une
   `ExpansionPolicy` Prospecteur : le contrat existe, mais aucune valeur de
   budget/expansion de production ne doit être inventée ;
-- orchestration aval complète vers l'Interpréteur.
+- implémentation de l'Interpréteur lui-même.
 
 Le profil adaptive reste un mécanisme **d'acquisition technique**. Il ne
 devient ni un agent autonome, ni un scraper sémantique, ni un nouveau domaine
 métier.
+
+## 19. Fermeture de l'Acteur 2 — contrat vers Interpréteur
+
+La responsabilité complète de l'Observateur est :
+
+> **exécuter de manière sûre, bornée et traçable les observations de ressources externes déjà identifiées, préserver fidèlement les représentations réellement obtenues — directement par HTTP ou, lorsque techniquement nécessaire, par rendu Browser contrôlé — et fournir ces matériaux aux acteurs aval sans les transformer en vérités métier.**
+
+La frontière aval canonique est `ObservationMaterial v2`.
+
+~~~text
+ObservationTarget
+      ↓
+Observer inbox / scheduling / claim / lease
+      ↓
+HTTP
+      ↓
+Browser explicite ou adaptive si techniquement justifié
+      ↓
+Observation
+  ├─ Attempt(s)
+  ├─ ObservedArtifact(s)
+  └─ revalidation 304 éventuelle
+      ↓
+ObservationMaterial
+      ↓
+Interpréteur
+~~~
+
+`ObservationMaterial v2` est une projection reconstructible de la vérité durable Observer. Il ne copie pas les blobs. Il expose seulement les références et descripteurs nécessaires pour que l'Interpréteur puisse lire les artefacts privés via `ArtifactReaderPort`. Le runtime Django fournit `DjangoObservationMaterialSource` et `DjangoArtifactReader` comme adaptateurs privés concrets ; aucun refetch Internet n'est nécessaire.
+
+Le contrat expose au minimum :
+
+- identité `target_key`, handoff et génération ;
+- `started_at`, `observed_at`, `completed_at` ;
+- locator demandé et locator final ;
+- profil, fingerprint de profil et fingerprint de policy ;
+- outcome technique et statut HTTP éventuel ;
+- Attempts ordonnés avec stratégie, outcome, timing, redirects, octets et failure technique ;
+- artefacts observés avec `artifact_ref`, `observation_ref` propriétaire, rôle, origine `captured/rendered/derived`, complétude, MIME, charset, digest et `producing_attempt_ref` ;
+- artefacts antérieurs revalidés par une Observation `NOT_MODIFIED`.
+
+Une Observation `FAILED` peut donc avoir deux états distincts :
+
+~~~text
+FAILED + aucun artefact
+→ aucun matériau interprétable
+
+FAILED + artefact(s) antérieur(s) du même épisode
+→ matériau réellement obtenu avant l'échec final
+~~~
+
+Par exemple, en adaptive, un Attempt HTTP réussi puis un Browser en timeout reste un échec technique final mais le corps HTTP réellement capturé demeure disponible et traçable pour l'Interpréteur.
+
+Une Observation `NOT_MODIFIED` ne fabrique aucun nouvel artefact. Elle référence les artefacts durables antérieurs revalidés dans la même série, avec leurs descripteurs techniques et leur `observation_ref` d'origine, afin de préserver la provenance temporelle du baseline.
+
+Le flux vers Prospecteur reste séparé :
+
+~~~text
+ObservationReport
+→ structure uniquement : links, redirects, canonical, feeds, sitemaps...
+
+ObservationMaterial
+→ contenu réellement observé + provenance technique
+~~~
+
+Aucun de ces contrats ne contient `Activity`, `Occurrence`, `Requirement`, `Proof`, `Access`, `Journey`, score métier ou conclusion sémantique.
+
+### 19.1 Vérité durable et reconstruction
+
+Sont durables et irremplaçables lorsqu'ils ont été réellement observés :
+
+- `ObserverHandoff` ;
+- `ObservationSeries` ;
+- `Observation` ;
+- `ObservationAttempt` ;
+- `ObservedArtifact` ;
+- `ObserverBlob` tant que la politique de rétention ne l'a pas purgé ;
+- relations de revalidation 304.
+
+Sont reconstructibles :
+
+- `ObservationMaterial v2` ;
+- backlog et projections Operations ;
+- métriques agrégées dérivées.
+
+Le contenu externe capturé n'est donc jamais traité comme un simple cache : la source peut changer après l'observation.
+
+### 19.2 Critère de fermeture
+
+L'Acteur 2 est fermé pour cette phase lorsque les Lots 1 à 5 sont intégrés, que les gates Observer sont vertes, que `ObservationMaterial v2` expose toute la provenance nécessaire sans refetch Internet, et que l'Interpréteur peut commencer son travail à partir de cette matière sans demander à l'Observateur de comprendre ce qu'elle signifie.
