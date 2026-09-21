@@ -183,7 +183,10 @@ class BrowserRenderAcquisition:
                 final_locator=rendered.final_locator,
                 wire_bytes=session.stats.wire_bytes,
                 decoded_bytes=session.stats.decoded_bytes,
-                redirect_count=rendered.redirect_count,
+                redirect_count=(
+                    session.stats.redirect_count
+                    + rendered.redirect_count
+                ),
             )
 
         artifacts = []
@@ -236,7 +239,10 @@ class BrowserRenderAcquisition:
             final_locator=rendered.final_locator,
             response_status=rendered.response_status,
             artifacts=tuple(artifacts),
-            redirect_count=rendered.redirect_count,
+            redirect_count=(
+                    session.stats.redirect_count
+                    + rendered.redirect_count
+                ),
             wire_bytes=session.stats.wire_bytes,
             decoded_bytes=session.stats.decoded_bytes,
         )
