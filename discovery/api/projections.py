@@ -224,6 +224,7 @@ def project_occurrence_possibility(
     card,
     *,
     saved: bool | None = None,
+    can_save: bool = False,
     watch_state: str | None = None,
 ) -> dict:
     place = None
@@ -248,7 +249,7 @@ def project_occurrence_possibility(
     }
     capabilities = ["view"]
     links = {"detail": card.url}
-    if saved is not None:
+    if can_save and saved is not None:
         capabilities.append("unsave" if saved else "save")
     relation_action = _existing_relation_action(card, item.participant)
     if relation_action is not None:
