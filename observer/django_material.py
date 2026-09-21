@@ -66,6 +66,7 @@ def build_observation_material(
             )
         return ArtifactDescriptor(
             artifact_ref=artifact.artifact_ref,
+            observation_ref=artifact.observation.observation_ref,
             producing_attempt_ref=(
                 artifact.producing_attempt.attempt_ref
                 if artifact.producing_attempt_id
@@ -188,3 +189,10 @@ def build_observation_material(
         revalidated_artifact_refs=revalidated_refs,
         revalidated_artifacts=revalidated_descriptors,
     )
+
+
+class DjangoObservationMaterialSource:
+    """Concrete private material source for the future Interpreter."""
+
+    def get_material(self, observation_ref: str) -> ObservationMaterial:
+        return build_observation_material(observation_ref)
