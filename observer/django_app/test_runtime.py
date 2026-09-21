@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 from asgiref.sync import async_to_sync
 from crawlee import Request
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase
 
