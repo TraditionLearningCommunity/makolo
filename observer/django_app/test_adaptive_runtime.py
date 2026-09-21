@@ -251,6 +251,7 @@ class AdaptiveRuntimeTests(TestCase):
             observation.artifacts.get().role,
             "http_response_body",
         )
+        observation.series.refresh_from_db()
         self.assertEqual(
             observation.series.retry_due_at,
             self.now + timedelta(minutes=1),
