@@ -130,13 +130,21 @@ def _visible_occurrence_queryset(user):
         public
         | Q(activity__owner_profile=user)
         | contextual
-        | Q(journeys__beneficiary=user)
-        | Q(access_rights__beneficiary=user)
         | Q(
+            status__in=PUBLIC_OCCURRENCE_STATUSES,
+            journeys__beneficiary=user,
+        )
+        | Q(
+            status__in=PUBLIC_OCCURRENCE_STATUSES,
+            access_rights__beneficiary=user,
+        )
+        | Q(
+            status__in=PUBLIC_OCCURRENCE_STATUSES,
             activity__journeys__beneficiary=user,
             activity__journeys__occurrence__isnull=True,
         )
         | Q(
+            status__in=PUBLIC_OCCURRENCE_STATUSES,
             activity__access_rights__beneficiary=user,
             activity__access_rights__occurrence__isnull=True,
         )
