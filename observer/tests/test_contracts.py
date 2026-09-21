@@ -95,16 +95,30 @@ class ObserverContractTests(TestCase):
             ),
             observation_ref=observation_ref,
             target_key="web_url:v1:" + ("b" * 64),
+            target_kind="web_url",
             source_handoff_key="observation:v1:" + ("c" * 64),
             source_handoff_generation=1,
+            trigger=ObservationTrigger.WATCH,
             started_at=self.now,
+            observed_at=self.now + timedelta(milliseconds=500),
             completed_at=self.now + timedelta(seconds=1),
             requested_locator="https://example.test/",
             observation_profile_ref="public-http",
             observation_profile_fingerprint="profile-v1",
+            policy_fingerprint="policy-v1",
             outcome=ObservationOutcome.NOT_MODIFIED,
-            revalidated_artifact_refs=(
-                "observer:artifact:v1:old",
+            response_status=304,
+            revalidated_artifacts=(
+                ArtifactDescriptor(
+                    artifact_ref="observer:artifact:v1:old",
+                    observation_ref="observer:observation:v1:baseline",
+                    role="http_response_body",
+                    origin=ArtifactOrigin.CAPTURED,
+                    completeness=ArtifactCompleteness.COMPLETE,
+                    byte_length=4,
+                    content_digest=self.digest,
+                    captured_at=self.now - timedelta(days=1),
+                ),
             ),
         )
         self.assertEqual(material.artifacts, ())
@@ -112,6 +126,7 @@ class ObserverContractTests(TestCase):
     def test_not_modified_material_cannot_manufacture_new_artifact(self):
         descriptor = ArtifactDescriptor(
             artifact_ref="observer:artifact:v1:new",
+            observation_ref="observer:observation:v1:bad-304",
             role="response_body",
             origin=ArtifactOrigin.CAPTURED,
             completeness=ArtifactCompleteness.COMPLETE,
@@ -127,16 +142,30 @@ class ObserverContractTests(TestCase):
                 ),
                 observation_ref=observation_ref,
                 target_key="web_url:v1:" + ("b" * 64),
+                target_kind="web_url",
                 source_handoff_key="observation:v1:" + ("c" * 64),
                 source_handoff_generation=1,
+                trigger=ObservationTrigger.WATCH,
                 started_at=self.now,
+                observed_at=self.now + timedelta(milliseconds=500),
                 completed_at=self.now + timedelta(seconds=1),
                 requested_locator="https://example.test/",
                 observation_profile_ref="public-http",
                 observation_profile_fingerprint="profile-v1",
+                policy_fingerprint="policy-v1",
                 outcome=ObservationOutcome.NOT_MODIFIED,
+                response_status=304,
                 artifacts=(descriptor,),
-                revalidated_artifact_refs=(
-                    "observer:artifact:v1:old",
+                revalidated_artifacts=(
+                    ArtifactDescriptor(
+                        artifact_ref="observer:artifact:v1:old",
+                        observation_ref="observer:observation:v1:baseline",
+                        role="http_response_body",
+                        origin=ArtifactOrigin.CAPTURED,
+                        completeness=ArtifactCompleteness.COMPLETE,
+                        byte_length=4,
+                        content_digest=self.digest,
+                        captured_at=self.now - timedelta(days=1),
+                    ),
                 ),
             )
