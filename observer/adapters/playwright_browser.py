@@ -100,13 +100,23 @@ class PlaywrightBrowserRenderer:
         def handle_route(route) -> None:
             request = route.request
             page = page_holder["page"]
+            is_navigation = bool(request.is_navigation_request())
             is_main = bool(
                 page is not None
-                and request.is_navigation_request()
+                and is_navigation
                 and request.frame == page.main_frame
             )
             resource_type = str(request.resource_type or "other").lower()
             method = str(request.method or "").upper()
+
+            if (
+                page is not None
+                and is_navigation
+                and request.frame.page != page
+            ):
+                state["incomplete"] = True
+                route.abort(error_code="blockedbyclient")
+                return
 
             if resource_type in policy.blocked_resource_types:
                 route.abort(error_code="blockedbyclient")
