@@ -197,6 +197,14 @@ Le Lot 5 **n'ajoute pas** :
 
 L'Observateur continue de construire un `ObservationReport` structure-only et un `ObservationMaterial` pour l'aval. Le DOM rendu est un artefact technique, pas une interprétation.
 
+### Handoff vers Interpréteur
+
+L'Interpréteur consomme `ObservationMaterial`; il ne refait ni `GET` Internet ni rendu Chromium pour reconstruire ce que l'Observateur a déjà vu.
+
+Le matériau aval expose l'identité de cible/handoff, les temps d'observation, le profil et la policy, les Attempts ordonnés, les artefacts avec leur `producing_attempt_ref`, le statut HTTP éventuel et les références/descripteurs de revalidation 304. Le contenu reste dans le storage privé Observer et se lit par référence d'artefact : ne pas dupliquer durablement les blobs pour fabriquer un « input Interpreter ».
+
+Une Observation `FAILED` avec zéro artefact signifie qu'aucun matériau interprétable n'a été obtenu. Une Observation `FAILED` avec un artefact HTTP déjà persisté — par exemple si Browser échoue après HTTP en mode adaptive — conserve ce matériau et sa provenance. Un `404` avec corps capturé reste un résultat technique observable et ne devient jamais, ici, une conclusion métier.
+
 ### Arrêt et incident
 
 Le contrôle Operations `observer` est vérifié avant l'ouverture de la queue puis avant chaque nouveau claim. Le désactiver suspend les nouveaux travaux sans purger Crawlee.

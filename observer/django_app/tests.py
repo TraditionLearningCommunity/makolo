@@ -256,6 +256,17 @@ class ObserverFoundationTests(TestCase):
             material.outcome,
             ObservationOutcome.OBSERVED,
         )
+        self.assertEqual(material.observed_at, observation.observed_at)
+        self.assertEqual(material.response_status, 200)
+        self.assertEqual(
+            material.policy_fingerprint,
+            "observer-policy-v1",
+        )
+        self.assertEqual(len(material.attempts), 1)
+        self.assertEqual(
+            material.attempts[0].strategy.value,
+            "direct_http",
+        )
         self.assertEqual(len(material.artifacts), 1)
         descriptor = material.artifacts[0]
         self.assertEqual(
@@ -319,6 +330,12 @@ class ObserverFoundationTests(TestCase):
             material.revalidated_artifact_refs,
             (artifact.artifact_ref,),
         )
+        self.assertEqual(len(material.revalidated_artifacts), 1)
+        self.assertEqual(
+            material.revalidated_artifacts[0].artifact_ref,
+            artifact.artifact_ref,
+        )
+        self.assertTrue(material.has_interpretation_material)
 
     def test_not_modified_cannot_revalidate_artifact_from_other_profile(self):
         first = self.finalized_observation()
