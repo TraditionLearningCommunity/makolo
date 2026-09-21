@@ -13,7 +13,10 @@ from discovery.card_contract import (
     RepresentationPresentation,
 )
 from discovery.representation import resolve_activity_representation
-from groups.selectors import eligible_activity_ids_for_profile
+from groups.selectors import (
+    eligible_activity_ids_for_profile,
+    filter_queryset_by_activity_group_eligibility,
+)
 
 from .selectors import funding_progress, public_fundings
 
@@ -59,15 +62,13 @@ def public_funding_discovery_items(
             | Q(activity__owner_profile__last_name__icontains=text)
             | Q(activity__owner_profile__username__icontains=text)
         ).distinct()
-    fundings = list(queryset[:DISCOVERY_FUNDING_CANDIDATE_LIMIT])
-    eligible_ids = eligible_activity_ids_for_profile(
+    queryset = filter_queryset_by_activity_group_eligibility(
+        queryset,
         profile,
-        [funding.activity_id for funding in fundings],
     )
     return [
         _funding_discovery_row(funding)
-        for funding in fundings
-        if funding.activity_id in eligible_ids
+        for funding in queryset[:DISCOVERY_FUNDING_CANDIDATE_LIMIT]
     ]
 
 
