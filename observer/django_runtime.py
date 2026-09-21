@@ -28,7 +28,10 @@ from .django_app.models import (
 from .django_artifacts import store_blob
 from .django_store import get_or_create_observation_series
 from .errors import ObserverContractError, ObserverStateConflictError
-from .ports import ObservationAcquisitionPort
+from .ports import (
+    ObservationAcquisitionPlanPort,
+    ObservationAcquisitionPort,
+)
 from .runtime_contracts import (
     AcquisitionResult,
     ObservationBacklog,
@@ -580,14 +583,13 @@ def _open_attempt_for_claim(
 
 
 @transaction.atomic
-def _finalize_claim(
+def _finalize_attempt(
     claim: ObservationClaim,
     *,
     attempt_id: int,
     result: AcquisitionResult,
-    policy: ObserverRuntimePolicy,
     now: datetime,
-) -> Observation:
+) -> tuple[Observation, tuple[ObservedArtifact, ...]]:
     observation = _lock_queryset(
         Observation.objects.filter(
             observation_ref=claim.observation_ref,
@@ -608,7 +610,7 @@ def _finalize_claim(
         or observation.lease_expires_at <= now
     ):
         raise ObserverStateConflictError(
-            "observation claim lease expired before finalization"
+            "observation claim lease expired before attempt finalization"
         )
 
     attempt = _lock_queryset(
@@ -672,6 +674,58 @@ def _finalize_claim(
             artifact.save(force_insert=True)
             created_artifacts.append(artifact)
 
+    if result.revalidated_artifact_ref:
+        series = observation.series
+        artifact = (
+            ObservedArtifact.objects.select_related("observation__series")
+            .filter(
+                artifact_ref=result.revalidated_artifact_ref,
+                observation__series=series,
+            )
+            .first()
+        )
+        if artifact is None:
+            raise ObserverStateConflictError(
+                "revalidated artifact does not belong to this observation series"
+            )
+        observation.revalidated_artifacts.add(artifact)
+
+    return observation, tuple(created_artifacts)
+
+
+@transaction.atomic
+def _finalize_observation(
+    claim: ObservationClaim,
+    *,
+    result: AcquisitionResult,
+    validator_result: AcquisitionResult | None,
+    validator_artifacts: tuple[ObservedArtifact, ...],
+    policy: ObserverRuntimePolicy,
+    now: datetime,
+) -> Observation:
+    observation = _lock_queryset(
+        Observation.objects.filter(
+            observation_ref=claim.observation_ref,
+        )
+    ).select_related("series").first()
+    if observation is None:
+        raise ObserverStateConflictError("unknown claimed observation")
+    if (
+        observation.lifecycle != ObservationLifecycle.OPEN.value
+        or str(observation.claim_token) != claim.claim_token
+        or observation.claimed_by != claim.worker_id
+    ):
+        raise ObserverStateConflictError(
+            "observation claim is no longer current"
+        )
+    if (
+        observation.lease_expires_at is None
+        or observation.lease_expires_at <= now
+    ):
+        raise ObserverStateConflictError(
+            "observation claim lease expired before finalization"
+        )
+
     observation.lifecycle = ObservationLifecycle.FINALIZED.value
     observation.outcome = result.outcome.value
     observation.observed_at = result.observed_at
@@ -697,51 +751,20 @@ def _finalize_claim(
     series = _lock_queryset(
         ObservationSeries.objects.filter(pk=observation.series_id)
     ).get()
-
-    if result.revalidated_artifact_ref:
-        artifact = (
-            ObservedArtifact.objects.select_related("observation__series")
-            .filter(
-                artifact_ref=result.revalidated_artifact_ref,
-                observation__series=series,
-            )
-            .first()
-        )
-        if artifact is None:
-            raise ObserverStateConflictError(
-                "revalidated artifact does not belong to this observation series"
-            )
-        observation.revalidated_artifacts.add(artifact)
-
     series_fields = []
-    if result.outcome is ObservationOutcome.FAILED:
-        if result.retry_at is not None and (
-            series.retry_due_at is None
-            or result.retry_at < series.retry_due_at
-        ):
-            series.retry_due_at = result.retry_at
-            series_fields.append("retry_due_at")
-    else:
-        if series.retry_due_at is not None:
-            series.retry_due_at = None
-            series_fields.append("retry_due_at")
-        if policy.watch_interval_seconds is not None:
-            watch_due_at = now + timedelta(
-                seconds=policy.watch_interval_seconds
-            )
-            series.watch_due_at = watch_due_at
-            series_fields.append("watch_due_at")
 
-        # A successful response replaces the HTTP validator snapshot. Missing
-        # validators on a fresh representation must clear stale values.
-        if result.outcome is ObservationOutcome.OBSERVED:
-            if created_artifacts:
-                series.http_etag = result.validator_etag or ""
+    # HTTP validators belong to the HTTP representation that produced them,
+    # not necessarily to the final adaptive stage. Preserve that snapshot
+    # even when a later Browser attempt fails.
+    if validator_result is not None:
+        if validator_result.outcome is ObservationOutcome.OBSERVED:
+            if validator_artifacts:
+                series.http_etag = validator_result.validator_etag or ""
                 series.http_last_modified = (
-                    result.validator_last_modified or ""
+                    validator_result.validator_last_modified or ""
                 )
                 series.validator_artifact_ref = (
-                    created_artifacts[0].artifact_ref
+                    validator_artifacts[0].artifact_ref
                 )
             else:
                 series.http_etag = ""
@@ -754,68 +777,165 @@ def _finalize_claim(
                     "validator_artifact_ref",
                 ]
             )
-        elif result.outcome is ObservationOutcome.NOT_MODIFIED:
-            if result.validator_etag is not None:
-                series.http_etag = result.validator_etag
+        elif validator_result.outcome is ObservationOutcome.NOT_MODIFIED:
+            if validator_result.validator_etag is not None:
+                series.http_etag = validator_result.validator_etag
                 series_fields.append("http_etag")
-            if result.validator_last_modified is not None:
-                series.http_last_modified = result.validator_last_modified
+            if validator_result.validator_last_modified is not None:
+                series.http_last_modified = (
+                    validator_result.validator_last_modified
+                )
                 series_fields.append("http_last_modified")
-            if result.revalidated_artifact_ref:
+            if validator_result.revalidated_artifact_ref:
                 series.validator_artifact_ref = (
-                    result.revalidated_artifact_ref
+                    validator_result.revalidated_artifact_ref
                 )
                 series_fields.append("validator_artifact_ref")
+
+    if result.outcome is ObservationOutcome.FAILED:
+        if result.retry_at is not None and (
+            series.retry_due_at is None
+            or result.retry_at < series.retry_due_at
+        ):
+            series.retry_due_at = result.retry_at
+            series_fields.append("retry_due_at")
+    else:
+        if series.retry_due_at is not None:
+            series.retry_due_at = None
+            series_fields.append("retry_due_at")
+        if policy.watch_interval_seconds is not None:
+            series.watch_due_at = now + timedelta(
+                seconds=policy.watch_interval_seconds
+            )
+            series_fields.append("watch_due_at")
 
     if series_fields:
         deduplicated = list(dict.fromkeys(series_fields))
         deduplicated.append("updated_at")
         series.save(update_fields=deduplicated)
-
     return observation
+
 
 
 def execute_claim(
     claim: ObservationClaim,
     *,
-    acquisition: ObservationAcquisitionPort,
+    acquisition: ObservationAcquisitionPort | ObservationAcquisitionPlanPort,
     policy: ObserverRuntimePolicy,
     now: datetime | None = None,
     completed_at: datetime | None = None,
 ) -> Observation:
     started_at = _aware("now", now)
-    try:
-        strategy = AttemptStrategy(acquisition.strategy)
-    except (AttributeError, ValueError) as exc:
-        raise ObserverContractError(
-            "acquisition port must declare a valid strategy"
-        ) from exc
-    attempt = _open_attempt_for_claim(
-        claim,
-        now=started_at,
-        strategy=strategy,
-    )
+    is_plan = callable(getattr(acquisition, "initial_acquisition", None))
+    if is_plan:
+        current = acquisition.initial_acquisition(claim)
+    else:
+        current = acquisition
+
+    final_result = None
+    final_artifacts: tuple[ObservedArtifact, ...] = ()
+    validator_result = None
+    validator_artifacts: tuple[ObservedArtifact, ...] = ()
     unexpected_error = None
-    try:
-        result = acquisition.acquire(claim)
-        if not isinstance(result, AcquisitionResult):
+    attempt_started_at = started_at
+
+    for stage_index in range(4):
+        try:
+            strategy = AttemptStrategy(current.strategy)
+        except (AttributeError, ValueError) as exc:
             raise ObserverContractError(
-                "acquisition port must return AcquisitionResult"
-            )
-    except Exception as exc:
-        unexpected_error = exc
-        result = AcquisitionResult(
-            outcome=ObservationOutcome.FAILED,
-            observed_at=started_at,
-            failure_code=ACQUISITION_EXCEPTION_FAILURE,
-            retry_at=started_at
-            + timedelta(seconds=policy.recovery_retry_seconds),
+                "acquisition port must declare a valid strategy"
+            ) from exc
+
+        attempt = _open_attempt_for_claim(
+            claim,
+            now=attempt_started_at,
+            strategy=strategy,
         )
-    finished_at = _aware("completed_at", completed_at)
-    observation = _finalize_claim(
+        try:
+            result = current.acquire(claim)
+            if not isinstance(result, AcquisitionResult):
+                raise ObserverContractError(
+                    "acquisition port must return AcquisitionResult"
+                )
+        except Exception as exc:
+            unexpected_error = exc
+            result = AcquisitionResult(
+                outcome=ObservationOutcome.FAILED,
+                observed_at=attempt_started_at,
+                failure_code=ACQUISITION_EXCEPTION_FAILURE,
+                retry_at=attempt_started_at
+                + timedelta(seconds=policy.recovery_retry_seconds),
+            )
+
+        attempt_finished_at = _aware(
+            "attempt_completed_at",
+            result.observed_at,
+        )
+        _observation, created_artifacts = _finalize_attempt(
+            claim,
+            attempt_id=attempt.pk,
+            result=result,
+            now=attempt_finished_at,
+        )
+        final_result = result
+        final_artifacts = created_artifacts
+        if (
+            strategy is AttemptStrategy.DIRECT_HTTP
+            and result.outcome
+            in {
+                ObservationOutcome.OBSERVED,
+                ObservationOutcome.NOT_MODIFIED,
+            }
+        ):
+            validator_result = result
+            validator_artifacts = created_artifacts
+
+        if unexpected_error is not None or not is_plan:
+            break
+
+        try:
+            next_acquisition = acquisition.next_acquisition(
+                claim,
+                previous_acquisition=current,
+                result=result,
+            )
+        except Exception as exc:
+            unexpected_error = exc
+            final_result = AcquisitionResult(
+                outcome=ObservationOutcome.FAILED,
+                observed_at=attempt_finished_at,
+                failure_code=ACQUISITION_EXCEPTION_FAILURE,
+                retry_at=attempt_finished_at
+                + timedelta(seconds=policy.recovery_retry_seconds),
+            )
+            final_artifacts = ()
+            break
+
+        if next_acquisition is None:
+            break
+        current = next_acquisition
+        attempt_started_at = attempt_finished_at
+    else:
+        raise ObserverContractError(
+            "acquisition plan exceeded the maximum of four attempts"
+        )
+
+    if final_result is None:
+        raise ObserverContractError(
+            "acquisition plan produced no result"
+        )
+    finished_at = _aware("completed_at", completed_at) if completed_at is not None else _aware(
+        "completed_at",
+        final_result.observed_at,
+    )
+    if finished_at < final_result.observed_at:
+        finished_at = final_result.observed_at
+    observation = _finalize_observation(
         claim,
-        attempt_id=attempt.pk,
-        result=result,
+        result=final_result,
+        validator_result=validator_result,
+        validator_artifacts=validator_artifacts,
         policy=policy,
         now=finished_at,
     )

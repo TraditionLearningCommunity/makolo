@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from unittest import TestCase
 
@@ -252,6 +253,26 @@ class DirectHttpAcquisitionTests(TestCase):
             context_source=FakeContextSource(context),
             clock=self.clock,
             sleeper=self.clock.sleep,
+        )
+
+    def test_http_deadline_is_capped_by_claim_lease(self):
+        acquisition = self.acquisition(
+            {
+                "https://example.test/resource": [
+                    exchange(200, body=b"ok")
+                ]
+            }
+        )
+        claim = replace(
+            self.claim(),
+            leased_until=self.clock() + timedelta(seconds=12),
+        )
+
+        acquisition.acquire(claim)
+
+        self.assertLessEqual(
+            acquisition.transport.calls[0]["total_timeout_seconds"],
+            12,
         )
 
     def test_200_html_captures_raw_body_without_semantic_parsing(self):
