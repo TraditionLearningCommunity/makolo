@@ -545,10 +545,17 @@ def _support_summary(profile):
         "recognition": {
             "available": recognition_account is not None or incoming_recognition,
             "needs_response": incoming_recognition,
+            "points_balance": (
+                recognition_account.points_balance
+                if recognition_account is not None
+                else 0
+            ),
             "links": {"api": "/api/v1/recognition/me/"},
         },
         "loyalty": {
             "available": loyalty_available,
+            "account_count": loyalty_accounts.count(),
+            "subscription_count": loyalty_subscriptions.count(),
             "links": {"api": "/api/v1/loyalty/me/"},
         },
         "partners": {
