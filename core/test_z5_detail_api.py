@@ -8,6 +8,8 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from access.models import Access, AccessCredential, AccessStatus
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_activity_role, grant_space_role
 from activities.models import (
     Activity,
     ActivityStatus,
@@ -35,6 +37,8 @@ from opportunities.services import (
     create_opportunity_source,
     publish_opportunity_revision,
 )
+from organizations.models import TeamMembership, TeamMembershipStatus
+from organizations.services import create_organization
 from personal_assets.services import create_personal_asset
 from payments.models import (
     PaymentObligation,
@@ -42,7 +46,9 @@ from payments.models import (
     PaymentObligationReason,
     PaymentObligationStatus,
 )
-from services.models import OpportunityPolicy, ServiceKind
+from requirements.contracts import RequirementAssessmentState
+from services.models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment
+from services.requirement_services import assess_requirement, derive_requirement_consequence
 from services.services import create_service_details, create_service_journey
 
 
@@ -376,6 +382,165 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertEqual(self.client.get(f"/api/v1/activities/{private.pk}/").status_code, 200)
         self.assertEqual(self.client.get(f"/api/v1/occurrences/{occurrence.pk}/").status_code, 200)
 
+    def test_public_detail_hides_draft_occurrence_and_its_capacity_from_regular_viewer(self):
+        draft = create_occurrence(
+            activity=self.activity,
+            start_date=date(2026, 12, 8),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.DRAFT,
+        )
+        pool = CapacityPool.objects.create(
+            activity=self.activity,
+            occurrence=draft,
+            total_quantity=3,
+            label="Draft capacity",
+        )
+
+        self.client.force_authenticate(self.other)
+        response = self.client.get(f"/api/v1/activities/{self.activity.pk}/")
+        self.assertEqual(response.status_code, 200)
+        rendered = str(response.json())
+        self.assertNotIn(str(draft.pk), rendered)
+        self.assertNotIn(str(pool.pk), rendered)
+        self.assertEqual(
+            self.client.get(f"/api/v1/occurrences/{draft.pk}/").status_code,
+            404,
+        )
+
+        self.client.force_authenticate(self.user)
+        owner_response = self.client.get(f"/api/v1/activities/{self.activity.pk}/")
+        self.assertEqual(owner_response.status_code, 200)
+        self.assertIn(str(draft.pk), str(owner_response.json()))
+        self.assertIn(str(pool.pk), str(owner_response.json()))
+        self.assertEqual(
+            self.client.get(f"/api/v1/occurrences/{draft.pk}/").status_code,
+            200,
+        )
+
+    def test_private_engaged_participant_can_open_own_occurrence_but_not_another_one(self):
+        private = Activity.objects.create(
+            title="Private engaged Z5",
+            created_by=self.other,
+            owner_profile=self.other,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PRIVATE,
+        )
+        own_occurrence = create_occurrence(
+            activity=private,
+            start_date=date(2026, 12, 10),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        other_occurrence = create_occurrence(
+            activity=private,
+            start_date=date(2026, 12, 11),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        Journey.objects.create(
+            initiated_by=self.user,
+            beneficiary=self.user,
+            activity=private,
+            occurrence=own_occurrence,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+
+        self.client.force_authenticate(self.user)
+        self.assertEqual(
+            self.client.get(f"/api/v1/activities/{private.pk}/").status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/occurrences/{own_occurrence.pk}/").status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/occurrences/{other_occurrence.pk}/").status_code,
+            404,
+        )
+
+    def test_unlisted_activity_is_directly_openable_without_entering_public_discovery_contract(self):
+        unlisted = Activity.objects.create(
+            title="Unlisted Z5",
+            created_by=self.user,
+            owner_profile=self.user,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.UNLISTED,
+        )
+        self.client.force_authenticate(user=None)
+        response = self.client.get(f"/api/v1/activities/{unlisted.pk}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["meta"]["scope"], "public")
+        self.assertEqual(response.json()["data"]["state"]["visibility"], "unlisted")
+
+    def test_team_membership_alone_does_not_open_private_activity_but_activity_mandate_does(self):
+        space = create_organization(creator=self.user, name="Z5 Authority Space")
+        private = Activity.objects.create(
+            title="Mandated private activity",
+            created_by=self.user,
+            space=space,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PRIVATE,
+        )
+        TeamMembership.objects.create(
+            team=space.primary_team,
+            user=self.other,
+            status=TeamMembershipStatus.ACTIVE,
+            invited_by=self.user,
+            joined_at=timezone.now(),
+        )
+
+        self.client.force_authenticate(self.other)
+        self.assertEqual(
+            self.client.get(f"/api/v1/activities/{private.pk}/").status_code,
+            404,
+        )
+
+        grant_activity_role(
+            profile=self.other,
+            activity=private,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.user,
+            source="z5-test",
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/activities/{private.pk}/").status_code,
+            200,
+        )
+
+    def test_cancelled_and_completed_occurrence_states_are_not_presented_as_future(self):
+        cancelled = create_occurrence(
+            activity=self.activity,
+            start_date=date(2026, 12, 15),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.CANCELLED,
+        )
+        completed = create_occurrence(
+            activity=self.activity,
+            start_date=date(2026, 1, 15),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.COMPLETED,
+        )
+        self.client.force_authenticate(user=None)
+
+        cancelled_payload = self.client.get(
+            f"/api/v1/occurrences/{cancelled.pk}/"
+        ).json()["data"]
+        completed_payload = self.client.get(
+            f"/api/v1/occurrences/{completed.pk}/"
+        ).json()["data"]
+        self.assertEqual(cancelled_payload["state"]["code"], "cancelled")
+        self.assertEqual(cancelled_payload["availability"]["state"], "cancelled")
+        self.assertEqual(completed_payload["state"]["code"], "completed")
+        self.assertEqual(completed_payload["availability"]["state"], "completed")
+        self.assertNotIn("future", str(completed_payload).lower())
+
     def test_dossier_hidden_dependency_stays_opaque_and_assignment_grants_no_authority(self):
         dossier = create_dossier(
             actor=self.user,
@@ -431,6 +596,52 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertEqual(
             self.client.get(f"/api/v1/objectives/dossiers/{dossier.pk}/").status_code,
             404,
+        )
+
+    def test_space_membership_does_not_grant_objective_visibility_but_space_mandate_does(self):
+        space = create_organization(creator=self.user, name="Z5 Objectives Space")
+        dossier = create_dossier(
+            actor=self.user,
+            owning_space=space,
+            title="Space dossier",
+        )
+        project = create_project(
+            actor=self.user,
+            owning_space=space,
+            title="Space project",
+        )
+        TeamMembership.objects.create(
+            team=space.primary_team,
+            user=self.other,
+            status=TeamMembershipStatus.ACTIVE,
+            invited_by=self.user,
+            joined_at=timezone.now(),
+        )
+
+        self.client.force_authenticate(self.other)
+        self.assertEqual(
+            self.client.get(f"/api/v1/objectives/dossiers/{dossier.pk}/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/objectives/projects/{project.pk}/").status_code,
+            404,
+        )
+
+        grant_space_role(
+            profile=self.other,
+            space=space,
+            role=SystemRoleCode.SPACE_ADMIN,
+            granted_by=self.user,
+            source="z5-test",
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/objectives/dossiers/{dossier.pk}/").status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/objectives/projects/{project.pk}/").status_code,
+            200,
         )
 
     def test_project_is_horizon_not_task_manager(self):
@@ -538,3 +749,60 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertNotEqual(data["assessment"]["state"], "satisfied")
         self.assertNotIn("note", data["assessment"])
         self.assertNotIn("evidence", str(data).lower())
+
+        self.client.force_authenticate(self.other)
+        self.assertEqual(
+            self.client.get(
+                f"/api/v1/me/journeys/{journey.pk}/requirements/{assessment.pk}/"
+            ).status_code,
+            404,
+        )
+
+        assess_requirement(
+            assessment=assessment,
+            actor=curator,
+            status=RequirementAssessmentState.SATISFIED,
+        )
+        self.client.force_authenticate(self.user)
+        satisfied = self.client.get(
+            f"/api/v1/me/journeys/{journey.pk}/requirements/{assessment.pk}/"
+        )
+        self.assertEqual(satisfied.status_code, 200)
+        self.assertEqual(
+            satisfied.json()["data"]["assessment"]["state"],
+            "satisfied",
+        )
+        self.assertIsNone(
+            satisfied.json()["data"]["assessment"]["consequence"],
+        )
+
+        assessment.refresh_from_db()
+        assess_requirement(
+            assessment=assessment,
+            actor=curator,
+            status=RequirementAssessmentState.UNSATISFIED,
+        )
+        unsatisfied = self.client.get(
+            f"/api/v1/me/journeys/{journey.pk}/requirements/{assessment.pk}/"
+        )
+        self.assertEqual(unsatisfied.status_code, 200)
+        self.assertEqual(
+            unsatisfied.json()["data"]["assessment"]["state"],
+            "unsatisfied",
+        )
+
+        assessment.refresh_from_db()
+        assessment.status = RequirementAssessmentState.PENDING
+        assessment._allow_assessment_transition = True
+        assessment.save(update_fields=["status", "updated_at"])
+        loaded = (
+            ServiceRequirementAssessment.objects.select_related("requirement")
+            .prefetch_related(
+                "payment_obligation_links__obligation",
+                "step_links__journey_step",
+                "evidence",
+            )
+            .get(pk=assessment.pk)
+        )
+        with self.assertNumQueries(0):
+            derive_requirement_consequence(loaded)
