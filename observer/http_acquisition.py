@@ -804,8 +804,9 @@ class DirectHttpAcquisition:
 
     def acquire(self, claim: ObservationClaim) -> AcquisitionResult:
         now = _utc_now(self.clock)
-        deadline_at = now + timedelta(
-            seconds=self.policy.max_observation_seconds
+        deadline_at = min(
+            now + timedelta(seconds=self.policy.max_observation_seconds),
+            claim.leased_until,
         )
         stats = _Stats(final_locator=claim.locator)
         active_leases: dict[str, object] = {}
