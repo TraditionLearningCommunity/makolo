@@ -698,7 +698,8 @@ def _finalize_observation(
     claim: ObservationClaim,
     *,
     result: AcquisitionResult,
-    final_artifacts: tuple[ObservedArtifact, ...],
+    validator_result: AcquisitionResult | None,
+    validator_artifacts: tuple[ObservedArtifact, ...],
     policy: ObserverRuntimePolicy,
     now: datetime,
 ) -> Observation:
@@ -751,6 +752,46 @@ def _finalize_observation(
         ObservationSeries.objects.filter(pk=observation.series_id)
     ).get()
     series_fields = []
+
+    # HTTP validators belong to the HTTP representation that produced them,
+    # not necessarily to the final adaptive stage. Preserve that snapshot
+    # even when a later Browser attempt fails.
+    if validator_result is not None:
+        if validator_result.outcome is ObservationOutcome.OBSERVED:
+            if validator_artifacts:
+                series.http_etag = validator_result.validator_etag or ""
+                series.http_last_modified = (
+                    validator_result.validator_last_modified or ""
+                )
+                series.validator_artifact_ref = (
+                    validator_artifacts[0].artifact_ref
+                )
+            else:
+                series.http_etag = ""
+                series.http_last_modified = ""
+                series.validator_artifact_ref = ""
+            series_fields.extend(
+                [
+                    "http_etag",
+                    "http_last_modified",
+                    "validator_artifact_ref",
+                ]
+            )
+        elif validator_result.outcome is ObservationOutcome.NOT_MODIFIED:
+            if validator_result.validator_etag is not None:
+                series.http_etag = validator_result.validator_etag
+                series_fields.append("http_etag")
+            if validator_result.validator_last_modified is not None:
+                series.http_last_modified = (
+                    validator_result.validator_last_modified
+                )
+                series_fields.append("http_last_modified")
+            if validator_result.revalidated_artifact_ref:
+                series.validator_artifact_ref = (
+                    validator_result.revalidated_artifact_ref
+                )
+                series_fields.append("validator_artifact_ref")
+
     if result.outcome is ObservationOutcome.FAILED:
         if result.retry_at is not None and (
             series.retry_due_at is None
@@ -767,39 +808,6 @@ def _finalize_observation(
                 seconds=policy.watch_interval_seconds
             )
             series_fields.append("watch_due_at")
-
-        if result.outcome is ObservationOutcome.OBSERVED:
-            if final_artifacts:
-                series.http_etag = result.validator_etag or ""
-                series.http_last_modified = (
-                    result.validator_last_modified or ""
-                )
-                series.validator_artifact_ref = (
-                    final_artifacts[0].artifact_ref
-                )
-            else:
-                series.http_etag = ""
-                series.http_last_modified = ""
-                series.validator_artifact_ref = ""
-            series_fields.extend(
-                [
-                    "http_etag",
-                    "http_last_modified",
-                    "validator_artifact_ref",
-                ]
-            )
-        elif result.outcome is ObservationOutcome.NOT_MODIFIED:
-            if result.validator_etag is not None:
-                series.http_etag = result.validator_etag
-                series_fields.append("http_etag")
-            if result.validator_last_modified is not None:
-                series.http_last_modified = result.validator_last_modified
-                series_fields.append("http_last_modified")
-            if result.revalidated_artifact_ref:
-                series.validator_artifact_ref = (
-                    result.revalidated_artifact_ref
-                )
-                series_fields.append("validator_artifact_ref")
 
     if series_fields:
         deduplicated = list(dict.fromkeys(series_fields))
@@ -826,6 +834,8 @@ def execute_claim(
 
     final_result = None
     final_artifacts: tuple[ObservedArtifact, ...] = ()
+    validator_result = None
+    validator_artifacts: tuple[ObservedArtifact, ...] = ()
     unexpected_error = None
     attempt_started_at = started_at
 
@@ -870,6 +880,16 @@ def execute_claim(
         )
         final_result = result
         final_artifacts = created_artifacts
+        if (
+            strategy is AttemptStrategy.DIRECT_HTTP
+            and result.outcome
+            in {
+                ObservationOutcome.OBSERVED,
+                ObservationOutcome.NOT_MODIFIED,
+            }
+        ):
+            validator_result = result
+            validator_artifacts = created_artifacts
 
         if unexpected_error is not None or not is_plan:
             break
@@ -914,7 +934,8 @@ def execute_claim(
     observation = _finalize_observation(
         claim,
         result=final_result,
-        final_artifacts=final_artifacts,
+        validator_result=validator_result,
+        validator_artifacts=validator_artifacts,
         policy=policy,
         now=finished_at,
     )
