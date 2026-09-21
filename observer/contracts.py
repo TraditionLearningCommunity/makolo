@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 
 from .errors import ObserverContractError
 
-OBSERVER_MATERIAL_CONTRACT_VERSION = 1
+OBSERVER_MATERIAL_CONTRACT_VERSION = 2
 
 
 class ObservationTrigger(str, Enum):
@@ -568,6 +568,7 @@ class ObservedArtifact:
     def to_descriptor(self) -> "ArtifactDescriptor":
         return ArtifactDescriptor(
             artifact_ref=self.artifact_ref,
+            observation_ref=self.observation_ref,
             producing_attempt_ref=self.producing_attempt_ref,
             role=self.role,
             origin=self.origin,
@@ -587,6 +588,7 @@ class ObservedArtifact:
 @dataclass(frozen=True, slots=True)
 class ArtifactDescriptor:
     artifact_ref: str
+    observation_ref: str
     role: str
     origin: ArtifactOrigin
     completeness: ArtifactCompleteness
@@ -604,7 +606,7 @@ class ArtifactDescriptor:
     def __post_init__(self) -> None:
         probe = ObservedArtifact(
             artifact_ref=self.artifact_ref,
-            observation_ref="observer:descriptor-validation",
+            observation_ref=self.observation_ref,
             producing_attempt_ref=self.producing_attempt_ref,
             role=self.role,
             origin=self.origin,
@@ -621,6 +623,7 @@ class ArtifactDescriptor:
         )
         for field_name in (
             "artifact_ref",
+            "observation_ref",
             "producing_attempt_ref",
             "role",
             "origin",
@@ -647,17 +650,23 @@ class ObservationMaterial:
     material_key: str
     observation_ref: str
     target_key: str
+    target_kind: str
     source_handoff_key: str
     source_handoff_generation: int
+    trigger: ObservationTrigger
     started_at: datetime
+    observed_at: datetime
     completed_at: datetime
     requested_locator: str
     observation_profile_ref: str
     observation_profile_fingerprint: str
+    policy_fingerprint: str
     outcome: ObservationOutcome
+    attempts: Tuple[ObservationAttempt, ...] = ()
     artifacts: Tuple[ArtifactDescriptor, ...] = ()
-    revalidated_artifact_refs: Tuple[str, ...] = ()
+    revalidated_artifacts: Tuple[ArtifactDescriptor, ...] = ()
     final_locator: Optional[str] = None
+    response_status: Optional[int] = None
     failure_code: Optional[str] = None
     contract_version: int = OBSERVER_MATERIAL_CONTRACT_VERSION
 
@@ -682,10 +691,14 @@ class ObservationMaterial:
         )
         object.__setattr__(
             self,
+            "target_kind",
+            _required_text("target_kind", self.target_kind),
+        )
+        object.__setattr__(
+            self,
             "source_handoff_key",
             _required_text(
-                "source_handoff_key",
-                self.source_handoff_key,
+                "source_handoff_key", self.source_handoff_key
             ),
         )
         object.__setattr__(
@@ -693,6 +706,11 @@ class ObservationMaterial:
             "source_handoff_generation",
             _positive_generation(self.source_handoff_generation),
         )
+        try:
+            trigger = ObservationTrigger(self.trigger)
+        except ValueError as exc:
+            raise ObserverContractError("invalid material trigger") from exc
+        object.__setattr__(self, "trigger", trigger)
         object.__setattr__(
             self,
             "started_at",
@@ -700,12 +718,21 @@ class ObservationMaterial:
         )
         object.__setattr__(
             self,
+            "observed_at",
+            _aware("observed_at", self.observed_at),
+        )
+        object.__setattr__(
+            self,
             "completed_at",
             _aware("completed_at", self.completed_at),
         )
-        if self.completed_at < self.started_at:
+        if self.observed_at < self.started_at:
             raise ObserverContractError(
-                "material completed_at must not precede started_at"
+                "material observed_at must not precede started_at"
+            )
+        if self.completed_at < self.observed_at:
+            raise ObserverContractError(
+                "material completed_at must not precede observed_at"
             )
         object.__setattr__(
             self,
@@ -735,6 +762,18 @@ class ObservationMaterial:
         )
         object.__setattr__(
             self,
+            "policy_fingerprint",
+            _required_text(
+                "policy_fingerprint", self.policy_fingerprint
+            ),
+        )
+        object.__setattr__(
+            self,
+            "response_status",
+            _http_status(self.response_status),
+        )
+        object.__setattr__(
+            self,
             "failure_code",
             _optional_text("failure_code", self.failure_code),
         )
@@ -745,28 +784,89 @@ class ObservationMaterial:
                 "invalid material outcome"
             ) from exc
         object.__setattr__(self, "outcome", outcome)
+
+        attempts = tuple(self.attempts)
+        if not all(
+            isinstance(item, ObservationAttempt)
+            for item in attempts
+        ):
+            raise ObserverContractError(
+                "attempts must contain ObservationAttempt values"
+            )
+        if any(
+            item.observation_ref != self.observation_ref
+            for item in attempts
+        ):
+            raise ObserverContractError(
+                "attempts must belong to the material observation"
+            )
+        ordinals = tuple(item.ordinal for item in attempts)
+        if tuple(sorted(ordinals)) != ordinals or len(set(ordinals)) != len(
+            ordinals
+        ):
+            raise ObserverContractError(
+                "attempts must have unique ascending ordinals"
+            )
+        if any(
+            item.lifecycle is not AttemptLifecycle.FINALIZED
+            for item in attempts
+        ):
+            raise ObserverContractError(
+                "material may expose only finalized attempts"
+            )
+        object.__setattr__(self, "attempts", attempts)
+
         artifacts = tuple(self.artifacts)
+        revalidated = tuple(self.revalidated_artifacts)
         if not all(
             isinstance(item, ArtifactDescriptor)
+            for item in artifacts + revalidated
+        ):
+            raise ObserverContractError(
+                "material artifacts must contain ArtifactDescriptor values"
+            )
+        if any(
+            item.observation_ref != self.observation_ref
             for item in artifacts
         ):
             raise ObserverContractError(
-                "artifacts must contain ArtifactDescriptor values"
+                "new artifacts must belong to the material observation"
+            )
+        current_attempt_refs = {
+            item.attempt_ref
+            for item in attempts
+        }
+        if any(
+            item.producing_attempt_ref is not None
+            and item.producing_attempt_ref not in current_attempt_refs
+            for item in artifacts
+        ):
+            raise ObserverContractError(
+                "artifact attempt provenance must reference this observation"
+            )
+        artifact_refs = tuple(item.artifact_ref for item in artifacts)
+        revalidated_refs = tuple(
+            item.artifact_ref for item in revalidated
+        )
+        if len(set(artifact_refs)) != len(artifact_refs):
+            raise ObserverContractError(
+                "artifact references must be unique"
+            )
+        if len(set(revalidated_refs)) != len(revalidated_refs):
+            raise ObserverContractError(
+                "revalidated artifact references must be unique"
+            )
+        if set(artifact_refs) & set(revalidated_refs):
+            raise ObserverContractError(
+                "new and revalidated artifacts must be disjoint"
             )
         object.__setattr__(self, "artifacts", artifacts)
-        refs = tuple(
-            _required_text("revalidated_artifact_ref", ref)
-            for ref in self.revalidated_artifact_refs
-        )
-        if len(set(refs)) != len(refs):
-            raise ObserverContractError(
-                "revalidated_artifact_refs must be unique"
-            )
         object.__setattr__(
             self,
-            "revalidated_artifact_refs",
-            refs,
+            "revalidated_artifacts",
+            revalidated,
         )
+
         if outcome is ObservationOutcome.FAILED:
             if self.failure_code is None:
                 raise ObserverContractError(
@@ -781,7 +881,14 @@ class ObservationMaterial:
                 raise ObserverContractError(
                     "not_modified material must not create artifacts"
                 )
-            if not refs:
+            if not revalidated:
                 raise ObserverContractError(
-                    "not_modified material requires revalidated artifact references"
+                    "not_modified material requires revalidated artifacts"
                 )
+
+    @property
+    def revalidated_artifact_refs(self) -> Tuple[str, ...]:
+        return tuple(
+            item.artifact_ref
+            for item in self.revalidated_artifacts
+        )
