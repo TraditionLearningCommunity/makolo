@@ -236,17 +236,16 @@ class PlaywrightBrowserRenderer:
                     route.abort(error_code="blockedbyclient")
                     return
 
-            if is_main:
-                if (
-                    result.status in _REDIRECT_STATUSES
-                    and headers.get("location")
-                ):
-                    state["redirect_count"] += 1
-                else:
-                    main["status"] = result.status
-                    main["body"] = result.body
-                    main["headers"] = dict(result.headers)
-                    main["retry_at"] = result.retry_at
+            if (
+                result.status in _REDIRECT_STATUSES
+                and headers.get("location")
+            ):
+                state["redirect_count"] += 1
+            elif is_main:
+                main["status"] = result.status
+                main["body"] = result.body
+                main["headers"] = dict(result.headers)
+                main["retry_at"] = result.retry_at
 
             route.fulfill(
                 status=result.status,
