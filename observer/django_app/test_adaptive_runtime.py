@@ -15,6 +15,7 @@ from observer.contracts import (
     ObservationOutcome,
 )
 from observer.django_runtime import claim_observations, execute_claim
+from observer.django_material import build_observation_material
 from observer.django_store import absorb_observation_target
 from observer.http_contracts import HttpAcquisitionPolicy
 from observer.runtime_contracts import (
@@ -177,6 +178,32 @@ class AdaptiveRuntimeTests(TestCase):
             attempts[1].id,
         )
 
+        material = build_observation_material(
+            observation.observation_ref
+        )
+        self.assertEqual(material.target_kind, "web_url")
+        self.assertEqual(
+            material.observation_profile_ref,
+            "public-adaptive",
+        )
+        self.assertEqual(
+            [item.strategy for item in material.attempts],
+            [
+                AttemptStrategy.DIRECT_HTTP,
+                AttemptStrategy.BROWSER_RENDER,
+            ],
+        )
+        self.assertEqual(
+            [item.role for item in material.artifacts],
+            ["http_response_body", "rendered_dom"],
+        )
+        self.assertTrue(
+            all(
+                item.observation_ref == observation.observation_ref
+                for item in material.artifacts
+            )
+        )
+
     def test_static_html_finishes_after_direct_http_attempt(self):
         claim = self.claim()
         body = b"<html><body>static</body></html>"
@@ -266,6 +293,20 @@ class AdaptiveRuntimeTests(TestCase):
         self.assertEqual(
             observation.series.validator_artifact_ref,
             http_artifact.artifact_ref,
+        )
+
+        material = build_observation_material(
+            observation.observation_ref
+        )
+        self.assertEqual(material.outcome, ObservationOutcome.FAILED)
+        self.assertEqual(
+            material.failure_code,
+            "browser.render_timeout",
+        )
+        self.assertEqual(len(material.attempts), 2)
+        self.assertEqual(
+            [item.role for item in material.artifacts],
+            ["http_response_body"],
         )
 
     def test_browser_failure_keeps_successful_http_provenance(self):
