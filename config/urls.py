@@ -14,6 +14,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/health/", HealthAPIView.as_view(), name="api-health"),
     path("api/v1/readiness/", ReadinessAPIView.as_view(), name="api-readiness"),
+    path("api/v1/me/", include("core.api.urls")),
     path("api/v1/accounts/", include("accounts.api.urls")),
     path("api/v1/organizations/", include("organizations.api.urls")),
     path("api/v1/events/", include("events.api.urls")),
