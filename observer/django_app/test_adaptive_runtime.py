@@ -206,6 +206,68 @@ class AdaptiveRuntimeTests(TestCase):
         self.assertEqual(browser_stage.calls, 0)
         self.assertEqual(observation.artifacts.count(), 1)
 
+    def test_browser_success_preserves_http_validator_baseline(self):
+        claim = self.claim()
+        body = b"<script src='/app.js'></script>"
+        http_stage = Stage(
+            AttemptStrategy.DIRECT_HTTP,
+            lambda current: AcquisitionResult(
+                outcome=ObservationOutcome.OBSERVED,
+                observed_at=self.now + timedelta(seconds=3),
+                final_locator=current.locator,
+                response_status=200,
+                artifacts=(
+                    AcquiredArtifact(
+                        content=body,
+                        role="http_response_body",
+                        captured_at=self.now + timedelta(seconds=3),
+                        origin=ArtifactOrigin.CAPTURED,
+                        declared_media_type="text/html",
+                    ),
+                ),
+                validator_etag='"adaptive-v1"',
+                validator_last_modified=(
+                    "Mon, 21 Sep 2026 03:00:00 GMT"
+                ),
+                wire_bytes=len(body),
+                decoded_bytes=len(body),
+            ),
+        )
+        browser_stage = Stage(
+            AttemptStrategy.BROWSER_RENDER,
+            self.browser_result,
+        )
+        plan = AdaptiveObservationPlan(
+            policy=self.adaptive,
+            http_acquisition=http_stage,
+            browser_acquisition=browser_stage,
+        )
+
+        observation = execute_claim(
+            claim,
+            acquisition=plan,
+            policy=self.runtime_policy,
+            now=self.now + timedelta(seconds=2),
+            completed_at=self.now + timedelta(seconds=5),
+        )
+
+        observation.series.refresh_from_db()
+        http_artifact = observation.artifacts.get(
+            role="http_response_body"
+        )
+        self.assertEqual(
+            observation.series.http_etag,
+            '"adaptive-v1"',
+        )
+        self.assertEqual(
+            observation.series.http_last_modified,
+            "Mon, 21 Sep 2026 03:00:00 GMT",
+        )
+        self.assertEqual(
+            observation.series.validator_artifact_ref,
+            http_artifact.artifact_ref,
+        )
+
     def test_browser_failure_keeps_successful_http_provenance(self):
         claim = self.claim()
         body = b"<script src='/app.js'></script>"
@@ -255,4 +317,11 @@ class AdaptiveRuntimeTests(TestCase):
         self.assertEqual(
             observation.series.retry_due_at,
             self.now + timedelta(minutes=1),
+        )
+        http_artifact = observation.artifacts.get(
+            role="http_response_body"
+        )
+        self.assertEqual(
+            observation.series.validator_artifact_ref,
+            http_artifact.artifact_ref,
         )
