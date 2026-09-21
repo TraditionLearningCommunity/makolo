@@ -612,19 +612,38 @@ def _upcoming_items(profile, *, observed_at):
     return tuple(items)
 
 
-def build_mature_home(profile, *, observed_at=None):
+def resolve_mature_home_contextual_actions(
+    profile,
+    *,
+    observed_at=None,
+    include_prepared_start=True,
+):
+    """Compose the canonical cross-domain action context without projecting Web cards.
+
+    The Mature Web Home keeps Prepared Start compatibility. Z2 deliberately disables
+    that source while its current anchor is only a saved Opportunity.
+    """
     observed_at = observed_at or timezone.now()
     metadata = {}
     actions = []
     actions.extend(_journey_actions(profile, observed_at=observed_at, metadata=metadata))
     actions.extend(_dossier_actions(profile, observed_at=observed_at, metadata=metadata))
-    actions.extend(_prepared_start_actions(profile, observed_at=observed_at, metadata=metadata))
+    if include_prepared_start:
+        actions.extend(_prepared_start_actions(profile, observed_at=observed_at, metadata=metadata))
     actions.extend(_conversation_actions(profile, observed_at=observed_at, metadata=metadata))
     actions.extend(_action_proposal_actions(profile, observed_at=observed_at, metadata=metadata))
     actions.extend(_recognition_actions(profile, observed_at=observed_at, metadata=metadata))
     actions.extend(_waitlist_transfer_actions(profile, observed_at=observed_at, metadata=metadata))
+    return resolve_contextual_actions(actions, observed_at=observed_at), metadata
 
-    result = resolve_contextual_actions(actions, observed_at=observed_at)
+
+def build_mature_home(profile, *, observed_at=None):
+    observed_at = observed_at or timezone.now()
+    result, metadata = resolve_mature_home_contextual_actions(
+        profile,
+        observed_at=observed_at,
+        include_prepared_start=True,
+    )
     primary_attention = _project_action(result.primary_attention, metadata) if result.primary_attention else None
     primary_action = _project_action(result.primary_action, metadata) if result.primary_action else None
     primary_identities = {
