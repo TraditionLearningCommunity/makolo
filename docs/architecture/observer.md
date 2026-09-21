@@ -1,4 +1,4 @@
-# Observateur Makolo — architecture runtime, Lot 3 HTTP et Lot 4 Browser public
+# Observateur Makolo — architecture runtime complète, Lots 1 à 5 et contrat Interpréteur
 
 ## 1. Rôle
 
@@ -744,7 +744,7 @@ explicitement :
 - orchestration live du `ObservationReport` vers une
   `ExpansionPolicy` Prospecteur : le contrat existe, mais aucune valeur de
   budget/expansion de production ne doit être inventée ;
-- orchestration aval complète vers l'Interpréteur.
+- implémentation de l'Interpréteur lui-même.
 
 Le profil adaptive reste un mécanisme **d'acquisition technique**. Il ne
 devient ni un agent autonome, ni un scraper sémantique, ni un nouveau domaine
