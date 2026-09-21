@@ -41,6 +41,37 @@ def _matching_opportunities(text):
     return list(open_opportunities().filter(_opportunity_text_filter(text))[:OPPORTUNITY_CONTEXT_LIMIT])
 
 
+def _opportunity_discovery_row(opportunity, *, temporal_state):
+    key = opportunity_candidate_key(opportunity)
+    revision = opportunity.current_revision
+    state_label = "Ouverte" if temporal_state == "open" else "À venir"
+    return {
+        "candidate_family": key.family,
+        "candidate_key": str(key),
+        "opportunity_id": str(opportunity.pk),
+        "revision_id": str(revision.pk),
+        "temporal_state": temporal_state,
+        "title": revision.title,
+        "summary": revision.summary,
+        "issuer_name": revision.issuer_name,
+        "kind_label": opportunity.get_kind_display(),
+        "url": reverse("opportunities:detail", kwargs={"pk": opportunity.pk}),
+        "cta_label": "Voir l’opportunité",
+        "state_label": state_label,
+        "representation": resolve_opportunity_representation(state_label=state_label),
+    }
+
+
+def public_opportunity_discovery_item(opportunity_id, *, now=None):
+    opportunity = open_opportunities(at=now).filter(pk=opportunity_id).first()
+    if opportunity is not None:
+        return _opportunity_discovery_row(opportunity, temporal_state="open")
+    opportunity = upcoming_opportunities(at=now).filter(pk=opportunity_id).first()
+    if opportunity is not None:
+        return _opportunity_discovery_row(opportunity, temporal_state="upcoming")
+    return None
+
+
 def public_opportunity_discovery_items(
     params,
     *,
@@ -81,28 +112,90 @@ def public_opportunity_discovery_items(
             if key in seen:
                 continue
             seen.add(key)
-            revision = opportunity.current_revision
-            state_label = "Ouverte" if temporal_state == "open" else "À venir"
             rows.append(
-                {
-                    "candidate_family": key.family,
-                    "candidate_key": str(key),
-                    "opportunity_id": str(opportunity.pk),
-                    "revision_id": str(revision.pk),
-                    "temporal_state": temporal_state,
-                    "title": revision.title,
-                    "summary": revision.summary,
-                    "issuer_name": revision.issuer_name,
-                    "kind_label": opportunity.get_kind_display(),
-                    "url": reverse("opportunities:detail", kwargs={"pk": opportunity.pk}),
-                    "cta_label": "Voir l’opportunité",
-                    "state_label": state_label,
-                    "representation": resolve_opportunity_representation(state_label=state_label),
-                }
+                _opportunity_discovery_row(
+                    opportunity,
+                    temporal_state=temporal_state,
+                )
             )
             if len(rows) >= DISCOVERY_FAMILY_CANDIDATE_LIMIT:
                 return rows
     return rows
+
+
+def _service_discovery_row(
+    service,
+    *,
+    profile=None,
+    participant_context=None,
+    contextual_opportunity=None,
+):
+    activity = service.activity
+    key = service_activity_candidate_key(activity)
+    start_url = reverse("services:start", kwargs={"pk": service.pk})
+    if contextual_opportunity is not None:
+        start_url = f"{start_url}?{urlencode({'opportunity': contextual_opportunity.pk})}"
+    vocabulary = vocabulary_for(activity=activity)
+    participant = resolve_participant_activity_state(
+        profile=profile,
+        activity=activity,
+        occurrence=None,
+        context=participant_context,
+        acquisition_label=vocabulary.primary_action,
+        acquisition_url=start_url,
+        detail_url=start_url,
+    )
+    return {
+        "candidate_family": key.family,
+        "candidate_key": str(key),
+        "activity_id": str(activity.pk),
+        "service_id": str(service.pk),
+        "vertical": "service",
+        "vertical_label": vocabulary.activity_noun,
+        "title": activity.title,
+        "summary": activity.short_description or activity.description[:220],
+        "space_name": activity.operator_display_name,
+        "service_kind": service.get_service_kind_display(),
+        "opportunity_title": (
+            contextual_opportunity.current_revision.title
+            if contextual_opportunity is not None
+            else ""
+        ),
+        "participant": participant,
+        "cta_label": participant.primary_action,
+        "cta_url": participant.primary_url,
+        "url": start_url,
+        "representation": resolve_activity_representation(activity=activity),
+    }
+
+
+def public_service_discovery_item(activity_id, *, profile=None):
+    service = (
+        ServiceDetails.objects.filter(
+            activity_id=activity_id,
+            activity__status=ActivityStatus.PUBLISHED,
+            activity__visibility=ActivityVisibility.PUBLIC,
+        )
+        .exclude(activity__space__verification_status="suspended")
+        .select_related("activity", "activity__space", "activity__owner_profile")
+        .first()
+    )
+    if service is None:
+        return None
+    if service.activity_id not in eligible_activity_ids_for_profile(
+        profile,
+        [service.activity_id],
+    ):
+        return None
+    participant_context = participant_state_context_for_activities(
+        profile,
+        [service.activity],
+    )
+    return _service_discovery_row(
+        service,
+        profile=profile,
+        participant_context=participant_context,
+    )
 
 
 def public_service_discovery_items(
@@ -181,41 +274,17 @@ def public_service_discovery_items(
             continue
         seen.add(key)
         contextual_opportunity = (
-            opportunity if opportunity is not None and service.opportunity_policy != OpportunityPolicy.NONE else None
-        )
-        start_url = reverse("services:start", kwargs={"pk": service.pk})
-        if contextual_opportunity is not None:
-            start_url = f"{start_url}?{urlencode({'opportunity': contextual_opportunity.pk})}"
-        vocabulary = vocabulary_for(activity=activity)
-        participant = resolve_participant_activity_state(
-            profile=profile,
-            activity=activity,
-            occurrence=None,
-            context=participant_context,
-            acquisition_label=vocabulary.primary_action,
-            acquisition_url=start_url,
-            detail_url=start_url,
+            opportunity
+            if opportunity is not None
+            and service.opportunity_policy != OpportunityPolicy.NONE
+            else None
         )
         rows.append(
-            {
-                "candidate_family": key.family,
-                "candidate_key": str(key),
-                "activity_id": str(activity.pk),
-                "service_id": str(service.pk),
-                "vertical": "service",
-                "vertical_label": vocabulary.activity_noun,
-                "title": activity.title,
-                "summary": activity.short_description or activity.description[:220],
-                "space_name": activity.operator_display_name,
-                "service_kind": service.get_service_kind_display(),
-                "opportunity_title": (
-                    contextual_opportunity.current_revision.title if contextual_opportunity is not None else ""
-                ),
-                "participant": participant,
-                "cta_label": participant.primary_action,
-                "cta_url": participant.primary_url,
-                "url": start_url,
-                "representation": resolve_activity_representation(activity=activity),
-            }
+            _service_discovery_row(
+                service,
+                profile=profile,
+                participant_context=participant_context,
+                contextual_opportunity=contextual_opportunity,
+            )
         )
     return rows
