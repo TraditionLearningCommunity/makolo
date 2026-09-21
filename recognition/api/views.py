@@ -25,6 +25,14 @@ def _raise_service(exc):
 
 
 def _reward_payload(reward):
+    self_eligible = bool(getattr(reward, "recognition_self_eligible", False))
+    capabilities = ["redeem"] if self_eligible else []
+    links = {}
+    if self_eligible:
+        links["redeem"] = reverse(
+            "recognition_api:reward-redeem",
+            kwargs={"reward_id": reward.pk},
+        )
     return {
         "id": str(reward.pk),
         "code": reward.code,
@@ -36,13 +44,12 @@ def _reward_payload(reward):
         "points_cost": reward.points_cost,
         "beneficiary_allowed": bool(reward.beneficiary_allowed),
         "acceptance_required": bool(reward.acceptance_required),
-        "capabilities": ["redeem"],
-        "links": {
-            "redeem": reverse(
-                "recognition_api:reward-redeem",
-                kwargs={"reward_id": reward.pk},
-            )
-        },
+        "self_eligible": self_eligible,
+        "requires_other_beneficiary": bool(
+            getattr(reward, "recognition_requires_other_beneficiary", False)
+        ),
+        "capabilities": capabilities,
+        "links": links,
     }
 
 
@@ -185,6 +192,7 @@ class RecognitionRewardRedeemAPIView(APIView):
                 candidate
                 for candidate in active_rewards(owner_account=account)
                 if candidate.pk == reward_id
+                and bool(getattr(candidate, "recognition_self_eligible", False))
             ),
             None,
         )
