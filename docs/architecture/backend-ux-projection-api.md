@@ -629,3 +629,42 @@ Z2.1 est fermé lorsque :
 - aucune Notification, Domain Event, Membership ou Assignment n'est promu en vérité Z2 ;
 - aucun modèle, migration, score, ranking, cache ou état persistant n'est ajouté ;
 - les gaps non défendables par le runtime sont documentés plutôt que simulés.
+
+
+## 26. Z2.2 à Z2.6 — Implémentation livrée sur la branche Z2
+
+Le runtime Z2 est porté par :
+
+```text
+core.home_presentation.resolve_mature_home_contextual_actions()
+core.api.personal_projections.build_personal_now_projection()
+core.api.personal_projections.build_personal_ongoing_projection()
+core.api.personal_views.PersonalNowAPIView
+core.api.personal_views.PersonalOngoingAPIView
+```
+
+Les endpoints actifs sont :
+
+```text
+GET /api/v1/me/now/
+GET /api/v1/me/ongoing/
+```
+
+Ils sont strictement `IsAuthenticated`, utilisent `request.user` et l'enveloppe Z1.
+
+Le refactoring de Home garde la compatibilité Web existante : `build_mature_home()` continue à consommer Prepared Start. La projection API Z2 réutilise la même composition transversale mais appelle explicitement `include_prepared_start=False`, car une simple Opportunity sauvegardée ne satisfait pas le contrat mature de `Maintenant`.
+
+`personal.now` conserve l'ordre déterministe de `resolve_contextual_actions()` et applique seulement le filtre d'admission Z2 :
+
+- décisions explicitement attendues : Action Proposal, consentement Recognition, Waitlist OFFERED active, Transfer entrant actif ;
+- Conversation : seulement les points d'attention où une action explicite est attendue ; `revisit` seul n'est pas promu ;
+- Occurrence/spatiotemporel : annulation → adaptation ; `leave_now` / `access_action` → action ;
+- blocker/terminal → adaptation ;
+- action Readiness avec échéance explicitement future → reste dans En cours ;
+- aucune règle « bientôt » n'est inventée.
+
+`personal.ongoing` compose Journey/Readiness, Access, Dossier/Collective Readiness, Project, Waitlist, Transfer et Payment autonome. Une attente normale conserve `blocker: null`. Les dates-only restent des dates et ne produisent pas minuit artificiel.
+
+Les capabilities Z2 ne sont exposées que lorsque l'action existe réellement dans une API actuelle. En particulier, Waitlist et Transfer pointent vers leurs mutations DRF existantes ; Conversation expose `respond` ou `acknowledge` uniquement lorsqu'un point canonique le permet. Z2 ne fabrique pas d'API Recognition ou Action Network inexistante.
+
+Tests ciblés Z2 : authentification, vide stable, frontière Journey future→actuelle, IDOR Journey, date-only, Waitlist WAITING versus OFFERED. Les suites existantes M8/UX2 continuent de couvrir la composition Home, Recognition, Action Network et Transfer réutilisée. Aucun modèle ni migration n'est introduit.
