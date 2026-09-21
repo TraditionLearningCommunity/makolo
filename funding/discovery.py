@@ -13,6 +13,7 @@ from discovery.card_contract import (
     RepresentationPresentation,
 )
 from discovery.representation import resolve_activity_representation
+from groups.selectors import eligible_activity_ids_for_profile
 
 from .selectors import funding_progress, public_fundings
 
@@ -20,7 +21,23 @@ from .selectors import funding_progress, public_fundings
 DISCOVERY_FUNDING_CANDIDATE_LIMIT = 500
 
 
-def public_funding_discovery_items(params, *, requested_params=None, constraints=()):
+def _funding_discovery_row(funding):
+    activity = funding.activity
+    return {
+        "candidate_key": str(CandidateKey("funding_activity", str(activity.pk))),
+        "activity_id": str(activity.pk),
+        "funding": funding,
+        "progress": funding_progress(funding),
+    }
+
+
+def public_funding_discovery_items(
+    params,
+    *,
+    profile=None,
+    requested_params=None,
+    constraints=(),
+):
     vertical = (params.get("vertical") or "").strip().lower()
     if vertical not in {"", "funding"}:
         return []
@@ -42,18 +59,28 @@ def public_funding_discovery_items(params, *, requested_params=None, constraints
             | Q(activity__owner_profile__last_name__icontains=text)
             | Q(activity__owner_profile__username__icontains=text)
         ).distinct()
-    rows = []
-    for funding in queryset[:DISCOVERY_FUNDING_CANDIDATE_LIMIT]:
-        activity = funding.activity
-        rows.append(
-            {
-                "candidate_key": str(CandidateKey("funding_activity", str(activity.pk))),
-                "activity_id": str(activity.pk),
-                "funding": funding,
-                "progress": funding_progress(funding),
-            }
-        )
-    return rows
+    fundings = list(queryset[:DISCOVERY_FUNDING_CANDIDATE_LIMIT])
+    eligible_ids = eligible_activity_ids_for_profile(
+        profile,
+        [funding.activity_id for funding in fundings],
+    )
+    return [
+        _funding_discovery_row(funding)
+        for funding in fundings
+        if funding.activity_id in eligible_ids
+    ]
+
+
+def public_funding_discovery_item(activity_id, *, profile=None):
+    funding = public_fundings().filter(activity_id=activity_id).first()
+    if funding is None:
+        return None
+    if funding.activity_id not in eligible_activity_ids_for_profile(
+        profile,
+        [funding.activity_id],
+    ):
+        return None
+    return _funding_discovery_row(funding)
 
 
 def present_funding_card(item, *, bookmarked=False):
