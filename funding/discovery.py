@@ -18,19 +18,19 @@ from groups.selectors import (
     filter_queryset_by_activity_group_eligibility,
 )
 
-from .selectors import funding_progress, public_fundings
+from .selectors import funding_progress, funding_progress_many, public_fundings
 
 
 DISCOVERY_FUNDING_CANDIDATE_LIMIT = 500
 
 
-def _funding_discovery_row(funding):
+def _funding_discovery_row(funding, *, progress=None):
     activity = funding.activity
     return {
         "candidate_key": str(CandidateKey("funding_activity", str(activity.pk))),
         "activity_id": str(activity.pk),
         "funding": funding,
-        "progress": funding_progress(funding),
+        "progress": progress or funding_progress(funding),
     }
 
 
@@ -66,9 +66,14 @@ def public_funding_discovery_items(
         queryset,
         profile,
     )
+    fundings = list(queryset[:DISCOVERY_FUNDING_CANDIDATE_LIMIT])
+    progress_by_id = funding_progress_many(fundings)
     return [
-        _funding_discovery_row(funding)
-        for funding in queryset[:DISCOVERY_FUNDING_CANDIDATE_LIMIT]
+        _funding_discovery_row(
+            funding,
+            progress=progress_by_id[funding.pk],
+        )
+        for funding in fundings
     ]
 
 
