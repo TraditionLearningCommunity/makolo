@@ -283,7 +283,7 @@ def _event_handoffs(activity_ids) -> dict[str, dict]:
                     "participant-ticket-type-list",
                     kwargs={"slug": slug},
                 ),
-                "orders": reverse("ticket-order-list"),
+                "orders": reverse("ticket-orders-list"),
             },
         }
     return result
