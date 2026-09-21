@@ -333,7 +333,7 @@ La construction et la soumission du rapport sont séparées. L’ack Observer n�
 
 ### Vers Interpréteur
 
-`ObservationMaterial` expose les descriptors d’artefacts ou les références revalidées, sans exposer le chemin physique de stockage.
+`ObservationMaterial v2` expose les descriptors d’artefacts ou les références revalidées, sans exposer le chemin physique de stockage.
 
 Le Lot 3 ne choisit pas encore la stratégie d’interprétation.
 
@@ -756,7 +756,7 @@ La responsabilité complète de l'Observateur est :
 
 > **exécuter de manière sûre, bornée et traçable les observations de ressources externes déjà identifiées, préserver fidèlement les représentations réellement obtenues — directement par HTTP ou, lorsque techniquement nécessaire, par rendu Browser contrôlé — et fournir ces matériaux aux acteurs aval sans les transformer en vérités métier.**
 
-La frontière aval canonique est `ObservationMaterial`.
+La frontière aval canonique est `ObservationMaterial v2`.
 
 ~~~text
 ObservationTarget
@@ -777,7 +777,7 @@ ObservationMaterial
 Interpréteur
 ~~~
 
-`ObservationMaterial` est une projection reconstructible de la vérité durable Observer. Il ne copie pas les blobs. Il expose seulement les références et descripteurs nécessaires pour que l'Interpréteur puisse lire les artefacts privés via le port Observer approprié.
+`ObservationMaterial v2` est une projection reconstructible de la vérité durable Observer. Il ne copie pas les blobs. Il expose seulement les références et descripteurs nécessaires pour que l'Interpréteur puisse lire les artefacts privés via `ArtifactReaderPort`. Le runtime Django fournit `DjangoObservationMaterialSource` et `DjangoArtifactReader` comme adaptateurs privés concrets ; aucun refetch Internet n'est nécessaire.
 
 Le contrat expose au minimum :
 
@@ -787,7 +787,7 @@ Le contrat expose au minimum :
 - profil, fingerprint de profil et fingerprint de policy ;
 - outcome technique et statut HTTP éventuel ;
 - Attempts ordonnés avec stratégie, outcome, timing, redirects, octets et failure technique ;
-- artefacts observés avec rôle, origine `captured/rendered/derived`, complétude, MIME, charset, digest et `producing_attempt_ref` ;
+- artefacts observés avec `artifact_ref`, `observation_ref` propriétaire, rôle, origine `captured/rendered/derived`, complétude, MIME, charset, digest et `producing_attempt_ref` ;
 - artefacts antérieurs revalidés par une Observation `NOT_MODIFIED`.
 
 Une Observation `FAILED` peut donc avoir deux états distincts :
@@ -802,7 +802,7 @@ FAILED + artefact(s) antérieur(s) du même épisode
 
 Par exemple, en adaptive, un Attempt HTTP réussi puis un Browser en timeout reste un échec technique final mais le corps HTTP réellement capturé demeure disponible et traçable pour l'Interpréteur.
 
-Une Observation `NOT_MODIFIED` ne fabrique aucun nouvel artefact. Elle référence les artefacts durables antérieurs revalidés dans la même série, avec leurs descripteurs techniques.
+Une Observation `NOT_MODIFIED` ne fabrique aucun nouvel artefact. Elle référence les artefacts durables antérieurs revalidés dans la même série, avec leurs descripteurs techniques et leur `observation_ref` d'origine, afin de préserver la provenance temporelle du baseline.
 
 Le flux vers Prospecteur reste séparé :
 
@@ -830,7 +830,7 @@ Sont durables et irremplaçables lorsqu'ils ont été réellement observés :
 
 Sont reconstructibles :
 
-- `ObservationMaterial` ;
+- `ObservationMaterial v2` ;
 - backlog et projections Operations ;
 - métriques agrégées dérivées.
 
@@ -838,4 +838,4 @@ Le contenu externe capturé n'est donc jamais traité comme un simple cache : la
 
 ### 19.2 Critère de fermeture
 
-L'Acteur 2 est fermé pour cette phase lorsque les Lots 1 à 5 sont intégrés, que les gates Observer sont vertes, que `ObservationMaterial` expose toute la provenance nécessaire sans refetch Internet, et que l'Interpréteur peut commencer son travail à partir de cette matière sans demander à l'Observateur de comprendre ce qu'elle signifie.
+L'Acteur 2 est fermé pour cette phase lorsque les Lots 1 à 5 sont intégrés, que les gates Observer sont vertes, que `ObservationMaterial v2` expose toute la provenance nécessaire sans refetch Internet, et que l'Interpréteur peut commencer son travail à partir de cette matière sans demander à l'Observateur de comprendre ce qu'elle signifie.
