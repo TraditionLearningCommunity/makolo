@@ -22,13 +22,10 @@ class FundingProgress:
     percent_reached: Decimal | None
 
 
-def funding_progress(funding: FundingDetails) -> FundingProgress:
-    raised = FundingContribution.objects.filter(
-        funding=funding,
-        payment_obligation__status=PaymentObligationStatus.SATISFIED,
-    ).aggregate(
-        total=Coalesce(Sum("amount"), Decimal("0.00")),
-    )["total"]
+def _funding_progress_from_raised(
+    funding: FundingDetails,
+    raised: Decimal,
+) -> FundingProgress:
     target = funding.target_amount
     if target is None:
         return FundingProgress(
@@ -52,6 +49,40 @@ def funding_progress(funding: FundingDetails) -> FundingProgress:
         target_reached=raised >= target,
         percent_reached=percent,
     )
+
+
+def funding_progress(funding: FundingDetails) -> FundingProgress:
+    raised = FundingContribution.objects.filter(
+        funding=funding,
+        payment_obligation__status=PaymentObligationStatus.SATISFIED,
+    ).aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00")),
+    )["total"]
+    return _funding_progress_from_raised(funding, raised)
+
+
+def funding_progress_many(fundings) -> dict:
+    fundings = list(fundings)
+    if not fundings:
+        return {}
+    ids = [funding.pk for funding in fundings]
+    raised_by_id = {
+        row["funding_id"]: row["total"]
+        for row in FundingContribution.objects.filter(
+            funding_id__in=ids,
+            payment_obligation__status=PaymentObligationStatus.SATISFIED,
+        )
+        .values("funding_id")
+        .annotate(total=Sum("amount"))
+    }
+    zero = Decimal("0.00")
+    return {
+        funding.pk: _funding_progress_from_raised(
+            funding,
+            raised_by_id.get(funding.pk, zero),
+        )
+        for funding in fundings
+    }
 
 
 def funding_accepts_contributions(funding: FundingDetails, *, at=None) -> bool:
