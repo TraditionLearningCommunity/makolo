@@ -28,7 +28,10 @@ from .django_app.models import (
 from .django_artifacts import store_blob
 from .django_store import get_or_create_observation_series
 from .errors import ObserverContractError, ObserverStateConflictError
-from .ports import ObservationAcquisitionPort
+from .ports import (
+    ObservationAcquisitionPlanPort,
+    ObservationAcquisitionPort,
+)
 from .runtime_contracts import (
     AcquisitionResult,
     ObservationBacklog,
@@ -809,7 +812,7 @@ def _finalize_observation(
 def execute_claim(
     claim: ObservationClaim,
     *,
-    acquisition,
+    acquisition: ObservationAcquisitionPort | ObservationAcquisitionPlanPort,
     policy: ObserverRuntimePolicy,
     now: datetime | None = None,
     completed_at: datetime | None = None,
