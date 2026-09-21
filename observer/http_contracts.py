@@ -335,6 +335,105 @@ class RobotsCache:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class SafeHttpResourceResult:
+    requested_url: str
+    response_url: str
+    status: int
+    headers: Mapping[str, str]
+    body: bytes
+    wire_bytes: int
+    decoded_bytes: int
+    retry_at: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "requested_url",
+            _required_text("requested_url", self.requested_url),
+        )
+        object.__setattr__(
+            self,
+            "response_url",
+            _required_text("response_url", self.response_url),
+        )
+        if (
+            not isinstance(self.status, int)
+            or isinstance(self.status, bool)
+            or not 100 <= self.status <= 599
+        ):
+            raise ObserverContractError(
+                "safe HTTP resource status must be valid"
+            )
+        if not isinstance(self.body, bytes):
+            raise ObserverContractError(
+                "safe HTTP resource body must be bytes"
+            )
+        object.__setattr__(
+            self,
+            "wire_bytes",
+            _positive_int(
+                "wire_bytes",
+                self.wire_bytes,
+                allow_zero=True,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "decoded_bytes",
+            _positive_int(
+                "decoded_bytes",
+                self.decoded_bytes,
+                allow_zero=True,
+            ),
+        )
+        if self.retry_at is not None:
+            object.__setattr__(
+                self,
+                "retry_at",
+                _aware("retry_at", self.retry_at),
+            )
+        normalized = {}
+        if not isinstance(self.headers, Mapping):
+            raise ObserverContractError(
+                "safe HTTP resource headers must be a mapping"
+            )
+        for key, value in self.headers.items():
+            name = _required_text("header name", str(key)).lower()
+            normalized[name] = str(value).strip()
+        object.__setattr__(
+            self,
+            "headers",
+            MappingProxyType(normalized),
+        )
+
+
+class HttpResourceFailure(Exception):
+    def __init__(
+        self,
+        code: str,
+        *,
+        retry_at: datetime | None = None,
+        response_status: int | None = None,
+    ) -> None:
+        self.code = _required_text("code", code)
+        self.retry_at = (
+            _aware("retry_at", retry_at)
+            if retry_at is not None
+            else None
+        )
+        if response_status is not None and (
+            not isinstance(response_status, int)
+            or isinstance(response_status, bool)
+            or not 100 <= response_status <= 599
+        ):
+            raise ObserverContractError(
+                "response_status must be a valid HTTP status"
+            )
+        self.response_status = response_status
+        super().__init__(self.code)
+
+
 class HttpTransportFailure(Exception):
     def __init__(self, code: str) -> None:
         self.code = _required_text("code", code)
