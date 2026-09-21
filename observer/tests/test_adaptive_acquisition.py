@@ -98,6 +98,14 @@ class AdaptiveAcquisitionTests(TestCase):
             needs_browser_render(result, policy=self.policy)
         )
 
+    def test_legacy_javascript_mime_escalates(self):
+        result = self.result(
+            b'<script type="application/x-javascript" src="/legacy.js"></script>'
+        )
+        self.assertTrue(
+            needs_browser_render(result, policy=self.policy)
+        )
+
     def test_json_ld_script_does_not_escalate(self):
         result = self.result(
             b'<script type="application/ld+json">{"@type":"Thing"}</script>'
