@@ -189,6 +189,41 @@ document.body.dataset.popup =
                 clock=_clock,
             )
 
+    def test_target_blank_secondary_navigation_is_blocked(self):
+        html = b"""<!doctype html>
+<html><body>
+<a id="secondary" target="_blank" href="/secondary">open</a>
+<script>document.querySelector('#secondary').click();</script>
+</body></html>"""
+        seen = []
+
+        def loader(request):
+            seen.append(request.url)
+            if request.url != "https://example.test/app":
+                self.fail(
+                    f"secondary navigation reached Observer loader: {request.url}"
+                )
+            return SafeHttpResourceResult(
+                requested_url=request.url,
+                response_url=request.url,
+                status=200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                body=html,
+                wire_bytes=len(html),
+                decoded_bytes=len(html),
+            )
+
+        result = self.renderer.render(
+            start_url="https://example.test/app",
+            policy=self.policy,
+            resource_loader=loader,
+            deadline_at=_clock() + timedelta(seconds=30),
+            clock=_clock,
+        )
+
+        self.assertTrue(result.incomplete)
+        self.assertEqual(seen, ["https://example.test/app"])
+
     def test_iframe_is_routed_through_observer_loader(self):
         html = (
             b"<!doctype html><html><body>"
