@@ -510,7 +510,7 @@ Le DOM rendu n’est pas modélisé comme simple transformation du HTML initial 
 Le `rendered_dom` peut être :
 
 - `COMPLETE` si le rendu borné s’est achevé sans ressource bloquée/échouée pertinente ;
-- `INCOMPLETE` lorsque le rendu demeure exploitable mais certaines sous-ressources ont été bloquées ou ont échoué ;
+- `INCOMPLETE` lorsque le rendu demeure exploitable mais une ressource attendue hors exclusions explicites du profil a échoué ou a été refusée ;
 - `TRUNCATED` si la taille maximale de capture DOM est atteinte.
 
 Aucun de ces statuts n’est une conclusion sémantique sur la page.
