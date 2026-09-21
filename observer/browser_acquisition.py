@@ -89,7 +89,8 @@ class BrowserRenderAcquisition:
             )
 
         deadline_at = min(
-            started_at + timedelta(
+            started_at
+            + timedelta(
                 seconds=self.policy.http_policy.max_observation_seconds
             ),
             claim.leased_until,
