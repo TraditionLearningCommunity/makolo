@@ -16,9 +16,11 @@ from .contracts import AttemptStrategy, ObservationOutcome
 from .http_contracts import (
     HttpAcquisitionPolicy,
     HttpObservationContext,
+    HttpResourceFailure,
     HttpTransportFailure,
     NetworkSafetyFailure,
     RobotsCache,
+    SafeHttpResourceResult,
     ScopeDeferred,
 )
 from .runtime_contracts import (
@@ -229,6 +231,137 @@ def _decode_http_body(
     return decoded
 
 
+class SafeHttpResourceSession:
+    """One-hop public HTTP gateway for browser-rendered observations.
+
+    Every request reuses Lot 3 SSRF, DNS, robots and politeness controls.
+    Redirects are deliberately returned to the browser so each next URL
+    becomes a new routed request and is validated again before any network I/O.
+    """
+
+    def __init__(
+        self,
+        acquisition,
+        *,
+        deadline_at: datetime,
+    ) -> None:
+        self.acquisition = acquisition
+        self.deadline_at = deadline_at
+        self.active_leases: dict[str, object] = {}
+        self.stats = _Stats()
+        self.request_count = 0
+        self.closed = False
+
+    def _headers(self, source: dict[str, str] | None) -> dict[str, str]:
+        source = source or {}
+        lowered = {
+            str(key).lower(): str(value)
+            for key, value in source.items()
+        }
+        headers = self.acquisition._base_headers()
+        for name in ("accept", "accept-language"):
+            if lowered.get(name):
+                headers[
+                    "Accept" if name == "accept" else "Accept-Language"
+                ] = lowered[name]
+        return headers
+
+    def fetch(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        max_wire_bytes: int | None = None,
+        max_decoded_bytes: int | None = None,
+    ) -> SafeHttpResourceResult:
+        if self.closed:
+            raise HttpResourceFailure("http.session_closed")
+        requested_url = _normalize_http_url(url)
+        stats_before_wire = self.stats.wire_bytes
+        stats_before_decoded = self.stats.decoded_bytes
+        try:
+            self.acquisition._ensure_robots(
+                requested_url,
+                active_leases=self.active_leases,
+                stats=self.stats,
+                deadline_at=self.deadline_at,
+            )
+            response_url, exchange = self.acquisition._exchange(
+                requested_url,
+                headers=self._headers(headers),
+                max_wire_bytes=(
+                    max_wire_bytes
+                    if max_wire_bytes is not None
+                    else self.acquisition.policy.max_wire_bytes
+                ),
+                active_leases=self.active_leases,
+                stats=self.stats,
+                deadline_at=self.deadline_at,
+            )
+            decoded = _decode_http_body(
+                exchange.body,
+                content_encoding=exchange.headers.get(
+                    "content-encoding"
+                ),
+                max_decoded_bytes=(
+                    max_decoded_bytes
+                    if max_decoded_bytes is not None
+                    else self.acquisition.policy.max_decoded_bytes
+                ),
+            )
+            self.stats.decoded_bytes += len(decoded)
+            now = _utc_now(self.acquisition.clock)
+            retry_at = None
+            if exchange.status in RETRYABLE_HTTP_STATUSES or (
+                exchange.status >= 500
+            ):
+                retry_at = _parse_retry_after(
+                    exchange.headers.get("retry-after"),
+                    now=now,
+                    fallback_seconds=self.acquisition.policy.retry_seconds,
+                )
+                if exchange.status in {429, 503}:
+                    hostname = urlsplit(response_url).hostname or ""
+                    self.acquisition.scope_state.defer(
+                        hostname,
+                        not_before=retry_at,
+                    )
+            self.request_count += 1
+            return SafeHttpResourceResult(
+                requested_url=requested_url,
+                response_url=response_url,
+                status=exchange.status,
+                headers=exchange.headers,
+                body=decoded,
+                wire_bytes=self.stats.wire_bytes - stats_before_wire,
+                decoded_bytes=(
+                    self.stats.decoded_bytes - stats_before_decoded
+                ),
+                retry_at=retry_at,
+            )
+        except NetworkSafetyFailure as exc:
+            raise HttpResourceFailure(exc.code) from exc
+        except ScopeDeferred as exc:
+            raise HttpResourceFailure(
+                "politeness.not_before",
+                retry_at=exc.retry_at,
+            ) from exc
+        except _ExpectedFailure as exc:
+            raise HttpResourceFailure(
+                exc.code,
+                retry_at=exc.retry_at,
+                response_status=exc.response_status,
+            ) from exc
+
+    def close(self) -> None:
+        if self.closed:
+            return
+        self.closed = True
+        for lease in tuple(self.active_leases.values()):
+            self.acquisition.scope_state.release(lease)
+        self.active_leases.clear()
+
+
 class DirectHttpAcquisition:
     """Public direct-HTTP acquisition without semantic interpretation."""
 
@@ -252,6 +385,16 @@ class DirectHttpAcquisition:
         self.context_source = context_source
         self.clock = clock
         self.sleeper = sleeper or time.sleep
+
+    def open_resource_session(
+        self,
+        *,
+        deadline_at: datetime,
+    ) -> SafeHttpResourceSession:
+        return SafeHttpResourceSession(
+            self,
+            deadline_at=deadline_at,
+        )
 
     def _failure(
         self,
