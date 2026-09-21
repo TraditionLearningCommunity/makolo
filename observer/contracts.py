@@ -171,7 +171,6 @@ class TransformationDescriptor:
 class Observation:
     observation_ref: str
     target_key: str
-    target_kind: str
     source_handoff_key: str
     source_handoff_generation: int
     trigger: ObservationTrigger
@@ -199,11 +198,6 @@ class Observation:
             self,
             "target_key",
             _required_text("target_key", self.target_key),
-        )
-        object.__setattr__(
-            self,
-            "target_kind",
-            _required_text("target_kind", self.target_kind),
         )
         object.__setattr__(
             self,
@@ -653,6 +647,7 @@ class ObservationMaterial:
     material_key: str
     observation_ref: str
     target_key: str
+    target_kind: str
     source_handoff_key: str
     source_handoff_generation: int
     started_at: datetime
@@ -691,6 +686,11 @@ class ObservationMaterial:
             self,
             "target_key",
             _required_text("target_key", self.target_key),
+        )
+        object.__setattr__(
+            self,
+            "target_kind",
+            _required_text("target_kind", self.target_kind),
         )
         object.__setattr__(
             self,
