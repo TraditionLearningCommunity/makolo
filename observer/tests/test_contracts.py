@@ -38,7 +38,6 @@ class ObserverContractTests(TestCase):
             Observation(
                 observation_ref="observer:observation:v1:test",
                 target_key="web_url:v1:" + ("b" * 64),
-                target_kind="web_url",
                 source_handoff_key="observation:v1:" + ("c" * 64),
                 source_handoff_generation=1,
                 trigger=ObservationTrigger.HANDOFF,
