@@ -173,3 +173,10 @@ def build_observation_material(
         artifacts=descriptors,
         revalidated_artifacts=revalidated_descriptors,
     )
+
+
+class DjangoObservationMaterialSource:
+    """Concrete private source adapter for the future Interpreter."""
+
+    def get_material(self, observation_ref: str) -> ObservationMaterial:
+        return build_observation_material(observation_ref)
