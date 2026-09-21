@@ -101,10 +101,21 @@ class PlaywrightBrowserRenderer:
             request = route.request
             page = page_holder["page"]
             is_navigation = bool(request.is_navigation_request())
+            request_frame = None
+            if is_navigation:
+                try:
+                    request_frame = request.frame
+                except PlaywrightError:
+                    # Popup/new-page navigations can be issued before their
+                    # Frame exists. The Observer never permits a secondary
+                    # page, so reject that request without dereferencing it.
+                    state["incomplete"] = True
+                    route.abort(error_code="blockedbyclient")
+                    return
             is_main = bool(
                 page is not None
                 and is_navigation
-                and request.frame == page.main_frame
+                and request_frame == page.main_frame
             )
             resource_type = str(request.resource_type or "other").lower()
             method = str(request.method or "").upper()
@@ -112,7 +123,8 @@ class PlaywrightBrowserRenderer:
             if (
                 page is not None
                 and is_navigation
-                and request.frame.page != page
+                and request_frame is not None
+                and request_frame.page != page
             ):
                 state["incomplete"] = True
                 route.abort(error_code="blockedbyclient")
