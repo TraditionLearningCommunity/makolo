@@ -160,6 +160,16 @@ class BrowserRenderAcquisition:
                 wire_bytes=session.stats.wire_bytes,
                 decoded_bytes=session.stats.decoded_bytes,
             )
+        except HttpResourceFailure as exc:
+            observed_at = self.clock()
+            return self._failure(
+                code=exc.code,
+                observed_at=observed_at,
+                retry_at=exc.retry_at,
+                response_status=exc.response_status,
+                wire_bytes=session.stats.wire_bytes,
+                decoded_bytes=session.stats.decoded_bytes,
+            )
         finally:
             session.close()
 
