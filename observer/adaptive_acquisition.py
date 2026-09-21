@@ -23,6 +23,10 @@ _JAVASCRIPT_TYPES = frozenset(
         "application/javascript",
         "text/ecmascript",
         "application/ecmascript",
+        "application/x-javascript",
+        "application/x-ecmascript",
+        "text/jscript",
+        "text/livescript",
     }
 )
 
