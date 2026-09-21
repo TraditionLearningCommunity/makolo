@@ -289,12 +289,13 @@ def project_service_possibility(
     card,
     *,
     saved: bool | None = None,
+    can_save: bool = False,
     watch_state: str | None = None,
 ) -> dict:
     participant = item.get("participant")
     capabilities = ["view"]
     links = {"detail": card.url}
-    if saved is not None:
+    if can_save and saved is not None:
         capabilities.append("unsave" if saved else "save")
     relation_action = _existing_relation_action(card, participant)
     if relation_action is not None:
@@ -331,11 +332,12 @@ def project_funding_possibility(
     card,
     *,
     saved: bool | None = None,
+    can_save: bool = False,
     watch_state: str | None = None,
 ) -> dict:
     funding = item["funding"]
     capabilities = ["view"]
-    if saved is not None:
+    if can_save and saved is not None:
         capabilities.append("unsave" if saved else "save")
     return build_possibility_projection(
         family="funding_activity",
@@ -366,10 +368,11 @@ def project_opportunity_possibility(
     card,
     *,
     saved: bool | None = None,
+    can_save: bool = False,
     watch_state: str | None = None,
 ) -> dict:
     capabilities = ["view"]
-    if saved is not None:
+    if can_save and saved is not None:
         capabilities.append("unsave" if saved else "save")
     return build_possibility_projection(
         family=item.get("candidate_family") or "opportunity",
