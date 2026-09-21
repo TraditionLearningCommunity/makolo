@@ -134,7 +134,12 @@ def build_observation_material(
 
     revalidated = list(
         observation.revalidated_artifacts
-        .select_related("observation__series")
+        .select_related(
+            "observation__series",
+            "blob",
+            "producing_attempt",
+            "source_artifact",
+        )
         .order_by("artifact_ref")
     )
     for artifact in revalidated:
