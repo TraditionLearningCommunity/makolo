@@ -123,37 +123,94 @@ def _occurrence_ref(occurrence):
     }
 
 
+def _payment_payload(payment):
+    if payment is None:
+        return None
+    return {
+        "id": str(payment.pk),
+        "state": payment.status,
+        "amount": str(payment.amount),
+        "currency": payment.currency,
+    }
+
+
 def _payment_summary(journey, profile):
     orders = list(journey.commerce_orders.all())
-    if not orders:
+    obligations = list(journey.payment_obligations.all())
+    if not orders and not obligations:
         return None
-    order = sorted(orders, key=lambda row: (row.created_at, str(row.pk)), reverse=True)[0]
-    payments = list(order.payments.all()) if hasattr(order, "payments") else []
-    payment = sorted(payments, key=lambda row: (row.created_at, str(row.pk)), reverse=True)[0] if payments else None
+
+    order = (
+        sorted(
+            orders,
+            key=lambda row: (row.created_at, str(row.pk)),
+            reverse=True,
+        )[0]
+        if orders
+        else None
+    )
+    order_payments = list(order.payments.all()) if order is not None else []
+    order_payment = (
+        sorted(
+            order_payments,
+            key=lambda row: (row.created_at, str(row.pk)),
+            reverse=True,
+        )[0]
+        if order_payments
+        else None
+    )
+
+    obligation_rows = []
+    for obligation in obligations:
+        payments = list(obligation.payments.all())
+        payment = (
+            sorted(
+                payments,
+                key=lambda row: (row.created_at, str(row.pk)),
+                reverse=True,
+            )[0]
+            if payments
+            else None
+        )
+        row = {
+            "id": str(obligation.pk),
+            "state": obligation.status,
+            "reason": obligation.reason,
+            "amount": str(obligation.amount),
+            "currency": obligation.currency,
+            "processing_mode": obligation.processing_mode,
+            "due_at": _iso(obligation.due_at),
+            "payment": _payment_payload(payment),
+            "links": {},
+        }
+        if payment is not None:
+            row["links"]["payment"] = (
+                f"/api/v1/payments/payments/{payment.pk}/"
+            )
+        obligation_rows.append(row)
+
+    links = {}
+    if order_payment is not None:
+        links["payment"] = (
+            f"/api/v1/payments/payments/{order_payment.pk}/"
+        )
+
     return {
-        "order": {
-            "id": str(order.pk),
-            "state": order.status,
-            "payment_mode": order.payment_mode,
-            "total": str(order.total),
-            "currency": order.currency,
-            "expires_at": _iso(order.expires_at),
-        },
-        "payment": (
+        "order": (
             {
-                "id": str(payment.pk),
-                "state": payment.status,
-                "amount": str(payment.amount),
-                "currency": payment.currency,
+                "id": str(order.pk),
+                "state": order.status,
+                "payment_mode": order.payment_mode,
+                "total": str(order.total),
+                "currency": order.currency,
+                "expires_at": _iso(order.expires_at),
             }
-            if payment is not None
+            if order is not None
             else None
         ),
-        "links": (
-            {"payment": f"/api/v1/payments/payments/{payment.pk}/"}
-            if payment is not None
-            else {}
-        ),
+        "payment": _payment_payload(order_payment),
+        "obligations": obligation_rows,
+        "links": links,
     }
 
 
@@ -245,7 +302,8 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
             "workflow": journey.workflow,
         },
         "representation": {
-            "title": vocabulary.journey_noun,
+            "title": journey.activity.title,
+            "kind_label": vocabulary.journey_noun,
             "summary": journey.activity.short_description or None,
             "vocabulary": _vocabulary_payload(vocabulary),
         },
