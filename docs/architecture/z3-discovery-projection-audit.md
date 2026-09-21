@@ -296,8 +296,10 @@ Z3.1 est volontairement conservateur.
 Il peut exposer :
 
 - `view` ;
-- `save` / `unsave` lorsque l'état de conservation a été réellement résolu ;
+- `save` / `unsave` seulement lorsque l'état de conservation a été réellement résolu **et** que l'autorité correspondante est explicitement établie ;
 - une action de continuité déjà résolue pour une relation personnelle existante, par exemple `access`, `pay` ou `continue`.
+
+L'état `saved/not_saved` ne confère jamais, à lui seul, l'autorité `save/unsave` : Z3.1 sépare explicitement état et capability.
 
 Il n'expose pas encore une capability universelle d'engagement initial à partir du simple CTA de carte. La définition du handoff vers les vrais services propriétaires appartient à Z3.7.
 
