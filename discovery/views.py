@@ -143,7 +143,10 @@ class DiscoveryHomeView(TemplateView):
             search_params, profile=self.request.user, requested_params=self.request.GET, constraints=intent.constraints,
         )
         funding_items = public_funding_discovery_items(
-            search_params, requested_params=self.request.GET, constraints=intent.constraints,
+            search_params,
+            profile=self.request.user,
+            requested_params=self.request.GET,
+            constraints=intent.constraints,
         )
         opportunity_items = public_opportunity_discovery_items(
             search_params, requested_params=self.request.GET, constraints=intent.constraints,
