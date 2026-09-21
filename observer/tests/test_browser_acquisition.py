@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest import TestCase
@@ -134,6 +135,22 @@ class BrowserRenderAcquisitionTests(TestCase):
             renderer=renderer,
             clock=self.clock,
         ), session
+
+    def test_browser_deadline_is_capped_by_claim_lease(self):
+        short_claim = replace(
+            self.claim,
+            leased_until=self.clock() + timedelta(seconds=12),
+        )
+        acquisition, _session = self.acquisition(
+            StaticRenderer(self.render_result())
+        )
+
+        acquisition.acquire(short_claim)
+
+        self.assertEqual(
+            acquisition.http_acquisition.deadlines,
+            [short_claim.leased_until],
+        )
 
     def test_success_persists_raw_main_and_rendered_dom_artifacts(self):
         acquisition, session = self.acquisition(
