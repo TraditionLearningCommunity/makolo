@@ -439,6 +439,7 @@ class Z5DetailAPIContractTests(TestCase):
             quantity=2,
             status=CapacityReservationStatus.HELD,
         )
+        reservation_count = CapacityReservation.objects.count()
 
         self.client.force_authenticate(user=None)
         activity_response = self.client.get(f"/api/v1/activities/{self.activity.pk}/")
@@ -460,6 +461,7 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertNotIn("queue", data)
         self.assertNotIn("placement", data)
         self.assertNotIn("checkpoint", data)
+        self.assertEqual(CapacityReservation.objects.count(), reservation_count)
 
     def test_private_activity_and_occurrence_do_not_leak_by_uuid(self):
         private = Activity.objects.create(
