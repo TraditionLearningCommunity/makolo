@@ -169,18 +169,32 @@ class Z5DetailAPIContractTests(TestCase):
         self.client.force_authenticate(self.user)
         pending_response = self.client.get(f"/api/v1/me/journeys/{pending.pk}/")
         self.assertEqual(pending_response.status_code, 200)
-        pending_readiness = pending_response.json()["data"]["readiness"]
+        pending_data = pending_response.json()["data"]
+        pending_readiness = pending_data["readiness"]
         self.assertEqual(pending_readiness["state"], "action_required")
         self.assertTrue(
             any(row["reason"] == "payment_required" for row in pending_readiness["actor_interventions"])
         )
+        self.assertEqual(
+            pending_data["payment"]["obligations"][0]["state"],
+            "pending",
+        )
+        self.assertEqual(
+            pending_data["payment"]["obligations"][0]["amount"],
+            "15.00",
+        )
 
         satisfied_response = self.client.get(f"/api/v1/me/journeys/{satisfied.pk}/")
         self.assertEqual(satisfied_response.status_code, 200)
-        satisfied_readiness = satisfied_response.json()["data"]["readiness"]
+        satisfied_data = satisfied_response.json()["data"]
+        satisfied_readiness = satisfied_data["readiness"]
         self.assertEqual(satisfied_readiness["state"], "ready")
         self.assertFalse(
             any(row["reason"] == "payment_required" for row in satisfied_readiness["actor_interventions"])
+        )
+        self.assertEqual(
+            satisfied_data["payment"]["obligations"][0]["state"],
+            "satisfied",
         )
 
     def test_activity_personal_relation_reuses_existing_journey_and_access(self):
