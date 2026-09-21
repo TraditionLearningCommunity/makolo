@@ -137,3 +137,10 @@ def read_artifact_bytes(artifact_ref: str) -> bytes:
         digest=blob.content_digest,
     )
     return payload
+
+
+class DjangoArtifactReader:
+    """Private artifact reader used behind the Interpreter boundary."""
+
+    def read(self, artifact_ref: str) -> bytes:
+        return read_artifact_bytes(artifact_ref)
