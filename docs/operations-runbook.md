@@ -181,6 +181,35 @@ Le cache robots est **origin-scoped** ; cadence et exclusion mutuelle sont **hos
 
 Un 404 reste une Observation technique et ne signifie jamais « Activity supprimée ». Le Browser ne transforme pas non plus un texte rendu en vérité métier.
 
+### Sortie vers l’Interpréteur
+
+La frontière aval canonique est `ObservationMaterial v2`. Il s’agit d’une projection reconstructible des vérités Observer, jamais d’une copie persistante du corps observé.
+
+Pour diagnostiquer un handoff aval, vérifier dans cet ordre :
+
+1. l’Observation finalisée et son profil/policy fingerprint ;
+2. les Attempts ordonnés et leur stratégie `direct_http|browser_render` ;
+3. les artefacts et leur `producing_attempt_ref` ;
+4. `origin` et `completeness` de chaque artefact ;
+5. pour `NOT_MODIFIED`, les artefacts antérieurs explicitement revalidés ;
+6. pour `FAILED`, distinguer absence totale de matériau et artefact HTTP conservé avant un échec Browser.
+
+Le contenu reste accessible uniquement par `artifact_ref` via le stockage privé Observer. Ne copier ni chemin de fichier, ni corps de page, ni URL sensible dans un heartbeat, un ticket ou une métrique.
+
+### Lecture opérationnelle des coûts et échecs
+
+Aucune table analytics dédiée n’est requise pour fermer l’Acteur 2. Les vérités existantes suffisent :
+
+- `ObservationAttempt.strategy` sépare coût HTTP et Browser ;
+- `started_at/completed_at` permettent la durée d’Attempt ;
+- `wire_bytes/decoded_bytes` permettent le volume acquis ;
+- une Observation adaptive portant `direct_http` puis `browser_render` constitue une escalade ;
+- `failure_code` distingue sécurité, robots, rate-limit, timeout et panne Browser ;
+- `ObservedArtifact.completeness` permet de compter les troncatures/incomplétudes ;
+- les Attempts `INTERRUPTED` et le compteur de recovery exposent les reprises après lease/crash.
+
+Ces données peuvent être projetées ultérieurement vers Analytics ; l’Observateur ne duplique pas ici un moteur de métriques.
+
 ### Frontières qui restent fermées
 
 Le Lot 5 **n'ajoute pas** :
