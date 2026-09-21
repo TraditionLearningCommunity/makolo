@@ -34,7 +34,11 @@ class FakeClock:
 class FakeSession:
     def __init__(self, response=None):
         self.response = response
-        self.stats = SimpleNamespace(wire_bytes=0, decoded_bytes=0)
+        self.stats = SimpleNamespace(
+            wire_bytes=0,
+            decoded_bytes=0,
+            redirect_count=0,
+        )
         self.closed = False
         self.calls = []
 
