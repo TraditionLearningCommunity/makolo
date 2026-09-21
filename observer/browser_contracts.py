@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass, field
 from importlib import metadata
 from types import MappingProxyType
+from datetime import datetime, timezone
 from typing import Callable, Mapping, Optional, Tuple
 
 from .errors import ObserverContractError
@@ -233,7 +234,7 @@ class BrowserRenderResult:
     main_response_headers: Mapping[str, str]
     redirect_count: int
     incomplete: bool = False
-    retry_at: Optional[object] = None
+    retry_at: Optional[datetime] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -284,6 +285,20 @@ class BrowserRenderResult:
             raise ObserverContractError(
                 "incomplete must be boolean"
             )
+        if self.retry_at is not None:
+            if (
+                not isinstance(self.retry_at, datetime)
+                or self.retry_at.tzinfo is None
+                or self.retry_at.utcoffset() is None
+            ):
+                raise ObserverContractError(
+                    "retry_at must be timezone-aware"
+                )
+            object.__setattr__(
+                self,
+                "retry_at",
+                self.retry_at.astimezone(timezone.utc),
+            )
 
 
 class BrowserRenderFailure(Exception):
@@ -293,8 +308,10 @@ class BrowserRenderFailure(Exception):
         *,
         retryable: bool = False,
         retry_at=None,
+        response_status: int | None = None,
     ) -> None:
         self.code = _required_text("code", code)
         self.retryable = bool(retryable)
         self.retry_at = retry_at
+        self.response_status = response_status
         super().__init__(self.code)
