@@ -253,8 +253,8 @@ class Command(BaseCommand):
             options["http_user_agent"] or ""
         ).strip():
             raise CommandError(
-                "--http-user-agent est obligatoire avec une acquisition "
-                "HTTP ou Browser."
+                "--http-user-agent est obligatoire avec toute acquisition "
+                "publique HTTP, Browser ou adaptive."
             )
         for option_name in (
             "inbox_limit",
