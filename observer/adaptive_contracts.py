@@ -65,7 +65,7 @@ class AdaptiveAcquisitionPolicy:
                 self.browser_policy.profile_fingerprint
             ),
             "html_probe_bytes": self.html_probe_bytes,
-            "escalation_signal": "executable_script",
+            "escalation_signal": "executable_script_v1",
         }
         encoded = json.dumps(
             payload,
