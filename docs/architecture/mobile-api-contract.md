@@ -1,5 +1,7 @@
 # Contrat API — MVP mobile Flutter
 
+> **Portée historique :** ce document décrit le premier contrat mobile Event/Ticket et les endpoints qu'il couvre. Pour les nouvelles projections UX Mature du programme Z, le contrat transversal canonique est [`backend-ux-projection-api.md`](backend-ux-projection-api.md). Le runtime courant reste la vérité.
+
 Ce document fixe le contrat HTTP utilisé par le futur client Flutter Android/iOS de Makolo. Il ne décrit pas le back-office organisateur. Le mobile MVP cible les participants, acheteurs et détenteurs de billets, avec un mode Scanner séparé et strictement autorisé côté serveur.
 
 ## Base et principes
