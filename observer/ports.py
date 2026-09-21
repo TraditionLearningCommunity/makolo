@@ -32,6 +32,25 @@ class ObservationAcquisitionPort(Protocol):
         ...
 
 
+class ObservationAcquisitionPlanPort(Protocol):
+    def initial_acquisition(
+        self,
+        claim: ObservationClaim,
+    ) -> ObservationAcquisitionPort:
+        """Return the first technical strategy for this Observation."""
+        ...
+
+    def next_acquisition(
+        self,
+        claim: ObservationClaim,
+        *,
+        previous_acquisition: ObservationAcquisitionPort,
+        result: AcquisitionResult,
+    ) -> ObservationAcquisitionPort | None:
+        """Return at most the next justified strategy, or stop."""
+        ...
+
+
 class BrowserRendererPort(Protocol):
     def render(
         self,
