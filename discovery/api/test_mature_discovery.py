@@ -16,6 +16,13 @@ from activities.models import (
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from events.models import Event
 from funding.models import FundingDetails
+from groups.models import (
+    ActivityGroupEligibility,
+    ActivityGroupEligibilityStatus,
+    Group,
+    GroupMembership,
+    GroupMembershipStatus,
+)
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from opportunities.models import (
     Opportunity,
@@ -206,6 +213,53 @@ class MatureDiscoveryAPITests(TestCase):
                 )
             )
             self.assertEqual(detail.status_code, 404)
+
+    def test_group_gated_service_and_funding_follow_viewer_membership(self):
+        group = Group.objects.create(
+            name="Z3 gated",
+            space=self.space,
+            created_by=self.owner,
+        )
+        for activity in (self.service_activity, self.funding_activity):
+            ActivityGroupEligibility.objects.create(
+                group=group,
+                activity=activity,
+                status=ActivityGroupEligibilityStatus.APPROVED,
+                requested_by=self.owner,
+                decided_by=self.owner,
+                decided_at=self.now,
+            )
+
+        anonymous = self._items(q="Z3")
+        anonymous_ids = {
+            row["identity"]["resource"]["id"]
+            for row in anonymous["data"]["results"]
+        }
+        self.assertNotIn(str(self.service_activity.pk), anonymous_ids)
+        self.assertNotIn(str(self.funding_activity.pk), anonymous_ids)
+
+        GroupMembership.objects.create(
+            group=group,
+            profile=self.participant,
+            status=GroupMembershipStatus.ACTIVE,
+        )
+        self.client.force_login(self.participant)
+        member = self._items(q="Z3")
+        member_ids = {
+            row["identity"]["resource"]["id"]
+            for row in member["data"]["results"]
+        }
+        self.assertIn(str(self.service_activity.pk), member_ids)
+        self.assertIn(str(self.funding_activity.pk), member_ids)
+
+        self.client.force_login(self.outsider)
+        outsider = self._items(q="Z3")
+        outsider_ids = {
+            row["identity"]["resource"]["id"]
+            for row in outsider["data"]["results"]
+        }
+        self.assertNotIn(str(self.service_activity.pk), outsider_ids)
+        self.assertNotIn(str(self.funding_activity.pk), outsider_ids)
 
     def test_detail_is_retrieve_not_search_and_preserves_owner_description(self):
         response = self.client.get(
