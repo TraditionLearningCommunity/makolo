@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 from asgiref.sync import async_to_sync
 from crawlee import Request
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase
 
@@ -528,6 +529,9 @@ class ObserverRuntimeTests(TestCase):
                 f"{command_path}.build_direct_http_acquisition",
             ) as build_acquisition,
             patch(
+                f"{command_path}.build_browser_render_acquisition",
+            ) as build_browser_acquisition,
+            patch(
                 f"{command_path}.Command._heartbeat",
                 new_callable=AsyncMock,
             ) as heartbeat,
@@ -543,6 +547,7 @@ class ObserverRuntimeTests(TestCase):
             )
 
         build_acquisition.assert_not_called()
+        build_browser_acquisition.assert_not_called()
         claim.assert_not_called()
         execute.assert_not_called()
         final_kwargs = heartbeat.await_args.kwargs
@@ -611,6 +616,9 @@ class ObserverRuntimeTests(TestCase):
                 return_value=fake_acquisition,
             ) as build_acquisition,
             patch(
+                f"{command_path}.build_browser_render_acquisition",
+            ) as build_browser_acquisition,
+            patch(
                 f"{command_path}.Command._heartbeat",
                 new_callable=AsyncMock,
             ) as heartbeat,
@@ -636,6 +644,7 @@ class ObserverRuntimeTests(TestCase):
         claim.assert_called_once()
         execute.assert_called_once()
         build_acquisition.assert_called_once()
+        build_browser_acquisition.assert_not_called()
         self.assertIs(
             execute.call_args.kwargs["acquisition"],
             fake_acquisition,
@@ -662,6 +671,136 @@ class ObserverRuntimeTests(TestCase):
                 "acquisition": "direct_http_v1",
             },
         )
+
+    def test_worker_one_shot_claims_and_executes_browser_work(self):
+        queue = FakeDrainQueue()
+        stdout = StringIO()
+        command_path = (
+            "observer.django_app.management.commands.observer_worker"
+        )
+        backlog = ObservationBacklog(
+            pending_handoffs=1,
+            due_retries=0,
+            due_watches=0,
+            open_observations=0,
+        )
+        fake_claim = object()
+        fake_observation = type(
+            "FinalizedObservation",
+            (),
+            {"outcome": ObservationOutcome.OBSERVED.value},
+        )()
+        fake_acquisition = object()
+        with (
+            patch(
+                f"{command_path}.is_operational_control_enabled",
+                return_value=True,
+            ),
+            patch(
+                f"{command_path}.RequestQueue.open",
+                new=AsyncMock(return_value=queue),
+            ),
+            patch(
+                f"{command_path}.drain_crawlee_inbox",
+                new=AsyncMock(
+                    return_value=InboxDrainStats(
+                        fetched=1,
+                        absorbed=1,
+                        replayed=0,
+                    )
+                ),
+            ),
+            patch(
+                f"{command_path}.recover_expired_observations",
+                return_value=0,
+            ),
+            patch(
+                f"{command_path}.claim_observations",
+                return_value=(fake_claim,),
+            ),
+            patch(
+                f"{command_path}.execute_claim",
+                return_value=fake_observation,
+            ) as execute,
+            patch(
+                f"{command_path}.observation_backlog",
+                return_value=backlog,
+            ),
+            patch(
+                f"{command_path}.build_browser_render_acquisition",
+                return_value=fake_acquisition,
+            ) as build_browser,
+            patch(
+                f"{command_path}.build_direct_http_acquisition",
+            ) as build_http,
+            patch(
+                f"{command_path}.Command._heartbeat",
+                new_callable=AsyncMock,
+            ) as heartbeat,
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--instance-id",
+                "observer-browser-once-test",
+                "--enable-browser-acquisition",
+                "--http-user-agent",
+                "MakoloObserver/1.0 BrowserTest",
+                "--http-host-interval-seconds",
+                "0",
+                "--once",
+                stdout=stdout,
+            )
+
+        build_browser.assert_called_once()
+        build_http.assert_not_called()
+        execute.assert_called_once()
+        self.assertIs(
+            execute.call_args.kwargs["acquisition"],
+            fake_acquisition,
+        )
+        final_kwargs = heartbeat.await_args.kwargs
+        self.assertEqual(final_kwargs["state"], WorkerState.STOPPED)
+        self.assertEqual(
+            final_kwargs["metadata"]["mode"],
+            "observer-browser-render",
+        )
+        self.assertEqual(
+            final_kwargs["metadata"]["last_stats"]["acquisition"],
+            "browser_render_v1",
+        )
+
+    def test_worker_rejects_http_and_browser_modes_together(self):
+        with self.assertRaisesRegex(
+            CommandError,
+            "mutuellement exclusifs",
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--enable-http-acquisition",
+                "--enable-browser-acquisition",
+                "--http-user-agent",
+                "MakoloObserver/1.0 Test",
+                "--once",
+                stdout=StringIO(),
+            )
+
+    def test_worker_requires_user_agent_for_browser_mode(self):
+        with self.assertRaisesRegex(
+            CommandError,
+            "--http-user-agent",
+        ):
+            call_command(
+                "observer_worker",
+                "--queue-name",
+                "observer-test",
+                "--enable-browser-acquisition",
+                "--once",
+                stdout=StringIO(),
+            )
 
     def test_worker_rechecks_kill_switch_before_claim(self):
         queue = FakeDrainQueue()

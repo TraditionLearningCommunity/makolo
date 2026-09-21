@@ -30,7 +30,7 @@ jobs:
   observer-postgresql:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
     services:
       postgres:
         image: postgres:16-alpine
@@ -68,12 +68,17 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip check
           python -c "import crawlee; print(crawlee.__version__)"
+          python -c "import playwright; print('playwright-python-import-ok')"
+      - name: Install Observer Chromium
+        run: python -m playwright install --with-deps chromium
       - name: Check and migrate PostgreSQL
         run: |
           python manage.py check
           python manage.py makemigrations --check --dry-run
           python manage.py migrate --noinput
-      - name: Run Observer PostgreSQL runtime and concurrency
+      - name: Run Observer PostgreSQL runtime, browser and concurrency
+        env:
+          MAKOLO_OBSERVER_BROWSER_INTEGRATION: "1"
         run: |
           python -m unittest discover observer/tests -v
           python manage.py test observer.django_app

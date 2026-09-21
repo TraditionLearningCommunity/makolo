@@ -50,33 +50,41 @@ Ne pas lancer simultanément un worker persistant et un `run_autopilot` horaire 
 
 Le cycle Autopilot est conçu pour être court sur la taille bêta. Il borne les livraisons par `--delivery-limit` et ne reparcourt plus tout l'historique des événements terminés : le rattrapage post-événement est borné aux 30 derniers jours. Surveiller le temps réel dans les logs ; il n'existe pas de SLA de durée garanti.
 
-### 1.4 Observateur — acquisition HTTP publique du Lot 3
+### 1.4 Observateur — HTTP public Lot 3 et Browser public Lot 4
 
-Le worker **Observateur** reste distinct d'Autopilot. Le Lot 3 conserve tout le control-plane du Lot 2 et ajoute une capacité d'acquisition **HTTP directe publique** :
+Le worker **Observateur** reste distinct d'Autopilot. Il possède trois modes opérationnels explicites :
+
+~~~text
+observer-control-plane
+observer-direct-http
+observer-browser-render
+~~~
+
+Le mode control-plane absorbe/recover/mesure sans connexion Internet. Le Lot 3 ajoute l'acquisition HTTP directe publique sécurisée. Le Lot 4 ajoute le rendu JavaScript public dans Chromium **sans donner au navigateur la possession du réseau**.
+
+Les invariants communs restent :
 
 - absorption durable et idempotente des handoffs déjà admis dans la `RequestQueue` Crawlee ;
 - recovery des Observations dont la lease a expiré ;
 - claim atomique d'une Observation seulement lorsqu'un worker commence réellement l'épisode ;
 - revalidation DNS à chaque connexion et redirect ;
-- connexion à l'IP littérale validée, avec le hostname d'origine conservé pour Host/SNI/TLS ;
-- refus de localhost, adresses non globales, réponses DNS mixtes, peer mismatch et ports non autorisés ;
-- redirects bornés, boucles détectées et downgrade HTTPS→HTTP refusé par défaut ;
-- `robots.txt` mis en cache par origine (schéma + host + port) ;
-- politeness partagée par host entre workers, avec lease et `not_before` persistants ;
-- réponses et décompression bornées ;
-- `Retry-After`, ETag, Last-Modified et 304 ;
-- capture brute dans le storage privé Observer et métriques techniques d'Attempt ;
+- refus localhost, adresses non globales, réponses DNS mixtes, peer mismatch et ports non autorisés ;
+- `robots.txt` origin-scoped et politeness host-scoped ;
+- réponses, décompression, durée et budgets bornés ;
+- capture dans le storage privé Observer ;
 - heartbeat Operations sans locator, contenu ni secret.
 
 ### Activation explicite
 
-Le déploiement d'un nouveau SHA **ne doit pas activer Internet implicitement**. Sans flag, la commande reste compatible avec le Lot 2 et fonctionne en control-plane uniquement :
+Le déploiement d'un nouveau SHA **ne doit activer ni Internet ni Chromium implicitement**.
+
+Control-plane uniquement :
 
 ~~~bash
 python manage.py observer_worker --queue-name <QUEUE_NAME>
 ~~~
 
-L'acquisition HTTP réelle exige simultanément :
+HTTP direct public :
 
 ~~~bash
 python manage.py observer_worker \
@@ -85,49 +93,102 @@ python manage.py observer_worker \
   --http-user-agent "MakoloObserver/1.0 (<CONTACT_OPS>)"
 ~~~
 
-`<QUEUE_NAME>` et `<CONTACT_OPS>` sont propres à l'environnement réel. Le dépôt n'invente ni nom de queue de production, ni URL de contact opérateur. Par défaut, le product token robots est `MakoloObserver` : il doit apparaître dans `--http-user-agent`. Pour utiliser un autre token RFC 9309, fournir aussi `--robots-user-agent <TOKEN>` et garder ce même token dans le User-Agent.
+Browser public / JavaScript :
+
+~~~bash
+python manage.py observer_worker \
+  --queue-name <QUEUE_NAME> \
+  --enable-browser-acquisition \
+  --http-user-agent "MakoloObserver/1.0 (<CONTACT_OPS>)"
+~~~
+
+`--enable-http-acquisition` et `--enable-browser-acquisition` sont mutuellement exclusifs dans un même process. Cela maintient des profils et séries d'observation comparables au lieu de mélanger HTTP direct et Browser.
+
+Lot 4 ne contient pas de fallback automatique HTTP → Browser. Un worker Browser observe les handoffs éligibles sous le profil `public-browser`. Lancer en parallèle un worker HTTP et un worker Browser sur la même population signifie demander explicitement **deux séries techniques distinctes** ; ne le faire que si cette double observation est voulue.
+
+`<QUEUE_NAME>` et `<CONTACT_OPS>` sont propres à l'environnement réel. Le dépôt n'invente ni queue de production, ni URL de contact opérateur. Par défaut, le product token robots est `MakoloObserver` : il doit apparaître dans `--http-user-agent`. Pour utiliser un autre token RFC 9309, fournir aussi `--robots-user-agent <TOKEN>` et garder le même token dans le User-Agent.
 
 Pour un cycle diagnostique unique, ajouter `--once`.
 
-### Garde-fous techniques
+### Prérequis Browser
+
+Le Browser Lot 4 nécessite deux éléments distincts :
+
+1. le package Python Playwright, installé par `crawlee[playwright]` dans `requirements.txt` ;
+2. un binaire Chromium compatible installé explicitement dans l'environnement d'exécution.
+
+Dans un environnement Linux compatible où l'opérateur contrôle les dépendances système :
+
+~~~bash
+python -m pip install -r requirements.txt
+python -m playwright install chromium
+~~~
+
+L'option `--with-deps` n'est appropriée que lorsque l'environnement autorise l'installation des dépendances système correspondantes. **Ne pas supposer que PythonAnywhere autorise ou supporte un worker Chromium persistant.** PythonAnywhere reste l'environnement bêta actuel ; vérifier capacités, quotas et politique de process avant toute activation Browser réelle.
+
+La CI Observer installe explicitement Chromium et exécute un rendu JavaScript avec des réponses en mémoire. Les tests n'ont pas besoin d'accéder à Internet.
+
+### Garde-fous HTTP communs
 
 Les valeurs par défaut sont des **bornes de sécurité**, pas des SLA ni des recommandations universelles de crawl :
 
-- ports autorisés : 80 et 443 ; utiliser `--http-allowed-port` uniquement pour une cible explicitement nécessaire ;
+- ports autorisés : 80 et 443 ;
 - redirects : 5 maximum ;
-- corps réseau : 8 MiB maximum ;
-- corps décodé : 16 MiB maximum ;
+- corps réseau par ressource : 8 MiB maximum ;
+- corps décodé par ressource : 16 MiB maximum ;
 - `robots.txt` : 256 KiB maximum, cache 1 h ;
 - intervalle minimal par host : 1 s ;
 - timeouts connect/read : 10 s / 20 s ;
-- durée totale maximale d'une Observation HTTP : 180 s ;
-- lease host HTTP : 240 s par défaut, donc supérieure à la deadline totale ;
-- retries automatiques immédiats réservés aux pannes plausiblement transitoires ; 429 respecte `Retry-After`.
+- durée totale maximale d'une Observation : 180 s ;
+- lease host HTTP : 240 s par défaut ;
+- retries automatiques réservés aux pannes plausiblement transitoires ; 429 respecte `Retry-After`.
 
 Toute extension de port, downgrade HTTPS→HTTP ou cadence plus agressive doit être une décision opérateur explicite. Les `observation_hints` reçus du Prospecteur ne peuvent jamais affaiblir ces contrôles.
 
-### Robots, politeness et retries
+### Garde-fous Browser
 
-Le cache robots est **origin-scoped** ; la cadence et l'exclusion mutuelle sont **host-scoped**. Ainsi HTTP et HTTPS ne partagent pas aveuglément un même `robots.txt`, tandis que deux workers ne peuvent pas frapper simultanément le même host.
+Le profil Browser public ajoute par défaut :
 
-Un petit délai de politeness peut être attendu dans le même épisode ; un délai plus long devient un retry planifié plutôt qu'un sleep non borné. Une réponse 404 reste une Observation technique et ne signifie jamais « Activity supprimée ». Un 304 produit une nouvelle Observation sans copier l'ancien artefact et peut revalider le précédent.
+- Chromium headless, contexte non persistant ;
+- Service Workers bloqués ;
+- WebSocket, WebRTC, WebTransport, `sendBeacon` et popups bloqués ;
+- méthodes autres que GET bloquées ;
+- aucun Cookie, Authorization ou Referer Browser propagé au réseau externe ;
+- `Set-Cookie` retiré des réponses avant `route.fulfill` ;
+- ressources image/media/font bloquées par défaut ;
+- 64 requêtes Browser routées maximum ;
+- 24 MiB de wire bytes cumulés ;
+- 32 MiB décodés cumulés ;
+- 4 MiB maximum pour le DOM rendu ;
+- settle court et borné après `DOMContentLoaded` ;
+- proxy sink loopback comme défense secondaire contre toute tentative de sortie réseau Browser non routée.
+
+Le Browser n'utilise pas `networkidle` comme preuve de fin. Une page qui maintient des timers/requêtes ne doit pas garder l'Observation ouverte indéfiniment.
+
+### Robots, politeness et redirects
+
+Le cache robots est **origin-scoped** ; cadence et exclusion mutuelle sont **host-scoped**. En Browser, chaque URL de sous-ressource et chaque destination de redirect redevient une requête Observer : elle repasse par robots, politeness, DNS et contrôle d'adresse avant tout accès réseau.
+
+Un 404 reste une Observation technique et ne signifie jamais « Activity supprimée ». Le Browser ne transforme pas non plus un texte rendu en vérité métier.
 
 ### Frontières qui restent fermées
 
-Le Lot 3 **n'ajoute pas** :
+Le Lot 4 **n'ajoute pas** :
 
-- Browser/Playwright ou rendu JavaScript ;
-- cookies, session privée, Authorization ou contournement d'accès ;
+- escalade automatique HTTP → Browser ;
+- cookies/session privée/Authorization ;
+- login sur des sources externes ;
 - extraction sémantique ou vérité métier ;
 - création/modification d'Activity, Occurrence, Requirement, Proof, Access, etc. ;
-- cadence autonome de watch par défaut : `--watch-interval-seconds` doit être fourni explicitement ;
+- cadence autonome de watch par défaut ;
+- agent Browser autonome ;
 - politique d'expansion Prospecteur inventée.
 
-L'Observateur sait construire un `ObservationReport` structure-only et un `ObservationMaterial` pour l'aval. La soumission vers un sink Prospecteur reste injectée : l'Observateur ne choisit pas seul une politique d'expansion.
+L'Observateur continue de construire un `ObservationReport` structure-only et un `ObservationMaterial` pour l'aval. Le DOM rendu est un artefact technique, pas une interprétation.
 
 ### Arrêt et incident
 
-Le contrôle Operations `observer` est vérifié avant l'ouverture de la queue puis avant chaque nouveau claim. Le désactiver suspend les nouveaux travaux sans purger Crawlee. Le worker ouvre toujours la queue avec `purge_on_start=False`.
+Le contrôle Operations `observer` est vérifié avant l'ouverture de la queue puis avant chaque nouveau claim. Le désactiver suspend les nouveaux travaux sans purger Crawlee.
 
 En cas de crash après claim, la lease protège l'unicité ; son expiration finalise conservativement l'Attempt en `INTERRUPTED`, l'Observation en échec technique et programme uniquement le retry prévu par le contrat.
 
@@ -543,7 +604,7 @@ Au minimum :
 - `/api/v1/readiness/` répond 200 ;
 - Web/Always-on task en état attendu ;
 - dernière exécution Autopilot récente ;
-- si l'Observateur est activé : heartbeat `observer` récent, état non `degraded`, backlog compris et mode attendu (`observer-control-plane` ou `observer-direct-http`) ;
+- si l'Observateur est activé : heartbeat `observer` récent, état non `degraded`, backlog compris et mode attendu (`observer-control-plane`, `observer-direct-http` ou `observer-browser-render`) ;
 - pas d'accumulation anormale de notifications/CRM en queue ;
 - pas de hausse de paiements/webhooks/scans en échec ;
 - incidents Operations ouverts ;
@@ -651,7 +712,7 @@ Cette passe ne met pas en place :
 - object storage ;
 - Redis ;
 - PostgreSQL sur le PythonAnywhere actuel ;
-- rendu Browser/JavaScript de l'Observateur et acquisition authentifiée/privée ; le Lot 3 reste HTTP public direct uniquement.
+- acquisition Browser authentifiée/privée, login externe et escalade automatique HTTP → Browser ; le Lot 4 reste Browser public et explicitement activé.
 
 Risques restant volontairement ouverts : plafond de concurrence SQLite, rate limiting web local-cache non distribué, médias sur filesystem local, dépendance à l'offre PythonAnywhere pour Always-on/scheduling, backend e-mail réel à choisir, sauvegarde off-host à opérer, migration PostgreSQL future à planifier.
 

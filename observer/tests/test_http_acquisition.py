@@ -871,3 +871,69 @@ class DirectHttpAcquisitionTests(TestCase):
         self.assertNotIn("authorization", lowered)
         self.assertNotIn("cookie", lowered)
         self.assertNotIn("proxy-authorization", lowered)
+
+
+    def test_safe_resource_session_drops_browser_credentials(self):
+        acquisition = self.acquisition(
+            {
+                "https://example.test/resource": [
+                    exchange(200, body=b"ok")
+                ]
+            }
+        )
+        session = acquisition.open_resource_session(
+            deadline_at=self.clock() + timedelta(seconds=30)
+        )
+        try:
+            result = session.fetch(
+                "https://example.test/resource",
+                headers={
+                    "Accept": "text/html",
+                    "Accept-Language": "fr",
+                    "Authorization": "Bearer should-not-leave",
+                    "Cookie": "session=should-not-leave",
+                    "Referer": "https://private.example/secret",
+                },
+            )
+        finally:
+            session.close()
+
+        self.assertEqual(result.status, 200)
+        sent = acquisition.transport.calls[0]["headers"]
+        lowered = {key.lower(): value for key, value in sent.items()}
+        self.assertEqual(lowered["accept"], "text/html")
+        self.assertEqual(lowered["accept-language"], "fr")
+        self.assertNotIn("authorization", lowered)
+        self.assertNotIn("cookie", lowered)
+        self.assertNotIn("referer", lowered)
+
+    def test_safe_resource_session_returns_redirect_without_following_it(self):
+        acquisition = self.acquisition(
+            {
+                "https://example.test/resource": [
+                    exchange(
+                        302,
+                        headers={"Location": "/next"},
+                    )
+                ],
+                "https://example.test/next": [
+                    exchange(200, body=b"unexpected")
+                ],
+            }
+        )
+        session = acquisition.open_resource_session(
+            deadline_at=self.clock() + timedelta(seconds=30)
+        )
+        try:
+            result = session.fetch(
+                "https://example.test/resource"
+            )
+        finally:
+            session.close()
+
+        self.assertEqual(result.status, 302)
+        self.assertEqual(
+            result.headers.get("location"),
+            "/next",
+        )
+        self.assertEqual(len(acquisition.transport.calls), 1)

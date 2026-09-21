@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from typing import Protocol
+from datetime import datetime
+from typing import Callable, Protocol
 
 from .contracts import AttemptStrategy, ObservationMaterial
+from .browser_contracts import (
+    BrowserAcquisitionPolicy,
+    BrowserRenderResult,
+    BrowserResourceLoader,
+)
 from .runtime_contracts import AcquisitionResult, ObservationClaim
 
 
@@ -23,4 +29,18 @@ class ObservationAcquisitionPort(Protocol):
 
     def acquire(self, claim: ObservationClaim) -> AcquisitionResult:
         """Acquire one claimed observation using an injected strategy."""
+        ...
+
+
+class BrowserRendererPort(Protocol):
+    def render(
+        self,
+        *,
+        start_url: str,
+        policy: BrowserAcquisitionPolicy,
+        resource_loader: BrowserResourceLoader,
+        deadline_at: datetime,
+        clock: Callable[[], datetime],
+    ) -> BrowserRenderResult:
+        """Render one public page without owning external network I/O."""
         ...

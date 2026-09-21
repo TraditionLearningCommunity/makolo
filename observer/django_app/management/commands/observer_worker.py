@@ -10,6 +10,8 @@ from crawlee.storages import RequestQueue
 from django.core.management.base import BaseCommand, CommandError
 
 from core.logging_filters import redact_sensitive_text
+from observer.browser_contracts import BrowserAcquisitionPolicy
+from observer.django_browser import build_browser_render_acquisition
 from observer.django_http import build_direct_http_acquisition
 from observer.django_inbox import drain_crawlee_inbox
 from observer.django_runtime import (
@@ -29,8 +31,8 @@ from operations.services import record_worker_heartbeat
 
 class Command(BaseCommand):
     help = (
-        "Lance le worker Observer : inbox, recovery et acquisition HTTP "
-        "publique sécurisée. Aucun rendu Browser/JS n'est effectué."
+        "Lance le worker Observer : inbox, recovery et acquisition "
+        "publique HTTP directe ou Browser/JS contrôlée."
     )
 
     def add_arguments(self, parser):
@@ -67,11 +69,19 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--enable-browser-acquisition",
+            action="store_true",
+            help=(
+                "Active explicitement le profil Browser/JS public du Lot 4. "
+                "Mutuellement exclusif avec --enable-http-acquisition."
+            ),
+        )
+        parser.add_argument(
             "--http-user-agent",
             default=None,
             help=(
                 "User-Agent opérateur explicite utilisé pour l'acquisition "
-                "HTTP. Obligatoire avec --enable-http-acquisition."
+                "publique. Obligatoire avec toute acquisition HTTP/Browser."
             ),
         )
         parser.add_argument(
@@ -156,6 +166,45 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--browser-locale",
+            default="en-US",
+        )
+        parser.add_argument(
+            "--browser-viewport-width",
+            type=int,
+            default=1280,
+        )
+        parser.add_argument(
+            "--browser-viewport-height",
+            type=int,
+            default=720,
+        )
+        parser.add_argument(
+            "--browser-settle-timeout-seconds",
+            type=int,
+            default=5,
+        )
+        parser.add_argument(
+            "--browser-max-requests",
+            type=int,
+            default=64,
+        )
+        parser.add_argument(
+            "--browser-max-total-wire-bytes",
+            type=int,
+            default=24 * 1024 * 1024,
+        )
+        parser.add_argument(
+            "--browser-max-total-decoded-bytes",
+            type=int,
+            default=32 * 1024 * 1024,
+        )
+        parser.add_argument(
+            "--browser-max-rendered-dom-bytes",
+            type=int,
+            default=4 * 1024 * 1024,
+        )
+        parser.add_argument(
             "--once",
             action="store_true",
             help="Exécute un seul cycle puis s'arrête proprement.",
@@ -167,13 +216,20 @@ class Command(BaseCommand):
             raise CommandError("--queue-name ne peut pas être vide.")
         if options["interval_seconds"] <= 0:
             raise CommandError("--interval-seconds doit être > 0.")
-        acquisition_enabled = bool(options["enable_http_acquisition"])
+        http_enabled = bool(options["enable_http_acquisition"])
+        browser_enabled = bool(options["enable_browser_acquisition"])
+        if http_enabled and browser_enabled:
+            raise CommandError(
+                "--enable-http-acquisition et "
+                "--enable-browser-acquisition sont mutuellement exclusifs."
+            )
+        acquisition_enabled = http_enabled or browser_enabled
         if acquisition_enabled and not (
             options["http_user_agent"] or ""
         ).strip():
             raise CommandError(
-                "--http-user-agent est obligatoire avec "
-                "--enable-http-acquisition."
+                "--http-user-agent est obligatoire avec une acquisition "
+                "HTTP ou Browser."
             )
         for option_name in (
             "inbox_limit",
@@ -188,6 +244,13 @@ class Command(BaseCommand):
             "robots_cache_seconds",
             "http_host_lease_seconds",
             "http_retry_seconds",
+            "browser_viewport_width",
+            "browser_viewport_height",
+            "browser_settle_timeout_seconds",
+            "browser_max_requests",
+            "browser_max_total_wire_bytes",
+            "browser_max_total_decoded_bytes",
+            "browser_max_rendered_dom_bytes",
         ):
             if options[option_name] < 1:
                 raise CommandError(
@@ -233,6 +296,12 @@ class Command(BaseCommand):
                 "--watch-interval-seconds doit être >= 1."
             )
 
+        http_policy = None
+        browser_policy = None
+        acquisition = None
+        acquisition_mode = "observer-control-plane"
+        acquisition_label = "disabled"
+
         if acquisition_enabled:
             try:
                 http_policy = HttpAcquisitionPolicy(
@@ -264,8 +333,58 @@ class Command(BaseCommand):
                         options["allow_https_to_http_redirect"]
                     ),
                 )
+                if browser_enabled:
+                    browser_policy = BrowserAcquisitionPolicy(
+                        http_policy=http_policy,
+                        locale=options["browser_locale"],
+                        viewport_width=options[
+                            "browser_viewport_width"
+                        ],
+                        viewport_height=options[
+                            "browser_viewport_height"
+                        ],
+                        settle_timeout_seconds=options[
+                            "browser_settle_timeout_seconds"
+                        ],
+                        max_requests=options[
+                            "browser_max_requests"
+                        ],
+                        max_total_wire_bytes=options[
+                            "browser_max_total_wire_bytes"
+                        ],
+                        max_total_decoded_bytes=options[
+                            "browser_max_total_decoded_bytes"
+                        ],
+                        max_rendered_dom_bytes=options[
+                            "browser_max_rendered_dom_bytes"
+                        ],
+                    )
             except ObserverContractError as exc:
                 raise CommandError(str(exc)) from exc
+
+        if browser_policy is not None:
+            runtime_policy = ObserverRuntimePolicy(
+                profile_key=browser_policy.profile_key,
+                profile_fingerprint=(
+                    browser_policy.profile_fingerprint
+                ),
+                policy_fingerprint=(
+                    browser_policy.policy_fingerprint
+                ),
+                lease_seconds=options["lease_seconds"],
+                recovery_retry_seconds=(
+                    options["recovery_retry_seconds"]
+                ),
+                watch_interval_seconds=(
+                    options["watch_interval_seconds"]
+                ),
+            )
+            acquisition = build_browser_render_acquisition(
+                policy=browser_policy,
+            )
+            acquisition_mode = "observer-browser-render"
+            acquisition_label = "browser_render_v1"
+        elif http_policy is not None:
             runtime_policy = ObserverRuntimePolicy(
                 profile_key="public-http",
                 profile_fingerprint=http_policy.profile_fingerprint,
@@ -281,8 +400,9 @@ class Command(BaseCommand):
             acquisition = build_direct_http_acquisition(
                 policy=http_policy,
             )
+            acquisition_mode = "observer-direct-http"
+            acquisition_label = "direct_http_v1"
         else:
-            http_policy = None
             runtime_policy = ObserverRuntimePolicy(
                 lease_seconds=options["lease_seconds"],
                 recovery_retry_seconds=(
@@ -292,7 +412,6 @@ class Command(BaseCommand):
                     options["watch_interval_seconds"]
                 ),
             )
-            acquisition = None
 
         stats = asyncio.run(
             self._run(
@@ -306,7 +425,8 @@ class Command(BaseCommand):
                 claim_limit=options["claim_limit"],
                 policy=runtime_policy,
                 acquisition=acquisition,
-                http_policy=http_policy,
+                acquisition_mode=acquisition_mode,
+                acquisition_label=acquisition_label,
                 once=bool(options["once"]),
             )
         )
@@ -340,32 +460,25 @@ class Command(BaseCommand):
         claim_limit,
         policy,
         acquisition,
-        http_policy,
+        acquisition_mode,
+        acquisition_label,
         once,
     ):
         request_queue = None
         last_stats = None
         while True:
             metadata = {
-                "mode": (
-                    "observer-direct-http"
-                    if acquisition is not None
-                    else "observer-control-plane"
-                ),
+                "mode": acquisition_mode,
                 "queue_name": queue_name,
-                "acquisition": (
-                    "direct_http_v1"
-                    if acquisition is not None
-                    else "disabled"
-                ),
+                "acquisition": acquisition_label,
                 "expected_interval_seconds": interval_seconds,
             }
-            if http_policy is not None:
+            if acquisition is not None:
                 metadata["profile_fingerprint"] = (
-                    http_policy.profile_fingerprint
+                    policy.profile_fingerprint
                 )
                 metadata["policy_fingerprint"] = (
-                    http_policy.policy_fingerprint
+                    policy.policy_fingerprint
                 )
             enabled = await self._control_enabled()
             if not enabled:
@@ -458,11 +571,7 @@ class Command(BaseCommand):
                         "due_retries": backlog.due_retries,
                         "due_watches": backlog.due_watches,
                         "open_observations": backlog.open_observations,
-                        "acquisition": (
-                            "direct_http_v1"
-                            if acquisition is not None
-                            else "disabled"
-                        ),
+                        "acquisition": acquisition_label,
                     }
                 except Exception as exc:
                     await self._heartbeat(
