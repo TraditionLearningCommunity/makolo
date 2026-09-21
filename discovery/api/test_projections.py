@@ -172,7 +172,7 @@ class PossibilityProjectionContractTests(SimpleTestCase):
             ),
         )
 
-        projection = project_occurrence_possibility(item, card, saved=True)
+        projection = project_occurrence_possibility(item, card, saved=True, can_save=True)
 
         self.assertEqual(projection["identity"]["family"], "activity")
         self.assertEqual(
@@ -206,7 +206,7 @@ class PossibilityProjectionContractTests(SimpleTestCase):
         }
         card = _card(candidate_key=item["candidate_key"], activity_id=activity_id)
 
-        projection = project_service_possibility(item, card, saved=False)
+        projection = project_service_possibility(item, card, saved=False, can_save=True)
 
         self.assertEqual(projection["personal_relation"]["state"], "none")
         self.assertEqual(projection["availability"]["state"], "unknown")
@@ -217,6 +217,23 @@ class PossibilityProjectionContractTests(SimpleTestCase):
             {"kind": "service", "id": service_id},
             projection["provenance"]["resources"],
         )
+
+    def test_saved_state_does_not_grant_save_capability_without_authority(self):
+        activity_id = str(uuid.uuid4())
+        item = {
+            "candidate_family": "service_activity",
+            "candidate_key": f"service_activity:{activity_id}",
+            "activity_id": activity_id,
+            "service_id": str(uuid.uuid4()),
+            "participant": _participant_state(participant_state="none"),
+        }
+        card = _card(candidate_key=item["candidate_key"], activity_id=activity_id)
+
+        projection = project_service_possibility(item, card, saved=False)
+
+        self.assertEqual(projection["saved"]["state"], "not_saved")
+        self.assertNotIn("save", projection["capabilities"])
+        self.assertNotIn("unsave", projection["capabilities"])
 
     def test_funding_projection_keeps_unresolved_personal_relation_unknown(self):
         activity_id = str(uuid.uuid4())
@@ -260,7 +277,7 @@ class PossibilityProjectionContractTests(SimpleTestCase):
             ),
         )
 
-        projection = project_opportunity_possibility(item, card, saved=True)
+        projection = project_opportunity_possibility(item, card, saved=True, can_save=True)
 
         self.assertEqual(
             projection["identity"]["resource"],
