@@ -50,7 +50,7 @@ Ne pas lancer simultanément un worker persistant et un `run_autopilot` horaire 
 
 Le cycle Autopilot est conçu pour être court sur la taille bêta. Il borne les livraisons par `--delivery-limit` et ne reparcourt plus tout l'historique des événements terminés : le rattrapage post-événement est borné aux 30 derniers jours. Surveiller le temps réel dans les logs ; il n'existe pas de SLA de durée garanti.
 
-### 1.4 Observateur — HTTP public Lot 3 et Browser public Lot 4
+### 1.4 Observateur — HTTP Lot 3, Browser Lot 4 et adaptive Lot 5
 
 Le worker **Observateur** reste distinct d'Autopilot. Il possède trois modes opérationnels explicites :
 
@@ -58,9 +58,10 @@ Le worker **Observateur** reste distinct d'Autopilot. Il possède trois modes op
 observer-control-plane
 observer-direct-http
 observer-browser-render
+observer-adaptive-render
 ~~~
 
-Le mode control-plane absorbe/recover/mesure sans connexion Internet. Le Lot 3 ajoute l'acquisition HTTP directe publique sécurisée. Le Lot 4 ajoute le rendu JavaScript public dans Chromium **sans donner au navigateur la possession du réseau**.
+Le mode control-plane absorbe/recover/mesure sans connexion Internet. Le Lot 3 ajoute l'acquisition HTTP directe publique sécurisée. Le Lot 4 ajoute le rendu JavaScript public dans Chromium **sans donner au navigateur la possession du réseau**. Le Lot 5 ajoute un profil `public-adaptive` qui commence en HTTP et n'escalade vers Browser que sur un signal HTML technique déterministe.
 
 Les invariants communs restent :
 
@@ -102,9 +103,18 @@ python manage.py observer_worker \
   --http-user-agent "MakoloObserver/1.0 (<CONTACT_OPS>)"
 ~~~
 
-`--enable-http-acquisition` et `--enable-browser-acquisition` sont mutuellement exclusifs dans un même process. Cela maintient des profils et séries d'observation comparables au lieu de mélanger HTTP direct et Browser.
+Adaptive HTTP → Browser :
 
-Lot 4 ne contient pas de fallback automatique HTTP → Browser. Un worker Browser observe les handoffs éligibles sous le profil `public-browser`. Lancer en parallèle un worker HTTP et un worker Browser sur la même population signifie demander explicitement **deux séries techniques distinctes** ; ne le faire que si cette double observation est voulue.
+~~~bash
+python manage.py observer_worker \
+  --queue-name <QUEUE_NAME> \
+  --enable-adaptive-acquisition \
+  --http-user-agent "MakoloObserver/1.0 (<CONTACT_OPS>)"
+~~~
+
+`--enable-http-acquisition`, `--enable-browser-acquisition` et `--enable-adaptive-acquisition` sont mutuellement exclusifs dans un même process. Cela maintient des profils et séries d'observation comparables.
+
+Le profil Browser pur observe directement sous `public-browser`. Le profil adaptive, lui, observe sous `public-adaptive` : Attempt HTTP d'abord, puis au plus un Attempt Browser si le préfixe HTML contient un script exécutable. JSON-LD, JSON de données, réponses non HTML, erreurs HTTP et retries ne déclenchent pas Chromium. Lancer plusieurs profils sur la même population crée volontairement plusieurs séries techniques distinctes.
 
 `<QUEUE_NAME>` et `<CONTACT_OPS>` sont propres à l'environnement réel. Le dépôt n'invente ni queue de production, ni URL de contact opérateur. Par défaut, le product token robots est `MakoloObserver` : il doit apparaître dans `--http-user-agent`. Pour utiliser un autre token RFC 9309, fournir aussi `--robots-user-agent <TOKEN>` et garder le même token dans le User-Agent.
 
@@ -163,7 +173,7 @@ Le profil Browser public ajoute par défaut :
 - settle court et borné après `DOMContentLoaded` ;
 - proxy sink loopback comme défense secondaire contre toute tentative de sortie réseau Browser non routée.
 
-Le Browser n'utilise pas `networkidle` comme preuve de fin. Une page qui maintient des timers/requêtes ne doit pas garder l'Observation ouverte indéfiniment.
+Le Browser n'utilise pas `networkidle` comme preuve de fin. Une page qui maintient des timers/requêtes ne doit pas garder l'Observation ouverte indéfiniment. En mode adaptive, chaque stage est en plus plafonné par la lease de l'Observation : l'escalade ne prolonge jamais implicitement le claim.
 
 ### Robots, politeness et redirects
 
@@ -173,16 +183,17 @@ Un 404 reste une Observation technique et ne signifie jamais « Activity supprim
 
 ### Frontières qui restent fermées
 
-Le Lot 4 **n'ajoute pas** :
+Le Lot 5 **n'ajoute pas** :
 
-- escalade automatique HTTP → Browser ;
+- extraction automatique de liens/structures riches ;
 - cookies/session privée/Authorization ;
 - login sur des sources externes ;
 - extraction sémantique ou vérité métier ;
 - création/modification d'Activity, Occurrence, Requirement, Proof, Access, etc. ;
 - cadence autonome de watch par défaut ;
 - agent Browser autonome ;
-- politique d'expansion Prospecteur inventée.
+- politique d'expansion Prospecteur inventée ;
+- interprétation sémantique par l'Interpréteur.
 
 L'Observateur continue de construire un `ObservationReport` structure-only et un `ObservationMaterial` pour l'aval. Le DOM rendu est un artefact technique, pas une interprétation.
 
@@ -192,7 +203,7 @@ Le contrôle Operations `observer` est vérifié avant l'ouverture de la queue p
 
 En cas de crash après claim, la lease protège l'unicité ; son expiration finalise conservativement l'Attempt en `INTERRUPTED`, l'Observation en échec technique et programme uniquement le retry prévu par le contrat.
 
-Le heartbeat attendu utilise `worker_name="observer"`. Un état `degraded` décrit un problème du pipeline technique ; il ne constitue jamais une conclusion sur la réalité métier externe.
+Le heartbeat attendu utilise `worker_name="observer"`. Le mode adaptive expose `mode="observer-adaptive-render"` et `acquisition="adaptive_http_browser_v1"`. Un état `degraded` décrit un problème du pipeline technique ; il ne constitue jamais une conclusion sur la réalité métier externe.
 
 ### 1.5 Dépendances spécifiques à PythonAnywhere
 
@@ -604,7 +615,7 @@ Au minimum :
 - `/api/v1/readiness/` répond 200 ;
 - Web/Always-on task en état attendu ;
 - dernière exécution Autopilot récente ;
-- si l'Observateur est activé : heartbeat `observer` récent, état non `degraded`, backlog compris et mode attendu (`observer-control-plane`, `observer-direct-http` ou `observer-browser-render`) ;
+- si l'Observateur est activé : heartbeat `observer` récent, état non `degraded`, backlog compris et mode attendu (`observer-control-plane`, `observer-direct-http`, `observer-browser-render` ou `observer-adaptive-render`) ;
 - pas d'accumulation anormale de notifications/CRM en queue ;
 - pas de hausse de paiements/webhooks/scans en échec ;
 - incidents Operations ouverts ;
