@@ -171,6 +171,7 @@ class TransformationDescriptor:
 class Observation:
     observation_ref: str
     target_key: str
+    target_kind: str
     source_handoff_key: str
     source_handoff_generation: int
     trigger: ObservationTrigger
@@ -198,6 +199,11 @@ class Observation:
             self,
             "target_key",
             _required_text("target_key", self.target_key),
+        )
+        object.__setattr__(
+            self,
+            "target_kind",
+            _required_text("target_kind", self.target_kind),
         )
         object.__setattr__(
             self,
@@ -656,6 +662,7 @@ class ObservationMaterial:
     observation_profile_ref: str
     observation_profile_fingerprint: str
     policy_fingerprint: str
+    trigger: ObservationTrigger
     outcome: ObservationOutcome
     response_status: Optional[int] = None
     attempts: Tuple[ObservationAttempt, ...] = ()
@@ -763,11 +770,13 @@ class ObservationMaterial:
             _optional_text("failure_code", self.failure_code),
         )
         try:
+            trigger = ObservationTrigger(self.trigger)
             outcome = ObservationOutcome(self.outcome)
         except ValueError as exc:
             raise ObserverContractError(
-                "invalid material outcome"
+                "invalid material trigger or outcome"
             ) from exc
+        object.__setattr__(self, "trigger", trigger)
         object.__setattr__(self, "outcome", outcome)
 
         attempts = tuple(self.attempts)
@@ -787,6 +796,17 @@ class ObservationMaterial:
         if len(set(ordinals)) != len(ordinals):
             raise ObserverContractError(
                 "material attempt ordinals must be unique"
+            )
+        if ordinals != sorted(ordinals):
+            raise ObserverContractError(
+                "material attempts must be ordered by ordinal"
+            )
+        if any(
+            item.lifecycle is not AttemptLifecycle.FINALIZED
+            for item in attempts
+        ):
+            raise ObserverContractError(
+                "material attempts must be finalized"
             )
         if any(
             item.observation_ref != self.observation_ref
