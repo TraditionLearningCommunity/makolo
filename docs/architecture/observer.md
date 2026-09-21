@@ -568,16 +568,184 @@ Le Lot 4 est fermé seulement si les tests couvrent au minimum :
 - kill switch toujours respecté ;
 - tests Chromium sans Internet externe.
 
-## 17. Hors Lot 4
+## 17. Lot 5 — profil public adaptive HTTP → Browser
 
-Restent à traiter dans des lots ultérieurs, uniquement si justifiés :
+Le Lot 5 n'ajoute ni une nouvelle source de vérité ni un nouvel acteur. Il
+compose les stratégies techniques déjà auditées des Lots 3 et 4 afin d'éviter
+de rendre systématiquement toutes les pages dans Chromium.
 
-- politique d’escalade automatique HTTP → Browser ;
-- extraction de liens ou structures riches depuis les artefacts ;
-- interprétation sémantique ;
+### 17.1 Principe
+
+Le profil `public-adaptive` suit une séquence bornée :
+
+~~~text
+Observation adaptive
+  ↓
+Attempt 1 — direct_http
+  ↓
+résultat HTTP
+  ├─ contenu statique / non HTML / échec → fin
+  └─ HTML avec signal d'exécution JS
+         ↓
+       Attempt 2 — browser_render
+         ↓
+       fin
+~~~
+
+Le Browser n'est donc ni un fallback générique sur toute erreur HTTP, ni un
+crawler autonome. Une erreur réseau, un 429, un 5xx ou une violation de
+sécurité HTTP reste un résultat technique de l'Attempt HTTP et ne déclenche
+pas Chromium.
+
+### 17.2 Signal d'escalade
+
+La décision d'escalade est volontairement **technique et déterministe**.
+
+Le Lot 5 inspecte seulement un préfixe HTML borné et recherche une balise
+`script` exécutable. Sont notamment exclus du signal :
+
+- JSON-LD ;
+- JSON de données ;
+- import maps ;
+- speculation rules ;
+- réponses non HTML ;
+- réponses HTTP non 2xx ;
+- contenu absent ou échec d'acquisition.
+
+Le seuil de lecture du préfixe appartient à la policy et à son fingerprint.
+Aucun mot-clé métier, score de pertinence, LLM ou compréhension du texte ne
+participe à la décision.
+
+Cette règle est volontairement conservative : elle peut laisser une page
+techniquement dynamique en HTTP-only si aucun signal n'apparaît dans le
+préfixe inspecté. Une future amélioration devra rester mesurable et versionnée
+au lieu d'introduire une heuristique opaque.
+
+### 17.3 Provenance multi-Attempt
+
+HTTP et Browser sont deux opérations techniques distinctes. Le Lot 5 ne les
+fusionne jamais dans un faux Attempt « adaptive ».
+
+Lorsqu'une escalade a lieu :
+
+~~~text
+Observation
+  Attempt 1
+    strategy = direct_http
+    └─ artefact HTTP éventuel
+
+  Attempt 2
+    strategy = browser_render
+    └─ artefacts Browser éventuels
+~~~
+
+Chaque Attempt est finalisé et persisté avant le suivant. Ainsi :
+
+- un Browser réussi n'efface pas la représentation HTTP réellement obtenue ;
+- un Browser échoué laisse l'Attempt HTTP réussi dans l'historique ;
+- chaque artefact conserve son `producing_attempt_ref` ;
+- l'outcome final de l'Observation décrit le dernier résultat nécessaire à
+  l'épisode, sans réécrire ses étapes antérieures.
+
+Le runtime supporte un plan d'acquisition borné ; le profil Lot 5 utilise au
+maximum deux Attempts.
+
+### 17.4 Profil comparable
+
+Le profil adaptive est distinct de `public-http` et `public-browser`.
+
+Son fingerprint inclut notamment :
+
+- fingerprint du profil HTTP ;
+- fingerprint du profil Browser ;
+- version de la règle d'escalade ;
+- nombre maximal d'octets HTML inspectés.
+
+Une série adaptive n'est donc jamais confondue avec une série HTTP ou Browser
+pure.
+
+### 17.5 Revalidation HTTP
+
+Le probe HTTP adaptive n'utilise pas une réponse conditionnelle 304 comme
+preuve que le rendu Browser serait inchangé.
+
+Un shell HTML peut rester identique alors que les scripts ou APIs consommés
+pendant le rendu ont changé. Le premier Attempt adaptive part donc sans
+validators conditionnels de série. Les profils HTTP directs conservent leur
+mécanisme ETag/Last-Modified du Lot 3.
+
+### 17.6 Deadline et lease
+
+Chaque stratégie reste soumise à sa propre deadline technique, mais aucune
+étape ne peut dépasser la `leased_until` de l'Observation.
+
+~~~text
+deadline effective
+  = min(deadline stratégie, lease Observation)
+~~~
+
+L'escalade Browser ne crée donc jamais un droit implicite à prolonger
+indéfiniment l'épisode déjà claimé.
+
+### 17.7 Activation
+
+Le mode adaptive est explicitement opt-in :
+
+~~~bash
+python manage.py observer_worker \
+  --queue-name <QUEUE_NAME> \
+  --enable-adaptive-acquisition \
+  --http-user-agent "MakoloObserver/1.0 (<CONTACT_OPS>)"
+~~~
+
+Les modes suivants sont mutuellement exclusifs dans un même process :
+
+- `--enable-http-acquisition` ;
+- `--enable-browser-acquisition` ;
+- `--enable-adaptive-acquisition`.
+
+Sans l'un de ces flags, le worker reste control-plane.
+
+L'option `--adaptive-html-probe-bytes` versionne la borne du probe HTML.
+Ses valeurs par défaut sont des garde-fous techniques, pas une politique de
+production immuable.
+
+### 17.8 Critères de sortie du Lot 5
+
+Le Lot 5 est fermé seulement si les tests prouvent au minimum :
+
+- HTML statique → un seul Attempt HTTP ;
+- script inline exécutable → HTTP puis Browser ;
+- script externe exécutable → HTTP puis Browser ;
+- JSON-LD/non-exécutable → pas d'escalade ;
+- réponse JSON/non HTML → pas d'escalade ;
+- échec/retry HTTP → pas d'escalade ;
+- probe HTML borné ;
+- au plus une escalade Browser ;
+- HTTP et Browser persistés comme Attempts distincts ;
+- artefacts reliés au bon Attempt ;
+- échec Browser conservant la provenance HTTP ;
+- retry final piloté par l'échec Browser ;
+- profil/fingerprint adaptive distinct et versionné ;
+- deadlines HTTP/Browser plafonnées par la lease ;
+- worker adaptive opt-in et mutuellement exclusif des autres modes ;
+- aucune migration métier ni accès privé ajouté.
+
+## 18. Hors Lot 5
+
+Restent hors du Lot 5 tant que leurs politiques ne sont pas définies
+explicitement :
+
+- extraction automatique de liens ou structures riches depuis les artefacts ;
+- interprétation sémantique par l'Interpréteur ;
 - credentials privés explicitement autorisés ;
 - navigation authentifiée/session privée ;
 - stratégie de rétention à grande échelle ;
-- orchestration aval complète Prospecteur/Interpréteur lorsque leurs politiques runtime sont définies.
+- orchestration live du `ObservationReport` vers une
+  `ExpansionPolicy` Prospecteur : le contrat existe, mais aucune valeur de
+  budget/expansion de production ne doit être inventée ;
+- orchestration aval complète vers l'Interpréteur.
 
-Le Lot 4 ne doit pas transformer le navigateur technique en agent autonome, en scraper sémantique ou en session utilisateur.
+Le profil adaptive reste un mécanisme **d'acquisition technique**. Il ne
+devient ni un agent autonome, ni un scraper sémantique, ni un nouveau domaine
+métier.
