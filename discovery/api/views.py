@@ -400,6 +400,15 @@ class DiscoveryWatchResultsAPIView(APIView):
         start = (page - 1) * page_size
         end = start + page_size
         page_rows = tuple(rows[start:end])
+        projected = project_rows(
+            page_rows,
+            profile=request.user,
+        )
+        for item in projected:
+            item["watch"] = {
+                "state": "covered",
+                "watch_id": str(watch.pk),
+            }
         data = {
             "watch": _watch_payload(watch),
             "supported_families": ["activity", "service_activity"],
@@ -410,10 +419,7 @@ class DiscoveryWatchResultsAPIView(APIView):
             "has_previous": page > 1 and bool(rows),
             "timezone": result.timezone_name,
             "nearby_active": result.nearby_active,
-            "results": project_rows(
-                page_rows,
-                profile=request.user,
-            ),
+            "results": projected,
         }
         return Response(
             projection_envelope(
