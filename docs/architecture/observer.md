@@ -540,6 +540,8 @@ OU public-browser
 
 Le déploiement d’un nouveau SHA ne lance jamais Chromium implicitement.
 
+En l’absence de politique d’escalade dans ce lot, un worker `public-browser` traite les handoffs éligibles comme une **série Browser autonome**. Il ne doit pas être compris comme un fallback automatique du worker HTTP. Exécuter simultanément les deux profils sur la même population produit volontairement deux observations techniques distinctes.
+
 L’environnement Browser doit disposer du package Playwright Python et du binaire Chromium compatible. La CI Observer installe explicitement Chromium et exécute un test d’intégration avec des réponses en mémoire : aucun accès Internet réel n’est requis par les tests.
 
 ### 16.8 Tests de sortie du Lot 4
