@@ -139,6 +139,19 @@ def _action_links(action: ContextualAction):
             "conversations-api:detail",
             kwargs={"pk": identity.context_id},
         )
+        if identity.source_key.startswith("point:"):
+            point_id = identity.source_key.split(":", 1)[1]
+            reasons = set(action.reason_codes)
+            if "conversation.acknowledge" in reasons:
+                links["acknowledge"] = reverse(
+                    "conversations-api:point-acknowledge",
+                    kwargs={"point_pk": point_id},
+                )
+            elif "conversation.respond" in reasons:
+                links["respond"] = reverse(
+                    "conversations-api:point-respond",
+                    kwargs={"point_pk": point_id},
+                )
         return links
 
     if identity.context_type == "waitlist":
