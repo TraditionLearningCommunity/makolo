@@ -123,6 +123,31 @@ class ObserverContractTests(TestCase):
         )
         self.assertEqual(material.artifacts, ())
 
+    def test_failed_material_can_distinguish_no_interpretable_material(self):
+        observation_ref = "observer:observation:v1:failed-empty"
+        material = ObservationMaterial(
+            material_key=make_material_key(
+                observation_ref=observation_ref
+            ),
+            observation_ref=observation_ref,
+            target_key="web_url:v1:" + ("d" * 64),
+            target_kind="web_url",
+            source_handoff_key="observation:v1:" + ("e" * 64),
+            source_handoff_generation=1,
+            trigger=ObservationTrigger.RETRY,
+            started_at=self.now,
+            observed_at=self.now + timedelta(seconds=1),
+            completed_at=self.now + timedelta(seconds=2),
+            requested_locator="https://example.test/",
+            observation_profile_ref="public-browser",
+            observation_profile_fingerprint="browser-profile-v1",
+            policy_fingerprint="browser-policy-v1",
+            outcome=ObservationOutcome.FAILED,
+            failure_code="browser.runtime_error",
+        )
+        self.assertEqual(material.artifacts, ())
+        self.assertEqual(material.revalidated_artifacts, ())
+
     def test_not_modified_material_cannot_manufacture_new_artifact(self):
         descriptor = ArtifactDescriptor(
             artifact_ref="observer:artifact:v1:new",
