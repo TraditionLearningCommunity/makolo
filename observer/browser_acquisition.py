@@ -88,8 +88,12 @@ class BrowserRenderAcquisition:
                 observed_at=started_at,
             )
 
-        deadline_at = started_at + timedelta(
-            seconds=self.policy.http_policy.max_observation_seconds
+        deadline_at = min(
+            started_at
+            + timedelta(
+                seconds=self.policy.http_policy.max_observation_seconds
+            ),
+            claim.leased_until,
         )
         session = self.http_acquisition.open_resource_session(
             deadline_at=deadline_at
