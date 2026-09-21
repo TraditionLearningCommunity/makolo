@@ -668,3 +668,137 @@ Le refactoring de Home garde la compatibilité Web existante : `build_mature_hom
 Les capabilities Z2 ne sont exposées que lorsque l'action existe réellement dans une API actuelle. En particulier, Waitlist et Transfer pointent vers leurs mutations DRF existantes ; Conversation expose `respond` ou `acknowledge` uniquement lorsqu'un point canonique le permet. Z2 ne fabrique pas d'API Recognition ou Action Network inexistante.
 
 Tests ciblés Z2 : authentification, vide stable, frontière Journey future→actuelle, IDOR Journey, date-only, Waitlist WAITING versus OFFERED. Les suites existantes M8/UX2 continuent de couvrir la composition Home, Recognition, Action Network et Transfer réutilisée. Aucun modèle ni migration n'est introduit.
+
+
+## 27. Z4 — Moi et capital personnel / collectifs
+
+Z4 ferme la projection personnelle `Moi` sans créer de nouveau domaine. La question reste :
+
+> **« Qu'est-ce qui est déjà en place autour de moi pour que Makolo marche mieux pour moi ? »**
+
+Le namespace personnel partagé avec Z2 devient :
+
+```text
+GET /api/v1/me/                  → Moi
+GET /api/v1/me/now/              → Maintenant
+GET /api/v1/me/ongoing/          → En cours
+GET /api/v1/me/considerations/   → Ce qui compte pour moi
+GET /api/v1/me/collectives/      → Mes collectifs
+GET /api/v1/me/passport/         → Passeport Makolo
+GET /api/v1/me/resources/        → Mes ressources
+GET /api/v1/me/partners/         → Mes relations partenaire personnelles
+```
+
+Toutes ces routes sont privées, utilisent exclusivement `request.user` et l'enveloppe Z1. Aucun `profile_id` client ne peut changer le sujet.
+
+### 27.1. Projection racine `personal.me`
+
+La racine est une composition bornée destinée au shell Mature. Elle expose :
+
+```text
+identity
+passport
+considerations
+collectives
+resources
+support
+links
+```
+
+Chaque famille est un aperçu compact ; les profondeurs réutilisent les mêmes selectors propriétaires.
+
+`identity` reste une identité humaine et non un dump Account : nom d'affichage, avatar, bio, profession, localisation générale choisie, choix `public_profile/searchable` et activation de Profile déjà dérivée. Email, téléphone, adresse précise, coordonnées, préférences de notification, Permissions et Mandates bruts restent hors projection.
+
+### 27.2. Ce qui compte pour moi
+
+`personal.me.considerations` maintient les concepts séparés :
+
+```text
+Interest
+Open to
+Veille
+Favorite / Bookmark
+Follow Space
+Follow Profile
+```
+
+Aucun comportement observé n'est réécrit en Interest. Une Veille garde ses critères privés dans le domaine Discovery : la projection `Moi` expose son identité/statut utile, pas son contenu sensible de recherche.
+
+### 27.3. Mes collectifs
+
+`personal.me.collectives` distingue :
+
+- Espaces où une autorité réelle existe, résolus par `authorized_spaces()` ;
+- Team memberships, présentés comme relation de membership uniquement ;
+- Groupes visibles via `groups_for_profile()`.
+
+Un Team/Group/Membership ne reçoit jamais `can_act=true` par simple composition. La projection ne sérialise ni rôle brut, ni Permission, ni Mandate.
+
+### 27.4. Passeport Makolo
+
+`personal.me.passport` réutilise `sharing.passport.build_profile_passport()` et ses variantes canoniques :
+
+```text
+public
+complete
+thematic
+custom
+```
+
+La projection conserve les trois natures de faits :
+
+- `declared` : Interests / Open to ;
+- `established` : Proofs Makolo ;
+- `issued` : Credentials Trust.
+
+Le Passeport reste une représentation/export ; il ne devient ni une nouvelle vérité, ni un score humain, ni un Credential universel.
+
+### 27.5. Mes ressources
+
+`personal.me.resources` compose :
+
+- Personal Assets contrôlés par le Profile ;
+- Proofs du Profile ;
+- Credentials Trust délivrés au Profile.
+
+Les fichiers privés ne sont jamais placés dans la projection générale. Aucun chemin de stockage, contenu, hash, URL privée ou AccessCredential n'est exposé. Posséder un Personal Asset ne signifie jamais satisfaire un Requirement.
+
+### 27.6. Recognition, Loyalty et Partner
+
+Ces trois réalités restent des domaines distincts.
+
+**Recognition** obtient une API personnelle dans son domaine :
+
+```text
+GET  /api/v1/recognition/me/
+POST /api/v1/recognition/rewards/<reward-id>/redeem/
+POST /api/v1/recognition/redemptions/<redemption-id>/accept/
+POST /api/v1/recognition/redemptions/<redemption-id>/decline/
+```
+
+Les mutations délèguent aux services transactionnels Recognition existants. La clé d'idempotence est obligatoire pour une utilisation de Reward. Une décision de bénéficiaire est résolue par le selector personnel et retourne 404 à un autre Profile. Le `fulfillment_snapshot` interne n'est pas exposé.
+
+**Loyalty** conserve son API propriétaire existante :
+
+```text
+GET /api/v1/loyalty/me/
+```
+
+Z4 ne mélange jamais Loyalty organisationnelle et Recognition plateforme.
+
+**Partner** conserve ses APIs métier existantes. `personal.me.partners` ajoute seulement une lecture minimale des relations où `Partner.user == request.user`, sans email, téléphone, notes internes ni données d'acheteurs.
+
+### 27.7. Bornes Z4
+
+Z4 n'ajoute :
+
+- aucun modèle ;
+- aucune migration ;
+- aucun `MeState`, snapshot ou cache propriétaire ;
+- aucun score/ranking ;
+- aucune inférence d'autorité ;
+- aucun clone de Passport, Personal Asset, Proof, Credential, Recognition, Loyalty ou Partner.
+
+Le GET `Moi` ne crée pas silencieusement de `UserProfile` manquant : un ancien compte peut être projeté avec une extension vide en mémoire.
+
+La forme racine est bornée à six éléments par famille. Les profondeurs Z4 restent bornées à cinquante éléments ; elles ne deviennent pas des exports de tables ni un scroll infini artificiel.
