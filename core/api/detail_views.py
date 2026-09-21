@@ -34,6 +34,7 @@ class PersonalJourneyDetailAPIView(APIView):
             ).prefetch_related(
                 "payment_obligations__payments",
                 "commerce_orders__payments",
+                "service_context__requirement_assessments__evidence",
             ),
             pk=pk,
         )
