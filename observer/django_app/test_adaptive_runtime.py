@@ -14,6 +14,7 @@ from observer.contracts import (
     AttemptStrategy,
     ObservationOutcome,
 )
+from observer.django_material import build_observation_material
 from observer.django_runtime import claim_observations, execute_claim
 from observer.django_store import absorb_observation_target
 from observer.http_contracts import HttpAcquisitionPolicy
@@ -176,6 +177,24 @@ class AdaptiveRuntimeTests(TestCase):
             artifacts[1].producing_attempt_id,
             attempts[1].id,
         )
+        material = build_observation_material(
+            observation.observation_ref
+        )
+        self.assertEqual(
+            [item.strategy for item in material.attempts],
+            [
+                AttemptStrategy.DIRECT_HTTP,
+                AttemptStrategy.BROWSER_RENDER,
+            ],
+        )
+        self.assertEqual(
+            [item.role for item in material.artifacts],
+            ["http_response_body", "rendered_dom"],
+        )
+        self.assertEqual(
+            material.policy_fingerprint,
+            self.runtime_policy.policy_fingerprint,
+        )
 
     def test_static_html_finishes_after_direct_http_attempt(self):
         claim = self.claim()
@@ -324,4 +343,20 @@ class AdaptiveRuntimeTests(TestCase):
         self.assertEqual(
             observation.series.validator_artifact_ref,
             http_artifact.artifact_ref,
+        )
+        material = build_observation_material(
+            observation.observation_ref
+        )
+        self.assertTrue(material.has_interpretation_material)
+        self.assertEqual(material.outcome, ObservationOutcome.FAILED)
+        self.assertEqual(
+            [item.strategy for item in material.attempts],
+            [
+                AttemptStrategy.DIRECT_HTTP,
+                AttemptStrategy.BROWSER_RENDER,
+            ],
+        )
+        self.assertEqual(
+            [item.role for item in material.artifacts],
+            ["http_response_body"],
         )
