@@ -353,3 +353,139 @@ Après l'audit initial, les chantiers parallèles ont avancé :
 - Z5 n'a toujours pas de branche détectée lors de cette réconciliation.
 
 Le collision audit reste donc favorable pour la fondation Z3.1. Une nouvelle réconciliation sera obligatoire avant Z3.2, notamment si Z3 doit toucher des URLs ou des fichiers API partagés.
+
+
+## 20. Z3.2 — Collection Mature
+
+`GET /api/v1/discovery/items/` est désormais la projection API du même champ logique que le Web Mature. Elle compose, sans ranking transversal :
+
+- Activity/Occurrence agrégée Activity-first ;
+- Service Activity ;
+- Funding Activity ;
+- Opportunity directe.
+
+La pagination est bornée après composition logique commune. Une fin de résultats reste une fin de résultats : aucun filler ni feed artificiel n'est injecté.
+
+Le contrat Event historique reste disponible sous `/api/v1/events/discover/`. `/api/v1/discovery/for-you/` demeure explicitement une compatibilité Event historique et n'est pas utilisée comme moteur de pertinence Z3.
+
+Les gates Group sont appliqués à Activity/Occurrence, Service et Funding avant exposition. Web et API utilisent le Profile courant comme viewer ; un client ne peut pas fournir un `profile_id` arbitraire.
+
+## 21. Z3.3 — Détail désigné
+
+La route canonique est :
+
+```text
+GET /api/v1/discovery/items/{family}/{id}/
+```
+
+Elle fait du **retrieve**, pas une nouvelle recherche : les paramètres `q`, `place`, etc. ne redéfinissent pas l'objet demandé.
+
+Familles acceptées :
+
+```text
+activity
+service_activity
+funding_activity
+opportunity
+```
+
+Le détail réutilise les selectors publics/propriétaires, respecte Group eligibility et renvoie 404 lorsqu'une ressource n'est pas admissible. Private, UNLISTED, Occurrence annulée/terminée ou Opportunity hors du champ actif ne sont pas réadmis par le détail Z3.
+
+## 22. Z3.4 — Relation personnelle et assessment factuel
+
+Activity/Occurrence et Service continuent d'utiliser le resolver canonique de relation personnelle. Aucun `profile_id` client n'est pris en compte.
+
+L'API expose un assessment strictement factuel :
+
+```text
+favorable
+limiting
+unknown
+```
+
+avec code stable, label et provenance. Les états connus de disponibilité ou Access peuvent produire un fait favorable/limitant. Lorsqu'un domaine ne permet pas de conclure, l'état reste `unknown`.
+
+Z3 ne déduit jamais la satisfaction d'un Requirement, l'éligibilité ou la Readiness à partir de la simple possession d'un document.
+
+## 23. Z3.5 — Conservation
+
+Nouvelle route :
+
+```text
+PUT    /api/v1/discovery/items/{family}/{id}/saved/
+DELETE /api/v1/discovery/items/{family}/{id}/saved/
+```
+
+Elle délègue aux vérités existantes :
+
+- Activity/Service/Funding → `ActivityBookmark` ;
+- Opportunity → `OpportunitySave` et services Opportunity canoniques.
+
+La mutation est authentifiée et ne crée ni Interest, ni Watch, ni Journey, ni Dossier.
+
+Les anciennes routes Event-shaped `/bookmarks/` restent compatibles.
+
+## 24. Z3.6 — Veilles
+
+Les Veilles existantes sont exposées sous :
+
+```text
+GET/POST        /api/v1/discovery/watches/
+GET/PATCH/DELETE /api/v1/discovery/watches/{id}/
+GET             /api/v1/discovery/watches/{id}/results/
+```
+
+Toutes les opérations sont owner-scoped sur `request.user`; un autre Profile reçoit 404.
+
+Le replay respecte le contrat G4 actuel : Activity/Occurrence + Service. Z3 n'étend pas silencieusement `DiscoveryWatch` à Funding/Opportunity tant que leur sémantique de critères n'est pas contractée. Les résultats d'un replay sont marqués `watch.state=covered`; ailleurs, une relation inverse non résolue reste `unknown`.
+
+Créer ou rejouer une Veille ne crée ni Bookmark, ni Interest, ni Journey.
+
+## 25. Z3.7 — Handoff vers les domaines propriétaires
+
+Z3 ne possède pas l'engagement.
+
+Pour Event, où une API propriétaire réelle existe déjà, la projection fournit des liens vers :
+
+- détail Event participant ;
+- TicketTypes/offres ;
+- création/listing des Ticket Orders.
+
+Aucune Journey n'est créée lors de l'ouverture de Discover ou du détail.
+
+Pour Service, Funding et Opportunity, Z3 expose `owner_contract` sans inventer une mutation générique. Les futurs clients doivent utiliser une API propriétaire lorsqu'elle existe réellement ; l'absence d'API propriétaire ne justifie ni POST HTML maquillé ni Journey réflexe.
+
+## 26. Recherche, carte et localisation
+
+La carte est construite depuis la même composition de recherche et les mêmes contraintes du viewer. Seules les possibilités réellement mappables produisent un point.
+
+Les coordonnées `lat/lon` reçues restent des critères ponctuels de recherche. Z3 ne les persiste pas automatiquement dans Profile, CRM, Analytics ou UserDevice.
+
+La carte ne transporte aucune relation personnelle privée.
+
+## 27. Réconciliation avec main après Z2
+
+Pendant Z3, `main` a avancé jusqu'à `4c3d2e5cce9ba881bf78339de5f97649e942f0e2` par merge de Z2 (#260).
+
+Le diff Z3 n'entre pas en collision avec les fichiers Z2 mergés. La PR GitHub reste mergeable contre ce main et les checks PR s'exécutent sur le merge ref courant.
+
+Z4 continue dans la PR #261 et touche notamment `core/api/*`, Recognition et `docs/architecture/backend-ux-projection-api.md`. Z3 évite volontairement ces fichiers partagés et garde son contrat détaillé dans ce document de chantier pour empêcher une collision documentaire pendant le parallélisme.
+
+Une nouvelle vérification de `main` et des checks sera faite immédiatement avant merge Z3.
+
+## 28. Fermeture Z3
+
+Z3 est considéré implémenté lorsque :
+
+- collection multi-famille et détail désigné sont disponibles ;
+- relation personnelle est résolue serveur lorsque le runtime possède un resolver ;
+- favorable/limitant/unknown ne dépassent pas les faits observés ;
+- conservation et Veille restent distinctes d'Interest et engagement ;
+- un handoff Event réel pointe vers l'API propriétaire ;
+- aucune création réflexe de Journey n'existe ;
+- carte/list/search partagent le même champ et les mêmes gates ;
+- aucune donnée privée/credential n'est exposée ;
+- aucun score/ranking/recommender transversal n'est créé ;
+- aucune migration n'est ajoutée ;
+- tests ciblés, contrôle migrations, suite pertinente et CI sont verts ;
+- la PR est réconciliée puis mergée sur `main`, et `main` est revalidé.
