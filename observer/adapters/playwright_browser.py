@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from playwright.sync_api import (
     Error as PlaywrightError,
@@ -137,6 +137,46 @@ class PlaywrightBrowserRenderer:
                 return
 
             state["network_requests"] += 1
+            redirected_from = getattr(
+                request,
+                "redirected_from",
+                None,
+            )
+            redirect_depth = 0
+            cursor = redirected_from
+            while cursor is not None:
+                redirect_depth += 1
+                cursor = getattr(cursor, "redirected_from", None)
+            if redirect_depth > policy.http_policy.max_redirects:
+                state["incomplete"] = True
+                failure = BrowserRenderFailure(
+                    "http.redirect_limit",
+                    retryable=False,
+                )
+                if is_main:
+                    fail_main(failure)
+                route.abort(error_code="blockedbyclient")
+                return
+            if redirected_from is not None:
+                previous_scheme = urlsplit(
+                    redirected_from.url
+                ).scheme.lower()
+                current_scheme = urlsplit(request.url).scheme.lower()
+                if (
+                    previous_scheme == "https"
+                    and current_scheme == "http"
+                    and not policy.http_policy.allow_https_to_http_redirect
+                ):
+                    state["incomplete"] = True
+                    failure = BrowserRenderFailure(
+                        "security.redirect_downgrade",
+                        retryable=False,
+                    )
+                    if is_main:
+                        fail_main(failure)
+                    route.abort(error_code="blockedbyclient")
+                    return
+
             browser_request = BrowserResourceRequest(
                 url=request.url,
                 method=method,
@@ -161,6 +201,41 @@ class PlaywrightBrowserRenderer:
                 return
 
             headers = _safe_response_headers(result.headers)
+            location = headers.get("location")
+            if (
+                result.status in _REDIRECT_STATUSES
+                and location
+            ):
+                next_url = urljoin(result.response_url, location)
+                next_scheme = urlsplit(next_url).scheme.lower()
+                current_scheme = urlsplit(
+                    result.response_url
+                ).scheme.lower()
+                if next_scheme not in {"http", "https"}:
+                    state["incomplete"] = True
+                    failure = BrowserRenderFailure(
+                        "security.unsupported_redirect_scheme",
+                        retryable=False,
+                    )
+                    if is_main:
+                        fail_main(failure)
+                    route.abort(error_code="blockedbyclient")
+                    return
+                if (
+                    current_scheme == "https"
+                    and next_scheme == "http"
+                    and not policy.http_policy.allow_https_to_http_redirect
+                ):
+                    state["incomplete"] = True
+                    failure = BrowserRenderFailure(
+                        "security.redirect_downgrade",
+                        retryable=False,
+                    )
+                    if is_main:
+                        fail_main(failure)
+                    route.abort(error_code="blockedbyclient")
+                    return
+
             if is_main:
                 if (
                     result.status in _REDIRECT_STATUSES
