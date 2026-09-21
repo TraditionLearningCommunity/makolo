@@ -1,4 +1,4 @@
-# Observateur Makolo — architecture runtime et Lot 3 HTTP direct
+# Observateur Makolo — architecture runtime, Lot 3 HTTP et Lot 4 Browser public
 
 ## 1. Rôle
 
@@ -390,16 +390,192 @@ Le Lot 3 est fermé seulement si les tests couvrent au minimum :
 
 Les tests HTTP utilisent des transports/résolveurs factices. La CI ne dépend pas d’Internet.
 
-## 16. Hors Lot 3
+## 16. Lot 4 — Browser public / rendu JavaScript contrôlé
+
+Le Lot 4 ajoute une seconde stratégie d’acquisition, `browser_render`, sans modifier les frontières canoniques de l’Observateur.
+
+Il répond au cas suivant :
+
+~~~text
+ressource web publique connue
+        ↓
+le HTML brut seul n’est pas une représentation suffisante
+        ↓
+exécuter le JavaScript dans un navigateur isolé
+        ↓
+capturer la représentation technique rendue
+~~~
+
+Le Lot 4 ne décide pas automatiquement qu’une page « a besoin » d’un navigateur. Il fournit seulement une stratégie Browser explicite. La politique d’escalade HTTP → Browser appartient à un lot ultérieur, afin que ses critères soient mesurables et qu’un même Attempt ne mélange pas artificiellement deux stratégies.
+
+### 16.1 Profil d’observation séparé
+
+Le Browser est une série comparable distincte du HTTP direct :
+
+~~~text
+public-http
+public-browser
+~~~
+
+Le fingerprint `public-browser` inclut notamment :
+
+- engine Chromium ;
+- version Playwright ;
+- locale ;
+- viewport ;
+- ressources volontairement bloquées ;
+- timeout de settle ;
+- budgets requêtes/octets/DOM ;
+- fingerprint du profil HTTP sous-jacent.
+
+Une observation HTTP et une observation Browser de la même URL ne sont donc jamais déclarées comparables par simple égalité de locator.
+
+### 16.2 Chromium exécute JavaScript, il ne possède pas le réseau
+
+Invariant du Lot 4 :
+
+> **Chromium n’est jamais le client réseau externe de Makolo.**
+
+Chaque requête HTTP(S) du contexte Browser est interceptée avant sortie réseau puis servie via le gateway HTTP sûr du Lot 3.
+
+~~~text
+JavaScript / DOM
+      ↓ demande HTTP(S)
+BrowserContext.route
+      ↓
+SafeHttpResourceSession
+      ↓
+robots + politeness + DNS + IP pinning + ports + limites
+      ↓
+réponse technique
+      ↓
+route.fulfill
+      ↓
+Chromium
+~~~
+
+Ainsi, chaque sous-ressource et chaque destination de redirect repasse par les contrôles runtime SSRF/DNS de l’Observateur.
+
+Le navigateur est lancé avec un proxy sink loopback comme seconde ligne de défense : tout trafic non couvert par les routes Observer doit échouer au lieu de sortir directement.
+
+### 16.3 Capacités réseau volontairement bloquées
+
+Le profil Browser public interdit :
+
+- méthodes HTTP autres que GET ;
+- cookies ou Authorization sortants ;
+- propagation de Referer privé ;
+- `Set-Cookie` depuis une réponse externe ;
+- Service Workers ;
+- WebSocket ;
+- WebRTC ;
+- WebTransport ;
+- `sendBeacon` ;
+- popups `window.open` ;
+- downloads ;
+- redirects vers protocoles non HTTP(S) ;
+- downgrade HTTPS → HTTP sauf activation explicite de la même politique Lot 3.
+
+Les ressources `image`, `media` et `font` sont bloquées par défaut pour réduire coût, fingerprinting et trafic sans empêcher le rendu structurel principal. Cette liste appartient au profil et donc au fingerprint.
+
+Le contexte Browser est non persistant. Il n’est pas une session utilisateur Makolo.
+
+### 16.4 Budgets
+
+Le Lot 4 borne :
+
+- nombre de requêtes Browser routées ;
+- volume réseau cumulé ;
+- volume décodé cumulé ;
+- taille maximale du DOM rendu ;
+- durée totale héritée de l’Observation HTTP ;
+- timeout court d’attente après `DOMContentLoaded`.
+
+Le runtime n’utilise pas `networkidle` comme preuve de fin : une page peut maintenir indéfiniment des connexions, timers ou requêtes. Le DOM est capturé après un settle borné.
+
+### 16.5 Artefacts
+
+Une Observation Browser peut produire deux artefacts distincts :
+
+~~~text
+browser_main_response_body
+  origin = CAPTURED
+
+rendered_dom
+  origin = RENDERED
+~~~
+
+Le DOM rendu n’est pas modélisé comme simple transformation du HTML initial : son état peut dépendre de scripts et autres réponses routées pendant l’Attempt Browser.
+
+Le `rendered_dom` peut être :
+
+- `COMPLETE` si le rendu borné s’est achevé sans ressource bloquée/échouée pertinente ;
+- `INCOMPLETE` lorsque le rendu demeure exploitable mais certaines sous-ressources ont été bloquées ou ont échoué ;
+- `TRUNCATED` si la taille maximale de capture DOM est atteinte.
+
+Aucun de ces statuts n’est une conclusion sémantique sur la page.
+
+### 16.6 Persistance
+
+Le Lot 4 n’ajoute aucun modèle métier ni migration.
+
+Il réutilise :
+
+- `ObservationSeries` avec un fingerprint Browser distinct ;
+- `Observation` ;
+- `ObservationAttempt(strategy=browser_render)` ;
+- `ObservedArtifact(origin=rendered)`.
+
+Cela respecte la règle : une stratégie technique supplémentaire ne doit pas dupliquer une vérité métier.
+
+### 16.7 Activation
+
+Le profil Browser est **opt-in** et exclusif du profil HTTP direct dans un process `observer_worker`.
+
+~~~text
+control-plane
+OU public-http
+OU public-browser
+~~~
+
+Le déploiement d’un nouveau SHA ne lance jamais Chromium implicitement.
+
+L’environnement Browser doit disposer du package Playwright Python et du binaire Chromium compatible. La CI Observer installe explicitement Chromium et exécute un test d’intégration avec des réponses en mémoire : aucun accès Internet réel n’est requis par les tests.
+
+### 16.8 Tests de sortie du Lot 4
+
+Le Lot 4 est fermé seulement si les tests couvrent au minimum :
+
+- JavaScript inline exécuté et DOM modifié ;
+- script externe servi via le gateway Observer ;
+- aucune sortie réseau Browser directe ;
+- Service Worker bloqué ;
+- WebSocket/WebRTC/WebTransport bloqués ;
+- méthodes non GET bloquées ;
+- cookies/Authorization/Referer non propagés ;
+- redirect one-hop puis revalidation au hop suivant ;
+- downgrade HTTPS → HTTP refusé ;
+- budget nombre de requêtes ;
+- budgets wire/décodés cumulés ;
+- deadline totale ;
+- DOM COMPLETE / INCOMPLETE / TRUNCATED ;
+- raw main response et DOM rendu distincts ;
+- profil Browser distinct et versionné ;
+- worker Browser opt-in ;
+- modes HTTP/Browser mutuellement exclusifs ;
+- kill switch toujours respecté ;
+- tests Chromium sans Internet externe.
+
+## 17. Hors Lot 4
 
 Restent à traiter dans des lots ultérieurs, uniquement si justifiés :
 
-- Browser/render JavaScript ;
-- politiques d’escalade HTTP → Browser ;
+- politique d’escalade automatique HTTP → Browser ;
 - extraction de liens ou structures riches depuis les artefacts ;
 - interprétation sémantique ;
 - credentials privés explicitement autorisés ;
+- navigation authentifiée/session privée ;
 - stratégie de rétention à grande échelle ;
 - orchestration aval complète Prospecteur/Interpréteur lorsque leurs politiques runtime sont définies.
 
-Le Lot 3 ne doit pas anticiper ces capacités en cassant les frontières présentes.
+Le Lot 4 ne doit pas transformer le navigateur technique en agent autonome, en scraper sémantique ou en session utilisateur.
