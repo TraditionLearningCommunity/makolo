@@ -31,6 +31,9 @@ class PersonalJourneyDetailAPIView(APIView):
             participant_readiness_queryset(
                 request.user,
                 participant_journeys(request.user),
+            ).prefetch_related(
+                "payment_obligations__payments",
+                "commerce_orders__payments",
             ),
             pk=pk,
         )
