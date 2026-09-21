@@ -104,6 +104,8 @@ python manage.py observer_worker \
 
 `--enable-http-acquisition` et `--enable-browser-acquisition` sont mutuellement exclusifs dans un même process. Cela maintient des profils et séries d'observation comparables au lieu de mélanger HTTP direct et Browser.
 
+Lot 4 ne contient pas de fallback automatique HTTP → Browser. Un worker Browser observe les handoffs éligibles sous le profil `public-browser`. Lancer en parallèle un worker HTTP et un worker Browser sur la même population signifie demander explicitement **deux séries techniques distinctes** ; ne le faire que si cette double observation est voulue.
+
 `<QUEUE_NAME>` et `<CONTACT_OPS>` sont propres à l'environnement réel. Le dépôt n'invente ni queue de production, ni URL de contact opérateur. Par défaut, le product token robots est `MakoloObserver` : il doit apparaître dans `--http-user-agent`. Pour utiliser un autre token RFC 9309, fournir aussi `--robots-user-agent <TOKEN>` et garder le même token dans le User-Agent.
 
 Pour un cycle diagnostique unique, ajouter `--once`.
