@@ -340,3 +340,14 @@ Z3.1 est fermé lorsque :
 ## 18. Suite
 
 Z3.2 pourra maintenant faire converger la collection Mature `/api/v1/discovery/items/` vers ce contrat en réutilisant exactement les mêmes familles/selectors que le Web, sans réécrire Discovery et sans toucher à l'intelligence future.
+
+
+## 19. Réconciliation parallèle après ouverture des PR Z
+
+Après l'audit initial, les chantiers parallèles ont avancé :
+
+- Z4 a ouvert la PR #258 sur `task-z4-me-personal-capital-projection` ; ses fichiers courants sont `config/urls.py`, `core/api/me_projection.py`, `core/api/me_views.py`, `core/api/urls.py` et `core/test_z4_me_api.py` ; aucun ne chevauche le diff Z3.0/Z3.1 ;
+- Z2 a ouvert la PR #260 ; son diff courant reste dans `core/api/*`, `core/home_presentation.py`, son test Z2 et `docs/architecture/backend-ux-projection-api.md` ; aucun ne chevauche les trois fichiers Z3.0/Z3.1 ;
+- Z5 n'a toujours pas de branche détectée lors de cette réconciliation.
+
+Le collision audit reste donc favorable pour la fondation Z3.1. Une nouvelle réconciliation sera obligatoire avant Z3.2, notamment si Z3 doit toucher des URLs ou des fichiers API partagés.
