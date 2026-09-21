@@ -5,7 +5,11 @@ from observer.contracts import (
     ArtifactCompleteness,
     ArtifactDescriptor,
     ArtifactOrigin,
+    AttemptLifecycle,
+    AttemptOutcome,
+    AttemptStrategy,
     Observation,
+    ObservationAttempt,
     ObservationLifecycle,
     ObservationMaterial,
     ObservationOutcome,
@@ -98,11 +102,14 @@ class ObserverContractTests(TestCase):
             source_handoff_key="observation:v1:" + ("c" * 64),
             source_handoff_generation=1,
             started_at=self.now,
+            observed_at=self.now + timedelta(milliseconds=500),
             completed_at=self.now + timedelta(seconds=1),
             requested_locator="https://example.test/",
             observation_profile_ref="public-http",
             observation_profile_fingerprint="profile-v1",
+            policy_fingerprint="policy-v1",
             outcome=ObservationOutcome.NOT_MODIFIED,
+            response_status=304,
             revalidated_artifact_refs=(
                 "observer:artifact:v1:old",
             ),
@@ -130,13 +137,100 @@ class ObserverContractTests(TestCase):
                 source_handoff_key="observation:v1:" + ("c" * 64),
                 source_handoff_generation=1,
                 started_at=self.now,
+                observed_at=self.now + timedelta(milliseconds=500),
                 completed_at=self.now + timedelta(seconds=1),
                 requested_locator="https://example.test/",
                 observation_profile_ref="public-http",
                 observation_profile_fingerprint="profile-v1",
+                policy_fingerprint="policy-v1",
                 outcome=ObservationOutcome.NOT_MODIFIED,
+                response_status=304,
                 artifacts=(descriptor,),
                 revalidated_artifact_refs=(
                     "observer:artifact:v1:old",
                 ),
             )
+
+
+    def test_material_exposes_attempt_provenance_and_availability(self):
+        observation_ref = "observer:observation:v1:material"
+        attempt = ObservationAttempt(
+            attempt_ref="observer:attempt:v1:http",
+            observation_ref=observation_ref,
+            ordinal=1,
+            strategy=AttemptStrategy.DIRECT_HTTP,
+            lifecycle=AttemptLifecycle.FINALIZED,
+            started_at=self.now,
+            completed_at=self.now + timedelta(seconds=1),
+            outcome=AttemptOutcome.SUCCEEDED,
+            requested_locator="https://example.test/",
+            final_locator="https://example.test/",
+            response_status=200,
+            wire_bytes=12,
+            decoded_bytes=12,
+        )
+        descriptor = ArtifactDescriptor(
+            artifact_ref="observer:artifact:v1:body",
+            producing_attempt_ref=attempt.attempt_ref,
+            role="http_response_body",
+            origin=ArtifactOrigin.CAPTURED,
+            completeness=ArtifactCompleteness.COMPLETE,
+            byte_length=12,
+            content_digest=self.digest,
+            captured_at=self.now + timedelta(seconds=1),
+            declared_media_type="text/html",
+            charset="utf-8",
+        )
+        material = ObservationMaterial(
+            material_key=make_material_key(
+                observation_ref=observation_ref
+            ),
+            observation_ref=observation_ref,
+            target_key="web_url:v1:" + ("b" * 64),
+            source_handoff_key="observation:v1:" + ("c" * 64),
+            source_handoff_generation=1,
+            started_at=self.now,
+            observed_at=self.now + timedelta(seconds=1),
+            completed_at=self.now + timedelta(seconds=2),
+            requested_locator="https://example.test/",
+            final_locator="https://example.test/",
+            observation_profile_ref="public-http",
+            observation_profile_fingerprint="profile-v1",
+            policy_fingerprint="policy-v1",
+            outcome=ObservationOutcome.OBSERVED,
+            response_status=200,
+            attempts=(attempt,),
+            artifacts=(descriptor,),
+        )
+
+        self.assertTrue(material.has_interpretation_material)
+        self.assertEqual(
+            material.attempts[0].strategy,
+            AttemptStrategy.DIRECT_HTTP,
+        )
+        self.assertEqual(
+            material.artifacts[0].producing_attempt_ref,
+            attempt.attempt_ref,
+        )
+
+    def test_failed_material_can_distinguish_no_material_from_partial_material(self):
+        observation_ref = "observer:observation:v1:failed-empty"
+        empty = ObservationMaterial(
+            material_key=make_material_key(
+                observation_ref=observation_ref
+            ),
+            observation_ref=observation_ref,
+            target_key="web_url:v1:" + ("b" * 64),
+            source_handoff_key="observation:v1:" + ("c" * 64),
+            source_handoff_generation=1,
+            started_at=self.now,
+            observed_at=self.now + timedelta(seconds=1),
+            completed_at=self.now + timedelta(seconds=2),
+            requested_locator="https://example.test/",
+            observation_profile_ref="public-adaptive",
+            observation_profile_fingerprint="profile-v1",
+            policy_fingerprint="policy-v1",
+            outcome=ObservationOutcome.FAILED,
+            failure_code="browser.navigation_timeout",
+        )
+        self.assertFalse(empty.has_interpretation_material)
