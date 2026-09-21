@@ -1,4 +1,4 @@
-# Z1 — Contrat transversal Backend UX Projection & API Composition
+# Programme Z — Contrat Backend UX Projection & API Composition
 
 > **Statut : canonique pour les projections API UX du programme Z.**
 > Base auditée : `main@8ef40aa16e7367f13b0a5df7941057b68a8a242f`. Le runtime courant gagne toujours sur ce snapshot.
@@ -252,7 +252,7 @@ Loyalty personnel → /api/v1/loyalty/me/
 ## 15. Lots suivants
 
 ```text
-Z2 → Maintenant
+Z2 → Maintenant + En cours
 Z3 → Découvrir + détail/conservation/veille selon réconciliation
 Z4 → Moi + capital personnel/collectifs + Recognition/Loyalty/Partner
 Z5 → Journey / Activity / Occurrence / Dossier détails utiles
@@ -264,3 +264,368 @@ Z8+ → autres surfaces secondaires et handoff mobile
 ## 16. Critères de sortie Z1
 
 Z1 est fermé lorsque l'enveloppe est définie/testée ; `/api/v1/me/` est réservé sans route vide ; auth `me` et UX `Moi` sont distincts ; types/erreurs/vide/null/unknown/confidentialité sont contractés ; serveur vs présentation client est explicite ; capabilities restent serveur ; Flutter n'a pas à parser du texte ; les APIs domaine restent réutilisables ; aucune migration, aucun modèle et aucun algorithme/ranking/score n'est ajouté ; tests ciblés et contrôle migrations restent verts.
+
+
+## 17. Z2.1 — Contrat sémantique de Maintenant et En cours
+
+> **Statut : canonique pour Z2.**
+> Réconciliation runtime : `main@6a4c59fd6388d481834ca33cbd7e561682c127a1`.
+> Z2 travaille sur une seule branche : `task-z2-attention-continuity-projections`.
+> Le runtime courant reste prioritaire si `main` évolue avant l'intégration finale.
+
+Z2 possède deux projections distinctes :
+
+```text
+Maintenant → conséquence humaine qui mérite réellement l'attention à cet instant
+En cours   → continuité d'une réalité déjà engagée
+```
+
+La règle de frontière est :
+
+> **En cours garde le fil. Maintenant reprend la main lorsque l'intervention de l'acteur redevient utile.**
+
+Une même réalité peut apparaître dans les deux projections. Aucune exclusion réciproque n'existe. En revanche, `Maintenant` n'est ni une sous-vue de `En cours`, ni une vue des notifications, ni la liste de tout ce qui est techniquement faisable.
+
+### 17.1. Frontend et interprétation
+
+Les interprétations éditoriales et agrégées restent côté client.
+
+Le serveur peut retourner :
+
+```json
+{"data": {"items": []}}
+```
+
+Le client peut alors afficher :
+
+> **Tout est en ordre. ✓**
+
+Le serveur ne crée donc pas de champ `all_clear`, `urgent_count`, `attention_count`, `has_actions` ou équivalent pour piloter cette phrase.
+
+De même, trois éléments courants ne deviennent pas une vérité serveur « 3 urgences ». Le backend expose trois éléments structurés ; Flutter choisit leur représentation.
+
+Le backend reste toutefois propriétaire de l'inclusion : Flutter ne décide jamais qu'un Payment, une Journey, un Access ou une Notification « mérite Maintenant » en reconstruisant les règles métier.
+
+## 18. Projection `personal.now`
+
+### 18.1. Question
+
+`Maintenant` répond à :
+
+> **« Qu'est-ce qui mérite que je fasse quelque chose maintenant ? »**
+
+Ses dimensions sémantiques sont :
+
+```text
+action      → faire maintenant
+decision    → décider maintenant
+adaptation  → modifier maintenant le prochain pas
+```
+
+Ces codes décrivent la conséquence serveur. Ils ne prescrivent ni trois sections, ni trois cartes, ni un ordre visuel.
+
+### 18.2. Shape v1
+
+```json
+{
+  "meta": {
+    "projection": "personal.now",
+    "schema_version": 1,
+    "generated_at": "2026-09-21T09:00:00+02:00",
+    "scope": "personal"
+  },
+  "data": {
+    "items": [
+      {
+        "key": "opaque-stable-key",
+        "kind": "journey.action",
+        "dimension": "action",
+        "source": {
+          "kind": "journey",
+          "id": "uuid"
+        },
+        "state": "action_required",
+        "title": "Action requise",
+        "summary": null,
+        "timing": {},
+        "capabilities": [],
+        "links": {}
+      }
+    ]
+  }
+}
+```
+
+Contrat :
+
+- `data.items` est l'unique collection de premier niveau de `personal.now` v1 ;
+- `key` est opaque et stable pour la ligne dérivée ; le client ne la parse pas ;
+- `kind` est un code technique de conséquence, pas un nom de modèle Django ;
+- `dimension` vaut exactement `action`, `decision` ou `adaptation` ;
+- `source` identifie la ressource visible qui ancre la conséquence ; aucun objet caché n'est utilisé comme source sérialisée ;
+- `state` est un code stable issu de la conséquence propriétaire déjà résolue ; Z2 ne crée pas une taxonomie universelle de statuts métier ;
+- `title` et `summary` sont de la présentation fournie par le serveur et ne doivent jamais être parsés pour décider d'une action ;
+- `timing` contient seulement des faits temporels canoniques déjà connus ; `{}` est valide ;
+- `capabilities` ne contient que des actions réellement autorisées et réellement exposables côté serveur ;
+- `links` ne contient que des destinations existantes ; Z2 n'invente pas un futur endpoint Z5 ;
+- une collection vide est une réponse complète.
+
+Aucun champ `upcoming` n'appartient à `personal.now` v1. Futur ne signifie pas attention actuelle.
+
+### 18.3. Admission depuis `ContextualAction`
+
+Z2 réutilise `ContextualAction` et `resolve_contextual_actions()` pour la déduplication par identité stable et l'ordre déterministe déjà existant. Il ne crée aucun score.
+
+Mais `ContextualAction` est plus large que `Maintenant`. Les règles suivantes sont donc nécessaires :
+
+- `WAITING` n'entre pas dans `Maintenant` ;
+- `INFORMATION` n'entre pas dans `Maintenant` ;
+- `ADVICE` n'entre pas automatiquement dans `Maintenant` ;
+- `TERMINAL` ou un blocker qui invalide le prochain pas peut produire une `adaptation` ;
+- une action explicitement attendue par un selector propriétaire peut produire une `action` ;
+- une décision explicitement attendue par un selector propriétaire peut produire une `decision` ;
+- une action seulement possible ou de progression facultative ne suffit pas ;
+- `ReadinessStatus.ACTION_REQUIRED` n'est pas, à lui seul, la définition de `Maintenant`.
+
+Pour Journey/Readiness, Z2 conserve une règle particulièrement prudente : une intervention du bénéficiaire peut rester visible dans `En cours` sans être promue dans `Maintenant`. Une échéance future n'est pas transformée par Z2 en fenêtre d'urgence artificielle. Lorsqu'un owner fournit déjà un fait actuel — blocker/terminal, échéance due ou dépassée, ou autre conséquence opérationnelle explicitement actuelle — la promotion est défendable. Sinon Z2 n'invente pas de seuil « bientôt ».
+
+Cette règle protège le cas :
+
+```text
+une attestation reste nécessaire avant une échéance future
+→ En cours : oui
+→ Maintenant : non tant qu'aucun fait propriétaire ne rend son moment actuel
+```
+
+Si le runtime ne fournit pas une fenêtre utile antérieure à l'échéance, Z2 documente ce manque ; il ne construit pas l'algorithme qui l'estimerait.
+
+## 19. Projection `personal.ongoing`
+
+### 19.1. Question
+
+`En cours` répond à :
+
+> **« Pour ce que j'ai déjà engagé, puis-je avancer tranquille — et sinon, quelle est la plus petite chose utile qu'il me reste à faire ? »**
+
+Les quatre questions internes restent des dimensions de compréhension, pas quatre sections imposées :
+
+```text
+ce qui est déjà prêt
+ce qui dépend encore de moi
+ce qui continue sans moi
+ce qui vient ensuite
+```
+
+### 19.2. Shape v1
+
+```json
+{
+  "meta": {
+    "projection": "personal.ongoing",
+    "schema_version": 1,
+    "generated_at": "2026-09-21T09:00:00+02:00",
+    "scope": "personal"
+  },
+  "data": {
+    "items": [
+      {
+        "kind": "journey",
+        "source": {
+          "kind": "journey",
+          "id": "uuid"
+        },
+        "state": "waiting",
+        "title": "Inscription",
+        "ready": [],
+        "actor_interventions": [],
+        "continuation": {
+          "state": "waiting",
+          "summary": null
+        },
+        "blocker": null,
+        "next": null,
+        "timing": {},
+        "place": null,
+        "capabilities": [],
+        "links": {}
+      }
+    ]
+  }
+}
+```
+
+Contrat :
+
+- `data.items` est l'unique collection de premier niveau de `personal.ongoing` v1 ;
+- une ligne représente une réalité engagée, pas une table ou une catégorie de navigation ;
+- `state` exprime l'état de continuité que le propriétaire sait réellement établir ;
+- `ready` est une liste compacte de faits déjà réglés qui réduisent réellement le travail ou l'incertitude ; elle peut être vide ;
+- `actor_interventions` contient uniquement les interventions que le serveur sait appartenir à l'acteur ; `[]` permet au client de formuler « rien à faire de votre côté » sans champ serveur dédié ;
+- `continuation` décrit seulement une continuité propriétaire connue, par exemple une attente normale ; elle peut être `null` ;
+- `blocker` reste `null` lorsque la réalité attend normalement ;
+- `next` est la prochaine transition significative seulement lorsqu'elle est réellement connue ; aucune date ou étape n'est inventée pour remplir le contrat ;
+- `timing`, `place`, `capabilities` et `links` restent compacts et privacy-safe ;
+- un champ propriétaire non connaissable reste `null`, `[]` ou explicitement `unknown` selon le contrat Z1.
+
+Aucun `tone`, `has_waitlist`, `has_transfers`, `has_personal_dossiers` ou autre helper de template Web n'appartient au contrat API.
+
+### 19.3. Sous-objets compacts
+
+Une entrée `ready` peut suivre la forme :
+
+```json
+{
+  "kind": "access",
+  "state": "available",
+  "title": "Accès disponible"
+}
+```
+
+Une intervention peut suivre la forme :
+
+```json
+{
+  "key": "opaque-stable-key",
+  "state": "action_required",
+  "title": "Compléter l'information",
+  "timing": {},
+  "capabilities": [],
+  "links": {}
+}
+```
+
+Un blocker peut suivre la forme :
+
+```json
+{
+  "state": "blocked",
+  "title": "La suite est empêchée",
+  "summary": null
+}
+```
+
+Une influence cachée déjà autorisée par Collective Readiness ne reçoit ni ID, ni titre, ni bénéficiaire caché dans ces sous-objets. Le signal reste opaque.
+
+## 20. Matrice Z2.1 des sources réelles
+
+| Source | Owner/runtime à réutiliser | Maintenant | En cours | Règle Z2 |
+| --- | --- | --- | --- | --- |
+| Journey / Readiness | `participant_readiness_queryset()`, `resolve_many()`, `actions_from_readiness()` | conditionnel | oui | `WAITING`/READY ne montent pas. ACTION_REQUIRED reste une intervention de continuité mais ne devient Maintenant que si le runtime fournit un caractère actuel défendable ; blocker/terminal peut imposer adaptation. |
+| Dossier / Collective Readiness | `dossiers_for_profile()`, `resolve_dossier_readiness()`, `actions_from_dossier()` | conditionnel | oui | Toujours consommer le read model privacy-safe. Une influence cachée peut changer l'état sans fuite d'identité. |
+| Project | `projects_for_profile()` + lifecycle propriétaire | non générique | oui | DRAFT/ACTIVE personnel peut garder une continuité ; aucun blocker, next ou Readiness n'est inventé faute de resolver propriétaire équivalent. |
+| Access | `participant_active_accesses()` | non comme simple droit | oui | Un Access actif signifie qu'un droit existe. Aucun AccessCredential n'est sérialisé. Une conséquence live actuelle reste propriétaire d'Operations/Occurrence Live. |
+| Occurrence / spatiotemporal | `get_hazards()`, `get_action_advices()`, `actions_from_action_advices()` | conditionnel | via Journey/Access | `cancelled` peut produire adaptation ; `leave_now` ou `access_action` peuvent produire action. Warning/information seuls ne suffisent pas. |
+| Prepared Start | `prepared_start_for_revision()`, `actions_from_prepared_start()` | **pas depuis l'ancre actuelle** | non pré-engagement | Le Home actuel part de `saved_opportunities()`. Une sauvegarde n'est pas un engagement ni une preuve que le moment d'action est venu. Le moteur Prepared Start reste réutilisable, mais Z2 ne consomme pas cette ancre tant qu'un owner n'apporte pas un signal plus fort. |
+| Conversations | `attention_points_for_profile()` | conditionnel | non générique | Seuls les points où le backend sait qu'une action est attendue (`respond`, `acknowledge`, `form`, `resolve`) peuvent alimenter Maintenant. `unread` n'est jamais utilisé. `revisit` n'est pas promu sans preuve temporelle actuelle supplémentaire. |
+| Action Network | `action_proposals_requiring_actor_response()` | décision | non par défaut | Le selector est explicitement un inbox de propositions pending, non expirées, que l'acteur peut répondre. Z2 n'absorbe pas la surface Action Network. |
+| Recognition | `redemptions_requiring_beneficiary_response()` | décision | non par défaut | Consentement bénéficiaire seulement. Balance, avantages, historique et compte Recognition restent hors Maintenant/En cours et appartiennent à Z4. |
+| Waitlist | `get_waitlist_entries_visible_to()`, `is_offer_active` | OFFERED actif → décision | WAITING/OFFERED → oui | WAITING = attendre une place, pas blocker. OFFERED reste En cours tout en montant dans Maintenant. |
+| Ticket Transfer | `get_ticket_transfers_visible_to()`, `is_pending_active` | entrant actif → décision | entrant/sortant pending actif → oui | Un transfert sortant attend le tiers ; il ne devient pas une décision personnelle actuelle. |
+| Standalone Payment | `get_payments_visible_to()` | non générique | PENDING/PROCESSING pertinent → oui | Seulement paiements personnels non déjà représentés par une Journey. Pending/processing = continuité, pas blocker. Une obligation Journey actionnable vient de Readiness. |
+| Live Queue / Checkpoints | Operations / Occurrence Live | seulement par conséquence owner existante | pas de seconde expérience live | Waitlist et Live Queue restent distinctes. JourneyStep et Checkpoint restent distincts. |
+| Notifications | canal | non | non | Notification n'est jamais la source de vérité d'une projection Z2. |
+| Domain Events | infrastructure métier | non directement | non directement | Un événement peut faire évoluer un owner ; Z2 consomme ensuite la conséquence owner, pas l'événement brut. |
+
+## 21. Sources explicitement refusées comme déclencheurs génériques
+
+Les faits suivants ne suffisent jamais, seuls, à produire un item `personal.now` :
+
+```text
+unread
+notification créée
+domain event émis
+bookmark / OpportunitySave
+nouvelle Opportunity pertinente
+status backend modifié
+action techniquement possible
+Membership
+Assignment sans autorité
+AccessCredential disponible
+solde Recognition
+future Occurrence simplement planifiée
+timestamp simplement présent
+```
+
+De même, ils ne suffisent pas à déclarer un blocker.
+
+## 22. Waiting, blocker et intervention de l'acteur
+
+Z2 fixe les distinctions suivantes :
+
+```text
+waiting != blocked
+possible != current
+responsibility != authority
+unknown != missing
+unread != attention
+future != now
+```
+
+Dans `personal.ongoing`, une réalité `WAITING` peut avoir :
+
+```json
+{
+  "actor_interventions": [],
+  "continuation": {"state": "waiting", "summary": null},
+  "blocker": null
+}
+```
+
+Le client peut alors exprimer la tranquillité sans que le serveur invente une phrase de synthèse.
+
+Une Journey `READY` reste une continuité valable dans `En cours` avec aucune obligation personnelle fabriquée.
+
+## 23. Gaps assumés après réconciliation Z2.1
+
+### 23.1. Fenêtre « reste de mon côté, mais pas encore Maintenant »
+
+Le runtime sait très bien distinguer bénéficiaire/tiers, WAITING, blocker, action requise et échéances canoniques. Il ne possède toutefois pas une règle universelle permettant de calculer combien de jours avant une échéance une intervention future doit devenir `Maintenant`.
+
+Z2 ne crée pas cette règle. Une intervention future reste dans `En cours` lorsqu'aucun fait propriétaire ne justifie encore sa promotion.
+
+### 23.2. Prepared Start pré-Journey
+
+`prepared_start_for_revision()` fournit une excellente projection de réutilisation et de préparation, mais l'ancre utilisée par le Home courant est `saved_opportunities()`. Le fait d'avoir sauvegardé une Opportunity ne suffit pas au nouveau contrat `Maintenant`.
+
+Z2.1 conserve donc Prepared Start comme capacité réutilisable mais bloque son admission générique depuis une simple sauvegarde.
+
+### 23.3. Project
+
+Le runtime possède un lifecycle Project mais pas de projection transverse équivalente à Journey Readiness permettant d'affirmer un blocker, une intervention ou une prochaine transition. Z2 expose uniquement ce qui est réellement connu.
+
+### 23.4. Access et expérience live
+
+Un Access actif peut contribuer à `En cours` comme droit déjà disponible. Z2 ne déduit pas depuis cet Access une action live. L'expérience opérationnelle reste propriétaire d'Occurrence Live, Placement, Checkpoints et Queue.
+
+### 23.5. Profondeurs API futures
+
+Z5 possédera plusieurs profondeurs Journey/Activity/Occurrence/Dossier. Z2.1 ne crée aucun faux lien vers des endpoints qui n'existent pas encore. `links: {}` est valide.
+
+## 24. Collision audit Z2.1
+
+À la base auditée :
+
+- aucune branche ou PR Z2, Z3, Z4 ou Z5 n'existe ;
+- la PR ouverte #252 concerne les archétypes d'Espace et le gating Transport ; elle ne touche pas les surfaces Z2 auditée ;
+- `config/urls.py` ne possède encore aucun include `/api/v1/me/` ;
+- Z2.1 ne modifie ni `config/urls.py`, ni `core/home_presentation.py`, ni `core/mature_experience_views.py`.
+
+La couture de routing personnelle est donc reportée à Z2.5, lorsqu'elle sera réellement nécessaire, afin de minimiser les collisions avec Z4.
+
+## 25. Critères de sortie Z2.1
+
+Z2.1 est fermé lorsque :
+
+- `personal.now` et `personal.ongoing` possèdent des shapes v1 distinctes ;
+- `data.items: []` est le contrat du calme, sans `all_clear` serveur ;
+- les dimensions `action / decision / adaptation` sont sémantiques et non des sections obligatoires ;
+- En cours expose la continuité sans `tone` ou helpers de template ;
+- la matrice des owners/selectors à réutiliser est explicite ;
+- Prepared Start n'est pas admis depuis une simple Opportunity sauvegardée ;
+- Readiness ACTION_REQUIRED n'est pas défini comme synonyme universel de Maintenant ;
+- waiting reste distinct de blocked ;
+- Waitlist reste distincte de Live Queue ;
+- JourneyStep reste distinct de Checkpoint ;
+- aucune Notification, Domain Event, Membership ou Assignment n'est promu en vérité Z2 ;
+- aucun modèle, migration, score, ranking, cache ou état persistant n'est ajouté ;
+- les gaps non défendables par le runtime sont documentés plutôt que simulés.
