@@ -17,8 +17,15 @@ from observer.contracts import (
     ObservationOutcome,
     ObservationTrigger,
 )
-from observer.django_artifacts import read_artifact_bytes, store_blob
-from observer.django_material import build_observation_material
+from observer.django_artifacts import (
+    DjangoArtifactReader,
+    read_artifact_bytes,
+    store_blob,
+)
+from observer.django_material import (
+    DjangoObservationMaterialSource,
+    build_observation_material,
+)
 from observer.django_store import (
     absorb_observation_target,
     get_or_create_observation_series,
@@ -274,6 +281,10 @@ class ObserverFoundationTests(TestCase):
             artifact.artifact_ref,
         )
         self.assertEqual(
+            descriptor.observation_ref,
+            observation.observation_ref,
+        )
+        self.assertEqual(
             descriptor.content_digest,
             blob.content_digest,
         )
@@ -284,6 +295,16 @@ class ObserverFoundationTests(TestCase):
         self.assertEqual(
             read_artifact_bytes(artifact.artifact_ref),
             b"hello world!",
+        )
+        self.assertEqual(
+            DjangoArtifactReader().read(artifact.artifact_ref),
+            b"hello world!",
+        )
+        self.assertEqual(
+            DjangoObservationMaterialSource()
+            .get_material(observation.observation_ref)
+            .material_key,
+            material.material_key,
         )
 
     def test_not_modified_material_revalidates_previous_artifact(self):
@@ -334,6 +355,10 @@ class ObserverFoundationTests(TestCase):
         self.assertEqual(
             material.revalidated_artifacts[0].artifact_ref,
             artifact.artifact_ref,
+        )
+        self.assertEqual(
+            material.revalidated_artifacts[0].observation_ref,
+            first.observation_ref,
         )
         self.assertTrue(material.has_interpretation_material)
 

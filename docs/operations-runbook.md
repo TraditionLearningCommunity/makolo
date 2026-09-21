@@ -195,13 +195,13 @@ Le Lot 5 **n'ajoute pas** :
 - politique d'expansion Prospecteur inventée ;
 - interprétation sémantique par l'Interpréteur.
 
-L'Observateur continue de construire un `ObservationReport` structure-only et un `ObservationMaterial` pour l'aval. Le DOM rendu est un artefact technique, pas une interprétation.
+L'Observateur continue de construire un `ObservationReport` structure-only et un `ObservationMaterial v2` pour l'aval. Le DOM rendu est un artefact technique, pas une interprétation.
 
 ### Handoff vers Interpréteur
 
-L'Interpréteur consomme `ObservationMaterial`; il ne refait ni `GET` Internet ni rendu Chromium pour reconstruire ce que l'Observateur a déjà vu.
+L'Interpréteur consomme `ObservationMaterial v2`; il ne refait ni `GET` Internet ni rendu Chromium pour reconstruire ce que l'Observateur a déjà vu. Le runtime Django expose `DjangoObservationMaterialSource` et `DjangoArtifactReader` derrière les ports privés Observer.
 
-Le matériau aval expose l'identité de cible/handoff, les temps d'observation, le profil et la policy, les Attempts ordonnés, les artefacts avec leur `producing_attempt_ref`, le statut HTTP éventuel et les références/descripteurs de revalidation 304. Le contenu reste dans le storage privé Observer et se lit par référence d'artefact : ne pas dupliquer durablement les blobs pour fabriquer un « input Interpreter ».
+Le matériau aval expose l'identité de cible/handoff, les temps d'observation, le profil et la policy, les Attempts ordonnés, les artefacts avec leur `observation_ref` propriétaire et leur `producing_attempt_ref`, le statut HTTP éventuel et les références/descripteurs de revalidation 304. Le contenu reste dans le storage privé Observer et se lit par référence d'artefact : ne pas dupliquer durablement les blobs pour fabriquer un « input Interpreter ».
 
 Une Observation `FAILED` avec zéro artefact signifie qu'aucun matériau interprétable n'a été obtenu. Une Observation `FAILED` avec un artefact HTTP déjà persisté — par exemple si Browser échoue après HTTP en mode adaptive — conserve ce matériau et sa provenance. Un `404` avec corps capturé reste un résultat technique observable et ne devient jamais, ici, une conclusion métier.
 
