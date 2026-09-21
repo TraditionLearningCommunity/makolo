@@ -1,4 +1,4 @@
-# Observateur Makolo — architecture runtime, Lot 3 HTTP et Lot 4 Browser public
+# Observateur Makolo — architecture complète de l’Acteur 2
 
 ## 1. Rôle
 
@@ -749,3 +749,140 @@ explicitement :
 Le profil adaptive reste un mécanisme **d'acquisition technique**. Il ne
 devient ni un agent autonome, ni un scraper sémantique, ni un nouveau domaine
 métier.
+
+
+## 19. Fermeture de l’Acteur 2 — contrat Observateur → Interpréteur
+
+### 19.1 Mission fermée
+
+La responsabilité canonique de l’Acteur 2 est :
+
+> **L’Observateur Makolo exécute de manière sûre, bornée et traçable les observations de ressources externes déjà identifiées, préserve fidèlement les représentations réellement obtenues — directement par HTTP ou, lorsque la politique technique le demande, par rendu Browser contrôlé — et fournit ces matériaux aux acteurs aval sans les transformer lui-même en vérités métier.**
+
+La chaîne complète est donc :
+
+~~~text
+ObservationTarget
+  ↓
+Observer inbox
+  ↓
+scheduling / claim / lease
+  ↓
+direct_http
+  ├─ fin
+  └─ browser_render si profil Browser/adaptive
+       ↓
+ObservationAttempt(s)
+       ↓
+ObservedArtifact(s)
+  ├─ ObservationReport → Prospecteur
+  └─ ObservationMaterial v2 → Interpréteur
+~~~
+
+`ObservationReport` reste structure-only. `ObservationMaterial` porte le matériau interprétable. Ces deux sorties ne sont pas interchangeables.
+
+### 19.2 ObservationMaterial v2
+
+Le contrat v2 est une **projection reconstructible**, pas une nouvelle vérité persistante et pas un nouveau blob.
+
+Il expose au minimum :
+
+- identité `Observation`, `target_key`, `target_kind` et handoff source ;
+- trigger de l’épisode ;
+- `started_at`, `observed_at`, `completed_at` ;
+- locator demandé et locator final ;
+- profil, profile fingerprint et policy fingerprint ;
+- outcome et statut HTTP lorsqu’il existe ;
+- liste ordonnée des `ObservationAttempt` finalisés ;
+- descripteurs des artefacts créés par l’Observation ;
+- descripteurs des artefacts antérieurs explicitement revalidés ;
+- `failure_code` lorsqu’un épisode se termine en échec.
+
+Chaque descripteur d’artefact contient une référence privée `artifact_ref`, son `observation_ref` propriétaire, son `producing_attempt_ref` lorsqu’il existe, son rôle, son origine `CAPTURED|RENDERED|DERIVED`, son niveau `COMPLETE|INCOMPLETE|TRUNCATED`, son type MIME, sa taille et son digest.
+
+L’Interpréteur obtient le contenu par le port privé `ArtifactReaderPort`. Il ne refait ni `GET URL` ni Chromium.
+
+### 19.3 Plusieurs représentations
+
+Une Observation adaptive peut exposer simultanément :
+
+~~~text
+Attempt 1 — direct_http
+  └─ http_response_body
+
+Attempt 2 — browser_render
+  ├─ browser_main_response_body
+  └─ rendered_dom
+~~~
+
+Les rôles restent distincts. L’Observateur ne fusionne pas ces représentations dans un blob ambigu et ne déclare pas un « contenu métier principal ».
+
+Pour une interprétation qui exige le rendu, `rendered_dom` indique techniquement la représentation rendue ; le corps HTTP demeure la représentation capturée et la provenance de l’Attempt qui l’a obtenue.
+
+### 19.4 NOT_MODIFIED
+
+Un `304 NOT_MODIFIED` ne fabrique aucun nouvel artefact.
+
+`ObservationMaterial v2` expose à la place les descripteurs des artefacts durables antérieurs revalidés, avec leur Observation et leur Attempt d’origine. La nouvelle Observation conserve ainsi son instant propre tout en pointant vers la représentation effectivement validée.
+
+Le profil adaptive ne prend pas un 304 du shell HTML comme preuve qu’un DOM Browser est inchangé : son probe HTTP repart volontairement sans validators conditionnels.
+
+### 19.5 Échecs et matériau partiel
+
+Trois cas restent distincts :
+
+1. `FAILED` sans artefact : aucun matériau interprétable n’a été obtenu ;
+2. `FAILED` après un Attempt HTTP réussi : le matériau HTTP antérieur reste exposé avec sa provenance, même si Browser échoue ensuite ;
+3. réponse HTTP telle que `404` avec corps valide : résultat technique observé, pas conclusion métier sur la disparition d’une Activity.
+
+Un artefact `INCOMPLETE` ou `TRUNCATED` reste du matériau explicite ; il n’est jamais converti silencieusement en `COMPLETE`.
+
+### 19.6 Vérité durable et reconstruction
+
+Sont durables et non traités comme un cache trivial :
+
+- `ObserverHandoff` ;
+- `ObservationSeries` pour son état longitudinal ;
+- `Observation` ;
+- `ObservationAttempt` ;
+- `ObservedArtifact` ;
+- `ObserverBlob` privé content-addressed.
+
+Un artefact observé peut être irremplaçable si la source change ensuite.
+
+Sont reconstructibles :
+
+- `ObservationMaterial` ;
+- `ObservationReport` ;
+- les agrégats opérationnels calculés depuis Attempts/artefacts ;
+- les vues de backlog.
+
+Aucune copie `InterpreterInputBlob` n’est créée.
+
+### 19.7 Observabilité de fermeture
+
+Les lignes durables permettent de mesurer sans journaliser URL, corps, secret ou PII inutile :
+
+- Attempts HTTP et Browser ;
+- escalades adaptive : Observation portant successivement `direct_http` puis `browser_render` ;
+- durées par timestamps d’Attempt ;
+- wire bytes et decoded bytes ;
+- échecs et codes de sécurité/robots/rate-limit ;
+- Browser failures/interruption/recovery ;
+- artefacts incomplets ou tronqués ;
+- coût relatif HTTP/Browser.
+
+Le heartbeat worker conserve backlog, retries, watches, Observations ouvertes, mode et profil. Les métriques détaillées restent dérivables des vérités Observer plutôt que dupliquées dans un moteur analytics propre à l’Acteur 2.
+
+### 19.8 Frontière finale
+
+L’Acteur 2 s’arrête avant toute affirmation telle que :
+
+~~~text
+« cette page est une bourse »
+« CCNA est un Requirement »
+« cette date est une deadline métier »
+« cette capacité vaut 300 »
+~~~
+
+Ces conclusions appartiennent à l’Interpréteur ou aux acteurs suivants.
