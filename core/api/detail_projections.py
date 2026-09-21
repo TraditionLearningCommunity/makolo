@@ -287,16 +287,34 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         links["live"] = f"/api/v1/operations/occurrences/{journey.occurrence_id}/live/"
         capabilities.append("open_live")
 
-    form_links = [
-        {
-            "id": str(row.pk),
-            "required": bool(row.required),
-            "state": row.status,
-            "due_at": _iso(row.due_at),
-            "link": f"/api/v1/questionnaires/requests/{row.pk}/",
+    actionable_form_ids = {
+        check.key.removeprefix("form_request.")
+        for check in readiness.action_items
+        if check.key.startswith("form_request.")
+        and check.reason_code == "form_response_required"
+    }
+    form_links = []
+    for row in journey.form_requests.all():
+        row_capabilities = []
+        row_links = {
+            "detail": f"/api/v1/questionnaires/requests/{row.pk}/",
         }
-        for row in journey.form_requests.all()
-    ]
+        if str(row.pk) in actionable_form_ids:
+            row_capabilities.append("complete_form")
+            row_links["save"] = f"/api/v1/questionnaires/requests/{row.pk}/save/"
+            row_links["submit"] = f"/api/v1/questionnaires/requests/{row.pk}/submit/"
+        form_links.append(
+            {
+                "id": str(row.pk),
+                "required": bool(row.required),
+                "state": row.status,
+                "due_at": _iso(row.due_at),
+                "capabilities": row_capabilities,
+                "links": row_links,
+            }
+        )
+    if actionable_form_ids:
+        capabilities.append("complete_form")
 
     return {
         "identity": {
