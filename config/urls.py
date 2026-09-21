@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/v1/trust/", include("trust.api_urls")),
     path("api/v1/scanner/", include("scanner.api.urls")),
     path("api/v1/analytics/", include("analytics_app.api.urls")),
+    path("api/v1/recognition/", include("recognition.api.urls")),
     path("api/v1/partners/", include("partners.api.urls")),
     path("api/v1/crm/", include("crm.api.urls")),
     path("api/v1/automation/", include("automation.api.urls")),
