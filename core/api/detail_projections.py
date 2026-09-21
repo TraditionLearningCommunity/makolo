@@ -236,11 +236,14 @@ def _service_requirements(journey):
     except AttributeError:
         return []
 
-    rows = context.requirement_assessments.select_related("requirement").prefetch_related(
-        "payment_obligation_links__obligation",
-        "step_links__journey_step",
-        "evidence",
-    ).order_by("requirement__position", "created_at", "id")
+    rows = list(context.requirement_assessments.all())
+    rows.sort(
+        key=lambda assessment: (
+            assessment.requirement.position,
+            assessment.created_at,
+            str(assessment.pk),
+        )
+    )
     payload = []
     for assessment in rows:
         consequence = derive_requirement_consequence(assessment)
@@ -340,7 +343,7 @@ def build_requirement_detail(*, journey, assessment):
         "journey": f"/api/v1/me/journeys/{journey.pk}/",
     }
 
-    payment_links = list(assessment.payment_obligation_links.select_related("obligation").all())
+    payment_links = list(assessment.payment_obligation_links.all())
     if payment_links:
         ways.append(
             {
@@ -349,7 +352,7 @@ def build_requirement_detail(*, journey, assessment):
             }
         )
 
-    step_links = list(assessment.step_links.select_related("journey_step").all())
+    step_links = list(assessment.step_links.all())
     for link in step_links:
         ways.append(
             {
