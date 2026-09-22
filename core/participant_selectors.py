@@ -161,12 +161,48 @@ def participant_history_journeys(profile):
 
 
 def participant_unified_history_journeys(profile):
-    """Closed Journeys with no Access representation of the same experience."""
+    """Closed Journeys with no Access representation of the same experience.
+
+    history_at is the most meaningful persisted business moment available.
+    Legacy rows that predate lifecycle timestamps/transitions fall back to
+    updated_at instead of manufacturing a new historical fact.
+    """
     return (
         participant_journeys(profile)
         .filter(status__in=HISTORY_JOURNEY_STATUSES, accesses__isnull=True)
+        .annotate(
+            latest_history_transition_at=Max(
+                "transitions__created_at",
+                filter=Q(transitions__to_status=F("status")),
+            )
+        )
+        .annotate(
+            history_at=Case(
+                When(
+                    status=JourneyStatus.FULFILLED,
+                    fulfilled_at__isnull=False,
+                    then=F("fulfilled_at"),
+                ),
+                When(
+                    status=JourneyStatus.CANCELLED,
+                    cancelled_at__isnull=False,
+                    then=F("cancelled_at"),
+                ),
+                When(
+                    status=JourneyStatus.EXPIRED,
+                    expires_at__isnull=False,
+                    then=F("expires_at"),
+                ),
+                When(
+                    latest_history_transition_at__isnull=False,
+                    then=F("latest_history_transition_at"),
+                ),
+                default=F("updated_at"),
+                output_field=DateTimeField(),
+            )
+        )
         .distinct()
-        .order_by("-updated_at", "-created_at", "id")
+        .order_by("-history_at", "-created_at", "id")
     )
 
 

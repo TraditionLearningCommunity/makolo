@@ -596,5 +596,6 @@ def build_personal_me_data(*, profile, request=None):
             "resources": reverse("personal-projections:resources"),
             "partners": reverse("personal-projections:partners"),
             "accesses": reverse("personal-projections:accesses"),
+            "history": reverse("personal-projections:history"),
         },
     }
