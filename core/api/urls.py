@@ -12,6 +12,7 @@ from .me_views import (
     PersonalResourcesAPIView,
 )
 from .personal_views import PersonalNowAPIView, PersonalOngoingAPIView
+from .z9_views import PersonalPartnerDetailAPIView
 from .z8_views import (
     PersonalGroupDetailAPIView,
     PersonalResourceDetailAPIView,
@@ -82,5 +83,10 @@ urlpatterns = [
         "partners/",
         PersonalPartnersAPIView.as_view(),
         name="partners",
+    ),
+    path(
+        "partners/<uuid:pk>/",
+        PersonalPartnerDetailAPIView.as_view(),
+        name="partner-detail",
     ),
 ]
