@@ -309,7 +309,7 @@ class Z8SecondarySurfacesAPIContractTests(TestCase):
         data = response.json()["data"]
         self.assertEqual(data["source"]["id"], str(current.pk))
         self.assertEqual(data["result"]["kind"], "journey_artifact")
-        self.assertFalse(data["requirement"]["satisfied"])
+        self.assertFalse(data["requirement"]["satisfied_by_reuse"])
 
     def test_group_membership_is_relationship_not_authority(self):
         group = create_group(actor=self.other, name="Groupe membre Z8")
