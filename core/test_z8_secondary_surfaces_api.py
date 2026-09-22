@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -368,6 +368,7 @@ class Z8SecondarySurfacesAPIContractTests(TestCase):
 
         space = Organization.objects.create(
             name="Espace Z8",
+            slug="espace-z8",
             created_by=self.other,
         )
         group = Group.objects.create(
