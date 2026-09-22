@@ -77,5 +77,6 @@ def resolve_participant_occurrence_live(*, occurrence, actor, observed_at=None):
             flow=flow,
             queues=queues,
             spatial=spatial,
+            now=now,
         ),
     }

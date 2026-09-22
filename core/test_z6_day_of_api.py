@@ -209,9 +209,10 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
             f"/api/v1/operations/occurrences/{self.occurrence.pk}/live/",
         )
         self.assertIn("open_live", data["capabilities"])
-        self.assertNotIn("queue", data)
-        self.assertNotIn("placement", data)
-        self.assertNotIn("checkpoints", data)
+        self.assertIn("queue", data)
+        self.assertIn("placement", data)
+        self.assertIn("checkpoints", data)
+        self.assertIn("readiness", data)
 
     def test_operational_depths_are_composed_without_other_participant_identity(self):
         other = self._user("z6-day-other-participant")
