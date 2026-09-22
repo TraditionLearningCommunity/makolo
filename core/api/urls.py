@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .access_views import PersonalAccessCredentialAPIView, PersonalAccessesAPIView
 from .me_views import (
     PersonalCollectivesAPIView,
     PersonalConsiderationsAPIView,
@@ -17,6 +18,12 @@ urlpatterns = [
     path("", PersonalMeAPIView.as_view(), name="me"),
     path("now/", PersonalNowAPIView.as_view(), name="now"),
     path("ongoing/", PersonalOngoingAPIView.as_view(), name="ongoing"),
+    path("accesses/", PersonalAccessesAPIView.as_view(), name="accesses"),
+    path(
+        "accesses/<uuid:pk>/credential/",
+        PersonalAccessCredentialAPIView.as_view(),
+        name="access-credential",
+    ),
     path(
         "considerations/",
         PersonalConsiderationsAPIView.as_view(),

@@ -1,6 +1,6 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoint 1 — runtime réconcilié et contrat transversal figé.**
+> **Statut : checkpoint 2 — Z6-A Mes accès implémenté ; runtime et contrat transversal conservés.**
 >
 > Branche unique Z6 : `task-z6-secondary-surfaces-projections`.
 >
@@ -289,6 +289,91 @@ Tous les checkpoints Z6 restent sur `task-z6-secondary-surfaces-projections` :
 ```
 
 Avant chaque checkpoint, comparer la branche au `main` courant et réauditer les collisions. Avant PR finale/merge, réconcilier complètement Z2/Z3/Z4/Z5 et les routes effectivement livrées.
+
+## 15. Checkpoint 2 — Z6-A Mes accès
+
+Z6-A est implémenté sans nouveau modèle ni migration.
+
+### API de collection
+
+```text
+GET /api/v1/me/accesses/
+```
+
+La projection `personal.accesses` utilise exclusivement `request.user`.
+
+Par défaut, elle retourne les Access **actuellement portés par le Profile** via `participant_active_accesses()`. Les Access utilisés, expirés, révoqués, annulés, transférés ou passés ne sont pas réinjectés ici : leur mémoire appartient à Historique.
+
+Le contrat est paginé par `limit/offset` avec une borne serveur de 50 et accepte `q` après application du scope personnel.
+
+### Achat pour autrui
+
+La visibilité transactionnelle de l'acheteur reste distincte :
+
+```text
+GET /api/v1/me/accesses/?relationship=purchased_for_other
+```
+
+Cette relation réutilise `participant_purchased_accesses_for_others()`.
+
+Elle n'affirme jamais que l'acheteur est bénéficiaire et n'expose pas la Journey privée du titulaire. Le payload peut montrer le nom minimal du titulaire nécessaire pour retrouver le droit acheté ; il n'expose ni e-mail, ni téléphone, ni coordonnées privées.
+
+### Credential
+
+La collection ne transporte jamais le token, `public_id`, version ou QR brut. Elle expose uniquement la disponibilité/type de représentation et, lorsqu'elle est réellement présentable, une capability `present_credential`.
+
+La profondeur protégée est :
+
+```text
+GET /api/v1/me/accesses/<access-id>/credential/
+```
+
+Elle est disponible uniquement :
+
+- au bénéficiaire ; ou
+- à l'acheteur pour un Access issu de sa propre CommerceOrder, selon le selector existant.
+
+Un tiers obtient 404. Un Access terminal ne réexpose pas de payload. La réponse qui contient la représentation signée est explicitement `Cache-Control: private, no-store` et `X-Content-Type-Options: nosniff`.
+
+Le token reste la représentation opaque produite par `render_access_credential()`. Z6 ne crée aucune seconde signature, aucun QR parallèle et aucune identité AccessCredential publique supplémentaire.
+
+### Shape de la collection
+
+Chaque ligne conserve notamment :
+
+```text
+identity Access
+relationship
+state
+representation contextuelle
+Activity
+Occurrence + timing + place minimal
+validity
+holder minimal si achat pour autrui
+Journey seulement pour le bénéficiaire
+credential summary sans secret
+capabilities
+links
+```
+
+Une date-only reste une date-only. Aucun minuit n'est inventé.
+
+### Moi
+
+`personal.me.links.accesses` pointe vers la surface secondaire sans recopier la collection Access dans `Moi`.
+
+### Invariants fermés par Z6-A
+
+```text
+Access != AccessCredential != AccessUse
+buyer != beneficiary
+collection générale != secret credential
+Access historique != Mes accès actuels
+scope personnel avant recherche
+connaître un UUID != pouvoir lire le droit
+```
+
+Tests ciblés : auth, rejet `profile_id`, scope bénéficiaire, séparation historique, achat pour autrui, recherche/pagination, secret absent de la collection, credential no-store, buyer autorisé, tiers 404 et Access terminal sans réexposition.
 
 ## 15. Critères de sortie du checkpoint 1
 

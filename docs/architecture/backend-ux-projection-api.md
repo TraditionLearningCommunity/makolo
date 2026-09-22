@@ -691,6 +691,7 @@ GET /api/v1/me/collectives/      → Mes collectifs
 GET /api/v1/me/passport/         → Passeport Makolo
 GET /api/v1/me/resources/        → Mes ressources
 GET /api/v1/me/partners/         → Mes relations partenaire personnelles
+GET /api/v1/me/accesses/         → Mes accès actuels / achats pour autrui
 ```
 
 Toutes ces routes sont privées, utilisent exclusivement `request.user` et l'enveloppe Z1. Aucun `profile_id` client ne peut changer le sujet.
@@ -806,3 +807,21 @@ Z4 n'ajoute :
 Le GET `Moi` ne crée pas silencieusement de `UserProfile` manquant : un ancien compte peut être projeté avec une extension vide en mémoire.
 
 La forme racine est bornée à six éléments par famille. Les profondeurs Z4 restent bornées à cinquante éléments ; elles ne deviennent pas des exports de tables ni un scroll infini artificiel.
+
+
+## 28. Z6-A — Mes accès
+
+Z6-A ajoute la surface secondaire personnelle sans modifier le domaine Access.
+
+```text
+GET /api/v1/me/accesses/
+GET /api/v1/me/accesses/<uuid>/credential/
+```
+
+La collection par défaut est strictement bénéficiaire et actuelle. La relation `purchased_for_other` est une vue transactionnelle séparée pour les droits issus des propres CommerceOrders de l'acheteur.
+
+La collection ne sérialise jamais un AccessCredential complet ni son token. Elle expose seulement une synthèse de représentation et la capability `present_credential` lorsque la profondeur protégée est disponible. Le endpoint credential est `private, no-store`, owner/buyer-scoped et retourne 404 aux tiers ou lorsque l'Access n'est plus présentable.
+
+`personal.me` référence `Mes accès` par link seulement ; aucune copie de vérité Access n'entre dans Moi.
+
+Aucun modèle, migration, score, ranking, cache ou état Access parallèle n'est introduit.
