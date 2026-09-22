@@ -11,7 +11,16 @@ from events.models import Event, EventStatus, EventVisibility
 from loyalty.models import LoyaltyAccount, LoyaltyProgram, LoyaltyReward, MembershipPlan
 from organizations.console_context import authorized_spaces
 from organizations.models import Organization
-from partners.models import Partner, PartnerPayout, PartnerStatus, PayoutStatus
+from partners.models import (
+    AffiliateCampaign,
+    CampaignStatus,
+    CommissionType,
+    Partner,
+    PartnerPayout,
+    PartnerStatus,
+    PayoutStatus,
+    ReferralCode,
+)
 from recognition.models import RecognitionLedgerEntry
 from recognition.services import get_or_create_account
 
@@ -218,6 +227,78 @@ class Z9MobilizableValueAPIContractTests(TestCase):
         denied = self.client.get(f"/api/v1/me/partners/{foreign.pk}/")
         self.assertEqual(denied.status_code, 404)
         self.assertNotIn("Partenaire étranger Z9", str(detail.json()))
+
+    def test_partner_codes_are_subject_scoped_and_private_partner_fields_stay_hidden(self):
+        mine = Partner.objects.create(
+            organization=self.org,
+            user=self.user,
+            name="Partner internal legal name Z9",
+            public_label="Ambassadeur Z9",
+            email="private-partner-z9@example.test",
+            phone="+243000000000",
+            notes="CRM-like private note sentinel Z9",
+            status=PartnerStatus.ACTIVE,
+        )
+        foreign = Partner.objects.create(
+            organization=self.org,
+            user=self.other,
+            name="Partner code foreign Z9",
+            status=PartnerStatus.ACTIVE,
+        )
+        start = timezone.now() + timedelta(hours=2)
+        event = Event.objects.create(
+            organizer=self.other,
+            organization=self.org,
+            title="Event code Z9",
+            status=EventStatus.PUBLISHED,
+            visibility=EventVisibility.PUBLIC,
+            start_at=start,
+            end_at=start + timedelta(hours=2),
+            published_at=timezone.now(),
+            capacity=20,
+        )
+        campaign = AffiliateCampaign.objects.create(
+            organization=self.org,
+            event=event,
+            name="Campagne Z9",
+            status=CampaignStatus.ACTIVE,
+            commission_type=CommissionType.PERCENTAGE,
+            commission_value=Decimal("10.00"),
+            starts_at=timezone.now() - timedelta(minutes=1),
+            ends_at=timezone.now() + timedelta(days=2),
+            created_by=self.other,
+        )
+        mine_code = ReferralCode.objects.create(
+            campaign=campaign,
+            partner=mine,
+            code="MINE-Z9",
+        )
+        # A second campaign is required by the canonical one-code-per-campaign/partner rule.
+        foreign_campaign = AffiliateCampaign.objects.create(
+            organization=self.org,
+            event=event,
+            name="Campagne étrangère Z9",
+            status=CampaignStatus.ACTIVE,
+            commission_type=CommissionType.PERCENTAGE,
+            commission_value=Decimal("5.00"),
+            starts_at=timezone.now() - timedelta(minutes=1),
+            ends_at=timezone.now() + timedelta(days=2),
+            created_by=self.other,
+        )
+        ReferralCode.objects.create(
+            campaign=foreign_campaign,
+            partner=foreign,
+            code="FOREIGN-Z9",
+        )
+
+        data = self.client.get(f"/api/v1/me/partners/{mine.pk}/").json()["data"]
+        self.assertEqual([row["id"] for row in data["codes"]["items"]], [str(mine_code.pk)])
+        serialized = str(data)
+        self.assertIn("MINE-Z9", serialized)
+        self.assertNotIn("FOREIGN-Z9", serialized)
+        self.assertNotIn("private-partner-z9@example.test", serialized)
+        self.assertNotIn("+243000000000", serialized)
+        self.assertNotIn("CRM-like private note sentinel Z9", serialized)
 
     def test_partner_money_keeps_currencies_and_states_separate(self):
         mine = Partner.objects.create(
