@@ -146,3 +146,19 @@ Les modèles et routes historiques `Ticket` / `TicketOrder` ne sont pas réintro
 - les tests de continuation d’authentification exercent encore l’ancienne URL `/tickets/` comme destination `next=`.
 
 Ces bridges restent des projections Event : `Journey`, `CommerceOrder`, `Access` et `AccessCredential` demeurent les autorités canoniques.
+
+
+### Fermeture Z6
+
+La chaîne personnelle stabilisée est :
+
+```text
+Maintenant → sélectionne l'attention
+En cours   → maintient la continuité
+Mes accès  → retrouve les droits actuellement disponibles
+Historique → retrouve les faits passés
+Jour J     → accompagne une Occurrence devenue actuelle
+Makolo Live→ décrit ce qui se déroule effectivement dans cette Occurrence
+```
+
+Les cinq destinations permanentes ne changent pas. Mes accès, Historique et Jour J restent des surfaces contextuelles/secondaires majeures, accessibles par links canoniques et sans duplication de vérité.

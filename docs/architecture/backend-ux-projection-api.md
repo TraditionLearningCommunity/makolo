@@ -875,3 +875,19 @@ Makolo Live reste l'API Operations `/api/v1/operations/occurrences/<uuid>/live/`
 Les bridges Mature pointent vers la racine Jour J depuis En cours, les détails Journey/Access/Occurrence et, lorsqu'une action spatiotemporelle actuelle est portée par une Journey, Maintenant. Les liens Mes accès et Historique sont exposés depuis En cours ; Moi conserve ses links déjà livrés.
 
 Un buyer-only Access ne reçoit jamais de lien Jour J.
+
+
+## 33. Z6-F — Fermeture
+
+Z6 est désormais composé de :
+
+```text
+Mes accès      → /api/v1/me/accesses/
+Historique     → /api/v1/me/history/
+Jour J         → /api/v1/me/occurrences/<uuid>/day-of/
+Makolo Live    → /api/v1/operations/occurrences/<uuid>/live/
+```
+
+Jour J est la racine personnelle contextuelle ; Operations Live reste l'owner de la projection Live. Les détails Journey/Access/Occurrence restent Z5/owners et sont seulement reliés.
+
+La fermeture Z6 n'introduit aucun modèle, migration, HistoryItem, DayOfState, LiveState, UserTimeline, score, ranking ou cache propriétaire. Les gates CI, IDOR, privacy et absence de migration sont des critères de merge, pas des options.

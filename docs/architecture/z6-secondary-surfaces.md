@@ -1,6 +1,6 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoints 6 et 7 fermés — Makolo Live réutilisé et bridges inter-surfaces raccordés ; checkpoint 8 reste ouvert.**
+> **Statut : checkpoints 1 à 8 implémentés — fermeture Z6 en attente uniquement des gates CI du dernier head.**
 >
 > Branche initiale Z6 : `task-z6-secondary-surfaces-projections` (mergée via PR #267).\n>\n> Branche unique de continuation checkpoints 4–8 : `task-z6-continuation-jour-j-live`.
 >
@@ -683,6 +683,74 @@ Moi → Mes accès / Historique
 Un acheteur d'un Access pour autrui ne reçoit jamais le Jour J du bénéficiaire.
 
 Makolo Mark n'est pas modifié par Z6 : il pourra résoudre une intention de récupération vers ces URLs canoniques, mais ne devient propriétaire d'aucune surface ni d'aucun historique parallèle.
+
+## 21. Checkpoint 8 — Z6-F fermeture
+
+Le checkpoint final ne crée aucune capacité métier supplémentaire. Il ferme les frontières, la sécurité, les performances raisonnables et la réconciliation.
+
+### IDOR et autorité
+
+Les tests Z6 et Operations couvrent les cas suivants :
+
+```text
+participant légitime → Jour J / Live
+outsider → 404
+owner/operator sans relation participant → Jour J 404
+CheckpointAssignment seul → Jour J 404
+Profile multi-rôle + participant → projection participant-safe
+buyer d'un Access pour autrui → détail Access autorisé selon commerce, Jour J absent
+```
+
+Membership ou Assignment ne sont jamais traités comme autorité implicite.
+
+### Confidentialité
+
+Les projections personnelles ne sérialisent pas :
+
+```text
+credential token / QR brut / public_id
+email d'un autre participant
+identité des personnes devant soi dans une Queue
+siège ou Placement d'autrui
+Permission / Mandate brut
+ScannerAssignment
+position physique non observée
+données média inexistantes
+```
+
+Le credential reste `private, no-store`; Jour J est également `private, no-store`.
+
+### Performance et bornes
+
+Jour J réutilise un resolver Operations déjà borné par Occurrence et Profile. L'enrichissement Access recharge uniquement les Access IDs présents dans la projection participant-safe et précharge leurs credentials en une relation bornée ; il n'effectue aucune union globale ni timeline.
+
+Mes accès et Historique conservent leurs paginations bornées. Aucun cache persistant spéculatif Jour J/Live n'est ajouté.
+
+### Réconciliation
+
+La continuation Z6 a été créée depuis le `main` issu de PR #267 puis réconciliée avec le `main` courant après l'intégration de l'Acteur 3. Les PR concurrentes auditées ne modifiaient pas les surfaces Jour J concernées.
+
+### Migration
+
+Z6 continuation n'ajoute aucun modèle et aucune migration. Le gate `makemigrations --check --dry-run` de CI reste l'autorité finale.
+
+### Critères de fermeture Z6
+
+Z6 est fermé lorsque le dernier head confirme :
+
+```text
+check Django vert
+makemigrations --check vert
+suite Django verte
+PostgreSQL gates verts
+E2E vert
+security supply chain vert
+beta seed / funding / subscriptions / conversation verts
+branche 0 derrière main
+PR mergeable
+```
+
+Après merge, `main` doit être revérifié. Aucune branche Z6 ne devient une ligne de développement parallèle après intégration.
 
 ## 15. Critères de sortie du checkpoint 1
 
