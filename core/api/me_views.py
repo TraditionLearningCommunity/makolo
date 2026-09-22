@@ -11,8 +11,6 @@ from core.api.me_projection import (
     build_personal_considerations_data,
     build_personal_me_data,
     build_personal_partners_data,
-    build_personal_passport_data,
-    build_personal_resources_data,
 )
 from core.api.projections import projection_envelope
 from core.api.z8_projection import (
@@ -101,7 +99,9 @@ class PersonalPassportAPIView(PersonalProjectionAPIView):
             )
         except ValueError as exc:
             raise ValidationError({"variant": str(exc)}) from exc
-        return self._response(data, observed_at=observed_at)
+        response = self._response(data, observed_at=observed_at)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class PersonalResourcesAPIView(PersonalProjectionAPIView):
