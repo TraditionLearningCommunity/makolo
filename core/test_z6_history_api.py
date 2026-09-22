@@ -134,6 +134,19 @@ class Z6PersonalHistoryAPIContractTests(TestCase):
         self.assertIn(("journey", str(journey.pk)), refs)
         self.assertIn(("access", str(used.pk)), refs)
 
+        by_ref = {
+            (row["kind"], row["source"]["id"]): row
+            for row in rows
+        }
+        self.assertEqual(
+            by_ref[("journey", str(journey.pk))]["links"]["detail"],
+            f"/api/v1/me/journeys/{journey.pk}/",
+        )
+        self.assertEqual(
+            by_ref[("access", str(used.pk))]["links"]["detail"],
+            f"/api/v1/me/accesses/{used.pk}/",
+        )
+
     def test_linked_journey_and_access_are_one_history_experience(self):
         journey = self._journey(
             status=JourneyStatus.FULFILLED,

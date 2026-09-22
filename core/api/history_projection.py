@@ -60,8 +60,13 @@ def _access_item(access):
             "title": access.activity.title,
         },
         "occurrence": _occurrence_ref(access.occurrence),
-        "capabilities": [],
-        "links": {},
+        "capabilities": ["view_detail"],
+        "links": {
+            "detail": reverse(
+                "personal-detail-projections:access-detail",
+                kwargs={"pk": access.pk},
+            )
+        },
     }
 
 
@@ -86,8 +91,13 @@ def _journey_item(journey):
             "title": journey.activity.title,
         },
         "occurrence": _occurrence_ref(journey.occurrence),
-        "capabilities": [],
-        "links": {},
+        "capabilities": ["view_detail"],
+        "links": {
+            "detail": reverse(
+                "personal-detail-projections:journey-detail",
+                kwargs={"pk": journey.pk},
+            )
+        },
     }
 
 

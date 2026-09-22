@@ -4,7 +4,9 @@
 >
 > Branche unique Z6 : `task-z6-secondary-surfaces-projections`.
 >
-> Base du checkpoint : `main@50f47015df7f19dea274bee15e2cee1bd82a3807`.
+> Base initiale Z6 : `main@50f47015df7f19dea274bee15e2cee1bd82a3807`.
+>
+> Réconciliation checkpoint 3 : `main@08ba105e1ff301e2e596d7ed6c2b2dd781095518` après merge de Z5.
 >
 > Le runtime courant gagne sur ce document si `main` évolue avant l'intégration finale.
 
@@ -31,9 +33,9 @@ Au snapshot du checkpoint :
 - Z2 est mergé : `Maintenant` et `En cours` sont exposés dans `/api/v1/me/` ;
 - Z3 est mergé : la projection Mature de `Découvrir` est disponible ;
 - Z4 est mergé : `Moi` et ses profondeurs personnelles sont disponibles ;
-- Z5 reste ouvert sur PR #264, branche `task-z5-engaged-detail-projections`, head `6350e140e118620ccba62c9aa14d6512c0a2407e`.
+- Z5 est maintenant mergé dans `main` via la PR #264 ; les détails personnels Journey/Access et les autres profondeurs Z5 sont disponibles.
 
-Z5 ajoute notamment les détails personnels Journey et Access, les détails Activity/Occurrence et Objectives. Z6 ne copie pas ces profondeurs. La réconciliation finale devra utiliser les identités et links Z5 effectivement mergés.
+Z6 ne copie pas ces profondeurs. Depuis la réconciliation du checkpoint 3, Historique pointe vers les routes Z5 réellement livrées pour les détails Journey et Access.
 
 ### 2.2. CI au point de départ
 
@@ -271,7 +273,7 @@ services/requirement_services.py
 docs/architecture/z5-engaged-detail-projections.md
 ```
 
-Le checkpoint 1 Z6 ne modifie aucun de ces fichiers. Il travaille uniquement le contrat documentaire transversal. Les futurs links vers Access/Journey/Occurrence detail seront réconciliés après stabilisation réelle de Z5.
+Le checkpoint 1 Z6 ne modifiait aucun de ces fichiers. Au checkpoint 3, Z5 est mergé dans `main`; la branche Z6 a été réconciliée sans conflit et réutilise désormais ses routes de détail, sans modifier les fichiers propriétaires Z5.
 
 ## 14. Plan de réalisation sur une seule branche
 
@@ -447,7 +449,7 @@ links
 
 Elle n'expose ni AccessCredential, ni token QR, ni contrôleur, ni `client_reference`, ni payload technique.
 
-Les liens de détail restent vides tant que Z5 n'est pas réconcilié sur `main`. Z6 ne fabrique pas d'endpoint de détail concurrent.
+Après la réconciliation avec `main@08ba105e...`, Z5 est livré. Chaque ligne Historique expose donc un lien `detail` vers la profondeur canonique Z5 correspondante : `/api/v1/me/journeys/<uuid>/` ou `/api/v1/me/accesses/<uuid>/`. Z6 ne fabrique aucun endpoint de détail concurrent.
 
 ### Recherche, ordre et pagination
 

@@ -838,4 +838,4 @@ Le timestamp Journey n'est plus un `updated_at` systématique : `participant_uni
 
 Notification, Domain Event, audit technique, Goal numérique, AccessCredential et donnée d'un acheteur pour un autre bénéficiaire restent hors projection.
 
-La collection est `private, no-store`, recherche après scope personnel, pagination `limit/offset` bornée à 50 et ordre déterministe. Aucun modèle, migration, snapshot History ou backfill n'est introduit.
+La collection est `private, no-store`, recherche après scope personnel, pagination `limit/offset` bornée à 50 et ordre déterministe. Depuis le merge de Z5 dans `main`, les items pointent vers les détails canoniques Journey/Access déjà livrés ; Z6 ne duplique pas ces profondeurs. Aucun modèle, migration, snapshot History ou backfill n'est introduit.
