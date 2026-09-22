@@ -14,6 +14,33 @@ from partners.services import build_partner_metrics, partner_balance
 PARTNER_DETAIL_LIMIT = 50
 
 
+def _money_string(value):
+    """Z1 money transport: decimal string, never JSON float."""
+    return f"{value:.2f}"
+
+
+def _money_rows(rows):
+    return [
+        {
+            **row,
+            "amount": _money_string(row["amount"]),
+        }
+        for row in rows
+    ]
+
+
+def _commission_totals(rows):
+    return [
+        {
+            "currency": row["currency"],
+            "earned": _money_string(row["earned"]),
+            "paid": _money_string(row["paid"]),
+            "reversed": _money_string(row["reversed"]),
+        }
+        for row in rows
+    ]
+
+
 def _code_payload(code):
     return {
         "id": str(code.pk),
@@ -39,7 +66,7 @@ def _code_payload(code):
 def _commission_payload(commission):
     return {
         "id": str(commission.pk),
-        "amount": commission.amount,
+        "amount": _money_string(commission.amount),
         "currency": commission.currency,
         "state": commission.status,
         "earned_at": commission.earned_at,
@@ -60,7 +87,7 @@ def _commission_payload(commission):
 def _payout_payload(payout):
     return {
         "id": str(payout.pk),
-        "amount": payout.amount,
+        "amount": _money_string(payout.amount),
         "currency": payout.currency,
         "state": payout.status,
         "created_at": payout.created_at,
@@ -121,8 +148,8 @@ def build_personal_partner_detail_data(profile, *, partner_id):
             "count": len(codes),
         },
         "economic_state": {
-            "unallocated_earned": partner_balance(relationship),
-            "commissions": metrics.get("commissions", []),
+            "unallocated_earned": _money_rows(partner_balance(relationship)),
+            "commissions": _commission_totals(metrics.get("commissions", [])),
             "aggregate_across_currencies": None,
         },
         "commissions": {
