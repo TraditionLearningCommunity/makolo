@@ -12,6 +12,12 @@ from .me_views import (
     PersonalResourcesAPIView,
 )
 from .personal_views import PersonalNowAPIView, PersonalOngoingAPIView
+from .z8_views import (
+    PersonalGroupDetailAPIView,
+    PersonalResourceDetailAPIView,
+    PersonalResourceVersionDownloadAPIView,
+    PersonalResourceVersionReuseAPIView,
+)
 
 
 app_name = "personal-projections"
@@ -51,6 +57,26 @@ urlpatterns = [
         "resources/",
         PersonalResourcesAPIView.as_view(),
         name="resources",
+    ),
+    path(
+        "resources/<uuid:pk>/",
+        PersonalResourceDetailAPIView.as_view(),
+        name="resource-detail",
+    ),
+    path(
+        "resources/versions/<uuid:version_id>/download/",
+        PersonalResourceVersionDownloadAPIView.as_view(),
+        name="resource-version-download",
+    ),
+    path(
+        "resources/versions/<uuid:version_id>/reuse/",
+        PersonalResourceVersionReuseAPIView.as_view(),
+        name="resource-version-reuse",
+    ),
+    path(
+        "collectives/groups/<uuid:pk>/",
+        PersonalGroupDetailAPIView.as_view(),
+        name="group-detail",
     ),
     path(
         "partners/",
