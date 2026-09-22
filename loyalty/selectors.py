@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
@@ -59,18 +59,19 @@ def personal_rewards_available_to(user, *, at=None):
     }
     if not accounts:
         return []
-    used = {}
-    for row in (
-        LoyaltyRewardRedemption.objects.filter(
-            user=user,
-            status="redeemed",
-            reward__program_id__in=accounts,
+    used = {
+        row["reward_id"]: row["total"]
+        for row in (
+            LoyaltyRewardRedemption.objects.filter(
+                user=user,
+                status="redeemed",
+                reward__program_id__in=accounts,
+            )
+            .values("reward_id")
+            .annotate(total=Count("id"))
+            .order_by()
         )
-        .values("reward_id")
-        .order_by()
-    ):
-        reward_id = row["reward_id"]
-        used[reward_id] = used.get(reward_id, 0) + 1
+    }
     rewards = (
         LoyaltyReward.objects.filter(
             program_id__in=accounts,
