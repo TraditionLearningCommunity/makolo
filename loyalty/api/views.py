@@ -1,6 +1,8 @@
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from django.utils import timezone
 from rest_framework import permissions, serializers, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -12,7 +14,7 @@ from promotions.models import Promotion
 
 from loyalty.models import LoyaltyAccount, LoyaltyProgram, LoyaltyReward, LoyaltyTier, MembershipPlan, MembershipSubscription
 from loyalty.permissions import user_can_manage_loyalty_strategy, user_can_view_loyalty_workspace
-from loyalty.selectors import get_accounts_visible_to, get_programs_visible_to, get_subscriptions_visible_to
+from loyalty.selectors import get_accounts_visible_to, get_programs_visible_to, get_subscriptions_visible_to, personal_rewards_available_to
 from loyalty.services import activate_membership, adjust_points, cancel_membership, redeem_reward, request_membership
 
 from .serializers import LoyaltyAccountSerializer, LoyaltyProgramSerializer, LoyaltyRewardRedemptionSerializer, LoyaltyRewardSerializer, LoyaltyTierSerializer, MembershipPlanSerializer, MembershipSubscriptionSerializer
@@ -87,17 +89,102 @@ def _raise_service(exc):
     raise ValidationError(getattr(exc, "messages", [str(exc)])) from exc
 
 
+def _personal_loyalty_account_payload(account):
+    tier = account.current_tier
+    recent = list(account.ledger_entries.order_by("-created_at", "-id")[:20])
+    return {
+        "id": str(account.pk),
+        "program": str(account.program_id),
+        "organization_id": str(account.program.organization_id),
+        "organization_name": account.program.organization.name,
+        "program_name": account.program.name,
+        "points_name": account.program.points_name,
+        "points_balance": account.points_balance,
+        "lifetime_earned": account.lifetime_earned,
+        "lifetime_redeemed": account.lifetime_redeemed,
+        "current_tier": (
+            {
+                "id": str(tier.pk),
+                "name": tier.name,
+                "code": tier.code,
+            }
+            if tier is not None
+            else None
+        ),
+        "joined_at": account.joined_at,
+        "recent_activity": [
+            {
+                "id": str(entry.pk),
+                "kind": entry.kind,
+                "points_delta": entry.points,
+                "description": entry.description,
+                "created_at": entry.created_at,
+            }
+            for entry in recent
+        ],
+    }
+
+
+def _personal_loyalty_reward_payload(reward):
+    return {
+        "id": str(reward.pk),
+        "program": str(reward.program_id),
+        "organization": {
+            "id": str(reward.program.organization_id),
+            "name": reward.program.organization.name,
+        },
+        "name": reward.name,
+        "description": reward.description or None,
+        "points_cost": reward.points_cost,
+        "points_name": reward.program.points_name,
+        "validity": {
+            "state": "available",
+            "starts_at": reward.starts_at,
+            "ends_at": reward.ends_at,
+        },
+        "capabilities": ["redeem"],
+        "links": {
+            "redeem": reverse("loyalty_api:reward-redeem", kwargs={"pk": reward.pk}),
+        },
+    }
+
+
 class MyLoyaltyAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        accounts = get_accounts_visible_to(request.user).filter(user=request.user).prefetch_related("ledger_entries")
-        subscriptions = get_subscriptions_visible_to(request.user).filter(user=request.user)
-        redemptions = request.user.loyalty_reward_redemptions.select_related("reward", "promotion_code")[:100]
+        accounts = list(
+            get_accounts_visible_to(request.user)
+            .filter(user=request.user)
+            .select_related("program__organization", "current_tier")
+            .order_by("program__organization__name", "id")
+        )
+        subscriptions = (
+            get_subscriptions_visible_to(request.user)
+            .filter(user=request.user)
+            .select_related("program__organization", "plan", "benefit_code")
+            .order_by("program__organization__name", "-requested_at", "id")
+        )
+        redemptions = request.user.loyalty_reward_redemptions.select_related(
+            "reward__program__organization", "promotion_code"
+        ).order_by("-redeemed_at", "id")[:50]
+        available_rewards = personal_rewards_available_to(request.user, at=timezone.now())
         return Response({
-            "accounts": LoyaltyAccountSerializer(accounts, many=True).data,
+            "accounts": [_personal_loyalty_account_payload(account) for account in accounts],
             "memberships": MembershipSubscriptionSerializer(subscriptions, many=True).data,
             "rewards": LoyaltyRewardRedemptionSerializer(redemptions, many=True).data,
+            "available_rewards": [
+                _personal_loyalty_reward_payload(reward)
+                for reward in available_rewards[:50]
+            ],
+            "summary": {
+                "kind": "loyalty",
+                "program_count": len({account.program_id for account in accounts}),
+                "membership_count": subscriptions.count(),
+                "has_available_rewards": bool(available_rewards),
+                "aggregate_points": None,
+            },
+            "links": {"self": reverse("loyalty_api:me")},
         })
 
 
