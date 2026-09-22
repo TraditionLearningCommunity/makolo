@@ -92,7 +92,9 @@ def _journey_item(journey):
 
 
 def _projection_relations(queryset):
-    return queryset.select_related(
+    # The Web selectors prefetch rich card relations. The API shape is deliberately
+    # compact, so discard those prefetches to keep each history page bounded.
+    return queryset.prefetch_related(None).select_related(
         "activity__transport_service",
         "activity__service_details",
         "activity__funding_details",
