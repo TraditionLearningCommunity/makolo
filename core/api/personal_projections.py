@@ -10,6 +10,7 @@ from objectives.models import DossierLifecycle, ProjectLifecycle
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import dossiers_for_profile, projects_for_profile
 from payments.models import PaymentStatus
+from journeys.models import Journey
 from payments.selectors import get_payments_visible_to
 from preparation.contextual_actions import (
     ContextualAction,
@@ -218,6 +219,35 @@ def build_personal_now_projection(profile, *, observed_at=None):
         item = _serialize_now_action(action, dimension)
         if item is not None:
             items.append(item)
+    journey_ids = {
+        item["source"]["id"]
+        for item in items
+        if item["kind"].startswith("spatiotemporal.")
+        and item["source"]["kind"] == "journey"
+    }
+    occurrence_by_journey = {
+        str(pk): occurrence_id
+        for pk, occurrence_id in Journey.objects.filter(
+            pk__in=journey_ids,
+            beneficiary=profile,
+        ).values_list("pk", "occurrence_id")
+        if occurrence_id is not None
+    }
+    for item in items:
+        if item["source"]["kind"] != "journey":
+            continue
+        journey_id = item["source"]["id"]
+        item["links"].setdefault(
+            "detail",
+            f"/api/v1/me/journeys/{journey_id}/",
+        )
+        occurrence_id = occurrence_by_journey.get(journey_id)
+        if occurrence_id is not None:
+            item["links"]["day_of"] = (
+                f"/api/v1/me/occurrences/{occurrence_id}/day-of/"
+            )
+            if "open_day_of" not in item["capabilities"]:
+                item["capabilities"].append("open_day_of")
     return {"items": items}
 
 
@@ -295,6 +325,12 @@ def _serialize_intervention(journey, check):
     return item
 
 
+def _day_of_link(occurrence):
+    if occurrence is None:
+        return None
+    return f"/api/v1/me/occurrences/{occurrence.pk}/day-of/"
+
+
 def _journey_ongoing_item(journey, readiness):
     ready = [
         {
@@ -356,8 +392,15 @@ def _journey_ongoing_item(journey, readiness):
         "next": next_item,
         "timing": _occurrence_timing(journey.occurrence),
         "place": _occurrence_place(journey.occurrence),
-        "capabilities": [],
-        "links": {},
+        "capabilities": ["open_detail"] + (["open_day_of"] if journey.occurrence_id else []),
+        "links": {
+            "detail": f"/api/v1/me/journeys/{journey.pk}/",
+            **(
+                {"day_of": _day_of_link(journey.occurrence)}
+                if journey.occurrence_id
+                else {}
+            ),
+        },
     }
 
 
@@ -374,8 +417,15 @@ def _access_ongoing_item(access):
         "next": None,
         "timing": _occurrence_timing(access.occurrence),
         "place": _occurrence_place(access.occurrence),
-        "capabilities": [],
-        "links": {},
+        "capabilities": ["open_access"] + (["open_day_of"] if access.occurrence_id else []),
+        "links": {
+            "detail": f"/api/v1/me/accesses/{access.pk}/",
+            **(
+                {"day_of": _day_of_link(access.occurrence)}
+                if access.occurrence_id
+                else {}
+            ),
+        },
     }
 
 
@@ -652,14 +702,21 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
     )
     payment_items = [_payment_ongoing_item(payment) for payment in payments]
 
+    items = (
+        journey_items
+        + access_items
+        + dossier_items
+        + project_items
+        + waitlist_items
+        + transfer_items
+        + payment_items
+    )[:ONGOING_LIMIT]
+    if not items:
+        return {"items": []}
     return {
-        "items": (
-            journey_items
-            + access_items
-            + dossier_items
-            + project_items
-            + waitlist_items
-            + transfer_items
-            + payment_items
-        )[:ONGOING_LIMIT]
+        "links": {
+            "accesses": reverse("personal-projections:accesses"),
+            "history": reverse("personal-projections:history"),
+        },
+        "items": items,
     }

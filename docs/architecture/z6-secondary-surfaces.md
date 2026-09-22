@@ -1,8 +1,8 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoint 3 — Z6-B Historique implémenté ; Z6-A conservé et aucune migration ajoutée.**
+> **Statut : checkpoints 1 à 8 implémentés — fermeture Z6 en attente uniquement des gates CI du dernier head.**
 >
-> Branche unique Z6 : `task-z6-secondary-surfaces-projections`.
+> Branche initiale Z6 : `task-z6-secondary-surfaces-projections` (mergée via PR #267).\n>\n> Branche unique de continuation checkpoints 4–8 : `task-z6-continuation-jour-j-live`.
 >
 > Base initiale Z6 : `main@50f47015df7f19dea274bee15e2cee1bd82a3807`.
 >
@@ -489,6 +489,269 @@ unknown/legacy incomplet != erreur 500
 
 Aucun modèle, migration, snapshot, `HistoryItem`, ranking, score ou backfill n'est ajouté.
 
+## 17. Checkpoint 4 — Z6-C0..C6 Jour J fondation
+
+Le checkpoint 4 matérialise la racine personnelle Jour J sans créer de nouvel owner.
+
+### Route
+
+```text
+GET /api/v1/me/occurrences/<uuid>/day-of/
+```
+
+Projection :
+
+```text
+personal.occurrence.day_of
+```
+
+L'Occurrence est chargée par UUID mais la réponse n'est autorisée que si `resolve_participant_occurrence_live()` confirme une relation participant réelle. Un propriétaire/opérateur sans relation participant reçoit 404 ; un Profile multi-rôle qui est aussi participant reçoit toujours la projection participant-safe.
+
+### Composition
+
+La racine compose :
+
+```text
+Occurrence
++ Operations participant-safe
++ Access du bénéficiaire
+```
+
+Elle ne possède aucune vérité métier et ne duplique pas le moteur Operations Live.
+
+### Les quatre dimensions de la racine
+
+`situation` répond explicitement à :
+
+```text
+où j'en suis temporellement
+ce qui est l'état de l'Occurrence
+quel est mon prochain mouvement propriétaire connu
+quelle représentation est la plus utile maintenant
+```
+
+La position physique courante du participant n'étant pas observée par le runtime actuel, elle reste explicitement :
+
+```json
+{"state": "unknown", "truth": "unknown", "reason": "participant_position_not_observed"}
+```
+
+Le lieu de l'Occurrence est une destination planifiée, jamais présenté comme la position actuelle de la personne.
+
+### Vérité temporelle et spatiale
+
+Jour J distingue dans son payload :
+
+```text
+planned   → horaire et destination canoniques de l'Occurrence
+estimated → uniquement lorsqu'une estimation mobilité réelle existe
+observed  → état Access, next movement et hazards courants
+unknown   → position/mobilité non observée ou indisponible
+live      → handoff seulement lorsque l'Occurrence est en phase arrival/live
+```
+
+Une date-only reste une date-only ; aucun minuit artificiel n'est créé.
+
+### Access et credential
+
+Les Access de l'Occurrence sont composés directement dans Jour J avec état, validité et utilisabilité issue du resolver Operations.
+
+Le credential reste une profondeur protégée :
+
+```text
+Jour J → /api/v1/me/accesses/<uuid>/credential/
+```
+
+Jour J n'expose ni token, ni `public_id`, ni payload QR. Un Access révoqué ou non présentable reste visible comme contexte mais ne reçoit aucune capability `present_credential`.
+
+### Live
+
+Jour J ne crée aucun moteur Live. En phase `arrival` ou `live`, il expose seulement le handoff vers :
+
+```text
+/api/v1/operations/occurrences/<uuid>/live/
+```
+
+La composition détaillée Queue/Placement/Checkpoint/Readiness appartient au checkpoint 5. Le contrat Makolo Live riche appartient au checkpoint 6.
+
+### Confidentialité
+
+La réponse est `private, no-store`. Elle ne sérialise ni données d'un autre participant, ni assignments opérateur, ni scanner, ni Permission/Mandate bruts.
+
+Aucun modèle ni migration n'est ajouté.
+
+## 18. Checkpoint 5 — Z6-C7..C12 Jour J opérationnel
+
+Jour J compose désormais les profondeurs participant-safe déjà calculées par Operations :
+
+```text
+queue
+placement
+checkpoints
+readiness
+completion
+```
+
+### Live Queue
+
+`queue` ne contient que les entrées de la personne. Elle expose l'état, la position lorsque connue, le moment d'appel et les links vers les APIs Operations personnelles. Aucun nom ou identifiant d'un autre participant n'est projeté.
+
+Une entrée `called` reste prioritaire dans `situation.next`, conformément au resolver Operations. Une entrée `waiting` reste une attente normale et ne devient pas un blocker par composition.
+
+Waitlist n'entre pas dans cette structure : **Waitlist != Live Queue**.
+
+### Placement
+
+`placement` reprend uniquement les assignments du Profile : plan, unité et unité parente éventuelle. Aucun autre occupant n'est exposé.
+
+```text
+Placement → où ?
+Capacity  → combien ?
+```
+
+Jour J ne convertit donc pas Capacity en placement et n'inclut pas les agrégats opérateur de capacité dans cette profondeur personnelle.
+
+### Checkpoints
+
+`checkpoints` projette la progression opérationnelle de l'Occurrence et le prochain checkpoint propriétaire connu.
+
+Un Checkpoint reste distinct d'un JourneyStep.
+
+### Readiness
+
+`readiness` reformule les contributors participant-safe d'Operational Readiness en quatre conséquences :
+
+```text
+ready
+actor_interventions
+waiting
+blockers
+```
+
+Aucun score de Readiness n'est créé et l'utilisateur n'édite jamais cet état dérivé.
+
+### Fin de l'Occurrence
+
+En phase `after`, Jour J ne fabrique aucune prochaine action Live. `completion` ferme la situation et expose le handoff vers :
+
+```text
+/api/v1/me/history/
+```
+
+Les conséquences durables restent chez leurs owners. Jour J ne devient pas une archive.
+
+Aucun modèle, migration ou état Jour J persistant n'est ajouté.
+
+## 19. Checkpoint 6 — Z6-D Makolo Live
+
+L'audit final confirme que le moteur Operations existant est l'owner suffisant pour Makolo Live :
+
+```text
+GET /api/v1/operations/occurrences/<uuid>/live/
+```
+
+Z6 ne crée donc ni `/api/v1/me/live/`, ni second resolver, ni état Live persistant.
+
+Le contrat réel couvre actuellement :
+
+```text
+opérationnel → Queue, Checkpoints, Placement, Access, Operational Readiness
+spatial       → destination/zone, mobilité disponible, hazards avec provenance
+temporel      → phase before/arrival/live/after/cancelled et timing canonique
+média         → non livré : aucune source média canonique Occurrence n'existe dans le runtime audité
+```
+
+L'absence de source média est conservée comme absence de capacité, pas transformée en stream générique. Physical Access ne crée aucun media Access. Une relation participant ne prouve aucune présence physique.
+
+Les tests Z6 verrouillent également l'absence de credential, Permission, assignment opérateur et scanner dans la projection participant.
+
+## 20. Checkpoint 7 — Z6-E bridges
+
+Les surfaces sont maintenant reliées sans transfert de propriété :
+
+```text
+En cours → Mes accès
+En cours → Historique
+En cours Journey/Access → Jour J
+Maintenant spatiotemporel → Journey detail + Jour J lorsque l'Occurrence est résolue
+Journey detail Z5 → Jour J
+Access detail Z5 → Jour J uniquement pour le bénéficiaire réel
+Occurrence detail → Jour J puis Operations Live
+Moi → Mes accès / Historique
+```
+
+Un acheteur d'un Access pour autrui ne reçoit jamais le Jour J du bénéficiaire.
+
+Makolo Mark n'est pas modifié par Z6 : il pourra résoudre une intention de récupération vers ces URLs canoniques, mais ne devient propriétaire d'aucune surface ni d'aucun historique parallèle.
+
+## 21. Checkpoint 8 — Z6-F fermeture
+
+Le checkpoint final ne crée aucune capacité métier supplémentaire. Il ferme les frontières, la sécurité, les performances raisonnables et la réconciliation.
+
+### IDOR et autorité
+
+Les tests Z6 et Operations couvrent les cas suivants :
+
+```text
+participant légitime → Jour J / Live
+outsider → 404
+owner/operator sans relation participant → Jour J 404
+CheckpointAssignment seul → Jour J 404
+Profile multi-rôle + participant → projection participant-safe
+buyer d'un Access pour autrui → détail Access autorisé selon commerce, Jour J absent
+```
+
+Membership ou Assignment ne sont jamais traités comme autorité implicite.
+
+### Confidentialité
+
+Les projections personnelles ne sérialisent pas :
+
+```text
+credential token / QR brut / public_id
+email d'un autre participant
+identité des personnes devant soi dans une Queue
+siège ou Placement d'autrui
+Permission / Mandate brut
+ScannerAssignment
+position physique non observée
+données média inexistantes
+```
+
+Le credential reste `private, no-store`; Jour J est également `private, no-store`.
+
+### Performance et bornes
+
+Jour J réutilise un resolver Operations déjà borné par Occurrence et Profile. L'enrichissement Access recharge uniquement les Access IDs présents dans la projection participant-safe et précharge leurs credentials en une relation bornée ; il n'effectue aucune union globale ni timeline.
+
+Mes accès et Historique conservent leurs paginations bornées. Aucun cache persistant spéculatif Jour J/Live n'est ajouté.
+
+### Réconciliation
+
+La continuation Z6 a été créée depuis le `main` issu de PR #267 puis réconciliée avec le `main` courant après l'intégration de l'Acteur 3. Les PR concurrentes auditées ne modifiaient pas les surfaces Jour J concernées.
+
+### Migration
+
+Z6 continuation n'ajoute aucun modèle et aucune migration. Le gate `makemigrations --check --dry-run` de CI reste l'autorité finale.
+
+### Critères de fermeture Z6
+
+Z6 est fermé lorsque le dernier head confirme :
+
+```text
+check Django vert
+makemigrations --check vert
+suite Django verte
+PostgreSQL gates verts
+E2E vert
+security supply chain vert
+beta seed / funding / subscriptions / conversation verts
+branche 0 derrière main
+PR mergeable
+```
+
+Après merge, `main` doit être revérifié. Aucune branche Z6 ne devient une ligne de développement parallèle après intégration.
+
 ## 15. Critères de sortie du checkpoint 1
 
 Checkpoint 1 est fermé lorsque :
@@ -504,3 +767,8 @@ Checkpoint 1 est fermé lorsque :
 - aucune route `/me/live/` ni aucun nouveau owner n'est décidé sans besoin démontré ;
 - aucun modèle, migration, score, ranking ou algorithme n'est ajouté ;
 - le collision audit Z5 est explicite.
+
+
+### Correction de fermeture — fenêtre Access future
+
+Un Access en statut `VALID` dont `valid_from` est encore futur n'est ni inutilisable au sens métier, ni une action de régularisation. Operations le projette comme `WAITING` non bloquant avec `participant_access_not_yet_valid`. Avant l'Occurrence, Jour J conserve sa représentation temporelle et n'invente aucune intervention.

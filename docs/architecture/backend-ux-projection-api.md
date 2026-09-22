@@ -693,6 +693,7 @@ GET /api/v1/me/resources/        → Mes ressources
 GET /api/v1/me/partners/         → Mes relations partenaire personnelles
 GET /api/v1/me/accesses/         → Mes accès actuels / achats pour autrui
 GET /api/v1/me/history/          → Historique personnel métier
+GET /api/v1/me/occurrences/<uuid>/day-of/ → Jour J personnel d’une Occurrence actuelle
 ```
 
 Toutes ces routes sont privées, utilisent exclusivement `request.user` et l'enveloppe Z1. Aucun `profile_id` client ne peut changer le sujet.
@@ -839,3 +840,54 @@ Le timestamp Journey n'est plus un `updated_at` systématique : `participant_uni
 Notification, Domain Event, audit technique, Goal numérique, AccessCredential et donnée d'un acheteur pour un autre bénéficiaire restent hors projection.
 
 La collection est `private, no-store`, recherche après scope personnel, pagination `limit/offset` bornée à 50 et ordre déterministe. Depuis le merge de Z5 dans `main`, les items pointent vers les détails canoniques Journey/Access déjà livrés ; Z6 ne duplique pas ces profondeurs. Aucun modèle, migration, snapshot History ou backfill n'est introduit.
+
+
+## 30. Z6-C — Jour J fondation
+
+`GET /api/v1/me/occurrences/<uuid>/day-of/` expose la racine `personal.occurrence.day_of`.
+
+Cette projection est strictement participant-safe : elle appelle `resolve_participant_occurrence_live()` pour l'autorisation et la situation Operations, puis compose seulement les Access du bénéficiaire. Elle ne remplace ni l'Occurrence, ni Operations Live.
+
+Le payload distingue la destination planifiée de la position actuelle du participant. Tant qu'aucune position volontaire et légitime n'est réellement observée, `current_position` reste `unknown`.
+
+Les horaires et lieux canoniques sont `planned`; une mobilité n'est `estimated` que lorsqu'une estimation existe réellement ; états Access, prochain mouvement et hazards sont des observations courantes ; une valeur inconnue reste inconnue.
+
+Le credential n'est jamais sérialisé dans Jour J. La racine expose uniquement le bridge vers la profondeur sécurisée Z6-A lorsqu'elle est présentable.
+
+La phase `arrival/live` expose un handoff vers l'API Operations Live existante ; aucun `/api/v1/me/live/`, moteur Live, modèle, migration ou état persistant Jour J n'est créé.
+
+
+## 31. Z6-C — Jour J opérationnel
+
+La racine Jour J compose maintenant Queue, Placement, Checkpoints et Operational Readiness depuis le resolver participant-safe Operations.
+
+Queue n'expose que l'entrée du Profile ; Placement n'expose que son unité ; les Checkpoints restent des checkpoints opérationnels ; Capacity reste distincte et n'est pas projetée comme placement.
+
+Readiness est une conséquence dérivée et non un score. En phase `after`, Jour J retire le handoff Live, conserve `next.type=none` et expose le passage vers l'Historique personnel.
+
+Aucun modèle, migration, Waitlist dans Live Queue, JourneyStep déguisé en Checkpoint ou état persistant Jour J n'est ajouté.
+
+
+## 32. Z6-D/E — Makolo Live et bridges
+
+Makolo Live reste l'API Operations `/api/v1/operations/occurrences/<uuid>/live/`. Le runtime audité possède les dimensions opérationnelle, spatiale et temporelle ; aucune source média Occurrence canonique n'existe encore, donc Z6 ne crée aucun stream ou modèle Media.
+
+Les bridges Mature pointent vers la racine Jour J depuis En cours, les détails Journey/Access/Occurrence et, lorsqu'une action spatiotemporelle actuelle est portée par une Journey, Maintenant. Les liens Mes accès et Historique sont exposés depuis En cours ; Moi conserve ses links déjà livrés.
+
+Un buyer-only Access ne reçoit jamais de lien Jour J.
+
+
+## 33. Z6-F — Fermeture
+
+Z6 est désormais composé de :
+
+```text
+Mes accès      → /api/v1/me/accesses/
+Historique     → /api/v1/me/history/
+Jour J         → /api/v1/me/occurrences/<uuid>/day-of/
+Makolo Live    → /api/v1/operations/occurrences/<uuid>/live/
+```
+
+Jour J est la racine personnelle contextuelle ; Operations Live reste l'owner de la projection Live. Les détails Journey/Access/Occurrence restent Z5/owners et sont seulement reliés.
+
+La fermeture Z6 n'introduit aucun modèle, migration, HistoryItem, DayOfState, LiveState, UserTimeline, score, ranking ou cache propriétaire. Les gates CI, IDOR, privacy et absence de migration sont des critères de merge, pas des options.

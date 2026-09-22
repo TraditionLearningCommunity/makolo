@@ -64,6 +64,29 @@ class M8CParticipantOccurrenceLiveProjectionTests(TestCase):
         self.assertEqual(payload["next_action"]["type"], "none")
         self.assertEqual(payload["next_action"]["reason"], "before_no_immediate_action")
 
+    def test_future_valid_access_is_waiting_without_fake_regularization(self):
+        self.occurrence.start_at = self.now + timedelta(hours=4)
+        self.occurrence.end_at = self.now + timedelta(hours=6)
+        self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+        self.access.valid_from = self.occurrence.start_at
+        self.access.valid_until = self.occurrence.end_at
+        self.access.save(update_fields=["valid_from", "valid_until", "updated_at"])
+
+        payload = self._payload()
+        self.assertEqual(payload["phase"], "before")
+        self.assertEqual(payload["next_action"]["type"], "none")
+        access_check = next(
+            row
+            for row in payload["operational_readiness"]["contributors"]
+            if row["key"] == "operations.access.me"
+        )
+        self.assertEqual(access_check["state"], "waiting")
+        self.assertEqual(
+            access_check["reason"],
+            "participant_access_not_yet_valid",
+        )
+        self.assertNotIn("Régularisez", payload["next_action"]["label"])
+
     def test_pending_access_is_waiting_not_regularization(self):
         revoke_access(access=self.access)
         self.access = issue_access(

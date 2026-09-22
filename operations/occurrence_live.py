@@ -127,6 +127,14 @@ def _access_usable(access, now):
     return True
 
 
+def _access_not_yet_valid(access, now):
+    return bool(
+        access.status == AccessStatus.VALID
+        and access.valid_from is not None
+        and access.valid_from > now
+    )
+
+
 def _participant_specific_checks(*, actor, occurrence, now):
     checks = []
     accesses = _participant_accesses(actor, occurrence)
@@ -161,6 +169,17 @@ def _participant_specific_checks(*, actor, occurrence, now):
                 blocking=False,
                 reason_code="participant_access_pending",
                 summary="Votre accès est encore en préparation.",
+            )
+        )
+    elif any(_access_not_yet_valid(access, now) for access in accesses):
+        checks.append(
+            ReadinessCheck(
+                key="operations.access.me",
+                source="access.access",
+                state=ReadinessCheckState.WAITING,
+                blocking=False,
+                reason_code="participant_access_not_yet_valid",
+                summary="Votre accès est prêt et s’ouvrira à l’heure prévue.",
             )
         )
     else:
@@ -402,7 +421,7 @@ def _spatial_payload(*, occurrence, journey, now, include_operator_hazards=False
     }
 
 
-def _participant_next_action(*, occurrence, phase, accesses, placements, flow, queues, spatial):
+def _participant_next_action(*, occurrence, phase, accesses, placements, flow, queues, spatial, now):
     if phase == "cancelled":
         return {"type": "none", "source": "activities.occurrence", "reason": "occurrence_cancelled", "label": "Aucune opération live — occurrence annulée."}
     if phase == "after":
@@ -416,7 +435,21 @@ def _participant_next_action(*, occurrence, phase, accesses, placements, flow, q
                 "reason": "participant_access_pending",
                 "label": "Votre accès est encore en préparation. Attendez sa confirmation avant de poursuivre.",
             }
-        return {"type": "access", "source": "access.access", "reason": "participant_access_unavailable", "label": "Régularisez votre accès avant de poursuivre."}
+        not_yet_valid = any(
+            row["status"] == AccessStatus.VALID
+            and row["valid_from"] is not None
+            and row["valid_from"] > now
+            for row in accesses
+        )
+        if not_yet_valid and phase != "before":
+            return {
+                "type": "access_wait",
+                "source": "access.access",
+                "reason": "participant_access_not_yet_valid",
+                "label": "Votre accès est prêt mais sa fenêtre de validité n’est pas encore ouverte.",
+            }
+        if not not_yet_valid:
+            return {"type": "access", "source": "access.access", "reason": "participant_access_unavailable", "label": "Régularisez votre accès avant de poursuivre."}
 
     if phase == "before":
         if spatial["advices"]:
@@ -638,6 +671,7 @@ def resolve_occurrence_live(*, occurrence, actor, observed_at=None):
                     flow=flow,
                     queues=queues,
                     spatial=spatial,
+                    now=now,
                 ),
             }
         )

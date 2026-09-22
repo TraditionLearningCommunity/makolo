@@ -76,6 +76,15 @@ L’historique de participation commence toujours depuis `beneficiary=profile`. 
 
 ## Jour J et Makolo Live
 
+La racine API Mature est désormais :
+
+```text
+GET /api/v1/me/occurrences/<uuid>/day-of/
+```
+
+Elle reste une projection personnelle de l'Occurrence et compose le resolver Operations participant-safe. La position courante n'est jamais déduite du lieu de destination. Le credential reste une profondeur sécurisée distincte.
+
+
 Quand une Occurrence devient actuelle pour la personne, la profondeur participant ne doit plus être comprise comme une simple « page Live ». Le contrat Mature est :
 
 ```text
@@ -137,3 +146,19 @@ Les modèles et routes historiques `Ticket` / `TicketOrder` ne sont pas réintro
 - les tests de continuation d’authentification exercent encore l’ancienne URL `/tickets/` comme destination `next=`.
 
 Ces bridges restent des projections Event : `Journey`, `CommerceOrder`, `Access` et `AccessCredential` demeurent les autorités canoniques.
+
+
+### Fermeture Z6
+
+La chaîne personnelle stabilisée est :
+
+```text
+Maintenant → sélectionne l'attention
+En cours   → maintient la continuité
+Mes accès  → retrouve les droits actuellement disponibles
+Historique → retrouve les faits passés
+Jour J     → accompagne une Occurrence devenue actuelle
+Makolo Live→ décrit ce qui se déroule effectivement dans cette Occurrence
+```
+
+Les cinq destinations permanentes ne changent pas. Mes accès, Historique et Jour J restent des surfaces contextuelles/secondaires majeures, accessibles par links canoniques et sans duplication de vérité.
