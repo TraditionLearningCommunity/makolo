@@ -927,3 +927,33 @@ Resources est paginé et controller-scoped ; le détail expose versions/provenan
 Le détail Group part de `groups_for_profile()`, rend un outsider en 404 et projette seulement la relation/capabilities dérivées des autorisations serveur. Aucun Permission/Mandate brut ni PII membre n'est sérialisé.
 
 Voir `docs/architecture/z8-personal-capital-secondary-surfaces.md` pour le contrat complet.
+
+
+## Z9 — Recognition, Loyalty et Partner
+
+Z9 ferme les profondeurs personnelles de valeur mobilisable sans créer de domaine transversal de wallet ou de points.
+
+```text
+Recognition -> GET /api/v1/recognition/me/
+Loyalty     -> GET /api/v1/loyalty/me/
+Partner     -> GET /api/v1/me/partners/
+               GET /api/v1/me/partners/<uuid>/
+```
+
+Recognition et Loyalty conservent leurs APIs personnelles owner-domain existantes ; Z9 les approfondit au lieu de les dupliquer. Partner conserve l'index compact Z4 et ajoute un détail strictement scoped au Profile connecté.
+
+Invariants :
+
+```text
+Recognition != Loyalty != Partner
+pas de wallet universel
+pas de Makolo Points
+pas de total de valeur transversal
+pas de score social/ranking humain
+Loyalty membership != authority
+Partner relation != authority
+Decimal + currency, sans somme inter-devise
+GET side-effect free
+```
+
+Voir `docs/architecture/z9-mobilizable-value-surfaces.md`.
