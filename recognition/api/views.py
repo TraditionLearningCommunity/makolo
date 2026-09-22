@@ -42,6 +42,11 @@ def _reward_payload(reward):
         "kind": reward.kind,
         "kind_label": reward.get_kind_display(),
         "points_cost": reward.points_cost,
+        "validity": {
+            "state": "available",
+            "valid_from": reward.valid_from,
+            "valid_until": reward.valid_until,
+        },
         "beneficiary_allowed": bool(reward.beneficiary_allowed),
         "acceptance_required": bool(reward.acceptance_required),
         "self_eligible": self_eligible,
