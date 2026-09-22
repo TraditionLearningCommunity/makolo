@@ -24,9 +24,13 @@ from sharing.passport import (
 )
 
 from core.api.me_projection import (
+    _bounded,
+    _credential_item,
+    _proof_item,
     build_personal_passport_data,
-    build_personal_resources_data,
 )
+from trust.credential_selectors import credentials_for_profile
+from trust.selectors import proofs_for_profile
 
 
 RESOURCE_DEFAULT_LIMIT = 24
@@ -87,9 +91,13 @@ def _resource_collection_item(asset, *, observed_at):
                 observed_at=observed_at,
             ),
         }
-        capabilities.append("download")
+        capabilities.extend(["download", "reuse_in_journey"])
         links["download"] = reverse(
-            "personal_assets:download",
+            "personal-projections:resource-version-download",
+            kwargs={"version_id": asset.current_version_id},
+        )
+        links["reuse_in_journey"] = reverse(
+            "personal-projections:resource-version-reuse",
             kwargs={"version_id": asset.current_version_id},
         )
     return {
@@ -123,8 +131,10 @@ def build_personal_resources_depth_data(
 
     total = assets.count()
     rows = list(assets[offset : offset + limit])
-    data = build_personal_resources_data(profile, limit=RESOURCE_MAX_LIMIT)
-    data["documents"] = {
+    proofs = proofs_for_profile(profile)
+    credentials = credentials_for_profile(profile)
+    data = {
+        "documents": {
         "query": query or None,
         "items": [
             _resource_collection_item(asset, observed_at=observed_at)
@@ -136,9 +146,16 @@ def build_personal_resources_depth_data(
             "limit": limit,
             "has_more": offset + len(rows) < total,
         },
-        "links": {
-            "self": reverse("personal-projections:resources"),
+            "links": {
+                "self": reverse("personal-projections:resources"),
+            },
         },
+        "proofs": _bounded(proofs, _proof_item, limit=RESOURCE_MAX_LIMIT),
+        "credentials": _bounded(
+            credentials,
+            _credential_item,
+            limit=RESOURCE_MAX_LIMIT,
+        ),
     }
     data["invariants"] = {
         "personal_asset_is_proof": False,
@@ -153,8 +170,13 @@ def _version_payload(version, *, current, archived, observed_at):
     links = {}
     if not archived:
         capabilities.append("download")
+        capabilities.append("reuse_in_journey")
         links["download"] = reverse(
-            "personal_assets:download",
+            "personal-projections:resource-version-download",
+            kwargs={"version_id": version.pk},
+        )
+        links["reuse_in_journey"] = reverse(
+            "personal-projections:resource-version-reuse",
             kwargs={"version_id": version.pk},
         )
     provenance = (
@@ -212,12 +234,20 @@ def build_personal_resource_detail_data(
             kwargs={"pk": asset.pk},
         ),
         "collection": reverse("personal-projections:resources"),
-        "web": reverse("personal_assets:detail", kwargs={"asset_id": asset.pk}),
     }
+    if not archived:
+        links["web"] = reverse(
+            "personal_assets:detail",
+            kwargs={"asset_id": asset.pk},
+        )
     if current is not None and not archived:
-        capabilities.append("download")
+        capabilities.extend(["download", "reuse_in_journey"])
         links["download"] = reverse(
-            "personal_assets:download",
+            "personal-projections:resource-version-download",
+            kwargs={"version_id": current.pk},
+        )
+        links["reuse_in_journey"] = reverse(
+            "personal-projections:resource-version-reuse",
             kwargs={"version_id": current.pk},
         )
 
@@ -329,14 +359,6 @@ def build_personal_passport_depth_data(
         ),
         "established_count": len(data["established"]["proofs"]),
         "issued_count": len(data["issued"]["credentials"]),
-        "excluded_sensitive_kinds": [
-            "access_credential",
-            "private_trust_evidence",
-            "private_personal_assets",
-            "account_contact_fields",
-            "raw_permissions",
-            "raw_mandates",
-        ],
     }
     data["capabilities"] = [
         "view",
@@ -379,6 +401,11 @@ def build_personal_group_detail_data(profile, *, group_id):
         membership and membership.status == GroupMembershipStatus.ACTIVE
     )
 
+    can_view_via_authority = has_group_permission(
+        profile,
+        PermissionCode.GROUP_VIEW,
+        group,
+    )
     can_manage = has_group_permission(profile, PermissionCode.GROUP_MANAGE, group)
     can_view_members = has_group_permission(
         profile,
@@ -439,6 +466,7 @@ def build_personal_group_detail_data(profile, *, group_id):
         )
 
     authority_actions = {
+        "view": can_view_via_authority,
         "edit": can_manage,
         "view_members": can_view_members,
         "manage_members": can_manage_members,
@@ -468,9 +496,15 @@ def build_personal_group_detail_data(profile, *, group_id):
             "responsibility": None,
             "authority": {
                 "authorized": any(authority_actions.values()),
-                "scope": "group_or_inherited_space"
-                if any(authority_actions.values())
-                else None,
+                "view_authorized": can_view_via_authority,
+                "management_authorized": any(
+                    (
+                        can_manage,
+                        can_manage_members,
+                        can_invite,
+                        can_ownership,
+                    )
+                ),
             },
         },
         "members": {
