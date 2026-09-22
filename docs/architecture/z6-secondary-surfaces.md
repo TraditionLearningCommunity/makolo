@@ -1,6 +1,6 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoint 2 — Z6-A Mes accès implémenté ; runtime et contrat transversal conservés.**
+> **Statut : checkpoint 3 — Z6-B Historique implémenté ; Z6-A conservé et aucune migration ajoutée.**
 >
 > Branche unique Z6 : `task-z6-secondary-surfaces-projections`.
 >
@@ -374,6 +374,118 @@ connaître un UUID != pouvoir lire le droit
 ```
 
 Tests ciblés : auth, rejet `profile_id`, scope bénéficiaire, séparation historique, achat pour autrui, recherche/pagination, secret absent de la collection, credential no-store, buyer autorisé, tiers 404 et Access terminal sans réexposition.
+
+## 16. Checkpoint 3 — Z6-B Historique
+
+Z6-B expose une mémoire personnelle transverse sans créer de domaine `History`.
+
+### API
+
+```text
+GET /api/v1/me/history/
+```
+
+La projection `personal.history` utilise exclusivement `request.user` et réutilise les selectors historiques canoniques Journey et Access.
+
+Les sources admises restent **Access** et **Journey**. Notification, Domain Event, logs techniques, clics, recherches, Goal numérique ou simple `created_at` d'un modèle arbitraire ne deviennent pas des faits historiques.
+
+### Déduplication
+
+Une Journey possédant un Access historique n'apparaît pas comme une seconde expérience. L'Access porte alors la représentation historique de cette expérience, conformément au selector Web déjà existant.
+
+```text
+Journey liée + Access historique
+→ une seule ligne d'Historique
+→ source = Access
+```
+
+### Temps métier Journey
+
+Le gap du checkpoint 1 est fermé dans le selector canonique.
+
+`participant_unified_history_journeys()` annote désormais `history_at` avec le meilleur moment métier persisté :
+
+```text
+FULFILLED → fulfilled_at
+CANCELLED → cancelled_at
+EXPIRED   → expires_at
+autre terminal → transition vers le statut terminal courant
+legacy incomplet → updated_at seulement comme fallback
+```
+
+Aucun timestamp n'est inventé. Les anciennes données incomplètes restent valides et projetables sans backfill.
+
+Le Web `/me/history/` consomme le même `history_at` : API et Web ne possèdent donc pas deux règles temporelles.
+
+### Temps métier Access
+
+Le selector Access conserve sa règle canonique :
+
+```text
+USED + passage accepté → AccessUse.used_at
+VALID + Occurrence passée → Occurrence.end_at
+VALID + validité finie → valid_until
+autre terminal → updated_at faute de timestamp propriétaire plus précis
+```
+
+### Shape
+
+Une ligne expose uniquement :
+
+```text
+kind
+source canonique
+title
+occurred_at
+outcome
+representation contextuelle
+Activity
+Occurrence minimale
+capabilities
+links
+```
+
+Elle n'expose ni AccessCredential, ni token QR, ni contrôleur, ni `client_reference`, ni payload technique.
+
+Les liens de détail restent vides tant que Z5 n'est pas réconcilié sur `main`. Z6 ne fabrique pas d'endpoint de détail concurrent.
+
+### Recherche, ordre et pagination
+
+`q` est appliqué après le scope personnel. Le filtre `type` accepte `all`, `accesses` ou `journeys`.
+
+La pagination est bornée par `limit/offset`, avec maximum serveur de 50. L'union Python ne charge que `offset + limit` lignes par source et applique un ordre déterministe :
+
+```text
+history_at desc
+created_at desc
+Access avant Journey en égalité
+UUID asc
+```
+
+### Confidentialité
+
+La réponse est `Cache-Control: private, no-store`.
+
+Un acheteur n'acquiert jamais l'historique du bénéficiaire d'un droit acheté pour autrui. Un Profile tiers ne peut entrer dans la projection par UUID, recherche ou relation transactionnelle.
+
+### Moi
+
+`personal.me.links.history` référence l'Historique sans embarquer la collection dans `Moi`.
+
+### Invariants fermés
+
+```text
+Historique != audit log
+Historique != Notifications
+Historique != Domain Events
+passé != simple timestamp technique
+buyer != beneficiary
+événement passé != conséquence durable
+active != historique
+unknown/legacy incomplet != erreur 500
+```
+
+Aucun modèle, migration, snapshot, `HistoryItem`, ranking, score ou backfill n'est ajouté.
 
 ## 15. Critères de sortie du checkpoint 1
 

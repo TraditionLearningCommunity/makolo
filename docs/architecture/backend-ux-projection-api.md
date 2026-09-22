@@ -692,6 +692,7 @@ GET /api/v1/me/passport/         → Passeport Makolo
 GET /api/v1/me/resources/        → Mes ressources
 GET /api/v1/me/partners/         → Mes relations partenaire personnelles
 GET /api/v1/me/accesses/         → Mes accès actuels / achats pour autrui
+GET /api/v1/me/history/          → Historique personnel métier
 ```
 
 Toutes ces routes sont privées, utilisent exclusivement `request.user` et l'enveloppe Z1. Aucun `profile_id` client ne peut changer le sujet.
@@ -825,3 +826,16 @@ La collection ne sérialise jamais un AccessCredential complet ni son token. Ell
 `personal.me` référence `Mes accès` par link seulement ; aucune copie de vérité Access n'entre dans Moi.
 
 Aucun modèle, migration, score, ranking, cache ou état Access parallèle n'est introduit.
+
+
+## 29. Z6-B — Historique
+
+`GET /api/v1/me/history/` expose `personal.history`, projection privée et paginée des faits passés dont le Profile authentifié est réellement bénéficiaire.
+
+Les seules sources Z6-B sont les selectors historiques canoniques Journey et Access. La composition déduplique une Journey lorsqu'un Access représente déjà la même expérience.
+
+Le timestamp Journey n'est plus un `updated_at` systématique : `participant_unified_history_journeys()` annote `history_at` depuis `fulfilled_at`, `cancelled_at`, `expires_at` ou la transition terminale persistée ; `updated_at` reste uniquement le fallback des anciennes lignes incomplètes. Le Web History réutilise cette même annotation.
+
+Notification, Domain Event, audit technique, Goal numérique, AccessCredential et donnée d'un acheteur pour un autre bénéficiaire restent hors projection.
+
+La collection est `private, no-store`, recherche après scope personnel, pagination `limit/offset` bornée à 50 et ordre déterministe. Aucun modèle, migration, snapshot History ou backfill n'est introduit.
