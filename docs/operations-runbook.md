@@ -969,3 +969,43 @@ Si la Frontier est perdue mais que les programmes/missions, sources et
 politiques sont encore disponibles, repartir des sources et accepter une
 convergence fonctionnelle. Ne pas inventer un backfill historique pour
 reproduire artificiellement l'ancien ordre des découvertes.
+
+## 12. Interpréteur — Actor 3 continuous processing
+
+L’Interpréteur consomme uniquement des `ObservationMaterial v2` déjà finalisés. Il ne refait ni HTTP ni Browser. Les octets sont lus via `DjangoArtifactReader` depuis le storage privé Observer et ne sont pas recopiés.
+
+Worker continu :
+
+~~~bash
+python manage.py interpreter_worker \
+  --instance-id "<INSTANCE_ID>" \
+  --batch-size 20 \
+  --lease-seconds 300
+~~~
+
+Cycle unique / diagnostic ciblé :
+
+~~~bash
+python manage.py interpreter_worker --once
+python manage.py interpreter_worker --once --observation-ref "<OBSERVATION_REF>"
+~~~
+
+Le worker récupère les leases expirés, enqueue les runs manquants pour le fingerprint courant, claim un batch, interprète localement, finalise candidats/provenance/stats, puis retente le feedback Prospecteur non acquitté.
+
+Outcomes : `interpreted`, `partial`, `no_useful_information`, `failed`. Un échec de parsing n’est jamais transformé en `no_useful_information`. Les sources `TRUNCATED`/`INCOMPLETE` peuvent produire un résultat `partial`.
+
+La stratégie de fermeture est deterministic-first : JSON-LD/JSON/XML/HTML/text/PDF textuel. Aucun provider IA n’est requis. Les PDF image-only ne déclenchent pas d’OCR implicite.
+
+Contrôles :
+
+~~~bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py migrate --plan
+python manage.py test interpreter.django_app
+~~~
+
+`interpreter.django_store.interpreter_metrics()` expose les compteurs de lifecycle/outcome/candidates/artifact uses/feedback pending. Chaque run conserve des stats bornées (bytes, parseurs, pages PDF, candidats, durée, recoveries). Ne jamais logguer le contenu brut, credentials ou données privées inutiles.
+
+Le Résolveur doit consommer `DjangoInterpretedMaterialSource` en fonctionnement normal. Un nouveau `strategy_fingerprint` produit un nouvel historique depuis les artefacts Observer conservés, sans refaire le Web et sans réécrire l’ancien résultat.
+
