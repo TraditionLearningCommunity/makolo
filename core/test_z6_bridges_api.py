@@ -143,8 +143,15 @@ class Z6SurfaceBridgeTests(TestCase):
             f"/api/v1/operations/occurrences/{self.occurrence.pk}/live/",
         )
 
-    def test_outsider_occurrence_detail_never_gets_personal_day_of_link(self):
+    def test_outsider_cannot_use_occurrence_detail_to_discover_day_of(self):
         self.client.force_authenticate(self.other)
-        response = self.client.get(f"/api/v1/occurrences/{self.occurrence.pk}/")
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("day_of", response.json()["data"]["links"])
+
+        occurrence = self.client.get(
+            f"/api/v1/occurrences/{self.occurrence.pk}/"
+        )
+        day_of = self.client.get(
+            f"/api/v1/me/occurrences/{self.occurrence.pk}/day-of/"
+        )
+
+        self.assertEqual(occurrence.status_code, 404)
+        self.assertEqual(day_of.status_code, 404)
