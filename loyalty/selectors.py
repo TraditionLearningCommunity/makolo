@@ -1,9 +1,10 @@
 from django.db.models import Q
+from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 
-from .models import LoyaltyAccount, LoyaltyProgram, MembershipSubscription
+from .models import LoyaltyAccount, LoyaltyProgram, LoyaltyReward, LoyaltyRewardRedemption, MembershipSubscription
 from .permissions import user_can_view_loyalty_workspace
 
 
@@ -39,3 +40,56 @@ def get_subscriptions_visible_to(user):
 
 def can_view_program(user, program):
     return user_can_view_loyalty_workspace(user, program.organization)
+
+
+def personal_rewards_available_to(user, *, at=None):
+    """Owner-backed eligibility projection for the authenticated member.
+
+    This mirrors the non-mutating eligibility checks enforced again under lock by
+    loyalty.services.redeem_reward(). It never creates an account or membership.
+    """
+    if not getattr(user, "is_authenticated", False):
+        return []
+    at = at or timezone.now()
+    accounts = {
+        account.program_id: account
+        for account in LoyaltyAccount.objects.filter(user=user).select_related(
+            "program", "program__organization"
+        )
+    }
+    if not accounts:
+        return []
+    used = {}
+    for row in (
+        LoyaltyRewardRedemption.objects.filter(
+            user=user,
+            status="redeemed",
+            reward__program_id__in=accounts,
+        )
+        .values("reward_id")
+        .order_by()
+    ):
+        reward_id = row["reward_id"]
+        used[reward_id] = used.get(reward_id, 0) + 1
+    rewards = (
+        LoyaltyReward.objects.filter(
+            program_id__in=accounts,
+            is_active=True,
+            program__is_active=True,
+        )
+        .select_related("program", "program__organization", "promotion")
+        .order_by("program__organization__name", "points_cost", "name", "id")
+    )
+    available = []
+    for reward in rewards:
+        if reward.starts_at and at < reward.starts_at:
+            continue
+        if reward.ends_at and at > reward.ends_at:
+            continue
+        if used.get(reward.pk, 0) >= reward.max_redemptions_per_member:
+            continue
+        account = accounts.get(reward.program_id)
+        if account is None or account.points_balance < reward.points_cost:
+            continue
+        available.append(reward)
+    return available
