@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from journeys.collaboration_services import ensure_case_access
 from journeys.models import Journey
+from personal_assets.models import PersonalAsset
 from personal_assets.services import (
     personal_asset_version_for_download,
     use_personal_asset_version_in_journey,
@@ -74,12 +75,8 @@ class PersonalResourceDetailAPIView(PersonalProjectionAPIView):
                 version_limit=version_limit,
                 version_offset=version_offset,
             )
-        except Exception as exc:
-            from personal_assets.models import PersonalAsset
-
-            if isinstance(exc, PersonalAsset.DoesNotExist):
-                raise Http404 from exc
-            raise
+        except PersonalAsset.DoesNotExist as exc:
+            raise Http404 from exc
         response = self._response(data, observed_at=observed_at)
         response["Cache-Control"] = "private, no-store"
         return response
