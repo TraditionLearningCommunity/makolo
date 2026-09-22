@@ -253,13 +253,17 @@ Loyalty personnel → /api/v1/loyalty/me/
 
 ```text
 Z2 → Maintenant + En cours
-Z3 → Découvrir + détail/conservation/veille selon réconciliation
-Z4 → Moi + capital personnel/collectifs + Recognition/Loyalty/Partner
-Z5 → Journey / Activity / Occurrence / Dossier détails utiles
-Z6 → Access / History / Requirements / Readiness / Capacity gaps seulement
+Z3 → Découvrir + conservation / Veilles / handoff propriétaire
+Z4 → Moi + capital personnel / collectifs + Recognition / Loyalty / Partner
+Z5 → détails engagés : Journey, Requirement, Activity, Occurrence, Access, Dossier, Project et Capacity projetée
+Z6 → surfaces secondaires : Mes accès, Historique, Jour J et Makolo Live par réutilisation des owners
 Z7 → Makolo Mark et gaps restants, sans faux moteur intelligent
-Z8+ → autres surfaces secondaires et handoff mobile
+Z8+ → handoff mobile et autres gaps réellement démontrés
 ```
+
+Z6 ne reprend pas les détails Z5. `Mes accès` possède la collection personnelle des droits ; le détail Access reste une profondeur propriétaire. `Historique` est une projection temporelle transverse. `Jour J` est la surface contextuelle majeure d'une Occurrence actuelle et `Makolo Live` lui appartient.
+
+Le contrat complet du checkpoint Z6.0/Z6.1 est documenté dans [`z6-secondary-surfaces.md`](z6-secondary-surfaces.md). Aucune route `/api/v1/me/live/` n'est présumée : l'API Operations Live existante reste propriétaire tant qu'un gap réel n'est pas démontré.
 
 ## 16. Critères de sortie Z1
 
