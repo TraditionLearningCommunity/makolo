@@ -866,3 +866,12 @@ Queue n'expose que l'entrée du Profile ; Placement n'expose que son unité ; le
 Readiness est une conséquence dérivée et non un score. En phase `after`, Jour J retire le handoff Live, conserve `next.type=none` et expose le passage vers l'Historique personnel.
 
 Aucun modèle, migration, Waitlist dans Live Queue, JourneyStep déguisé en Checkpoint ou état persistant Jour J n'est ajouté.
+
+
+## 32. Z6-D/E — Makolo Live et bridges
+
+Makolo Live reste l'API Operations `/api/v1/operations/occurrences/<uuid>/live/`. Le runtime audité possède les dimensions opérationnelle, spatiale et temporelle ; aucune source média Occurrence canonique n'existe encore, donc Z6 ne crée aucun stream ou modèle Media.
+
+Les bridges Mature pointent vers la racine Jour J depuis En cours, les détails Journey/Access/Occurrence et, lorsqu'une action spatiotemporelle actuelle est portée par une Journey, Maintenant. Les liens Mes accès et Historique sont exposés depuis En cours ; Moi conserve ses links déjà livrés.
+
+Un buyer-only Access ne reçoit jamais de lien Jour J.

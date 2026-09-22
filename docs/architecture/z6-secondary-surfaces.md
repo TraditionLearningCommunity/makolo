@@ -1,6 +1,6 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoint 5 — Z6-C7..C12 Jour J opérationnel implémenté ; checkpoints 6 à 8 restent ouverts.**
+> **Statut : checkpoints 6 et 7 fermés — Makolo Live réutilisé et bridges inter-surfaces raccordés ; checkpoint 8 reste ouvert.**
 >
 > Branche initiale Z6 : `task-z6-secondary-surfaces-projections` (mergée via PR #267).\n>\n> Branche unique de continuation checkpoints 4–8 : `task-z6-continuation-jour-j-live`.
 >
@@ -641,6 +641,48 @@ En phase `after`, Jour J ne fabrique aucune prochaine action Live. `completion` 
 Les conséquences durables restent chez leurs owners. Jour J ne devient pas une archive.
 
 Aucun modèle, migration ou état Jour J persistant n'est ajouté.
+
+## 19. Checkpoint 6 — Z6-D Makolo Live
+
+L'audit final confirme que le moteur Operations existant est l'owner suffisant pour Makolo Live :
+
+```text
+GET /api/v1/operations/occurrences/<uuid>/live/
+```
+
+Z6 ne crée donc ni `/api/v1/me/live/`, ni second resolver, ni état Live persistant.
+
+Le contrat réel couvre actuellement :
+
+```text
+opérationnel → Queue, Checkpoints, Placement, Access, Operational Readiness
+spatial       → destination/zone, mobilité disponible, hazards avec provenance
+temporel      → phase before/arrival/live/after/cancelled et timing canonique
+média         → non livré : aucune source média canonique Occurrence n'existe dans le runtime audité
+```
+
+L'absence de source média est conservée comme absence de capacité, pas transformée en stream générique. Physical Access ne crée aucun media Access. Une relation participant ne prouve aucune présence physique.
+
+Les tests Z6 verrouillent également l'absence de credential, Permission, assignment opérateur et scanner dans la projection participant.
+
+## 20. Checkpoint 7 — Z6-E bridges
+
+Les surfaces sont maintenant reliées sans transfert de propriété :
+
+```text
+En cours → Mes accès
+En cours → Historique
+En cours Journey/Access → Jour J
+Maintenant spatiotemporel → Journey detail + Jour J lorsque l'Occurrence est résolue
+Journey detail Z5 → Jour J
+Access detail Z5 → Jour J uniquement pour le bénéficiaire réel
+Occurrence detail → Jour J puis Operations Live
+Moi → Mes accès / Historique
+```
+
+Un acheteur d'un Access pour autrui ne reçoit jamais le Jour J du bénéficiaire.
+
+Makolo Mark n'est pas modifié par Z6 : il pourra résoudre une intention de récupération vers ces URLs canoniques, mais ne devient propriétaire d'aucune surface ni d'aucun historique parallèle.
 
 ## 15. Critères de sortie du checkpoint 1
 

@@ -435,7 +435,9 @@ class OccurrenceDetailAPIView(APIView):
             "activity": f"/api/v1/activities/{activity.pk}/",
         }
         if live_link:
+            links["day_of"] = f"/api/v1/me/occurrences/{occurrence.pk}/day-of/"
             links["live"] = live_link
+            capabilities.append("open_day_of")
 
         data = {
             "identity": {"kind": "occurrence", "id": str(occurrence.pk)},

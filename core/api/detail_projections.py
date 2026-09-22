@@ -283,6 +283,8 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
     }
     if journey.occurrence_id:
         links["occurrence"] = f"/api/v1/occurrences/{journey.occurrence_id}/"
+        links["day_of"] = f"/api/v1/me/occurrences/{journey.occurrence_id}/day-of/"
+        capabilities.append("open_day_of")
     if live is not None:
         links["live"] = f"/api/v1/operations/occurrences/{journey.occurrence_id}/live/"
         capabilities.append("open_live")
@@ -442,8 +444,21 @@ def build_access_detail(*, access, profile):
         },
         "occurrence": occurrence,
         "journey": journey_ref,
-        "capabilities": [],
+        "capabilities": (
+            ["open_day_of"]
+            if beneficiary and access.occurrence_id
+            else []
+        ),
         "links": {
             "self": f"/api/v1/me/accesses/{access.pk}/",
+            **(
+                {
+                    "day_of": (
+                        f"/api/v1/me/occurrences/{access.occurrence_id}/day-of/"
+                    )
+                }
+                if beneficiary and access.occurrence_id
+                else {}
+            ),
         },
     }
