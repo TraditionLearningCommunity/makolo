@@ -23,6 +23,7 @@ from operations.models import (
     CheckpointStatus,
     OccurrenceCheckpoint,
     OccurrenceQueue,
+    CheckpointAssignment,
     PlacementAssignment,
     PlacementPlan,
     PlacementUnit,
@@ -403,6 +404,39 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.assertNotIn("permissions", rendered)
         self.assertNotIn("scanner", rendered)
         self.assertNotIn(self.outsider.email, rendered)
+
+    def test_assignment_without_participant_relation_does_not_open_day_of(self):
+        assigned = self._user("z6-day-assigned-only")
+        checkpoint = OccurrenceCheckpoint.objects.create(
+            occurrence=self.occurrence,
+            key="assigned-only",
+            label="Contrôle assigné",
+            position=10,
+            required=True,
+            status=CheckpointStatus.OPEN,
+        )
+        CheckpointAssignment.objects.create(
+            checkpoint=checkpoint,
+            profile=assigned,
+            assigned_by=self.owner,
+        )
+
+        self.client.force_authenticate(assigned)
+        self.assertEqual(self._get().status_code, 404)
+
+    def test_arrival_phase_prefers_orientation_when_destination_is_known(self):
+        self.occurrence.start_at = self.now + timedelta(minutes=20)
+        self.occurrence.end_at = self.now + timedelta(hours=2)
+        self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+
+        self.client.force_authenticate(self.participant)
+        data = self._get().json()["data"]
+        self.assertEqual(data["situation"]["temporal_relation"], "arrival")
+        self.assertEqual(
+            data["situation"]["representation"]["kind"],
+            "orientation",
+        )
+        self.assertEqual(data["spatial"]["destination"]["name"], self.place.name)
 
     def test_revoked_access_is_visible_as_context_but_cannot_present_credential(self):
         self.access.status = AccessStatus.REVOKED

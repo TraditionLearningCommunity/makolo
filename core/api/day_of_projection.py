@@ -113,7 +113,7 @@ def _representation(*, phase, next_movement, spatial, accesses):
         return {"kind": "cancellation", "reason": "occurrence_cancelled"}
     if next_type in {"access", "access_wait"}:
         return {"kind": "access", "reason": next_movement["reason"]}
-    if phase == "arrival" and (spatial.get("place") or spatial.get("zone")):
+    if phase == "arrival" and (spatial.get("destination") or spatial.get("zone")):
         return {"kind": "orientation", "reason": "arrival_orientation"}
     if phase == "before":
         if spatial.get("hazards"):
