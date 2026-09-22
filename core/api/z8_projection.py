@@ -100,6 +100,14 @@ def _resource_collection_item(asset, *, observed_at):
             "personal-projections:resource-version-reuse",
             kwargs={"version_id": asset.current_version_id},
         )
+    latest = None
+    if current is not None:
+        latest = {
+            "version": current["version"],
+            "issued_at": asset.current_version_issued_at,
+            "expires_at": asset.current_version_expires_at,
+            "created_at": current["created_at"],
+        }
     return {
         "kind": "personal_asset",
         "id": str(asset.pk),
@@ -109,6 +117,7 @@ def _resource_collection_item(asset, *, observed_at):
         "sensitivity": asset.sensitivity,
         "sensitivity_label": asset.get_sensitivity_display(),
         "status": "active",
+        "latest_version": latest,
         "current_version": current,
         "capabilities": capabilities,
         "links": links,
@@ -135,11 +144,13 @@ def build_personal_resources_depth_data(
     credentials = credentials_for_profile(profile)
     data = {
         "documents": {
+        "count": total,
         "query": query or None,
         "items": [
             _resource_collection_item(asset, observed_at=observed_at)
             for asset in rows
         ],
+        "has_more": offset + len(rows) < total,
         "page": {
             "count": total,
             "offset": offset,
