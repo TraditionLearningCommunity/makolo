@@ -16,9 +16,18 @@ class Z6SurfaceBridgeTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.now = timezone.now()
-        self.owner = User.objects.create_user(username="z6-bridge-owner")
-        self.profile = User.objects.create_user(username="z6-bridge-profile")
-        self.other = User.objects.create_user(username="z6-bridge-other")
+        self.owner = User.objects.create_user(
+            username="z6-bridge-owner",
+            email="z6-bridge-owner@makolo.test",
+        )
+        self.profile = User.objects.create_user(
+            username="z6-bridge-profile",
+            email="z6-bridge-profile@makolo.test",
+        )
+        self.other = User.objects.create_user(
+            username="z6-bridge-other",
+            email="z6-bridge-other@makolo.test",
+        )
         self.activity = Activity.objects.create(
             title="Bridge Z6",
             created_by=self.owner,

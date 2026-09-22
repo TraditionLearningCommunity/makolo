@@ -151,6 +151,18 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.assertNotIn("open_live", data["capabilities"])
         self.assertEqual(response["Cache-Control"], "private, no-store")
 
+    def test_future_valid_access_is_waiting_not_a_fake_regularization_blocker(self):
+        self.client.force_authenticate(self.participant)
+        data = self._get().json()["data"]
+
+        self.assertEqual(data["situation"]["temporal_relation"], "before")
+        self.assertEqual(data["situation"]["next"]["type"], "none")
+        self.assertEqual(
+            data["readiness"]["waiting"][0]["reason"],
+            "participant_access_not_yet_valid",
+        )
+        self.assertEqual(data["readiness"]["blockers"], [])
+
     def test_access_is_composed_directly_but_credential_secret_stays_in_protected_depth(self):
         self.client.force_authenticate(self.participant)
         response = self._get()
@@ -160,18 +172,15 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         row = data["access"][0]
         self.assertEqual(row["identity"]["id"], str(self.access.pk))
         self.assertEqual(row["state"], AccessStatus.VALID)
-        self.assertTrue(row["usable"])
+        self.assertFalse(row["usable"])
         self.assertTrue(row["credential"]["available"])
-        self.assertTrue(row["credential"]["presentable"])
+        self.assertFalse(row["credential"]["presentable"])
         self.assertEqual(
             row["links"]["detail"],
             f"/api/v1/me/accesses/{self.access.pk}/",
         )
-        self.assertEqual(
-            row["links"]["credential"],
-            f"/api/v1/me/accesses/{self.access.pk}/credential/",
-        )
-        self.assertIn("present_credential", row["capabilities"])
+        self.assertNotIn("credential", row["links"])
+        self.assertNotIn("present_credential", row["capabilities"])
 
         rendered = str(response.json())
         self.assertNotIn(str(self.credential.public_id), rendered)
@@ -182,6 +191,9 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.occurrence.start_at = self.now - timedelta(minutes=5)
         self.occurrence.end_at = self.now + timedelta(hours=2)
         self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+        self.access.valid_from = self.now - timedelta(minutes=10)
+        self.access.valid_until = self.now + timedelta(hours=2)
+        self.access.save(update_fields=["valid_from", "valid_until", "updated_at"])
 
         self.client.force_authenticate(self.participant)
         response = self._get()
@@ -312,6 +324,9 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.occurrence.start_at = self.now - timedelta(minutes=5)
         self.occurrence.end_at = self.now + timedelta(hours=1)
         self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+        self.access.valid_from = self.now - timedelta(minutes=10)
+        self.access.valid_until = self.now + timedelta(hours=1)
+        self.access.save(update_fields=["valid_from", "valid_until", "updated_at"])
 
         self.client.force_authenticate(self.participant)
         data = self._get().json()["data"]
@@ -428,6 +443,9 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.occurrence.start_at = self.now + timedelta(minutes=20)
         self.occurrence.end_at = self.now + timedelta(hours=2)
         self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+        self.access.valid_from = self.now - timedelta(minutes=10)
+        self.access.valid_until = self.now + timedelta(hours=2)
+        self.access.save(update_fields=["valid_from", "valid_until", "updated_at"])
 
         self.client.force_authenticate(self.participant)
         data = self._get().json()["data"]

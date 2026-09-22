@@ -702,18 +702,21 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
     )
     payment_items = [_payment_ongoing_item(payment) for payment in payments]
 
+    items = (
+        journey_items
+        + access_items
+        + dossier_items
+        + project_items
+        + waitlist_items
+        + transfer_items
+        + payment_items
+    )[:ONGOING_LIMIT]
+    if not items:
+        return {"items": []}
     return {
         "links": {
             "accesses": reverse("personal-projections:accesses"),
             "history": reverse("personal-projections:history"),
         },
-        "items": (
-            journey_items
-            + access_items
-            + dossier_items
-            + project_items
-            + waitlist_items
-            + transfer_items
-            + payment_items
-        )[:ONGOING_LIMIT]
+        "items": items,
     }

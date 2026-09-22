@@ -767,3 +767,8 @@ Checkpoint 1 est fermé lorsque :
 - aucune route `/me/live/` ni aucun nouveau owner n'est décidé sans besoin démontré ;
 - aucun modèle, migration, score, ranking ou algorithme n'est ajouté ;
 - le collision audit Z5 est explicite.
+
+
+### Correction de fermeture — fenêtre Access future
+
+Un Access en statut `VALID` dont `valid_from` est encore futur n'est ni inutilisable au sens métier, ni une action de régularisation. Operations le projette comme `WAITING` non bloquant avec `participant_access_not_yet_valid`. Avant l'Occurrence, Jour J conserve sa représentation temporelle et n'invente aucune intervention.
