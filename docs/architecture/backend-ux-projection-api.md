@@ -891,3 +891,39 @@ Makolo Live    → /api/v1/operations/occurrences/<uuid>/live/
 Jour J est la racine personnelle contextuelle ; Operations Live reste l'owner de la projection Live. Les détails Journey/Access/Occurrence restent Z5/owners et sont seulement reliés.
 
 La fermeture Z6 n'introduit aucun modèle, migration, HistoryItem, DayOfState, LiveState, UserTimeline, score, ranking ou cache propriétaire. Les gates CI, IDOR, privacy et absence de migration sont des critères de merge, pas des options.
+
+
+## Z8 — profondeurs Passport, Resources et Groupes
+
+Z8 conserve `GET /api/v1/me/` comme aperçu et ajoute/ferme les profondeurs owner-backed suivantes :
+
+```text
+GET  /api/v1/me/passport/
+GET  /api/v1/me/resources/
+GET  /api/v1/me/resources/<asset-id>/
+GET  /api/v1/me/resources/versions/<version-id>/download/
+POST /api/v1/me/resources/versions/<version-id>/reuse/
+GET  /api/v1/me/collectives/groups/<group-id>/
+```
+
+Les vérités restent propriétaires : Passport réutilise Sharing/Trust, Resources réutilise Personal Assets/Trust, Groups réutilise Groups/Authorization. Aucune nouvelle vérité persistante ni migration Z8 n'est introduite.
+
+Frontières contractuelles :
+
+```text
+Passport != Profile
+Proof != Credential Trust
+Credential Trust != AccessCredential
+PersonalAsset != JourneyArtifact
+PersonalAsset != Proof
+posséder != satisfaire Requirement
+Membership != authority
+Assignment != Mandate
+Group membership != Space authority
+```
+
+Resources est paginé et controller-scoped ; le détail expose versions/provenance/validité sans storage path, hash ou URL privée. Download/reuse passent par les services propriétaires. La réutilisation crée un JourneyArtifact et ne déclare aucun Requirement satisfait.
+
+Le détail Group part de `groups_for_profile()`, rend un outsider en 404 et projette seulement la relation/capabilities dérivées des autorisations serveur. Aucun Permission/Mandate brut ni PII membre n'est sérialisé.
+
+Voir `docs/architecture/z8-personal-capital-secondary-surfaces.md` pour le contrat complet.

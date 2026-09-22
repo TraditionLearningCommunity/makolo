@@ -11,10 +11,15 @@ from core.api.me_projection import (
     build_personal_considerations_data,
     build_personal_me_data,
     build_personal_partners_data,
-    build_personal_passport_data,
-    build_personal_resources_data,
 )
 from core.api.projections import projection_envelope
+from core.api.z8_projection import (
+    RESOURCE_DEFAULT_LIMIT,
+    RESOURCE_MAX_LIMIT,
+    RESOURCE_SEARCH_MAX_LENGTH,
+    build_personal_passport_depth_data,
+    build_personal_resources_depth_data,
+)
 
 
 class PersonalProjectionAPIView(APIView):
@@ -83,7 +88,7 @@ class PersonalPassportAPIView(PersonalProjectionAPIView):
         observed_at = timezone.now()
         variant = (request.query_params.get("variant") or PASSPORT_COMPLETE).strip()
         try:
-            data = build_personal_passport_data(
+            data = build_personal_passport_depth_data(
                 request.user,
                 variant=variant,
                 topic_codes=request.query_params.getlist("topic"),
@@ -94,7 +99,9 @@ class PersonalPassportAPIView(PersonalProjectionAPIView):
             )
         except ValueError as exc:
             raise ValidationError({"variant": str(exc)}) from exc
-        return self._response(data, observed_at=observed_at)
+        response = self._response(data, observed_at=observed_at)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class PersonalResourcesAPIView(PersonalProjectionAPIView):
@@ -103,10 +110,43 @@ class PersonalResourcesAPIView(PersonalProjectionAPIView):
     def get(self, request):
         self._guard_personal_scope(request)
         observed_at = timezone.now()
-        return self._response(
-            build_personal_resources_data(request.user),
+        query = (request.query_params.get("q") or "").strip()
+        if len(query) > RESOURCE_SEARCH_MAX_LENGTH:
+            raise ValidationError(
+                {
+                    "q": (
+                        f"La recherche ne peut pas dépasser "
+                        f"{RESOURCE_SEARCH_MAX_LENGTH} caractères."
+                    )
+                }
+            )
+        try:
+            limit = int(request.query_params.get("limit", RESOURCE_DEFAULT_LIMIT))
+            offset = int(request.query_params.get("offset", 0))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(
+                {"pagination": "limit et offset doivent être des entiers."}
+            ) from exc
+        if limit < 1 or limit > RESOURCE_MAX_LIMIT:
+            raise ValidationError(
+                {"limit": f"Ce paramètre doit être compris entre 1 et {RESOURCE_MAX_LIMIT}."}
+            )
+        if offset < 0:
+            raise ValidationError(
+                {"offset": "Ce paramètre doit être supérieur ou égal à 0."}
+            )
+        response = self._response(
+            build_personal_resources_depth_data(
+                request.user,
+                observed_at=observed_at,
+                query=query,
+                limit=limit,
+                offset=offset,
+            ),
             observed_at=observed_at,
         )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class PersonalPartnersAPIView(PersonalProjectionAPIView):

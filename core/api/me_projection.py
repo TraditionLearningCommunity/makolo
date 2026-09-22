@@ -295,6 +295,12 @@ def _group_item(group):
         "slug": group.slug,
         "owner": owner,
         "active_member_count": int(getattr(group, "active_member_count", 0) or 0),
+        "links": {
+            "detail": reverse(
+                "personal-projections:group-detail",
+                kwargs={"pk": group.pk},
+            )
+        },
     }
 
 
@@ -338,6 +344,12 @@ def _asset_item(asset):
         "sensitivity": asset.sensitivity,
         "sensitivity_label": asset.get_sensitivity_display(),
         "latest_version": latest_payload,
+        "links": {
+            "detail": reverse(
+                "personal-projections:resource-detail",
+                kwargs={"pk": asset.pk},
+            )
+        },
     }
 
 
