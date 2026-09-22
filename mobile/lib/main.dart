@@ -44,11 +44,26 @@ class _MakoloAppState extends State<MakoloApp> {
           selectedIndex: index,
           onDestinationSelected: (value) => setState(() => index = value),
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Maintenant'),
-            NavigationDestination(icon: Icon(Icons.explore_outlined), label: 'Découvrir'),
-            NavigationDestination(icon: Icon(Icons.circle_outlined), label: 'Makolo'),
-            NavigationDestination(icon: Icon(Icons.timeline_outlined), label: 'En cours'),
-            NavigationDestination(icon: Icon(Icons.person_outline), label: 'Moi'),
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              label: 'Maintenant',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.explore_outlined),
+              label: 'Découvrir',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.circle_outlined),
+              label: 'Makolo',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.timeline_outlined),
+              label: 'En cours',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              label: 'Moi',
+            ),
           ],
         ),
       ),
