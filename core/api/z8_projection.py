@@ -362,8 +362,7 @@ def build_personal_passport_depth_data(
     }
     data["capabilities"] = [
         "view",
-        "configure",
-        "create_custom_projection",
+        "select_projection",
         "present",
     ]
     data["links"] = links
