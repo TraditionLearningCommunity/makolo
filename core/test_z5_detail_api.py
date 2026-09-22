@@ -233,7 +233,7 @@ class Z5DetailAPIContractTests(TestCase):
             actor=self.user,
             key="full_name",
             label="Nom complet",
-            question_type=QuestionType.TEXT,
+            question_type=QuestionType.SHORT_TEXT,
             position=10,
             required=True,
         )
