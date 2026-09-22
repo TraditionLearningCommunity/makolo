@@ -157,9 +157,9 @@ class PersonalResourceVersionReuseAPIView(PersonalProjectionAPIView):
                 "journey_id": str(journey.pk),
             },
             "requirement": {
-                "satisfied": False,
+                "satisfied_by_reuse": False,
                 "decision_owner": "requirements_readiness",
-                "note": "La réutilisation crée un JourneyArtifact ; elle ne satisfait aucun Requirement par elle-même.",
+                "note": "La réutilisation crée un JourneyArtifact ; elle ne décide pas la satisfaction d'un Requirement.",
             },
         }
         return Response(
