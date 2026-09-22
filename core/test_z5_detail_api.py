@@ -50,7 +50,9 @@ from payments.models import (
     PaymentObligationReason,
     PaymentObligationStatus,
 )
+from questionnaires.models import QuestionType
 from questionnaires.services import (
+    add_question,
     create_form,
     create_form_version,
     publish_form_version,
@@ -225,6 +227,15 @@ class Z5DetailAPIContractTests(TestCase):
             form=form,
             actor=self.user,
             title="Formulaire Z5",
+        )
+        add_question(
+            form_version=version,
+            actor=self.user,
+            key="full_name",
+            label="Nom complet",
+            question_type=QuestionType.TEXT,
+            position=10,
+            required=True,
         )
         publish_form_version(form_version=version, actor=self.user)
         journey = self.journey(status=JourneyStatus.CONFIRMED)
