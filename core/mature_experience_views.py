@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from urllib.parse import urlencode
-
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
 
-from core.mark_orchestration import mark_web_url, orchestrate_mark
+from core.mark_orchestration import MARK_TEXT_MAX_LENGTH, mark_web_url, orchestrate_mark
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -37,7 +35,6 @@ from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _jo
 
 ONGOING_LIMIT = 18
 ME_PREVIEW_LIMIT = 6
-MARK_TEXT_MAX_LENGTH = 600
 
 
 def _ongoing_journey_item(card):
