@@ -26,6 +26,7 @@ from readiness.selectors import participant_readiness_queryset, readiness_querys
 
 from .participant_action_presentation import journey_action_presentation, occurrence_live_presentation
 from .participant_actions import participant_accept_invitation, participant_decline_invitation
+from .history_presentation import history_access_label, history_journey_label
 from .participant_presentation import (
     access_status_label,
     journey_progress,
@@ -110,37 +111,11 @@ def _access_card(access):
     }
 
 
-def _history_access_label(access):
-    if access.status == AccessStatus.USED:
-        return "Participé"
-    if access.status == AccessStatus.CANCELLED:
-        return "Annulé"
-    if access.status == AccessStatus.REVOKED:
-        return "Révoqué"
-    if access.status == AccessStatus.TRANSFERRED:
-        return "Transféré"
-    if access.status == AccessStatus.EXPIRED:
-        return "Expiré"
-    if access.status == AccessStatus.VALID:
-        return "Terminé"
-    return access_status_label(access.status)
-
-
-def _history_journey_label(journey):
-    labels = {
-        JourneyStatus.FULFILLED: "Démarche terminée",
-        JourneyStatus.REJECTED: "Demande refusée",
-        JourneyStatus.CANCELLED: "Démarche annulée",
-        JourneyStatus.EXPIRED: "Démarche expirée",
-    }
-    return labels.get(journey.status, journey_status_label(journey.status))
-
-
 def _history_access_item(access):
     return {
         "kind": "access",
         "history_at": getattr(access, "history_at", access.updated_at),
-        "label": _history_access_label(access),
+        "label": history_access_label(access),
         "access_card": _access_card(access),
         "journey_card": _journey_card(access.journey) if access.journey_id else None,
         "activity": access.activity,
@@ -150,8 +125,8 @@ def _history_access_item(access):
 def _history_journey_item(journey):
     return {
         "kind": "journey",
-        "history_at": journey.updated_at,
-        "label": _history_journey_label(journey),
+        "history_at": getattr(journey, "history_at", journey.updated_at),
+        "label": history_journey_label(journey),
         "access_card": None,
         "journey_card": _journey_card(journey),
         "activity": journey.activity,
@@ -197,7 +172,7 @@ def _recent_history_items(profile, *, at=None, limit=HOME_SECTION_LIMIT):
         {
             "kind": "access",
             "history_at": getattr(access, "history_at", access.updated_at),
-            "label": _history_access_label(access),
+            "label": history_access_label(access),
             "activity": access.activity,
             "access": access,
         }
@@ -206,8 +181,8 @@ def _recent_history_items(profile, *, at=None, limit=HOME_SECTION_LIMIT):
     items.extend(
         {
             "kind": "journey",
-            "history_at": journey.updated_at,
-            "label": _history_journey_label(journey),
+            "history_at": getattr(journey, "history_at", journey.updated_at),
+            "label": history_journey_label(journey),
             "activity": journey.activity,
             "journey": journey,
         }

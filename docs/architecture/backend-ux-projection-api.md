@@ -253,13 +253,17 @@ Loyalty personnel → /api/v1/loyalty/me/
 
 ```text
 Z2 → Maintenant + En cours
-Z3 → Découvrir + détail/conservation/veille selon réconciliation
-Z4 → Moi + capital personnel/collectifs + Recognition/Loyalty/Partner
-Z5 → Journey / Activity / Occurrence / Dossier détails utiles
-Z6 → Access / History / Requirements / Readiness / Capacity gaps seulement
+Z3 → Découvrir + conservation / Veilles / handoff propriétaire
+Z4 → Moi + capital personnel / collectifs + Recognition / Loyalty / Partner
+Z5 → détails engagés : Journey, Requirement, Activity, Occurrence, Access, Dossier, Project et Capacity projetée
+Z6 → surfaces secondaires : Mes accès, Historique, Jour J et Makolo Live par réutilisation des owners
 Z7 → Makolo Mark et gaps restants, sans faux moteur intelligent
-Z8+ → autres surfaces secondaires et handoff mobile
+Z8+ → handoff mobile et autres gaps réellement démontrés
 ```
+
+Z6 ne reprend pas les détails Z5. `Mes accès` possède la collection personnelle des droits ; le détail Access reste une profondeur propriétaire. `Historique` est une projection temporelle transverse. `Jour J` est la surface contextuelle majeure d'une Occurrence actuelle et `Makolo Live` lui appartient.
+
+Le contrat complet du checkpoint Z6.0/Z6.1 est documenté dans [`z6-secondary-surfaces.md`](z6-secondary-surfaces.md). Aucune route `/api/v1/me/live/` n'est présumée : l'API Operations Live existante reste propriétaire tant qu'un gap réel n'est pas démontré.
 
 ## 16. Critères de sortie Z1
 
@@ -687,6 +691,8 @@ GET /api/v1/me/collectives/      → Mes collectifs
 GET /api/v1/me/passport/         → Passeport Makolo
 GET /api/v1/me/resources/        → Mes ressources
 GET /api/v1/me/partners/         → Mes relations partenaire personnelles
+GET /api/v1/me/accesses/         → Mes accès actuels / achats pour autrui
+GET /api/v1/me/history/          → Historique personnel métier
 ```
 
 Toutes ces routes sont privées, utilisent exclusivement `request.user` et l'enveloppe Z1. Aucun `profile_id` client ne peut changer le sujet.
@@ -802,3 +808,34 @@ Z4 n'ajoute :
 Le GET `Moi` ne crée pas silencieusement de `UserProfile` manquant : un ancien compte peut être projeté avec une extension vide en mémoire.
 
 La forme racine est bornée à six éléments par famille. Les profondeurs Z4 restent bornées à cinquante éléments ; elles ne deviennent pas des exports de tables ni un scroll infini artificiel.
+
+
+## 28. Z6-A — Mes accès
+
+Z6-A ajoute la surface secondaire personnelle sans modifier le domaine Access.
+
+```text
+GET /api/v1/me/accesses/
+GET /api/v1/me/accesses/<uuid>/credential/
+```
+
+La collection par défaut est strictement bénéficiaire et actuelle. La relation `purchased_for_other` est une vue transactionnelle séparée pour les droits issus des propres CommerceOrders de l'acheteur.
+
+La collection ne sérialise jamais un AccessCredential complet ni son token. Elle expose seulement une synthèse de représentation et la capability `present_credential` lorsque la profondeur protégée est disponible. Le endpoint credential est `private, no-store`, owner/buyer-scoped et retourne 404 aux tiers ou lorsque l'Access n'est plus présentable.
+
+`personal.me` référence `Mes accès` par link seulement ; aucune copie de vérité Access n'entre dans Moi.
+
+Aucun modèle, migration, score, ranking, cache ou état Access parallèle n'est introduit.
+
+
+## 29. Z6-B — Historique
+
+`GET /api/v1/me/history/` expose `personal.history`, projection privée et paginée des faits passés dont le Profile authentifié est réellement bénéficiaire.
+
+Les seules sources Z6-B sont les selectors historiques canoniques Journey et Access. La composition déduplique une Journey lorsqu'un Access représente déjà la même expérience.
+
+Le timestamp Journey n'est plus un `updated_at` systématique : `participant_unified_history_journeys()` annote `history_at` depuis `fulfilled_at`, `cancelled_at`, `expires_at` ou la transition terminale persistée ; `updated_at` reste uniquement le fallback des anciennes lignes incomplètes. Le Web History réutilise cette même annotation.
+
+Notification, Domain Event, audit technique, Goal numérique, AccessCredential et donnée d'un acheteur pour un autre bénéficiaire restent hors projection.
+
+La collection est `private, no-store`, recherche après scope personnel, pagination `limit/offset` bornée à 50 et ordre déterministe. Depuis le merge de Z5 dans `main`, les items pointent vers les détails canoniques Journey/Access déjà livrés ; Z6 ne duplique pas ces profondeurs. Aucun modèle, migration, snapshot History ou backfill n'est introduit.

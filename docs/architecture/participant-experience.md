@@ -74,20 +74,48 @@ Le tri utilise le moment métier le plus pertinent disponible : usage accepté p
 
 L’historique de participation commence toujours depuis `beneficiary=profile`. Un billet que Sarah a acheté pour Jacques peut rester visible dans la section « Pour d’autres personnes » de `Mes accès`, mais ne devient jamais une participation personnelle de Sarah dans l’Historique.
 
+## Jour J et Makolo Live
+
+Quand une Occurrence devient actuelle pour la personne, la profondeur participant ne doit plus être comprise comme une simple « page Live ». Le contrat Mature est :
+
+```text
+Occurrence → Jour J → Makolo Live et profondeurs opérationnelles pertinentes
+```
+
+`Jour J` accompagne la trajectoire personnelle dans l'Occurrence : avant le départ lorsque cela compte, déplacement si connu, arrivée, admission, attente opérationnelle, entrée, Placement, participation, transitions, sortie et immédiat après selon la réalité concernée.
+
+`Makolo Live` est une profondeur de Jour J et décrit ce qui est effectivement en train de se produire. Il ne signifie pas automatiquement vidéo.
+
+Le runtime Web `/me/occurrences/<uuid>/live/` et la projection participant-safe `resolve_participant_occurrence_live()` constituent déjà une implémentation forte de cette expérience opérationnelle. Z6 conserve ces vérités Operations et fait évoluer le **contrat sémantique** vers Jour J plutôt que de créer un second moteur ou une seconde identité.
+
+Frontières :
+
+```text
+Maintenant → sélectionne l'attention
+En cours   → conserve la continuité
+Jour J     → représente et accompagne l'exécution réelle
+Makolo Live→ représente ce qui se déroule maintenant dans cette exécution
+```
+
+Waitlist et Live Queue restent distinctes ; Capacity et Placement restent distincts ; JourneyStep et Checkpoint restent distincts ; Access, AccessCredential et AccessUse ne sont jamais fusionnés.
+
+Voir [`z6-secondary-surfaces.md`](z6-secondary-surfaces.md) pour le contrat transversal et le collision audit du programme Z6.
+
 ## Notifications et attention
 
 La cloche de navbar reste le point d’entrée Notifications et conserve le compteur de non-lus. `/notifications/` et les deep-links T23 restent inchangés et protégés côté serveur.
 
 T29 retire l’entrée Notifications de la sidebar personnelle pour éviter deux points d’entrée permanents. Rendre `/me/` ne marque aucune Notification comme lue et le hub ne crée pas une deuxième tâche parce qu’une Notification existe : l’actionnabilité vient des domaines, principalement Journey.
 
-La navigation personnelle de premier niveau cible désormais :
+La navigation permanente Mature n'est plus organisée par familles backend ou anciennes pages participant. Elle conserve les cinq destinations produit :
 
 ```text
-Accueil
-Mes démarches
-Mes accès
-Historique
+Maintenant | Découvrir | Makolo Mark | En cours | Moi
 ```
+
+`Mes accès` et `Historique` restent des surfaces majeures mais **secondaires** : elles supposent une intention ou une réalité suffisamment déterminée. Elles peuvent être ouvertes directement depuis `En cours`, `Maintenant`, un détail, le Mark, une notification légitime ou un deep link sans recevoir une place permanente dans la navigation.
+
+La présence historique des routes Web `/me/accesses/` et `/me/history/` ne définit donc pas la hiérarchie de navigation cible.
 
 ## Réseau personnel
 

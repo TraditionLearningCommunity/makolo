@@ -358,7 +358,27 @@ Promesse : **Ce que vous avez accompli ne disparaît pas et peut faciliter la su
 
 Le partage reste volontaire et la vie personnelle privée par défaut.
 
-## 9. Préparation M8 — M8-PRE
+## 9. Surfaces secondaires majeures et Jour J
+
+Les cinq destinations permanentes structurent l'entrée générale dans Makolo :
+
+```text
+Maintenant | Découvrir | Makolo Mark | En cours | Moi
+```
+
+Une surface secondaire n'est pas moins importante. Elle est secondaire parce que le contexte est déjà suffisamment déterminé.
+
+`Mes accès` répond à « quels droits ai-je actuellement à disposition et comment les utiliser ? ». `Historique` répond à « qu'est-ce qui s'est déjà passé pour moi ? ». Elles peuvent être atteintes depuis plusieurs surfaces sans devenir des onglets permanents.
+
+`Jour J` est une surface contextuelle majeure attachée à une Occurrence devenue actuelle pour la personne. Elle peut temporairement dominer l'expérience sans devenir une sixième destination permanente. Elle compose la trajectoire réelle et adapte sa représentation : temps, déplacement, carte, Access, credential, Live Queue, Placement, checkpoint, programme ou autre forme justifiée.
+
+`Makolo Live` appartient à Jour J. Il représente ce qui se déroule effectivement dans l'Occurrence et peut être opérationnel, spatial, temporel ou médiatique. Une retransmission reste attachée à son Occurrence : **No Orphan Media** continue de s'appliquer.
+
+La richesse d'une représentation n'autorise jamais à fabriquer du temps réel. Planifié, estimé, observé, Live, inconnu et indisponible doivent rester distinguables.
+
+Le contrat détaillé est fixé dans [`z6-secondary-surfaces.md`](z6-secondary-surfaces.md).
+
+## 10. Préparation M8 — M8-PRE
 
 M8-PRE est une piste de préparation et non un train métier ou un nouveau bounded context. Elle peut être auditée en parallèle des trains métier.
 
@@ -396,7 +416,7 @@ Transformer les rituels de ce document en scénarios d'acceptation transversaux 
 
 Les gros changements Home/Discover restent dans M8 pour éviter plusieurs trains qui refont simultanément le frontend global.
 
-## 10. Gate produit M8
+## 11. Gate produit M8
 
 Le web Mature ne doit pas être considéré comme réellement Mature si :
 
@@ -416,7 +436,7 @@ Gate recherché :
 
 M8 doit assembler Makolo de façon à ce qu'il soit aussi naturel d'explorer une possibilité que rassurant de préparer une action et évident d'agir quand le moment arrive.
 
-## 11. Mobile
+## 12. Mobile
 
 Le programme mobile A amplifie ensuite cette direction grâce aux capacités du téléphone : caméra, localisation ponctuelle, audio, push, share sheet, haptique, widgets, Live Activities/équivalents, géofencing lorsqu'il est justifié et offline spécialisé.
 
@@ -431,7 +451,7 @@ Exemples :
 
 Le mobile ne devient pas propriétaire du ranking, de Readiness, de l'autorisation, de Payment ou de la validité Access.
 
-## 12. Boucle produit cible
+## 13. Boucle produit cible
 
 ```text
 DISCOVER
@@ -458,7 +478,7 @@ Cette boucle complète **« Makolo marche pour vous »** par une seconde qualit�
 
 > **Makolo vous donne envie d'avancer.**
 
-## 13. Anti-features
+## 14. Anti-features
 
 Ce document ne justifie pas automatiquement :
 
