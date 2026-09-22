@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from django.db.models import Count, Sum
 from django.urls import reverse
 
-from partners.models import CommissionStatus
 from partners.selectors import (
     get_commissions_visible_to,
     get_partners_visible_to,
