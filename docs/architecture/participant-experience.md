@@ -76,6 +76,15 @@ L’historique de participation commence toujours depuis `beneficiary=profile`. 
 
 ## Jour J et Makolo Live
 
+La racine API Mature est désormais :
+
+```text
+GET /api/v1/me/occurrences/<uuid>/day-of/
+```
+
+Elle reste une projection personnelle de l'Occurrence et compose le resolver Operations participant-safe. La position courante n'est jamais déduite du lieu de destination. Le credential reste une profondeur sécurisée distincte.
+
+
 Quand une Occurrence devient actuelle pour la personne, la profondeur participant ne doit plus être comprise comme une simple « page Live ». Le contrat Mature est :
 
 ```text

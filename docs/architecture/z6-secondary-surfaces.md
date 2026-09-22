@@ -1,8 +1,8 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoint 3 — Z6-B Historique implémenté ; Z6-A conservé et aucune migration ajoutée.**
+> **Statut : checkpoint 4 — Z6-C0..C6 Jour J fondation implémenté ; checkpoints 5 à 8 restent ouverts.**
 >
-> Branche unique Z6 : `task-z6-secondary-surfaces-projections`.
+> Branche initiale Z6 : `task-z6-secondary-surfaces-projections` (mergée via PR #267).\n>\n> Branche unique de continuation checkpoints 4–8 : `task-z6-continuation-jour-j-live`.
 >
 > Base initiale Z6 : `main@50f47015df7f19dea274bee15e2cee1bd82a3807`.
 >
@@ -488,6 +488,97 @@ unknown/legacy incomplet != erreur 500
 ```
 
 Aucun modèle, migration, snapshot, `HistoryItem`, ranking, score ou backfill n'est ajouté.
+
+## 17. Checkpoint 4 — Z6-C0..C6 Jour J fondation
+
+Le checkpoint 4 matérialise la racine personnelle Jour J sans créer de nouvel owner.
+
+### Route
+
+```text
+GET /api/v1/me/occurrences/<uuid>/day-of/
+```
+
+Projection :
+
+```text
+personal.occurrence.day_of
+```
+
+L'Occurrence est chargée par UUID mais la réponse n'est autorisée que si `resolve_participant_occurrence_live()` confirme une relation participant réelle. Un propriétaire/opérateur sans relation participant reçoit 404 ; un Profile multi-rôle qui est aussi participant reçoit toujours la projection participant-safe.
+
+### Composition
+
+La racine compose :
+
+```text
+Occurrence
++ Operations participant-safe
++ Access du bénéficiaire
+```
+
+Elle ne possède aucune vérité métier et ne duplique pas le moteur Operations Live.
+
+### Les quatre dimensions de la racine
+
+`situation` répond explicitement à :
+
+```text
+où j'en suis temporellement
+ce qui est l'état de l'Occurrence
+quel est mon prochain mouvement propriétaire connu
+quelle représentation est la plus utile maintenant
+```
+
+La position physique courante du participant n'étant pas observée par le runtime actuel, elle reste explicitement :
+
+```json
+{"state": "unknown", "truth": "unknown", "reason": "participant_position_not_observed"}
+```
+
+Le lieu de l'Occurrence est une destination planifiée, jamais présenté comme la position actuelle de la personne.
+
+### Vérité temporelle et spatiale
+
+Jour J distingue dans son payload :
+
+```text
+planned   → horaire et destination canoniques de l'Occurrence
+estimated → uniquement lorsqu'une estimation mobilité réelle existe
+observed  → état Access, next movement et hazards courants
+unknown   → position/mobilité non observée ou indisponible
+live      → handoff seulement lorsque l'Occurrence est en phase arrival/live
+```
+
+Une date-only reste une date-only ; aucun minuit artificiel n'est créé.
+
+### Access et credential
+
+Les Access de l'Occurrence sont composés directement dans Jour J avec état, validité et utilisabilité issue du resolver Operations.
+
+Le credential reste une profondeur protégée :
+
+```text
+Jour J → /api/v1/me/accesses/<uuid>/credential/
+```
+
+Jour J n'expose ni token, ni `public_id`, ni payload QR. Un Access révoqué ou non présentable reste visible comme contexte mais ne reçoit aucune capability `present_credential`.
+
+### Live
+
+Jour J ne crée aucun moteur Live. En phase `arrival` ou `live`, il expose seulement le handoff vers :
+
+```text
+/api/v1/operations/occurrences/<uuid>/live/
+```
+
+La composition détaillée Queue/Placement/Checkpoint/Readiness appartient au checkpoint 5. Le contrat Makolo Live riche appartient au checkpoint 6.
+
+### Confidentialité
+
+La réponse est `private, no-store`. Elle ne sérialise ni données d'un autre participant, ni assignments opérateur, ni scanner, ni Permission/Mandate bruts.
+
+Aucun modèle ni migration n'est ajouté.
 
 ## 15. Critères de sortie du checkpoint 1
 

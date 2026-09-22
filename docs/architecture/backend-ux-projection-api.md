@@ -693,6 +693,7 @@ GET /api/v1/me/resources/        → Mes ressources
 GET /api/v1/me/partners/         → Mes relations partenaire personnelles
 GET /api/v1/me/accesses/         → Mes accès actuels / achats pour autrui
 GET /api/v1/me/history/          → Historique personnel métier
+GET /api/v1/me/occurrences/<uuid>/day-of/ → Jour J personnel d’une Occurrence actuelle
 ```
 
 Toutes ces routes sont privées, utilisent exclusivement `request.user` et l'enveloppe Z1. Aucun `profile_id` client ne peut changer le sujet.
@@ -839,3 +840,18 @@ Le timestamp Journey n'est plus un `updated_at` systématique : `participant_uni
 Notification, Domain Event, audit technique, Goal numérique, AccessCredential et donnée d'un acheteur pour un autre bénéficiaire restent hors projection.
 
 La collection est `private, no-store`, recherche après scope personnel, pagination `limit/offset` bornée à 50 et ordre déterministe. Depuis le merge de Z5 dans `main`, les items pointent vers les détails canoniques Journey/Access déjà livrés ; Z6 ne duplique pas ces profondeurs. Aucun modèle, migration, snapshot History ou backfill n'est introduit.
+
+
+## 30. Z6-C — Jour J fondation
+
+`GET /api/v1/me/occurrences/<uuid>/day-of/` expose la racine `personal.occurrence.day_of`.
+
+Cette projection est strictement participant-safe : elle appelle `resolve_participant_occurrence_live()` pour l'autorisation et la situation Operations, puis compose seulement les Access du bénéficiaire. Elle ne remplace ni l'Occurrence, ni Operations Live.
+
+Le payload distingue la destination planifiée de la position actuelle du participant. Tant qu'aucune position volontaire et légitime n'est réellement observée, `current_position` reste `unknown`.
+
+Les horaires et lieux canoniques sont `planned`; une mobilité n'est `estimated` que lorsqu'une estimation existe réellement ; états Access, prochain mouvement et hazards sont des observations courantes ; une valeur inconnue reste inconnue.
+
+Le credential n'est jamais sérialisé dans Jour J. La racine expose uniquement le bridge vers la profondeur sécurisée Z6-A lorsqu'elle est présentable.
+
+La phase `arrival/live` expose un handoff vers l'API Operations Live existante ; aucun `/api/v1/me/live/`, moteur Live, modèle, migration ou état persistant Jour J n'est créé.
