@@ -275,7 +275,12 @@ def create_requirement_step(
 
 
 def derive_requirement_consequence(assessment):
-    """Derive the Services next action from canonical owners, never a second stored state."""
+    """Derive the Services next action from canonical owners, never a second stored state.
+
+    When callers prefetch the three supporting relations, consume that cache instead
+    of issuing one query per Requirement assessment. The derivation and ownership
+    remain exactly the same.
+    """
     if assessment.status in SATISFIED_REQUIREMENT_STATUSES:
         return None
     if assessment.status == RequirementAssessmentState.UNSATISFIED:
@@ -285,15 +290,33 @@ def derive_requirement_consequence(assessment):
     if assessment.status != RequirementAssessmentState.PENDING:
         return None
 
-    payment_links = assessment.payment_obligation_links.select_related("obligation").all()
-    if payment_links.exists():
+    prefetched = getattr(assessment, "_prefetched_objects_cache", {})
+
+    payment_links = prefetched.get("payment_obligation_links")
+    if payment_links is None or any(
+        "obligation" not in link._state.fields_cache
+        for link in payment_links
+    ):
+        payment_links = list(
+            assessment.payment_obligation_links.select_related("obligation").all()
+        )
+    if payment_links:
         from payments.models import PaymentObligationStatus
 
-        satisfied_financial = {PaymentObligationStatus.SATISFIED, PaymentObligationStatus.WAIVED}
-        if payment_links.exclude(obligation__status__in=satisfied_financial).exists():
+        satisfied_financial = {
+            PaymentObligationStatus.SATISFIED,
+            PaymentObligationStatus.WAIVED,
+        }
+        if any(link.obligation.status not in satisfied_financial for link in payment_links):
             return ServiceRequirementConsequence.PAYMENT_REQUIRED
 
-    if assessment.evidence.filter(status=ServiceRequirementEvidenceStatus.SUBMITTED).exists():
+    evidence = prefetched.get("evidence")
+    if evidence is None:
+        evidence = list(assessment.evidence.all())
+    if any(
+        item.status == ServiceRequirementEvidenceStatus.SUBMITTED
+        for item in evidence
+    ):
         return ServiceRequirementConsequence.NEEDS_REVIEW
 
     actionable_step_statuses = {
@@ -302,7 +325,18 @@ def derive_requirement_consequence(assessment):
         JourneyStepStatus.IN_PROGRESS,
         JourneyStepStatus.BLOCKED,
     }
-    if assessment.step_links.filter(journey_step__status__in=actionable_step_statuses).exists():
+    step_links = prefetched.get("step_links")
+    if step_links is None or any(
+        "journey_step" not in link._state.fields_cache
+        for link in step_links
+    ):
+        step_links = list(
+            assessment.step_links.select_related("journey_step").all()
+        )
+    if any(
+        link.journey_step.status in actionable_step_statuses
+        for link in step_links
+    ):
         return ServiceRequirementConsequence.ACTION_REQUIRED
     return None
 

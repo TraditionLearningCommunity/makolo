@@ -51,21 +51,49 @@ def committed_reservations(*, pool=None):
     return qs.select_related("pool", "journey").order_by("created_at", "id")
 
 
-def capacity_availability(pool, *, now=None):
+def capacity_availability_many(pools, *, now=None):
+    """Resolve canonical availability for many pools with one reservation aggregate query."""
     now = now or timezone.now()
-    aggregate = CapacityReservation.objects.filter(pool=pool).aggregate(
-        held=Sum(
-            "quantity",
-            filter=Q(status=CapacityReservationStatus.HELD)
-            & (Q(expires_at__isnull=True) | Q(expires_at__gt=now)),
-        ),
-        committed=Sum("quantity", filter=Q(status=CapacityReservationStatus.COMMITTED)),
-    )
-    held = aggregate["held"] or 0
-    committed = aggregate["committed"] or 0
-    total = pool.total_quantity
-    available = None if total is None else max(total - held - committed, 0)
-    return CapacityAvailability(total=total, held=held, committed=committed, available=available)
+    pools = list(pools)
+    if not pools:
+        return {}
+
+    aggregates = {
+        row["pool_id"]: row
+        for row in (
+            CapacityReservation.objects.filter(pool_id__in=[pool.pk for pool in pools])
+            .values("pool_id")
+            .annotate(
+                held=Sum(
+                    "quantity",
+                    filter=Q(status=CapacityReservationStatus.HELD)
+                    & (Q(expires_at__isnull=True) | Q(expires_at__gt=now)),
+                ),
+                committed=Sum(
+                    "quantity",
+                    filter=Q(status=CapacityReservationStatus.COMMITTED),
+                ),
+            )
+        )
+    }
+    result = {}
+    for pool in pools:
+        aggregate = aggregates.get(pool.pk, {})
+        held = aggregate.get("held") or 0
+        committed = aggregate.get("committed") or 0
+        total = pool.total_quantity
+        available = None if total is None else max(total - held - committed, 0)
+        result[pool.pk] = CapacityAvailability(
+            total=total,
+            held=held,
+            committed=committed,
+            available=available,
+        )
+    return result
+
+
+def capacity_availability(pool, *, now=None):
+    return capacity_availability_many([pool], now=now)[pool.pk]
 
 
 def available_quantity(pool, *, now=None):
