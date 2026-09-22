@@ -1,7 +1,6 @@
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.utils import timezone
 from rest_framework import permissions, serializers, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -144,7 +143,7 @@ def _personal_loyalty_reward_payload(reward):
         },
         "capabilities": ["redeem"],
         "links": {
-            "redeem": reverse("loyalty_api:reward-redeem", kwargs={"pk": reward.pk}),
+            "redeem": f"/api/v1/loyalty/rewards/{reward.pk}/redeem/",
         },
     }
 
@@ -184,7 +183,7 @@ class MyLoyaltyAPIView(APIView):
                 "has_available_rewards": bool(available_rewards),
                 "aggregate_points": None,
             },
-            "links": {"self": reverse("loyalty_api:me")},
+            "links": {"self": "/api/v1/loyalty/me/"},
         })
 
 
