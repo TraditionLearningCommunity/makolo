@@ -855,3 +855,14 @@ Les horaires et lieux canoniques sont `planned`; une mobilité n'est `estimated`
 Le credential n'est jamais sérialisé dans Jour J. La racine expose uniquement le bridge vers la profondeur sécurisée Z6-A lorsqu'elle est présentable.
 
 La phase `arrival/live` expose un handoff vers l'API Operations Live existante ; aucun `/api/v1/me/live/`, moteur Live, modèle, migration ou état persistant Jour J n'est créé.
+
+
+## 31. Z6-C — Jour J opérationnel
+
+La racine Jour J compose maintenant Queue, Placement, Checkpoints et Operational Readiness depuis le resolver participant-safe Operations.
+
+Queue n'expose que l'entrée du Profile ; Placement n'expose que son unité ; les Checkpoints restent des checkpoints opérationnels ; Capacity reste distincte et n'est pas projetée comme placement.
+
+Readiness est une conséquence dérivée et non un score. En phase `after`, Jour J retire le handoff Live, conserve `next.type=none` et expose le passage vers l'Historique personnel.
+
+Aucun modèle, migration, Waitlist dans Live Queue, JourneyStep déguisé en Checkpoint ou état persistant Jour J n'est ajouté.

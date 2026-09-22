@@ -200,6 +200,133 @@ def _spatial_payload(live_payload):
     }
 
 
+def _readiness_payload(live_payload):
+    source = live_payload.get("operational_readiness") or {}
+    groups = {
+        "ready": [],
+        "actor_interventions": [],
+        "waiting": [],
+        "blockers": [],
+    }
+    for row in source.get("contributors", []):
+        payload = {
+            "key": row.get("key"),
+            "state": row.get("state"),
+            "reason": row.get("reason"),
+            "summary": row.get("message"),
+            "source": row.get("source"),
+        }
+        state = row.get("state")
+        if state == "satisfied":
+            groups["ready"].append(payload)
+        elif state == "action_required":
+            groups["actor_interventions"].append(payload)
+        elif state == "waiting":
+            groups["waiting"].append(payload)
+        elif state == "blocking":
+            groups["blockers"].append(payload)
+    return {
+        "state": source.get("state") or "unknown",
+        **groups,
+    }
+
+
+def _queue_payload(occurrence, live_payload):
+    rows = []
+    for row in live_payload.get("queue", []):
+        rows.append(
+            {
+                "id": str(row["id"]),
+                "queue_id": str(row["queue_id"]),
+                "label": row.get("label"),
+                "checkpoint_id": (
+                    str(row["checkpoint_id"])
+                    if row.get("checkpoint_id") is not None
+                    else None
+                ),
+                "state": row.get("status"),
+                "position": row.get("position"),
+                "called_at": _iso(row.get("called_at")),
+                "truth": "observed",
+                "links": {
+                    "collection": (
+                        f"/api/v1/operations/occurrences/{occurrence.pk}/queues/me/"
+                    ),
+                    "entry": f"/api/v1/operations/queues/{row['queue_id']}/entries/me/",
+                },
+            }
+        )
+    return rows
+
+
+def _placement_payload(occurrence, live_payload):
+    return [
+        {
+            "plan_id": str(row["plan_id"]),
+            "plan": row.get("plan"),
+            "unit_id": str(row["unit_id"]),
+            "unit": row.get("unit"),
+            "parent_unit": row.get("parent_unit"),
+            "truth": "observed",
+            "links": {
+                "collection": (
+                    f"/api/v1/operations/occurrences/{occurrence.pk}/placements/me/"
+                )
+            },
+        }
+        for row in live_payload.get("placement", [])
+    ]
+
+
+def _checkpoint_payload(occurrence, live_payload):
+    flow = live_payload.get("flow") or {}
+    rows = [
+        {
+            "id": str(row["id"]),
+            "key": row.get("key"),
+            "label": row.get("label"),
+            "required": bool(row.get("required")),
+            "state": row.get("status"),
+            "completed": bool(row.get("completed")),
+            "truth": "observed",
+        }
+        for row in flow.get("checkpoints", [])
+    ]
+    next_row = flow.get("next_checkpoint")
+    return {
+        "items": rows,
+        "next": (
+            {
+                "id": str(next_row["id"]),
+                "label": next_row.get("label"),
+                "state": next_row.get("status"),
+                "blocked_reason": next_row.get("blocked_reason"),
+                "truth": "observed",
+            }
+            if next_row
+            else None
+        ),
+        "links": {
+            "collection": (
+                f"/api/v1/operations/occurrences/{occurrence.pk}/checkpoints/me/"
+            )
+        },
+    }
+
+
+def _completion_payload(occurrence, phase):
+    if phase != "after":
+        return None
+    return {
+        "state": "occurrence_ended",
+        "summary": "Cette occurrence est terminée.",
+        "links": {
+            "history": reverse("personal-projections:history"),
+            "occurrence": f"/api/v1/occurrences/{occurrence.pk}/",
+        },
+    }
+
+
 def build_personal_day_of_data(*, profile, occurrence, live_payload):
     phase = live_payload["phase"]
     spatial = _spatial_payload(live_payload)
@@ -263,6 +390,11 @@ def build_personal_day_of_data(*, profile, occurrence, live_payload):
         ),
         "spatial": spatial,
         "access": accesses,
+        "queue": _queue_payload(occurrence, live_payload),
+        "placement": _placement_payload(occurrence, live_payload),
+        "checkpoints": _checkpoint_payload(occurrence, live_payload),
+        "readiness": _readiness_payload(live_payload),
+        "completion": _completion_payload(occurrence, phase),
         "capabilities": capabilities,
         "links": links,
     }

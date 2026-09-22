@@ -19,6 +19,16 @@ from activities.models import (
 )
 from geography.models import Place
 from journeys.models import Journey, JourneyStatus, WorkflowKind
+from operations.models import (
+    CheckpointStatus,
+    OccurrenceCheckpoint,
+    OccurrenceQueue,
+    PlacementAssignment,
+    PlacementPlan,
+    PlacementUnit,
+    QueueEntry,
+    QueueEntryStatus,
+)
 
 
 PASSWORD = "Makolo!2026-Z6-DayOf"
@@ -189,6 +199,147 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.assertNotIn("queue", data)
         self.assertNotIn("placement", data)
         self.assertNotIn("checkpoints", data)
+
+    def test_operational_depths_are_composed_without_other_participant_identity(self):
+        other = self._user("z6-day-other-participant")
+        Journey.objects.create(
+            initiated_by=other,
+            beneficiary=other,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+        checkpoint = OccurrenceCheckpoint.objects.create(
+            occurrence=self.occurrence,
+            key="boarding",
+            label="Embarquement",
+            position=1,
+            required=True,
+            status=CheckpointStatus.OPEN,
+        )
+        queue = OccurrenceQueue.objects.create(
+            occurrence=self.occurrence,
+            checkpoint=checkpoint,
+            key="boarding",
+            label="Embarquement",
+        )
+        mine = QueueEntry.objects.create(
+            queue=queue,
+            profile=self.participant,
+            sequence=2,
+            status=QueueEntryStatus.WAITING,
+            entered_by=self.participant,
+        )
+        QueueEntry.objects.create(
+            queue=queue,
+            profile=other,
+            sequence=1,
+            status=QueueEntryStatus.WAITING,
+            entered_by=other,
+        )
+        plan = PlacementPlan.objects.create(
+            occurrence=self.occurrence,
+            key="bus",
+            label="Bus",
+            required=True,
+        )
+        bus = PlacementUnit.objects.create(
+            plan=plan,
+            key="bus-1",
+            label="Bus 1",
+            kind="vehicle",
+        )
+        seat = PlacementUnit.objects.create(
+            plan=plan,
+            parent=bus,
+            key="seat-4",
+            label="Siège 4",
+            kind="seat",
+        )
+        PlacementAssignment.objects.create(
+            plan=plan,
+            unit=seat,
+            profile=self.participant,
+            assigned_by=self.owner,
+        )
+
+        self.occurrence.start_at = self.now - timedelta(minutes=5)
+        self.occurrence.end_at = self.now + timedelta(hours=2)
+        self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+
+        self.client.force_authenticate(self.participant)
+        response = self._get()
+        data = response.json()["data"]
+
+        self.assertEqual(data["queue"][0]["id"], str(mine.pk))
+        self.assertEqual(data["queue"][0]["state"], "waiting")
+        self.assertEqual(data["placement"][0]["unit"], "Siège 4")
+        self.assertEqual(data["placement"][0]["parent_unit"], "Bus 1")
+        self.assertEqual(data["checkpoints"]["next"]["label"], "Embarquement")
+        self.assertIn(data["readiness"]["state"], {"ready", "waiting", "action_required", "blocked"})
+        rendered = str(data)
+        self.assertNotIn(other.email, rendered)
+        self.assertNotIn(other.username, rendered)
+        self.assertNotIn("assignment_count", rendered)
+        self.assertNotIn("capacity", data)
+
+    def test_called_queue_becomes_the_personal_next_movement(self):
+        checkpoint = OccurrenceCheckpoint.objects.create(
+            occurrence=self.occurrence,
+            key="control",
+            label="Contrôle",
+            position=1,
+            required=True,
+            status=CheckpointStatus.OPEN,
+        )
+        queue = OccurrenceQueue.objects.create(
+            occurrence=self.occurrence,
+            checkpoint=checkpoint,
+            key="control",
+            label="Contrôle",
+        )
+        entry = QueueEntry.objects.create(
+            queue=queue,
+            profile=self.participant,
+            sequence=1,
+            status=QueueEntryStatus.CALLED,
+            entered_by=self.participant,
+            called_at=self.now,
+            called_by=self.owner,
+        )
+        self.occurrence.start_at = self.now - timedelta(minutes=5)
+        self.occurrence.end_at = self.now + timedelta(hours=1)
+        self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+
+        self.client.force_authenticate(self.participant)
+        data = self._get().json()["data"]
+
+        self.assertEqual(data["situation"]["next"]["type"], "queue_called")
+        self.assertEqual(data["queue"][0]["id"], str(entry.pk))
+        self.assertEqual(data["queue"][0]["state"], "called")
+        self.assertEqual(data["checkpoints"]["next"]["label"], "Contrôle")
+
+    def test_after_phase_closes_operational_action_and_hands_off_to_history(self):
+        self.occurrence.status = OccurrenceStatus.COMPLETED
+        self.occurrence.start_at = self.now - timedelta(hours=3)
+        self.occurrence.end_at = self.now - timedelta(minutes=5)
+        self.occurrence.save(
+            update_fields=["status", "start_at", "end_at", "updated_at"]
+        )
+
+        self.client.force_authenticate(self.participant)
+        data = self._get().json()["data"]
+
+        self.assertEqual(data["situation"]["temporal_relation"], "after")
+        self.assertEqual(data["situation"]["next"]["type"], "none")
+        self.assertEqual(data["completion"]["state"], "occurrence_ended")
+        self.assertEqual(
+            data["completion"]["links"]["history"],
+            "/api/v1/me/history/",
+        )
+        self.assertNotIn("live", data["links"])
+        self.assertNotIn("open_live", data["capabilities"])
 
     def test_date_only_keeps_calendar_truth_without_fake_midnight(self):
         target = (self.now + timedelta(days=3)).date()

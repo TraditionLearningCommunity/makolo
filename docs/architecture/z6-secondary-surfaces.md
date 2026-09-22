@@ -1,6 +1,6 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoint 4 — Z6-C0..C6 Jour J fondation implémenté ; checkpoints 5 à 8 restent ouverts.**
+> **Statut : checkpoint 5 — Z6-C7..C12 Jour J opérationnel implémenté ; checkpoints 6 à 8 restent ouverts.**
 >
 > Branche initiale Z6 : `task-z6-secondary-surfaces-projections` (mergée via PR #267).\n>\n> Branche unique de continuation checkpoints 4–8 : `task-z6-continuation-jour-j-live`.
 >
@@ -579,6 +579,68 @@ La composition détaillée Queue/Placement/Checkpoint/Readiness appartient au ch
 La réponse est `private, no-store`. Elle ne sérialise ni données d'un autre participant, ni assignments opérateur, ni scanner, ni Permission/Mandate bruts.
 
 Aucun modèle ni migration n'est ajouté.
+
+## 18. Checkpoint 5 — Z6-C7..C12 Jour J opérationnel
+
+Jour J compose désormais les profondeurs participant-safe déjà calculées par Operations :
+
+```text
+queue
+placement
+checkpoints
+readiness
+completion
+```
+
+### Live Queue
+
+`queue` ne contient que les entrées de la personne. Elle expose l'état, la position lorsque connue, le moment d'appel et les links vers les APIs Operations personnelles. Aucun nom ou identifiant d'un autre participant n'est projeté.
+
+Une entrée `called` reste prioritaire dans `situation.next`, conformément au resolver Operations. Une entrée `waiting` reste une attente normale et ne devient pas un blocker par composition.
+
+Waitlist n'entre pas dans cette structure : **Waitlist != Live Queue**.
+
+### Placement
+
+`placement` reprend uniquement les assignments du Profile : plan, unité et unité parente éventuelle. Aucun autre occupant n'est exposé.
+
+```text
+Placement → où ?
+Capacity  → combien ?
+```
+
+Jour J ne convertit donc pas Capacity en placement et n'inclut pas les agrégats opérateur de capacité dans cette profondeur personnelle.
+
+### Checkpoints
+
+`checkpoints` projette la progression opérationnelle de l'Occurrence et le prochain checkpoint propriétaire connu.
+
+Un Checkpoint reste distinct d'un JourneyStep.
+
+### Readiness
+
+`readiness` reformule les contributors participant-safe d'Operational Readiness en quatre conséquences :
+
+```text
+ready
+actor_interventions
+waiting
+blockers
+```
+
+Aucun score de Readiness n'est créé et l'utilisateur n'édite jamais cet état dérivé.
+
+### Fin de l'Occurrence
+
+En phase `after`, Jour J ne fabrique aucune prochaine action Live. `completion` ferme la situation et expose le handoff vers :
+
+```text
+/api/v1/me/history/
+```
+
+Les conséquences durables restent chez leurs owners. Jour J ne devient pas une archive.
+
+Aucun modèle, migration ou état Jour J persistant n'est ajouté.
 
 ## 15. Critères de sortie du checkpoint 1
 
