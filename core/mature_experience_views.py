@@ -6,6 +6,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
+
+from core.mark_orchestration import mark_web_url, orchestrate_mark
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -345,57 +347,30 @@ class MakoloMarkView(LoginRequiredMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         text = (request.POST.get("intent") or "").strip()[:MARK_TEXT_MAX_LENGTH]
         if not text:
-            context = self.get_context_data(mark_error="Dites simplement ce que vous voulez faire.")
+            context = self.get_context_data(
+                mark_error="Dites simplement ce que vous voulez faire."
+            )
             return self.render_to_response(context, status=400)
 
-        normalized = " ".join(text.casefold().split())
-        discovery_phrases = (
-            "je cherche",
-            "trouve-moi",
-            "trouve moi",
-            "je veux trouver",
-            "je veux voyager",
-            "quoi faire",
-            "où aller",
-            "ou aller",
+        result = orchestrate_mark(
+            profile=request.user,
+            input_kind="text",
+            value=text,
+            context={},
         )
-        ongoing_phrases = (
-            "où en est",
-            "ou en est",
-            "reprendre ma",
-            "reprendre mon",
-            "continuer ma",
-            "continuer mon",
-            "déjà commencé",
-            "deja commence",
-        )
-        retrieve_phrases = (
-            "retrouve mon",
-            "retrouve ma",
-            "retrouver mon",
-            "retrouver ma",
-            "où est mon",
-            "où est ma",
-            "ou est mon",
-            "ou est ma",
-        )
+        target = mark_web_url(result)
+        if target:
+            return redirect(target)
 
-        if any(phrase in normalized for phrase in discovery_phrases):
-            return redirect(f"{reverse('discovery:home')}?{urlencode({'q': text})}")
-        if any(word in normalized for word in ("mon billet", "mon accès", "mon acces", "mes accès", "mes acces")):
-            return redirect("core:participant-accesses")
-        if any(word in normalized for word in ("mon passeport", "passeport makolo")):
-            return redirect("sharing:passport-me")
-        if any(word in normalized for word in ("mon historique", "mes anciennes activités", "mes anciennes activites")):
-            return redirect("core:participant-history")
-        if any(word in normalized for word in ("ma veille", "mes veilles")):
-            return redirect("discovery:watch-list")
-        if any(word in normalized for word in ("mon dossier", "mon projet", "ma démarche", "ma demarche", "mes démarches", "mes demarches")):
-            return redirect("core:participant-ongoing")
-        if any(phrase in normalized for phrase in ongoing_phrases):
-            return redirect("core:participant-ongoing")
-        if any(phrase in normalized for phrase in retrieve_phrases):
-            return redirect("core:participant-me")
-
-        context = self.get_context_data(mark_text=text, mark_needs_clarification=True)
+        context = self.get_context_data(
+            mark_text=text,
+            mark_needs_clarification=result["state"] in {
+                "needs_clarification",
+                "unknown",
+                "unsupported",
+                "forbidden",
+            },
+            mark_result=result,
+        )
         return self.render_to_response(context)
+

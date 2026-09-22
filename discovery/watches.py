@@ -6,6 +6,8 @@ from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_date
 
@@ -145,6 +147,36 @@ def suggest_watch_name(criteria) -> str:
     parts = [labels.get(criteria[key], criteria[key]) for key in ("vertical", "place", "when", "price") if criteria.get(key)]
     return (" · ".join(parts) or "Ma veille")[:140]
 
+
+@transaction.atomic
+def ensure_discovery_watch(*, owner, criteria, name=None, dossier=None):
+    """Return the matching active Watch or create it in the Discovery domain.
+
+    Locking the Profile serializes concurrent retries for the same person, so a
+    double tap cannot create two equivalent active Watches without introducing
+    a Mark-owned persistence model or a new migration.
+    """
+    normalized = normalize_watch_criteria(criteria)
+    get_user_model().objects.select_for_update().only("pk").get(pk=owner.pk)
+
+    from .models import DiscoveryWatch, DiscoveryWatchStatus
+
+    queryset = DiscoveryWatch.objects.filter(
+        owner=owner,
+        status=DiscoveryWatchStatus.ACTIVE,
+        dossier=dossier,
+    ).order_by("-updated_at", "id")
+    for watch in queryset:
+        if normalize_watch_criteria(watch.criteria) == normalized:
+            return watch, False
+
+    watch = DiscoveryWatch.objects.create(
+        owner=owner,
+        name=(name or suggest_watch_name(normalized))[:140],
+        criteria=normalized,
+        dossier=dossier,
+    )
+    return watch, True
 
 def execute_watch(criteria, *, profile=None, now=None) -> WatchExecutionResult:
     criteria = normalize_watch_criteria(criteria)

@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/v1/readiness/", ReadinessAPIView.as_view(), name="api-readiness"),
     path("api/v1/me/", include("core.api.urls")),
     path("api/v1/me/", include("core.api.detail_urls")),
+    path("api/v1/me/", include("core.api.mark_urls")),
     path("api/v1/activities/", include("activities.api_urls")),
     path("api/v1/occurrences/", include("activities.occurrence_api_urls")),
     path("api/v1/objectives/", include("objectives.api_urls")),
