@@ -42,6 +42,11 @@ def _reward_payload(reward):
         "kind": reward.kind,
         "kind_label": reward.get_kind_display(),
         "points_cost": reward.points_cost,
+        "validity": {
+            "state": "available",
+            "valid_from": reward.valid_from,
+            "valid_until": reward.valid_until,
+        },
         "beneficiary_allowed": bool(reward.beneficiary_allowed),
         "acceptance_required": bool(reward.acceptance_required),
         "self_eligible": self_eligible,
@@ -94,6 +99,18 @@ def _account_payload(account):
         "pending_points": account.pending_points,
         "lifetime_earned": account.lifetime_earned,
         "lifetime_spent": account.lifetime_spent,
+        "unit": "recognition_credit",
+        "currency": None,
+    }
+
+
+def _ledger_payload(entry):
+    return {
+        "id": str(entry.pk),
+        "kind": entry.kind,
+        "credits_delta": entry.points,
+        "description": entry.description,
+        "created_at": entry.created_at,
     }
 
 
@@ -107,6 +124,7 @@ class MyRecognitionAPIView(APIView):
 
         achievements = []
         owned = []
+        recent_activity = []
         if account is not None:
             achievements = [
                 {
@@ -128,6 +146,10 @@ class MyRecognitionAPIView(APIView):
                 .select_related("reward")
                 .order_by("-created_at", "-id")[:50]
             )
+            recent_activity = [
+                _ledger_payload(entry)
+                for entry in account.ledger_entries.order_by("-created_at", "-id")[:20]
+            ]
 
         received = list(
             RecognitionRedemption.objects.filter(beneficiary_profile=request.user)
@@ -137,6 +159,14 @@ class MyRecognitionAPIView(APIView):
 
         return Response(
             {
+                "summary": {
+                    "kind": "recognition",
+                    "unit": "recognition_credit",
+                    "is_currency": False,
+                    "available_credits": account.points_balance if account is not None else 0,
+                    "pending_credits": account.pending_points if account is not None else 0,
+                    "needs_response": bool(incoming),
+                },
                 "account": _account_payload(account),
                 "achievements": achievements,
                 "rewards": [_reward_payload(reward) for reward in rewards],
@@ -148,6 +178,7 @@ class MyRecognitionAPIView(APIView):
                     _redemption_payload(redemption)
                     for redemption in owned
                 ],
+                "recent_activity": recent_activity,
                 "benefits_received": [
                     _redemption_payload(
                         redemption,
@@ -160,6 +191,8 @@ class MyRecognitionAPIView(APIView):
                     )
                     for redemption in received
                 ],
+                "capabilities": ["view_history"] if recent_activity else [],
+                "links": {"self": reverse("recognition_api:me")},
             }
         )
 

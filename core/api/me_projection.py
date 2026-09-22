@@ -523,6 +523,12 @@ def _partner_item(partner):
             "name": partner.organization.name,
             "slug": partner.organization.slug,
         },
+        "links": {
+            "detail": reverse(
+                "personal-projections:partner-detail",
+                kwargs={"pk": partner.pk},
+            )
+        },
     }
 
 
