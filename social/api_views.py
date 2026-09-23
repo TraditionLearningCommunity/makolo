@@ -1,5 +1,7 @@
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,7 +12,14 @@ from groups.models import Group
 from trust.models import ReportCategory
 
 from .action_stream import build_action_stream
-from .models import Contribution, ContributionKind
+from .bilateral_services import respond_to_action_proposal
+from .models import (
+    ActionProposalDirection,
+    ActionProposalStatus,
+    Contribution,
+    ContributionKind,
+)
+from .profile_search import action_proposals_requiring_actor_response
 from .reporting import report_contribution_to_trust
 from .services import create_contribution, share_activity_to_group
 
@@ -22,6 +31,136 @@ def _activity_payload(activity):
 def _error(exc):
     detail = getattr(exc, "message_dict", None) or getattr(exc, "messages", None) or str(exc)
     return Response({"detail": detail}, status=403 if isinstance(exc, PermissionDenied) else 400)
+
+
+def _proposal_response_space(proposal):
+    if (
+        proposal.direction == ActionProposalDirection.OWNER_TO_CANDIDATE
+        and proposal.candidate_space_id
+    ):
+        return proposal.candidate_space
+    if (
+        proposal.direction == ActionProposalDirection.CANDIDATE_TO_OWNER
+        and proposal.need.space_id
+    ):
+        return proposal.need.space
+    return None
+
+
+def _proposal_for_response(actor, proposal_id):
+    proposal = (
+        action_proposals_requiring_actor_response(actor)
+        .filter(pk=proposal_id)
+        .first()
+    )
+    if proposal is None:
+        raise NotFound()
+    return proposal
+
+
+def _proposal_payload(proposal, *, actor, respondable=True):
+    response_space = _proposal_response_space(proposal)
+    acting_context = (
+        {
+            "kind": "space",
+            "id": str(response_space.pk),
+            "name": response_space.name,
+            "explicit": True,
+        }
+        if response_space is not None
+        else {
+            "kind": "profile",
+            "id": str(actor.pk),
+            "explicit": False,
+        }
+    )
+    links = {}
+    capabilities = []
+    if respondable and proposal.status == ActionProposalStatus.PENDING:
+        links = {
+            "self": reverse(
+                "social-action-proposal-detail",
+                kwargs={"proposal_id": proposal.pk},
+            ),
+            "respond": reverse(
+                "social-action-proposal-respond",
+                kwargs={"proposal_id": proposal.pk},
+            ),
+        }
+        capabilities = ["respond"]
+    return {
+        "identity": {"kind": "action_proposal", "id": str(proposal.pk)},
+        "state": proposal.status,
+        "direction": proposal.direction,
+        "need": {
+            "kind": "action_need",
+            "id": str(proposal.need_id),
+            "title": proposal.need.title,
+        },
+        "acting_context": acting_context,
+        "capabilities": capabilities,
+        "links": links,
+    }
+
+
+class ActionProposalDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proposal_id):
+        proposal = _proposal_for_response(request.user, proposal_id)
+        return Response(_proposal_payload(proposal, actor=request.user))
+
+
+class ActionProposalRespondAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, proposal_id):
+        proposal = _proposal_for_response(request.user, proposal_id)
+        response_space = _proposal_response_space(proposal)
+        acting_space_id = request.data.get("acting_space_id")
+        if response_space is not None:
+            if str(acting_space_id or "") != str(response_space.pk):
+                raise ValidationError(
+                    {
+                        "acting_space_id": (
+                            "Cette décision au nom d'un Espace exige son contexte explicite."
+                        )
+                    }
+                )
+        elif acting_space_id:
+            raise ValidationError(
+                {"acting_space_id": "Aucun contexte Espace n'est attendu pour cette décision."}
+            )
+
+        decision = request.data.get("status")
+        if decision not in {
+            ActionProposalStatus.ACCEPTED,
+            ActionProposalStatus.DECLINED,
+        }:
+            raise ValidationError(
+                {"status": "La décision doit être accepted ou declined."}
+            )
+        try:
+            proposal = respond_to_action_proposal(
+                actor=request.user,
+                proposal=proposal,
+                status=decision,
+                response_message=request.data.get("response_message", ""),
+            )
+        except PermissionDenied as exc:
+            raise NotFound() from exc
+        except DjangoValidationError as exc:
+            raise ValidationError(
+                getattr(exc, "message_dict", None)
+                or {"non_field_errors": getattr(exc, "messages", [str(exc)])}
+            ) from exc
+        return Response(
+            _proposal_payload(
+                proposal,
+                actor=request.user,
+                respondable=False,
+            )
+        )
 
 
 class ActionStreamAPIView(APIView):
@@ -77,7 +216,7 @@ class GroupContributionAPIView(APIView):
                 body=request.data.get("body", ""),
                 group=group,
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(contribution.pk), "status": contribution.status}, status=201)
 
@@ -95,7 +234,7 @@ class GroupShareAPIView(APIView):
                 activity=activity,
                 body=request.data.get("body", ""),
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(contribution.pk), "activity_id": str(activity.pk)}, status=201)
 
@@ -112,7 +251,7 @@ class ReplyAPIView(APIView):
                 body=request.data.get("body", ""),
                 parent=parent,
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(reply.pk), "parent_id": str(parent.pk)}, status=201)
 
@@ -135,6 +274,6 @@ class ContributionReportAPIView(APIView):
                 description=request.data.get("description", ""),
                 category=category,
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"report_id": str(report.pk), "status": report.status}, status=201)

@@ -169,6 +169,31 @@ def _action_links(action: ContextualAction):
         links["decline"] = reverse("ticket-transfers-decline", kwargs={"pk": transfer_id})
         return links
 
+    if identity.context_type == "action_proposal":
+        proposal_id = identity.context_id
+        links["detail"] = reverse(
+            "social-action-proposal-detail",
+            kwargs={"proposal_id": proposal_id},
+        )
+        links["respond"] = reverse(
+            "social-action-proposal-respond",
+            kwargs={"proposal_id": proposal_id},
+        )
+        return links
+
+    if identity.context_type == "recognition_redemption":
+        redemption_id = identity.context_id
+        links["recognition"] = reverse("recognition_api:me")
+        links["accept"] = reverse(
+            "recognition_api:redemption-decision",
+            kwargs={"redemption_id": redemption_id, "decision": "accept"},
+        )
+        links["decline"] = reverse(
+            "recognition_api:redemption-decision",
+            kwargs={"redemption_id": redemption_id, "decision": "decline"},
+        )
+        return links
+
     return links
 
 
@@ -176,6 +201,10 @@ def _action_capabilities(action: ContextualAction):
     if action.identity.context_type == "waitlist":
         return ["accept", "leave"]
     if action.identity.context_type == "ticket_transfer":
+        return ["accept", "decline"]
+    if action.identity.context_type == "action_proposal":
+        return ["respond"]
+    if action.identity.context_type == "recognition_redemption":
         return ["accept", "decline"]
     if action.kind == "conversation.attention":
         reasons = set(action.reason_codes)
@@ -222,8 +251,7 @@ def build_personal_now_projection(profile, *, observed_at=None):
     journey_ids = {
         item["source"]["id"]
         for item in items
-        if item["kind"].startswith("spatiotemporal.")
-        and item["source"]["kind"] == "journey"
+        if item["source"]["kind"] == "journey"
     }
     occurrence_by_journey = {
         str(pk): occurrence_id
@@ -243,6 +271,10 @@ def build_personal_now_projection(profile, *, observed_at=None):
         )
         occurrence_id = occurrence_by_journey.get(journey_id)
         if occurrence_id is not None:
+            item["occurrence"] = {
+                "kind": "occurrence",
+                "id": str(occurrence_id),
+            }
             item["links"]["day_of"] = (
                 f"/api/v1/me/occurrences/{occurrence_id}/day-of/"
             )
@@ -390,6 +422,11 @@ def _journey_ongoing_item(journey, readiness):
         "continuation": continuation,
         "blocker": blocker,
         "next": next_item,
+        "occurrence": (
+            {"kind": "occurrence", "id": str(journey.occurrence_id)}
+            if journey.occurrence_id
+            else None
+        ),
         "timing": _occurrence_timing(journey.occurrence),
         "place": _occurrence_place(journey.occurrence),
         "capabilities": ["open_detail"] + (["open_day_of"] if journey.occurrence_id else []),
@@ -415,6 +452,11 @@ def _access_ongoing_item(access):
         "continuation": None,
         "blocker": None,
         "next": None,
+        "occurrence": (
+            {"kind": "occurrence", "id": str(access.occurrence_id)}
+            if access.occurrence_id
+            else None
+        ),
         "timing": _occurrence_timing(access.occurrence),
         "place": _occurrence_place(access.occurrence),
         "capabilities": ["open_access"] + (["open_day_of"] if access.occurrence_id else []),
@@ -487,8 +529,13 @@ def _dossier_ongoing_item(dossier, *, profile):
         "next": None,
         "timing": timing,
         "place": None,
-        "capabilities": [],
-        "links": {},
+        "capabilities": ["open_detail"],
+        "links": {
+            "detail": reverse(
+                "objectives_api:dossier-detail",
+                kwargs={"pk": dossier.pk},
+            )
+        },
     }
 
 
@@ -510,8 +557,13 @@ def _project_ongoing_item(project):
         "next": None,
         "timing": timing,
         "place": None,
-        "capabilities": [],
-        "links": {},
+        "capabilities": ["open_detail"],
+        "links": {
+            "detail": reverse(
+                "objectives_api:project-detail",
+                kwargs={"pk": project.pk},
+            )
+        },
     }
 
 

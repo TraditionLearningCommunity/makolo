@@ -98,7 +98,12 @@ def _access_item(access, *, profile, relationship):
     vocabulary = vocabulary_for(activity=access.activity, workflow=workflow)
     credential = _credential_summary(access)
 
-    links = {}
+    links = {
+        "detail": reverse(
+            "personal-detail-projections:access-detail",
+            kwargs={"pk": access.pk},
+        )
+    }
     capabilities = []
     if credential["presentable"]:
         links["credential"] = reverse(

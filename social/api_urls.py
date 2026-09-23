@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .api_views import (
+    ActionProposalDetailAPIView,
+    ActionProposalRespondAPIView,
     ActionStreamAPIView,
     ContributionReportAPIView,
     GroupContributionAPIView,
@@ -10,6 +12,16 @@ from .api_views import (
 )
 
 urlpatterns = [
+    path(
+        "action-proposals/<uuid:proposal_id>/",
+        ActionProposalDetailAPIView.as_view(),
+        name="social-action-proposal-detail",
+    ),
+    path(
+        "action-proposals/<uuid:proposal_id>/respond/",
+        ActionProposalRespondAPIView.as_view(),
+        name="social-action-proposal-respond",
+    ),
     path("stream/", ActionStreamAPIView.as_view(), name="social-stream-api"),
     path("recommendations/", RecommendationsAPIView.as_view(), name="social-recommendations-api"),
     path("groups/<uuid:group_id>/contributions/", GroupContributionAPIView.as_view(), name="social-group-contribution-api"),
