@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -17,6 +18,42 @@ class DomainEventConsumptionStatus(models.TextChoices):
     PROCESSED = "processed", "Traité"
     SKIPPED = "skipped", "Ignoré"
     FAILED = "failed", "Échoué"
+
+
+DOMAIN_EVENT_FACT_FIELDS = frozenset({
+    "event_type",
+    "source_type",
+    "source_id",
+    "space_id",
+    "activity_id",
+    "payload_version",
+    "payload",
+    "occurred_at",
+    "created_at",
+    "idempotency_key",
+})
+
+
+class DomainEventOutboxQuerySet(models.QuerySet):
+    """Protect the immutable fact while allowing delivery bookkeeping to advance."""
+
+    def update(self, **kwargs):
+        protected = DOMAIN_EVENT_FACT_FIELDS.intersection(kwargs)
+        if protected:
+            names = ", ".join(sorted(protected))
+            raise ValidationError(
+                f"Un Domain Event persisté est immuable; champs interdits: {names}."
+            )
+        return super().update(**kwargs)
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        protected = DOMAIN_EVENT_FACT_FIELDS.intersection(fields)
+        if protected:
+            names = ", ".join(sorted(protected))
+            raise ValidationError(
+                f"Un Domain Event persisté est immuable; champs interdits: {names}."
+            )
+        return super().bulk_update(objs, fields, batch_size=batch_size)
 
 
 class DomainEventOutbox(models.Model):
@@ -45,6 +82,8 @@ class DomainEventOutbox(models.Model):
     last_error = models.TextField(blank=True)
     idempotency_key = models.CharField(max_length=255, unique=True)
 
+    objects = DomainEventOutboxQuerySet.as_manager()
+
     class Meta:
         ordering = ["created_at", "id"]
         indexes = [
@@ -61,6 +100,32 @@ class DomainEventOutbox(models.Model):
                 name="de_outbox_max_attempts_pos",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            update_fields = kwargs.get("update_fields")
+            protected = set(DOMAIN_EVENT_FACT_FIELDS)
+            if update_fields is not None:
+                protected.intersection_update(update_fields)
+            if protected:
+                names = sorted(protected)
+                persisted = (
+                    type(self)._base_manager.filter(pk=self.pk)
+                    .values(*names)
+                    .first()
+                )
+                if persisted is not None:
+                    changed = [
+                        name
+                        for name in names
+                        if persisted[name] != getattr(self, name)
+                    ]
+                    if changed:
+                        raise ValidationError(
+                            "Un Domain Event persisté est immuable; "
+                            f"champs modifiés: {', '.join(changed)}."
+                        )
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.event_type} — {self.source_type}:{self.source_id or self.id}"
