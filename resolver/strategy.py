@@ -148,7 +148,11 @@ class DeterministicResolver:
             method = None
             strength = None
             basis = tuple(lookup.basis_codes)
-            if (\n                status is ResolutionStatus.NEW_CANDIDATE\n                and families[0] in {"organization", "geography_place", "reality"}\n                and _looks_like_ambiguous_alias(entity.label)\n            ):
+            if (
+                status is ResolutionStatus.NEW_CANDIDATE
+                and families[0] in {"organization", "geography_place", "reality"}
+                and _looks_like_ambiguous_alias(entity.label)
+            ):
                 status = ResolutionStatus.UNRESOLVED
                 basis = tuple(dict.fromkeys((*basis, "short_alias_without_evidence")))
             if selected is not None:
