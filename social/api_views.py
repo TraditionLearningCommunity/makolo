@@ -216,7 +216,7 @@ class GroupContributionAPIView(APIView):
                 body=request.data.get("body", ""),
                 group=group,
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(contribution.pk), "status": contribution.status}, status=201)
 
@@ -234,7 +234,7 @@ class GroupShareAPIView(APIView):
                 activity=activity,
                 body=request.data.get("body", ""),
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(contribution.pk), "activity_id": str(activity.pk)}, status=201)
 
@@ -251,7 +251,7 @@ class ReplyAPIView(APIView):
                 body=request.data.get("body", ""),
                 parent=parent,
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(reply.pk), "parent_id": str(parent.pk)}, status=201)
 
@@ -274,6 +274,6 @@ class ContributionReportAPIView(APIView):
                 description=request.data.get("description", ""),
                 category=category,
             )
-        except (ValidationError, PermissionDenied) as exc:
+        except (DjangoValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"report_id": str(report.pk), "status": report.status}, status=201)
