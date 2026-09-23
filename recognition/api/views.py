@@ -157,7 +157,7 @@ class MyRecognitionAPIView(APIView):
             .order_by("-created_at", "-id")[:50]
         )
 
-        return Response(
+        response = Response(
             {
                 "summary": {
                     "kind": "recognition",
@@ -195,6 +195,8 @@ class MyRecognitionAPIView(APIView):
                 "links": {"self": reverse("recognition_api:me")},
             }
         )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class RecognitionRewardRedeemAPIView(APIView):
@@ -218,7 +220,12 @@ class RecognitionRewardRedeemAPIView(APIView):
                 raise ValidationError(
                     {"idempotency_key": "Cette clé d'idempotence n'est pas disponible."}
                 )
-            return Response(_redemption_payload(existing), status=status.HTTP_200_OK)
+            response = Response(
+                _redemption_payload(existing),
+                status=status.HTTP_200_OK,
+            )
+            response["Cache-Control"] = "private, no-store"
+            return response
 
         reward = next(
             (
@@ -243,10 +250,12 @@ class RecognitionRewardRedeemAPIView(APIView):
         except DjangoValidationError as exc:
             _raise_service(exc)
 
-        return Response(
+        response = Response(
             _redemption_payload(redemption),
             status=status.HTTP_201_CREATED,
         )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class RecognitionRedemptionDecisionAPIView(APIView):
@@ -276,4 +285,6 @@ class RecognitionRedemptionDecisionAPIView(APIView):
         except DjangoValidationError as exc:
             _raise_service(exc)
 
-        return Response(_redemption_payload(redemption))
+        response = Response(_redemption_payload(redemption))
+        response["Cache-Control"] = "private, no-store"
+        return response

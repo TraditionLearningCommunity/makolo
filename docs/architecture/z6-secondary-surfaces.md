@@ -330,12 +330,9 @@ La profondeur protégée est :
 GET /api/v1/me/accesses/<access-id>/credential/
 ```
 
-Elle est disponible uniquement :
+Elle est disponible uniquement au bénéficiaire authentifié de l'Access. La visibilité transactionnelle `purchased_for_other` ne transfère jamais le credential du titulaire à l'acheteur.
 
-- au bénéficiaire ; ou
-- à l'acheteur pour un Access issu de sa propre CommerceOrder, selon le selector existant.
-
-Un tiers obtient 404. Un Access terminal ne réexpose pas de payload. La réponse qui contient la représentation signée est explicitement `Cache-Control: private, no-store` et `X-Content-Type-Options: nosniff`.
+Un acheteur distinct, un tiers ou un Access qui n'est plus présentable obtient 404. La réponse qui contient la représentation signée est explicitement `Cache-Control: private, no-store` et `X-Content-Type-Options: nosniff`.
 
 Le token reste la représentation opaque produite par `render_access_credential()`. Z6 ne crée aucune seconde signature, aucun QR parallèle et aucune identité AccessCredential publique supplémentaire.
 
@@ -375,7 +372,7 @@ scope personnel avant recherche
 connaître un UUID != pouvoir lire le droit
 ```
 
-Tests ciblés : auth, rejet `profile_id`, scope bénéficiaire, séparation historique, achat pour autrui, recherche/pagination, secret absent de la collection, credential no-store, buyer autorisé, tiers 404 et Access terminal sans réexposition.
+Tests ciblés : auth, rejet des overrides d'acteur, scope bénéficiaire, séparation historique, achat pour autrui, recherche/pagination, secret absent de la collection, credential no-store, buyer non-bénéficiaire en 404, tiers 404 et Access terminal/expiré sans réexposition.
 
 ## 16. Checkpoint 3 — Z6-B Historique
 

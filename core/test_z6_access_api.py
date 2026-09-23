@@ -225,26 +225,81 @@ class Z6PersonalAccessAPIContractTests(TestCase):
         )
         self.assertEqual(denied.status_code, 404)
 
-    def test_buyer_can_retrieve_only_credential_from_own_purchase_for_other(self):
+    def test_buyer_cannot_retrieve_beneficiary_credential_from_own_purchase(self):
+        credential = self.bought.credentials.get()
+
         self.client.force_authenticate(self.owner)
         response = self.client.get(
             f"/api/v1/me/accesses/{self.bought.pk}/credential/"
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json()["data"]["relationship"],
-            "purchased_for_other",
+        self.assertEqual(response.status_code, 404)
+
+        collection = self.client.get(
+            "/api/v1/me/accesses/?relationship=purchased_for_other"
         )
-        self.assertEqual(
-            response.json()["data"]["holder"]["display_name"],
-            "Benoît Mulumba",
-        )
+        self.assertEqual(collection.status_code, 200)
+        row = collection.json()["data"]["items"][0]
+        self.assertIsNone(row["credential"])
+        self.assertNotIn("credential", row["links"])
+        self.assertNotIn("present_credential", row["capabilities"])
+        rendered = str(collection.json())
+        self.assertNotIn(str(credential.public_id), rendered)
+        self.assertNotIn(render_access_credential(credential), rendered)
 
         self.client.force_authenticate(self.outsider)
         denied = self.client.get(
             f"/api/v1/me/accesses/{self.bought.pk}/credential/"
         )
         self.assertEqual(denied.status_code, 404)
+
+    def test_expired_validity_cannot_reexpose_active_credential(self):
+        expiring = issue_access(
+            beneficiary=self.owner,
+            activity=self.activity,
+            occurrence=None,
+            source_key="z6:expired-window",
+            valid_until=self.now + timedelta(hours=1),
+        )
+        type(expiring).objects.filter(pk=expiring.pk).update(
+            valid_until=self.now - timedelta(seconds=1),
+        )
+        expiring.refresh_from_db()
+        self.assertEqual(expiring.status, AccessStatus.VALID)
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/me/accesses/{expiring.pk}/credential/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_future_validity_window_does_not_hide_beneficiary_credential(self):
+        future = issue_access(
+            beneficiary=self.owner,
+            activity=self.activity,
+            occurrence=None,
+            source_key="z11:future-window",
+            valid_from=self.now + timedelta(hours=1),
+        )
+        self.assertEqual(future.status, AccessStatus.VALID)
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/me/accesses/{future.pk}/credential/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_buyer_web_detail_never_contains_beneficiary_qr_or_access_use_history(self):
+        credential = self.bought.credentials.get()
+        self.client.force_authenticate(user=None)
+        self.client.force_login(self.owner)
+
+        response = self.client.get(f"/me/accesses/{self.bought.pk}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertNotContains(response, render_access_credential(credential))
+        self.assertNotContains(response, "Présentez ce QR Makolo")
+        self.assertNotContains(response, "Historique de contrôle")
 
     def test_terminal_access_does_not_reexpose_a_credential_payload(self):
         terminal = issue_access(

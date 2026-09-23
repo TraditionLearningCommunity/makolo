@@ -400,8 +400,6 @@ def submit_payment_evidence(*, obligation, artifact, actor, paid_at, external_re
 def _ensure_evidence_reviewer(actor, obligation):
     if obligation.journey_id is None:
         raise ValidationError("PaymentEvidence exige une obligation rattachée à une Journey.")
-    if getattr(actor, "is_staff", False):
-        return
     ensure_case_access(actor, obligation.journey, write=True)
 
 

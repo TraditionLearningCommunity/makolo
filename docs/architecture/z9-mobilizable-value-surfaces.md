@@ -55,7 +55,9 @@ Les comptes restent séparés par programme et organisation. Z9 ne calcule jamai
 
 Les rewards exposées comme mobilisables proviennent d'un selector qui reproduit seulement les préconditions non mutantes du service propriétaire : programme/reward actifs, fenêtre de validité, compte personnel, plafond d'usage et solde suffisant. Le service `loyalty.services.redeem_reward()` revalide transactionnellement au moment de la mutation.
 
-Aucun GET ne crée compte ou membership.
+Z11 durcit la profondeur de mutation `POST /api/v1/loyalty/rewards/<reward-id>/redeem/` : le reward doit appartenir à un programme pour lequel le Profile possède déjà un compte, une `idempotency_key` est obligatoire, et un replay de la même requête restitue la même redemption sans second débit. Aucun modèle ni champ d'idempotence supplémentaire n'est créé : l'unicité existante du `LoyaltyLedgerEntry.idempotency_key` reste le verrou canonique.
+
+Les réponses personnelles Loyalty sont `private, no-store`. Aucun GET ne crée compte ou membership.
 
 ## Partner
 

@@ -232,6 +232,45 @@ class Z7MakoloMarkAPIContractTests(TestCase):
         self.assertEqual(data["result"]["reason"], "personal_scope_only")
         self.assertNotIn(str(self.other.pk), response.content.decode())
 
+        for key in (
+            "user_id",
+            "beneficiary_id",
+            "subject_id",
+            "space_context",
+            "organization_actor",
+        ):
+            with self.subTest(key=key):
+                attempt = self._post(
+                    "Ouvre ma candidature",
+                    context={key: str(self.other.pk)},
+                )
+                attempt_data = attempt.json()["data"]
+                self.assertEqual(attempt_data["state"], "forbidden")
+                self.assertEqual(
+                    attempt_data["result"]["reason"],
+                    "personal_scope_only",
+                )
+                self.assertNotIn(str(self.other.pk), attempt.content.decode())
+
+    def test_mark_rejects_top_level_actor_override_and_is_no_store(self):
+        self.client.force_authenticate(self.user)
+
+        response = self.client.post(
+            "/api/v1/me/mark/",
+            {
+                "input": {"kind": "text", "value": "Trouve une bourse"},
+                "context": {},
+                "beneficiary_id": str(self.other.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn(str(self.other.pk), response.content.decode())
+
+        safe = self._post("Trouve une bourse")
+        self.assertEqual(safe.status_code, 200)
+        self.assertEqual(safe["Cache-Control"], "private, no-store")
+
     def test_bookmark_mutation_is_explicit_idempotent_and_does_not_create_watch_interest_or_journey(self):
         Occurrence.objects.create(
             activity=self.activity,

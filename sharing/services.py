@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import UserProfile
+from authorization.services import has_platform_authority
 from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence
 from discovery.search import get_public_occurrence
 from domain_events.contracts import DomainEventType
@@ -416,7 +417,13 @@ def decline_share_delivery(*, delivery_id, user):
 @transaction.atomic
 def revoke_share_link(*, envelope, actor=None):
     if actor is not None:
-        allowed = bool(getattr(actor, "is_authenticated", False) and (getattr(actor, "is_staff", False) or envelope.created_by_id == actor.pk))
+        allowed = bool(
+            getattr(actor, "is_authenticated", False)
+            and (
+                envelope.created_by_id == actor.pk
+                or has_platform_authority(actor)
+            )
+        )
         if not allowed:
             raise PermissionDenied("Vous ne pouvez pas révoquer ce partage.")
     if envelope.status == ShareStatus.REVOKED:

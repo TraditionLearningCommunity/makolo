@@ -262,3 +262,30 @@ class LoyaltyApiTests(LoyaltyFixtureMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         rendered = str(response.data)
         self.assertNotIn(self.participant.email, rendered)
+
+    def test_authenticated_program_projection_is_private_and_hides_raw_ledger_metadata(self):
+        account = LoyaltyAccount.objects.create(
+            program=self.program,
+            user=self.participant,
+            points_balance=25,
+            lifetime_earned=25,
+        )
+        LoyaltyLedgerEntry.objects.create(
+            account=account,
+            kind=LedgerKind.ADJUSTMENT,
+            points=25,
+            description="Crédit personnel",
+            idempotency_key="z11-loyalty-program-ledger",
+            metadata={"internal_reference": "PRIVATE-LOYALTY-METADATA-Z11"},
+        )
+        self.client.force_authenticate(self.participant)
+
+        response = self.client.get(
+            f"/api/v1/loyalty/organizations/{self.organization.slug}/"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertIn("my_account", response.data)
+        self.assertNotIn("PRIVATE-LOYALTY-METADATA-Z11", str(response.data))
+        self.assertNotIn("metadata", str(response.data["my_account"]))

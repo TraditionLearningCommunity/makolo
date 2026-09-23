@@ -13,8 +13,8 @@ from core.api.access_projection import (
     build_personal_access_credential_data,
     build_personal_accesses_data,
 )
+from access.selectors import accesses_for_profile
 from core.api.me_views import PersonalProjectionAPIView
-from core.participant_selectors import participant_accesses_visible_to_buyer
 
 
 def _integer_param(request, name, *, default, minimum=0, maximum=None):
@@ -93,12 +93,13 @@ class PersonalAccessCredentialAPIView(PersonalProjectionAPIView):
         self._guard_personal_scope(request)
         observed_at = timezone.now()
         access = get_object_or_404(
-            participant_accesses_visible_to_buyer(request.user),
+            accesses_for_profile(request.user),
             pk=pk,
         )
         data = build_personal_access_credential_data(
             profile=request.user,
             access=access,
+            observed_at=observed_at,
         )
         if data is None:
             raise Http404

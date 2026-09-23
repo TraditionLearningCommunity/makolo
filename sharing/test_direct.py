@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -238,6 +238,21 @@ class SharingP2DirectTests(TestCase):
             reverse("sharing:delivery", kwargs={"delivery_id": created.delivery.pk})
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_is_staff_alone_cannot_revoke_another_profiles_share(self):
+        created = self.direct()
+        staff = User.objects.create_user(
+            username="p2-plain-staff",
+            email="p2-plain-staff@makolo.test",
+            password=self.password,
+            is_staff=True,
+        )
+
+        with self.assertRaises(PermissionDenied):
+            revoke_share_link(envelope=created.envelope, actor=staff)
+
+        created.envelope.refresh_from_db()
+        self.assertEqual(created.envelope.status, ShareStatus.ACTIVE)
 
     def test_profile_search_does_not_expose_email(self):
         self.client.force_login(self.sender)

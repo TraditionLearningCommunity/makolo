@@ -54,6 +54,28 @@ def active_credential_for_access(access):
     return AccessCredential.objects.filter(access=access, status=CredentialStatus.ACTIVE).order_by("-version").first()
 
 
+def access_credential_is_presentable_to(profile, access, *, at=None):
+    """Return whether this Profile may receive the secret Access representation.
+
+    Buying an Access for another person never grants the buyer the beneficiary's
+    AccessCredential. The right must also still be active at observation time.
+    """
+    if not getattr(profile, "is_authenticated", False):
+        return False
+    if access.beneficiary_id != profile.pk or access.status != AccessStatus.VALID:
+        return False
+
+    at = at or timezone.now()
+    if access.valid_until is not None and access.valid_until <= at:
+        return False
+
+    occurrence = getattr(access, "occurrence", None)
+    if occurrence is not None and occurrence.end_at is not None and occurrence.end_at < at:
+        return False
+
+    return True
+
+
 def access_from_ticket(ticket):
     if not getattr(ticket, "access_id", None):
         return None

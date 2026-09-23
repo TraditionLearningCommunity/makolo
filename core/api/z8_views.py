@@ -113,7 +113,7 @@ class PersonalResourceVersionReuseAPIView(PersonalProjectionAPIView):
     projection_code = "personal.resource.reuse"
 
     def post(self, request, version_id):
-        self._guard_personal_scope(request)
+        self._guard_personal_scope(request, include_body=True)
         journey_id = request.data.get("journey_id")
         if not journey_id:
             raise ValidationError({"journey_id": "Ce champ est obligatoire."})

@@ -131,9 +131,11 @@ class CommercePaymentStartView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def _order(self, request, order_pk):
-        queryset = CommerceOrder.objects.select_related("buyer", "journey", "journey__activity")
-        if not request.user.is_staff:
-            queryset = queryset.filter(buyer=request.user)
+        queryset = CommerceOrder.objects.select_related(
+            "buyer",
+            "journey",
+            "journey__activity",
+        ).filter(buyer=request.user)
         return get_object_or_404(queryset, pk=order_pk)
 
     def _ensure_payable(self, order):

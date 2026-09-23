@@ -1,10 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
+from core.api.me_views import PersonalProjectionAPIView
 from core.participant_selectors import (
     participant_accesses_visible_to_buyer,
     participant_journeys,
@@ -19,13 +16,13 @@ from .detail_projections import (
     build_journey_detail,
     build_requirement_detail,
 )
-from .projections import projection_envelope
 
 
-class PersonalJourneyDetailAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
+    projection_code = "personal.journey.detail"
 
     def get(self, request, pk):
+        self._guard_personal_scope(request)
         observed_at = timezone.now()
         journey = get_object_or_404(
             participant_readiness_queryset(
@@ -52,24 +49,22 @@ class PersonalJourneyDetailAPIView(APIView):
             if journey.occurrence_id
             else None
         )
-        return Response(
-            projection_envelope(
-                projection="personal.journey.detail",
-                data=build_journey_detail(
-                    journey=journey,
-                    readiness=readiness,
-                    profile=request.user,
-                    live=live,
-                ),
-                generated_at=observed_at,
-            )
+        return self._response(
+            build_journey_detail(
+                journey=journey,
+                readiness=readiness,
+                profile=request.user,
+                live=live,
+            ),
+            observed_at=observed_at,
         )
 
 
-class PersonalJourneyRequirementDetailAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class PersonalJourneyRequirementDetailAPIView(PersonalProjectionAPIView):
+    projection_code = "personal.journey.requirement.detail"
 
     def get(self, request, journey_id, assessment_id):
+        self._guard_personal_scope(request)
         observed_at = timezone.now()
         journey = get_object_or_404(
             participant_readiness_queryset(
@@ -91,31 +86,26 @@ class PersonalJourneyRequirementDetailAPIView(APIView):
             pk=assessment_id,
             context__journey=journey,
         )
-        return Response(
-            projection_envelope(
-                projection="personal.journey.requirement.detail",
-                data=build_requirement_detail(
-                    journey=journey,
-                    assessment=assessment,
-                ),
-                generated_at=observed_at,
-            )
+        return self._response(
+            build_requirement_detail(
+                journey=journey,
+                assessment=assessment,
+            ),
+            observed_at=observed_at,
         )
 
 
-class PersonalAccessDetailAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class PersonalAccessDetailAPIView(PersonalProjectionAPIView):
+    projection_code = "personal.access.detail"
 
     def get(self, request, pk):
+        self._guard_personal_scope(request)
         observed_at = timezone.now()
         access = get_object_or_404(
             participant_accesses_visible_to_buyer(request.user),
             pk=pk,
         )
-        return Response(
-            projection_envelope(
-                projection="personal.access.detail",
-                data=build_access_detail(access=access, profile=request.user),
-                generated_at=observed_at,
-            )
+        return self._response(
+            build_access_detail(access=access, profile=request.user),
+            observed_at=observed_at,
         )
