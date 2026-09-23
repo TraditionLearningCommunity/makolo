@@ -1065,3 +1065,37 @@ ambiguïté ou une non-résolution n'est pas convertie en rejet.
 Un nouveau `strategy_fingerprint` crée un nouvel historique à partir des
 `InterpretedMaterial v1` existants. Il ne refait ni Observation ni
 Interprétation et ne réécrit jamais les anciens runs.
+
+
+## Actor 5 — Orchestrateur : diagnostic et exploitation
+
+Actor 5 n'ajoute aucun worker générique ni nouvelle table opérationnelle. Les
+workflows restent exploités par leurs domaines propriétaires, par l'outbox
+Domain Events existante et, lorsqu'il y a effet externe, par les contrats
+Interoperability/Executor appropriés.
+
+Pour diagnostiquer la frontière `ResolvedMaterial -> Orchestrateur` :
+
+1. identifier la `resolution_ref` et l'`assertion_ref` sans recopier le
+   payload externe dans les logs ;
+2. lire la décision Actor 5 : `apply`, `no_action`, `defer`, `review`,
+   `reject` ou `conflict` ;
+3. lire le `reason_code`, l'owner et l'opération éventuelle ;
+4. en cas de `review`, vérifier d'abord fraîcheur, provenance/source authority,
+   owner canonique et contrat de mutation existant ;
+5. en cas de `reject`, vérifier Permission/Mandate et le contexte
+   Profile/Space courant ; ne jamais corriger un refus en ajoutant une
+   autorisation implicite ;
+6. en cas de `conflict`, conserver les preuves et ne pas choisir une valeur
+   arbitrairement ;
+7. en cas de retry après panne technique, rejouer la même intention logique et
+   conserver les idempotency keys propriétaires.
+
+Le défaut du handler Activity issu d'une résolution externe est volontairement
+non-mutant : sans politique explicite attestant l'autorité de la source, il
+retourne `review/source_authority_not_established`. Une récence supérieure ne
+suffit jamais à établir cette autorité.
+
+Aucun opérateur ne doit contourner un résultat Actor 5 par une mise à jour ORM
+directe. La correction doit se faire via le service du domaine propriétaire,
+avec les mêmes contrôles d'autorité, invariants, transaction et événements.
