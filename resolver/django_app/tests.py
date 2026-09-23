@@ -24,7 +24,7 @@ from observer.django_app.models import Observation, ObservationSeries, ObserverH
 from opportunities.models import Opportunity, OpportunitySource
 from organizations.models import Organization
 from prospector.canonicalization import canonicalize_locator
-from prospector.django_app.models import ProspectorFeedbackEvent, ProspectorFrontierEntry
+from prospector.django_app.models import (\n    ProspectorFeedbackEvent,\n    ProspectorFrontierEntry,\n    ProspectorFrontierEvidence,\n)
 
 from resolver.contracts import (
     CanonicalRef,
