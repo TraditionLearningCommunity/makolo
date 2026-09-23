@@ -1,6 +1,8 @@
 # Actor 7 — Projecteur Makolo
 
-> **Statut : fondation Actor 7 réconciliée avec le `main` incluant Actor 6.**
+> **Statut : FERMÉ pour cette phase — intégré dans `main` via PR #282.**
+> Base de fermeture vérifiée : `main@373e04367996460f5b704a7737bc60e5111f4799`.
+> Le gate agrégé post-merge est vert (`ci/aggregate = success`).
 > Ce document décrit le contrat réellement implémenté. Il ne transforme pas une
 > roadmap scientifique en runtime déjà disponible.
 
@@ -542,3 +544,28 @@ appartiennent. Actor 7 ne préjuge pas :
 La prochaine extension d'Actor 7 ne doit être ajoutée que lorsqu'un nouveau
 mapping scientifique est **RETENU** et que son owner fournit un snapshot/change
 signal canonique suffisant.
+
+
+## Fermeture vérifiée
+
+Actor 7 est fermé pour cette phase sur `main@373e04367996460f5b704a7737bc60e5111f4799`.
+La PR #282 a été mergée après CI verte, y compris le gate PostgreSQL dédié
+`Projector Actor 7`, le CI principal, E2E/validation bêta et les gates Actor 3–5
+concernés. Le statut agrégé du commit de merge est `success`.
+
+Le handoff Actor 8 est prêt sur la base suivante :
+
+```text
+backend canonique
+  -> Domain Event sélectionné / bootstrap
+  -> snapshot owner borné
+  -> Projecteur
+  -> UniverseSnapshot / UniverseDelta
+  -> UniverseProjectionPort
+  -> Actor 8
+```
+
+La fermeture ne signifie pas que toute la théorie Univers est projetée. Elle
+signifie que la frontière Actor 7 est stable, testée, reconstructible et qu'elle
+n'invente aucun CorpsMakolo ni aucune grandeur physique absente des définitions
+scientifiques retenues.
