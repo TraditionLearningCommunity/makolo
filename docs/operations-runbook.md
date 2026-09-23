@@ -1196,3 +1196,69 @@ tables ORM. Actor 6 ne publie ni secrets, ni payloads externes bruts, ni état
 worker, ni grandeur Univers prématurée.
 
 La spécification détaillée est dans `docs/architecture/persistator.md`.
+
+
+## Actor 7 — Projecteur Makolo
+
+Actor 7 n'est pas une nouvelle source de vérité. Les faits restent dans leurs
+domaines propriétaires ; les Domain Events sélectionnés signalent un changement
+et le Projecteur recharge un snapshot canonique borné.
+
+Contrôles avant intégration :
+
+~~~bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test projector
+python manage.py projector_rebuild --dry-run
+~~~
+
+Le gate dédié `Projector Actor 7` exécute les checks, migrations et tests
+Actor 7 sur PostgreSQL.
+
+### Bootstrap / rebuild
+
+Tant qu'Actor 8 n'est pas implémenté, `projector_rebuild --dry-run` construit
+et fingerprint le `UniverseSnapshot` sans l'envoyer à une cible inventée. Il
+n'écrit rien dans les domaines métier et ne crée aucune table Projecteur.
+
+Après branchement Actor 8, l'application d'un snapshot devra être atomique pour
+son `scope_ref` et respecter la `strategy_version`.
+
+### Deltas
+
+Le mapping v1 écoute les signaux Occurrence pertinents :
+
+- création ;
+- changement de timing ;
+- changement de lifecycle ;
+- événements spécialisés annulation/réouverture compatibles.
+
+Un consumer durable ne doit être enregistré qu'avec une implémentation Actor 8
+capable d'appliquer le delta. Ne jamais marquer un Domain Event comme consommé
+si aucune cible Universe durable n'a réellement accepté la projection.
+
+### Incident / rattrapage
+
+Si Actor 8 est indisponible, la transaction métier reste valide. Une fois le
+consumer Actor 8 disponible, laisser l'outbox at-least-once reprendre les
+signaux ; chaque traitement recharge l'état canonique courant.
+
+En cas de doute ou de drift :
+
+1. arrêter l'application de nouveaux deltas si nécessaire ;
+2. vérifier la stratégie et les révisions source ;
+3. exécuter `projector_rebuild --dry-run` ;
+4. comparer les fingerprints/scopes via l'interface Actor 8 future ;
+5. reconstruire depuis le backend canonique plutôt que corriger la projection
+   comme une vérité métier.
+
+Ne jamais corriger Activity, Occurrence, Access, Capacity, Payment ou Journey
+depuis un outil Projecteur.
+
+### Confidentialité / logs
+
+Les logs Actor 7 peuvent contenir des refs techniques, compteurs, stratégie,
+fingerprints et classes d'erreurs. Ils ne doivent pas journaliser les snapshots
+complets, credentials, QR/tokens, documents, notes privées ou PII non
+nécessaires.
