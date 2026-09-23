@@ -23,12 +23,9 @@ from interpreter.identifiers import make_interpretation_ref
 from observer.django_app.models import Observation, ObservationSeries, ObserverHandoff
 from opportunities.models import Opportunity, OpportunitySource
 from organizations.models import Organization
-from prospector.canonicalization import canonicalize_locator
-from prospector.django_app.models import (
-    ProspectorFeedbackEvent,
-    ProspectorFrontierEntry,
-    ProspectorFrontierEvidence,
-)
+from prospector.contracts import ProspectingCandidate, ProspectingEvidence
+from prospector.django_app.models import ProspectorFeedbackEvent
+from prospector.django_frontier import DjangoFrontierStore
 
 from resolver.contracts import (
     CanonicalRef,
@@ -535,23 +532,15 @@ class ResolverPersistenceTests(TestCase):
         self.assertIn("canonical_changed_during_resolution", run.warning_codes)
 
     def test_reality_new_feedback_reuses_prospector_contract_without_business_payload(self):
-        target = canonicalize_locator(kind="web_url", locator="https://example.test/reality")
-        source = self.create_interpretation(suffix="l", target_key=target.target_key)
         now = django_timezone.now()
-        ProspectorFrontierEntry.objects.create(
-            target_key=target.target_key,
-            kind=target.kind,
-            locator=target.locator,
-            status="ready",
-            priority=100,
-            available_at=now,
-            first_discovered_at=now,
-            last_discovered_at=now,
-            discovery_count=1,
-            handoff_generation=1,
-            policy_context={},
-            observation_hints={},
+        target = DjangoFrontierStore().admit_sync(
+            ProspectingCandidate(
+                locator="https://example.test/reality",
+                kind="web_url",
+                evidence=(ProspectingEvidence(method="test_seed", discovered_at=now),),
+            )
         )
+        source = self.create_interpretation(suffix="l", target_key=target.target_key)
         enqueue_resolutions()
         run = process_resolution_claim(
             claim_resolutions(worker_id="feedback", limit=1)[0],
