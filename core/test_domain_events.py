@@ -61,6 +61,41 @@ class DomainEventOutboxTests(TestCase):
                 process_on_commit=False,
             )
 
+    def test_persisted_event_fact_is_immutable_but_delivery_state_can_advance(self):
+        event = emit_domain_event(
+            event_type=DomainEventType.REQUEST_CREATED,
+            source_type="request",
+            source_id="immutable-source",
+            idempotency_key="test:immutable:event",
+            payload={"request_id": "immutable-source", "status": "pending"},
+            process_on_commit=False,
+        )
+
+        event.payload = {"request_id": "immutable-source", "status": "tampered"}
+        with self.assertRaises(ValidationError):
+            event.save()
+        event.refresh_from_db()
+        self.assertEqual(event.payload["status"], "pending")
+
+        with self.assertRaises(ValidationError):
+            DomainEventOutbox.objects.filter(pk=event.pk).update(
+                source_id="tampered-source"
+            )
+
+        event.source_type = "tampered-request"
+        with self.assertRaises(ValidationError):
+            DomainEventOutbox.objects.bulk_update([event], ["source_type"])
+
+        DomainEventOutbox.objects.filter(pk=event.pk).update(
+            status=DomainEventStatus.FAILED,
+            last_error="safe delivery failure",
+            attempts=1,
+        )
+        event.refresh_from_db()
+        self.assertEqual(event.status, DomainEventStatus.FAILED)
+        self.assertEqual(event.attempts, 1)
+        self.assertEqual(event.source_type, "request")
+
     def test_business_mutation_and_event_roll_back_together(self):
         initiator = User.objects.create_user(
             username="rollback-initiator",

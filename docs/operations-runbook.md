@@ -1099,3 +1099,100 @@ suffit jamais à établir cette autorité.
 Aucun opérateur ne doit contourner un résultat Actor 5 par une mise à jour ORM
 directe. La correction doit se faire via le service du domaine propriétaire,
 avec les mêmes contrôles d'autorité, invariants, transaction et événements.
+
+
+## Actor 6 — Persistateur : exploitation, reconstruction et DR
+
+Actor 6 n'ajoute **aucun service de persistance générique**, aucun worker dédié et
+aucune base parallèle. L'exploitation continue d'observer les propriétaires
+existants : PostgreSQL/Django pour les vérités et états durables, les stockages
+privés pour les artefacts, et l'outbox Domain Events pour les changements qui
+doivent survivre au commit.
+
+### Contrôles courants
+
+Pour un changement touchant la persistance :
+
+~~~bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py migrate --plan
+~~~
+
+Les chemins de concurrence, contraintes et transactions concernés doivent être
+validés sur PostgreSQL. SQLite reste utile pour la bêta locale mais ne prouve
+pas le comportement de `select_for_update`, des locks ou des contraintes
+spécifiques PostgreSQL.
+
+Surveiller notamment :
+
+- échecs ou blocages de migration ;
+- deadlocks et violations de contraintes ;
+- Domain Events `pending`/`failed` ou claims périmés ;
+- retries anormaux ;
+- erreurs d'accès aux stockages privés ;
+- digest/longueur incohérents sur les blobs Observer ;
+- croissance DB, indexes, historiques et fichiers privés ;
+- fraîcheur des backups dans l'environnement qui l'expose.
+
+Les logs ne doivent pas contenir de payload privé brut, credential, token,
+secret provider ou document.
+
+### Domain Events
+
+Le fait métier persisté dans `DomainEventOutbox` est immuable ; seuls les
+champs de bookkeeping de livraison/retry peuvent évoluer. Une mutation
+canonique et l'événement durable correspondant doivent être créés dans la même
+transaction lorsqu'une garantie atomique est requise.
+
+Le traitement après commit est repris par le processor/Autopilot. Après un
+crash survenu après commit mais avant consommation, ne recréer ni la mutation ni
+l'événement avec une nouvelle intention : laisser l'outbox persistée reprendre
+la même clé d'idempotence.
+
+### Stockages privés
+
+Les bytes Observer restent séparés de leur identité logique. Un même SHA-256
+peut dédupliquer les bytes sans fusionner deux Observations ou deux
+`ObservedArtifact`.
+
+Les documents Journey, Trust, Personal Assets, Conversation et autres fichiers
+privés restent sous leurs owners actuels. Ne pas déplacer les fichiers vers
+`MEDIA_ROOT` public ni introduire un object store/provider sans décision
+d'infrastructure explicite.
+
+### Backup / restore
+
+Une restauration correcte doit considérer **DB et fichiers privés**. La
+procédure exacte dépend de l'environnement ; ne pas prétendre qu'un backup SQL
+seul restaure les artefacts.
+
+Après restauration :
+
+~~~bash
+python manage.py check
+python manage.py showmigrations --plan
+~~~
+
+Puis vérifier au minimum :
+
+1. cohérence des vérités propriétaires critiques ;
+2. accès aux fichiers privés attendus ;
+3. lecture d'un échantillon de blobs Observer avec vérification de digest ;
+4. état de l'outbox et reprise des événements en attente ;
+5. leases/checkpoints des actors techniques ;
+6. Readiness recalculée depuis les faits, sans snapshot canonique à restaurer ;
+7. health/readiness applicatives.
+
+Une projection reconstructible peut être reconstruite depuis ses faits. Ne pas
+restaurer un cache ou une projection en lui donnant une autorité supérieure à
+ses sources.
+
+### Frontière vers Actor 7
+
+Le Projecteur devra consommer des changements canoniques sélectionnés
+(Domain Events ou ports owner stables) plutôt que scanner arbitrairement les
+tables ORM. Actor 6 ne publie ni secrets, ni payloads externes bruts, ni état
+worker, ni grandeur Univers prématurée.
+
+La spécification détaillée est dans `docs/architecture/persistator.md`.
