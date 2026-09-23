@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Prefetch
+from django.db.models import OuterRef, Prefetch, Subquery
 from django.urls import reverse
 
 from accounts.models import UserProfile
@@ -88,12 +88,17 @@ def _activation_payload(profile, profile_extension):
 
 
 def _bounded(queryset, serializer, *, limit):
-    total = queryset.count()
-    rows = list(queryset[:limit])
+    rows = list(queryset[: limit + 1])
+    has_more = len(rows) > limit
+    if has_more:
+        rows = rows[:limit]
+        total = queryset.count()
+    else:
+        total = len(rows)
     return {
         "count": total,
         "items": [serializer(row) for row in rows],
-        "has_more": total > len(rows),
+        "has_more": has_more,
     }
 
 
@@ -325,15 +330,13 @@ def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT):
 
 
 def _asset_item(asset):
-    versions = getattr(asset, "_z4_versions", ())
-    latest = versions[0] if versions else None
     latest_payload = None
-    if latest is not None:
+    if getattr(asset, "preview_version_number", None) is not None:
         latest_payload = {
-            "version": latest.version,
-            "issued_at": latest.issued_at,
-            "expires_at": latest.expires_at,
-            "created_at": latest.created_at,
+            "version": asset.preview_version_number,
+            "issued_at": asset.preview_version_issued_at,
+            "expires_at": asset.preview_version_expires_at,
+            "created_at": asset.preview_version_created_at,
         }
     return {
         "kind": "personal_asset",
@@ -404,10 +407,18 @@ def _credential_item(credential):
 
 
 def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT):
-    versions = PersonalAssetVersion.objects.order_by("-version", "-created_at")
+    latest = PersonalAssetVersion.objects.filter(asset_id=OuterRef("pk")).order_by(
+        "-version",
+        "-created_at",
+    )
     assets = (
         personal_assets_for_controller(profile)
-        .prefetch_related(Prefetch("versions", queryset=versions, to_attr="_z4_versions"))
+        .annotate(
+            preview_version_number=Subquery(latest.values("version")[:1]),
+            preview_version_issued_at=Subquery(latest.values("issued_at")[:1]),
+            preview_version_expires_at=Subquery(latest.values("expires_at")[:1]),
+            preview_version_created_at=Subquery(latest.values("created_at")[:1]),
+        )
         .order_by("-updated_at", "id")
     )
     proofs = proofs_for_profile(profile)
