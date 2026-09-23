@@ -103,6 +103,7 @@ LOCAL_APPS = [
     "operations.apps.OperationsConfig",
     "discovery.apps.DiscoveryConfig",
     "growth.apps.GrowthConfig",
+    "projector.apps.ProjectorConfig",
 ]
 INSTALLED_APPS = [*DJANGO_APPS, *THIRD_PARTY_APPS, *LOCAL_APPS]
 
