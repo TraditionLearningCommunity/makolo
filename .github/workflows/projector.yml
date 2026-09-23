@@ -11,6 +11,7 @@ on:
       - "events/legacy_compat.py"
       - "config/base_settings.py"
       - "docs/architecture/projector.md"
+      - "docs/operations-runbook.md"
       - ".github/workflows/projector.yml"
   push:
     branches: [main]
@@ -22,6 +23,7 @@ on:
       - "events/models.py"
       - "events/legacy_compat.py"
       - "config/base_settings.py"
+      - "docs/operations-runbook.md"
       - ".github/workflows/projector.yml"
 
 jobs:
