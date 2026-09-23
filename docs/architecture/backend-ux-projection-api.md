@@ -957,3 +957,19 @@ GET side-effect free
 ```
 
 Voir `docs/architecture/z9-mobilizable-value-surfaces.md`.
+
+
+## Z10 — Continuité inter-surfaces
+
+Z10 ne crée aucune vérité transverse. Il harmonise les identités canoniques, les links et les handoffs entre Maintenant, En cours, Historique, Jour J, Moi et Makolo Mark.
+
+Les principaux ajouts sont :
+
+- références Occurrence explicites dans les projections Ongoing/Now lorsqu'elles existent ;
+- links owner-backed pour Dossier/Project et Mes accès ;
+- handoff ActionProposal API vers le service Action Network canonique, avec contexte Space explicite lorsqu'il est requis ;
+- décisions Recognition depuis Maintenant vers les endpoints Recognition existants ;
+- Mark Jour J/Live rendu à Operations ;
+- réutilisation PersonalAsset → JourneyArtifact idempotente sans modifier la sémantique Requirement.
+
+Aucun modèle ni migration Z10 n'est ajouté. Voir `docs/architecture/z10-cross-surface-continuity.md`.
