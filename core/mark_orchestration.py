@@ -532,7 +532,7 @@ def _resolve_live(*, profile, situation, context):
             "id": str(occurrence.pk),
             "phase": live.get("phase"),
         },
-        handoff=_handoff("day_of", "occurrence_day_of"),
+        handoff=_handoff("operations", "occurrence_day_of"),
         links=links,
     )
 
