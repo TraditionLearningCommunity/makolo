@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.urls import reverse
 
 from access.models import AccessStatus, CredentialStatus
+from access.selectors import access_credential_is_presentable_to
 from core.participant_selectors import (
     participant_access_search,
     participant_active_accesses,
@@ -93,10 +94,15 @@ def _holder_payload(access):
     }
 
 
-def _access_item(access, *, profile, relationship):
+def _access_item(access, *, profile, relationship, observed_at):
     workflow = access.journey.workflow if access.journey_id else None
     vocabulary = vocabulary_for(activity=access.activity, workflow=workflow)
-    credential = _credential_summary(access)
+    credential = None
+    if (
+        relationship == ACCESS_RELATION_BENEFICIARY
+        and access_credential_is_presentable_to(profile, access, at=observed_at)
+    ):
+        credential = _credential_summary(access)
 
     links = {
         "detail": reverse(
@@ -105,7 +111,7 @@ def _access_item(access, *, profile, relationship):
         )
     }
     capabilities = []
-    if credential["presentable"]:
+    if credential is not None and credential["presentable"]:
         links["credential"] = reverse(
             "personal-projections:access-credential",
             kwargs={"pk": access.pk},
@@ -192,7 +198,12 @@ def build_personal_accesses_data(
         "relationship": relationship,
         "query": query or None,
         "items": [
-            _access_item(row, profile=profile, relationship=relationship)
+            _access_item(
+                row,
+                profile=profile,
+                relationship=relationship,
+                observed_at=observed_at,
+            )
             for row in rows
         ],
         "page": {
@@ -211,26 +222,20 @@ def build_personal_accesses_data(
     }
 
 
-def build_personal_access_credential_data(*, profile, access):
-    relationship = (
-        ACCESS_RELATION_BENEFICIARY
-        if access.beneficiary_id == profile.pk
-        else ACCESS_RELATION_PURCHASED_FOR_OTHER
-    )
+def build_personal_access_credential_data(*, profile, access, observed_at=None):
+    if not access_credential_is_presentable_to(profile, access, at=observed_at):
+        return None
+
     credential = _active_credential(access)
-    if access.status != AccessStatus.VALID or credential is None:
+    if credential is None:
         return None
 
     from access.services import render_access_credential
 
     return {
         "access": {"kind": "access", "id": str(access.pk)},
-        "relationship": relationship,
-        "holder": (
-            _holder_payload(access)
-            if relationship == ACCESS_RELATION_PURCHASED_FOR_OTHER
-            else None
-        ),
+        "relationship": ACCESS_RELATION_BENEFICIARY,
+        "holder": None,
         "representation": {
             "credential_type": credential.credential_type,
             "payload": render_access_credential(credential),

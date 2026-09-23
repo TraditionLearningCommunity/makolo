@@ -55,6 +55,27 @@ class Z2ProjectionAPITests(TestCase):
         self.assertEqual(now_response.json()["data"], {"items": []})
         self.assertEqual(ongoing_response.json()["data"], {"items": []})
         self.assertNotIn("all_clear", now_response.json()["data"])
+        self.assertEqual(now_response["Cache-Control"], "private, no-store")
+        self.assertEqual(ongoing_response["Cache-Control"], "private, no-store")
+
+    def test_personal_projection_endpoints_reject_client_selected_actor(self):
+        self.client.force_login(self.user)
+        attempts = (
+            ("user_id", self.other.pk),
+            ("beneficiary_id", self.other.pk),
+            ("subject_id", self.other.pk),
+            ("space_id", "00000000-0000-0000-0000-000000000001"),
+            ("act_as_space", "1"),
+        )
+        for url in (
+            reverse("personal-projections:now"),
+            reverse("personal-projections:ongoing"),
+        ):
+            for key, value in attempts:
+                with self.subTest(url=url, key=key):
+                    response = self.client.get(url, {key: value})
+                    self.assertEqual(response.status_code, 400)
+                    self.assertIn(key, response.json())
 
 
 class Z2JourneyBoundaryTests(TestCase):

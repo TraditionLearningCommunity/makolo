@@ -22,26 +22,52 @@ from core.api.z8_projection import (
 )
 
 
+PERSONAL_SCOPE_OVERRIDE_KEYS = frozenset(
+    {
+        "profile_id",
+        "user_id",
+        "beneficiary_id",
+        "subject_id",
+        "act_as_space",
+        "space_id",
+        "space_context",
+        "organization_actor",
+    }
+)
+
+
 class PersonalProjectionAPIView(APIView):
     """Shared guard for private Mature projections rooted in request.user."""
 
     permission_classes = [IsAuthenticated]
     projection_code = ""
 
-    def _guard_personal_scope(self, request):
-        if "profile_id" in request.query_params:
+    def _guard_personal_scope(self, request, *, include_body=False):
+        supplied = set(request.query_params.keys())
+        if include_body and hasattr(request.data, "keys"):
+            supplied.update(request.data.keys())
+        blocked = sorted(PERSONAL_SCOPE_OVERRIDE_KEYS.intersection(supplied))
+        if blocked:
             raise ValidationError(
-                {"profile_id": "Ce paramètre n'est pas accepté sur une projection personnelle."}
+                {
+                    key: (
+                        "Ce paramètre n'est pas accepté sur une projection "
+                        "personnelle."
+                    )
+                    for key in blocked
+                }
             )
 
     def _response(self, data, *, observed_at):
-        return Response(
+        response = Response(
             projection_envelope(
                 projection=self.projection_code,
                 data=data,
                 generated_at=observed_at,
             )
         )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class PersonalMeAPIView(PersonalProjectionAPIView):

@@ -18,11 +18,16 @@ MARK_CLARIFICATION_LIMIT = 5
 
 _AUTHORITY_CONTEXT_KEYS = {
     "act_as_space",
+    "beneficiary_id",
     "mandate",
+    "organization_actor",
     "permission",
     "profile_id",
     "role",
+    "space_context",
     "space_id",
+    "subject_id",
+    "user_id",
 }
 
 _DISCOVERY_FAMILIES = {

@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -391,8 +392,34 @@ def expire_due_memberships(*, now=None, limit=200):
 
 
 @transaction.atomic
-def redeem_reward(*, user, reward):
+def redeem_reward(*, user, reward, idempotency_key=None):
     reward = LoyaltyReward.objects.select_for_update().select_related("program", "program__organization", "promotion", "created_by").get(pk=reward.pk)
+    request_key = (idempotency_key or "").strip()
+    ledger_key = None
+    if request_key:
+        ledger_key = (
+            f"loyalty-reward:{user.pk}:"
+            f"{hashlib.sha256(request_key.encode('utf-8')).hexdigest()}"
+        )
+        existing = (
+            LoyaltyLedgerEntry.objects.select_related(
+                "account",
+                "reward_redemption",
+                "reward_redemption__reward",
+            )
+            .filter(idempotency_key=ledger_key)
+            .first()
+        )
+        if existing is not None:
+            redemption = existing.reward_redemption
+            if (
+                redemption is None
+                or existing.account.user_id != user.pk
+                or redemption.reward_id != reward.pk
+            ):
+                raise ValidationError("Cette clé d'idempotence n'est pas disponible.")
+            return redemption
+
     now = timezone.now()
     if not reward.is_active or not reward.program.is_active:
         raise ValidationError("Cette récompense n'est pas disponible.")
@@ -428,7 +455,7 @@ def redeem_reward(*, user, reward):
         points=reward.points_cost,
         kind=LedgerKind.REWARD,
         description=f"Récompense {reward.name}",
-        idempotency_key=f"reward:{redemption.pk}",
+        idempotency_key=ledger_key or f"reward:{redemption.pk}",
         reward_redemption=redemption,
     )
     transaction.on_commit(

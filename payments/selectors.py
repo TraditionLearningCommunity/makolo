@@ -64,8 +64,6 @@ def obligations_visible_to(user):
     )
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
-    if getattr(user, "is_staff", False):
-        return queryset
     space_ids = space_ids_with_permission(user, PermissionCode.FINANCE_VIEW)
     filters = Q(journey__beneficiary=user) | Q(created_by=user)
     if space_ids is None:

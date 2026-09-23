@@ -1,22 +1,19 @@
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
+from core.api.me_views import PersonalProjectionAPIView
 from core.mark_orchestration import (
     MARK_TEXT_MAX_LENGTH,
     orchestrate_mark,
     public_mark_result,
 )
 
-from .projections import projection_envelope
 
-
-class PersonalMarkAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class PersonalMarkAPIView(PersonalProjectionAPIView):
+    projection_code = "personal.mark"
 
     def post(self, request):
+        self._guard_personal_scope(request, include_body=True)
         payload = request.data
         if not isinstance(payload, dict):
             raise ValidationError("Le corps de la requête doit être un objet.")
@@ -48,9 +45,7 @@ class PersonalMarkAPIView(APIView):
             value=value,
             context=context,
         )
-        return Response(
-            projection_envelope(
-                projection="personal.mark",
-                data=public_mark_result(result),
-            )
+        return self._response(
+            public_mark_result(result),
+            observed_at=timezone.now(),
         )

@@ -822,7 +822,7 @@ GET /api/v1/me/accesses/<uuid>/credential/
 
 La collection par défaut est strictement bénéficiaire et actuelle. La relation `purchased_for_other` est une vue transactionnelle séparée pour les droits issus des propres CommerceOrders de l'acheteur.
 
-La collection ne sérialise jamais un AccessCredential complet ni son token. Elle expose seulement une synthèse de représentation et la capability `present_credential` lorsque la profondeur protégée est disponible. Le endpoint credential est `private, no-store`, owner/buyer-scoped et retourne 404 aux tiers ou lorsque l'Access n'est plus présentable.
+La collection ne sérialise jamais un AccessCredential complet ni son token. Pour une relation `beneficiary`, elle peut exposer seulement une synthèse de représentation et la capability `present_credential` lorsque la profondeur protégée est disponible. Pour `purchased_for_other`, aucune disponibilité de credential, capability de présentation ni lien vers le secret du titulaire n'est exposé. Le endpoint credential est `private, no-store`, strictement bénéficiaire et retourne 404 à l'acheteur, aux tiers, ou lorsque l'Access n'est plus présentable.
 
 `personal.me` référence `Mes accès` par link seulement ; aucune copie de vérité Access n'entre dans Moi.
 

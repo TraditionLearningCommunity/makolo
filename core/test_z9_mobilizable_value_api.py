@@ -8,7 +8,13 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from events.models import Event, EventStatus, EventVisibility
-from loyalty.models import LoyaltyAccount, LoyaltyProgram, LoyaltyReward, MembershipPlan
+from loyalty.models import (
+    LoyaltyAccount,
+    LoyaltyProgram,
+    LoyaltyReward,
+    LoyaltyRewardRedemption,
+    MembershipPlan,
+)
 from organizations.console_context import authorized_spaces
 from organizations.models import Organization
 from partners.models import (
@@ -68,6 +74,7 @@ class Z9MobilizableValueAPIContractTests(TestCase):
 
         response = self.client.get("/api/v1/recognition/me/")
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
         data = response.json()
         self.assertEqual(data["summary"]["unit"], "recognition_credit")
         self.assertFalse(data["summary"]["is_currency"])
@@ -173,6 +180,83 @@ class Z9MobilizableValueAPIContractTests(TestCase):
             [str(available.pk)],
         )
         self.assertEqual(data["available_rewards"][0]["capabilities"], ["redeem"])
+
+    def test_loyalty_personal_data_is_no_store_and_reward_redeem_is_idempotent(self):
+        program = LoyaltyProgram.objects.create(
+            organization=self.org,
+            name="Programme Redeem Z11",
+            created_by=self.other,
+        )
+        account = LoyaltyAccount.objects.create(
+            program=program,
+            user=self.user,
+            points_balance=100,
+            lifetime_earned=100,
+        )
+        reward = LoyaltyReward.objects.create(
+            program=program,
+            name="Avantage replay-safe",
+            points_cost=20,
+            max_redemptions_per_member=2,
+            created_by=self.other,
+        )
+
+        personal = self.client.get("/api/v1/loyalty/me/")
+        self.assertEqual(personal.status_code, 200)
+        self.assertEqual(personal["Cache-Control"], "private, no-store")
+
+        payload = {"idempotency_key": "z11-loyalty-redeem-1"}
+        first = self.client.post(
+            f"/api/v1/loyalty/rewards/{reward.pk}/redeem/",
+            payload,
+            format="json",
+        )
+        second = self.client.post(
+            f"/api/v1/loyalty/rewards/{reward.pk}/redeem/",
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 201)
+        self.assertEqual(first.json()["id"], second.json()["id"])
+        self.assertEqual(first["Cache-Control"], "private, no-store")
+        self.assertEqual(
+            LoyaltyRewardRedemption.objects.filter(
+                user=self.user,
+                reward=reward,
+            ).count(),
+            1,
+        )
+        account.refresh_from_db()
+        self.assertEqual(account.points_balance, 80)
+
+    def test_loyalty_reward_deep_link_is_scoped_to_personal_program_account(self):
+        foreign_program = LoyaltyProgram.objects.create(
+            organization=self.org,
+            name="Programme privé tiers Z11",
+            created_by=self.other,
+        )
+        foreign_reward = LoyaltyReward.objects.create(
+            program=foreign_program,
+            name="FOREIGN LOYALTY REWARD Z11",
+            points_cost=1,
+            created_by=self.other,
+        )
+        LoyaltyAccount.objects.create(
+            program=foreign_program,
+            user=self.other,
+            points_balance=100,
+        )
+
+        response = self.client.post(
+            f"/api/v1/loyalty/rewards/{foreign_reward.pk}/redeem/",
+            {"idempotency_key": "z11-foreign-reward"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("FOREIGN LOYALTY REWARD Z11", response.content.decode())
 
     def test_loyalty_membership_does_not_grant_space_authority(self):
         program = LoyaltyProgram.objects.create(

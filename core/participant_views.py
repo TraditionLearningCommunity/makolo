@@ -14,6 +14,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from access.models import AccessStatus, CredentialStatus, CredentialType
+from access.selectors import access_credential_is_presentable_to
 from access.services import render_access_credential
 from activities.models import Occurrence
 from activities.selectors import activities_owned_by
@@ -523,18 +524,35 @@ class ParticipantAccessDetailView(LoginRequiredMixin, TemplateView):
     template_name = "core/participant_access_detail.html"
     login_url = "core:login"
 
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        access = get_object_or_404(participant_accesses_visible_to_buyer(self.request.user), pk=kwargs["pk"])
-        card = _access_card(access)
-        credential = next(
-            (
-                credential
-                for credential in access.credentials.all()
-                if credential.status == CredentialStatus.ACTIVE and credential.credential_type == CredentialType.QR
-            ),
-            None,
+        access = get_object_or_404(
+            participant_accesses_visible_to_buyer(self.request.user),
+            pk=kwargs["pk"],
         )
+        card = _access_card(access)
+        is_beneficiary = access.beneficiary_id == self.request.user.pk
+        credential = None
+        if access_credential_is_presentable_to(
+            self.request.user,
+            access,
+            at=timezone.now(),
+        ):
+            credential = next(
+                (
+                    candidate
+                    for candidate in access.credentials.all()
+                    if candidate.status == CredentialStatus.ACTIVE
+                    and candidate.credential_type == CredentialType.QR
+                ),
+                None,
+            )
+
         qr_data = None
         if credential:
             token = render_access_credential(credential)
@@ -547,7 +565,8 @@ class ParticipantAccessDetailView(LoginRequiredMixin, TemplateView):
                 **card,
                 "credential": credential,
                 "qr_data": qr_data,
-                "viewing_as_buyer": access.beneficiary_id != self.request.user.pk,
+                "viewing_as_buyer": not is_beneficiary,
+                "show_usage_history": is_beneficiary,
                 "operator_name": access.activity.operator_display_name,
             }
         )

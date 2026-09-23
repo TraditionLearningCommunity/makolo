@@ -5,10 +5,19 @@ import json
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import PaymentProvider, PaymentStatus
+from .models import (
+    PaymentObligation,
+    PaymentObligationProcessingMode,
+    PaymentObligationReason,
+    PaymentObligationStatus,
+    PaymentProvider,
+    PaymentStatus,
+)
+from .selectors import obligations_visible_to
 from .services import (
     complete_sandbox_payment,
     initiate_commerce_payment,
@@ -48,11 +57,41 @@ class PreM7PaymentSecurityTests(TestCase):
                 method="card",
             )
 
+    def test_simple_staff_cannot_open_someone_elses_commerce_payment_route(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse(
+                "payments:commerce-start",
+                kwargs={"order_pk": self.order.commerce_order_id},
+            )
+        )
+        self.assertEqual(response.status_code, 404)
+
     def test_simple_staff_cannot_refund_payment_without_finance_mandate(self):
         payment = self._payment()
         complete_sandbox_payment(payment=payment, actor=self.buyer)
         with self.assertRaises(PermissionDenied):
             refund_payment(payment=payment, actor=self.staff)
+
+    def test_simple_staff_cannot_read_foreign_payment_obligation(self):
+        obligation = PaymentObligation.objects.create(
+            journey=self.order.commerce_order.journey,
+            reason=PaymentObligationReason.OTHER,
+            label="Obligation privée Z11",
+            amount="10.00",
+            currency="USD",
+            processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
+            status=PaymentObligationStatus.PENDING,
+            payer_profile=self.buyer,
+            payee_platform=True,
+        )
+
+        self.assertFalse(
+            obligations_visible_to(self.staff).filter(pk=obligation.pk).exists()
+        )
+        self.assertTrue(
+            obligations_visible_to(self.buyer).filter(pk=obligation.pk).exists()
+        )
 
     def test_webhook_replay_is_idempotent_and_payload_confusion_is_rejected(self):
         payment = self._payment()

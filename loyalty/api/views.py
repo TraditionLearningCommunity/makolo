@@ -168,7 +168,7 @@ class MyLoyaltyAPIView(APIView):
             "reward__program__organization", "promotion_code"
         ).order_by("-redeemed_at", "id")[:50]
         available_rewards = personal_rewards_available_to(request.user, at=timezone.now())
-        return Response({
+        response = Response({
             "accounts": [_personal_loyalty_account_payload(account) for account in accounts],
             "memberships": MembershipSubscriptionSerializer(subscriptions, many=True).data,
             "rewards": LoyaltyRewardRedemptionSerializer(redemptions, many=True).data,
@@ -185,6 +185,8 @@ class MyLoyaltyAPIView(APIView):
             },
             "links": {"self": "/api/v1/loyalty/me/"},
         })
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class OrganizationProgramAPIView(APIView):
@@ -198,11 +200,29 @@ class OrganizationProgramAPIView(APIView):
         program = get_object_or_404(LoyaltyProgram.objects.prefetch_related("tiers", "membership_plans", "rewards"), organization=organization, is_active=True)
         payload = {"program": LoyaltyProgramSerializer(program).data}
         if request.user.is_authenticated:
-            account = LoyaltyAccount.objects.filter(program=program, user=request.user).select_related("current_tier").first()
-            membership = MembershipSubscription.objects.filter(program=program, user=request.user, status__in=["pending", "active"]).select_related("plan", "benefit_code").first()
-            payload["my_account"] = LoyaltyAccountSerializer(account).data if account else None
-            payload["my_membership"] = MembershipSubscriptionSerializer(membership).data if membership else None
-        return Response(payload)
+            account = LoyaltyAccount.objects.filter(
+                program=program,
+                user=request.user,
+            ).select_related("program__organization", "current_tier").first()
+            membership = MembershipSubscription.objects.filter(
+                program=program,
+                user=request.user,
+                status__in=["pending", "active"],
+            ).select_related("plan", "benefit_code").first()
+            payload["my_account"] = (
+                _personal_loyalty_account_payload(account)
+                if account
+                else None
+            )
+            payload["my_membership"] = (
+                MembershipSubscriptionSerializer(membership).data
+                if membership
+                else None
+            )
+        response = Response(payload)
+        if request.user.is_authenticated:
+            response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class MembershipJoinAPIView(APIView):
@@ -247,12 +267,37 @@ class RewardRedeemAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        reward = get_object_or_404(LoyaltyReward, pk=pk, is_active=True)
+        idempotency_key = str(request.data.get("idempotency_key") or "").strip()
+        if not idempotency_key:
+            raise ValidationError(
+                {"idempotency_key": "Une clé d'idempotence est obligatoire."}
+            )
+        if len(idempotency_key) > 120:
+            raise ValidationError(
+                {"idempotency_key": "Cette clé ne peut pas dépasser 120 caractères."}
+            )
+
+        reward = get_object_or_404(
+            LoyaltyReward.objects.filter(
+                program__accounts__user=request.user,
+                is_active=True,
+            ).distinct(),
+            pk=pk,
+        )
         try:
-            redemption = redeem_reward(user=request.user, reward=reward)
+            redemption = redeem_reward(
+                user=request.user,
+                reward=reward,
+                idempotency_key=idempotency_key,
+            )
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _raise_service(exc)
-        return Response(LoyaltyRewardRedemptionSerializer(redemption).data, status=status.HTTP_201_CREATED)
+        response = Response(
+            LoyaltyRewardRedemptionSerializer(redemption).data,
+            status=status.HTTP_201_CREATED,
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class ProgramListCreateAPIView(APIView):
