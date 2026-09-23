@@ -52,6 +52,23 @@ def _occurrence_timing_payload(occurrence):
     }
 
 
+def _emit_occurrence_created(occurrence):
+    space_id, activity_id = _occurrence_scope(occurrence)
+    return emit_domain_event(
+        event_type=DomainEventType.OCCURRENCE_CREATED,
+        source_type="occurrence",
+        source_id=occurrence.pk,
+        idempotency_key=f"occurrence:{occurrence.pk}:created",
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "occurrence_id": str(occurrence.pk),
+            "activity_id": str(activity_id),
+            "status": occurrence.status,
+        },
+    )
+
+
 @transaction.atomic
 def create_activity(*, created_by, title, space=None, owner_profile=None, **fields) -> Activity:
     if bool(space) == bool(owner_profile):
@@ -174,6 +191,7 @@ def create_occurrence(
     )
     occurrence.full_clean()
     occurrence.save()
+    _emit_occurrence_created(occurrence)
     return occurrence
 
 
@@ -368,6 +386,7 @@ def materialize_occurrence_schedule(*, schedule: OccurrenceSchedule, through_dat
                 occurrence = Occurrence.objects.get(schedule=schedule, schedule_local_date=day)
                 was_created = False
             if was_created:
+                _emit_occurrence_created(occurrence)
                 created.append(occurrence)
         day += timedelta(days=1)
     return created
@@ -380,9 +399,27 @@ def set_occurrence_status(*, occurrence: Occurrence, status: str) -> Occurrence:
     previous_status = occurrence.status
     if previous_status == status:
         return occurrence
+    transition_revision = occurrence.updated_at.isoformat() if occurrence.updated_at else "unknown"
     occurrence.status = status
     occurrence.full_clean()
     occurrence.save(update_fields=["status", "updated_at"])
+    space_id, activity_id = _occurrence_scope(occurrence)
+    emit_domain_event(
+        event_type=DomainEventType.OCCURRENCE_STATUS_CHANGED,
+        source_type="occurrence",
+        source_id=occurrence.pk,
+        idempotency_key=(
+            f"occurrence:{occurrence.pk}:status:{status}:{transition_revision}"
+        )[:255],
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "occurrence_id": str(occurrence.pk),
+            "activity_id": str(activity_id),
+            "previous_status": previous_status,
+            "status": status,
+        },
+    )
     if status == OccurrenceStatus.CANCELLED:
         space_id, activity_id = _occurrence_scope(occurrence)
         emit_domain_event(
@@ -412,6 +449,22 @@ def reopen_completed_occurrence(*, occurrence: Occurrence) -> Occurrence:
     occurrence.full_clean()
     occurrence.save(update_fields=["status", "updated_at"])
     space_id, activity_id = _occurrence_scope(occurrence)
+    emit_domain_event(
+        event_type=DomainEventType.OCCURRENCE_STATUS_CHANGED,
+        source_type="occurrence",
+        source_id=occurrence.pk,
+        idempotency_key=(
+            f"occurrence:{occurrence.pk}:status:{occurrence.status}:{transition_revision}"
+        )[:255],
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "occurrence_id": str(occurrence.pk),
+            "activity_id": str(activity_id),
+            "previous_status": previous_status,
+            "status": occurrence.status,
+        },
+    )
     emit_domain_event(
         event_type=DomainEventType.OCCURRENCE_REOPENED,
         source_type="occurrence",

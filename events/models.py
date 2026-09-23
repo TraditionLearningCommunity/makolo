@@ -197,7 +197,8 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
         if kwargs.get("activity") is not None or kwargs.get("activity_id") is not None:
             return super().create(**kwargs)
 
-        from activities.models import Activity, Occurrence, OccurrencePlace
+        from activities.models import Activity, OccurrencePlace
+        from activities.services import create_occurrence
         from authorization.constants import SystemRoleCode
         from authorization.services import grant_activity_role
         from capacity.models import CapacityPool
@@ -251,7 +252,7 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
                 granted_by=owner,
                 source="event-manager-compatibility",
             )
-        occurrence = Occurrence.objects.create(
+        occurrence = create_occurrence(
             activity=activity,
             start_at=start_at,
             end_at=end_at,

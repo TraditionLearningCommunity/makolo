@@ -4,6 +4,8 @@
 class DomainEventType:
     ACTIVITY_PUBLISHED = "activity.published"
     ACTIVITY_REOPENED = "activity.reopened"
+    OCCURRENCE_CREATED = "occurrence.created"
+    OCCURRENCE_STATUS_CHANGED = "occurrence.status_changed"
     OCCURRENCE_RESCHEDULED = "occurrence.rescheduled"
     OCCURRENCE_CANCELLED = "occurrence.cancelled"
     OCCURRENCE_REOPENED = "occurrence.reopened"
