@@ -1,6 +1,6 @@
 # Actor 7 — Projecteur Makolo
 
-> **Statut : fondation Actor 7, empilée sur la fermeture Actor 6.**
+> **Statut : fondation Actor 7 réconciliée avec le `main` incluant Actor 6.**
 > Ce document décrit le contrat réellement implémenté. Il ne transforme pas une
 > roadmap scientifique en runtime déjà disponible.
 
