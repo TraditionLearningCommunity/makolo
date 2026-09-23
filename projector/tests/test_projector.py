@@ -76,14 +76,22 @@ class ProjectorActor7Tests(TestCase):
             status=OccurrenceStatus.SCHEDULED,
         )
 
-    def test_bootstrap_projects_existing_occurrence_without_creation_event(self):
-        self.assertFalse(
-            DomainEventOutbox.objects.filter(
-                source_type="occurrence",
-                source_id=str(self.occurrence.pk),
-            ).exists()
+    def test_creation_signal_and_bootstrap_share_the_same_current_truth(self):
+        event = DomainEventOutbox.objects.get(
+            event_type=DomainEventType.OCCURRENCE_CREATED,
+            source_id=str(self.occurrence.pk),
         )
+        self.assertEqual(event.payload["occurrence_id"], str(self.occurrence.pk))
+        self.assertEqual(event.payload["activity_id"], str(self.activity.pk))
+        self.assertNotIn("email", event.payload)
+        signal = change_signal_from_domain_event(event)
+        self.assertIsNotNone(signal)
+        delta = build_delta(signal)
         snapshot = build_full_snapshot()
+        self.assertEqual(
+            delta.upserts[0].semantic_fingerprint,
+            snapshot.roots[0].semantic_fingerprint,
+        )
         self.assertEqual(len(snapshot.roots), 1)
         self.assertEqual(
             snapshot.roots[0].projection_ref,
