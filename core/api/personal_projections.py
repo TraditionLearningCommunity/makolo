@@ -251,8 +251,7 @@ def build_personal_now_projection(profile, *, observed_at=None):
     journey_ids = {
         item["source"]["id"]
         for item in items
-        if item["kind"].startswith("spatiotemporal.")
-        and item["source"]["kind"] == "journey"
+        if item["source"]["kind"] == "journey"
     }
     occurrence_by_journey = {
         str(pk): occurrence_id
