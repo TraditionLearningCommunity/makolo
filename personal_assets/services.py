@@ -77,12 +77,32 @@ def create_personal_asset_version(*, actor, asset, uploaded_file, issued_at=None
 def use_personal_asset_version_in_journey(*, actor, personal_asset_version, journey, step=None, title=None, kind=None):
     _require_controller(actor)
     source = (
-        PersonalAssetVersion.objects.select_related("asset")
+        PersonalAssetVersion.objects.select_for_update()
+        .select_related("asset")
         .filter(pk=personal_asset_version.pk, asset__controller=actor, asset__archived_at__isnull=True)
         .first()
     )
     if source is None:
         raise PermissionDenied("Accès refusé à cet élément de Ma Bibliothèque.")
+
+    artifact_kind = kind or source.asset.kind
+    artifact_title = (title or source.asset.title).strip()
+    existing_use = (
+        PersonalAssetUse.objects.select_related("journey_artifact")
+        .filter(
+            asset_version=source,
+            used_by=actor,
+            journey_artifact__journey=journey,
+            journey_artifact__step=step,
+            journey_artifact__kind=artifact_kind,
+            journey_artifact__title=artifact_title,
+        )
+        .order_by("used_at", "id")
+        .first()
+    )
+    if existing_use is not None:
+        return existing_use.journey_artifact
+
     with source.file.open("rb") as stream:
         data = stream.read()
     upload = SimpleUploadedFile("library-snapshot.bin", data, content_type=source.mime_type)
@@ -91,8 +111,8 @@ def use_personal_asset_version_in_journey(*, actor, personal_asset_version, jour
         step=step,
         uploaded_file=upload,
         uploaded_by=actor,
-        kind=kind or source.asset.kind,
-        title=(title or source.asset.title).strip(),
+        kind=artifact_kind,
+        title=artifact_title,
         sensitivity=source.asset.sensitivity,
     )
     if artifact.content_hash != source.content_hash or artifact.size != source.size:
