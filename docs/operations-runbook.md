@@ -1009,3 +1009,59 @@ python manage.py test interpreter.django_app
 
 Le Résolveur doit consommer `DjangoInterpretedMaterialSource` en fonctionnement normal. Un nouveau `strategy_fingerprint` produit un nouvel historique depuis les artefacts Observer conservés, sans refaire le Web et sans réécrire l’ancien résultat.
 
+
+
+## 13. Résolveur — Actor 4 continuous processing
+
+Le Résolveur consomme exclusivement des `InterpretedMaterial v1` finalisés via
+`DjangoInterpretedMaterialSource`. Il ne contacte jamais Internet, ne relit pas
+les artefacts Observer et ne modifie aucun domaine propriétaire.
+
+Worker continu :
+
+~~~bash
+python manage.py resolver_worker \
+  --instance-id "<INSTANCE_ID>" \
+  --batch-size 20 \
+  --lease-seconds 300
+~~~
+
+Cycle unique / replay ciblé :
+
+~~~bash
+python manage.py resolver_worker --once
+python manage.py resolver_worker --once --interpretation-ref "<INTERPRETATION_REF>"
+~~~
+
+Le cycle récupère les leases expirées, enqueue les interprétations qui n'ont
+pas encore de run pour le fingerprint courant, claim un batch, produit des
+`ResolvedMaterial v1`, finalise les assertions puis retente le feedback
+Prospecteur non acquitté.
+
+Les outcomes sont : `resolved`, `partial`, `ambiguous`, `conflict`,
+`unresolved`, `failed`. `ambiguous`, `conflict` et `unresolved` sont des
+conclusions de connaissance valides, pas des erreurs techniques.
+
+Contrôles :
+
+~~~bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py migrate --plan
+python manage.py test resolver.django_app
+~~~
+
+`resolver.django_store.resolver_metrics()` expose les compteurs de
+lifecycle/outcome/assertions et le feedback en attente. Les logs et métriques ne
+doivent jamais exposer les contenus candidats, PII, credentials ou alternatives
+privées.
+
+Le Résolveur réutilise le journal `ProspectorFeedbackEvent` avec
+`producer=resolver`. `reality_new` signale une nouvelle réalité candidate,
+`reality_refreshed` une réalité connue revue par une nouvelle interprétation,
+et `downstream_rejected` seulement une résolution explicitement rejetée. Une
+ambiguïté ou une non-résolution n'est pas convertie en rejet.
+
+Un nouveau `strategy_fingerprint` crée un nouvel historique à partir des
+`InterpretedMaterial v1` existants. Il ne refait ni Observation ni
+Interprétation et ne réécrit jamais les anciens runs.
