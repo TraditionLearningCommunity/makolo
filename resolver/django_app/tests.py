@@ -157,6 +157,16 @@ class ResolverContractTests(SimpleTestCase):
         self.assertEqual(result.outcome, ResolutionOutcome.AMBIGUOUS)
         self.assertEqual(result.entity_resolutions[0].status, ResolutionStatus.AMBIGUOUS)
 
+
+    def test_short_acronym_without_alias_evidence_stays_unresolved(self):
+        entity = CandidateEntity("entity-1", "UL", ("organization",))
+        result, _ = self.resolve(interpreted(entity), EmptyCatalog())
+        self.assertEqual(result.outcome, ResolutionOutcome.UNRESOLVED)
+        resolution = result.entity_resolutions[0]
+        self.assertEqual(resolution.status, ResolutionStatus.UNRESOLVED)
+        self.assertIsNone(resolution.provisional_ref)
+        self.assertIn("short_alias_without_evidence", resolution.basis_codes)
+
     def test_relation_keeps_logic_modality_and_partial_endpoint(self):
         a = CandidateEntity("entity-a", "Offer X", ("employment",))
         b = CandidateEntity("entity-b", "CCNA", ("requirement_subject",))

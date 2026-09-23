@@ -216,7 +216,9 @@ def finalize_resolution(claim, output, *, stats):
     run.completed_at = output.completed_at
     run.failure_code = output.failure_code or ""
     run.warning_codes = list(output.warning_codes)
-    run.stats = dict(stats)
+    merged_stats = dict(run.stats or {})
+    merged_stats.update(dict(stats))
+    run.stats = merged_stats
     run.claim_token = None
     run.claimed_by = ""
     run.lease_expires_at = None
@@ -349,17 +351,15 @@ def _feedback_key(run, signal):
 
 
 def _feedback_signals(run):
-    statuses = set(
-        run.assertion_rows.values_list("status", flat=True)
-    )
+    rows = run.assertion_rows.all()
+    statuses = set(rows.values_list("status", flat=True))
     signals = []
-    if ResolutionStatus.NEW_CANDIDATE.value in statuses:
+    if rows.filter(kind="entity", status=ResolutionStatus.NEW_CANDIDATE.value).exists():
         signals.append(FeedbackSignal.REALITY_NEW)
-    if statuses & {
-        ResolutionStatus.MATCHED.value,
-        ResolutionStatus.LINKED.value,
-        ResolutionStatus.UPDATE.value,
-    }:
+    if (
+        rows.filter(kind="entity", status=ResolutionStatus.MATCHED.value).exists()
+        or ResolutionStatus.UPDATE.value in statuses
+    ):
         signals.append(FeedbackSignal.REALITY_REFRESHED)
     if ResolutionStatus.REJECTED.value in statuses:
         signals.append(FeedbackSignal.DOWNSTREAM_REJECTED)

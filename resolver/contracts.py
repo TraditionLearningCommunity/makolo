@@ -81,6 +81,7 @@ class ResolutionMethod(str, Enum):
     EXACT = "exact"
     DETERMINISTIC = "deterministic"
     HEURISTIC = "heuristic"
+    MODEL_ASSISTED = "model_assisted"
 
 
 class ResolutionStrength(str, Enum):

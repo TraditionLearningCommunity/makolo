@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import re
 
 from interpreter.contracts import (
     CandidateConstraint,
@@ -62,6 +63,11 @@ def _entity_families(entity, facts):
     if hints & {"requirement_subject", "experience", "condition_subject", "funded_resource"}:
         return ("requirement_concept",)
     return ("reality",)
+
+
+def _looks_like_ambiguous_alias(label):
+    compact = re.sub(r"[^A-Za-z0-9]", "", label or "")
+    return 2 <= len(compact) <= 10 and compact.isupper()
 
 
 def _choose_lookup(lookup):
@@ -142,6 +148,9 @@ class DeterministicResolver:
             method = None
             strength = None
             basis = tuple(lookup.basis_codes)
+            if status is ResolutionStatus.NEW_CANDIDATE and _looks_like_ambiguous_alias(entity.label):
+                status = ResolutionStatus.UNRESOLVED
+                basis = tuple(dict.fromkeys((*basis, "short_alias_without_evidence")))
             if selected is not None:
                 canonical = selected.canonical_ref
                 method = selected.method

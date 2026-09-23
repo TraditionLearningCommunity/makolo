@@ -264,7 +264,7 @@ class DjangoRealityCatalog:
         return results
 
     def _activities(self, entity):
-        rows = Activity.objects.filter(title__iexact=entity.label).order_by("id")[:MAX_LOOKUP_CANDIDATES]
+        rows = Activity.objects.filter(title__iexact=entity.label, visibility="public").order_by("id")[:MAX_LOOKUP_CANDIDATES]
         return [
             _alternative(
                 "activity",
@@ -283,6 +283,7 @@ class DjangoRealityCatalog:
         rows = list(
             Occurrence.objects.select_related("activity").filter(
                 activity__title__iexact=entity.label,
+                activity__visibility="public",
                 start_date=date_value,
             ).order_by("id")[:MAX_LOOKUP_CANDIDATES]
         )
