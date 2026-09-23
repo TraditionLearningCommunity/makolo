@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+from observer.django_app.models import Observation
+
 from .normalization import endpoint_key
 from .ports import FactHistoryComparison
 from .django_app.models import ResolutionAssertionRow
+
+
+def _observed_at(observation_ref):
+    return (
+        Observation.objects.filter(observation_ref=observation_ref)
+        .values_list("observed_at", flat=True)
+        .first()
+    )
 
 
 class DjangoResolutionHistory:
@@ -44,8 +54,20 @@ class DjangoResolutionHistory:
             )
 
         latest = different[0]
+        current_observed_at = _observed_at(material.observation_ref)
+        prior_observed_at = _observed_at(latest.run.observation_ref)
+        if (
+            current_observed_at is not None
+            and prior_observed_at is not None
+            and current_observed_at > prior_observed_at
+        ):
+            return FactHistoryComparison(
+                status="update",
+                related_candidate_refs=(latest.candidate_ref,),
+                basis_codes=("same_source_later_observation",),
+            )
         return FactHistoryComparison(
-            status="update",
-            related_candidate_refs=(latest.candidate_ref,),
-            basis_codes=("same_source_later_observation",),
+            status="conflict",
+            related_candidate_refs=tuple(dict.fromkeys(row.candidate_ref for row in different)),
+            basis_codes=("same_source_temporal_order_not_newer",),
         )

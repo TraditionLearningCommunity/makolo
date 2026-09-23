@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from urllib.parse import urlsplit
 
 from activities.models import Activity, Occurrence
 from geography.models import Place
@@ -15,6 +14,7 @@ from .normalization import normalize_text, normalized_hostname
 from .ports import EntityLookup
 
 MAX_LOOKUP_CANDIDATES = 25
+MAX_SOURCE_CANDIDATES = 100
 
 
 def _fingerprint(payload) -> str:
@@ -23,13 +23,67 @@ def _fingerprint(payload) -> str:
     ).hexdigest()
 
 
-def _alternative(domain, obj, *, method, strength, basis, snapshot):
+def _canonical_snapshot(domain, obj):
+    if domain == "opportunity":
+        sources = list(
+            obj.sources.order_by("id").values_list(
+                "id", "url", "external_reference", "status", "is_primary", "updated_at"
+            )
+        )
+        return {
+            "status": obj.publication_status,
+            "current_revision": obj.current_revision_id,
+            "updated_at": obj.updated_at,
+            "sources": sources,
+        }
+    if domain == "activity":
+        return {
+            "title": obj.title,
+            "space": obj.space_id,
+            "owner_profile": obj.owner_profile_id,
+            "status": obj.status,
+            "updated_at": obj.updated_at,
+        }
+    if domain == "occurrence":
+        return {
+            "activity": obj.activity_id,
+            "start_date": obj.start_date,
+            "start_time": obj.start_time,
+            "end_date": obj.end_date,
+            "end_time": obj.end_time,
+            "timezone": obj.timezone,
+            "status": obj.status,
+            "updated_at": obj.updated_at,
+        }
+    if domain == "organization":
+        return {
+            "name": obj.name,
+            "website": obj.website,
+            "city": obj.city,
+            "country": obj.country,
+            "verification_status": obj.verification_status,
+            "updated_at": obj.updated_at,
+        }
+    if domain == "geography_place":
+        return {
+            "name": obj.name,
+            "locality": obj.locality,
+            "country_code": obj.country_code,
+            "latitude": obj.latitude,
+            "longitude": obj.longitude,
+            "is_active": obj.is_active,
+            "updated_at": obj.updated_at,
+        }
+    return None
+
+
+def _alternative(domain, obj, *, method, strength, basis):
     return ResolutionAlternative(
         canonical_ref=CanonicalRef(domain, str(obj.pk)),
         method=method,
         strength=strength,
         basis_codes=tuple(basis),
-        snapshot_fingerprint=_fingerprint(snapshot),
+        snapshot_fingerprint=_fingerprint(_canonical_snapshot(domain, obj)),
     )
 
 
@@ -74,6 +128,14 @@ def _date_fact(context, *predicates):
 class DjangoRealityCatalog:
     """Read-only bounded adapters from interpreted candidates to canonical domains."""
 
+    _MODELS = {
+        "opportunity": Opportunity,
+        "activity": Activity,
+        "occurrence": Occurrence,
+        "organization": Organization,
+        "geography_place": Place,
+    }
+
     def lookup_entity(self, material, entity, context):
         families = tuple(context.get("families") or ("reality",))
         alternatives = []
@@ -113,61 +175,77 @@ class DjangoRealityCatalog:
             basis_codes=tuple(basis),
         )
 
+    def validate_output(self, output):
+        """Detect canonical rows changing between candidate generation and finalize."""
+        for assertion in output.entity_resolutions:
+            if assertion.status.value != "matched" or assertion.canonical_ref is None:
+                continue
+            selected = next(
+                (
+                    item
+                    for item in assertion.alternatives
+                    if item.canonical_ref == assertion.canonical_ref
+                ),
+                None,
+            )
+            if selected is None or not selected.snapshot_fingerprint:
+                return False
+            model = self._MODELS.get(assertion.canonical_ref.domain)
+            if model is None:
+                return False
+            try:
+                obj = model.objects.get(pk=assertion.canonical_ref.object_ref)
+            except (model.DoesNotExist, ValueError):
+                return False
+            snapshot = _canonical_snapshot(assertion.canonical_ref.domain, obj)
+            if snapshot is None or _fingerprint(snapshot) != selected.snapshot_fingerprint:
+                return False
+        return True
+
     def _opportunities(self, entity, context, locator, source_host):
         results = []
+        canonical = None
         if locator:
             try:
                 canonical = canonicalize_web_url(locator)
             except Exception:
                 canonical = None
-            if canonical:
-                for source in OpportunitySource.objects.select_related("opportunity").exclude(
-                    opportunity__publication_status=OpportunityPublicationStatus.MERGED
-                ).order_by("id")[:1000]:
-                    try:
-                        known = canonicalize_web_url(source.url)
-                    except Exception:
-                        continue
-                    if known == canonical:
-                        opportunity = source.opportunity
-                        results.append(
-                            _alternative(
-                                "opportunity",
-                                opportunity,
-                                method=ResolutionMethod.EXACT,
-                                strength=ResolutionStrength.EXACT,
-                                basis=("known_opportunity_source_url",),
-                                snapshot={
-                                    "status": opportunity.publication_status,
-                                    "current_revision": opportunity.current_revision_id,
-                                    "source": str(source.pk),
-                                    "source_status": source.status,
-                                    "updated_at": opportunity.updated_at,
-                                },
-                            )
+        if canonical:
+            source_candidates = OpportunitySource.objects.select_related("opportunity").exclude(
+                opportunity__publication_status=OpportunityPublicationStatus.MERGED
+            )
+            if source_host:
+                source_candidates = source_candidates.filter(url__icontains=source_host)
+            for source in source_candidates.order_by("id")[:MAX_SOURCE_CANDIDATES]:
+                try:
+                    known = canonicalize_web_url(source.url)
+                except Exception:
+                    continue
+                if known == canonical:
+                    results.append(
+                        _alternative(
+                            "opportunity",
+                            source.opportunity,
+                            method=ResolutionMethod.EXACT,
+                            strength=ResolutionStrength.EXACT,
+                            basis=("known_opportunity_source_url",),
                         )
+                    )
         external = _text_fact(context, "external_id", "external_reference", "job_id", "event_id", "course_code")
         if external and source_host:
             for source in OpportunitySource.objects.select_related("opportunity").filter(
-                external_reference__iexact=external
+                external_reference__iexact=external,
+                url__icontains=source_host,
             ).exclude(opportunity__publication_status=OpportunityPublicationStatus.MERGED).order_by("id")[:MAX_LOOKUP_CANDIDATES]:
                 if normalized_hostname(source.url) != source_host:
                     continue
-                opportunity = source.opportunity
                 results.append(
                     _alternative(
                         "opportunity",
-                        opportunity,
+                        source.opportunity,
                         method=ResolutionMethod.EXACT,
                         strength=ResolutionStrength.EXACT,
                         basis=("scoped_external_identifier",),
-                        snapshot={
-                            "status": opportunity.publication_status,
-                            "current_revision": opportunity.current_revision_id,
-                            "source": str(source.pk),
-                            "external_reference": source.external_reference,
-                            "updated_at": opportunity.updated_at,
-                        },
                     )
                 )
         title_rows = Opportunity.objects.select_related("current_revision").filter(
@@ -181,11 +259,6 @@ class DjangoRealityCatalog:
                     method=ResolutionMethod.HEURISTIC,
                     strength=ResolutionStrength.POSSIBLE,
                     basis=("title_only_insufficient",),
-                    snapshot={
-                        "status": opportunity.publication_status,
-                        "current_revision": opportunity.current_revision_id,
-                        "updated_at": opportunity.updated_at,
-                    },
                 )
             )
         return results
@@ -199,13 +272,6 @@ class DjangoRealityCatalog:
                 method=ResolutionMethod.HEURISTIC,
                 strength=ResolutionStrength.POSSIBLE,
                 basis=("title_only_insufficient",),
-                snapshot={
-                    "title": row.title,
-                    "space": row.space_id,
-                    "owner_profile": row.owner_profile_id,
-                    "status": row.status,
-                    "updated_at": row.updated_at,
-                },
             )
             for row in rows
         ]
@@ -214,31 +280,22 @@ class DjangoRealityCatalog:
         date_value = _date_fact(context, "start_date", "mentioned_date")
         if date_value is None:
             return []
-        rows = Occurrence.objects.select_related("activity").filter(
-            activity__title__iexact=entity.label,
-            start_date=date_value,
-        ).order_by("id")[:MAX_LOOKUP_CANDIDATES]
-        results = []
-        for row in rows:
-            strength = ResolutionStrength.STRONG if len(rows) == 1 else ResolutionStrength.POSSIBLE
-            results.append(
-                _alternative(
-                    "occurrence",
-                    row,
-                    method=ResolutionMethod.DETERMINISTIC,
-                    strength=strength,
-                    basis=("activity_title_and_occurrence_date",),
-                    snapshot={
-                        "activity": str(row.activity_id),
-                        "start_date": row.start_date,
-                        "start_time": row.start_time,
-                        "timezone": row.timezone,
-                        "status": row.status,
-                        "updated_at": row.updated_at,
-                    },
-                )
+        rows = list(
+            Occurrence.objects.select_related("activity").filter(
+                activity__title__iexact=entity.label,
+                start_date=date_value,
+            ).order_by("id")[:MAX_LOOKUP_CANDIDATES]
+        )
+        return [
+            _alternative(
+                "occurrence",
+                row,
+                method=ResolutionMethod.DETERMINISTIC,
+                strength=ResolutionStrength.STRONG if len(rows) == 1 else ResolutionStrength.POSSIBLE,
+                basis=("activity_title_and_occurrence_date",),
             )
-        return results
+            for row in rows
+        ]
 
     def _organizations(self, entity, locator, source_host):
         rows = Organization.objects.filter(name__iexact=entity.label).order_by("id")[:MAX_LOOKUP_CANDIDATES]
@@ -271,14 +328,6 @@ class DjangoRealityCatalog:
                     method=method,
                     strength=strength,
                     basis=basis,
-                    snapshot={
-                        "name": row.name,
-                        "website": row.website,
-                        "city": row.city,
-                        "country": row.country,
-                        "verification_status": row.verification_status,
-                        "updated_at": row.updated_at,
-                    },
                 )
             )
         return results
@@ -292,14 +341,6 @@ class DjangoRealityCatalog:
                 method=ResolutionMethod.HEURISTIC,
                 strength=ResolutionStrength.POSSIBLE,
                 basis=("place_name_only_insufficient",),
-                snapshot={
-                    "name": row.name,
-                    "locality": row.locality,
-                    "country_code": row.country_code,
-                    "latitude": row.latitude,
-                    "longitude": row.longitude,
-                    "updated_at": row.updated_at,
-                },
             )
             for row in rows
         ]

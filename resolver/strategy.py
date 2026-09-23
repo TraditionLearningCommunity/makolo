@@ -174,6 +174,7 @@ class DeterministicResolver:
 
         local_fact_groups = {}
         pending_conflicts = []
+        pending_history_conflicts = []
         for candidate in material.candidates:
             if not isinstance(candidate, (CandidateFact, CandidateConstraint)):
                 continue
@@ -198,6 +199,8 @@ class DeterministicResolver:
                     status = ResolutionStatus(comparison.status)
                     basis.extend(comparison.basis_codes)
                     related = comparison.related_candidate_refs
+                    if comparison.status == "conflict":
+                        pending_history_conflicts.append((candidate, subject, comparison.related_candidate_refs, comparison.basis_codes))
             group_key = (endpoint_key(subject), candidate.predicate, kind.value)
             previous = local_fact_groups.setdefault(group_key, [])
             if any(other_fingerprint != fingerprint for _, other_fingerprint in previous):
@@ -237,6 +240,27 @@ class DeterministicResolver:
                 candidate_payload=candidate_storage_payload(candidate),
             )
             assertions.append(assign_assertion_ref(resolution_ref=resolution_ref, assertion=assertion))
+
+        for candidate, subject, prior_refs, history_basis in pending_history_conflicts:
+            payload = {
+                "predicate": candidate.predicate,
+                "subject": subject.to_payload() if subject else None,
+                "candidate_refs": [*prior_refs, candidate.candidate_ref],
+                "reason": "historical_conflicting_value",
+            }
+            conflict = ResolutionAssertion(
+                assertion_ref="pending",
+                candidate_ref=candidate.candidate_ref,
+                kind=AssertionKind.CONFLICT,
+                status=ResolutionStatus.CONFLICT,
+                subject=subject,
+                predicate=candidate.predicate,
+                basis_codes=tuple(dict.fromkeys((*history_basis, "historical_conflicting_value"))),
+                related_candidate_refs=prior_refs,
+                candidate_payload=payload,
+                semantic_fingerprint=semantic_fingerprint(payload),
+            )
+            assertions.append(assign_assertion_ref(resolution_ref=resolution_ref, assertion=conflict))
 
         for candidate, subject, prior_refs in pending_conflicts:
             payload = {

@@ -238,6 +238,46 @@ def finalize_resolution(claim, output, *, stats):
 
 
 @transaction.atomic
+def requeue_resolution_claim(claim, *, warning_code="canonical_changed_during_resolution", max_retries=3):
+    run = _locked(claim)
+    stats = dict(run.stats or {})
+    retries = int(stats.get("stale_candidate_retries", 0)) + 1
+    stats["stale_candidate_retries"] = retries
+    warnings = list(run.warning_codes or [])
+    if warning_code not in warnings:
+        warnings.append(warning_code)
+    if retries >= max_retries:
+        run.lifecycle = ResolutionLifecycle.FINALIZED.value
+        run.outcome = ResolutionOutcome.FAILED.value
+        run.completed_at = timezone.now()
+        run.failure_code = "backend_changed"
+    else:
+        run.lifecycle = ResolutionLifecycle.PENDING.value
+        run.started_at = None
+    run.warning_codes = warnings
+    run.stats = stats
+    run.claim_token = None
+    run.claimed_by = ""
+    run.lease_expires_at = None
+    run.save(
+        update_fields=[
+            "lifecycle",
+            "outcome",
+            "started_at",
+            "completed_at",
+            "failure_code",
+            "warning_codes",
+            "stats",
+            "claim_token",
+            "claimed_by",
+            "lease_expires_at",
+            "updated_at",
+        ]
+    )
+    return run
+
+
+@transaction.atomic
 def finalize_runtime_failure(claim, *, failure_code="strategy_failure", warning_code="runtime_failure"):
     run = _locked(claim)
     run.lifecycle = ResolutionLifecycle.FINALIZED.value
@@ -396,15 +436,18 @@ def process_resolution_claim(claim, *, strategy=None, material_source=None, cata
             started_at=claim.started_at,
             clock=timezone.now,
         )
+        if hasattr(catalog, "validate_output") and not catalog.validate_output(output):
+            return requeue_resolution_claim(claim)
         stats = dict(stats)
         stats["duration_ms"] = max(int((monotonic() - started) * 1000), 0)
         run = finalize_resolution(claim, output, stats=stats)
     except ResolverContractError:
-        raise
+        run = finalize_runtime_failure(claim, failure_code="contract_error", warning_code="contract_error")
     except Exception:
         run = finalize_runtime_failure(claim)
-    try:
-        report_resolver_feedback(run)
-    except Exception:
-        pass
+    if run.lifecycle == ResolutionLifecycle.FINALIZED.value:
+        try:
+            report_resolver_feedback(run)
+        except Exception:
+            pass
     return run

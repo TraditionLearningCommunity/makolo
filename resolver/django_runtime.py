@@ -33,7 +33,7 @@ def run_resolver_cycle(*, worker_id, batch_size=20, lease_seconds=300, interpret
     }
     for claim in claims:
         run = process_resolution_claim(claim, strategy=strategy)
-        stats["finalized"] += 1
+        stats["finalized"] += int(run.lifecycle == "finalized")
         stats["failed"] += int(run.outcome == "failed")
         stats["assertions"] += int((run.stats or {}).get("assertion_count", 0))
     feedback = report_pending_feedback(limit=max(batch_size * 4, 20))
