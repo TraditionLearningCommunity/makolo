@@ -126,7 +126,7 @@ class Z12ProjectionPerformanceTests(TestCase):
                 relationship=ACCESS_RELATION_PURCHASED_FOR_OTHER,
                 limit=50,
             )
-        self.assertEqual(data["items"][0]["credential"], None)
+        self.assertIsNone(data["items"][0]["credential"])
         sql = "\n".join(query["sql"].lower() for query in queries.captured_queries)
         self.assertNotIn("access_accesscredential", sql)
 
