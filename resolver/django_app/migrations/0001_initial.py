@@ -69,6 +69,8 @@ class Migration(migrations.Migration):
                 ("canonical_domain", models.CharField(blank=True, max_length=120)),
                 ("canonical_object_ref", models.CharField(blank=True, max_length=255)),
                 ("predicate", models.CharField(blank=True, max_length=120)),
+                ("subject_key", models.CharField(blank=True, max_length=600)),
+                ("object_key", models.CharField(blank=True, max_length=600)),
                 ("semantic_fingerprint", models.CharField(blank=True, max_length=128)),
                 ("payload", models.JSONField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
@@ -80,6 +82,7 @@ class Migration(migrations.Migration):
                 "indexes": [
                     models.Index(fields=["run","kind","ordinal"], name="res_assertion_kind_idx"),
                     models.Index(fields=["canonical_domain","canonical_object_ref","predicate"], name="res_assertion_fact_lookup_idx"),
+                    models.Index(fields=["subject_key","predicate"], name="res_assertion_subject_idx"),
                 ],
                 "constraints": [
                     models.UniqueConstraint(fields=("run","ordinal"), name="res_assertion_ordinal_uq"),

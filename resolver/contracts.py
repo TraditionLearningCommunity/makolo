@@ -214,6 +214,7 @@ class ResolutionAssertion:
     semantic_fingerprint: str | None = None
 
     def __post_init__(self):
+        object.__setattr__(self, "assertion_ref", _text("assertion_ref", self.assertion_ref, limit=255))
         object.__setattr__(self, "candidate_ref", _text("candidate_ref", self.candidate_ref, limit=255))
         object.__setattr__(self, "kind", AssertionKind(self.kind))
         object.__setattr__(self, "status", ResolutionStatus(self.status))

@@ -125,6 +125,8 @@ class ResolutionAssertionRow(models.Model):
     canonical_domain = models.CharField(max_length=120, blank=True)
     canonical_object_ref = models.CharField(max_length=255, blank=True)
     predicate = models.CharField(max_length=120, blank=True)
+    subject_key = models.CharField(max_length=600, blank=True)
+    object_key = models.CharField(max_length=600, blank=True)
     semantic_fingerprint = models.CharField(max_length=128, blank=True)
     payload = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -149,6 +151,7 @@ class ResolutionAssertionRow(models.Model):
                 fields=["canonical_domain", "canonical_object_ref", "predicate"],
                 name="res_assertion_fact_lookup_idx",
             ),
+            models.Index(fields=["subject_key", "predicate"], name="res_assertion_subject_idx"),
         ]
 
     def __str__(self):
