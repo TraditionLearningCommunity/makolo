@@ -23,6 +23,7 @@ from interpreter.identifiers import make_interpretation_ref
 from observer.django_app.models import Observation, ObservationSeries, ObserverHandoff
 from opportunities.models import Opportunity, OpportunitySource
 from organizations.models import Organization
+from prospector.django_app.models import ProspectorFeedbackEvent, ProspectorFrontierEntry
 
 from resolver.contracts import (
     CanonicalRef,
@@ -339,8 +340,37 @@ class ResolverDjangoCatalogTests(TestCase):
         self.assertEqual(result.entity_resolutions[0].status, ResolutionStatus.AMBIGUOUS)
 
 
+    def test_external_identifier_is_scoped_to_source_namespace(self):
+        opportunity = Opportunity.objects.create(kind="job", created_by=self.user)
+        OpportunitySource.objects.create(
+            opportunity=opportunity,
+            source_type="official",
+            source_name="Company X",
+            url="https://jobs.example.test/jobs/ABC123",
+            external_reference="ABC123",
+            is_primary=True,
+        )
+        target, observation_ref = self.observation("https://jobs.example.test/search", "m")
+        entity = CandidateEntity("entity-1", "Network Engineer", ("employment",))
+        external = CandidateFact(
+            "fact-external",
+            "external_reference",
+            CandidateValue(kind="text", raw_text="ABC123", text="ABC123"),
+            subject_ref="entity-1",
+        )
+        material = interpreted(entity, external, target_key=target, observation_ref=observation_ref)
+        lookup = DjangoRealityCatalog().lookup_entity(
+            material,
+            entity,
+            {"families": ("opportunity",), "facts": (external,), "all_candidates": material.candidates},
+        )
+        exact = [item for item in lookup.alternatives if "scoped_external_identifier" in item.basis_codes]
+        self.assertEqual(len(exact), 1)
+        self.assertEqual(exact[0].canonical_ref, CanonicalRef("opportunity", str(opportunity.pk)))
+
+
 class ResolverPersistenceTests(TestCase):
-    def create_interpretation(self, *, label="Reality X", suffix="c", strategy="interpreter-v1"):
+    def create_interpretation(self, *, label="Reality X", suffix="c", strategy="interpreter-v1", target_key=None):
         material_key = f"observer:material:v2:{suffix}"
         interpretation_ref = make_interpretation_ref(
             material_key=material_key,
@@ -351,7 +381,7 @@ class ResolverPersistenceTests(TestCase):
             interpretation_ref=interpretation_ref,
             observation_ref=f"observer:observation:v1:{suffix}",
             material_key=material_key,
-            target_key="web_url:v1:" + suffix * 64,
+            target_key=target_key or ("web_url:v1:" + suffix * 64),
             strategy_key="test",
             strategy_version="1",
             strategy_fingerprint=strategy,
@@ -451,3 +481,71 @@ class ResolverPersistenceTests(TestCase):
             "opportunities": Opportunity.objects.count(),
         }
         self.assertEqual(before, after)
+
+
+    def test_two_workers_claim_disjoint_runs(self):
+        self.create_interpretation(suffix="g")
+        self.create_interpretation(suffix="h")
+        self.assertEqual(enqueue_resolutions(limit=10), 2)
+        first = claim_resolutions(worker_id="worker-a", limit=1)[0]
+        second = claim_resolutions(worker_id="worker-b", limit=1)[0]
+        self.assertNotEqual(first.resolution_ref, second.resolution_ref)
+
+    def test_same_source_same_label_converges_to_same_provisional_identity(self):
+        target = "web_url:v1:" + "i" * 64
+        self.create_interpretation(suffix="i", label="Same Reality", target_key=target)
+        self.create_interpretation(suffix="j", label="Same Reality", strategy="interpreter-v2", target_key=target)
+        enqueue_resolutions(limit=10)
+        provisional = []
+        for worker in ("one", "two"):
+            claim = claim_resolutions(worker_id=worker, limit=1)[0]
+            run = process_resolution_claim(claim, catalog=EmptyCatalog(), history=NoHistory())
+            provisional.append(
+                DjangoResolvedMaterialSource().get_material(run.resolution_ref).entity_resolutions[0].provisional_ref
+            )
+        self.assertEqual(provisional[0], provisional[1])
+
+    def test_stale_canonical_snapshot_requeues_before_finalization(self):
+        self.create_interpretation(suffix="k")
+        enqueue_resolutions()
+
+        class StaleCatalog(ExactCatalog):
+            def validate_output(self, output):
+                return False
+
+        claim = claim_resolutions(worker_id="stale", limit=1)[0]
+        run = process_resolution_claim(claim, catalog=StaleCatalog(), history=NoHistory())
+        self.assertEqual(run.lifecycle, "pending")
+        self.assertEqual(run.stats["stale_candidate_retries"], 1)
+        self.assertIn("canonical_changed_during_resolution", run.warning_codes)
+
+    def test_reality_new_feedback_reuses_prospector_contract_without_business_payload(self):
+        source = self.create_interpretation(suffix="l")
+        now = django_timezone.now()
+        ProspectorFrontierEntry.objects.create(
+            target_key=source.target_key,
+            kind="web_url",
+            locator="https://example.test/reality",
+            status="ready",
+            priority=100,
+            available_at=now,
+            first_discovered_at=now,
+            last_discovered_at=now,
+            discovery_count=1,
+            handoff_generation=1,
+            policy_context={},
+            observation_hints={},
+        )
+        enqueue_resolutions()
+        run = process_resolution_claim(
+            claim_resolutions(worker_id="feedback", limit=1)[0],
+            catalog=EmptyCatalog(),
+            history=NoHistory(),
+        )
+        event = ProspectorFeedbackEvent.objects.get(
+            producer="resolver",
+            source_ref=run.resolution_ref,
+            signal="reality_new",
+        )
+        self.assertEqual(event.target_key, source.target_key)
+        self.assertFalse(hasattr(event, "payload"))
