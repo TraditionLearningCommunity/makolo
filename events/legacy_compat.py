@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from activities.models import Activity, Occurrence
+from activities.services import create_occurrence
 from capacity.models import CapacityPool
 
 from .models import Event, EventQuerySet, EventStatus, EventVisibility, _occurrence_status_for_activity
@@ -151,7 +152,7 @@ def _install_init_and_save():
                 visibility=pending.get("visibility", EventVisibility.PUBLIC),
             )
             activity.save()
-            occurrence = Occurrence.objects.create(
+            occurrence = create_occurrence(
                 activity=activity,
                 start_at=start_at,
                 end_at=pending.get("end_at"),
