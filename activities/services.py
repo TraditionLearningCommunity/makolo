@@ -52,6 +52,23 @@ def _occurrence_timing_payload(occurrence):
     }
 
 
+def _emit_occurrence_created(occurrence):
+    space_id, activity_id = _occurrence_scope(occurrence)
+    return emit_domain_event(
+        event_type=DomainEventType.OCCURRENCE_CREATED,
+        source_type="occurrence",
+        source_id=occurrence.pk,
+        idempotency_key=f"occurrence:{occurrence.pk}:created",
+        space_id=space_id,
+        activity_id=activity_id,
+        payload={
+            "occurrence_id": str(occurrence.pk),
+            "activity_id": str(activity_id),
+            "status": occurrence.status,
+        },
+    )
+
+
 @transaction.atomic
 def create_activity(*, created_by, title, space=None, owner_profile=None, **fields) -> Activity:
     if bool(space) == bool(owner_profile):
@@ -174,6 +191,7 @@ def create_occurrence(
     )
     occurrence.full_clean()
     occurrence.save()
+    _emit_occurrence_created(occurrence)
     return occurrence
 
 
@@ -368,6 +386,7 @@ def materialize_occurrence_schedule(*, schedule: OccurrenceSchedule, through_dat
                 occurrence = Occurrence.objects.get(schedule=schedule, schedule_local_date=day)
                 was_created = False
             if was_created:
+                _emit_occurrence_created(occurrence)
                 created.append(occurrence)
         day += timedelta(days=1)
     return created
