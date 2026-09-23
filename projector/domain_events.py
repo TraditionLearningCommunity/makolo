@@ -8,6 +8,7 @@ from .contracts import ProjectionChangeSignal
 PROJECTOR_OCCURRENCE_EVENT_TYPES = frozenset(
     {
         DomainEventType.OCCURRENCE_CREATED,
+        DomainEventType.OCCURRENCE_STATUS_CHANGED,
         DomainEventType.OCCURRENCE_RESCHEDULED,
         DomainEventType.OCCURRENCE_CANCELLED,
         DomainEventType.OCCURRENCE_REOPENED,
