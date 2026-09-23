@@ -292,8 +292,8 @@ Mapping v1 :
 
 - `occurrence.created` ;
 - `occurrence.rescheduled` ;
-- `occurrence.cancelled` ;
-- `occurrence.reopened` ;
+- `occurrence.status_changed` ;
+- les événements spécialisés `occurrence.cancelled` / `occurrence.reopened` restent compatibles ;
 - bootstrap explicite.
 
 La création via le service owner et la matérialisation des schedules émettent
@@ -452,7 +452,7 @@ candidat futur ; ne pas fusionner avec Placement.
 
 ## H — annulation
 
-la déclaration passe à `cancelled`, sans CorpsRéalisation.
+`occurrence.status_changed` (et le signal spécialisé existant) → la déclaration passe à `cancelled`, sans CorpsRéalisation.
 
 # 27. Cas limites
 
@@ -511,7 +511,7 @@ Fondation Actor 7 fermable lorsque :
 - Actor 6 est intégré sur `main` ;
 - la branche Actor 7 est réconciliée avec ce `main` ;
 - snapshot et delta sont contractuels et testés ;
-- création/replanification/annulation/réouverture ont un signal durable ;
+- création/replanification et chaque transition de lifecycle ont un signal durable ;
 - aucun ORM ne traverse le contrat Actor 8 ;
 - aucun mapping 1:1 CorpsMakolo n'est imposé ;
 - rebuild et delta convergent ;
