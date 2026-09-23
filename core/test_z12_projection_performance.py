@@ -106,7 +106,7 @@ class Z12ProjectionPerformanceTests(TestCase):
         )
         from commerce.models import CommerceOrder
 
-        order = CommerceOrder.objects.create(
+        CommerceOrder.objects.create(
             buyer=self.user,
             journey=journey,
             status="pending",
@@ -142,10 +142,11 @@ class Z12ProjectionPerformanceTests(TestCase):
                 PersonalAssetVersion.objects.create(
                     asset=asset,
                     version=version,
-                    storage_key=f"z12/{index}/{version}",
-                    original_name=f"z12-{index}-{version}.pdf",
+                    file=f"z12/{index}/{version}.pdf",
                     mime_type="application/pdf",
                     size=100,
+                    content_hash=f"{index:04d}{version:02d}".ljust(64, "0"),
+                    created_by=self.user,
                 )
         with CaptureQueriesContext(connection) as queries:
             data = build_personal_resources_data(self.user, limit=6)
