@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from activities.models import Activity, Occurrence, OccurrenceStatus, OccurrenceTimingKind
-from activities.services import create_occurrence, reschedule_occurrence, set_occurrence_status
+from activities.services import complete_occurrence, create_occurrence, reschedule_occurrence, set_occurrence_status
 from core.models import DomainEventOutbox
 from domain_events.contracts import DomainEventType
 
@@ -161,17 +161,15 @@ class ProjectorActor7Tests(TestCase):
             ValueState.NOT_APPLICABLE,
         )
 
-    def test_completed_occurrence_does_not_prove_realization_body(self):
-        self.occurrence.status = OccurrenceStatus.COMPLETED
-        self.occurrence.save(update_fields=["status", "updated_at"])
-        root = build_delta(
-            ProjectionChangeSignal(
-                change_ref="completed",
-                fact_kind="occurrence",
-                fact_id=str(self.occurrence.pk),
-                event_type="bootstrap",
-            )
-        ).upserts[0]
+    def test_completed_occurrence_emits_delta_but_does_not_prove_realization_body(self):
+        complete_occurrence(occurrence=self.occurrence)
+        event = DomainEventOutbox.objects.filter(
+            event_type=DomainEventType.OCCURRENCE_STATUS_CHANGED,
+            source_id=str(self.occurrence.pk),
+        ).latest("created_at")
+        signal = change_signal_from_domain_event(event)
+        self.assertIsNotNone(signal)
+        root = build_delta(signal).upserts[0]
         self.assertEqual(root.plans[0].lifecycle, "closed")
         self.assertEqual(root.bodies, ())
 
