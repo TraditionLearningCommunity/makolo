@@ -1,6 +1,0 @@
--r requirements.txt
-
-# Observateur Browser runtime. This intentionally stays out of the Web/server
-# dependency set used by PythonAnywhere.
-tldextract==5.3.2
-crawlee[playwright]==1.10.1
