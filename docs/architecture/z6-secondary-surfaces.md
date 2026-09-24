@@ -1,6 +1,6 @@
 # Z6 — Surfaces secondaires personnelles et contextuelles
 
-> **Statut : checkpoints 1 à 8 implémentés — fermeture Z6 en attente uniquement des gates CI du dernier head.**
+> **Statut : intégré.** Les checkpoints Z6 ont été mergés via #267 puis #271 ; le runtime courant reste prioritaire sur les snapshots historiques ci-dessous.
 >
 > Branche initiale Z6 : `task-z6-secondary-surfaces-projections` (mergée via PR #267).\n>\n> Branche unique de continuation checkpoints 4–8 : `task-z6-continuation-jour-j-live`.
 >
