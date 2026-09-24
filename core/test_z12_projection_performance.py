@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.db import connection
@@ -16,8 +17,7 @@ from core.api.access_projection import (
 from core.api.me_projection import build_personal_resources_data
 from core.api.personal_projections import ONGOING_LIMIT, build_personal_ongoing_projection
 from journeys.models import Journey, JourneyStatus, WorkflowKind
-from personal_assets.models import PersonalAssetVersion
-from personal_assets.services import create_personal_asset
+from personal_assets.services import create_personal_asset, create_personal_asset_version
 
 
 User = get_user_model()
@@ -139,14 +139,14 @@ class Z12ProjectionPerformanceTests(TestCase):
                 kind="other",
             )
             for version in range(1, 4):
-                PersonalAssetVersion.objects.create(
+                create_personal_asset_version(
+                    actor=self.user,
                     asset=asset,
-                    version=version,
-                    file=f"z12/{index}/{version}.pdf",
-                    mime_type="application/pdf",
-                    size=100,
-                    content_hash=f"{index:04d}{version:02d}".ljust(64, "0"),
-                    created_by=self.user,
+                    uploaded_file=SimpleUploadedFile(
+                        f"z12-{index}-{version}.pdf",
+                        f"z12-{index}-{version}".encode("utf-8"),
+                        content_type="application/pdf",
+                    ),
                 )
         with CaptureQueriesContext(connection) as queries:
             data = build_personal_resources_data(self.user, limit=6)
