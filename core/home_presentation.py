@@ -15,8 +15,8 @@ from conversations.point_models import ConversationPoint
 from conversations.presentation import conversation_context_label
 from journeys.models import Journey
 from objectives.models import DossierLifecycle
-from objectives.readiness import resolve_dossier_readiness
-from objectives.selectors import dossiers_for_profile
+from objectives.readiness import resolve_owned_dossiers_readiness
+from objectives.selectors import owned_dossiers_for_profile
 from opportunities.models import OpportunityPublicationStatus
 from opportunities.selectors import saved_opportunities
 from preparation.contextual_actions import (
@@ -185,15 +185,19 @@ def _journey_actions(profile, *, observed_at, metadata):
 
 def _dossier_actions(profile, *, observed_at, metadata):
     actions = []
-    dossiers = dossiers_for_profile(profile).filter(
-        owner_profile=profile,
-        lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
-    ).order_by("-updated_at", "id")[:HOME_DOSSIER_CANDIDATE_LIMIT]
+    dossiers = list(
+        owned_dossiers_for_profile(profile)
+        .filter(
+            lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
+        )
+        .order_by("-updated_at", "id")[:HOME_DOSSIER_CANDIDATE_LIMIT]
+    )
+    readiness_by_id = resolve_owned_dossiers_readiness(
+        dossiers,
+        viewer=profile,
+    )
     for dossier in dossiers:
-        try:
-            readiness = resolve_dossier_readiness(dossier, viewer=profile)
-        except PermissionDenied:
-            continue
+        readiness = readiness_by_id[dossier.pk]
         projected = actions_from_dossier(readiness, observed_at=observed_at)
         actions.extend(projected)
         _register_meta(

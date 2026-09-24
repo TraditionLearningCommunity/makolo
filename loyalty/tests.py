@@ -2,8 +2,10 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -224,6 +226,46 @@ class LoyaltyServiceTests(LoyaltyFixtureMixin, TestCase):
 class LoyaltyApiTests(LoyaltyFixtureMixin, APITestCase):
     def setUp(self):
         self.build_fixture()
+
+    def _create_personal_account_with_ledger(self, index):
+        organization = Organization.objects.create(
+            name=f"Loyalty Z12 {index}",
+            created_by=self.owner,
+        )
+        program = LoyaltyProgram.objects.create(
+            organization=organization,
+            name=f"Program Z12 {index}",
+            created_by=self.owner,
+        )
+        account = LoyaltyAccount.objects.create(
+            program=program,
+            user=self.participant,
+            points_balance=index + 1,
+        )
+        LoyaltyLedgerEntry.objects.create(
+            account=account,
+            kind=LedgerKind.ADJUSTMENT,
+            points=index + 1,
+            description=f"Z12 ledger {index}",
+            idempotency_key=f"z12-loyalty-ledger-{index}",
+        )
+        return account
+
+    def test_personal_account_ledger_query_growth_is_batched(self):
+        self._create_personal_account_with_ledger(0)
+        self.client.force_authenticate(self.participant)
+        with CaptureQueriesContext(connection) as one_account:
+            first = self.client.get("/api/v1/loyalty/me/")
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(first.data["accounts"]), 1)
+
+        for index in range(1, 6):
+            self._create_personal_account_with_ledger(index)
+        with CaptureQueriesContext(connection) as six_accounts:
+            second = self.client.get("/api/v1/loyalty/me/")
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(second.data["accounts"]), 6)
+        self.assertLessEqual(len(six_accounts), len(one_account) + 2)
 
     def test_participant_can_join_free_plan_and_read_only_own_account(self):
         plan = MembershipPlan.objects.create(program=self.program, name="Free", code="FREE", price=0, currency="USD", join_bonus_points=10, created_by=self.owner)

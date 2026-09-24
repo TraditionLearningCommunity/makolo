@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from django.db.models import Prefetch
 from django.urls import reverse
 
-from access.models import AccessStatus, CredentialStatus
+from access.models import AccessCredential, AccessStatus, CredentialStatus
 from access.selectors import access_credential_is_presentable_to
 from core.participant_selectors import (
     participant_access_search,
@@ -155,12 +156,31 @@ def _access_item(access, *, profile, relationship, observed_at):
     }
 
 
-def _with_projection_relations(queryset):
-    return queryset.select_related(
-        "activity__transport_service",
-        "activity__service_details",
-        "activity__funding_details",
+def _with_projection_relations(queryset, *, include_credentials):
+    queryset = (
+        queryset.prefetch_related(None)
+        .select_related(
+            "activity",
+            "activity__transport_service",
+            "activity__service_details",
+            "activity__funding_details",
+            "occurrence",
+            "journey",
+            "journey__beneficiary",
+            "external_beneficiary",
+        )
+        .prefetch_related("occurrence__place_links__place")
     )
+    if include_credentials:
+        queryset = queryset.prefetch_related(
+            Prefetch(
+                "credentials",
+                queryset=AccessCredential.objects.filter(
+                    status=CredentialStatus.ACTIVE,
+                ).order_by("-version", "-issued_at"),
+            )
+        )
+    return queryset
 
 
 def build_personal_accesses_data(
@@ -189,7 +209,10 @@ def build_personal_accesses_data(
     else:
         raise ValueError("Relation Access inconnue.")
 
-    queryset = _with_projection_relations(queryset)
+    queryset = _with_projection_relations(
+        queryset,
+        include_credentials=relationship == ACCESS_RELATION_BENEFICIARY,
+    )
     total = queryset.count()
     rows = list(queryset[offset : offset + limit])
     base = reverse("personal-projections:accesses")

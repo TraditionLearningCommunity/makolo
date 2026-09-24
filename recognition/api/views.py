@@ -18,6 +18,9 @@ from recognition.selectors import (
 from recognition.services import get_or_create_account
 
 
+PERSONAL_RECOGNITION_LIMIT = 50
+
+
 def _raise_service(exc):
     if hasattr(exc, "message_dict"):
         raise ValidationError(exc.message_dict) from exc
@@ -119,7 +122,11 @@ class MyRecognitionAPIView(APIView):
 
     def get(self, request):
         account = account_for_profile(request.user)
-        rewards = active_rewards(owner_account=account) if account is not None else []
+        rewards = (
+            active_rewards(owner_account=account)[:PERSONAL_RECOGNITION_LIMIT]
+            if account is not None
+            else []
+        )
         incoming = list(redemptions_requiring_beneficiary_response(request.user)[:50])
 
         achievements = []
