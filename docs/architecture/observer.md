@@ -542,7 +542,7 @@ Le déploiement d’un nouveau SHA ne lance jamais Chromium implicitement.
 
 En l’absence de politique d’escalade dans ce lot, un worker `public-browser` traite les handoffs éligibles comme une **série Browser autonome**. Il ne doit pas être compris comme un fallback automatique du worker HTTP. Exécuter simultanément les deux profils sur la même population produit volontairement deux observations techniques distinctes.
 
-L’environnement Browser doit installer `requirements-observer.txt`, qui étend le profil Web/serveur avec `crawlee[playwright]`, puis disposer d'un binaire Chromium compatible. Cette pile est volontairement absente de `requirements.txt` et du virtualenv Web PythonAnywhere. La CI Observer installe explicitement le profil Observer puis Chromium et exécute un test d’intégration avec des réponses en mémoire : aucun accès Internet réel n’est requis par les tests.
+L’environnement Browser doit installer `requirements-agents.txt`, qui étend le profil Web/serveur avec `crawlee[playwright]`, puis disposer d'un binaire Chromium compatible. Cette pile est volontairement absente de `requirements.txt` et du virtualenv Web PythonAnywhere. La CI Observer installe explicitement le profil Observer puis Chromium et exécute un test d’intégration avec des réponses en mémoire : aucun accès Internet réel n’est requis par les tests.
 
 ### 16.8 Tests de sortie du Lot 4
 
