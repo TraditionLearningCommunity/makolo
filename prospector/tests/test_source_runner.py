@@ -7,6 +7,16 @@ from prospector.source_contracts import (
     SourceBatch,
 )
 from prospector.source_runner import IndexProspector
+from research_missions.contracts import (
+    ResearchFamily,
+    ResearchMission,
+    ResearchOrigin,
+    ResearchOriginKind,
+)
+from research_missions.prospecting import (
+    ProspectingPlan,
+    project_to_prospecting_mission,
+)
 
 
 class FakeFrontier:
@@ -87,6 +97,54 @@ class IndexProspectorTests(IsolatedAsyncioTestCase):
             "fake_index",
         )
         self.assertEqual(checkpoints.current.cursor["page"], 1)
+
+    async def test_preserves_projected_research_context_in_actor1_provenance(self):
+        research = ResearchMission(
+            primary_family=ResearchFamily.REQUIREMENT,
+            subject="Bourse X",
+            questions=("Quelles sont les conditions ?",),
+            origins=(
+                ResearchOrigin(
+                    kind=ResearchOriginKind.INITIAL,
+                    source_ref="seed:scholarship-x",
+                ),
+            ),
+            reasons=("Comprendre l'éligibilité",),
+        )
+        mission = project_to_prospecting_mission(
+            research,
+            ProspectingPlan(
+                host_tlds=("test",),
+                path_terms=("scholarship",),
+            ),
+            issued_at=datetime(2026, 9, 18, tzinfo=timezone.utc),
+        )
+        frontier = FakeFrontier()
+        checkpoints = FakeCheckpoints()
+        runner = IndexProspector(
+            frontier=frontier,
+            checkpoints=checkpoints,
+        )
+
+        await runner.run(
+            source=FakeSource(),
+            mission=mission,
+        )
+
+        policy_context = frontier.admitted[0].policy_context
+        self.assertEqual(
+            policy_context["mission_key"],
+            research.mission_ref,
+        )
+        snapshot = policy_context["mission_context"]["research_mission"]
+        self.assertEqual(
+            snapshot["mission_ref"],
+            research.mission_ref,
+        )
+        self.assertEqual(
+            snapshot["primary_family"],
+            "REQUIREMENT",
+        )
 
     async def test_does_not_advance_checkpoint_if_frontier_admission_fails(self):
         frontier = FakeFrontier(fail_on=1)

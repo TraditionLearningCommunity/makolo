@@ -88,6 +88,12 @@ Les `type_hints` restent des indices candidats ; ils ne constituent pas une taxo
 
 `observer.contracts.ObservationMaterial`, version 2, plus `DjangoArtifactReader`.
 
+Le Pré-Actor 3 ne modifie pas ce contrat. Pour un futur enrichissement
+contextuel, `ObservationMaterial.target_key` permet une lecture séparée et
+optionnelle via `ResearchContextSourcePort`, sans faire transiter le contexte
+ResearchMission par Actor 2 et sans donner à Actor 3 un accès ORM au Prospecteur.
+Voir [`research-missions.md`](research-missions.md).
+
 Le matériau expose : `material_key`, `observation_ref`, cible, handoff/génération, temporalité, locator demandé/final, profile/policy, trigger/outcome/status HTTP, Attempts, artefacts, revalidated artifacts.
 
 Chaque `ArtifactDescriptor` porte owner `observation_ref`, rôle, origin, completeness, byte_length, SHA-256, media type, charset, transformation et protection context.

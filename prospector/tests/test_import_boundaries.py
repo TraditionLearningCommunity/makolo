@@ -10,6 +10,8 @@ class FrameworkBoundaryTests(TestCase):
         code = (
             "import sys; "
             "import prospector, prospector.contracts, prospector.ports; "
+            "import research_missions, research_missions.contracts, "
+            "research_missions.ports; "
             "assert not any(name == 'django' or name.startswith('django.') "
             "for name in sys.modules)"
         )
