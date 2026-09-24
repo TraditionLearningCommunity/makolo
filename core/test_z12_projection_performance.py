@@ -59,10 +59,10 @@ class Z12ProjectionPerformanceTests(TestCase):
             "core.api.personal_projections.participant_active_accesses",
             side_effect=AssertionError("Access must not be queried after the response is full."),
         ), patch(
-            "core.api.personal_projections.dossiers_for_profile",
+            "core.api.personal_projections.owned_dossiers_for_profile",
             side_effect=AssertionError("Dossier must not be queried after the response is full."),
         ), patch(
-            "core.api.personal_projections.projects_for_profile",
+            "core.api.personal_projections.owned_projects_for_profile",
             side_effect=AssertionError("Project must not be queried after the response is full."),
         ):
             data = build_personal_ongoing_projection(self.user)
@@ -157,9 +157,6 @@ class Z12ProjectionPerformanceTests(TestCase):
 
     def test_me_resource_preview_does_not_scale_with_asset_versions(self):
         one = self._resource_query_count(1)
-        from personal_assets.models import PersonalAsset
-
-        PersonalAsset.objects.filter(controller=self.user).delete()
         many = self._resource_query_count(20)
         self.assertLessEqual(many, one + 2)
 
