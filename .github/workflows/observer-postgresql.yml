@@ -18,6 +18,7 @@ on:
       - "operations/**"
       - "config/settings.py"
       - "requirements.txt"
+      - "requirements-observer.txt"
       - ".github/workflows/observer-postgresql.yml"
 
 concurrency:
