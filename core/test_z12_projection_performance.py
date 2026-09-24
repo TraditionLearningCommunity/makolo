@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -222,7 +223,7 @@ class Z12ProjectionPerformanceTests(TestCase):
             activity=self.activity,
             status=OccurrenceStatus.SCHEDULED,
             start_at=observed_at,
-            end_at=observed_at,
+            end_at=observed_at + timedelta(hours=1),
         )
         journey = Journey.objects.create(
             initiated_by=self.user,
@@ -266,7 +267,7 @@ class Z12ProjectionPerformanceTests(TestCase):
                 label=f"Occurrence {index:02d}",
                 status=OccurrenceStatus.SCHEDULED,
                 start_at=observed_at,
-                end_at=observed_at,
+                end_at=observed_at + timedelta(hours=1),
             )
         self.client.force_login(self.user)
         response = self.client.get(f"/api/v1/activities/{activity.pk}/")
