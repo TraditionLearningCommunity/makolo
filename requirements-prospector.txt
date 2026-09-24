@@ -1,5 +1,0 @@
--r requirements.txt
-
-# Prospecteur runtime: queue/frontier integration without a browser engine.
-tldextract==5.3.2
-crawlee==1.10.1
