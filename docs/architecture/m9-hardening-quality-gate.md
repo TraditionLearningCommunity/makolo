@@ -62,7 +62,7 @@ L'audit ciblé n'a trouvé aucun `mark_safe`. Le seul filtre template `safe` obs
 
 M9-A ajoute un gate `Security supply chain` pour les workflows gouvernant `main` :
 
-- `pip-audit` sur les profils runtime `requirements.txt`, `requirements-prospector.txt` et `requirements-observer.txt` ;
+- `pip-audit` sur les profils runtime `requirements.txt`, `requirements-agents.txt` et `requirements-agents.txt` ;
 - `bandit` sur le code Python first-party runtime, hors tests/migrations/assets/lab de recherche ;
 - `npm audit --omit=dev --audit-level=high` ;
 - garde-fou contre les refs GitHub Actions mutables dans les workflows actifs de `main`.
