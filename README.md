@@ -310,6 +310,18 @@ python manage.py runserver
 
 L’application est disponible sur <http://127.0.0.1:8000/>.
 
+Profils Python supplémentaires, à installer uniquement pour les runtimes concernés :
+
+```powershell
+# Prospecteur / queue Crawlee sans navigateur
+python -m pip install -r requirements-prospector.txt
+
+# Observateur Browser / tests Python complets incluant Playwright
+python -m pip install -r requirements-observer.txt
+```
+
+`requirements.txt` reste le profil Web/serveur et n'installe ni Crawlee ni Playwright. Pour exécuter la suite Django complète du dépôt, utiliser le profil Observer afin que les tests Prospecteur/Observateur disposent de leurs dépendances.
+
 Pour observer Autopilot en développement, lancer dans un second terminal :
 
 ```powershell
