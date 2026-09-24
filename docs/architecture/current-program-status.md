@@ -1,331 +1,157 @@
 # Makolo — Current Program Status
 
-> **Statut : snapshot opérationnel.** Ce document décrit l’état observé du dépôt au **17 septembre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps ; il sert à réconcilier leur cible avec le runtime et l’état GitHub courant. En cas de divergence, le code, les migrations, les tests et l’état GitHub courant gagnent.
+> **Statut : snapshot opérationnel.** Ce document décrit l'état observé du dépôt au **24 septembre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps. En cas de divergence, le code, les migrations, les tests et l'état GitHub courant gagnent.
 
 ## Référence auditée
 
 - Dépôt : `TraditionLearningCommunity/makolo`
 - Branche principale : `main`
-- HEAD observé pendant l’audit : `f7d7378ed1eeea175a4ce79474fca0e8eb4e4d85`
-- Dernier merge observé sur `main` : PR #232 — realistic synthetic demo world
-- `ci/aggregate` sur ce HEAD : **success**
-- PR active structurante : **#234 — M8 — Mobile-first mature personal experience**
-- Head PR #234 : `1973b03c38112c02bfa2aad3a46063a50a44fa03`
+- HEAD de départ Z14 : `2752357ed790b60f925da71042fcf9e7cbcbea3c`
+- Dernier merge avant Z14 : PR #287 — Z13, contrat final Web/API/Flutter et handoff mobile
+- Z1–Z13 : intégrés ; aucune migration métier Z identifiée
+- Z14 : branche `task-z14-program-closeout`, gate final de fermeture
 
-Ce snapshot doit être réactualisé lorsqu’un changement de programme important est mergé.
-
----
+Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
 ## 1. Position globale
 
-La trajectoire produit reste cumulative :
+La trajectoire reste cumulative :
 
 ```text
 Makolo Mature
     ↓
+Backend UX Projection / programme Z
+    ↓
+M10 / production readiness globale
+    ↓
 Makolo Mobile
     ↓
-Makolo Intelligence Kernel
-    ↓
-Makolo Agent
-    ↓
-Compétences / agents spécialisés
+Intelligence cumulative / Agent selon les programmes futurs
 ```
 
-État observé :
-
-| Couche | État au 17 septembre 2026 |
-| --- | --- |
-| Makolo Mature | très avancé ; backend/domaines/hardening largement fermés, convergence UX M8 finale encore en PR |
-| Makolo Mobile | architecture et Phase 0 préparées ; implémentation Flutter pas encore réellement engagée sur `main` |
-| Intelligence Kernel | fondations substantielles existantes ; runtime agentique transverse non encore construit |
-| Makolo Agent | non encore livré comme boucle observe → plan → act → verify |
-| Spécialisations | non encore livrées comme agents ; leurs domaines métier sont déjà largement présents |
-
-Les pourcentages éventuels utilisés dans des discussions sont des estimations d’ingénierie, pas des métriques canoniques. Ce document préfère donc des états et preuves observables.
-
----
+Le programme Z n'est pas un nouveau domaine. Il a recomposé le backend existant pour que Web et futurs clients consomment des vérités métier propriétaires au lieu de reconstruire le métier depuis l'ORM.
 
 ## 2. Makolo Mature
 
-### Livré / stabilisé
+État vérifié :
 
-La roadmap Mature marque déjà comme livrés :
+- M1–M7 livrés selon les docs canoniques et le runtime ;
+- M8 Mature Web Experience intégré, y compris la convergence mobile-first #234 ;
+- M9 hardening fermé sur sa base auditée, puis ses garanties pertinentes réutilisées par Z11/Z12 ;
+- Z1–Z13 intégrés ; Z14 réalise le closeout final ;
+- M10 reste un gate global distinct. La fermeture de Z ne signifie pas « production-ready ».
 
-```text
-M1 ✅ Readiness Engine
-M2 ✅ Forms, Questionnaires & Preparation Resources
-M3 ✅ Presentation System
-M4 ✅ Trust & Quality
-M5 ✅ Social Action Network & Useful Engagement
-M6 ✅ Spatiotemporal Intelligence, Hazards & Last-Minute
-M7 ✅ Interoperability, Connections & Extension Platform
-```
-
-Le programme G — Profil, pertinence & réseau d’action — est également documenté comme terminé.
-
-Les trains et domaines intégrés fournissent déjà notamment :
-
-- Personal Assets / Action Memory / Trusted Reuse ;
-- Prepared Start / Contextual NextAction / Proactive Preparation ;
-- Dossiers / Projets / Collaboration ;
-- Occurrence Operations ;
-- Domain Events / Automation / Notifications ;
-- Connections / Actions / Extension Platform ;
-- Intelligence Foundation et Discover Intelligence ;
-- réseau d’action, autorisation, Access, Capacity, Commerce, Payment, Trust, Geography et autres domaines canoniques.
-
-### M9
-
-Le hardening M9 a déjà été exécuté et documenté :
-
-- sécurité, autorité, confidentialité et supply chain ;
-- concurrence, idempotence et résilience externe ;
-- migrations historiques et performance ;
-- quality gate cross-domain et handoff vers M10.
-
-L’existence de ce travail signifie que la séquence documentaire historique `M8 → M9 → M10` ne doit plus être lue comme « M9 reste à faire ». M9 a été fermé sur un état antérieur du runtime.
-
-### M8 final actuellement ouvert
-
-La PR #234 rouvre **M8 comme convergence finale de l’expérience personnelle mobile-first**, sans recréer les domaines ni annuler M9.
-
-Elle porte notamment :
+La navigation personnelle canonique reste :
 
 ```text
-Maintenant
-Découvrir
-Makolo Mark
-En cours
-Moi
+Maintenant | Découvrir | Makolo Mark | En cours | Moi
 ```
 
-avec :
+`Jour J` reste contextuel à une Occurrence actuelle. `Makolo Live` reste sous Jour J et appartient à Operations.
 
-- shell personnel commun mobile/desktop ;
-- `/me/` recentré sur « ce qui compte maintenant » ;
-- surface En cours ;
-- surface Moi ;
-- Makolo Mark central borné aux capacités réellement présentes ;
-- conservation des routes profondes Journey / Access / History ;
-- aucune migration métier ;
-- aucune nouvelle vérité persistée ;
-- Permission / Mandate / Access / Payment inchangés.
+## 3. Programme Z — Backend UX Projection & API Composition
 
-### Séquence réelle de fermeture à partir d’aujourd’hui
-
-La séquence opérationnelle doit donc être lue ainsi :
+État réel :
 
 ```text
-M1–M7 / G / grands trains        ✅
-M8 initial                        ✅
-M9 hardening                      ✅ fermé sur sa base auditée
-M8 convergence mobile-first       🔄 PR #234
-        ↓
-réconciliation post-M8
-        ↓
-M10 / Mature Closure actualisé
-        ↓
-Mobile A0/A1
+Z0    audit initial / baseline                 vérifié historiquement
+Z1    contrat de projection                    ✅ intégré
+Z2    Maintenant + En cours                    ✅ intégré
+Z3    Découvrir                                ✅ intégré
+Z4    Moi                                      ✅ intégré
+Z5    détails engagés                          ✅ intégré
+Z6    surfaces secondaires + Jour J/Live       ✅ intégré
+Z7    Makolo Mark                              ✅ intégré
+Z8    Passeport/Ressources/Groupes              ✅ intégré
+Z9    Recognition/Loyalty/Partner               ✅ intégré
+Z10   continuité inter-surfaces                 ✅ intégré
+Z11   sécurité/autorité/confidentialité          ✅ intégré
+Z12+  performance/stabilité/coût                ✅ intégré
+Z13   contrat final Web/API/Flutter              ✅ intégré
+Z14   fermeture/readiness mobile                 🔄 gate final
 ```
 
-Après merge de #234, M10 doit vérifier que les garanties M9 restent vraies sur le runtime final au lieu de refaire M9 comme programme complet.
+L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée #274 déjà mergée.
 
----
+Le closeout détaillé et les gaps classifiés sont dans [`z14-program-closeout.md`](z14-program-closeout.md).
 
-## 3. Makolo Mobile
+## 4. Contrat personnel prêt pour client natif
 
-Le programme mobile reste :
+Les cinq surfaces principales ont des APIs canoniques :
 
 ```text
-A0 — Phase 0 / foundation
-A1 — Application native
-A2 — Native Capabilities
-A3 — Ambient Makolo
-A4 — Operations & Offline R&D
+Maintenant   GET  /api/v1/me/now/
+Découvrir    GET  /api/v1/discovery/items/
+Makolo Mark  POST /api/v1/me/mark/
+En cours     GET  /api/v1/me/ongoing/
+Moi          GET  /api/v1/me/
 ```
 
-Décisions déjà établies :
+Le client suit ensuite les owner handoffs Journey, Access, History, Jour J, Operations Live, Passport, Resources, Groups, Recognition, Loyalty, Partner, Dossier et Project.
 
-- Flutter ;
-- même dépôt GitHub ;
-- backend Django reste source de vérité ;
-- le mobile ne réimplémente pas Readiness, Permission, Payment, Access ou ranking ;
-- le mobile exploite progressivement push, biométrie, caméra/scanner, partage, localisation, geofencing, voice/intents, haptique et capacités offline bornées.
+Le backend décide Permission, Mandate, Readiness, Requirement satisfaction, Access validity, Now/Ongoing/History membership, Live eligibility et Space authority. Flutter ne les infère pas.
 
-État observé :
+## 5. Makolo Mobile
 
-- branche `mobile/a0-phase-0-foundation` présente ;
-- elle pointe encore sur le même commit que le `main` observé ;
-- aucune PR ouverte observée pour cette branche ;
-- aucun projet Flutter n’a encore été identifié sur `main` pendant l’audit.
+Le programme mobile reste distinct du programme Z.
 
-Conclusion : **Mobile est préparé architecturalement, mais l’implémentation native reste à démarrer.**
+L'ancienne PR #248 (`mobile/a0-phase-0-foundation`) a été réauditée : elle contient une petite fondation Flutter utile, mais sa base est profondément divergente du `main` courant et son ancien inventaire API précède Z1–Z13.
 
----
+Classification : **needs adaptation**.
 
-## 4. Intelligence Kernel — ce qui existe déjà
-
-Le Kernel futur ne part pas de zéro.
-
-### Fondations déjà présentes
-
-#### Intelligence Foundation
-
-Le dépôt possède déjà une infrastructure transverse `intelligence` avec des concepts tels que :
-
-- gateway ;
-- capabilities provider-neutral ;
-- provider registry / routing ;
-- health / timeout / fallback ;
-- structured output ;
-- telemetry privacy-safe ;
-- fonctionnement possible sans provider externe.
-
-#### Mémoire utile à l’action
-
-Makolo possède déjà :
-
-- Personal Assets ;
-- Action Memory ;
-- Trusted Reuse ;
-- JourneyArtifact ;
-- Proof / Credential Trust dans leurs frontières propres.
-
-#### Système nerveux interne
-
-Makolo possède déjà :
-
-- Domain Events ;
-- Automation / Autopilot ;
-- Notifications ;
-- Proactive Preparation.
-
-#### Contexte déterministe déjà riche
-
-Le futur Context Builder pourra composer des vérités et projections déjà présentes :
-
-- Profile ;
-- Interests ;
-- Open to ;
-- Veilles ;
-- Dossier / Journey ;
-- Requirements / Readiness ;
-- Prepared Start / NextAction ;
-- Geography / Hazards ;
-- Action Memory ;
-- contexte d’autorité ;
-- Connections / provider capabilities.
-
-#### Sources externes structurées
-
-Opportunity possède déjà un exemple important de séparation entre source externe, vérification de source et vérité canonique. Cette logique doit inspirer le Kernel sans forcer un modèle universel prématuré.
-
----
-
-## 5. Intelligence Kernel — ce qui manque encore
-
-Le Kernel n’est pas encore un runtime agentique complet.
-
-Les briques principales restant à concevoir/implémenter sont :
+Règle de reprise :
 
 ```text
-Perception générale
-    Web search / fetch / watchers / APIs / documents / change detection
-
-Observation contract transverse
-    provenance / freshness / confidence / scope / sensitivity / fingerprint
-
-Context Builder agentique
-    contexte borné par actor / goal / time / authority
-
-Working memory agentique
-    état d’exécution, sans dupliquer Action Memory ni les domaines
-
-Reasoner / Planner
-    modèle + stratégies + budgets + retry policy
-
-Policy / Consent Gate
-    confirmation, privacy, authority, connection scopes
-
-Tool Gateway agentique
-    tools contrôlés enveloppant les services canoniques
-
-Verifier / Evaluator
-    règles déterministes, sources primaires, schemas, outcomes
-
-Agent runtime loop
-    observe → understand → plan → act → verify → update / stop
+main fermé
+→ contrat Z13
+→ transplantation sélective de ce qui reste utile dans A0
+→ A Mobile
 ```
 
-Invariant : **le Kernel étend les fondations `intelligence`, `automation`, M7, Action Memory et Domain Events ; il ne crée pas une seconde plateforme parallèle.**
+Ne pas merger #248 telle quelle pour « fermer » Z.
 
----
+## 6. Intelligence
 
-## 6. Makolo Agent
+L'intelligence cumulative et l'Univers Makolo ne bloquent pas la fermeture du backend personnel Mature. Aucun moteur IA, score humain universel ou nouvelle intelligence n'est requis par le contrat Z.
 
-Makolo Agent n’est considéré livré que lorsque Makolo peut poursuivre un objectif à travers plusieurs étapes avec une boucle contrôlée :
+Makolo Mark reste un orchestrateur borné et owner-directed. Les futures capacités d'intelligence doivent étendre les fondations existantes sans devenir une seconde source de vérité métier.
+
+## 7. Collision audit courant
+
+PR ouvertes pertinentes au démarrage Z14 :
+
+- #248 A0 Flutter : à adapter, pas à merger telle quelle ;
+- #252 Space archetypes : programme Space séparé ;
+- #270 ECC : docs d'orchestration ;
+- #283 Actor 6 : docs ;
+- #284 Pré-8 Actors/Universe input : docs ;
+- #223 research lab : isolé hors runtime.
+
+Aucune de ces PR n'est utilisée comme justification pour réécrire les surfaces personnelles Z14.
+
+## 8. Qualité et CI
+
+Le head Z13 #287 a été mergé seulement après succès de :
+
+- CI Django complète ;
+- shards PostgreSQL ;
+- E2E ;
+- Security supply chain ;
+- Beta seed validation ;
+- Funding PostgreSQL ;
+- Conversation PostgreSQL ;
+- Subscriptions.
+
+Le `main` Z12+ précédent avait également une CI verte avec 2519 tests Django. Z14 doit à son tour finir avec le dernier head vert, puis vérifier le `main` post-merge.
+
+## 9. Prochaine décision
+
+Si Z14 reste vert et qu'aucun gap BLOCKING n'apparaît :
 
 ```text
-Goal
-  ↓
-Observe
-  ↓
-Understand
-  ↓
-Plan
-  ↓
-Act through allowed tools
-  ↓
-Verify
-  ↓
-Replan or stop
+Programme Z fermé
+→ backend personal contract ready
+→ passage propre vers la suite mobile selon les gates globaux applicables
 ```
 
-Les mécanismes actuels Prepared Start, NextAction, Proactive Preparation, Veilles, Recommendations, Automation et Makolo Mark constituent des **précurseurs** ; ils ne doivent pas être présentés comme un agent général déjà livré.
-
----
-
-## 7. Spécialisations
-
-Les spécialisations viennent **après** le Kernel commun.
-
-Exemples :
-
-```text
-Scholarship / Opportunity
-Employment
-Events / Concerts
-Travel / Mobility
-Operations
-Services
-```
-
-Une spécialisation doit rester :
-
-```text
-Shared Kernel
-+ Domain Playbook
-+ Specialized Sources
-+ Specialized Tools
-+ Specialized Policies
-+ Specialized Evaluators
-```
-
-Elle ne crée pas sa propre identité utilisateur, sa propre permission, sa propre mémoire générale ni sa propre plateforme provider.
-
----
-
-## 8. Priorité de travail actuelle
-
-Au snapshot du 17 septembre 2026 :
-
-1. fermer proprement la PR #234 ;
-2. vérifier les gates post-merge sur `main` ;
-3. recalibrer M10 sur le runtime final, en réutilisant les preuves M9 encore valides ;
-4. démarrer réellement Mobile A0/A1 avec Flutter dans le même dépôt ;
-5. faire évoluer ensuite l’Intelligence Foundation vers le Kernel ;
-6. fermer la première boucle Makolo Agent générale et bornée ;
-7. seulement ensuite introduire les spécialisations par valeur et vérifiabilité.
-
-Cette séquence n’interdit pas de préparer les contrats du Kernel en parallèle lorsque les surfaces ne collisionnent pas avec M8/Mobile, mais elle interdit de déclarer un agent livré avant que son runtime et ses frontières soient effectivement vérifiés.
+Cette décision ne vaut pas déclaration de production readiness.
