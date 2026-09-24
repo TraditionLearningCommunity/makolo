@@ -48,6 +48,8 @@ Le job fonctionnel à planifier est **Autopilot**. Il agrège les opérations r�
 
 Ne pas lancer simultanément un worker persistant et un `run_autopilot` horaire : sur SQLite cela augmente inutilement la concurrence d'écriture. Ne pas ajouter `process_notifications` ou une commande de reminders en parallèle juste « par sécurité » : Autopilot les couvre déjà.
 
+Les deux commandes appellent le même cycle canonique de `automation.scheduler`. Le choix worker persistant versus one-shot ne change donc pas la couverture métier : expirations Capacity/Journey, recovery + traitement Domain Events, notifications, rappels, waitlist, tâches Services/Subscriptions/Spatiotemporal/Preparation/Conversations/Recognition, captures entrantes et CRM restent dans le même cycle. Seules la cadence et la représentation du heartbeat diffèrent.
+
 Le cycle Autopilot est conçu pour être court sur la taille bêta. Il borne les livraisons par `--delivery-limit` et ne reparcourt plus tout l'historique des événements terminés : le rattrapage post-événement est borné aux 30 derniers jours. Surveiller le temps réel dans les logs ; il n'existe pas de SLA de durée garanti.
 
 ### 1.4 Observateur — HTTP Lot 3, Browser Lot 4 et adaptive Lot 5
