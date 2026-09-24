@@ -21,8 +21,13 @@ et les identités métier.
 
 ## 2. PX2 : aucune liste de sites à scraper
 
-PX2 introduit ProspectingMission. Une mission décrit un **périmètre de
-couverture**, pas un registre de sites :
+PX2 introduit `ProspectingMission`. Cette **mission de prospection** décrit un
+**périmètre de couverture technique**, pas le besoin de connaissance amont et
+pas un registre de sites. Le contrat amont `ResearchMission`, lorsqu'il existe,
+reste distinct et se projette explicitement vers `ProspectingMission` ; voir
+[`research-missions.md`](research-missions.md).
+
+Une `ProspectingMission` porte :
 
 - TLD ou espaces techniques à couvrir ;
 - langues recherchées comme contexte de mission ;
