@@ -147,7 +147,7 @@ class Z12ProjectionPerformanceTests(TestCase):
                     asset=asset,
                     uploaded_file=SimpleUploadedFile(
                         f"z12-{index}-{version}.pdf",
-                        f"z12-{index}-{version}".encode("utf-8"),
+                        (f"%PDF-1.4\nz12-{index}-{version}\n%%EOF\n").encode("utf-8"),
                         content_type="application/pdf",
                     ),
                 )
