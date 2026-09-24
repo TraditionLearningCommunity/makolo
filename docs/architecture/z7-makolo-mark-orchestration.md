@@ -1,7 +1,6 @@
 # Z7 — Makolo Mark : orchestration personnelle réelle
 
-> **Statut : contrat d'implémentation Z7.**
-> Le runtime courant de `main` reste prioritaire sur ce document.
+> **Statut : intégré.** Z7 a été réconcilié et mergé via #274 ; l'ancienne PR #272 est supersédée. Le runtime courant de `main` reste prioritaire sur ce document.
 
 ## Mission
 
