@@ -547,6 +547,14 @@ M9 ne doit pas devenir un chantier de features opportunistes.
 
 M10 produit la **Makolo Mature Core/Web Release Candidate**.
 
+### M10.0 — Shell & Structured Navigation closure
+
+Le premier slice de fermeture M10 élimine la dernière couture transversale qui contraindrait un client natif à reconstruire la navigation métier : Notifications expose une destination structurée vers les owner APIs Mature lorsque l'identité est déjà connue, les APIs privées du shell sont `private, no-store`, Avatar réutilise Account/Profile, et le calendrier d'En cours reste une lecture de `personal.ongoing` plutôt qu'un nouveau domaine persistant.
+
+M10.0 ne crée ni namespace mobile parallèle, ni Calendar métier, ni mode Space, ni nouvelles mutations owner différées.
+
+M10 produit ensuite la **Makolo Mature Core/Web Release Candidate**.
+
 La vraie cible de production doit être lue dans les décisions/configurations réelles du projet. PythonAnywhere reste un environnement temporaire de développement/bêta.
 
 M10 vérifie ce qui est réellement nécessaire autour de : deployment, environment configuration, static/media, database, workers/jobs, notifications, providers, observabilité, backups/restores, secrets et rollback.
