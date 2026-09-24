@@ -1,6 +1,6 @@
 # M10.0 — Fermeture Shell & Structured Navigation
 
-> **Statut : chantier M10.0.** Ce document ferme une couture transversale entre le backend personnel Mature et le futur client natif. Il ne rouvre pas le programme Z et ne déclare pas M10 globalement terminé.
+> **Statut : gate final M10.0.** Lorsque ce document est présent sur `main` après CI verte, M10.0 est fermé. Ce document ferme une couture transversale entre le backend personnel Mature et le futur client natif. Il ne rouvre pas le programme Z et ne déclare pas M10 globalement terminé.
 
 ## Mission
 
