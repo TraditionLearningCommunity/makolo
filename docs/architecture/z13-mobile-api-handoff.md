@@ -323,7 +323,7 @@ Ces domaines restent séparés. Il n’existe ni solde universel ni total financ
 
 Le mobile consomme seulement ce que Payments expose réellement.
 
-Le runtime auditée connaît les providers `sandbox` et `manual`; `manual` est une capacité contrôlée. Aucun provider de production réel n’est déduit ou documenté par Z13.
+Le runtime audité connaît les providers `sandbox` et `manual`; `manual` est une capacité contrôlée. Aucun provider de production réel n’est déduit ou documenté par Z13.
 
 Journey detail n’invente pas une capability `pay` si aucune mutation consommable n’est réellement disponible pour ce contexte.
 
@@ -390,4 +390,4 @@ Z13 ajoute un test de transport léger qui fige :
 - l’absence de `/api/v1/mobile/` ;
 - `schema_version = 1`.
 
-Aucune migration n’est requise par Z13.
+Aucune migration n’est requise par Z13. [`mobile-api-contract.md`](mobile-api-contract.md) est le point d’entrée mobile canonique ; ce document Z13 en porte le contrat Mature transversal, tandis que les sections Event/Ticket/Scanner du document mobile restent des compatibilités verticales détaillées.
