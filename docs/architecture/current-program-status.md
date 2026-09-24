@@ -9,7 +9,7 @@
 - HEAD Z14 vérifié sur `main` : `bee273500a383941ac89796156e1e429ed9de345`
 - PR #288 — Z14 : mergée ; CI post-merge verte
 - Z1–Z14 : intégrés ; le programme Z est fermé
-- M10.0 : chantier de fermeture Shell & Structured Navigation démarré depuis ce `main` vert ; aucune migration prévue
+- M10.0 : gate final Shell & Structured Navigation ; lorsqu'il est présent sur `main` après CI verte, M10.0 est fermé ; aucune migration
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
