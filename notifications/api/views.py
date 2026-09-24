@@ -2,17 +2,13 @@ from django.utils import timezone
 from rest_framework import generics, permissions, response, views
 from rest_framework.exceptions import NotFound
 
+from core.api.privacy import PrivateNoStoreMixin
+
 from notifications.models import Notification
 from notifications.selectors import get_notifications_for_user
 
 from .serializers import NotificationSerializer
 
-
-class PrivateNoStoreMixin:
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "private, no-store"
-        return response
 
 
 class NotificationListAPIView(PrivateNoStoreMixin, generics.ListAPIView):
