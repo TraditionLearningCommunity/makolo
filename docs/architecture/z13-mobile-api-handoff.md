@@ -360,9 +360,9 @@ Ils ne justifient ni nouveau domaine ni copie de vérité. Ils seront ouverts un
 
 ## 20. Gate A1
 
-A1 peut commencer lorsque Z13 est merged sur un `main` vert et peut s’appuyer sur ce contrat sans interpréter le schéma Django.
+Z13 ferme le **contrat API/mobile** nécessaire à A1 lorsqu’il est merged sur un `main` vert. Il ne remplace pas les autres gates de fermeture M10 : le démarrage effectif du programme A reste soumis à la séquence canonique `M8 → M9 → M10 → A` et à l’état GitHub réel au moment du handoff.
 
-Le premier client doit au minimum pouvoir implémenter :
+Lorsque ces gates sont satisfaits, le premier client doit au minimum pouvoir implémenter :
 
 ```text
 login/refresh/logout
