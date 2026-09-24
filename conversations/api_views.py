@@ -7,6 +7,8 @@ from rest_framework import permissions, status, views
 from rest_framework.exceptions import NotFound, ValidationError as DRFValidationError
 from rest_framework.response import Response
 
+from core.api.privacy import PrivateNoStoreMixin
+
 from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
@@ -21,12 +23,6 @@ from .services import can_view_conversation, respond_to_conversation_invitation
 
 MAX_PAGE_SIZE = 100
 
-
-class PrivateNoStoreMixin:
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "private, no-store"
-        return response
 
 
 def _bounded_limit(request, default=50):
