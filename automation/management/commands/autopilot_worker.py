@@ -5,8 +5,8 @@ import time
 
 from django.core.management.base import BaseCommand
 
-from automation.crm_runtime import process_due_crm_workflows
 from automation.scheduler import run_autopilot_cycle
+from core.logging_filters import redact_sensitive_text
 from operations.emergency_controls import is_operational_control_enabled
 from operations.models import OperationalControlCode, WorkerState
 from operations.services import record_worker_heartbeat
@@ -33,7 +33,12 @@ class Command(BaseCommand):
                     **kwargs,
                 )
             except Exception as exc:
-                self.stderr.write(self.style.WARNING(f"Heartbeat Operations indisponible: {exc}"))
+                safe_error = redact_sensitive_text(str(exc))
+                self.stderr.write(
+                    self.style.WARNING(
+                        f"Heartbeat Operations indisponible: {safe_error}"
+                    )
+                )
 
         def stop(*_args):
             nonlocal running
@@ -58,15 +63,20 @@ class Command(BaseCommand):
                     stats = {"operational_control": "disabled"}
                 else:
                     stats = run_autopilot_cycle(delivery_limit=delivery_limit)
-                    stats["crm_workflows"] = process_due_crm_workflows(limit=delivery_limit)
             except Exception as exc:
+                safe_error = redact_sensitive_text(str(exc))
                 heartbeat(
                     state=WorkerState.DEGRADED,
-                    last_error=str(exc),
+                    last_error=safe_error,
                     cycle_finished=True,
-                    metadata={"poll_seconds": poll_seconds, "delivery_limit": delivery_limit},
+                    metadata={
+                        "poll_seconds": poll_seconds,
+                        "delivery_limit": delivery_limit,
+                    },
                 )
-                self.stderr.write(self.style.ERROR(f"Cycle Autopilot en échec: {exc}"))
+                self.stderr.write(
+                    self.style.ERROR(f"Cycle Autopilot en échec: {safe_error}")
+                )
             else:
                 heartbeat(
                     state=WorkerState.HEALTHY,
