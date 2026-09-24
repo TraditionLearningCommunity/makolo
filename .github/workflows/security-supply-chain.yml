@@ -43,7 +43,6 @@ jobs:
         run: |
           python -m pip_audit -r requirements.txt
           python -m pip_audit -r requirements-agents.txt
-          python -m pip_audit -r requirements-agents.txt
       - name: Bandit medium/high first-party runtime findings
         shell: bash
         run: |
