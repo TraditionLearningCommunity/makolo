@@ -314,10 +314,10 @@ Profils Python supplémentaires, à installer uniquement pour les runtimes conce
 
 ```powershell
 # Prospecteur / queue Crawlee sans navigateur
-python -m pip install -r requirements-prospector.txt
+python -m pip install -r requirements-agents.txt
 
 # Observateur Browser / tests Python complets incluant Playwright
-python -m pip install -r requirements-observer.txt
+python -m pip install -r requirements-agents.txt
 ```
 
 `requirements.txt` reste le profil Web/serveur et n'installe ni Crawlee ni Playwright. Pour exécuter la suite Django complète du dépôt, utiliser le profil Observer afin que les tests Prospecteur/Observateur disposent de leurs dépendances.
