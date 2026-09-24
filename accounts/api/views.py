@@ -10,6 +10,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from accounts.models import NotificationPreference
+from core.api.privacy import PrivateNoStoreMixin
+
 from accounts.services import (
     change_password,
     delete_account,
@@ -35,12 +37,6 @@ from .throttles import LoginThrottle, PasswordResetThrottle, RegistrationThrottl
 
 User = get_user_model()
 
-
-class PrivateNoStoreMixin:
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "private, no-store"
-        return response
 
 
 class RegisterAPIView(APIView):
