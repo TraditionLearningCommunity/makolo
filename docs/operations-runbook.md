@@ -124,13 +124,13 @@ Pour un cycle diagnostique unique, ajouter `--once`.
 
 Le Browser Lot 4 nécessite deux éléments distincts :
 
-1. le package Python Playwright, installé par `crawlee[playwright]` dans `requirements.txt` ;
+1. le package Python Playwright, installé uniquement par le profil `requirements-observer.txt` via `crawlee[playwright]` ;
 2. un binaire Chromium compatible installé explicitement dans l'environnement d'exécution.
 
 Dans un environnement Linux compatible où l'opérateur contrôle les dépendances système :
 
 ~~~bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-observer.txt
 python -m playwright install chromium
 ~~~
 
@@ -341,6 +341,10 @@ Les statiques applicatifs sont compatibles WhiteNoise après `collectstatic`; si
 Les médias utilisateurs doivent être sauvegardés séparément de la base. Plus tard, `MEDIA_ROOT`/storage pourra être remplacé par un object storage sans transformer les médias en statiques versionnés.
 
 ## 4. Déploiement PythonAnywhere
+
+`requirements.txt` est le profil **Web/serveur**. Il exclut volontairement Crawlee, Playwright et Browserforge. Les workers de prospection/observation utilisent respectivement `requirements-prospector.txt` et `requirements-observer.txt` dans des environnements adaptés.
+
+Sur PythonAnywhere bêta, installer uniquement `requirements.txt` : le Web Django, les migrations, WhiteNoise et Autopilot n'ont pas besoin du moteur Browser. Ne pas contourner cette séparation en installant le profil Observer dans le virtualenv Web.
 
 Après un merge validé :
 
