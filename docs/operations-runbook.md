@@ -342,9 +342,9 @@ Les médias utilisateurs doivent être sauvegardés séparément de la base. Plu
 
 ## 4. Déploiement PythonAnywhere
 
-`requirements.txt` est le profil **Web/serveur**. Il exclut volontairement Crawlee, Playwright et Browserforge. Les workers de prospection/observation utilisent respectivement `requirements-agents.txt` et `requirements-agents.txt` dans des environnements adaptés.
+`requirements.txt` est le profil **Web/serveur**. Il exclut volontairement Crawlee, Playwright et Browserforge. Tous les acteurs internes Makolo utilisent le second profil commun `requirements-agents.txt`, qui étend le profil Web avec les dépendances nécessaires aux acteurs.
 
-Sur PythonAnywhere bêta, installer uniquement `requirements.txt` : le Web Django, les migrations, WhiteNoise et Autopilot n'ont pas besoin du moteur Browser. Ne pas contourner cette séparation en installant le profil Observer dans le virtualenv Web.
+Sur PythonAnywhere bêta, installer uniquement `requirements.txt` : le Web Django, les migrations, WhiteNoise et Autopilot n'ont pas besoin du moteur Browser. Ne pas contourner cette séparation en installant `requirements-agents.txt` dans le virtualenv Web PythonAnywhere.
 
 Après un merge validé :
 
