@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Runtimes internes Makolo (Prospecteur, Observateur et autres acteurs).
+# Le profil Web/serveur reste volontairement léger pour PythonAnywhere.
+tldextract==5.3.2
+crawlee[playwright]==1.10.1
