@@ -249,17 +249,27 @@ Loyalty personnel → /api/v1/loyalty/me/
 
 `docs/architecture/mobile-api-contract.md` est désormais le point d'entrée canonique du contrat mobile. Il renvoie au handoff final [`z13-mobile-api-handoff.md`](z13-mobile-api-handoff.md) pour l'expérience Mature, tout en conservant les contrats détaillés Event/Ticket/Scanner encore valides pour leur verticale.
 
-## 15. Lots suivants
+## 15. Séquence Z livrée
+
+La séquence historique est désormais intégrée. Le runtime courant contient :
 
 ```text
-Z2 → Maintenant + En cours
-Z3 → Découvrir + conservation / Veilles / handoff propriétaire
-Z4 → Moi + capital personnel / collectifs + Recognition / Loyalty / Partner
-Z5 → détails engagés : Journey, Requirement, Activity, Occurrence, Access, Dossier, Project et Capacity projetée
-Z6 → surfaces secondaires : Mes accès, Historique, Jour J et Makolo Live par réutilisation des owners
-Z7 → Makolo Mark et gaps restants, sans faux moteur intelligent
-Z8+ → handoff mobile et autres gaps réellement démontrés
+Z2  → Maintenant + En cours
+Z3  → Découvrir + conservation / Veilles / handoff propriétaire
+Z4  → Moi + capital personnel / collectifs
+Z5  → détails engagés
+Z6  → Mes accès, Historique, Jour J et Makolo Live
+Z7  → Makolo Mark
+Z8  → Passeport, Ressources et Groupes
+Z9  → Recognition, Loyalty et Partner
+Z10 → continuité inter-surfaces
+Z11 → sécurité / autorité / confidentialité
+Z12 → performance / stabilité / coût borné
+Z13 → contrat final Web/API/Flutter
+Z14 → closeout et readiness mobile
 ```
+
+Le statut de fermeture courant est consolidé dans [`z14-program-closeout.md`](z14-program-closeout.md).
 
 Z6 ne reprend pas les détails Z5. `Mes accès` possède la collection personnelle des droits ; le détail Access reste une profondeur propriétaire. `Historique` est une projection temporelle transverse. `Jour J` est la surface contextuelle majeure d'une Occurrence actuelle et `Makolo Live` lui appartient.
 
