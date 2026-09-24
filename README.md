@@ -310,17 +310,17 @@ python manage.py runserver
 
 L’application est disponible sur <http://127.0.0.1:8000/>.
 
-Profils Python supplémentaires, à installer uniquement pour les runtimes concernés :
+Makolo utilise seulement deux profils Python :
 
 ```powershell
-# Prospecteur / queue Crawlee sans navigateur
-python -m pip install -r requirements-agents.txt
+# Web / serveur Django, dont PythonAnywhere
+python -m pip install -r requirements.txt
 
-# Observateur Browser / tests Python complets incluant Playwright
+# Acteurs internes (Prospecteur, Observateur, Interpréteur, Résolveur, Orchestrateur, Projecteur, etc.)
 python -m pip install -r requirements-agents.txt
 ```
 
-`requirements.txt` reste le profil Web/serveur et n'installe ni Crawlee ni Playwright. Pour exécuter la suite Django complète du dépôt, utiliser le profil Observer afin que les tests Prospecteur/Observateur disposent de leurs dépendances.
+`requirements-agents.txt` étend `requirements.txt` avec les dépendances nécessaires aux acteurs, dont Crawlee/Playwright. Le serveur Web PythonAnywhere installe uniquement `requirements.txt`. La suite Django complète/CI utilise le profil agents.
 
 Pour observer Autopilot en développement, lancer dans un second terminal :
 
