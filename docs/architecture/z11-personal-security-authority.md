@@ -1,6 +1,6 @@
 # Z11 — Sécurité, confidentialité et autorité de l'expérience personnelle
 
-> Statut : hardening transversal en cours sur le runtime courant.
+> Statut : **intégré** via PR #277 ; les garanties restent des régressions actives du runtime courant.
 >
 > Z11 ne crée ni domaine, ni surface UX, ni vérité persistante. Il durcit les selectors, services, projections, vues, headers et tests existants.
 
