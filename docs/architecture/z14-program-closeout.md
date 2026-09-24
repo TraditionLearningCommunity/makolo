@@ -259,7 +259,6 @@ L'audit n'a pas trouvé de nouveau FeedItem métier générique, wallet universe
 - mutations Group mobile dédiées ;
 - upload Personal Asset Mature générique depuis mobile ;
 - création ShareEnvelope Passport dédiée mobile ;
-- navigation structurée Notification couvrant toutes les ressources Mature ;
 - Universal Links / Android App Links après décision réelle d'identifiants/domaines ;
 - realtime natif/générique ;
 - offline sync et autorité offline ;
@@ -269,6 +268,8 @@ L'audit n'a pas trouvé de nouveau FeedItem métier générique, wallet universe
 - intelligence cumulative / Univers Makolo.
 
 Aucun de ces éléments ne doit prolonger artificiellement Z14.
+
+> **Post-Z14 / M10.0 :** la navigation structurée Notification vers les identités Mature démontrées a été fermée dans le chantier M10.0 sans rouvrir Z.
 
 ## 15. Handoff vers A
 
