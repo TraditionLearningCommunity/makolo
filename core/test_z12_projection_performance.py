@@ -8,7 +8,7 @@ from django.db import connection
 from django.utils import timezone
 
 from access.models import Access, AccessCredential, AccessStatus
-from activities.models import Activity, Occurrence, OccurrenceStatus
+from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
 from core.api.access_projection import (
     ACCESS_RELATION_BENEFICIARY,
     ACCESS_RELATION_PURCHASED_FOR_OTHER,
@@ -252,3 +252,29 @@ class Z12ProjectionPerformanceTests(TestCase):
         self.assertEqual(occurrence_response.status_code, 200)
         self.assertIn("live", journey_response.json()["data"]["links"])
         self.assertIn("live", occurrence_response.json()["data"]["links"])
+
+
+    def test_activity_detail_occurrences_are_server_bounded(self):
+        activity = Activity.objects.create(
+            created_by=self.user,
+            owner_profile=self.user,
+            title="Activity Z12 bounded occurrences",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        observed_at = timezone.now()
+        for index in range(55):
+            Occurrence.objects.create(
+                activity=activity,
+                label=f"Occurrence {index:02d}",
+                status=OccurrenceStatus.SCHEDULED,
+                start_at=observed_at,
+                end_at=observed_at,
+            )
+        self.client.force_login(self.user)
+        response = self.client.get(f"/api/v1/activities/{activity.pk}/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(len(data["occurrences"]), 50)
+        self.assertEqual(data["occurrences_page"]["limit"], 50)
+        self.assertTrue(data["occurrences_page"]["has_more"])

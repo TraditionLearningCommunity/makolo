@@ -1,5 +1,6 @@
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, serializers, status
@@ -11,12 +12,16 @@ from organizations.models import Organization
 from organizations.permissions import organization_has_public_profile
 from promotions.models import Promotion
 
-from loyalty.models import LoyaltyAccount, LoyaltyProgram, LoyaltyReward, LoyaltyTier, MembershipPlan, MembershipSubscription
+from loyalty.models import LoyaltyAccount, LoyaltyLedgerEntry, LoyaltyProgram, LoyaltyReward, LoyaltyTier, MembershipPlan, MembershipSubscription
 from loyalty.permissions import user_can_manage_loyalty_strategy, user_can_view_loyalty_workspace
 from loyalty.selectors import get_accounts_visible_to, get_programs_visible_to, get_subscriptions_visible_to, personal_rewards_available_to
 from loyalty.services import activate_membership, adjust_points, cancel_membership, redeem_reward, request_membership
 
 from .serializers import LoyaltyAccountSerializer, LoyaltyProgramSerializer, LoyaltyRewardRedemptionSerializer, LoyaltyRewardSerializer, LoyaltyTierSerializer, MembershipPlanSerializer, MembershipSubscriptionSerializer
+
+
+PERSONAL_LOYALTY_LIMIT = 50
+PERSONAL_LOYALTY_RECENT_ACTIVITY_LIMIT = 20
 
 
 class MembershipJoinRequestSerializer(serializers.Serializer):
@@ -90,7 +95,13 @@ def _raise_service(exc):
 
 def _personal_loyalty_account_payload(account):
     tier = account.current_tier
-    recent = list(account.ledger_entries.order_by("-created_at", "-id")[:20])
+    recent = getattr(account, "_personal_recent_ledger", None)
+    if recent is None:
+        recent = list(
+            account.ledger_entries.order_by("-created_at", "-id")[
+                :PERSONAL_LOYALTY_RECENT_ACTIVITY_LIMIT
+            ]
+        )
     return {
         "id": str(account.pk),
         "program": str(account.program_id),
@@ -152,36 +163,74 @@ class MyLoyaltyAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        accounts = list(
+        account_queryset = (
             get_accounts_visible_to(request.user)
             .filter(user=request.user)
             .select_related("program__organization", "current_tier")
             .order_by("program__organization__name", "id")
         )
-        subscriptions = (
+        subscription_queryset = (
             get_subscriptions_visible_to(request.user)
             .filter(user=request.user)
             .select_related("program__organization", "plan", "benefit_code")
             .order_by("program__organization__name", "-requested_at", "id")
         )
-        redemptions = request.user.loyalty_reward_redemptions.select_related(
-            "reward__program__organization", "promotion_code"
-        ).order_by("-redeemed_at", "id")[:50]
-        available_rewards = personal_rewards_available_to(request.user, at=timezone.now())
+        program_count = account_queryset.values("program_id").distinct().count()
+        membership_count = subscription_queryset.count()
+
+        recent_ledger = LoyaltyLedgerEntry.objects.order_by(
+            "-created_at",
+            "-id",
+        )[:PERSONAL_LOYALTY_RECENT_ACTIVITY_LIMIT]
+        accounts = list(
+            account_queryset.prefetch_related(
+                Prefetch(
+                    "ledger_entries",
+                    queryset=recent_ledger,
+                    to_attr="_personal_recent_ledger",
+                )
+            )[:PERSONAL_LOYALTY_LIMIT]
+        )
+        subscriptions = list(subscription_queryset[:PERSONAL_LOYALTY_LIMIT])
+        redemptions = list(
+            request.user.loyalty_reward_redemptions.select_related(
+                "reward__program__organization",
+                "promotion_code",
+            ).order_by("-redeemed_at", "id")[:PERSONAL_LOYALTY_LIMIT]
+        )
+        available_rewards = personal_rewards_available_to(
+            request.user,
+            at=timezone.now(),
+        )[:PERSONAL_LOYALTY_LIMIT]
         response = Response({
-            "accounts": [_personal_loyalty_account_payload(account) for account in accounts],
-            "memberships": MembershipSubscriptionSerializer(subscriptions, many=True).data,
-            "rewards": LoyaltyRewardRedemptionSerializer(redemptions, many=True).data,
+            "accounts": [
+                _personal_loyalty_account_payload(account)
+                for account in accounts
+            ],
+            "memberships": MembershipSubscriptionSerializer(
+                subscriptions,
+                many=True,
+            ).data,
+            "rewards": LoyaltyRewardRedemptionSerializer(
+                redemptions,
+                many=True,
+            ).data,
             "available_rewards": [
                 _personal_loyalty_reward_payload(reward)
-                for reward in available_rewards[:50]
+                for reward in available_rewards
             ],
             "summary": {
                 "kind": "loyalty",
-                "program_count": len({account.program_id for account in accounts}),
-                "membership_count": subscriptions.count(),
+                "program_count": program_count,
+                "membership_count": membership_count,
                 "has_available_rewards": bool(available_rewards),
                 "aggregate_points": None,
+            },
+            "limits": {
+                "accounts": PERSONAL_LOYALTY_LIMIT,
+                "memberships": PERSONAL_LOYALTY_LIMIT,
+                "rewards": PERSONAL_LOYALTY_LIMIT,
+                "recent_activity_per_account": PERSONAL_LOYALTY_RECENT_ACTIVITY_LIMIT,
             },
             "links": {"self": "/api/v1/loyalty/me/"},
         })

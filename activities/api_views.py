@@ -47,6 +47,8 @@ PUBLIC_OCCURRENCE_STATUSES = {
     OccurrenceStatus.COMPLETED,
 }
 
+ACTIVITY_DETAIL_OCCURRENCE_LIMIT = 50
+
 
 def _authenticated(user):
     return bool(getattr(user, "is_authenticated", False))
@@ -298,17 +300,24 @@ class ActivityDetailAPIView(APIView):
             request.user,
             activity,
         )
-        occurrences = list(
-            activity.occurrences.prefetch_related("place_links__place").order_by(
-                "start_date",
-                "start_time",
-                "id",
-            )
+        occurrence_queryset = activity.occurrences.prefetch_related(
+            "place_links__place"
+        ).order_by(
+            "start_date",
+            "start_time",
+            "id",
         )
         if not structural_visibility:
-            occurrences = [
-                row for row in occurrences if row.status in PUBLIC_OCCURRENCE_STATUSES
-            ]
+            occurrence_queryset = occurrence_queryset.filter(
+                status__in=PUBLIC_OCCURRENCE_STATUSES
+            )
+        occurrence_rows = list(
+            occurrence_queryset[: ACTIVITY_DETAIL_OCCURRENCE_LIMIT + 1]
+        )
+        occurrence_has_more = (
+            len(occurrence_rows) > ACTIVITY_DETAIL_OCCURRENCE_LIMIT
+        )
+        occurrences = occurrence_rows[:ACTIVITY_DETAIL_OCCURRENCE_LIMIT]
         visible_occurrence_ids = {row.pk for row in occurrences}
         pools = [
             pool
@@ -350,6 +359,11 @@ class ActivityDetailAPIView(APIView):
                 }
                 for row in occurrences
             ],
+            "occurrences_page": {
+                "limit": ACTIVITY_DETAIL_OCCURRENCE_LIMIT,
+                "returned": len(occurrences),
+                "has_more": occurrence_has_more,
+            },
             "capacity": capacity,
             "availability": {"state": availability},
             "personal_relation": _personal_relation(
