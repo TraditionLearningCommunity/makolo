@@ -36,6 +36,13 @@ from .throttles import LoginThrottle, PasswordResetThrottle, RegistrationThrottl
 User = get_user_model()
 
 
+class PrivateNoStoreMixin:
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 class RegisterAPIView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [RegistrationThrottle]
@@ -81,7 +88,7 @@ class LogoutAPIView(APIView):
         return Response({"message": "Déconnexion effectuée."})
 
 
-class MeAPIView(APIView):
+class MeAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -120,7 +127,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class UpdateProfileAPIView(APIView):
+class UpdateProfileAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
@@ -187,7 +194,7 @@ class PasswordChangeAPIView(APIView):
         return Response({"message": "Mot de passe modifié. Reconnectez-vous sur vos appareils."})
 
 
-class NotificationPreferencesAPIView(APIView):
+class NotificationPreferencesAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _preference(self, request):

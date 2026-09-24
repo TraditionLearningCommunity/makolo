@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from notifications.models import Notification
+from notifications.navigation import build_notification_navigation
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -25,21 +26,4 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_navigation(self, obj):
-        metadata = obj.metadata if isinstance(obj.metadata, dict) else {}
-        identifiers = {
-            key: metadata.get(key)
-            for key in ("event_id", "order_id", "payment_id", "ticket_id")
-            if metadata.get(key)
-        }
-        if not identifiers:
-            return None
-
-        if identifiers.get("ticket_id"):
-            target = "ticket"
-        elif identifiers.get("payment_id"):
-            target = "payment"
-        elif identifiers.get("order_id"):
-            target = "order"
-        else:
-            target = "event"
-        return {"target": target, **identifiers}
+        return build_notification_navigation(obj)

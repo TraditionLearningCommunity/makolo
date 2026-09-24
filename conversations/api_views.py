@@ -22,6 +22,13 @@ from .services import can_view_conversation, respond_to_conversation_invitation
 MAX_PAGE_SIZE = 100
 
 
+class PrivateNoStoreMixin:
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 def _bounded_limit(request, default=50):
     try:
         return min(max(int(request.query_params.get("limit", default)), 1), MAX_PAGE_SIZE)
@@ -108,7 +115,7 @@ def _service_error(exc):
     return Response({"errors": getattr(exc, "messages", [str(exc)])}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ConversationListAPIView(views.APIView):
+class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -149,7 +156,7 @@ class ConversationListAPIView(views.APIView):
         return Response({"results": [_serialize_conversation_row(row) for row in rows], "count": len(rows)})
 
 
-class ConversationDetailAPIView(views.APIView):
+class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
@@ -170,7 +177,7 @@ class ConversationDetailAPIView(views.APIView):
         })
 
 
-class ConversationPointResponseAPIView(views.APIView):
+class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, point_pk):
@@ -196,7 +203,7 @@ class ConversationPointResponseAPIView(views.APIView):
         })
 
 
-class ConversationPointAcknowledgeAPIView(views.APIView):
+class ConversationPointAcknowledgeAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, point_pk):
@@ -208,7 +215,7 @@ class ConversationPointAcknowledgeAPIView(views.APIView):
         return Response({"point_id": str(point.pk), "acknowledged_at": state.acknowledged_at})
 
 
-class ConversationInvitationListAPIView(views.APIView):
+class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -235,7 +242,7 @@ class ConversationInvitationListAPIView(views.APIView):
         })
 
 
-class ConversationInvitationRespondAPIView(views.APIView):
+class ConversationInvitationRespondAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, invitation_pk):
