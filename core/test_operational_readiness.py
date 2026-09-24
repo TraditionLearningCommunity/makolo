@@ -1,5 +1,6 @@
 import io
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -122,3 +123,65 @@ class BackupDatabaseTests(TransactionTestCase):
                 restored.close()
             self.assertEqual(integrity, ("ok",))
             self.assertEqual(account_table, ("accounts_user",))
+
+    def test_backup_can_be_restored_into_isolated_runtime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            call_command("backup_database", output_dir=directory, stdout=output)
+            backup_path = Path(output.getvalue().strip().splitlines()[-1])
+            restored_path = Path(directory) / "restored-makolo.sqlite3"
+            shutil.copy2(backup_path, restored_path)
+
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DJANGO_ENV": "test",
+                    "DJANGO_DEBUG": "False",
+                    "DJANGO_SECRET_KEY": "isolated-restore-ci-only-secret",
+                    "DJANGO_ALLOWED_HOSTS": "127.0.0.1,localhost,testserver",
+                    "DJANGO_DATABASE_ENGINE": "sqlite",
+                    "DJANGO_DB_PATH": str(restored_path),
+                }
+            )
+
+            commands = [
+                [sys.executable, "manage.py", "migrate", "--noinput"],
+                [sys.executable, "manage.py", "migrate", "--check"],
+                [sys.executable, "manage.py", "check"],
+                [
+                    sys.executable,
+                    "manage.py",
+                    "shell",
+                    "-c",
+                    (
+                        "from django.test import Client; "
+                        "response=Client().get('/api/v1/readiness/'); "
+                        "assert response.status_code == 200, response.content; "
+                        "assert response.json() == {'status': 'ready'}, response.content"
+                    ),
+                ],
+            ]
+            for command in commands:
+                result = subprocess.run(
+                    command,
+                    cwd=settings.BASE_DIR,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    msg=(
+                        f"Commande restore isolé échouée: {' '.join(command)}\n"
+                        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    ),
+                )
+
+            restored = sqlite3.connect(restored_path)
+            try:
+                integrity = restored.execute("PRAGMA integrity_check").fetchone()
+            finally:
+                restored.close()
+            self.assertEqual(integrity, ("ok",))
