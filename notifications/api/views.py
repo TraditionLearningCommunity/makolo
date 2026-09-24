@@ -2,13 +2,16 @@ from django.utils import timezone
 from rest_framework import generics, permissions, response, views
 from rest_framework.exceptions import NotFound
 
+from core.api.privacy import PrivateNoStoreMixin
+
 from notifications.models import Notification
 from notifications.selectors import get_notifications_for_user
 
 from .serializers import NotificationSerializer
 
 
-class NotificationListAPIView(generics.ListAPIView):
+
+class NotificationListAPIView(PrivateNoStoreMixin, generics.ListAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -19,7 +22,7 @@ class NotificationListAPIView(generics.ListAPIView):
         return queryset
 
 
-class NotificationDetailAPIView(generics.RetrieveAPIView):
+class NotificationDetailAPIView(PrivateNoStoreMixin, generics.RetrieveAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -27,7 +30,7 @@ class NotificationDetailAPIView(generics.RetrieveAPIView):
         return get_notifications_for_user(self.request.user)
 
 
-class NotificationUnreadCountAPIView(views.APIView):
+class NotificationUnreadCountAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -35,7 +38,7 @@ class NotificationUnreadCountAPIView(views.APIView):
         return response.Response({"unread_count": count})
 
 
-class NotificationMarkReadAPIView(views.APIView):
+class NotificationMarkReadAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -46,7 +49,7 @@ class NotificationMarkReadAPIView(views.APIView):
         return response.Response(NotificationSerializer(notification).data)
 
 
-class NotificationMarkAllReadAPIView(views.APIView):
+class NotificationMarkAllReadAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):

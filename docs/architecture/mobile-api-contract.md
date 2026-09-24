@@ -463,19 +463,22 @@ Pas de FCM/APNs dans ce MVP. Flutter interroge les notifications internes :
 
 Les confirmations de commande/billets sont émises aussi bien pour les commandes gratuites que pour les commandes payantes après succès du paiement. Les notifications de paiement réussi, échoué et remboursé existantes restent actives.
 
-En plus de `action_url`, le serializer fournit `navigation`, construit à partir des métadonnées structurées déjà présentes :
+En plus de `action_url`, le serializer fournit `navigation` v1, construit uniquement à partir des FKs canoniques et métadonnées fonctionnelles déjà présentes :
 
 ```json
 {
-  "target": "payment",
-  "event_id": "uuid éventuel",
-  "order_id": "uuid",
-  "payment_id": "uuid",
-  "ticket_id": "uuid éventuel"
+  "schema_version": 1,
+  "target": "journey",
+  "journey_id": "uuid",
+  "activity_id": "uuid éventuel",
+  "resource": {"kind": "journey", "id": "uuid"},
+  "links": {"api": "/api/v1/me/journeys/<uuid>/"}
 }
 ```
 
-Flutter doit préférer ces identifiants structurés et ne doit pas dépendre uniquement d'une URL HTML.
+Les identifiants historiques `event_id/order_id/payment_id/ticket_id` restent compatibles. M10.0 ajoute les identités Mature déjà démontrées : Activity, Journey, Access, Occurrence, Conversation, Group, Partner, Dossier, Project et PersonalAsset. Lorsqu'un owner API canonique existe, `links.api` le désigne.
+
+Flutter doit préférer `navigation.resource` / `navigation.links` et ne doit jamais parser `action_url` pour dériver une identité, une permission ou un état métier. La ressource cible revalide toujours le scope côté serveur.
 
 ## Préférences de notification personnelles
 
@@ -483,7 +486,7 @@ Flutter doit préférer ces identifiants structurés et ne doit pas dépendre un
 
 `PATCH /api/v1/accounts/notification-preferences/`
 
-Toujours le compte authentifié courant ; aucun identifiant utilisateur n'est accepté. Le modèle complet est conservé : e-mail, SMS, push, marketing, sécurité, événements et heures calmes. Le MVP Flutter peut n'afficher qu'un sous-ensemble.
+Toujours le compte authentifié courant ; aucun identifiant utilisateur n'est accepté. Les réponses privées du shell (identité, préférences, notifications, conversations et projections personnelles) sont `Cache-Control: private, no-store`. Le modèle complet est conservé : e-mail, SMS, push, marketing, sécurité, événements et heures calmes. Le MVP Flutter peut n'afficher qu'un sous-ensemble.
 
 Lorsque `quiet_hours_enabled=true`, début et fin doivent être fournis.
 

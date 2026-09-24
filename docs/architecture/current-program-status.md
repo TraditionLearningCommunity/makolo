@@ -6,10 +6,10 @@
 
 - Dépôt : `TraditionLearningCommunity/makolo`
 - Branche principale : `main`
-- HEAD de départ Z14 : `2752357ed790b60f925da71042fcf9e7cbcbea3c`
-- Dernier merge avant Z14 : PR #287 — Z13, contrat final Web/API/Flutter et handoff mobile
-- Z1–Z13 : intégrés ; aucune migration métier Z identifiée
-- Z14 : ce snapshot appartient à la PR de fermeture ; **lorsqu'il est présent sur `main` après CI verte, le programme Z est fermé**
+- HEAD Z14 vérifié sur `main` : `bee273500a383941ac89796156e1e429ed9de345`
+- PR #288 — Z14 : mergée ; CI post-merge verte
+- Z1–Z14 : intégrés ; le programme Z est fermé
+- M10.0 : gate final Shell & Structured Navigation ; lorsqu'il est présent sur `main` après CI verte, M10.0 est fermé ; aucune migration
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -38,7 +38,8 @@ Le programme Z n'est pas un nouveau domaine. Il a recomposé le backend existant
 - M1–M7 livrés selon les docs canoniques et le runtime ;
 - M8 Mature Web Experience intégré, y compris la convergence mobile-first #234 ;
 - M9 hardening fermé sur sa base auditée, puis ses garanties pertinentes réutilisées par Z11/Z12 ;
-- Z1–Z13 intégrés ; Z14 réalise le closeout final ;
+- Z1–Z14 intégrés ; programme Z fermé ;
+- M10.0 ferme la couture shell/navigation avant la suite du gate M10 ;
 - M10 reste un gate global distinct. La fermeture de Z ne signifie pas « production-ready ».
 
 La navigation personnelle canonique reste :
@@ -68,7 +69,7 @@ Z10   continuité inter-surfaces                 ✅ intégré
 Z11   sécurité/autorité/confidentialité          ✅ intégré
 Z12+  performance/stabilité/coût                ✅ intégré
 Z13   contrat final Web/API/Flutter              ✅ intégré
-Z14   fermeture/readiness mobile                 ✅ lorsque ce snapshot est sur main après CI verte
+Z14   fermeture/readiness mobile                 ✅ intégré
 ```
 
 L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée #274 déjà mergée.
@@ -146,12 +147,11 @@ Le `main` Z12+ précédent avait également une CI verte avec 2519 tests Django.
 
 ## 9. Prochaine décision
 
-Si Z14 reste vert et qu'aucun gap BLOCKING n'apparaît :
-
 ```text
 Programme Z fermé
-→ backend personal contract ready
-→ passage propre vers la suite mobile selon les gates globaux applicables
+→ M10.0 Shell & Structured Navigation
+→ suite M10 / production readiness globale
+→ A Mobile
 ```
 
-Cette décision ne vaut pas déclaration de production readiness.
+M10.0 ne vaut pas déclaration de production readiness ; il ferme uniquement la couture de navigation personnelle qui aurait sinon forcé le client natif à parser des URLs HTML ou reconstruire des relations métier.

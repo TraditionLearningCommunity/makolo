@@ -10,6 +10,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from accounts.models import NotificationPreference
+from core.api.privacy import PrivateNoStoreMixin
+
 from accounts.services import (
     change_password,
     delete_account,
@@ -34,6 +36,7 @@ from .serializers import (
 from .throttles import LoginThrottle, PasswordResetThrottle, RegistrationThrottle
 
 User = get_user_model()
+
 
 
 class RegisterAPIView(APIView):
@@ -81,7 +84,7 @@ class LogoutAPIView(APIView):
         return Response({"message": "Déconnexion effectuée."})
 
 
-class MeAPIView(APIView):
+class MeAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -120,7 +123,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class UpdateProfileAPIView(APIView):
+class UpdateProfileAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
@@ -187,7 +190,7 @@ class PasswordChangeAPIView(APIView):
         return Response({"message": "Mot de passe modifié. Reconnectez-vous sur vos appareils."})
 
 
-class NotificationPreferencesAPIView(APIView):
+class NotificationPreferencesAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _preference(self, request):

@@ -281,9 +281,9 @@ Aucun WebSocket/SSE générique n’est canonique aujourd’hui. Flutter peut ra
 
 ## 15. Notifications et deep links
 
-Le serializer Notification courant fournit `action_url`, `metadata` et une `navigation` structurée limitée aux identifiants historiques Event/Order/Payment/Ticket.
+M10.0 a fermé la couture de navigation structurée côté backend : le serializer Notification conserve `action_url` et `metadata`, mais fournit désormais une `navigation` v1 owner-directed couvrant les identifiants historiques Event/Order/Payment/Ticket ainsi que les identités Mature démontrées (Activity, Journey, Access, Occurrence, Conversation, Group, Partner, Dossier, Project et PersonalAsset). Le client ne parse jamais une URL HTML pour reconstruire une identité métier ; l'endpoint cible revalide toujours le scope.
 
-Il n’existe pas encore de contrat de navigation structuré couvrant toutes les ressources Mature, ni de configuration native versionnée pour :
+Il n’existe toujours pas de configuration native versionnée pour :
 
 - Android App Links / `assetlinks.json` ;
 - iOS Universal Links / `apple-app-site-association` ;
@@ -348,7 +348,6 @@ Ces gaps ne sont pas masqués par Flutter :
 - pas d’upload Personal Asset Mature générique ;
 - mutations de gestion Group non exposées comme owner API mobile ;
 - pas d’API ShareEnvelope Passport mobile démontrée ;
-- navigation Notification Mature incomplète ;
 - pas de universal/app links versionnés ;
 - pas de transport realtime générique ;
 - création de Veille et plusieurs décisions terminales non blind-retry ;
