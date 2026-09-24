@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope
@@ -31,6 +31,16 @@ def dossiers_for_profile(profile):
 def dossier_for_profile(profile, dossier_id): return dossiers_for_profile(profile).get(pk=dossier_id)
 
 
+def owned_dossiers_for_profile(profile):
+    """Personal Dossier scope without unrelated authority expansion."""
+    if not getattr(profile, "is_authenticated", False):
+        return Dossier.objects.none()
+    return Dossier.objects.filter(owner_profile=profile).select_related(
+        "owner_profile",
+        "created_by",
+    )
+
+
 def manageable_dossiers_for_profile(profile):
     if not getattr(profile, "is_authenticated", False): return Dossier.objects.none()
     manage_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_MANAGE)
@@ -51,6 +61,16 @@ def projects_for_profile(profile):
 
 
 def project_for_profile(profile, project_id): return projects_for_profile(profile).get(pk=project_id)
+
+
+def owned_projects_for_profile(profile):
+    """Personal Project scope without unrelated Space authority lookups."""
+    if not getattr(profile, "is_authenticated", False):
+        return Project.objects.none()
+    return Project.objects.filter(owner_profile=profile).select_related(
+        "owner_profile",
+        "created_by",
+    )
 
 
 def active_project_dossier_links(project):
@@ -95,9 +115,54 @@ def visible_linked_journey_ids(profile, dossier):
     return visible_linked_journeys(profile, dossier).values_list("journey_id", flat=True)
 
 
+def visible_linked_journey_pairs(profile, dossier_ids):
+    """Visible (dossier, journey) pairs with one permission-scope resolution."""
+    dossier_ids = tuple(dossier_ids)
+    if not getattr(profile, "is_authenticated", False) or not dossier_ids:
+        return DossierJourneyLink.objects.none().values_list("dossier_id", "journey_id")
+    return (
+        DossierJourneyLink.objects.filter(
+            dossier_id__in=dossier_ids,
+            is_active=True,
+        )
+        .filter(_visible_link_filter(profile))
+        .values_list("dossier_id", "journey_id")
+    )
+
+
 def readiness_journeys_for_dossier(dossier):
     queryset = Journey.objects.filter(dossier_links__dossier=dossier, dossier_links__is_active=True).order_by("dossier_links__linked_at", "dossier_links__id")
     return readiness_queryset(queryset)
+
+
+def readiness_journeys_for_dossiers(dossier_ids):
+    """Batch canonical Journey facts for several Dossiers."""
+    dossier_ids = tuple(dossier_ids)
+    if not dossier_ids:
+        return Journey.objects.none()
+    links = (
+        DossierJourneyLink.objects.filter(
+            dossier_id__in=dossier_ids,
+            is_active=True,
+        )
+        .only("dossier_id", "journey_id")
+        .order_by("linked_at", "id")
+    )
+    queryset = (
+        Journey.objects.filter(
+            dossier_links__dossier_id__in=dossier_ids,
+            dossier_links__is_active=True,
+        )
+        .distinct()
+        .order_by("id")
+    )
+    return readiness_queryset(queryset).prefetch_related(
+        Prefetch(
+            "dossier_links",
+            queryset=links,
+            to_attr="_readiness_dossier_links",
+        )
+    )
 
 
 def linkable_journeys_for_profile(profile, dossier=None):
@@ -113,6 +178,23 @@ def linkable_journeys_for_profile(profile, dossier=None):
 
 def active_dependencies_for_dossier(dossier):
     return DossierJourneyDependency.objects.filter(dossier=dossier, state=DossierJourneyDependencyState.ACTIVE).select_related("dependent_link__journey__activity", "required_link__journey__activity").order_by("created_at", "id")
+
+
+def active_dependencies_for_dossiers(dossier_ids):
+    dossier_ids = tuple(dossier_ids)
+    if not dossier_ids:
+        return DossierJourneyDependency.objects.none()
+    return (
+        DossierJourneyDependency.objects.filter(
+            dossier_id__in=dossier_ids,
+            state=DossierJourneyDependencyState.ACTIVE,
+        )
+        .select_related(
+            "dependent_link__journey__activity",
+            "required_link__journey__activity",
+        )
+        .order_by("dossier_id", "created_at", "id")
+    )
 
 
 def visible_dependencies_for_profile(profile, dossier):

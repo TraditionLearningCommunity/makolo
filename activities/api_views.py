@@ -28,7 +28,7 @@ from core.participant_activity_context import participant_state_context_for_acti
 from core.participant_presentation import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
 from core.product_language import vocabulary_for
-from operations.participant_occurrence_live import resolve_participant_occurrence_live
+from operations.participant_occurrence_live import participant_occurrence_live_available
 from organizations.models import OrganizationVerificationStatus
 
 
@@ -415,18 +415,17 @@ class OccurrenceDetailAPIView(APIView):
             availability_state=availability,
         )
 
-        live = (
-            resolve_participant_occurrence_live(
+        live_available = (
+            participant_occurrence_live_available(
                 occurrence=occurrence,
                 actor=request.user,
-                observed_at=observed_at,
             )
             if _authenticated(request.user)
-            else None
+            else False
         )
         live_link = None
         capabilities = []
-        if live is not None:
+        if live_available:
             live_link = f"/api/v1/operations/occurrences/{occurrence.pk}/live/"
             capabilities.append("open_live")
 

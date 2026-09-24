@@ -1,11 +1,19 @@
+from collections import defaultdict
 from dataclasses import dataclass
 
 from django.core.exceptions import PermissionDenied
 
-from readiness import ReadinessStatus, resolve_journey_readiness
+from readiness import ReadinessStatus, resolve_journey_readiness, resolve_many
 
 from .models import DossierLifecycle
-from .selectors import active_dependencies_for_dossier, readiness_journeys_for_dossier, visible_linked_journey_ids
+from .selectors import (
+    active_dependencies_for_dossier,
+    active_dependencies_for_dossiers,
+    readiness_journeys_for_dossier,
+    readiness_journeys_for_dossiers,
+    visible_linked_journey_ids,
+    visible_linked_journey_pairs,
+)
 from .services import can_view_dossier, dependency_is_satisfied
 
 
@@ -107,24 +115,39 @@ def _collective_status(*, dossier, journey_results, unsatisfied_dependencies):
     return ReadinessStatus.READY
 
 
-def resolve_dossier_readiness(dossier, *, viewer):
-    """Return the privacy-safe, non-persistent Collective Readiness projection for a Dossier."""
-    if not can_view_dossier(viewer, dossier):
-        raise PermissionDenied("Ce Dossier n’est pas visible pour cet utilisateur.")
-
+def _assemble_dossier_readiness(
+    dossier,
+    *,
+    viewer,
+    journeys,
+    journey_results,
+    visible_ids,
+    dependencies,
+):
     if dossier.lifecycle == DossierLifecycle.COMPLETED:
-        return DossierReadinessResult(dossier, ReadinessStatus.COMPLETE, False, (), (), None, None)
+        return DossierReadinessResult(
+            dossier,
+            ReadinessStatus.COMPLETE,
+            False,
+            (),
+            (),
+            None,
+            None,
+        )
     if dossier.lifecycle in {DossierLifecycle.CANCELLED, DossierLifecycle.ARCHIVED}:
         return DossierReadinessResult(dossier, None, False, (), (), None, None)
 
-    journeys = list(readiness_journeys_for_dossier(dossier))
     journey_by_id = {journey.pk: journey for journey in journeys}
-    journey_results = {journey.pk: resolve_journey_readiness(journey, viewer=None) for journey in journeys}
-    visible_ids = set(visible_linked_journey_ids(viewer, dossier))
-
-    dependencies = list(active_dependencies_for_dossier(dossier))
-    unsatisfied = [dependency for dependency in dependencies if not dependency_is_satisfied(dependency)]
-    status = _collective_status(dossier=dossier, journey_results=journey_results, unsatisfied_dependencies=unsatisfied)
+    unsatisfied = [
+        dependency
+        for dependency in dependencies
+        if not dependency_is_satisfied(dependency)
+    ]
+    status = _collective_status(
+        dossier=dossier,
+        journey_results=journey_results,
+        unsatisfied_dependencies=unsatisfied,
+    )
 
     hidden_dependency_for_visible = set()
     visible_dependencies = []
@@ -164,16 +187,33 @@ def resolve_dossier_readiness(dossier, *, viewer):
         result = journey_results[journey.pk]
         if journey.pk not in visible_ids:
             if (
-                (status == ReadinessStatus.BLOCKED and result.status == ReadinessStatus.BLOCKED)
-                or (status == ReadinessStatus.ACTION_REQUIRED and result.status == ReadinessStatus.ACTION_REQUIRED)
-                or (status == ReadinessStatus.WAITING and result.status == ReadinessStatus.WAITING)
+                (
+                    status == ReadinessStatus.BLOCKED
+                    and result.status == ReadinessStatus.BLOCKED
+                )
+                or (
+                    status == ReadinessStatus.ACTION_REQUIRED
+                    and result.status == ReadinessStatus.ACTION_REQUIRED
+                )
+                or (
+                    status == ReadinessStatus.WAITING
+                    and result.status == ReadinessStatus.WAITING
+                )
             ):
                 hidden_influence = True
             continue
         action = _project_next_action(journey, result, viewer=viewer)
         if result.status == ReadinessStatus.ACTION_REQUIRED and action is not None:
             journey_action_candidates.append(action)
-        if result.status in {ReadinessStatus.BLOCKED, ReadinessStatus.ACTION_REQUIRED, ReadinessStatus.WAITING} or journey.pk in hidden_dependency_for_visible:
+        if (
+            result.status
+            in {
+                ReadinessStatus.BLOCKED,
+                ReadinessStatus.ACTION_REQUIRED,
+                ReadinessStatus.WAITING,
+            }
+            or journey.pk in hidden_dependency_for_visible
+        ):
             visible_items.append(
                 DossierReadinessItem(
                     journey_id=journey.pk,
@@ -185,10 +225,17 @@ def resolve_dossier_readiness(dossier, *, viewer):
             )
 
     visible_items.sort(key=lambda item: str(item.journey_id))
-    visible_dependencies.sort(key=lambda item: (str(item.dependent_journey_id), str(item.required_journey_id)))
+    visible_dependencies.sort(
+        key=lambda item: (
+            str(item.dependent_journey_id),
+            str(item.required_journey_id),
+        )
+    )
     dependency_action_candidates.sort(key=lambda action: str(action.journey_id))
     journey_action_candidates.sort(key=lambda action: str(action.journey_id))
-    primary_next_action = (dependency_action_candidates or journey_action_candidates or [None])[0]
+    primary_next_action = (
+        dependency_action_candidates or journey_action_candidates or [None]
+    )[0]
 
     return DossierReadinessResult(
         dossier=dossier,
@@ -199,3 +246,105 @@ def resolve_dossier_readiness(dossier, *, viewer):
         hidden_signal=HIDDEN_COLLECTIVE_SIGNAL if hidden_influence else None,
         primary_next_action=primary_next_action,
     )
+
+
+def resolve_dossier_readiness(dossier, *, viewer):
+    """Return the privacy-safe, non-persistent Collective Readiness projection."""
+    if not can_view_dossier(viewer, dossier):
+        raise PermissionDenied("Ce Dossier n’est pas visible pour cet utilisateur.")
+
+    if dossier.lifecycle == DossierLifecycle.COMPLETED:
+        return _assemble_dossier_readiness(
+            dossier,
+            viewer=viewer,
+            journeys=(),
+            journey_results={},
+            visible_ids=set(),
+            dependencies=(),
+        )
+    if dossier.lifecycle in {DossierLifecycle.CANCELLED, DossierLifecycle.ARCHIVED}:
+        return _assemble_dossier_readiness(
+            dossier,
+            viewer=viewer,
+            journeys=(),
+            journey_results={},
+            visible_ids=set(),
+            dependencies=(),
+        )
+
+    journeys = list(readiness_journeys_for_dossier(dossier))
+    journey_results = {
+        journey.pk: resolve_journey_readiness(journey, viewer=None)
+        for journey in journeys
+    }
+    visible_ids = set(visible_linked_journey_ids(viewer, dossier))
+    dependencies = list(active_dependencies_for_dossier(dossier))
+    return _assemble_dossier_readiness(
+        dossier,
+        viewer=viewer,
+        journeys=journeys,
+        journey_results=journey_results,
+        visible_ids=visible_ids,
+        dependencies=dependencies,
+    )
+
+
+def resolve_owned_dossiers_readiness(dossiers, *, viewer):
+    """Batch Readiness for Dossiers explicitly owned by the current Profile.
+
+    Ownership is verified on every object before any batch query. Journey
+    visibility is still resolved through the canonical activity/Journey scope,
+    so batching never turns hidden linked Journeys into visible ones.
+    """
+    dossiers = list(dossiers)
+    if not getattr(viewer, "is_authenticated", False):
+        raise PermissionDenied("Authentification requise.")
+    if any(dossier.owner_profile_id != viewer.pk for dossier in dossiers):
+        raise PermissionDenied("Tous les Dossiers doivent appartenir au Profile courant.")
+    if not dossiers:
+        return {}
+
+    active_dossiers = [
+        dossier
+        for dossier in dossiers
+        if dossier.lifecycle
+        not in {
+            DossierLifecycle.COMPLETED,
+            DossierLifecycle.CANCELLED,
+            DossierLifecycle.ARCHIVED,
+        }
+    ]
+    active_ids = [dossier.pk for dossier in active_dossiers]
+
+    journeys = list(readiness_journeys_for_dossiers(active_ids))
+    journey_results = resolve_many(journeys, viewer=None)
+
+    journeys_by_dossier = defaultdict(list)
+    for journey in journeys:
+        for link in getattr(journey, "_readiness_dossier_links", ()):
+            journeys_by_dossier[link.dossier_id].append(journey)
+
+    visible_by_dossier = defaultdict(set)
+    for dossier_id, journey_id in visible_linked_journey_pairs(viewer, active_ids):
+        visible_by_dossier[dossier_id].add(journey_id)
+
+    dependencies_by_dossier = defaultdict(list)
+    for dependency in active_dependencies_for_dossiers(active_ids):
+        dependencies_by_dossier[dependency.dossier_id].append(dependency)
+
+    results = {}
+    for dossier in dossiers:
+        dossier_journeys = journeys_by_dossier.get(dossier.pk, ())
+        dossier_results = {
+            journey.pk: journey_results[journey.pk]
+            for journey in dossier_journeys
+        }
+        results[dossier.pk] = _assemble_dossier_readiness(
+            dossier,
+            viewer=viewer,
+            journeys=dossier_journeys,
+            journey_results=dossier_results,
+            visible_ids=visible_by_dossier.get(dossier.pk, set()),
+            dependencies=dependencies_by_dossier.get(dossier.pk, ()),
+        )
+    return results

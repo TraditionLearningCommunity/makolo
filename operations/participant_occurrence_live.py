@@ -29,6 +29,13 @@ from .occurrence_live import (
 from .operational_readiness import resolve_operational_readiness
 
 
+def participant_occurrence_live_available(*, occurrence, actor):
+    """Cheap owner-domain capability check without building the Live payload."""
+    if not actor or not getattr(actor, "is_authenticated", False):
+        return False
+    return profile_is_checkpoint_beneficiary(actor, occurrence)
+
+
 def resolve_participant_occurrence_live(*, occurrence, actor, observed_at=None):
     """Return the participant projection only when ``actor`` is a beneficiary.
 
@@ -36,9 +43,10 @@ def resolve_participant_occurrence_live(*, occurrence, actor, observed_at=None):
     is both an operator and a participant still receives participant-safe data
     here; generic Operations surfaces continue to use ``resolve_occurrence_live``.
     """
-    if not actor or not getattr(actor, "is_authenticated", False):
-        return None
-    if not profile_is_checkpoint_beneficiary(actor, occurrence):
+    if not participant_occurrence_live_available(
+        occurrence=occurrence,
+        actor=actor,
+    ):
         return None
 
     now = observed_at or timezone.now()

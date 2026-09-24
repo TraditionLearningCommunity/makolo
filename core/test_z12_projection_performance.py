@@ -8,7 +8,7 @@ from django.db import connection
 from django.utils import timezone
 
 from access.models import Access, AccessCredential, AccessStatus
-from activities.models import Activity
+from activities.models import Activity, Occurrence, OccurrenceStatus
 from core.api.access_projection import (
     ACCESS_RELATION_BENEFICIARY,
     ACCESS_RELATION_PURCHASED_FOR_OTHER,
@@ -17,6 +17,8 @@ from core.api.access_projection import (
 from core.api.me_projection import build_personal_resources_data
 from core.api.personal_projections import ONGOING_LIMIT, build_personal_ongoing_projection
 from journeys.models import Journey, JourneyStatus, WorkflowKind
+from objectives.models import DossierJourneyLink
+from objectives.services import create_dossier
 from personal_assets.services import create_personal_asset, create_personal_asset_version
 
 
@@ -160,3 +162,93 @@ class Z12ProjectionPerformanceTests(TestCase):
         PersonalAsset.objects.filter(controller=self.user).delete()
         many = self._resource_query_count(20)
         self.assertLessEqual(many, one + 2)
+
+
+    def _dossiers(self, count):
+        for index in range(count):
+            dossier = create_dossier(
+                actor=self.user,
+                owner_profile=self.user,
+                title=f"Dossier Z12 {index}",
+            )
+            journey = Journey.objects.create(
+                initiated_by=self.user,
+                beneficiary=self.other,
+                activity=self.activity,
+                workflow=WorkflowKind.REGISTRATION,
+                status=JourneyStatus.APPROVED,
+            )
+            DossierJourneyLink.objects.create(
+                dossier=dossier,
+                journey=journey,
+                linked_by=self.user,
+            )
+
+    def test_ongoing_dossier_readiness_query_growth_is_batched(self):
+        self._dossiers(2)
+        with CaptureQueriesContext(connection) as small:
+            small_data = build_personal_ongoing_projection(self.user)
+        self.assertEqual(
+            len([row for row in small_data["items"] if row["kind"] == "dossier"]),
+            2,
+        )
+
+        self._dossiers(8)
+        with CaptureQueriesContext(connection) as larger:
+            larger_data = build_personal_ongoing_projection(self.user)
+        self.assertEqual(
+            len([row for row in larger_data["items"] if row["kind"] == "dossier"]),
+            10,
+        )
+        self.assertLessEqual(len(larger), len(small) + 2)
+
+    def test_ongoing_access_does_not_load_deep_generic_prefetches(self):
+        for index in range(ONGOING_LIMIT):
+            self._access(beneficiary=self.user, index=100 + index)
+        with CaptureQueriesContext(connection) as queries:
+            data = build_personal_ongoing_projection(
+                self.user,
+                observed_at=timezone.now(),
+            )
+        self.assertEqual(len(data["items"]), ONGOING_LIMIT)
+        self.assertTrue(all(row["kind"] == "access" for row in data["items"]))
+        sql = "\n".join(
+            query["sql"].lower()
+            for query in queries.captured_queries
+        )
+        self.assertNotIn("access_accesscredential", sql)
+        self.assertNotIn("access_accessuse", sql)
+
+    def test_details_check_live_capability_without_building_operations_live(self):
+        observed_at = timezone.now()
+        occurrence = Occurrence.objects.create(
+            activity=self.activity,
+            status=OccurrenceStatus.SCHEDULED,
+            start_at=observed_at,
+            end_at=observed_at,
+        )
+        journey = Journey.objects.create(
+            initiated_by=self.user,
+            beneficiary=self.user,
+            activity=self.activity,
+            occurrence=occurrence,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.APPROVED,
+        )
+        self.client.force_login(self.user)
+        with patch(
+            "operations.participant_occurrence_live.resolve_operational_readiness",
+            side_effect=AssertionError(
+                "Detail capability must not build Operations Live."
+            ),
+        ):
+            journey_response = self.client.get(
+                f"/api/v1/me/journeys/{journey.pk}/"
+            )
+            occurrence_response = self.client.get(
+                f"/api/v1/occurrences/{occurrence.pk}/"
+            )
+        self.assertEqual(journey_response.status_code, 200)
+        self.assertEqual(occurrence_response.status_code, 200)
+        self.assertIn("live", journey_response.json()["data"]["links"])
+        self.assertIn("live", occurrence_response.json()["data"]["links"])

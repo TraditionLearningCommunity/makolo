@@ -6,7 +6,7 @@ from core.participant_selectors import (
     participant_accesses_visible_to_buyer,
     participant_journeys,
 )
-from operations.participant_occurrence_live import resolve_participant_occurrence_live
+from operations.participant_occurrence_live import participant_occurrence_live_available
 from readiness import resolve_journey_readiness
 from readiness.selectors import participant_readiness_queryset
 from services.models import ServiceRequirementAssessment
@@ -41,12 +41,12 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
             observed_at=observed_at,
         )
         live = (
-            resolve_participant_occurrence_live(
+            True
+            if journey.occurrence_id
+            and participant_occurrence_live_available(
                 occurrence=journey.occurrence,
                 actor=request.user,
-                observed_at=observed_at,
             )
-            if journey.occurrence_id
             else None
         )
         return self._response(

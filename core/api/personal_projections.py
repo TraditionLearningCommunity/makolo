@@ -7,8 +7,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from objectives.models import DossierLifecycle, ProjectLifecycle
-from objectives.readiness import resolve_dossier_readiness
-from objectives.selectors import dossiers_for_profile, projects_for_profile
+from objectives.readiness import resolve_owned_dossiers_readiness
+from objectives.selectors import owned_dossiers_for_profile, owned_projects_for_profile
 from payments.models import PaymentStatus
 from journeys.models import Journey
 from payments.selectors import get_payments_visible_to
@@ -471,8 +471,7 @@ def _access_ongoing_item(access):
     }
 
 
-def _dossier_ongoing_item(dossier, *, profile):
-    readiness = resolve_dossier_readiness(dossier, viewer=profile)
+def _dossier_ongoing_item(dossier, *, readiness):
     state = readiness.status.value if readiness.status is not None else dossier.lifecycle
 
     interventions = []
@@ -692,7 +691,10 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
 
     journeys = list(
         readiness_queryset(
-            participant_active_journeys(profile).order_by("-updated_at", "-created_at", "id")
+            participant_active_journeys(profile)
+            .select_related(None)
+            .prefetch_related(None)
+            .order_by("-updated_at", "-created_at", "id")
         )[:remaining]
     )
     readiness_by_id = resolve_many(journeys, viewer=profile, observed_at=observed_at)
@@ -705,6 +707,10 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
     if remaining:
         accesses = list(
             participant_active_accesses(profile, at=observed_at)
+            .select_related(None)
+            .prefetch_related(None)
+            .select_related("activity", "occurrence")
+            .prefetch_related("occurrence__place_links__place")
             .order_by("occurrence__start_date", "occurrence__start_time", "id")[:remaining]
         )
         items.extend(_access_ongoing_item(access) for access in accesses)
@@ -712,24 +718,29 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
 
     if remaining:
         dossiers = list(
-            dossiers_for_profile(profile)
+            owned_dossiers_for_profile(profile)
             .filter(
-                owner_profile=profile,
                 lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
             )
             .order_by("-updated_at", "id")[:remaining]
         )
+        dossier_readiness = resolve_owned_dossiers_readiness(
+            dossiers,
+            viewer=profile,
+        )
         items.extend(
-            _dossier_ongoing_item(dossier, profile=profile)
+            _dossier_ongoing_item(
+                dossier,
+                readiness=dossier_readiness[dossier.pk],
+            )
             for dossier in dossiers
         )
         remaining = ONGOING_LIMIT - len(items)
 
     if remaining:
         projects = list(
-            projects_for_profile(profile)
+            owned_projects_for_profile(profile)
             .filter(
-                owner_profile=profile,
                 lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE},
             )
             .order_by("-updated_at", "id")[:remaining]
