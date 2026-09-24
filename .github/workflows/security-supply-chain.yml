@@ -35,12 +35,15 @@ jobs:
       - name: Install security tooling
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt -r requirements-dev.txt
+          python -m pip install -r requirements-observer.txt -r requirements-dev.txt
           python -m pip check
       - name: Reject mutable GitHub Actions references
         run: python scripts/check_action_pins.py
       - name: Audit Python runtime dependencies
-        run: python -m pip_audit -r requirements.txt
+        run: |
+          python -m pip_audit -r requirements.txt
+          python -m pip_audit -r requirements-prospector.txt
+          python -m pip_audit -r requirements-observer.txt
       - name: Bandit medium/high first-party runtime findings
         shell: bash
         run: |
