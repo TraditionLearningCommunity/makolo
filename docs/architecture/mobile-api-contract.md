@@ -1,8 +1,45 @@
-# Contrat API — MVP mobile Flutter
+# Contrat API — Mobile Makolo
 
-> **Portée historique :** ce document décrit le premier contrat mobile Event/Ticket et les endpoints qu'il couvre. Pour les nouvelles projections UX Mature du programme Z, le contrat transversal canonique est [`backend-ux-projection-api.md`](backend-ux-projection-api.md). Le runtime courant reste la vérité.
+> **Statut : point d'entrée canonique du contrat mobile.** Le contrat final Web ↔ API ↔ Flutter et les règles de handoff Mature sont fixés par [`z13-mobile-api-handoff.md`](z13-mobile-api-handoff.md), en cohérence avec [`backend-ux-projection-api.md`](backend-ux-projection-api.md). Le runtime courant reste la vérité.
+>
+> Les sections Event/Ticket/Scanner ci-dessous conservent le contrat détaillé du premier MVP mobile lorsqu'elles décrivent encore des endpoints runtime réels. Elles sont une **compatibilité verticale**, pas l'architecture générale de l'expérience Mature.
 
-Ce document fixe le contrat HTTP utilisé par le futur client Flutter Android/iOS de Makolo. Il ne décrit pas le back-office organisateur. Le mobile MVP cible les participants, acheteurs et détenteurs de billets, avec un mode Scanner séparé et strictement autorisé côté serveur.
+Le client natif consomme le backend canonique Makolo. Il ne reconstruit ni Readiness, ni Permission/Mandate, ni Access validity, ni Payment state, ni Capacity, ni actionabilité à partir des modèles, du texte ou de pages HTML.
+
+## Contrat Mature à utiliser pour A1
+
+Les cinq surfaces permanentes sont consommées via les contrats déjà livrés :
+
+```text
+Maintenant   GET  /api/v1/me/now/
+Découvrir    GET  /api/v1/discovery/items/
+Makolo Mark  POST /api/v1/me/mark/
+En cours     GET  /api/v1/me/ongoing/
+Moi          GET  /api/v1/me/
+```
+
+`GET /api/v1/accounts/auth/me/` reste le bootstrap d'identité/authentification et ne remplace pas Moi.
+
+Les profondeurs et owner handoffs essentiels incluent :
+
+```text
+Journey      GET /api/v1/me/journeys/<id>/
+Access       GET /api/v1/me/accesses/<id>/
+Credential   GET /api/v1/me/accesses/<id>/credential/
+Historique   GET /api/v1/me/history/
+Jour J       GET /api/v1/me/occurrences/<id>/day-of/
+Live         GET /api/v1/operations/occurrences/<id>/live/
+Passport     GET /api/v1/me/passport/
+Resources    GET /api/v1/me/resources/
+Group        GET /api/v1/me/collectives/groups/<id>/
+Partner      GET /api/v1/me/partners/<id>/
+Recognition  GET /api/v1/recognition/me/
+Loyalty      GET /api/v1/loyalty/me/
+```
+
+Il n'existe pas de namespace parallèle `/api/v1/mobile/`. Flutter suit les `links` et `capabilities` fournis par le serveur et revalide toute mutation côté owner. Les règles détaillées d'identité, schema version, pagination, erreurs, idempotence/retry, cache, confidentialité, faible connectivité, notifications/deep links et gaps A1 sont centralisées dans Z13.
+
+## Compatibilité Event / Ticket / Scanner historique
 
 ## Base et principes
 

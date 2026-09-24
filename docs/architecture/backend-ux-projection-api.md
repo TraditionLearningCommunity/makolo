@@ -247,7 +247,7 @@ Trust             → /api/v1/trust/...
 Loyalty personnel → /api/v1/loyalty/me/
 ```
 
-`docs/architecture/mobile-api-contract.md` reste le contrat historique du premier MVP Event/Ticket pour les endpoints qu'il documente. Il n'est plus le contrat complet de l'expérience Mature.
+`docs/architecture/mobile-api-contract.md` est désormais le point d'entrée canonique du contrat mobile. Il renvoie au handoff final [`z13-mobile-api-handoff.md`](z13-mobile-api-handoff.md) pour l'expérience Mature, tout en conservant les contrats détaillés Event/Ticket/Scanner encore valides pour leur verticale.
 
 ## 15. Lots suivants
 
