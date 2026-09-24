@@ -9,7 +9,7 @@
 - HEAD de départ Z14 : `2752357ed790b60f925da71042fcf9e7cbcbea3c`
 - Dernier merge avant Z14 : PR #287 — Z13, contrat final Web/API/Flutter et handoff mobile
 - Z1–Z13 : intégrés ; aucune migration métier Z identifiée
-- Z14 : branche `task-z14-program-closeout`, gate final de fermeture
+- Z14 : ce snapshot appartient à la PR de fermeture ; **lorsqu'il est présent sur `main` après CI verte, le programme Z est fermé**
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -68,7 +68,7 @@ Z10   continuité inter-surfaces                 ✅ intégré
 Z11   sécurité/autorité/confidentialité          ✅ intégré
 Z12+  performance/stabilité/coût                ✅ intégré
 Z13   contrat final Web/API/Flutter              ✅ intégré
-Z14   fermeture/readiness mobile                 🔄 gate final
+Z14   fermeture/readiness mobile                 ✅ lorsque ce snapshot est sur main après CI verte
 ```
 
 L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée #274 déjà mergée.
