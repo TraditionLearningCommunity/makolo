@@ -16,6 +16,7 @@ on:
       - "prospector/**"
       - "config/settings.py"
       - "requirements.txt"
+      - "requirements-prospector.txt"
       - ".github/workflows/prospector-postgresql.yml"
 
 concurrency:
