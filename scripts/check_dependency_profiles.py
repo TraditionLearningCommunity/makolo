@@ -13,8 +13,7 @@ def lines(name: str) -> list[str]:
 
 
 base = lines("requirements.txt")
-prospector = lines("requirements-prospector.txt")
-observer = lines("requirements-observer.txt")
+agents = lines("requirements-agents.txt")
 
 for forbidden in ("crawlee", "playwright", "browserforge", "tldextract"):
     if any(forbidden in line.lower() for line in base):
@@ -22,16 +21,11 @@ for forbidden in ("crawlee", "playwright", "browserforge", "tldextract"):
             f"{forbidden} must not be installed by the Web/server requirements.txt profile"
         )
 
-if "-r requirements.txt" not in prospector:
-    raise SystemExit("requirements-prospector.txt must extend requirements.txt")
-if "crawlee==1.10.1" not in prospector:
-    raise SystemExit("requirements-prospector.txt must pin Crawlee without browser extras")
-if any("playwright" in line.lower() for line in prospector):
-    raise SystemExit("Prospector profile must not install Playwright")
-
-if "-r requirements.txt" not in observer:
-    raise SystemExit("requirements-observer.txt must extend requirements.txt")
-if "crawlee[playwright]==1.10.1" not in observer:
-    raise SystemExit("requirements-observer.txt must pin the tested Crawlee Playwright extra")
+if "-r requirements.txt" not in agents:
+    raise SystemExit("requirements-agents.txt must extend requirements.txt")
+if "tldextract==5.3.2" not in agents:
+    raise SystemExit("requirements-agents.txt must pin tldextract for Prospecteur domain scope")
+if "crawlee[playwright]==1.10.1" not in agents:
+    raise SystemExit("requirements-agents.txt must pin the tested Crawlee Playwright extra")
 
 print("runtime dependency profiles: ok")
