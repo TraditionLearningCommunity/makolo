@@ -20,7 +20,7 @@ from groups.models import Group, GroupMembership, GroupMembershipSource, GroupMe
 from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestPurpose, RequestStatus, WorkflowKind
 from notifications.models import DeliveryChannel, DeliveryStatus, Notification, NotificationCategory, NotificationDelivery, NotificationKind
 from operations.models import IncidentCategory, IncidentSeverity, IncidentStatus, OperationsIncident
-from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
+from organizations.models import Organization, SpaceArchetype, Team, TeamMembership, TeamMembershipStatus
 from payments.models import Payment, PaymentMethod, PaymentProvider, PaymentStatus
 from promotions.canonical_models import PromotionOffer, PromotionTargeting
 from promotions.models import DiscountType, Promotion, PromotionCode
@@ -82,9 +82,9 @@ def _users(ctx):
     return result
 
 
-def _space(key, name, owner):
+def _space(key, name, owner, *, archetype=SpaceArchetype.GENERIC):
     org = upsert(Organization, f"beta-{key}", defaults={
-        "name": name, "slug": f"beta-{key}", "description": f"Espace fictif {name}.", "contact_email": f"contact.beta.{key}@makolo.test",
+        "name": name, "slug": f"beta-{key}", "archetype": archetype, "description": f"Espace fictif {name}.", "contact_email": f"contact.beta.{key}@makolo.test",
         "country": "CD", "city": "Lubumbashi", "public_profile": True, "verification_status": "verified", "created_by": owner,
     })
     team = upsert(Team, f"beta-{key}", defaults={"organization": org, "name": "Équipe bêta", "is_default": True, "is_active": True})
@@ -335,7 +335,12 @@ def seed_beta(ctx: SeedContext) -> None:
     users = _users(ctx)
     ensure_platform_admin_mandate(profile=users["staff"], source="makolo-beta")
     event_space, event_team = _space("events", "Makolo Beta Events", users["space_admin"])
-    transport_space, transport_team = _space("transport", "Makolo Beta Transport", users["space_admin"])
+    transport_space, transport_team = _space(
+        "transport",
+        "Makolo Beta Transport",
+        users["space_admin"],
+        archetype=SpaceArchetype.TRANSPORT_OPERATOR,
+    )
     ctx.organizations = [event_space, transport_space]
     for team, keys in [(event_team, ["space_admin", "event_manager", "finance", "marketing", "scanner"]), (transport_team, ["space_admin", "transport_operator", "finance", "scanner"])]:
         for key in keys: _member(team, users[key], users["space_admin"])

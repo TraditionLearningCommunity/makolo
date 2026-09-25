@@ -22,7 +22,7 @@ from commerce.models import Offer, OfferStatus, PaymentMode
 from events.models import Event, EventCategory
 from geography.models import Place, SpacePlace, SpacePlaceRole
 from journeys.models import Journey, JourneyStatus, WorkflowKind
-from organizations.models import Organization, OrganizationVerificationStatus
+from organizations.models import Organization, OrganizationVerificationStatus, SpaceArchetype
 from transport.services import (
     configure_transport_fare,
     create_transport_departure,
@@ -55,6 +55,7 @@ class CanonicalDiscoveryTests(TestCase):
         self.space = Organization.objects.create(
             name="Makolo Discovery Space",
             slug="makolo-discovery-space",
+            archetype=SpaceArchetype.TRANSPORT_OPERATOR,
             city="Lubumbashi",
             country="CD",
             public_profile=True,
