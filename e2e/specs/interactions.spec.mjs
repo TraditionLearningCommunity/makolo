@@ -157,3 +157,28 @@ test('workspace runtime scopes and deduplicates private projections in memory', 
   });
   expect(requests).toBe(2);
 });
+
+
+test('expanded personal surfaces keep context while compact links stay available', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await login(page, 'visual.participant@e2e.makolo.test');
+
+  await page.goto('/me/ongoing/');
+  await expect(page.locator('.mk-workspace')).toHaveAttribute('data-workspace-layout', 'master-detail');
+  const expandedItem = page.locator('.mk-ongoing-card--expanded').first();
+  const compactItem = page.locator('.mk-ongoing-card--compact').first();
+  await expect(expandedItem).toBeVisible();
+  await expect(compactItem).toBeHidden();
+
+  const originalUrl = page.url();
+  const selectedTitle = await expandedItem.getByRole('heading').textContent();
+  await expandedItem.click();
+  await expect(page).toHaveURL(originalUrl);
+  await expect(page.locator('#ongoing-dates')).toBeVisible();
+  await expect(page.locator('#ongoing-detail-body')).toContainText(selectedTitle.trim());
+
+  await page.goto('/me/moi/');
+  await expect(page.locator('.mk-me-grid')).toHaveCSS('display', 'grid');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
