@@ -6,7 +6,8 @@
 
   const params = new URLSearchParams(window.location.search);
   const expandedFilters = form?.querySelector('.mk-discovery-filters');
-  if (expandedFilters && window.matchMedia('(min-width: 1200px)').matches) expandedFilters.open = true;
+  const searchContext = document.querySelector('.mk-discovery-workspace[data-discovery-context="search"]');
+  if (expandedFilters && searchContext && window.matchMedia('(min-width: 1200px)').matches) expandedFilters.open = true;
 
   if (query && params.get('focus') === 'search') {
     window.requestAnimationFrame(() => query.focus({ preventScroll: false }));
