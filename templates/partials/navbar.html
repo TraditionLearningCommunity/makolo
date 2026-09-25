@@ -17,7 +17,7 @@
     </div>
 
     <div class="flex items-center gap-2">
-      {% if request.user.is_authenticated %}<button type="button" class="mk-command-trigger mk-icon-btn" data-mk-command-trigger aria-label="Ouvrir la navigation rapide" title="Navigation rapide · Ctrl/Cmd+K"><i data-lucide="search" aria-hidden="true"></i></button>{% endif %}
+      {% if request.user.is_authenticated %}<button type="button" class="mk-command-trigger mk-icon-btn" data-mk-command-trigger aria-label="Ouvrir la navigation rapide" aria-haspopup="dialog" aria-expanded="false" title="Navigation rapide · Ctrl/Cmd+K"><i data-lucide="search" aria-hidden="true"></i></button>{% endif %}
       {% if not space_console and personal_nav.owner == 'now' and personal_nav.is_primary %}
         <a href="{% url 'conversations:list' %}" aria-label="Conversations{% if conversation_attention %}, {{ conversation_attention }} point{{ conversation_attention|pluralize }} pour vous{% endif %}" class="mk-icon-btn relative"><i data-lucide="message-square-heart"></i>{% if conversation_attention %}<span class="mk-attention-dot">{{ conversation_attention }}</span>{% endif %}</a>
         <a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative"><i data-lucide="bell"></i>{% if unread_notifications %}<span class="mk-attention-dot">{% if unread_notifications > 9 %}9+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}</a>
