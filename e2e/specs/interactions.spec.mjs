@@ -118,6 +118,8 @@ test('expanded shell keeps the workspace stable while the desktop rail changes d
   const sidebar = page.locator('#desktop-sidebar');
   const toggle = page.getByRole('button', { name: 'Réduire ou développer la navigation' });
   await expect(sidebar).toHaveCSS('width', '232px');
+  await sidebar.hover();
+  await expect(toggle).toBeVisible();
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(sidebar).toHaveCSS('width', '84px');
