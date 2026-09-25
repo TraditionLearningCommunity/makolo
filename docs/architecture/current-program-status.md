@@ -70,6 +70,7 @@ Z11   sécurité/autorité/confidentialité          ✅ intégré
 Z12+  performance/stabilité/coût                ✅ intégré
 Z13   contrat final Web/API/Flutter              ✅ intégré
 Z14   fermeture/readiness mobile                 ✅ intégré
+Z15   réconciliation capacités orphelines         ✅ lorsque le gate Z15 est présent sur main après CI verte
 ```
 
 L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée #274 déjà mergée.
