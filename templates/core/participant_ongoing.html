@@ -1,7 +1,8 @@
 {% extends 'base/app.html' %}
 {% block title %}En cours | Makolo{% endblock %}
+{% block workspace_layout %}master-detail{% endblock %}
 {% block content %}
-<div class="mk-mature-page">
+<div class="mk-mature-page mk-ongoing-workspace" data-mk-surface="ongoing">
   <section class="mk-mature-heading">
     <p class="mk-eyebrow">En cours</p>
     <h1>Ce qui continue</h1>
@@ -11,18 +12,8 @@
   {% if ongoing_items %}
     <div id="ongoing-dates" class="mk-ongoing-list" aria-label="Engagements en cours">
       {% for item in ongoing_items %}
-        <a href="{{ item.url }}" class="mk-ongoing-card mk-tone-{{ item.tone }}">
-          <div class="mk-ongoing-card__body">
-            <div class="mk-ongoing-card__topline">
-              {% if item.timing %}<span>{{ item.timing.compact_label }}</span>{% endif %}
-              {% if item.place %}<span>{{ item.place.name }}</span>{% endif %}
-            </div>
-            <h2>{{ item.title }}</h2>
-            <p>{{ item.summary }}</p>
-            {% if item.next_action %}<strong>{{ item.next_action }}</strong>{% endif %}
-          </div>
-          <i data-lucide="chevron-right" aria-hidden="true"></i>
-        </a>
+        {% include "core/_ongoing_card.html" with expanded=False %}
+        {% include "core/_ongoing_card.html" with expanded=True %}
       {% endfor %}
     </div>
   {% else %}
@@ -42,4 +33,20 @@
     {% if has_transfers %}<a href="{% url 'tickets:transfer-list' %}">Transferts</a>{% endif %}
   </div>
 </div>
+{% endblock %}
+{% block workspace_context %}
+{% if ongoing_items %}
+<aside id="ongoing-detail" class="mk-workspace__detail mk-workspace-panel mk-personal-detail" aria-label="Détail de l’engagement sélectionné">
+  <div class="mk-workspace-panel__header">
+    <div>
+      <p class="mk-eyebrow">Aperçu</p>
+      <strong>Sélectionnez un engagement</strong>
+    </div>
+    <i data-lucide="panel-right" aria-hidden="true"></i>
+  </div>
+  <div id="ongoing-detail-body" class="mk-workspace-panel__body" aria-live="polite">
+    <p class="mk-empty-copy">Son contexte utile s’affichera ici sans vous faire perdre la liste.</p>
+  </div>
+</aside>
+{% endif %}
 {% endblock %}
