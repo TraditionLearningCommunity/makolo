@@ -1,0 +1,14 @@
+<a href="{{ item.url }}"
+   class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}"
+   {% if expanded %}hx-get="{{ item.url }}" hx-target="#ongoing-detail-body" hx-select="#main-content" hx-swap="innerHTML" hx-push-url="false" hx-indicator="#ongoing-detail"{% endif %}>
+  <div class="mk-ongoing-card__body">
+    <div class="mk-ongoing-card__topline">
+      {% if item.timing %}<span>{{ item.timing.compact_label }}</span>{% endif %}
+      {% if item.place %}<span>{{ item.place.name }}</span>{% endif %}
+    </div>
+    <h2>{{ item.title }}</h2>
+    <p>{{ item.summary }}</p>
+    {% if item.next_action %}<strong>{{ item.next_action }}</strong>{% endif %}
+  </div>
+  <i data-lucide="chevron-right" aria-hidden="true"></i>
+</a>
