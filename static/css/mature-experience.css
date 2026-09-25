@@ -82,10 +82,7 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 
 /* W4 — Discover Explore composition on Expanded. */
 .mk-discovery-preview,.mk-discovery-preview-action{display:none}
-@media(min-width:1280px) and (max-width:1535px){
-  .mk-workspace[data-workspace-layout="explore"]:has(.mk-discovery-workspace){display:block}
-}
-@media(min-width:1536px){
+@media(min-width:1280px){
   .mk-discovery-workspace{min-width:0}
   .mk-discovery-workspace .mk-participant-hero{padding:28px}
   .mk-discovery-preview{display:block;position:sticky;top:84px;max-height:calc(100vh - 108px);overflow:auto;align-self:start}
