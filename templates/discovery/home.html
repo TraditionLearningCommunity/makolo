@@ -1,6 +1,7 @@
 {% extends 'base/app.html' %}
 {% load static tz discovery_query %}
 {% block title %}Découvrir | Makolo{% endblock %}
+{% block workspace_layout %}explore{% endblock %}
 {% block extra_css %}{% if nearby_active and map_items %}<link rel="stylesheet" href="{% static 'dist/maplibre-gl.css' %}">{% endif %}{% endblock %}
 {% block content %}
 <template id="discover-tailwind-i3-compat">
@@ -17,7 +18,7 @@
     <div class="mt-5 flex flex-wrap gap-3 flex-col items-start items-center justify-between sm:flex-row sm:items-center sm:justify-between"></div>
     <div class="fill-current"></div>
 </template>
-<div class="space-y-7 lg:space-y-9">
+<div class="mk-discovery-workspace space-y-7 lg:space-y-9" data-mk-surface="discover">
     {% include 'discovery/_participant_nav.html' %}
 
     {% if request.user.is_authenticated %}
@@ -65,7 +66,7 @@
             <input id="discover-lon" type="hidden" name="lon" value="{{ filters.lon|default:'' }}">
             <span id="discover-geolocation-status" class="text-xs" style="color:var(--mk-muted)" role="status" aria-live="polite">{% if nearby_active %}Proximité active pour cette recherche.{% endif %}</span>
 
-            <details class="group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)" {% if filters.place or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}open{% endif %}>
+            <details class="mk-discovery-filters group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)" {% if filters.place or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}open{% endif %}>
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold" style="color:var(--mk-muted)"><span class="flex items-center gap-2"><i data-lucide="sliders-horizontal" class="h-4 w-4"></i>Filtres</span><i data-lucide="chevron-down" class="h-4 w-4 transition group-open:rotate-180"></i></summary>
                 <div class="grid gap-3 border-t p-4 sm:grid-cols-3" style="border-color:var(--mk-border)">
                     <div><label for="discover-place" class="mb-1 block text-xs font-semibold">Lieu</label><input id="discover-place" name="place" value="{{ filters.place|default:filters.city|default:'' }}" maxlength="120" placeholder="Ville ou lieu" list="discovery-place-suggestions" autocomplete="off"><datalist id="discovery-place-suggestions">{% for suggestion in place_suggestions %}<option value="{{ suggestion }}">{% endfor %}</datalist></div>
@@ -97,7 +98,7 @@
 
     <section class="flex flex-wrap items-end justify-between gap-3"><div><span class="mk-kicker">Résultats</span><h2 class="mt-2 text-2xl font-extrabold tracking-[-.04em]" aria-live="polite">{{ result_count }} résultat{{ result_count|pluralize }}</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Comparez ce qui compte — quand, où, prix, disponibilité — puis choisissez le prochain geste utile.</p><p class="mt-1 text-xs" style="color:var(--mk-muted)">Les horaires des activités planifiées sont affichés dans leur heure locale.</p></div></section>
     <div class="grid gap-5 {% if nearby_active and map_items %}lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]{% endif %}">
-        <section id="discovery-list-panel" aria-label="Résultats de découverte" class="space-y-3"{% if nearby_active and map_items %} style="grid-column:1 / -1"{% endif %}>
+        <section id="discovery-list-panel" aria-label="Résultats de découverte" class="mk-discovery-results space-y-3"{% if nearby_active and map_items %} style="grid-column:1 / -1"{% endif %}>
             {% for card in discovery_cards %}{% include 'discovery/_universal_card.html' with card=card %}{% endfor %}
 
             {% if not discovery_cards %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucune possibilité ne correspond à cette recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Élargissez le lieu ou la date, retirez une contrainte, ou essayez une autre recherche.</p><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4">Explorer sans filtre</a></div>{% elif not page_obj.has_next %}<div class="mk-panel p-5 text-center sm:p-6" role="status"><p class="font-extrabold">Vous avez vu ce qui est pertinent ici.</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">Makolo ne relâche pas vos critères en silence. Modifiez votre recherche ou vos filtres si vous voulez élargir l’exploration.</p><a href="#discovery-search-form" class="mk-btn mk-btn-secondary mt-4">Modifier ma recherche</a></div>{% endif %}
@@ -106,5 +107,16 @@
     </div>
 </div>
 {% if nearby_active and map_items %}{{ map_items|json_script:"discovery-map-data" }}{{ map_config|json_script:"discovery-map-config" }}{% endif %}
+{% endblock %}
+{% block workspace_context %}
+<aside id="discover-preview" class="mk-workspace__context mk-workspace-panel mk-discovery-preview" aria-label="Aperçu de la possibilité sélectionnée">
+    <div class="mk-workspace-panel__header">
+        <div><span class="mk-kicker">Aperçu</span><p class="mt-1 text-sm font-bold">Gardez vos résultats à portée de vue</p></div>
+        <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i>
+    </div>
+    <div id="discover-preview-body" class="mk-workspace-panel__body" aria-live="polite">
+        <p class="mk-empty-copy">Sélectionnez « Aperçu » sur une possibilité pour consulter son contexte sans quitter la recherche.</p>
+    </div>
+</aside>
 {% endblock %}
 {% block extra_js %}{% if nearby_active and map_items %}<script defer src="{% static 'dist/discovery-map.js' %}"></script>{% else %}<script defer src="{% static 'dist/discovery-geolocation.js' %}"></script>{% endif %}<script defer src="{% static 'js/discovery-ux.js' %}"></script>{% endblock %}
