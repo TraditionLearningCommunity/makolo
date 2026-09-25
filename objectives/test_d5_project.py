@@ -89,9 +89,13 @@ class D5ProjectTests(TestCase):
         self.client.force_login(self.alice)
         response = self.client.get(reverse("objectives:project-detail", args=[project.pk]))
         self.assertContains(response, "Visible"); self.assertNotContains(response, "Dossier secret"); self.assertContains(response, "1 dossier visible")
+        self.assertContains(response, 'data-workspace-layout="inspect"')
+        self.assertContains(response, 'aria-label="Contexte du Projet"')
         self.client.force_login(self.bob)
         response = self.client.get(reverse("objectives:dossier-detail", args=[hidden.pk]))
         self.assertNotContains(response, "Projet visible")
+        self.assertContains(response, 'data-workspace-layout="inspect"')
+        self.assertContains(response, 'aria-label="Contexte du Dossier"')
 
     def test_project_lifecycle_does_not_propagate_and_non_operational_project_rejects_new_link(self):
         dossier = create_dossier(actor=self.alice, owner_profile=self.alice, title="Logement")
