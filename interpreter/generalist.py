@@ -72,14 +72,14 @@ _THRESHOLD = re.compile(
 )
 _EMAIL = re.compile(r"(?<![\w.+-])([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})(?![\w.-])", re.I)
 _PHONE = re.compile(r"(?<!\w)(\+?\d[\d ()-]{6,}\d)(?!\w)")
-_YEAR_RANGE = re.compile(r"^\\d{4}\\s*[-–—]\\s*\\d{4}$")
+_YEAR_RANGE = re.compile(r"^\d{4}\s*[-–—]\s*\d{4}$")
 _TECHNICAL_ASSET = re.compile(
-    r"\\.(?:css|js|mjs|map|woff2?|ttf|otf|eot|png|jpe?g|gif|webp|svg|ico|mp4|webm|mp3|wav)(?:[?#].*)?$",
+    r"\.(?:css|js|mjs|map|woff2?|ttf|otf|eot|png|jpe?g|gif|webp|svg|ico|mp4|webm|mp3|wav)(?:[?#].*)?$",
     re.I,
 )
 _PROCEDURE_STEP = re.compile(
-    r"\\b(?:submit|submission|apply|application|register|registration|interview|review|validation|confirmation|selection|shortlist|shortlisted|"
-    r"soumettre|d[eé]p[oô]t|d[eé]poser|candidater|candidature|inscription|entretien|examen du dossier|validation|confirmation|s[eé]lection|pr[eé]s[eé]lection)\\b",
+    r"\b(?:submit|submission|apply|application|register|registration|interview|review|validation|confirmation|selection|shortlist|shortlisted|"
+    r"soumettre|d[eé]p[oô]t|d[eé]poser|candidater|candidature|inscription|entretien|examen du dossier|validation|confirmation|s[eé]lection|pr[eé]s[eé]lection)\b",
     re.I,
 )
 _URL = re.compile(r"https?://[^\s<>()\"']+", re.I)
@@ -124,7 +124,7 @@ def _phone_value(value: str) -> str | None:
     value = _clean(value)
     if not value or _YEAR_RANGE.fullmatch(value):
         return None
-    digits = re.sub(r"\\D", "", value)
+    digits = re.sub(r"\D", "", value)
     if not 9 <= len(digits) <= 15:
         return None
     return value
