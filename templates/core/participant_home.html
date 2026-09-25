@@ -1,7 +1,7 @@
 {% extends 'base/app.html' %}
 {% block title %}Maintenant | Makolo{% endblock %}
 {% block content %}
-<div class="mk-mature-page">
+<div class="mk-mature-page" data-mk-surface="now">
   <section class="mk-mature-heading">
     <p class="mk-eyebrow">Maintenant</p>
     <p>Bonjour{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}.</p>
