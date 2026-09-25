@@ -55,6 +55,29 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertIn('id="mobile-primary-nav"', html)
         self.assertIn('lg:hidden', html)
 
+    def test_personal_surfaces_expose_their_expanded_compositions(self):
+        now_response = self.client.get(reverse("core:participant-home"))
+        ongoing_response = self.client.get(reverse("core:participant-ongoing"))
+        me_response = self.client.get(reverse("core:participant-me"))
+
+        self.assertContains(now_response, 'data-mk-surface="now"')
+        self.assertContains(now_response, 'data-workspace-layout="focus"')
+        self.assertContains(ongoing_response, 'data-workspace-layout="master-detail"')
+        self.assertContains(ongoing_response, 'data-mk-surface="ongoing"')
+        self.assertContains(me_response, 'data-mk-surface="me"')
+        self.assertContains(me_response, 'class="mk-me-grid"')
+
+    def test_ongoing_items_keep_a_compact_link_and_offer_an_expanded_detail_target(self):
+        response = self.client.get(reverse("core:participant-ongoing"))
+
+        self.assertEqual(response.status_code, 200)
+        if response.context["ongoing_items"]:
+            self.assertContains(response, 'class="mk-ongoing-card mk-ongoing-card--compact')
+            self.assertContains(response, 'class="mk-ongoing-card mk-ongoing-card--expanded')
+            self.assertContains(response, 'hx-target="#ongoing-detail-body"')
+            self.assertContains(response, 'hx-push-url="false"')
+            self.assertContains(response, 'id="ongoing-detail"')
+
     def test_membership_is_visible_as_collective_but_not_as_authorized_space(self):
         owner = User.objects.create_user(
             username="mature-space-owner",

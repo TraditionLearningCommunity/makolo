@@ -65,3 +65,16 @@ a[aria-label="Revenir à Mon espace"]{display:none}
   .mk-workspace__detail,.mk-workspace__context{margin-top:var(--mk-workspace-gap);border-left:0}
 }
 @media(prefers-reduced-motion:reduce){.mk-context-drawer{transition:none}}
+
+
+/* W3 — Personal surfaces on Expanded without changing Compact flows. */
+.mk-ongoing-card--expanded{display:none}
+@media(min-width:1280px){
+  .mk-ongoing-workspace,.mk-me-workspace{max-width:none}
+  .mk-ongoing-card--compact{display:none}
+  .mk-ongoing-card--expanded{display:flex}
+  .mk-personal-detail{position:sticky;top:84px;max-height:calc(100vh - 108px);overflow:auto;align-self:start}
+  .mk-personal-detail .mk-workspace-panel__body #main-content{padding:0}
+  .mk-me-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+  .mk-me-grid .mk-me-section{height:100%}
+}
