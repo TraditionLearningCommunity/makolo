@@ -75,12 +75,15 @@ def recover_expired_interpretations(*, now=None):
 
 
 @transaction.atomic
-def claim_interpretations(*, worker_id, limit, lease_seconds=300):
+def claim_interpretations(*, worker_id, limit, lease_seconds=300, strategy_fingerprint=None):
     worker_id = (worker_id or "").strip()
     if not worker_id:
         raise InterpreterContractError("worker_id is required")
     now = timezone.now()
-    queryset = InterpretationRun.objects.filter(lifecycle="pending").order_by("created_at", "id")
+    queryset = InterpretationRun.objects.filter(lifecycle="pending")
+    if strategy_fingerprint:
+        queryset = queryset.filter(strategy_fingerprint=strategy_fingerprint)
+    queryset = queryset.order_by("created_at", "id")
     if connection.features.has_select_for_update:
         kwargs = {"of": ("self",)}
         if connection.features.has_select_for_update_skip_locked:
