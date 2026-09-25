@@ -1,6 +1,7 @@
 :root{--mk-mature-nav-h:74px}
 .mk-app-main{min-width:0;flex:1}
-@media(min-width:768px){.mk-app-main{padding-left:84px}.mk-sidebar{width:84px}}\n@media(min-width:1200px){.mk-app-main{padding-left:232px}.mk-sidebar{width:232px}}
+@media(min-width:768px){.mk-app-main{padding-left:84px}.mk-sidebar{width:84px}}
+@media(min-width:1200px){.mk-app-main{padding-left:232px}.mk-sidebar{width:232px}}
 .mk-mature-rail{display:flex;flex-direction:column;gap:.35rem;padding:1rem .75rem}
 .mk-mature-rail>a{display:flex;align-items:center;gap:.8rem;min-height:48px;padding:.75rem .9rem;border-radius:16px;color:var(--mk-muted);font-weight:750;font-size:.9rem}
 .mk-mature-rail>a:hover,.mk-mature-rail>a.is-active{background:var(--mk-surface-muted);color:var(--mk-text)}
