@@ -18,7 +18,7 @@
     <div class="mt-5 flex flex-wrap gap-3 flex-col items-start items-center justify-between sm:flex-row sm:items-center sm:justify-between"></div>
     <div class="fill-current"></div>
 </template>
-<div class="mk-discovery-workspace space-y-7 lg:space-y-9" data-mk-surface="discover">
+<div class="mk-discovery-workspace space-y-7 lg:space-y-9" data-mk-surface="discover" data-discovery-context="{% if filters.q or filters.place or filters.city or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}search{% else %}landing{% endif %}">
     {% include 'discovery/_participant_nav.html' %}
 
     {% if request.user.is_authenticated %}
