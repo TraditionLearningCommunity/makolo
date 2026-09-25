@@ -8,9 +8,9 @@ from rest_framework.views import APIView
 from journeys.models import Journey
 from organizations.models import Organization
 
-from .models import Dispute, Report
-from .selectors import dispute_visible_to, get_public_trust_summary, proofs_for_profile, public_proof_by_id
-from .services import create_report, submit_feedback
+from .models import Dispute, Report, VerificationClaim
+from .selectors import dispute_visible_to, get_operator_trust_summary, get_public_trust_summary, proofs_for_profile, public_proof_by_id
+from .services import can_manage_space_trust, can_view_space_trust, create_report, request_verification, submit_feedback
 
 
 def _error_response(exc):
@@ -113,3 +113,71 @@ class PublicProofAPIView(APIView):
         payload = _proof_payload(proof)
         payload.pop("is_public", None)
         return Response(payload)
+
+
+
+class SpaceOperatorTrustAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, space_id):
+        space = Organization.objects.filter(pk=space_id).first()
+        if space is None or not can_view_space_trust(request.user, space):
+            from rest_framework.exceptions import NotFound
+            raise NotFound()
+
+        payload = get_operator_trust_summary(space, request.user)
+        payload["claims"] = [
+            {
+                "id": str(claim.pk),
+                "claim_type": claim.claim_type,
+                "status": claim.status,
+                "requested_at": claim.requested_at,
+                "reviewed_at": claim.reviewed_at,
+                "valid_until": claim.valid_until,
+            }
+            for claim in VerificationClaim.objects.filter(subject_space=space)
+            .order_by("-requested_at", "id")[:50]
+        ]
+        can_manage = can_manage_space_trust(request.user, space)
+        payload["capabilities"] = ["view"] + (["request_verification"] if can_manage else [])
+        payload["links"] = {"self": f"/api/v1/trust/spaces/{space.pk}/operator/"}
+        if can_manage:
+            payload["links"]["request_verification"] = (
+                f"/api/v1/trust/spaces/{space.pk}/verification-requests/"
+            )
+
+        response = Response(payload)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class SpaceVerificationRequestAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, space_id):
+        space = Organization.objects.filter(pk=space_id).first()
+        if space is None or not can_manage_space_trust(request.user, space):
+            from rest_framework.exceptions import NotFound
+            raise NotFound()
+
+        try:
+            claim = request_verification(
+                actor=request.user,
+                subject_space=space,
+                claim_type=request.data.get("claim_type", ""),
+                disclosure=request.data.get("disclosure", "public_result"),
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            return _error_response(exc)
+
+        response = Response(
+            {
+                "id": str(claim.pk),
+                "claim_type": claim.claim_type,
+                "status": claim.status,
+                "requested_at": claim.requested_at,
+            },
+            status=201,
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
