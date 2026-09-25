@@ -5,6 +5,8 @@
 > Base auditée au démarrage de M10.2 : main@33f189f07b5e46769e39dc77f8cc85257523a17d.
 >
 > Le code, les migrations, les tests et le main courant restent prioritaires si ce document vieillit.
+>
+> **Réconciliation A0 (25 septembre 2026) :** [`mobile-a0-architecture-reconciliation.md`](mobile-a0-architecture-reconciliation.md) précise désormais que le store local, l’outbox durable et la synchronisation owner-scoped font partie de la fondation A1. L’autorité terrain offline déléguée reste une étape distincte A5.
 
 ## 1. Objet
 
@@ -164,10 +166,12 @@ F = inutile ou contraire à l'architecture
 | ShareEnvelope : création/révocation dédiée mobile | A | requis avant gestion native du partage Passport |
 | Interests/Open to : lecture dans Moi | E | livré |
 | Interests/Open to : mutation dédiée si l'écran natif l'exige | A | à ajouter avec owner Topics, pas dans le shell |
-| secure storage JWT natif | B | responsabilité A |
-| Universal Links / Android App Links | B | après décision réelle bundle/domaines |
-| push FCM/APNs, caméra, partage système | B | capacité appareil/provider |
-| offline sync / autorité offline | C | ne pas simuler dans A1 |
+| secure storage JWT natif | B | fondation A1 |
+| store local + migrations + outbox durable + sync owner-scoped | B | fondation A1 local-first ; aucune vérité métier dupliquée |
+| Universal Links / Android App Links | B | A4, après décision réelle bundle/domaines |
+| push FCM/APNs, caméra, partage système | B | A4, capacité appareil/provider |
+| scheduling/background OS | B | A4 ; optimisation de déclenchement, pas condition de correction |
+| autorité offline déléguée / scanner terrain / allocation locale | C | A5 ; ne pas simuler dans A1 |
 | realtime générique | C | non requis pour fermer Core/Web |
 | provider Payment final | D | aucune cible/provider inventé |
 | hébergement Observer Browser/Chromium | D | optionnel, explicite, séparé |
@@ -256,17 +260,21 @@ Les deux actions suivantes restent externes au code : déployer le SHA final sur
 
 A peut commencer uniquement depuis le main M10 fermé.
 
-Ordre de départ recommandé :
+Ordre de départ recommandé après A0 :
 
 ~~~
 architecture native
+→ DB locale + migrations + isolation Profile
+→ secure storage + auth/refresh sérialisé
+→ repositories + client API commun
+→ outbox durable + sync owner-scoped
 → navigation cinq surfaces
-→ auth + secure storage
-→ client API commun
 → Maintenant / Découvrir / Mark / En cours / Moi
 → owner depths via links/capabilities
 → mutations natives seulement lorsqu'un owner contract existe
 ~~~
+
+Le local-first commence donc en A1. A5 n'est pas une phase « rendre l'application offline » : il ajoute uniquement les capacités de terrain qui exigent une autorité déléguée ou une réconciliation opérationnelle avancée.
 
 Le mobile n'est pas une seconde implémentation de Makolo.
 
