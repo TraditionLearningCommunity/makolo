@@ -1,7 +1,8 @@
 {% extends "base/app.html" %}
 {% block title %}{{ dossier.title }} | En cours{% endblock %}
+{% block workspace_layout %}inspect{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-4xl space-y-6 pb-10">
+<div class="mk-deep-workspace mx-auto max-w-4xl space-y-6 pb-10">
   <section class="mk-panel p-5 sm:p-7">
     <span class="mk-kicker">Objectif actif composé</span>
     <h1 class="mk-page-title mt-2">{{ dossier.title }}</h1>
@@ -9,7 +10,7 @@
     <div class="mt-4 flex flex-wrap gap-2"><span class="mk-badge">{{ dossier.get_lifecycle_display }}</span>{% if dossier.deadline %}<span class="mk-badge">Échéance {{ dossier.deadline }}</span>{% endif %}</div>
   </section>
 
-  <section class="mk-panel p-5 sm:p-6">
+  <section id="dossier-readiness" class="mk-panel p-5 sm:p-6">
     <span class="mk-kicker">Où j’en suis</span>
     <h2 class="mt-2 text-xl font-extrabold">Avancement</h2>
     <p class="mt-2 font-semibold">{{ collective_readiness.status_label }}</p>
@@ -29,7 +30,7 @@
   <section class="mk-panel p-5 sm:p-6"><span class="mk-kicker">Horizon durable</span><h2 class="mt-2 font-extrabold"><a href="{% url 'objectives:project-detail' project.id %}">{{ project.title }}</a></h2></section>
   {% endif %}
 
-  <section class="mk-panel p-5 sm:p-6">
+  <section id="dossier-composition" class="mk-panel p-5 sm:p-6">
     <span class="mk-kicker">Ce qui compose cet objectif</span>
     <h2 class="mt-2 font-extrabold">Démarches visibles</h2>
     <div class="mt-4 space-y-3">
@@ -80,4 +81,19 @@
   </section>
   {% endif %}
 </div>
+{% endblock %}
+{% block workspace_context %}
+<aside class="mk-workspace__context mk-workspace-panel mk-deep-context" aria-label="Contexte du Dossier">
+  <div class="mk-workspace-panel__header"><div><span class="mk-kicker">Dossier</span><p class="mt-1 text-sm font-bold">{{ dossier.title }}</p></div><i data-lucide="folder-kanban" class="h-4 w-4" aria-hidden="true"></i></div>
+  <div class="mk-workspace-panel__body space-y-4">
+    <div class="flex flex-wrap gap-2"><span class="mk-badge">{{ dossier.get_lifecycle_display }}</span>{% if dossier.deadline %}<span class="mk-badge">{{ dossier.deadline }}</span>{% endif %}</div>
+    <p class="text-sm font-semibold">{{ collective_readiness.status_label }}</p>
+    <nav class="grid gap-2 text-sm" aria-label="Repères du Dossier">
+      <a class="mk-deep-context-link" href="#dossier-readiness">Avancement</a>
+      <a class="mk-deep-context-link" href="#dossier-composition">Démarches liées</a>
+      {% if project %}<a class="mk-deep-context-link" href="{% url 'objectives:project-detail' project.id %}">Projet · {{ project.title }}</a>{% endif %}
+    </nav>
+    <p class="text-xs leading-5" style="color:var(--mk-subtle)">Le Dossier compose un objectif actif. Il ne transfère ni autorité ni droits sur les démarches qu’il relie.</p>
+  </div>
+</aside>
 {% endblock %}
