@@ -41,6 +41,7 @@ from .console_selectors import (
     team_for_console,
 )
 from .models import Organization
+from .space_product import space_supports_specialized_module
 
 
 class SpaceConsoleMixin(LoginRequiredMixin):
@@ -115,6 +116,7 @@ class SpaceConsoleActivitiesView(SpaceConsoleMixin, TemplateView):
         context["query"] = q
         context["status_filter"] = status
         context["can_create_activity"] = self.space_console.can_manage_activities
+        context["can_use_transport"] = space_supports_specialized_module(self.space, "transport")
         return context
 
 

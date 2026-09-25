@@ -50,6 +50,7 @@ class OrganizationCreateView(LoginRequiredMixin, CreateView):
         self.object = create_organization(
             creator=self.request.user,
             name=form.cleaned_data["name"],
+            archetype=form.cleaned_data["archetype"],
             description=form.cleaned_data.get("description", ""),
             website=form.cleaned_data.get("website", ""),
             contact_email=form.cleaned_data.get("contact_email", ""),

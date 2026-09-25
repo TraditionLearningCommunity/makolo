@@ -64,6 +64,7 @@ class SpaceSettingsEditTests(TestCase):
             self.edit_url,
             {
                 "name": "Espace paramètres mis à jour",
+                "archetype": self.space.archetype,
                 "description": "Description corrigée",
                 "website": "https://example.com",
                 "contact_email": "contact@example.com",

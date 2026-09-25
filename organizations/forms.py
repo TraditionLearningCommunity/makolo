@@ -32,6 +32,7 @@ class OrganizationForm(forms.ModelForm):
         model = Organization
         fields = [
             "name",
+            "archetype",
             "description",
             "website",
             "contact_email",
