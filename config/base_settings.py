@@ -255,9 +255,9 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = int(
 )
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = "accounts:login"
+LOGIN_URL = "core:login"
 LOGIN_REDIRECT_URL = "core:dashboard"
-LOGOUT_REDIRECT_URL = "accounts:login"
+LOGOUT_REDIRECT_URL = "core:login"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
