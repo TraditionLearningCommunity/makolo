@@ -184,34 +184,38 @@ test('expanded personal surfaces keep context while compact links stay available
 });
 
 
-test('desktop command palette navigates with keyboard and stays out of Compact', async ({ page }) => {
-  await page.setViewportSize({ width: 1200, height: 800 });
+test('responsive regimes keep desktop shell from Adaptive and multi-pane only on Expanded', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
+
+  await page.setViewportSize({ width: 800, height: 900 });
   await page.goto('/me/');
+  await expect(page.locator('#desktop-sidebar')).toBeVisible();
+  await expect(page.locator('#desktop-sidebar')).toHaveCSS('width', '84px');
+  await expect(page.locator('#mobile-primary-nav')).toBeHidden();
 
   const trigger = page.getByRole('button', { name: 'Ouvrir la navigation rapide' });
   await expect(trigger).toBeVisible();
-
   await page.keyboard.press('Control+k');
   const palette = page.getByRole('dialog', { name: 'Aller à' });
   await expect(palette).toBeVisible();
-  const input = page.getByLabel('Rechercher une destination');
-  await expect(input).toBeFocused();
-  await input.fill('Découvrir');
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/discover\//);
-
-  await page.keyboard.press('Control+k');
-  await expect(palette).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(palette).toBeHidden();
 
-  await page.keyboard.press('?');
-  await expect(palette).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1199, height: 900 });
+  await page.goto('/me/ongoing/');
+  await expect(page.locator('#desktop-sidebar')).toBeVisible();
+  await expect(page.locator('#desktop-sidebar')).toHaveCSS('width', '84px');
+  await expect(page.locator('.mk-workspace')).toHaveAttribute('data-workspace-layout', 'master-detail');
+  await expect(page.locator('.mk-workspace')).toHaveCSS('display', 'block');
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await page.reload();
+  await expect(page.locator('#desktop-sidebar')).toHaveCSS('width', '232px');
+  await expect(page.locator('.mk-workspace')).toHaveCSS('display', 'grid');
 
   await page.setViewportSize({ width: 400, height: 928 });
   await page.reload();
+  await expect(page.locator('#desktop-sidebar')).toBeHidden();
+  await expect(page.locator('#mobile-primary-nav')).toBeVisible();
   await expect(trigger).toBeHidden();
   await page.keyboard.press('Control+k');
   await expect(palette).toBeHidden();
