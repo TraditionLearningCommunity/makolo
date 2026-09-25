@@ -256,4 +256,4 @@ M10.1 est fermé lorsque :
 - CI applicable est verte ;
 - la PR est mergée sur `main` puis `main` redevient vert.
 
-Le déploiement et le smoke de l'environnement bêta réel restent une preuve opérateur externe au dépôt et devront être enregistrés avant la fermeture globale M10.
+Le déploiement et le smoke de l'environnement bêta réel restent une preuve opérateur externe au dépôt. La fermeture dépôt et le handoff mobile final sont documentés dans [`m10-final-production-mobile-handoff.md`](m10-final-production-mobile-handoff.md).

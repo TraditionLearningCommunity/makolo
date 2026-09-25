@@ -1,6 +1,6 @@
 # Contrat API — Mobile Makolo
 
-> **Statut : point d'entrée canonique du contrat mobile.** Le contrat final Web ↔ API ↔ Flutter et les règles de handoff Mature sont fixés par [`z13-mobile-api-handoff.md`](z13-mobile-api-handoff.md), en cohérence avec [`backend-ux-projection-api.md`](backend-ux-projection-api.md). Le runtime courant reste la vérité.
+> **Statut : point d'entrée canonique du contrat mobile.** Le contrat Web ↔ API du runtime est fixé par [`z13-mobile-api-handoff.md`](z13-mobile-api-handoff.md) et le handoff de fermeture M10 par [`m10-final-production-mobile-handoff.md`](m10-final-production-mobile-handoff.md), en cohérence avec [`backend-ux-projection-api.md`](backend-ux-projection-api.md). Le runtime courant reste la vérité.
 >
 > Les sections Event/Ticket/Scanner ci-dessous conservent le contrat détaillé du premier MVP mobile lorsqu'elles décrivent encore des endpoints runtime réels. Elles sont une **compatibilité verticale**, pas l'architecture générale de l'expérience Mature.
 

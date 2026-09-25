@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
@@ -25,8 +26,13 @@ from .services import change_organization_verification, moderate_event
 
 
 class StaffOperationsMixin(LoginRequiredMixin, UserPassesTestMixin):
-    login_url = "accounts:login"
-    raise_exception = True
+    login_url = "core:login"
+    raise_exception = False
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            raise PermissionDenied
+        return super().handle_no_permission()
 
     def test_func(self):
         return user_can_access_operations(self.request.user)
