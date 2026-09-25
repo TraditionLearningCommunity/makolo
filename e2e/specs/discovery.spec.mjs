@@ -95,3 +95,24 @@ test('nearby permission denial keeps textual Discovery usable', async ({ page, c
   await expect(page.locator('#discover-geolocation-status')).toContainText('Impossible de vous localiser. Saisissez une ville ou un lieu.');
   await expect(page.getByRole('heading', { name: 'Discovery Event E2E' })).toBeVisible();
 });
+
+
+test('expanded Discovery previews a result without losing search context', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto('/discover/?place=Lubumbashi&when=tomorrow');
+
+  await expect(page.locator('.mk-workspace')).toHaveAttribute('data-workspace-layout', 'explore');
+  await expect(page.locator('.mk-discovery-filters')).toHaveAttribute('open', '');
+  const result = page.locator('article').filter({ hasText: 'Discovery Event E2E' }).first();
+  const title = await result.getByRole('heading').textContent();
+  const originalUrl = page.url();
+
+  await result.getByRole('button', { name: 'Aperçu' }).click();
+  await expect(page).toHaveURL(originalUrl);
+  await expect(page.locator('#discovery-list-panel')).toBeVisible();
+  await expect(page.locator('#discover-preview-body')).toContainText(title.trim());
+  await expect(page.locator('#mobile-primary-nav')).toBeHidden();
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
