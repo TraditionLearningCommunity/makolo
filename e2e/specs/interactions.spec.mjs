@@ -107,3 +107,23 @@ test('critical discovery smoke also runs on Firefox @firefox-only @firefox', asy
   await page.getByRole('link', { name: 'Festival Makolo E2E' }).first().click();
   await expect(page.getByRole('link', { name: /Acheter le billet/i })).toBeVisible();
 });
+
+
+test('expanded shell keeps the workspace stable while the desktop rail changes density', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await login(page, 'empty.participant@e2e.makolo.test');
+  await expect(page.locator('.mk-workspace')).toHaveAttribute('data-workspace-layout', 'focus');
+  await expect(page.locator('#mobile-primary-nav')).toBeHidden();
+
+  const sidebar = page.locator('#desktop-sidebar');
+  const toggle = page.getByRole('button', { name: 'Réduire ou développer la navigation' });
+  await expect(sidebar).toHaveCSS('width', '232px');
+  await sidebar.hover();
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(sidebar).toHaveCSS('width', '84px');
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});

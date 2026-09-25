@@ -41,6 +41,18 @@ class MaturePersonalExperienceTests(TestCase):
         for legacy_label in ("Démarches", "Conversations", "Profil", "Plus"):
             self.assertNotIn(f"<span>{legacy_label}</span>", mobile_nav)
 
+    def test_expanded_shell_exposes_workspace_foundation_without_changing_compact_navigation(self):
+        response = self.client.get(reverse("core:participant-home"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('class="mk-workspace"', html)
+        self.assertIn('data-workspace-layout="focus"', html)
+        self.assertIn('class="mk-workspace__primary"', html)
+        self.assertIn('class="mk-sidebar-toggle mk-icon-btn"', html)
+        self.assertIn('id="mobile-primary-nav"', html)
+        self.assertIn('lg:hidden', html)
+
     def test_membership_is_visible_as_collective_but_not_as_authorized_space(self):
         owner = User.objects.create_user(
             username="mature-space-owner",
