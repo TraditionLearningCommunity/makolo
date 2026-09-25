@@ -244,6 +244,8 @@ Le modèle canonique `groups.Group` évite également toute collision avec `User
 
 Aucune nouvelle fonctionnalité ne doit lire `OrganizationMembership.role`, un flag global User ou `created_by` pour décider une autorisation Activity. Les migrations de compatibilité pourront retirer ces adaptateurs une fois les données legacy classifiées.
 
+Z15 applique également cette règle aux collections transversales : la lecture Automation sans filtre Espace utilise désormais `space_ids_with_permission(..., crm.view)` au lieu de reconstruire l'accès depuis `OrganizationMembership.role`. Les read-models `/api/v1/organizations/workspaces/...` partent de `authorized_spaces()` et des Permissions/Mandates ; une membership legacy seule ne peut donc ni ouvrir la Console Espace backend ni rendre un module disponible.
+
 ## Migrations Groupe
 
 La portée Groupe est introduite sans relation générique :
