@@ -2,7 +2,7 @@
 {% personal_navigation request as personal_nav %}
 <!DOCTYPE html>
 <html lang="fr" class="h-full"{% if request.user.is_authenticated %} data-theme-preference="{{ request.user.profile.theme|default:'system' }}"{% endif %}>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><link rel="stylesheet" href="{% static 'css/mature-experience.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/workspace-runtime.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><link rel="stylesheet" href="{% static 'css/mature-experience.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/workspace-runtime.js' %}"></script><script defer src="{% static 'js/desktop-power.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
 <body class="min-h-full" x-data="{ sidebarOpen: false, navCompact: false }" @keydown.escape.window="sidebarOpen = false">
 <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
 <div class="mk-app-shell flex min-h-screen" :class="{ 'mk-nav-compact': navCompact }">
@@ -31,6 +31,19 @@
     {% endif %}
     {% include 'partials/footer.html' %}
   </div>
+</div>
+<div id="mk-command-palette" class="mk-command-backdrop" role="dialog" aria-modal="true" aria-labelledby="mk-command-title" hidden>
+  <section class="mk-command-palette" aria-describedby="mk-command-shortcuts">
+    <div class="mk-command-header">
+      <div><span class="mk-kicker">Navigation rapide</span><h2 id="mk-command-title">Aller à</h2></div>
+      <button type="button" class="mk-icon-btn" data-mk-command-close aria-label="Fermer la palette"><i data-lucide="x" aria-hidden="true"></i></button>
+    </div>
+    <label class="sr-only" for="mk-command-input">Rechercher une destination</label>
+    <div class="mk-command-search"><i data-lucide="search" aria-hidden="true"></i><input id="mk-command-input" type="search" autocomplete="off" placeholder="Aller à…" aria-controls="mk-command-results" aria-autocomplete="list"></div>
+    <div id="mk-command-results" class="mk-command-results" role="listbox" aria-label="Destinations"></div>
+    <div id="mk-command-shortcuts" class="mk-command-shortcuts"><span><kbd>↑</kbd><kbd>↓</kbd> choisir</span><span><kbd>↵</kbd> ouvrir</span><span><kbd>Esc</kbd> fermer</span><span><kbd>?</kbd> aide</span></div>
+    <p id="mk-command-status" class="sr-only" aria-live="polite"></p>
+  </section>
 </div>
 {% block extra_js %}{% endblock %}
 </body></html>
