@@ -213,23 +213,36 @@ Motifs :
 
 Snapshot de dépendances vérifié le 25 septembre 2026 :
 
-| Capacité | Choix A1 | Version auditée |
+| Capacité | Choix A1 | Version auditée / règle |
 | --- | --- | --- |
 | Flutter | stable | 3.47.3 |
+| Dart | SDK embarqué par Flutter | 3.13.3 |
 | State/DI | flutter_riverpod | 3.4.3 |
 | Routing | go_router | 18.0.1 |
 | DB | drift | 2.35.0 |
 | ouverture Flutter DB | drift_flutter | 0.3.1 |
 | secrets | flutter_secure_storage | 11.2.0 |
 | HTTP | http | 1.6.0 |
+| sérialisation | `dart:convert` + DTO/parsers explicites | aucune dépendance de codegen en A1 |
 | chemins privés/cache | path_provider | 2.1.6 |
 | signal réseau | connectivity_plus | 7.3.1 |
+| background work | aucun plugin requis pour la correction A1 | lifecycle/manual/network triggers ; choix OS en A4 |
+| tests | `flutter_test` + fakes + Drift in-memory | fondation SDK, pas de framework de mock imposé |
 
 Références de vérification : changelog Flutter officiel et pages de versions 'pub.dev'. Les versions seront **pinées au démarrage A1**, puis mises à jour intentionnellement ; A0 ne crée pas encore 'pubspec.yaml'.
 
 'connectivity_plus' fournit un signal de transport, pas une preuve d'accès Internet. La sync doit toujours tolérer timeout, DNS, captive portal et erreur serveur.
 
 Le package obsolète 'sqlite3_flutter_libs' ne doit pas être ajouté directement ; la pile sqlite3 3.x actuelle a remplacé son ancien rôle.
+
+Critères de choix fermés :
+
+- **Riverpod** porte uniquement l'état de présentation/orchestration et l'injection de dépendances. Il ne devient jamais le store durable. Son intérêt A1 est de séparer logique/UI, composer les états async et permettre des overrides/fakes de test ;
+- **go_router** est retenu pour le routeur déclaratif, la restauration et les deep links structurés ; l'identité métier reste `kind/id/links`, pas le chemin du routeur ;
+- **`http`** est volontairement minimal. Makolo encapsule refresh sérialisé, normalisation d'erreurs et timeouts dans son propre client ; on n'introduit pas un framework réseau plus large sans besoin concret ;
+- **sérialisation** : A1 utilise des DTO/parsers explicites tolérant les champs additifs de `schema_version=1`. Un générateur de code pourra être introduit si le volume A2/A3 le justifie, sans changer les repositories ;
+- **background** : aucune tâche permanente n'est requise pour la correction. Launch, resume, retour réseau, action manuelle et mutation locale suffisent en A1 ; A4 choisira un mécanisme OS uniquement après audit des contraintes iOS/Android ;
+- **tests** : `flutter_test`, fakes HTTP/repositories et DB Drift in-memory constituent le socle. Un framework de mocks n'est pas ajouté par défaut.
 
 ## 7. D3 — Modèle et isolation locale
 
