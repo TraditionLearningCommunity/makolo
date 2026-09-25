@@ -25,7 +25,7 @@ from .services import change_organization_verification, moderate_event
 
 
 class StaffOperationsMixin(LoginRequiredMixin, UserPassesTestMixin):
-    login_url = "accounts:login"
+    login_url = "core:login"
     raise_exception = True
 
     def test_func(self):
