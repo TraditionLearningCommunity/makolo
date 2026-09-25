@@ -150,6 +150,24 @@ Typical sequence:
 
 No extra agent framework is required for this path.
 
+## Pull request lifecycle and merge policy
+
+An open PR is not automatically unfinished work, and a green PR is not automatically ready to merge.
+
+Use these coordination states:
+
+- `active` — implementation is still changing;
+- `review` — implementation is complete enough for review and verification;
+- `green-waiting` — technically ready, but intentionally waiting for a programme dependency or integration window;
+- `research` — isolated experiment or evidence; no runtime integration implied;
+- `blocked` — a named dependency or failing gate prevents progress;
+- `ready-to-merge` — technical gates and programme sequencing both allow integration;
+- `merged` — integrated and verified on current `main`.
+
+CI green means the branch passed its technical gates. It does **not** decide programme sequencing.
+
+Do not optimize for an empty pull-request list. Optimize for clear ownership, stable dependencies, safe integration and current evidence.
+
 ## Manual local workflow
 
 Local PC work remains first-class.
