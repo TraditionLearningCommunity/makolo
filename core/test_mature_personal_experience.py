@@ -50,6 +50,8 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertIn('data-workspace-layout="focus"', html)
         self.assertIn('class="mk-workspace__primary"', html)
         self.assertIn('class="mk-sidebar-toggle mk-icon-btn"', html)
+        self.assertIn('data-mk-runtime-scope="personal"', html)
+        self.assertIn('js/workspace-runtime.js', html)
         self.assertIn('id="mobile-primary-nav"', html)
         self.assertIn('lg:hidden', html)
 

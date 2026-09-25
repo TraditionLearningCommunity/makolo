@@ -2,14 +2,14 @@
 {% personal_navigation request as personal_nav %}
 <!DOCTYPE html>
 <html lang="fr" class="h-full"{% if request.user.is_authenticated %} data-theme-preference="{{ request.user.profile.theme|default:'system' }}"{% endif %}>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><link rel="stylesheet" href="{% static 'css/mature-experience.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><link rel="stylesheet" href="{% static 'css/mature-experience.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/workspace-runtime.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
 <body class="min-h-full" x-data="{ sidebarOpen: false, navCompact: false }" @keydown.escape.window="sidebarOpen = false">
 <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
 <div class="mk-app-shell flex min-h-screen" :class="{ 'mk-nav-compact': navCompact }">
   {% include 'partials/sidebar.html' %}
   <div class="mk-app-main min-w-0 flex-1">
     {% include 'partials/navbar.html' %}
-    <main id="main-content" tabindex="-1" class="mk-content-bg min-h-[calc(100vh-64px)] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
+    <main id="main-content" tabindex="-1" data-mk-runtime-scope="{% if space_console %}space:{{ space.pk }}{% elif request.user.is_authenticated %}personal{% else %}public{% endif %}" class="mk-content-bg min-h-[calc(100vh-64px)] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
       <div class="mk-page-shell">
         {% include 'partials/messages.html' %}
         <div class="mk-workspace" data-workspace-layout="{% block workspace_layout %}focus{% endblock %}">
