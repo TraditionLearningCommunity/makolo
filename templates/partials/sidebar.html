@@ -5,7 +5,7 @@
     <span class="mk-brand-symbol-wrap" aria-hidden="true"><img src="{% static 'brand/makolo-mark-violet.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-light" width="42" height="29"><img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-dark" width="42" height="29"></span>
     <div class="mk-sidebar__identity min-w-0"><p class="mk-brand-wordmark text-[15px]">Makolo</p>{% if space_console %}<p class="truncate text-[10px]" style="color:var(--mk-subtle)">{{ space.name }}</p>{% endif %}</div>
     <button type="button" class="mk-sidebar-toggle mk-icon-btn" @click="navCompact = !navCompact" :aria-pressed="navCompact ? 'true' : 'false'" aria-label="Réduire ou développer la navigation" title="Réduire ou développer la navigation">
-      <i data-lucide="panel-left"></i>
+      <i data-lucide="menu"></i>
     </button>
   </div>
   {% if space_console %}
