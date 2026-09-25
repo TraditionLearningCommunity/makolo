@@ -503,3 +503,17 @@ class CanonicalDiscoveryTests(TestCase):
         self.assertTrue(EventBookmark.objects.filter(user=self.participant, event=event).exists())
         self.client.post(url)
         self.assertFalse(EventBookmark.objects.filter(user=self.participant, event=event).exists())
+
+
+class DiscoveryExpandedPresentationTests(TestCase):
+    def test_discover_exposes_explore_preview_without_changing_server_pagination(self):
+        response = self.client.get(reverse("discovery:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-workspace-layout="explore"')
+        self.assertContains(response, 'data-mk-surface="discover"')
+        self.assertContains(response, 'id="discover-preview"')
+        self.assertContains(response, 'id="discover-preview-body"')
+        self.assertContains(response, 'class="mk-discovery-filters')
+        self.assertContains(response, 'class="mk-discovery-results')
+        self.assertIn("page_obj", response.context)
