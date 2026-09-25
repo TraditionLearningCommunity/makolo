@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -19,3 +20,15 @@ class M10FinalWebAuthContractTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith(f'{reverse("core:login")}?next='))
+
+    def test_authenticated_user_without_operations_authority_still_gets_403(self):
+        user = get_user_model().objects.create_user(
+            username="m10-no-operations-authority",
+            email="m10-no-operations-authority@example.test",
+            password="StrongPass2026!",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("operations:organizations"))
+
+        self.assertEqual(response.status_code, 403)
