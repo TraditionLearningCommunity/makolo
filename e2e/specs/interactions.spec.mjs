@@ -182,3 +182,39 @@ test('expanded personal surfaces keep context while compact links stay available
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+
+test('desktop command palette navigates with keyboard and stays out of Compact', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await login(page, 'empty.participant@e2e.makolo.test');
+  await page.goto('/me/');
+
+  const trigger = page.getByRole('button', { name: 'Ouvrir la navigation rapide' });
+  await expect(trigger).toBeVisible();
+
+  await page.keyboard.press('Control+k');
+  const palette = page.getByRole('dialog', { name: 'Aller à' });
+  await expect(palette).toBeVisible();
+  const input = page.getByLabel('Rechercher une destination');
+  await expect(input).toBeFocused();
+  await input.fill('Découvrir');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/discover\//);
+
+  await page.keyboard.press('Control+k');
+  await expect(palette).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(palette).toBeHidden();
+
+  await page.keyboard.press('?');
+  await expect(palette).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.setViewportSize({ width: 400, height: 928 });
+  await page.reload();
+  await expect(trigger).toBeHidden();
+  await page.keyboard.press('Control+k');
+  await expect(palette).toBeHidden();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
