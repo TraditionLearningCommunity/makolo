@@ -127,3 +127,33 @@ test('expanded shell keeps the workspace stable while the desktop rail changes d
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+
+test('workspace runtime scopes and deduplicates private projections in memory', async ({ page }) => {
+  await login(page, 'empty.participant@e2e.makolo.test');
+  await expect(page.locator('#main-content')).toHaveAttribute('data-mk-runtime-scope', 'personal');
+
+  let requests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/v1/me/now/') requests += 1;
+  });
+
+  const projections = await page.evaluate(async () => {
+    const runtime = window.MakoloWorkspaceRuntime;
+    const [first, second] = await Promise.all([
+      runtime.load('/api/v1/me/now/'),
+      runtime.load('/api/v1/me/now/'),
+    ]);
+    const cached = await runtime.load('/api/v1/me/now/');
+    return [first.meta.projection, second.meta.projection, cached.meta.projection];
+  });
+
+  expect(projections).toEqual(['personal.now', 'personal.now', 'personal.now']);
+  expect(requests).toBe(1);
+
+  await page.evaluate(async () => {
+    window.MakoloWorkspaceRuntime.invalidate('/api/v1/me/now/');
+    await window.MakoloWorkspaceRuntime.load('/api/v1/me/now/');
+  });
+  expect(requests).toBe(2);
+});
