@@ -465,3 +465,256 @@ L’audit a confirmé que :
 - au moment de l’audit, les jobs Django/PostgreSQL de `main` étaient verts mais l’E2E scanner existant était rouge. Ce défaut préexistant reste hors périmètre Actor 3 et ne doit pas être contourné en affaiblissant un test.
 
 Le HEAD et les PR/CI doivent être revérifiés avant l’intégration finale : l’état courant gagne toujours sur cet instantané.
+
+
+---
+
+# ACT1 — Socle documentaire généraliste
+
+## Contrat document/réalités
+
+Actor 3 distingue désormais explicitement le **document observé** de ce que ce
+document mentionne.
+
+```text
+ObservationMaterial
+        ↓
+SemanticDocument
+  ├ title / language / document type hints
+  ├ SemanticBlock*
+  ├ SemanticLink*
+  └ StructuredFragment*
+        ↓
+CandidateEntity / CandidateFact / CandidateRelation / CandidateConstraint
+```
+
+`SemanticDocument`, `SemanticBlock`, `SemanticLink` et
+`StructuredFragment` sont des value objects éphémères et framework-independent.
+Ils ne sont pas des modèles Django et ne créent aucune vérité métier.
+
+Un titre d'article tel que « Le Recteur inaugure un centre de formation » décrit
+le document. Il ne transforme pas automatiquement ce document en
+`training`, `Activity` ou `Opportunity`. Les réalités mentionnées restent
+des candidates séparées lorsqu'elles sont effectivement établies par le contenu.
+
+## Structure et provenance
+
+Le parser HTML générique conserve notamment :
+
+- title, h1..h6, paragraphes et contexte de headings ;
+- main/section/article/nav lorsque pertinent ;
+- listes, listes de définitions et tableaux ;
+- liens, canonical et hreflang ;
+- formulaires et contrôles sans copier leurs valeurs sensibles ;
+- time/datetime, address et metadata ;
+- JSON-LD, OpenGraph/meta et microdata raisonnable.
+
+Les locators sont dérivés de la structure HTML, pas des classes CSS métier.
+Changer `.event-date` en `.details-v2` ne change donc pas un bloc lorsque la
+structure sémantique reste identique.
+
+Chaque bloc garde `artifact_ref`, l'`artifact_observation_ref` historique,
+un locator stable et, pour le PDF textuel, le numéro de page. Un reprocessing
+d'une Observation revalidée continue donc de pointer vers l'artefact réellement
+observé au lieu de réattribuer sa provenance au run courant.
+
+## Frontières
+
+ACT1 reste entièrement déterministe :
+
+- aucun fetch supplémentaire ;
+- aucun navigateur dans Actor 3 ;
+- aucun LLM ;
+- aucun Crawl4AI ;
+- PDF textuel via pypdf uniquement ;
+- PDF sans texte extractible => diagnostic explicite ;
+- aucune résolution canonique Actor 4 ;
+- aucune écriture métier.
+
+La stratégie généraliste passe en version `2.0` avec un nouveau
+`strategy_fingerprint`. Les workers ne claim plus silencieusement les anciens
+runs `pending` appartenant à un fingerprint différent ; ils restent dans
+l'historique et peuvent être traités par leur stratégie correspondante.
+
+## Compatibilité et persistance
+
+Les contrats `InterpretedMaterial`, `Candidate*`, `CandidateValue`,
+`CandidateEvidence` et `ArtifactUse` restent inchangés. Aucun nouveau modèle
+persistant et aucune migration ne sont nécessaires.
+
+La structure documentaire est une étape interne d'interprétation ; elle prépare
+le grounding par blocs des phases ultérieures sans déplacer l'autorité métier
+dans Actor 3.
+
+
+---
+
+# ACT2 — Extraction déterministe riche et généraliste
+
+ACT2 remplace les règles spécialisées de benchmark par un petit vocabulaire
+d'interchange réutilisable. L'Interpréteur continue à produire uniquement des
+`Candidate*` ; il ne produit ni `Activity`, ni `Requirement`, ni
+`Opportunity`, ni objet métier canonique.
+
+Le module `interpreter/generalist.py` couvre de façon déterministe :
+
+- dates complètes et datetimes avec timezone explicite ;
+- durées, nombres, quantités, unités, prix/devise explicite et Capacity annoncée ;
+- comparateurs et intervalles, sans inventer d'unité ou de devise ;
+- modalités asserted/required/optional/recommended/prohibited/negated/conditional ;
+- groupes logiques AND/OR conservés dans les relations/contraintes ;
+- lieux, organisations et personnes lorsqu'ils sont explicitement étiquetés ;
+- URLs de candidature, inscription, contact et référence ;
+- emails, téléphones, formulaires et disponibilité.
+
+Une date incomplète telle que `14 October` reste textuelle. Une datetime sans
+timezone n'est pas convertie en instant absolu. Une valeur `Price: 100` ne
+reçoit aucune devise inventée.
+
+Les anciennes règles nommées TOEFL/IELTS/CCNA ne sont plus nécessaires au
+moteur : un seuil tel que `Language score >= 80` ou `TOEFL >= 90` est traité
+par le même comparateur générique.
+
+Les huit familles `ResearchMission` servent de **scénarios de couverture** :
+POSSIBILITY, REQUIREMENT, QUALIFICATION, ACTOR, SPATIOTEMPORAL, PROCEDURE,
+ECONOMIC et REFERENCE. Elles ne sont jamais passées comme filtres destructifs
+au parseur et ne changent pas ce que le document affirme.
+
+# ACT3 — Normalisation avancée, Intelligence et grounding
+
+## ContentNormalizationPort
+
+La normalisation avancée est derrière `ContentNormalizationPort`. Le port
+reçoit un `SemanticDocument` déjà acquis par Actor 2 et ne possède aucune
+capacité réseau. L'implémentation de base est volontairement identitaire et
+remplaçable.
+
+### Décision Crawl4AI
+
+Audit du 25 septembre 2026 : Crawl4AI a une release 0.9.4 publiée le
+23 septembre 2026. Makolo ne l'ajoute pas au runtime Actor 3 à ce stade :
+
+- Actor 2 possède déjà l'acquisition HTTP et Playwright ;
+- Actor 3 ne doit jamais recrawler une URL externe ;
+- ajouter un second stack crawler/browser augmenterait les dépendances serveur
+  sans gain démontré par le benchmark Makolo ;
+- le port permet une future expérimentation sur contenu **déjà observé** sans
+  changer le contrat Actor 3.
+
+Cette décision est réversible ; aucune abstraction Actor 3 ne dépend de
+Crawl4AI.
+
+## IntelligenceGateway uniquement
+
+L'enrichissement modèle utilise exclusivement :
+
+`IntelligenceCapability.STRUCTURED_GENERATE`
+→ `IntelligenceGateway`
+→ registry/routing/credentials/telemetry existants.
+
+Actor 3 n'importe aucun SDK fournisseur et ne lit aucun secret.
+
+Le runtime construit la registry canonique. Lorsqu'une route est disponible,
+l'identité de stratégie inclut une signature non secrète des providers/modèles
+routés, afin qu'un changement de route ne réutilise pas silencieusement un
+ancien `interpretation_ref`.
+
+Sans provider configuré, le chemin déterministe reste complet et aucun appel
+réseau Actor 3 n'est ajouté.
+
+## Grounding obligatoire
+
+Le modèle reçoit seulement une projection bornée des blocs observés. Le contenu
+du document est explicitement traité comme donnée non fiable et jamais comme
+instruction.
+
+Les sorties modèles sont rejetées si :
+
+- le schéma n'est pas celui des candidates génériques ;
+- une entity ref est inconnue ;
+- un `evidence_block_ref` n'existe pas ;
+- le label ou la valeur n'est pas réellement présent dans les blocs cités ;
+- une relation cite des endpoints non groundés ;
+- une contrainte est incohérente ;
+- un score arbitraire de confiance est fourni.
+
+Les preuves acceptées deviennent `CandidateEvidence` avec
+`extraction_method=intelligence_grounded`. Les stats séparent appels,
+candidates acceptées et candidates rejetées. Aucun contenu brut ni prompt n'est
+envoyé à la telemetry.
+
+# ACT4 — Benchmark, fermeture Actor 3 et handoff Actor 4
+
+`interpreter/benchmark.py` mesure les résultats par sémantique utile plutôt
+que par volume de candidates. Le rapport couvre notamment :
+
+- entités/predicates attendus manquants ;
+- hints explicitement interdits ;
+- predicates inattendus lorsqu'un oracle exhaustif est fourni ;
+- preuves absentes ;
+- doublons sémantiques ;
+- groupes de contradictions ;
+- distribution date/datetime/money/quantity ;
+- temps, bytes lus, appels intelligence et accept/reject grounding ;
+- coût provider = `None` lorsque le provider ne l'expose pas.
+
+La matrice CI couvre bourse, procédure visa, transport, requirements/
+qualification, organization/place, JSON-LD, PDF textuel, rendered DOM, prix,
+Capacity, formulaires et références. Elle vérifie aussi explicitement qu'un
+titre d'article contenant « formation » ne devient pas une Activity/training.
+
+## Benchmark historique UNIKIN
+
+Aucun artefact UNIKIN ni snapshot du benchmark historique « 16 entities /
+4 publication_date » n'est versionné dans le dépôt courant, et aucun résultat
+ne doit être fabriqué. Le harness ACT4 travaille sur `ObservationMaterial` et
+`ArtifactReader`, donc les artefacts historiques peuvent être rejoués sans
+refetch dans l'environnement où le store Observer qui les possède est monté.
+
+L'absence de ces bytes dans GitHub est une limite d'évidence du benchmark
+historique, pas une raison de recrawler silencieusement les sites.
+
+## Handoff Actor 4
+
+Actor 4 reste inchangé. Le test de handoff vérifie qu'il consomme les nouvelles
+`CandidateEntity/Fact/Relation/Constraint` et les nouveaux predicates sans que
+l'Interpréteur écrive dans les domaines métier.
+
+Classification de fermeture :
+
+- **A — déjà géré** : candidates génériques, facts, relations, constraints et
+  provenance arrivent dans Resolver ;
+- **B — dette Actor 4** : une candidate peut être reçue mais rester
+  `NEW_CANDIDATE/PARTIAL/UNRESOLVED` faute de lookup canonique adapté ;
+- **C — défaut Actor 3** : hallucination, mauvaise provenance, faux type de
+  document, écrasement de contradiction ou perte de logique ; ces cas sont
+  rejetés/couverts côté Actor 3.
+
+Actor 3 reste donc responsable de « ce que le matériau observé semble
+exprimer », jamais de « quelle réalité canonique Makolo est-ce ? ».
+
+# Fermeture du programme ACT
+
+Le programme n'ajoute :
+
+- aucune nouvelle table ;
+- aucune migration ;
+- aucun crawler réseau dans Actor 3 ;
+- aucune dépendance Crawl4AI ;
+- aucun SDK LLM direct ;
+- aucune écriture métier ;
+- aucune résolution canonique.
+
+Le pipeline final reste :
+
+```text
+Actor 1 Prospector
+→ Actor 2 Observer / ObservationMaterial v2
+→ Actor 3 SemanticDocument + deterministic generalist extraction
+→ optional grounded IntelligenceGateway enrichment
+→ InterpretedMaterial / Candidate*
+→ Actor 4 Resolver
+```
+
+Les documents, blocs et normalisations restent éphémères. Les vérités durables
+restent dans leurs domaines propriétaires.

@@ -31,7 +31,9 @@ from .contracts import (
     assign_candidate_ref,
     strategy_fingerprint,
 )
+from .documents import DOCUMENT_TYPES, DocumentLimitError, parse_html_document, parse_text_document
 from .errors import MalformedContentError, ResourceLimitError, UnsupportedMediaError
+from .generalist import extract_document_semantics, typed_value
 from .identifiers import make_interpretation_ref
 
 try:
@@ -40,8 +42,8 @@ except ImportError:  # deployment check will expose a missing pinned dependency
     PdfReader = None
 
 STRATEGY_KEY = "deterministic-first"
-STRATEGY_VERSION = "1.0"
-STRATEGY_COMPONENTS = {"html": "1", "json": "1", "xml": "1", "text": "1", "pdf_text": "1", "semantic_rules": "1"}
+STRATEGY_VERSION = "2.0"
+STRATEGY_COMPONENTS = {"document_structure": "1", "html": "2", "json": "1", "xml": "1", "text": "2", "pdf_text": "2", "generalist_semantics": "1", "intelligence_grounding": "1"}
 STRATEGY_FINGERPRINT = strategy_fingerprint(STRATEGY_COMPONENTS)
 
 MAX_TOTAL_BYTES = 16 * 1024 * 1024
@@ -56,7 +58,12 @@ _WS = re.compile(r"\s+")
 _MONEY = re.compile(r"(?<!\w)(\d+(?:[.,]\d+)?)\s*(USD|EUR|CDF|GBP|KES|ZAR)(?!\w)", re.I)
 _QUANTITY = re.compile(r"(?<!\w)(\d+(?:[.,]\d+)?)\s*(days?|jours?|weeks?|semaines?|months?|mois|years?|ans?|km|miles?|hours?|heures?|places?|seats?|points?)(?!\w)", re.I)
 _DATE = re.compile(r"\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre))\b", re.I)
-_SCORE = re.compile(r"\b(?P<label>TOEFL|IELTS|CCNA)\b\s*(?P<op>>=|≤|<=|≥|>|<|=|minimum|min\.?)\s*(?P<number>\d+(?:[.,]\d+)?)\s*(?P<unit>points?)?", re.I)
+_COMPARATOR = re.compile(
+    r"\b(?P<label>[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 ._+/'-]{0,70}?)\s*"
+    r"(?P<op>>=|≤|<=|≥|>|<|=|minimum|min\.?|maximum|max\.?)\s*"
+    r"(?P<number>\d+(?:[.,]\d+)?)\s*(?P<unit>[A-Za-z%]+)?\b",
+    re.I,
+)
 _AGE = re.compile(r"\b(?:age|âge)\s*(?P<op><=|>=|<|>|maximum|minimum|max\.?|min\.?)\s*(?P<number>\d+)", re.I)
 _CAPACITY = re.compile(r"\b(?P<number>\d+)\s*(?P<unit>places?|seats?)\b", re.I)
 
@@ -90,36 +97,20 @@ def _operator(raw):
 
 
 def _value(raw, language=None):
-    raw = _clean(str(raw))
-    match = _MONEY.fullmatch(raw)
-    if match:
-        return CandidateValue(kind="money", raw_text=raw, number=Decimal(match.group(1).replace(",", ".")), currency=match.group(2).upper(), language=language)
-    match = _QUANTITY.fullmatch(raw)
-    if match:
-        return CandidateValue(kind="quantity", raw_text=raw, number=Decimal(match.group(1).replace(",", ".")), unit=_code(match.group(2)), language=language)
-    try:
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
-            return CandidateValue(kind="date", raw_text=raw, date_value=date.fromisoformat(raw), language=language)
-    except ValueError:
-        pass
-    if re.fullmatch(r"[-+]?\d+(?:[.,]\d+)?", raw):
-        return CandidateValue(kind="number", raw_text=raw, number=Decimal(raw.replace(",", ".")), language=language)
-    return CandidateValue(kind="text", raw_text=raw, text=raw, language=language)
-
+    return typed_value(str(raw), language)
 
 def _hints(text):
     lower = re.sub(r"https?://\S+", " ", text.lower())
     result = []
-    if re.search(r"\b(?:recruit(?:ing|ment)?|job|emploi|hiring|vacancy)\b", lower):
+    if re.search(r"\b(?:job|emploi|vacancy|recruitment)\b", lower):
         result.append("employment")
-    if re.search(r"\b(?:training|course|formation|bootcamp)\b", lower):
-        result.append("training")
-    if re.search(r"\b(?:test|exam|assessment|ielts)\b|\bsession\s+toefl\b", lower):
+    if re.search(r"\b(?:course|training|formation|programme|program)\b", lower):
+        result.append("activity")
+    if re.search(r"\b(?:exam|assessment|test|examen)\b", lower):
         result.append("assessment")
-    if re.search(r"\b(?:fund(?:ing|ed)?|financ(?:e|ement|ing)?|bourse|scholarship|grant)\b", lower):
+    if re.search(r"\b(?:scholarship|bourse|grant|funding|financement)\b", lower):
         result.append("funding_program")
     return tuple(result)
-
 
 def _modality(text):
     lower = text.lower()
@@ -137,6 +128,10 @@ def _modality(text):
 
 
 def _evidence(descriptor, method, kind, locator=None, page=None):
+    if page is None and kind is EvidenceLocatorKind.PDF_PAGE and locator:
+        match = re.match(r"page:(\d+):", locator)
+        if match:
+            page = int(match.group(1))
     return CandidateEvidence(
         artifact_ref=descriptor.artifact_ref,
         artifact_observation_ref=descriptor.observation_ref,
@@ -174,8 +169,8 @@ class CandidateBuilder:
     def relation(self, subject_ref, predicate, object_ref, *, modality=CandidateModality.ASSERTED, condition_ref=None, logic_group=None, logic_operator=None, evidence=()):
         return self._put(CandidateRelation("pending", subject_ref, predicate, object_ref, modality, condition_ref, logic_group, logic_operator, tuple(evidence)))
 
-    def constraint(self, subject_ref, predicate, operator, value, *, logic_group=None, logic_operator=None, evidence=()):
-        return self._put(CandidateConstraint("pending", subject_ref, predicate, operator, value, None, logic_group, logic_operator, tuple(evidence)))
+    def constraint(self, subject_ref, predicate, operator, value, *, second_value=None, logic_group=None, logic_operator=None, evidence=()):
+        return self._put(CandidateConstraint("pending", subject_ref, predicate, operator, value, second_value, logic_group, logic_operator, tuple(evidence)))
 
     def ordered(self):
         order = {CandidateKind.ENTITY: 0, CandidateKind.FACT: 1, CandidateKind.RELATION: 2, CandidateKind.CONSTRAINT: 3}
@@ -190,9 +185,9 @@ def _subject(builder, lines, descriptor, method, locator_kind, language=None):
     label = preferred[1][:300]
     context = " ".join(t for _, t in meaningful[:20])
     hints = _hints(context)
-    if len(meaningful) == 1 and not hints and not _SCORE.search(label) and not _AGE.search(label):
+    if len(meaningful) == 1 and not hints and not _COMPARATOR.search(label) and not _AGE.search(label):
         return None
-    score = _SCORE.search(label)
+    score = _COMPARATOR.search(label)
     if len(meaningful) == 1 and score:
         label = score.group("label").upper()
     return builder.entity(label, type_hints=hints, language=language, evidence=(_evidence(descriptor, method, locator_kind, preferred[0]),))
@@ -231,7 +226,7 @@ def _requirement(builder, subject_ref, text, descriptor, method, locator_kind, l
         part = _clean(part.strip(" ,.;"))
         if not part:
             continue
-        score = _SCORE.search(part)
+        score = _COMPARATOR.search(part)
         if score:
             ref = builder.entity(score.group("label").upper(), type_hints=("requirement_subject",), language=language, evidence=ev)
             if subject_ref and ref != subject_ref:
@@ -300,10 +295,10 @@ def _semantic_lines(builder, subject_ref, lines, descriptor, method, locator_kin
             else:
                 _requirement(builder, subject_ref, text, descriptor, method, locator_kind, locator, language)
                 continue
-        if re.search(r"\b(?:required|requis|obligatoire|optional|recommended)\b", lower) and re.search(r"\b(?:toefl|ielts|ccna|bachelor|certification|experience|expérience)\b", lower):
+        if re.search(r"\b(?:required|mandatory|requis|exigé|obligatoire|optional|facultatif|recommended|recommandé)\b", lower):
             _requirement(builder, subject_ref, text, descriptor, method, locator_kind, locator, language)
             continue
-        if _SCORE.search(text):
+        if _COMPARATOR.search(text):
             _requirement(builder, subject_ref, text, descriptor, method, locator_kind, locator, language)
         age = _AGE.search(text)
         if age and subject_ref:
@@ -394,10 +389,10 @@ def _json_depth(value, depth=0):
             _json_depth(child, depth + 1)
 
 
-def _structured_json(builder, value, descriptor, method, pointer="", subject_ref=None, language=None):
+def _structured_json(builder, value, descriptor, method, pointer="", subject_ref=None, language=None, preserve_document_subject=False, evidence_locator_kind=EvidenceLocatorKind.JSON_POINTER, evidence_locator=None):
     if isinstance(value, list):
         for i, child in enumerate(value):
-            _structured_json(builder, child, descriptor, method, f"{pointer}/{i}", subject_ref, language)
+            _structured_json(builder, child, descriptor, method, f"{pointer}/{i}", subject_ref, language, preserve_document_subject, evidence_locator_kind, evidence_locator)
         return
     if not isinstance(value, dict):
         return
@@ -405,13 +400,18 @@ def _structured_json(builder, value, descriptor, method, pointer="", subject_ref
     name = value.get("name") or value.get("headline") or value.get("title")
     type_value = value.get("@type") or value.get("type")
     hints = (_code(type_value),) if isinstance(type_value, str) else tuple(_code(v) for v in type_value if isinstance(v, str)) if isinstance(type_value, list) else ()
-    ev = (_evidence(descriptor, method, EvidenceLocatorKind.JSON_POINTER, pointer or "/"),)
-    subject = builder.entity(name, type_hints=hints, language=language, evidence=ev) if isinstance(name, str) and _clean(name) else subject_ref
+    locator = evidence_locator if evidence_locator is not None else (pointer or "/")
+    ev = (_evidence(descriptor, method, evidence_locator_kind, locator),)
+    document_declared = bool(set(hints).intersection(DOCUMENT_TYPES))
+    if preserve_document_subject and document_declared and subject_ref:
+        subject = subject_ref
+    else:
+        subject = builder.entity(name, type_hints=hints, language=language, evidence=ev) if isinstance(name, str) and _clean(name) else subject_ref
     mapping = {"startDate": "start_date", "endDate": "end_date", "datePublished": "publication_date", "validThrough": "deadline", "applicationDeadline": "deadline", "deadline": "deadline", "duration": "duration"}
     for key, predicate in mapping.items():
         raw = value.get(key)
         if raw is not None and not isinstance(raw, (dict, list)):
-            builder.fact(predicate, _value(raw, language), subject_ref=subject, evidence=(_evidence(descriptor, method, EvidenceLocatorKind.JSON_POINTER, f"{pointer}/{key}"),))
+            builder.fact(predicate, _value(raw, language), subject_ref=subject, evidence=(_evidence(descriptor, method, evidence_locator_kind, evidence_locator if evidence_locator is not None else f"{pointer}/{key}"),))
     if value.get("price") is not None and not isinstance(value.get("price"), (dict, list)):
         raw = value["price"]
         if value.get("priceCurrency"):
@@ -425,45 +425,96 @@ def _structured_json(builder, value, descriptor, method, pointer="", subject_ref
     for key in ("qualifications", "skills", "experienceRequirements", "educationRequirements"):
         raw = value.get(key)
         if isinstance(raw, str):
-            _requirement(builder, subject, raw, descriptor, method, EvidenceLocatorKind.JSON_POINTER, f"{pointer}/{key}", language)
+            _requirement(builder, subject, raw, descriptor, method, evidence_locator_kind, evidence_locator if evidence_locator is not None else f"{pointer}/{key}", language)
         elif isinstance(raw, list):
             for i, item in enumerate(raw):
                 if isinstance(item, str):
-                    _requirement(builder, subject, item, descriptor, method, EvidenceLocatorKind.JSON_POINTER, f"{pointer}/{key}/{i}", language)
+                    _requirement(builder, subject, item, descriptor, method, evidence_locator_kind, evidence_locator if evidence_locator is not None else f"{pointer}/{key}/{i}", language)
     for key, child in value.items():
         if isinstance(child, (dict, list)):
-            _structured_json(builder, child, descriptor, method, f"{pointer}/{key}", subject, language)
+            _structured_json(builder, child, descriptor, method, f"{pointer}/{key}", subject, language, False, evidence_locator_kind, evidence_locator)
 
 
-def _parse_html(builder, text, descriptor, semantic=True):
-    parser = HtmlCapture()
+def _parse_html(builder, text, descriptor, semantic=True, intelligence_extractor=None, intelligence_stats=None):
     try:
-        parser.feed(text)
-        parser.close()
+        document = parse_html_document(text, descriptor)
+    except DocumentLimitError as exc:
+        raise ResourceLimitError(str(exc)) from exc
     except Exception as exc:
         raise MalformedContentError("html parser failure") from exc
-    warnings = []
-    for path, raw in parser.json_ld:
-        if not raw:
+
+    warnings = list(document.warning_codes)
+    block_map = document.block_map()
+    subject = None
+    if semantic:
+        preferred = next((b for b in document.blocks if b.kind == "title" and b.text), None)
+        preferred = preferred or next((b for b in document.blocks if b.kind == "h1" and b.text), None)
+        preferred = preferred or next(iter(document.text_blocks), None)
+        if preferred:
+            subject = builder.entity(
+                (document.title or preferred.text)[:300],
+                type_hints=("document",) + document.type_hints,
+                language=document.language,
+                evidence=(preferred.evidence("document_structure"),),
+            )
+
+    # Structured fragments are interpreted as claims inside the document. Their
+    # declared schema type does not reclassify the document title as the thing
+    # being mentioned.
+    for fragment in document.structured_fragments:
+        if fragment.kind != "json_ld" or not fragment.content:
+            continue
+        block = block_map.get(fragment.block_ref)
+        if block is None:
             continue
         try:
-            value = json.loads(raw)
+            value = json.loads(fragment.content)
             _json_depth(value)
         except (json.JSONDecodeError, ResourceLimitError):
-            warnings.append("malformed_json_ld")
+            if "malformed_json_ld" not in warnings:
+                warnings.append("malformed_json_ld")
             continue
-        _structured_json(builder, value, descriptor, "json_ld", path, language=parser.language)
-    subject = _subject(builder, parser.lines, descriptor, "html_text", EvidenceLocatorKind.HTML_PATH, parser.language) if semantic else None
-    for key, raw in parser.meta:
+        _structured_json(
+            builder, value, descriptor, "json_ld", block.locator,
+            subject_ref=subject, language=document.language,
+            preserve_document_subject=True,
+            evidence_locator_kind=EvidenceLocatorKind.HTML_PATH,
+            evidence_locator=block.locator,
+        )
+
+    for key, raw, block_ref in document.metadata:
         normalized = _code(key)
-        predicate = {"startdate": "start_date", "enddate": "end_date", "datepublished": "publication_date", "validthrough": "deadline", "deadline": "deadline", "price": "price"}.get(normalized)
-        if predicate:
-            builder.fact(predicate, _value(raw, parser.language), subject_ref=subject, evidence=(_evidence(descriptor, "html_meta", EvidenceLocatorKind.HTML_PATH, f"meta:{key}"),))
+        predicate = {
+            "startdate": "start_date", "enddate": "end_date",
+            "datepublished": "publication_date", "article_published_time": "publication_date",
+            "validthrough": "deadline", "deadline": "deadline", "price": "price",
+        }.get(normalized)
+        block = block_map.get(block_ref)
+        if predicate and block:
+            # itemprop describes the scoped item, not necessarily the document.
+            fact_subject = None if block.attr("itemprop") else subject
+            builder.fact(
+                predicate, _value(raw, document.language), subject_ref=fact_subject,
+                evidence=(block.evidence("html_meta"),),
+            )
+
     if semantic:
-        _semantic_lines(builder, subject, parser.lines, descriptor, "html_text", EvidenceLocatorKind.HTML_PATH, parser.language)
+        extract_document_semantics(builder, document, subject)
+        lines = [(block.locator, block.text) for block in document.text_blocks]
+        _semantic_lines(
+            builder, subject, lines, descriptor, "document_structure",
+            EvidenceLocatorKind.HTML_PATH, document.language,
+        )
+        if intelligence_extractor is not None:
+            result = intelligence_extractor.extract(document, builder)
+            if intelligence_stats is not None:
+                intelligence_stats["calls"] += int(result.get("calls", 0))
+                intelligence_stats["accepted"] += int(result.get("accepted", 0))
+                intelligence_stats["rejected"] += int(result.get("rejected", 0))
+                intelligence_stats["available"] = bool(
+                    intelligence_stats.get("available") or result.get("available")
+                )
     return warnings
-
-
 def _parse_json(builder, text, descriptor):
     try:
         value = json.loads(text)
@@ -494,9 +545,14 @@ def _parse_xml(builder, text, descriptor):
 
 
 def _parse_text(builder, text, descriptor, method="plain_text", page=None):
-    lines = [(f"page:{page}:line:{i}" if page else f"line:{i}", _clean(line)) for i, line in enumerate(text.splitlines(), 1) if _clean(line)]
+    try:
+        document = parse_text_document(text, descriptor, page_number=page)
+    except DocumentLimitError as exc:
+        raise ResourceLimitError(str(exc)) from exc
+    lines = [(block.locator, block.text) for block in document.text_blocks]
     kind = EvidenceLocatorKind.PDF_PAGE if page else EvidenceLocatorKind.TEXT_SPAN
     subject = _subject(builder, lines, descriptor, method, kind)
+    extract_document_semantics(builder, document, subject)
     _semantic_lines(builder, subject, lines, descriptor, method, kind)
 
 
@@ -542,10 +598,15 @@ class DeterministicInterpreter:
     strategy_version = STRATEGY_VERSION
     strategy_fingerprint = STRATEGY_FINGERPRINT
 
+    def __init__(self, *, intelligence_extractor=None, strategy_fingerprint_override=None):
+        self.intelligence_extractor = intelligence_extractor
+        if strategy_fingerprint_override:
+            self.strategy_fingerprint = strategy_fingerprint_override
+
     def interpret(self, material, artifact_reader, *, started_at, clock):
         interpretation_ref = make_interpretation_ref(material_key=material.material_key, strategy_fingerprint=self.strategy_fingerprint)
         descriptors = _artifacts(material)
-        base_stats = {"bytes_read": 0, "artifacts_read": 0, "candidate_count": 0, "pdf_pages": 0, "llm_calls": 0, "ocr_calls": 0, "vision_calls": 0}
+        base_stats = {"bytes_read": 0, "artifacts_read": 0, "candidate_count": 0, "pdf_pages": 0, "llm_calls": 0, "intelligence_calls": 0, "intelligence_candidates_accepted": 0, "intelligence_candidates_rejected": 0, "ocr_calls": 0, "vision_calls": 0}
         if not descriptors:
             return InterpretedMaterial(
                 interpretation_ref, material.material_key, material.observation_ref, material.target_key,
@@ -563,6 +624,7 @@ class DeterministicInterpreter:
         primary_html = _primary_html(descriptors)
         warnings, uses = [], []
         success = failures = unsupported = bytes_read = pdf_pages = 0
+        intelligence_stats = {"calls": 0, "accepted": 0, "rejected": 0, "available": False}
         supported = {"text/html", "application/xhtml+xml", "application/json", "application/ld+json", "application/xml", "text/xml", "application/rss+xml", "application/atom+xml", "text/plain", "text/csv", "application/pdf"}
 
         for descriptor in descriptors:
@@ -596,7 +658,7 @@ class DeterministicInterpreter:
                         warnings.append("text_truncated_by_interpreter")
                     if media in {"text/html", "application/xhtml+xml"}:
                         semantic = descriptor.artifact_ref == primary_html
-                        warnings.extend(_parse_html(builder, text, descriptor, semantic))
+                        warnings.extend(_parse_html(builder, text, descriptor, semantic, self.intelligence_extractor, intelligence_stats))
                         reason = "primary_rendered_html" if semantic and descriptor.role == "rendered_dom" else "primary_html" if semantic else "supplementary_structured_html"
                     elif media in {"application/json", "application/ld+json"} or media.endswith("+json"):
                         _parse_json(builder, text, descriptor)
@@ -645,6 +707,11 @@ class DeterministicInterpreter:
         stats = {
             "bytes_read": bytes_read, "artifacts_read": success, "candidate_count": len(candidates),
             "artifact_count": len(descriptors), "parser_failures": failures, "unsupported_artifacts": unsupported,
-            "pdf_pages": pdf_pages, "llm_calls": 0, "ocr_calls": 0, "vision_calls": 0,
+            "pdf_pages": pdf_pages,
+            "llm_calls": intelligence_stats["calls"],
+            "intelligence_calls": intelligence_stats["calls"],
+            "intelligence_candidates_accepted": intelligence_stats["accepted"],
+            "intelligence_candidates_rejected": intelligence_stats["rejected"],
+            "ocr_calls": 0, "vision_calls": 0,
         }
         return output, stats
