@@ -5,6 +5,9 @@
   const query = document.getElementById('discover-query');
 
   const params = new URLSearchParams(window.location.search);
+  const expandedFilters = form?.querySelector('.mk-discovery-filters');
+  if (expandedFilters && window.matchMedia('(min-width: 1280px)').matches) expandedFilters.open = true;
+
   if (query && params.get('focus') === 'search') {
     window.requestAnimationFrame(() => query.focus({ preventScroll: false }));
   }
