@@ -43,6 +43,7 @@ urlpatterns = [
     path("api/v1/social/", include("social.api_urls")),
     path("api/v1/goals/", include("goals.api_urls")),
     path("api/v1/growth/", include("growth.api.urls")),
+    path("api/v1/platform/", include("core.api.platform_urls")),
     path("api/v1/spatiotemporal/", include("spatiotemporal.api_urls")),
     path("g/", include("growth.public_urls")),
     path("o/", include("organizations.public_urls")),
