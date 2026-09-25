@@ -78,3 +78,21 @@ a[aria-label="Revenir à Mon espace"]{display:none}
   .mk-me-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
   .mk-me-grid .mk-me-section{height:100%}
 }
+
+
+/* W4 — Discover Explore composition on Expanded. */
+.mk-discovery-preview,.mk-discovery-preview-action{display:none}
+@media(min-width:1280px){
+  .mk-discovery-workspace{min-width:0}
+  .mk-discovery-workspace .mk-participant-hero{padding:28px}
+  .mk-discovery-preview{display:block;position:sticky;top:84px;max-height:calc(100vh - 108px);overflow:auto;align-self:start}
+  .mk-discovery-preview-action{display:inline-flex}
+  .mk-discovery-preview [id="main-content"]{padding:0}
+  .mk-discovery-results .mk-panel{border-radius:18px}
+  .mk-discovery-results [aria-label="Actions disponibles"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(min-width:1536px){
+  .mk-discovery-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .mk-discovery-results>*{margin-top:0!important}
+  .mk-discovery-results>.mk-empty,.mk-discovery-results>nav{grid-column:1/-1}
+}
