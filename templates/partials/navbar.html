@@ -6,7 +6,7 @@
   <div class="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
     <div class="flex min-w-0 items-center gap-3">
       {% if space_console %}
-        <button type="button" @click="sidebarOpen=true" class="mk-icon-btn lg:hidden" aria-label="Ouvrir la navigation" aria-controls="app-sidebar" :aria-expanded="sidebarOpen ? 'true' : 'false'"><i data-lucide="menu"></i></button>
+        <button type="button" @click="sidebarOpen=true" class="mk-icon-btn md:hidden" aria-label="Ouvrir la navigation" aria-controls="app-sidebar" :aria-expanded="sidebarOpen ? 'true' : 'false'"><i data-lucide="menu"></i></button>
       {% elif personal_nav.back_url %}
         <a href="{{ personal_nav.back_url }}" class="mk-icon-btn" aria-label="Retour à {% if personal_nav.owner == 'now' %}Maintenant{% elif personal_nav.owner == 'discover' %}Découvrir{% elif personal_nav.owner == 'ongoing' %}En cours{% elif personal_nav.owner == 'me' %}Moi{% else %}Makolo{% endif %}"><i data-lucide="arrow-left"></i></a>
       {% endif %}
