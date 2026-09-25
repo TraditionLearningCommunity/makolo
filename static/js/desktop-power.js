@@ -88,6 +88,12 @@
     window.location.assign(command.href);
   }
 
+  function setTriggerState(expanded) {
+    document.querySelectorAll('[data-mk-command-trigger]').forEach((trigger) => {
+      trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    });
+  }
+
   function open({ help = false } = {}) {
     if (!isExpanded()) return;
     const root = palette();
@@ -97,6 +103,7 @@
     commands = collectCommands();
     activeIndex = 0;
     root.hidden = false;
+    setTriggerState(true);
     root.dataset.mode = help ? 'help' : 'commands';
     field.value = '';
     field.placeholder = help ? 'Rechercher une destination ou consulter les raccourcis…' : 'Aller à…';
@@ -108,6 +115,7 @@
     const root = palette();
     if (!root || root.hidden) return;
     root.hidden = true;
+    setTriggerState(false);
     if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
     previousFocus = null;
   }
@@ -163,6 +171,21 @@
     }
 
     if (!opened) return;
+    if (event.key === 'Tab') {
+      const focusable = [...root.querySelectorAll('button:not([disabled]), input:not([disabled])')].filter((node) => node.offsetParent !== null);
+      if (focusable.length) {
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       close();
