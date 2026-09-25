@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import skipUnless
 
 from django.conf import settings
-from django.db import IntegrityError, close_old_connections, connection, transaction
+from django.db import IntegrityError, close_old_connections, connection, connections, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
 
 from prospector.observation_contracts import ObservationTarget, make_handoff_key
@@ -405,7 +405,9 @@ class ObserverHttpScopePostgreSQLTests(TransactionTestCase):
             except Exception as exc:
                 errors.append(exc)
             finally:
-                close_old_connections()
+                # Worker threads own separate PostgreSQL connections. Close
+                # them explicitly so Django can drop the test database.
+                connections.close_all()
 
         threads = [
             threading.Thread(target=run, args=(0,)),
