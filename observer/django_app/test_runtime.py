@@ -10,7 +10,7 @@ from asgiref.sync import async_to_sync
 from crawlee import Request
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, connections
 from django.test import TestCase, TransactionTestCase
 
 from operations.models import WorkerState
@@ -981,7 +981,9 @@ class ObserverPostgreSQLConcurrencyTests(TransactionTestCase):
             except Exception as exc:
                 errors.append(exc)
             finally:
-                close_old_connections()
+                # Worker threads own separate PostgreSQL connections. Close
+                # them explicitly so Django can drop the test database.
+                connections.close_all()
 
         threads = [
             threading.Thread(target=run, args=(0,)),
