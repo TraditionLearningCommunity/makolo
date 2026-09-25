@@ -98,7 +98,7 @@ test('nearby permission denial keeps textual Discovery usable', async ({ page, c
 
 
 test('expanded Discovery previews a result without losing search context', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/discover/?place=Lubumbashi&when=tomorrow');
 
   await expect(page.locator('.mk-workspace')).toHaveAttribute('data-workspace-layout', 'explore');
