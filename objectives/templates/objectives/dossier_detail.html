@@ -84,7 +84,7 @@
 {% endblock %}
 {% block workspace_context %}
 <aside class="mk-workspace__context mk-workspace-panel mk-deep-context" aria-label="Contexte du Dossier">
-  <div class="mk-workspace-panel__header"><div><span class="mk-kicker">Dossier</span><p class="mt-1 text-sm font-bold">{{ dossier.title }}</p></div><i data-lucide="folder-kanban" class="h-4 w-4" aria-hidden="true"></i></div>
+  <div class="mk-workspace-panel__header"><div><span class="mk-kicker">Dossier</span><p class="mt-1 text-sm font-bold">{{ dossier.title }}</p></div><i data-lucide="workflow" class="h-4 w-4" aria-hidden="true"></i></div>
   <div class="mk-workspace-panel__body space-y-4">
     <div class="flex flex-wrap gap-2"><span class="mk-badge">{{ dossier.get_lifecycle_display }}</span>{% if dossier.deadline %}<span class="mk-badge">{{ dossier.deadline }}</span>{% endif %}</div>
     <p class="text-sm font-semibold">{{ collective_readiness.status_label }}</p>
