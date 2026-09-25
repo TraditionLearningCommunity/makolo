@@ -126,13 +126,13 @@ Pour un cycle diagnostique unique, ajouter `--once`.
 
 Le Browser Lot 4 nécessite deux éléments distincts :
 
-1. le package Python Playwright, installé par `crawlee[playwright]` dans `requirements.txt` ;
+1. le package Python Playwright, installé uniquement par le profil `requirements-agents.txt` via `crawlee[playwright]` ;
 2. un binaire Chromium compatible installé explicitement dans l'environnement d'exécution.
 
 Dans un environnement Linux compatible où l'opérateur contrôle les dépendances système :
 
 ~~~bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-agents.txt
 python -m playwright install chromium
 ~~~
 
@@ -343,6 +343,10 @@ Les statiques applicatifs sont compatibles WhiteNoise après `collectstatic`; si
 Les médias utilisateurs doivent être sauvegardés séparément de la base. Plus tard, `MEDIA_ROOT`/storage pourra être remplacé par un object storage sans transformer les médias en statiques versionnés.
 
 ## 4. Déploiement PythonAnywhere
+
+`requirements.txt` est le profil **Web/serveur**. Il exclut volontairement Crawlee, Playwright et Browserforge. Tous les acteurs internes Makolo utilisent le second profil commun `requirements-agents.txt`, qui étend le profil Web avec les dépendances nécessaires aux acteurs.
+
+Sur PythonAnywhere bêta, installer uniquement `requirements.txt` : le Web Django, les migrations, WhiteNoise et Autopilot n'ont pas besoin du moteur Browser. Ne pas contourner cette séparation en installant `requirements-agents.txt` dans le virtualenv Web PythonAnywhere.
 
 Après un merge validé :
 

@@ -8,6 +8,7 @@ on:
       - "prospector/**"
       - "config/settings.py"
       - "requirements.txt"
+      - "requirements-agents.txt"
       - ".github/workflows/prospector-postgresql.yml"
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -15,6 +16,7 @@ on:
       - "prospector/**"
       - "config/settings.py"
       - "requirements.txt"
+      - "requirements-agents.txt"
       - ".github/workflows/prospector-postgresql.yml"
 
 concurrency:
@@ -63,7 +65,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-agents.txt
           python -m pip check
           python -c "import crawlee; print(crawlee.__version__)"
       - name: Check and migrate PostgreSQL
