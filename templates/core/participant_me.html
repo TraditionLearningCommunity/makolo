@@ -3,7 +3,7 @@
 {% block title %}Moi | Makolo{% endblock %}
 {% block content %}
 {% profile_activation_summary as activation %}
-<div class="mk-mature-page">
+<div class="mk-mature-page mk-me-workspace" data-mk-surface="me">
   <section class="mk-me-identity">
     <div class="mk-me-avatar" aria-hidden="true">
       {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="">{% else %}<span>{{ request.user.username|first|upper }}</span>{% endif %}
@@ -17,6 +17,7 @@
     <a href="{% url 'account:profile' %}" class="mk-compact-action">Modifier</a>
   </section>
 
+  <div class="mk-me-grid">
   <section class="mk-me-section">
     <div class="mk-section-heading"><div><h2>Passeport Makolo</h2><p>Choisissez ce que vous présentez selon le contexte.</p></div><a href="{{ passport_url }}">Ouvrir</a></div>
   </section>
@@ -62,6 +63,8 @@
     </div>
   </section>
   {% endif %}
+
+  </div>
 
   <div class="mk-secondary-actions">
     <a href="{% url 'core:participant-history' %}">Historique</a>
