@@ -1,5 +1,5 @@
 (() => {
-  const EXPANDED_QUERY = '(min-width: 1200px)';
+  const DESKTOP_QUERY = '(min-width: 768px)';
   const palette = () => document.getElementById('mk-command-palette');
   const input = () => document.getElementById('mk-command-input');
   const results = () => document.getElementById('mk-command-results');
@@ -8,8 +8,8 @@
   let commands = [];
   let activeIndex = 0;
 
-  function isExpanded() {
-    return window.matchMedia(EXPANDED_QUERY).matches;
+  function isDesktop() {
+    return window.matchMedia(DESKTOP_QUERY).matches;
   }
 
   function isTypingTarget(target) {
@@ -95,7 +95,7 @@
   }
 
   function open({ help = false } = {}) {
-    if (!isExpanded()) return;
+    if (!isDesktop()) return;
     const root = palette();
     const field = input();
     if (!root || !field) return;
