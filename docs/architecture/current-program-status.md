@@ -77,6 +77,8 @@ L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée
 
 Le closeout détaillé et les gaps classifiés sont dans [`z14-program-closeout.md`](z14-program-closeout.md).
 
+Z15 est un chantier post-closeout borné de réconciliation des capacités backend devenues totalement ou partiellement orphelines. Il ne rouvre pas les surfaces personnelles et ne construit pas W. Son inventaire canonique est [`z15-orphan-capabilities-reconciliation.md`](z15-orphan-capabilities-reconciliation.md).
+
 ## 4. Contrat personnel prêt pour client natif
 
 Les cinq surfaces principales ont des APIs canoniques :
