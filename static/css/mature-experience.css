@@ -1,6 +1,6 @@
 :root{--mk-mature-nav-h:74px}
 .mk-app-main{min-width:0;flex:1}
-@media(min-width:1024px){.mk-app-main{padding-left:232px}.mk-sidebar{width:232px}}
+@media(min-width:768px){.mk-app-main{padding-left:84px}.mk-sidebar{width:84px}}\n@media(min-width:1200px){.mk-app-main{padding-left:232px}.mk-sidebar{width:232px}}
 .mk-mature-rail{display:flex;flex-direction:column;gap:.35rem;padding:1rem .75rem}
 .mk-mature-rail>a{display:flex;align-items:center;gap:.8rem;min-height:48px;padding:.75rem .9rem;border-radius:16px;color:var(--mk-muted);font-weight:750;font-size:.9rem}
 .mk-mature-rail>a:hover,.mk-mature-rail>a.is-active{background:var(--mk-surface-muted);color:var(--mk-text)}
@@ -29,6 +29,24 @@
 a[aria-label="Revenir à Mon espace"]{display:none}
 @media(max-width:640px){.mk-now-secondary,.mk-now-list article{align-items:flex-start;flex-direction:column}.mk-now-secondary .mk-now-cta{margin-top:4px}.mk-me-identity{grid-template-columns:auto minmax(0,1fr)}.mk-me-identity>.mk-compact-action{grid-column:1/-1;justify-content:center}.mk-section-heading{align-items:center}.mk-me-list>div{flex-direction:column;gap:2px}.mk-mark-form .mk-now-cta{align-self:stretch}}
 
+
+/* W6 closure — responsive regimes.
+   Compact < 768px; Adaptive 768–1199px; Expanded >= 1200px. */
+@media(min-width:768px) and (max-width:1199px){
+  .mk-sidebar__header{justify-content:center;padding-inline:12px}
+  .mk-sidebar__identity,
+  #desktop-sidebar .mk-mature-rail a>span:last-child,
+  #desktop-sidebar .mk-nav-item>span,
+  #desktop-sidebar .mk-nav-group-label{display:none}
+  #desktop-sidebar .mk-mature-rail a,
+  #desktop-sidebar .mk-nav-item{justify-content:center;padding-inline:10px}
+  #desktop-sidebar .mk-mature-rail a.is-active{box-shadow:inset 0 -3px 0 var(--mk-brand)}
+  .mk-brand-symbol-wrap{display:none}
+  .mk-workspace[data-workspace-layout="master-detail"],
+  .mk-workspace[data-workspace-layout="explore"],
+  .mk-workspace[data-workspace-layout="inspect"]{display:block}
+  .mk-workspace__detail,.mk-workspace__context{margin-top:var(--mk-workspace-gap);border-left:0}
+}
 
 /* W1 — Expanded shell and reusable workspace compositions. */
 :root{--mk-expanded-breakpoint:1200px;--mk-sidebar-compact:84px;--mk-workspace-gap:20px;--mk-context-width:minmax(280px,340px)}
@@ -131,30 +149,6 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 .mk-command-empty{padding:22px 14px;text-align:center;font-size:.85rem;color:var(--mk-muted)}
 .mk-command-shortcuts{display:flex;flex-wrap:wrap;gap:12px;border-top:1px solid var(--mk-border);padding:11px 14px;font-size:.7rem;color:var(--mk-subtle)}
 .mk-command-shortcuts span{display:flex;align-items:center;gap:4px}
-@media(min-width:1200px){.mk-command-trigger{display:inline-flex}}
-@media(max-width:1199px){.mk-command-backdrop{display:none!important}}
-@media(prefers-reduced-motion:reduce){.mk-command-backdrop{backdrop-filter:none}}
-
-
-/* W6 — Desktop power layer. Accelerators stay out of Compact/mobile. */
-.mk-command-trigger{display:none}
-.mk-command-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.44);backdrop-filter:blur(4px);padding:10vh 16px 16px}
-.mk-command-backdrop[hidden]{display:none}
-.mk-command-palette{width:min(620px,100%);max-height:min(72vh,640px);margin:0 auto;overflow:hidden;border:1px solid var(--mk-border);border-radius:24px;background:var(--mk-surface-solid);box-shadow:var(--mk-shadow-float)}
-.mk-command-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 18px 12px}
-.mk-command-header h2{margin-top:2px;font-size:1.25rem;font-weight:850;letter-spacing:-.03em}
-.mk-command-search{display:flex;align-items:center;gap:10px;margin:0 14px 10px;padding:0 14px;border:1px solid var(--mk-border);border-radius:15px;background:var(--mk-surface-muted)}
-.mk-command-search:focus-within{border-color:var(--mk-brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--mk-brand) 12%,transparent)}
-.mk-command-search svg{width:17px;height:17px;color:var(--mk-subtle)}
-.mk-command-search input{min-width:0;flex:1;height:48px;border:0;background:transparent;color:var(--mk-text);outline:0;font:inherit}
-.mk-command-results{max-height:390px;overflow:auto;padding:4px 8px 8px}
-.mk-command-option{display:flex;width:100%;min-height:46px;align-items:center;justify-content:space-between;gap:12px;border-radius:13px;padding:9px 12px;text-align:left;color:var(--mk-text)}
-.mk-command-option:hover,.mk-command-option[aria-selected="true"]{background:var(--mk-surface-muted)}
-.mk-command-option span{font-size:.9rem;font-weight:760}
-.mk-command-option kbd,.mk-command-shortcuts kbd{display:inline-flex;min-width:24px;min-height:22px;align-items:center;justify-content:center;border:1px solid var(--mk-border);border-radius:7px;padding:0 5px;background:var(--mk-surface-solid);font-size:.68rem;font-weight:800;color:var(--mk-muted)}
-.mk-command-empty{padding:22px 14px;text-align:center;font-size:.85rem;color:var(--mk-muted)}
-.mk-command-shortcuts{display:flex;flex-wrap:wrap;gap:12px;border-top:1px solid var(--mk-border);padding:11px 14px;font-size:.7rem;color:var(--mk-subtle)}
-.mk-command-shortcuts span{display:flex;align-items:center;gap:4px}
-@media(min-width:1200px){.mk-command-trigger{display:inline-flex}}
-@media(max-width:1199px){.mk-command-backdrop{display:none!important}}
+@media(min-width:768px){.mk-command-trigger{display:inline-flex}}
+@media(max-width:767px){.mk-command-backdrop{display:none!important}}
 @media(prefers-reduced-motion:reduce){.mk-command-backdrop{backdrop-filter:none}}
