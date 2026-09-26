@@ -56,10 +56,14 @@ class Z15WorkspaceContractTests(TestCase):
         self.assertIn("trust", keys)
         self.assertIn("funding", keys)
 
-    def test_legacy_membership_does_not_open_space_workspace(self):
+    def test_membership_only_does_not_open_space_workspace_or_space_analytics(self):
         self.client.force_authenticate(self.member)
         response = self.client.get("/api/v1/organizations/workspaces/z15-space/")
         self.assertEqual(response.status_code, 404)
+        analytics = self.client.get(
+            "/api/v1/analytics/overview/?organization=z15-space"
+        )
+        self.assertEqual(analytics.status_code, 404)
 
     def test_platform_contract_is_separate(self):
         self.client.force_authenticate(self.platform)
@@ -91,6 +95,11 @@ class Z15WorkspaceContractTests(TestCase):
         )
 
         self.client.force_authenticate(self.owner)
+        analytics = self.client.get(
+            "/api/v1/analytics/overview/?organization=z15-space"
+        )
+        self.assertEqual(analytics.status_code, 200, analytics.data)
+        self.assertEqual(analytics.data["event_cards"], [])
         self.assertEqual(
             self.client.get("/api/v1/platform/capabilities/").status_code,
             403,
