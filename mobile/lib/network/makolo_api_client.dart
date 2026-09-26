@@ -130,14 +130,13 @@ class MakoloApiClient {
 
     final completer = Completer<AuthSession>();
     _refreshCompleter = completer;
-    _performRefresh().then(
-      completer.complete,
-      onError: completer.completeError,
-    ).whenComplete(() {
-      if (identical(_refreshCompleter, completer)) {
-        _refreshCompleter = null;
-      }
-    });
+    _performRefresh()
+        .then(completer.complete, onError: completer.completeError)
+        .whenComplete(() {
+          if (identical(_refreshCompleter, completer)) {
+            _refreshCompleter = null;
+          }
+        });
     return completer.future;
   }
 
