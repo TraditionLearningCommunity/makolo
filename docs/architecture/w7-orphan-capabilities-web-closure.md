@@ -76,3 +76,7 @@ Les anciennes racines Network/Event/Ticket/Scanner restent compatibility selon Z
 ## Platform
 
 La future expérience Platform reste un chantier séparé : une porte unique puis un univers Platform. W7 n'ajoute aucun lien dispersé vers Operations globales, Trust staff, gouvernance ou runtime interne.
+
+## Funding personnel
+
+La création Funding n'est plus une URL cachée côté Personnel : `En cours` expose une action secondaire de création, et les financements personnels encore actifs sont projetés comme engagements gérables. Le domaine Funding reste propriétaire ; W7 ne crée aucun nouvel état frontend.
