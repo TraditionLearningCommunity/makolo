@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.urls import reverse
 
 from .console_insights import (
     analytics_insights,
@@ -19,6 +20,12 @@ class SpaceConsoleAnalyticsView(BaseAnalyticsView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["analytics"] = analytics_insights(self.space_console)
+        growth = self.space_console.workspace_module("growth")
+        context["advanced_growth_url"] = (
+            reverse("analytics:growth-organization", kwargs={"slug": self.space.slug})
+            if growth
+            else None
+        )
         return context
 
 
@@ -61,4 +68,10 @@ class SpaceConsoleAutomationView(BaseAutomationView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["page_obj"] = self.paginate(automation_rules_insights(self.space_console))
+        automation = self.space_console.workspace_module("automation")
+        context["crm_workflows_url"] = (
+            reverse("automation:crm-workflows", kwargs={"slug": self.space.slug})
+            if automation
+            else None
+        )
         return context
