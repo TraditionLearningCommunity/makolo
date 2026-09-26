@@ -6,8 +6,9 @@ import 'package:makolo_mobile/design/behavior_states.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 
 void main() {
-  testWidgets('shell exposes four destinations and the Makolo action',
-      (tester) async {
+  testWidgets('shell exposes four destinations and the Makolo action', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation: '/now',
       routes: [
@@ -15,10 +16,7 @@ void main() {
           builder: (context, state, child) => AppShell(child: child),
           routes: [
             for (final path in const ['/now', '/discover', '/ongoing', '/me'])
-              GoRoute(
-                path: path,
-                builder: (context, state) => Text(path),
-              ),
+              GoRoute(path: path, builder: (context, state) => Text(path)),
           ],
         ),
         GoRoute(
@@ -29,10 +27,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp.router(
-        theme: buildMakoloTheme(),
-        routerConfig: router,
-      ),
+      MaterialApp.router(theme: buildMakoloTheme(), routerConfig: router),
     );
     await tester.pumpAndSettle();
 

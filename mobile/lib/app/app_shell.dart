@@ -12,8 +12,10 @@ class AppShell extends StatelessWidget {
 
   int _selected(String path) {
     final destinations = MakoloDestination.values;
-    final index = destinations.indexWhere((destination) =>
-        path == destination.path || path.startsWith('${destination.path}/'));
+    final index = destinations.indexWhere(
+      (destination) =>
+          path == destination.path || path.startsWith('${destination.path}/'),
+    );
     return index < 0 ? 0 : index;
   }
 

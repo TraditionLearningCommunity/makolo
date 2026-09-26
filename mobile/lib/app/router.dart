@@ -27,8 +27,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             path: '/discover',
             builder: (context, state) => const PlaceholderScreen(
               title: 'Découvrir',
-              message:
-                  'La fondation A1 est prête. L’expérience exploratoire complète arrive dans A2.',
+              message: 'La fondation A1 est prête. L’expérience exploratoire complète arrive dans A2.',
             ),
           ),
           GoRoute(
@@ -49,10 +48,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
           ),
         ],
       ),
-      GoRoute(
-        path: '/mark',
-        builder: (context, state) => const MarkScreen(),
-      ),
+      GoRoute(path: '/mark', builder: (context, state) => const MarkScreen()),
       for (final prefix in const [
         'journeys',
         'activities',
@@ -66,8 +62,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
           path: '/$prefix/:id',
           builder: (context, state) => PlaceholderScreen(
             title: 'Continuer dans Makolo',
-            message:
-                'Cette destination structurée sera revalidée par son domaine propriétaire avant d’exposer une action.',
+            message: 'Cette destination structurée sera revalidée par son domaine propriétaire avant d’exposer une action.',
           ),
         ),
     ],

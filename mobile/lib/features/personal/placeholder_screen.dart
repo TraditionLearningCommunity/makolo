@@ -15,11 +15,11 @@ class PlaceholderScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(MakoloSpacing.lg),
-        children: [
-          Text(title, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: MakoloSpacing.lg),
-          InlineMessage(message: message),
-        ],
-      );
+    padding: const EdgeInsets.all(MakoloSpacing.lg),
+    children: [
+      Text(title, style: Theme.of(context).textTheme.headlineSmall),
+      const SizedBox(height: MakoloSpacing.lg),
+      InlineMessage(message: message),
+    ],
+  );
 }

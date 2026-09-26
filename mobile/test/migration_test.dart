@@ -49,10 +49,7 @@ void main() {
     final columns = await database
         .customSelect('PRAGMA table_info(outbox_operations)')
         .get();
-    expect(
-      columns.map((row) => row.data['name']),
-      contains('last_error_code'),
-    );
+    expect(columns.map((row) => row.data['name']), contains('last_error_code'));
     final resourceIndex = await database
         .customSelect(
           "SELECT name FROM sqlite_master "
@@ -60,8 +57,9 @@ void main() {
         )
         .get();
     expect(resourceIndex, hasLength(1));
-    final rows =
-        await database.customSelect('SELECT * FROM outbox_operations').get();
+    final rows = await database
+        .customSelect('SELECT * FROM outbox_operations')
+        .get();
     expect(rows.single.data['operation_id'], 'op-preserved');
   });
 }

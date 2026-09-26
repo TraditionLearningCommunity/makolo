@@ -16,10 +16,10 @@ class ProjectionSnapshots extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {
-        profileId,
-        projectionKind,
-        resourceKey,
-      };
+    profileId,
+    projectionKind,
+    resourceKey,
+  };
 }
 
 class ResourceIndex extends Table {
@@ -32,11 +32,7 @@ class ResourceIndex extends Table {
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
-  Set<Column<Object>> get primaryKey => {
-        profileId,
-        resourceKind,
-        resourceId,
-      };
+  Set<Column<Object>> get primaryKey => {profileId, resourceKind, resourceId};
 }
 
 class SyncSources extends Table {

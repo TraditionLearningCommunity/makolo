@@ -43,30 +43,34 @@ void main() {
     expect(row.state, OutboxState.confirmed.wireValue);
   });
 
-  test('no-blind-retry becomes awaiting confirmation after ambiguity', () async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final repository = OutboxRepository(database, 'profile-a');
+  test(
+    'no-blind-retry becomes awaiting confirmation after ambiguity',
+    () async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final repository = OutboxRepository(database, 'profile-a');
 
-    await repository.enqueue(
-      operationId: 'op-ambiguous',
-      deviceInstanceId: 'device-a',
-      operationKind: 'form.submit',
-      owner: 'Questionnaires',
-      payload: {'request': 'r1'},
-      intentId: 'intent-ambiguous',
-      replayPolicy: ReplayPolicy.noBlindRetry,
-    );
+      await repository.enqueue(
+        operationId: 'op-ambiguous',
+        deviceInstanceId: 'device-a',
+        operationKind: 'form.submit',
+        owner: 'Questionnaires',
+        payload: {'request': 'r1'},
+        intentId: 'intent-ambiguous',
+        replayPolicy: ReplayPolicy.noBlindRetry,
+      );
 
-    final processor = OutboxProcessor(
-      repository: repository,
-      handlers: {
-        'form.submit': (_) async => throw TimeoutException('ambiguous'),
-      },
-    );
+      final processor = OutboxProcessor(
+        repository: repository,
+        handlers: {
+          'form.submit': (_) async => throw TimeoutException('ambiguous'),
+        },
+      );
 
-    await processor.run();
-    final row = (await database.select(database.outboxOperations).get()).single;
-    expect(row.state, OutboxState.awaitingConfirmation.wireValue);
-  });
+      await processor.run();
+      final row =
+          (await database.select(database.outboxOperations).get()).single;
+      expect(row.state, OutboxState.awaitingConfirmation.wireValue);
+    },
+  );
 }

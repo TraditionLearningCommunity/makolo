@@ -38,16 +38,17 @@ abstract final class MakoloMotion {
 }
 
 ThemeData buildMakoloTheme() {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: MakoloColors.indigo,
-    brightness: Brightness.light,
-  ).copyWith(
-    primary: MakoloColors.indigo,
-    secondary: MakoloColors.pulse,
-    surface: MakoloColors.warm,
-    onSurface: MakoloColors.ink,
-    error: MakoloColors.danger,
-  );
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: MakoloColors.indigo,
+        brightness: Brightness.light,
+      ).copyWith(
+        primary: MakoloColors.indigo,
+        secondary: MakoloColors.pulse,
+        surface: MakoloColors.warm,
+        onSurface: MakoloColors.ink,
+        error: MakoloColors.danger,
+      );
 
   return ThemeData(
     useMaterial3: true,

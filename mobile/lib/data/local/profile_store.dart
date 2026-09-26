@@ -33,16 +33,15 @@ class ProfileStore {
             row.resourceKey.equals(''),
       );
     return query.watchSingleOrNull().map(
-          (row) => row == null
-              ? null
-              : StoredProjection(
-                  kind: row.projectionKind,
-                  schemaVersion: row.schemaVersion,
-                  payload:
-                      jsonDecode(row.payloadJson) as Map<String, dynamic>,
-                  receivedAt: row.receivedAt,
-                ),
-        );
+      (row) => row == null
+          ? null
+          : StoredProjection(
+              kind: row.projectionKind,
+              schemaVersion: row.schemaVersion,
+              payload: jsonDecode(row.payloadJson) as Map<String, dynamic>,
+              receivedAt: row.receivedAt,
+            ),
+    );
   }
 
   Future<StoredProjection?> readProjection(String kind) async {
@@ -70,7 +69,9 @@ class ProfileStore {
     DateTime? sourceGeneratedAt,
   }) async {
     final now = DateTime.now().toUtc();
-    await database.into(database.projectionSnapshots).insertOnConflictUpdate(
+    await database
+        .into(database.projectionSnapshots)
+        .insertOnConflictUpdate(
           ProjectionSnapshotsCompanion.insert(
             profileId: profileId,
             projectionKind: kind,

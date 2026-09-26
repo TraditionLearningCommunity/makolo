@@ -95,4 +95,3 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     sync: sync,
   );
 });
-

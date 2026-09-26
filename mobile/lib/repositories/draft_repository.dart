@@ -23,7 +23,9 @@ class DraftRepository {
     String? resourceId,
     required Map<String, dynamic> payload,
   }) {
-    return database.into(database.localDrafts).insertOnConflictUpdate(
+    return database
+        .into(database.localDrafts)
+        .insertOnConflictUpdate(
           LocalDraftsCompanion.insert(
             draftId: draftId,
             profileId: profileId,

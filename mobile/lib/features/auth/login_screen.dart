@@ -38,18 +38,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await auth.login(
-        email: _email.text.trim(),
-        password: _password.text,
-      );
+      await auth.login(email: _email.text.trim(), password: _password.text);
       ref.invalidate(appRuntimeProvider);
     } on MakoloApiError catch (error) {
       if (mounted) setState(() => _error = error.message);
     } on Object {
       if (mounted) {
         setState(
-          () => _error =
-              'Connexion impossible pour le moment. Votre saisie n’a pas été envoyée à nouveau.',
+          () => _error = 'Connexion impossible pour le moment. Votre saisie n’a pas été envoyée à nouveau.',
         );
       }
     } finally {

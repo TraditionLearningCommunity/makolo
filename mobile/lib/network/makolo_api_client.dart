@@ -13,8 +13,7 @@ class ApiResponse {
   final String body;
   final Map<String, String> headers;
 
-  Map<String, dynamic> jsonObject() =>
-      jsonDecode(body) as Map<String, dynamic>;
+  Map<String, dynamic> jsonObject() => jsonDecode(body) as Map<String, dynamic>;
 }
 
 class MakoloApiClient {
@@ -23,8 +22,8 @@ class MakoloApiClient {
     required http.Client httpClient,
     required TokenStore tokenStore,
     this.timeout = const Duration(seconds: 15),
-  })  : _http = httpClient,
-        _tokens = tokenStore;
+  }) : _http = httpClient,
+       _tokens = tokenStore;
 
   final Uri baseUri;
   final http.Client _http;
@@ -77,8 +76,7 @@ class MakoloApiClient {
     String path, {
     Map<String, dynamic>? body,
     Map<String, String>? headers,
-  }) =>
-      _authorized('POST', path, body: body, extraHeaders: headers);
+  }) => _authorized('POST', path, body: body, extraHeaders: headers);
 
   Future<ApiResponse> _authorized(
     String method,
@@ -150,8 +148,7 @@ class MakoloApiClient {
       final json = checked.jsonObject();
       final rotated = AuthSession(
         accessToken: json['access'] as String,
-        refreshToken:
-            (json['refresh'] as String?) ?? current.refreshToken,
+        refreshToken: (json['refresh'] as String?) ?? current.refreshToken,
         profileId: current.profileId,
       );
       await _tokens.writeSession(rotated);

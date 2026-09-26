@@ -5,8 +5,9 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/personal/projection_screen.dart';
 
 void main() {
-  testWidgets('screen renders the local projection without HTTP',
-      (tester) async {
+  testWidgets('screen renders the local projection without HTTP', (
+    tester,
+  ) async {
     final projection = StoredProjection(
       kind: 'personal.now',
       schemaVersion: 1,
@@ -31,7 +32,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Préparer le rendez-vous'), findsOneWidget);
-    expect(find.textContaining('Projection locale synchronisée'), findsOneWidget);
+    expect(
+      find.textContaining('Projection locale synchronisée'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('known empty Now becomes Tout est en ordre', (tester) async {

@@ -25,10 +25,7 @@ void main() {
   test('rejects an incompatible schema version', () {
     expect(
       () => ProjectionEnvelope.parse({
-        'meta': {
-          'projection': 'personal.now',
-          'schema_version': 2,
-        },
+        'meta': {'projection': 'personal.now', 'schema_version': 2},
         'data': <String, dynamic>{},
       }),
       throwsFormatException,

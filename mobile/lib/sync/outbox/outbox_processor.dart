@@ -8,10 +8,7 @@ typedef OutboxHandler = Future<OutboxResolution> Function(
 );
 
 class OutboxProcessor {
-  OutboxProcessor({
-    required this.repository,
-    required this.handlers,
-  });
+  OutboxProcessor({required this.repository, required this.handlers});
 
   final OutboxRepository repository;
   final Map<String, OutboxHandler> handlers;
@@ -31,23 +28,17 @@ class OutboxProcessor {
         continue;
       }
 
-      await repository.setState(
-        operation.operationId,
-        OutboxState.inFlight,
-      );
+      await repository.setState(operation.operationId, OutboxState.inFlight);
 
       try {
         final result = await handler(operation);
-        await repository.setState(
-          operation.operationId,
-          switch (result) {
-            OutboxResolution.confirmed => OutboxState.confirmed,
-            OutboxResolution.awaitingConfirmation =>
-              OutboxState.awaitingConfirmation,
-            OutboxResolution.conflict => OutboxState.conflict,
-            OutboxResolution.failed => OutboxState.failed,
-          },
-        );
+        await repository.setState(operation.operationId, switch (result) {
+          OutboxResolution.confirmed => OutboxState.confirmed,
+          OutboxResolution.awaitingConfirmation =>
+            OutboxState.awaitingConfirmation,
+          OutboxResolution.conflict => OutboxState.conflict,
+          OutboxResolution.failed => OutboxState.failed,
+        });
       } on Object {
         await repository.setState(
           operation.operationId,

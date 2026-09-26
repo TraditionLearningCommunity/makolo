@@ -22,7 +22,8 @@ class MakoloApiError implements Exception {
           return MakoloApiError(
             statusCode: statusCode,
             code: nested['code']?.toString() ?? 'api_error',
-            message: nested['message']?.toString() ?? 'Une erreur est survenue.',
+            message:
+                nested['message']?.toString() ?? 'Une erreur est survenue.',
             fields: nested['fields'] is Map<String, dynamic>
                 ? nested['fields'] as Map<String, dynamic>
                 : const {},

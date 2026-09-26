@@ -46,7 +46,9 @@ class OutboxRepository {
     String? ownerIdempotencyKey,
     List<String> dependencies = const [],
   }) {
-    return database.into(database.outboxOperations).insert(
+    return database
+        .into(database.outboxOperations)
+        .insert(
           OutboxOperationsCompanion.insert(
             operationId: operationId,
             profileId: profileId,
@@ -85,9 +87,9 @@ class OutboxRepository {
     OutboxState state, {
     String? errorCode,
   }) async {
-    await (database.update(database.outboxOperations)
-          ..where((row) => row.operationId.equals(operationId)))
-        .write(
+    await (database.update(
+      database.outboxOperations,
+    )..where((row) => row.operationId.equals(operationId))).write(
       OutboxOperationsCompanion(
         state: Value(state.wireValue),
         lastErrorCode: Value(errorCode),

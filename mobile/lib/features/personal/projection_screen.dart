@@ -21,16 +21,15 @@ class ProjectionScreen extends StatelessWidget {
     return StreamBuilder<StoredProjection?>(
       stream: stream,
       builder: (context, snapshot) {
-        if (!snapshot.hasData && snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (!snapshot.hasData &&
+            snapshot.connectionState == ConnectionState.waiting) {
           return const MakoloLoadingState();
         }
         final projection = snapshot.data;
         if (projection == null) {
           return MakoloEmptyState(
             title: 'Pas encore disponible sur cet appareil',
-            body:
-                'Makolo affichera ici les données déjà synchronisées. Une connexion est nécessaire pour les obtenir la première fois.',
+            body: 'Makolo affichera ici les données déjà synchronisées. Une connexion est nécessaire pour les obtenir la première fois.',
             icon: Icons.cloud_off_outlined,
           );
         }
@@ -61,8 +60,7 @@ class ProjectionScreen extends StatelessWidget {
               )
             else
               const InlineMessage(
-                message:
-                    'Cette projection est disponible localement. Son expérience détaillée arrive dans A2.',
+                message: 'Cette projection est disponible localement. Son expérience détaillée arrive dans A2.',
               ),
           ],
         );

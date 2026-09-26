@@ -59,9 +59,7 @@ class SyncEngine {
     final response = await api.get(root.path);
     final envelope = ProjectionEnvelope.parse(response.jsonObject());
     if (envelope.projection != root.key) {
-      throw FormatException(
-        'Expected ${root.key}, got ${envelope.projection}',
-      );
+      throw FormatException('Expected ${root.key}, got ${envelope.projection}');
     }
 
     await database.transaction(() async {
@@ -71,7 +69,9 @@ class SyncEngine {
         payload: envelope.data,
         sourceGeneratedAt: envelope.generatedAt,
       );
-      await database.into(database.syncSources).insertOnConflictUpdate(
+      await database
+          .into(database.syncSources)
+          .insertOnConflictUpdate(
             SyncSourcesCompanion.insert(
               profileId: profileId,
               sourceKey: root.key,
@@ -86,7 +86,9 @@ class SyncEngine {
   }
 
   Future<void> _recordFailure(SyncRoot root, String code) {
-    return database.into(database.syncSources).insertOnConflictUpdate(
+    return database
+        .into(database.syncSources)
+        .insertOnConflictUpdate(
           SyncSourcesCompanion.insert(
             profileId: profileId,
             sourceKey: root.key,

@@ -25,18 +25,12 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 25));
         expect(jsonDecode(request.body)['refresh'], 'old-refresh');
         return http.Response(
-          jsonEncode({
-            'access': 'new-access',
-            'refresh': 'new-refresh',
-          }),
+          jsonEncode({'access': 'new-access', 'refresh': 'new-refresh'}),
           200,
         );
       }
       if (request.headers['Authorization'] == 'Bearer old-access') {
-        return http.Response(
-          jsonEncode({'detail': 'Token expired'}),
-          401,
-        );
+        return http.Response(jsonEncode({'detail': 'Token expired'}), 401);
       }
       expect(request.headers['Authorization'], 'Bearer new-access');
       return http.Response(jsonEncode({'ok': true}), 200);
@@ -72,10 +66,7 @@ void main() {
       if (request.url.path.endsWith('/auth/refresh/')) {
         refreshCalls += 1;
         return http.Response(
-          jsonEncode({
-            'access': 'fresh-access',
-            'refresh': 'fresh-refresh',
-          }),
+          jsonEncode({'access': 'fresh-access', 'refresh': 'fresh-refresh'}),
           200,
         );
       }
@@ -102,27 +93,27 @@ void main() {
     expect(loggedOutRefresh, 'fresh-refresh');
   });
 
-  test('invalid refresh removes credentials without touching local data', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'expired',
-        refreshToken: 'revoked',
-        profileId: 'profile-a',
-      ),
-    );
-    final client = MockClient((request) async {
-      return http.Response(jsonEncode({'detail': 'invalid'}), 401);
-    });
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      httpClient: client,
-      tokenStore: tokens,
-    );
+  test(
+    'invalid refresh removes credentials without touching local data',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'expired',
+          refreshToken: 'revoked',
+          profileId: 'profile-a',
+        ),
+      );
+      final client = MockClient((request) async {
+        return http.Response(jsonEncode({'detail': 'invalid'}), 401);
+      });
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        httpClient: client,
+        tokenStore: tokens,
+      );
 
-    await expectLater(
-      api.get('api/v1/me/now/'),
-      throwsA(isA<Exception>()),
-    );
-    expect(await tokens.readSession(), isNull);
-  });
+      await expectLater(api.get('api/v1/me/now/'), throwsA(isA<Exception>()));
+      expect(await tokens.readSession(), isNull);
+    },
+  );
 }

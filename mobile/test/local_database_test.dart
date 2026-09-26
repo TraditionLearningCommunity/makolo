@@ -25,8 +25,10 @@ void main() {
       },
     );
 
-    expect((await alice.readProjection('personal.now'))?.payload['items'],
-        isNotEmpty);
+    expect(
+      (await alice.readProjection('personal.now'))?.payload['items'],
+      isNotEmpty,
+    );
     expect(await bob.readProjection('personal.now'), isNull);
   });
 
@@ -53,7 +55,10 @@ void main() {
     );
 
     expect(await database.select(database.localDrafts).get(), hasLength(1));
-    expect(await database.select(database.outboxOperations).get(), hasLength(1));
+    expect(
+      await database.select(database.outboxOperations).get(),
+      hasLength(1),
+    );
   });
 
   test('outbox survives database close and reopen', () async {
