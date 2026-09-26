@@ -1,15 +1,17 @@
 # Makolo — Current Program Status
 
-> **Statut : snapshot opérationnel.** Ce document décrit l'état observé du dépôt au **24 septembre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps. En cas de divergence, le code, les migrations, les tests et l'état GitHub courant gagnent.
+> **Statut : snapshot opérationnel.** Ce document décrit l'état observé du dépôt au **26 septembre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps. En cas de divergence, le code, les migrations, les tests et l'état GitHub courant gagnent.
 
 ## Référence auditée
 
 - Dépôt : `TraditionLearningCommunity/makolo`
 - Branche principale : `main`
-- HEAD Z14 vérifié sur `main` : `bee273500a383941ac89796156e1e429ed9de345`
-- PR #288 — Z14 : mergée ; CI post-merge verte
-- Z1–Z14 : intégrés ; le programme Z est fermé
-- M10.0 : gate final Shell & Structured Navigation ; lorsqu'il est présent sur `main` après CI verte, M10.0 est fermé ; aucune migration
+- HEAD de réconciliation Z15 : `main@be196db9d2e0135e14b2a5eb7a220e880e4f3237`
+- PR #288 — Z14 : mergée ; programme Z1–Z14 fermé
+- PR #290 — M10.0 Shell & Structured Navigation : mergée ; aucune migration
+- PR #303 — A0 architecture mobile local-first : mergée ; le développement Flutter reste un programme séparé
+- PR #301 — W6 Desktop Power Layer & Closure : mergée ; Z15 ne modifie aucune surface W
+- Z15 : gate backend de réconciliation ; fermé seulement après CI verte, merge et vérification du `main` post-merge
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -38,9 +40,12 @@ Le programme Z n'est pas un nouveau domaine. Il a recomposé le backend existant
 - M1–M7 livrés selon les docs canoniques et le runtime ;
 - M8 Mature Web Experience intégré, y compris la convergence mobile-first #234 ;
 - M9 hardening fermé sur sa base auditée, puis ses garanties pertinentes réutilisées par Z11/Z12 ;
-- Z1–Z14 intégrés ; programme Z fermé ;
-- M10.0 ferme la couture shell/navigation avant la suite du gate M10 ;
-- M10 reste un gate global distinct. La fermeture de Z ne signifie pas « production-ready ».
+- Z1–Z14 intégrés ; programme Z historique fermé ;
+- M10.0 intégré ;
+- A0 architecture mobile réconciliée ;
+- W6 intégré ;
+- Z15 est un chantier post-closeout borné : il ferme les capacités backend orphelines sans rouvrir les surfaces personnelles ;
+- M10 reste un gate global distinct. Z15 ne signifie pas « production-ready ».
 
 La navigation personnelle canonique reste :
 
@@ -99,20 +104,9 @@ Le backend décide Permission, Mandate, Readiness, Requirement satisfaction, Acc
 
 Le programme mobile reste distinct du programme Z.
 
-L'ancienne PR #248 (`mobile/a0-phase-0-foundation`) a été réauditée : elle contient une petite fondation Flutter utile, mais sa base est profondément divergente du `main` courant et son ancien inventaire API précède Z1–Z13.
+L'ancienne PR #248 a été remplacée par la réconciliation A0 intégrée via PR #303. Le contrat mobile local-first courant doit donc être lu depuis `main`, pas depuis l'ancienne branche divergente.
 
-Classification : **needs adaptation**.
-
-Règle de reprise :
-
-```text
-main fermé
-→ contrat Z13
-→ transplantation sélective de ce qui reste utile dans A0
-→ A Mobile
-```
-
-Ne pas merger #248 telle quelle pour « fermer » Z.
+Le développement Flutter reste distinct de Z15.
 
 ## 6. Intelligence
 
@@ -122,16 +116,15 @@ Makolo Mark reste un orchestrateur borné et owner-directed. Les futures capacit
 
 ## 7. Collision audit courant
 
-PR ouvertes pertinentes au démarrage Z14 :
+PR ouvertes pertinentes au réaudit Z15 :
 
-- #248 A0 Flutter : à adapter, pas à merger telle quelle ;
-- #252 Space archetypes : programme Space séparé ;
-- #270 ECC : docs d'orchestration ;
-- #283 Actor 6 : docs ;
-- #284 Pré-8 Actors/Universe input : docs ;
+- #252 Space archetypes : ancienne branche profondément divergente, programme Space séparé ;
+- #270 ECC : documentation d'orchestration ;
+- #283 Actor 6 : documentation ;
+- #284 Pré-8 Actors/Universe input : documentation ;
 - #223 research lab : isolé hors runtime.
 
-Aucune de ces PR n'est utilisée comme justification pour réécrire les surfaces personnelles Z14.
+W6 #301 et ACT-F #305 sont désormais intégrés sur la base Z15 courante. Aucune de ces lignes n'est utilisée pour réécrire les surfaces W ou les runtimes Actors.
 
 ## 8. Qualité et CI
 
@@ -151,8 +144,8 @@ Le `main` Z12+ précédent avait également une CI verte avec 2519 tests Django.
 ## 9. Prochaine décision
 
 ```text
-Programme Z fermé
-→ M10.0 Shell & Structured Navigation
+Programme Z historique fermé
+→ Z15 réconciliation backend orpheline
 → suite M10 / production readiness globale
 → A Mobile
 ```
