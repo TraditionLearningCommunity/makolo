@@ -93,7 +93,7 @@ Flutter possède :
 - navigation locale entre écrans ;
 - état de chargement, sélection, scroll et saisie non soumise ;
 - secure storage natif pour les tokens ;
-- cache éphémère de présentation lorsque le contrat de confidentialité le permet ;
+- projection applicative locale protégée pour les données explicitement allowlistées par A0, séparée du cache reconstructible ;
 - stratégie de rafraîchissement réseau sans inventer de vérité métier.
 
 Flutter ne doit jamais déduire une action depuis un texte, un Membership, un Assignment, un statut visuel ou un identifiant obtenu ailleurs.
@@ -254,8 +254,8 @@ Un état métier valide `waiting`, `blocked`, `unknown`, `needs_confirmation` ou
 - refresh courant : 7 jours, rotation + blacklist ;
 - tokens uniquement dans un secure storage natif ;
 - aucune PII, token, QR complet, credential, réponse privée ou payload Payment dans logs/crash breadcrumbs ;
-- les réponses personnelles `private, no-store` ne deviennent pas un cache durable hors-ligne par commodité ;
-- logout : oublier tokens et état personnel sensible local ;
+- `Cache-Control: private, no-store` continue d'interdire un cache HTTP/browser/intermédiaire implicite. Après A0, cela n'interdit pas à un client installé authentifié d'absorber explicitement un sous-ensemble allowlisté dans sa projection applicative locale protégée ; cette persistance n'est ni un cache HTTP ni une nouvelle vérité métier ;
+- logout : retirer les credentials actifs ; la projection locale est purgée ou conservée verrouillée selon la politique de sensibilité A0. « Retirer ce compte de cet appareil » reste l'opération locale distincte qui purge clés, DB et fichiers privés ;
 - un autre Profile ne peut jamais être choisi par `profile_id`, `user_id` ou autre override sur les surfaces personnelles ;
 - un objet privé hors scope peut répondre 404 afin de ne pas confirmer son existence.
 
@@ -275,7 +275,7 @@ Ce pack est un snapshot de lecture viewer-aware :
 - il n’accorde jamais d’autorité ;
 - toutes les mutations doivent être revalidées par le serveur.
 
-Ce contrat peut être consommé plus tard pour A4/faible connectivité. Il ne justifie pas un moteur de mutations offline ni un `last write wins` pour Access ou Payment.
+Ce contrat peut être persisté explicitement dès A1 comme projection locale de lecture, dans les limites de sa fraîcheur et de sa politique de données. A4 possède les déclencheurs natifs/background ; A5 possède l'autorité terrain offline avancée. Le pack ne justifie jamais un moteur de mutations autoritatives offline ni un `last write wins` pour Access ou Payment.
 
 Aucun WebSocket/SSE générique n’est canonique aujourd’hui. Flutter peut rafraîchir les GET selon son contexte UX, mais ne doit pas inventer une fréquence comme vérité métier.
 
@@ -355,7 +355,7 @@ Ces gaps ne sont pas masqués par Flutter :
 - Mark n’accepte pas un fichier générique comme modalité ;
 - aucune autorité offline dérivée d’un snapshot.
 
-Ils ne justifient ni nouveau domaine ni copie de vérité. Ils seront ouverts uniquement quand un scénario A1/A2/A4 réel en a besoin.
+Ils ne justifient ni nouveau domaine ni copie de vérité. Ils seront ouverts uniquement quand un scénario A1→A5 réel en a besoin.
 
 ## 20. Gate A1
 
