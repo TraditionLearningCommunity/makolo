@@ -17,6 +17,7 @@ from authorization.services import can
 from automation.services import ensure_policy
 from events.forms import EventForm
 from events.services import create_event
+from events.selectors import get_manageable_events
 from journeys.services import approve_request, reject_request
 
 from .console_context import SpaceConsoleContext
@@ -438,7 +439,10 @@ class SpaceConsoleControlView(SpaceConsoleMixin, TemplateView):
         access_control = self.space_console.workspace_module("access_control") or {"capabilities": []}
         capabilities = set(access_control.get("capabilities", []))
         context["scanner_logs_url"] = reverse("scanner:logs")
-        context["scanner_manage_assignments"] = "manage_assignments" in capabilities
+        context["scanner_manage_assignments"] = (
+            "manage_assignments" in capabilities
+            and get_manageable_events(self.request.user).filter(activity__space=self.space).exists()
+        )
         if context["scanner_manage_assignments"]:
             context["scanner_gates_url"] = reverse("scanner:gates")
             context["scanner_assignments_url"] = reverse("scanner:assignments")
