@@ -57,6 +57,8 @@ GET /api/v1/platform/capabilities/
 
 Elle est résolue exclusivement depuis les Permissions Platform et n'inclut aucune capacité personnelle ou Espace.
 
+Inversement, les nouveaux contrats Espace Z15 utilisent des selectors d'autorité directe qui excluent l'héritage Platform. Une Permission Platform ne devient donc pas silencieusement une Permission Espace dans Workspace, Recognition Espace, Trust Espace, Funding management ou Analytics Espace.
+
 ## 3. Classification auditée
 
 | Capacité | Classe | État Z15 | Owner / contrat |
@@ -121,6 +123,14 @@ Growth possède déjà ses APIs Space-scoped et ses Permissions canoniques.
 Les dépendances restantes `MarketingLink → Event` et `EventFeedback → Event` sont classées `active_with_event_compatibility`. Elles ne justifient ni duplication Activity ni migration spéculative en Z15.
 
 Analytics reste propriétaire de ses agrégats. Les métriques Event et Service sont des adaptateurs verticaux ; le read-model Espace ne les copie pas.
+
+Z15 ajoute un narrowing explicite du portfolio canonique :
+
+```text
+GET /api/v1/analytics/overview/?organization=<space-slug>
+```
+
+Le filtre est résolu depuis une Permission `analytics.view` portée par un Mandate Espace direct. Une autorité Platform seule n'ouvre pas cette lecture Espace. Le calcul financier du portfolio ne lit plus `OrganizationMembership.role` : la visibilité financière vient désormais des Permissions/Mandates Analytics canoniques.
 
 ## 6. Loyalty et Recognition
 
@@ -253,6 +263,7 @@ Z15 respecte :
 - selectors avant sérialisation ;
 - 404 pour les détails privés cross-Space lorsque pertinent ;
 - aucune donnée Platform dans le read-model Espace ;
+- aucune autorité Platform héritée par les nouveaux contrats Espace Z15 ;
 - aucune finance Partner sans `partners.finance` ;
 - aucune mutation Recognition Espace sans `space.recognition.spend` ;
 - aucune donnée Trust opérateur sans `space.trust.view/manage` ;
