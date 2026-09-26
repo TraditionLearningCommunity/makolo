@@ -12,7 +12,7 @@ from commerce.models import CommerceOrder, PaymentMode
 from geography.models import Place
 from journeys.beneficiary_services import create_external_beneficiary
 from journeys.models import Journey
-from organizations.models import Organization
+from organizations.models import Organization, SpaceArchetype
 
 from .models import Vehicle
 from .services import (
@@ -32,7 +32,7 @@ class Task25TransportBookingTests(TestCase):
         self.buyer = User.objects.create_user(username="sarah-t25", email="sarah-t25@example.test", password="pass-12345")
         self.other_profile = User.objects.create_user(username="jacques-t25", email="jacques-t25@example.test", password="pass-12345")
         self.stranger = User.objects.create_user(username="stranger-t25", email="stranger-t25@example.test", password="pass-12345")
-        self.space = Organization.objects.create(name="T25 Transport", slug="t25-transport", created_by=self.buyer)
+        self.space = Organization.objects.create(name="T25 Transport", slug="t25-transport", archetype=SpaceArchetype.TRANSPORT_OPERATOR, created_by=self.buyer)
         self.origin = Place.objects.create(name="Kolwezi Gare", locality="Kolwezi", country_code="CD", timezone="Africa/Lubumbashi")
         self.destination = Place.objects.create(name="Lubumbashi Gare", locality="Lubumbashi", country_code="CD", timezone="Africa/Lubumbashi")
         self.route = create_transport_route(space=self.space, name="Kolwezi Lubumbashi T25", stops=[self.origin, self.destination])

@@ -11,7 +11,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from commerce.models import PaymentMode
 from geography.models import Place
-from organizations.models import Organization
+from organizations.models import Organization, SpaceArchetype
 from scanner.canonical_services import scan_access_credential
 from scanner.models import ScannerAssignment
 
@@ -42,6 +42,7 @@ class TransportScannerTimingTests(TestCase):
         space = Organization.objects.create(
             name="Transport Timing Space",
             slug="transport-timing-space",
+            archetype=SpaceArchetype.TRANSPORT_OPERATOR,
             created_by=traveler,
         )
         origin = Place.objects.create(

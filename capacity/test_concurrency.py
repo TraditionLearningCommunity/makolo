@@ -13,7 +13,7 @@ from activities.models import Activity, Occurrence
 from commerce.models import PaymentMode
 from journeys.models import WorkflowKind
 from journeys.services import create_journey
-from organizations.models import Organization
+from organizations.models import Organization, SpaceArchetype
 
 from .models import CapacityPool
 from .services import InsufficientCapacity, reserve_capacity
@@ -92,7 +92,7 @@ class TransportCapacityConcurrencyTests(TransactionTestCase):
             User.objects.create_user(username=f"transport-race-{index}", email=f"transport-race-{index}@example.com", password="Capacity-2026!")
             for index in range(2)
         ]
-        self.space = Organization.objects.create(name="Transport Race", created_by=self.owner)
+        self.space = Organization.objects.create(name="Transport Race", archetype=SpaceArchetype.TRANSPORT_OPERATOR, created_by=self.owner)
         origin = Place.objects.create(name="Lubumbashi Race", locality="Lubumbashi", country_code="CD", timezone="Africa/Lubumbashi")
         destination = Place.objects.create(name="Kolwezi Race", locality="Kolwezi", country_code="CD", timezone="Africa/Lubumbashi")
         route = create_transport_route(space=self.space, name="Lubumbashi Race → Kolwezi Race", stops=[origin, destination])

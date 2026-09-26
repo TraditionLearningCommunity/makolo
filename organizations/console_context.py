@@ -10,6 +10,7 @@ from authorization.constants import PermissionCode, SPACE_PERMISSION_CODES, Syst
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.selectors import activity_ids_with_direct_permission
 from .models import Organization
+from .space_product import product_config_for_space, space_supports_specialized_module
 
 
 SPACE_NAVIGATION = (
@@ -116,6 +117,8 @@ def _has_activity_capability(profile, space, permission_code):
 
 
 def _module_allowed(profile, space, key, *, space_permissions, limited, space_role_codes):
+    if key == "transport" and not space_supports_specialized_module(space, "transport"):
+        return False
     if key in {"activities", "transport"}:
         return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_VIEW)
     if key == "services":
@@ -194,9 +197,13 @@ class SpaceConsoleContext:
         if activity_ids is not None:
             activity_ids = frozenset(activity_ids)
         navigation = []
+        product_config = product_config_for_space(space)
         for label, items in SPACE_NAVIGATION:
+            group_label = product_config.navigation_section_label if label == "Activité" else label
             visible = []
             for key, item_label, icon in items:
+                if key == "activities":
+                    item_label = product_config.activities_label
                 if _module_allowed(
                     profile,
                     space,
@@ -207,7 +214,7 @@ class SpaceConsoleContext:
                 ):
                     visible.append({"key": key, "label": item_label, "icon": icon, "url": reverse(f"organizations:console-{key}", kwargs={"slug": space.slug})})
             if visible:
-                navigation.append({"label": label, "items": visible})
+                navigation.append({"label": group_label, "items": visible})
         switcher = tuple(
             {
                 "name": candidate.name,

@@ -12,7 +12,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from commerce.models import PaymentMode
 from geography.models import Place, SpacePlace, SpacePlaceRole
-from organizations.models import Organization, OrganizationVerificationStatus
+from organizations.models import Organization, OrganizationVerificationStatus, SpaceArchetype
 from scanner.models import ScannerAssignment
 from transport.services import (
     configure_transport_fare,
@@ -50,6 +50,7 @@ class Command(BaseCommand):
         space = Organization.objects.create(
             name="Mulykap Transport E2E",
             slug="mulykap-transport-e2e",
+            archetype=SpaceArchetype.TRANSPORT_OPERATOR,
             description="Espace Transport canonique déterministe pour Playwright.",
             city="Lubumbashi",
             country="RDC",

@@ -13,6 +13,20 @@ class OrganizationVerificationStatus(models.TextChoices):
     SUSPENDED = "suspended", "Suspendu"
 
 
+class SpaceArchetype(models.TextChoices):
+    """Primary operational configuration for one Space.
+
+    This is not a Topic, legal form, Permission or Mandate. It tells Makolo
+    which product capabilities and vocabulary are native to the Space.
+    """
+
+    GENERIC = "generic", "Espace générique"
+    CREATIVE = "creative", "Artiste / création"
+    MEDIA = "media", "Média / journalisme"
+    EDUCATION = "education", "Enseignement / formation"
+    TRANSPORT_OPERATOR = "transport_operator", "Opérateur de transport"
+
+
 class OrganizationRole(models.TextChoices):
     """Legacy compatibility roles.
 
@@ -38,6 +52,13 @@ class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=180)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
+    archetype = models.CharField(
+        max_length=32,
+        choices=SpaceArchetype.choices,
+        default=SpaceArchetype.GENERIC,
+        db_default=SpaceArchetype.GENERIC,
+        help_text="Contexte opérationnel principal de cet Espace. Distinct des Topics et des autorisations.",
+    )
     description = models.TextField(blank=True)
     website = models.URLField(blank=True)
     contact_email = models.EmailField(blank=True)
