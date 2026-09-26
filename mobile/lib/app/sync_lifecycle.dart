@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:drift/drift.dart';
 import 'package:flutter/widgets.dart';
 
 import '../network/api_error.dart';
