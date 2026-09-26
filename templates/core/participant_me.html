@@ -36,7 +36,7 @@
   </section>
 
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes collectifs</h2><p>Les groupes, équipes et Espaces auxquels vous êtes réellement relié.</p></div><a href="{% url 'organizations:list' %}">Voir</a></div>
+    <div class="mk-section-heading"><div><h2>Mes collectifs</h2><p>Vos groupes, équipes et Espaces.</p></div><a href="{% url 'organizations:list' %}">Voir</a></div>
     <div class="mk-me-list">
       {% for space in authorized_spaces %}<div><strong>{{ space.name }}</strong><span>Vous pouvez agir dans cet Espace</span></div>{% endfor %}
       {% for membership in team_memberships %}<div><strong>{{ membership.team.name }}</strong><span>{{ membership.team.organization.name }}</span></div>{% endfor %}
@@ -46,7 +46,7 @@
   </section>
 
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Documents, faits établis et attestations restent distincts, mais se retrouvent au même endroit quand ils peuvent vous servir.</p></div><a href="{% url 'personal_assets:list' %}">Bibliothèque</a></div>
+    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Retrouvez vos documents, faits établis et attestations.</p></div><a href="{% url 'personal_assets:list' %}">Bibliothèque</a></div>
     <div class="mk-me-list">
       {% for asset in resources %}<div><strong>{{ asset.title }}</strong><span>Document{% if asset.kind %} · {{ asset.get_kind_display }}{% endif %}</span></div>{% endfor %}
       {% for proof in proofs %}<div><strong>{{ proof.get_proof_type_display }}</strong><span>Fait établi · {{ proof.journey.activity.title }}{% if proof.status %} · {{ proof.get_status_display }}{% endif %}</span></div>{% endfor %}
@@ -57,7 +57,7 @@
 
   {% if support_links %}
   <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Ce qui peut déjà vous aider</h2><p>Des relations ou avantages déjà établis, seulement lorsqu’ils peuvent réellement vous servir.</p></div></div>
+    <div class="mk-section-heading"><div><h2>Ce qui peut vous aider</h2><p>Relations et avantages disponibles pour vous.</p></div></div>
     <div class="mk-me-list">
       {% for item in support_links %}<a href="{{ item.url }}"><strong>{{ item.label }}</strong><span>{{ item.detail }}</span></a>{% endfor %}
     </div>

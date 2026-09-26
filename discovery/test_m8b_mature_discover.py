@@ -122,7 +122,7 @@ class M8BMatureDiscoverTests(TestCase):
         self.assertContains(response, reverse("core:login"))
         self.assertNotContains(response, reverse("discovery:activity-bookmark-toggle", args=[opportunity.pk]))
         self.assertContains(response, "Vous avez vu ce qui est pertinent ici.")
-        self.assertContains(response, "Makolo ne relâche pas vos critères en silence.")
+        self.assertContains(response, "Modifiez votre recherche ou vos filtres pour élargir les résultats.")
         self.assertEqual(response.context["map_items"], [])
         self.assertEqual(response.context["mappable_result_count"], 0)
 
