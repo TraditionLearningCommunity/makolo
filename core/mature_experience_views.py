@@ -9,7 +9,10 @@ from core.mark_orchestration import MARK_TEXT_MAX_LENGTH, mark_web_url, orchestr
 from django.utils import timezone
 from django.views.generic import TemplateView
 
+from activities.models import ActivityStatus
 from discovery.models import ActivityBookmark, DiscoveryWatch
+from funding.models import FundingDetails
+from funding.services import can_manage_funding
 from groups.selectors import groups_for_profile
 from organizations.console_context import authorized_spaces
 from organizations.models import OrganizationFollow, ProfileFollow, TeamMembership, TeamMembershipStatus
@@ -151,6 +154,20 @@ def _ongoing_payment_item(payment):
     }
 
 
+def _ongoing_funding_item(funding):
+    target = f" · objectif {funding.target_amount} {funding.currency}" if funding.target_amount else ""
+    return {
+        "kind": "funding",
+        "title": funding.activity.title,
+        "summary": f"Financement {funding.activity.get_status_display().lower()}{target}",
+        "tone": "calm",
+        "next_action": "",
+        "timing": None,
+        "place": None,
+        "url": reverse("funding:manage", kwargs={"pk": funding.pk}),
+    }
+
+
 class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
     template_name = "core/participant_ongoing.html"
     login_url = "core:login"
@@ -219,6 +236,19 @@ class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
         )
         payment_items = [_ongoing_payment_item(payment) for payment in standalone_payments]
 
+        personal_fundings = [
+            funding
+            for funding in FundingDetails.objects.select_related("activity")
+            .filter(
+                activity__owner_profile=profile,
+                activity__space__isnull=True,
+                activity__status__in={ActivityStatus.DRAFT, ActivityStatus.PUBLISHED},
+            )
+            .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
+            if can_manage_funding(profile, funding)
+        ]
+        funding_items = [_ongoing_funding_item(funding) for funding in personal_fundings]
+
         context["ongoing_items"] = (
             journey_items
             + access_items
@@ -227,11 +257,13 @@ class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
             + waitlist_items
             + transfer_items
             + payment_items
+            + funding_items
         )[:ONGOING_LIMIT]
         context["has_personal_dossiers"] = bool(personal_dossiers)
         context["has_personal_projects"] = bool(personal_projects)
         context["has_waitlist"] = bool(waitlist_entries)
         context["has_transfers"] = bool(transfers)
+        context["has_personal_fundings"] = bool(personal_fundings)
         return context
 
 
