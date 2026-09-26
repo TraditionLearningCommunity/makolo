@@ -31,8 +31,7 @@ class MakoloApp extends ConsumerWidget {
           body: MakoloErrorState(
             message:
                 'Makolo n’a pas pu ouvrir les données locales de cet appareil.',
-            preservedMessage:
-                'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
+            preservedMessage: 'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
             onRetry: () => ref.invalidate(appRuntimeProvider),
           ),
         ),
