@@ -28,6 +28,7 @@ from .console_t21_views import (
     SpaceConsolePaymentsView,
 )
 from .console_team import SpaceConsoleTeamView
+from .console_w7_views import SpaceConsoleCapabilityHubView, SpaceConsoleFundingView
 from .console_views import (
     SpaceAccessRevokeView,
     SpaceConsoleActivitiesView,
@@ -91,6 +92,58 @@ urlpatterns = [
     path("<slug:slug>/crm/", SpaceConsoleCRMView.as_view(), name="console-crm"),
     path("<slug:slug>/audiences/", SpaceConsoleAudiencesView.as_view(), name="console-audiences"),
     path("<slug:slug>/promotions/", SpaceConsolePromotionsView.as_view(), name="console-promotions"),
+    path("<slug:slug>/funding/", SpaceConsoleFundingView.as_view(), name="console-funding"),
+    path(
+        "<slug:slug>/partners/",
+        SpaceConsoleCapabilityHubView.as_view(
+            module_key="partners",
+            page_title="Partenaires",
+            destination_name="partners:organization",
+            description="Partenaires, campagnes, codes d’attribution et opérations financières selon votre Mandat.",
+        ),
+        name="console-partners",
+    ),
+    path(
+        "<slug:slug>/growth/",
+        SpaceConsoleCapabilityHubView.as_view(
+            module_key="growth",
+            page_title="Acquisition",
+            destination_name="growth:organization",
+            description="Comprendre comment les personnes trouvent cet Espace, ce qui convertit et les retours qui demandent une action.",
+        ),
+        name="console-growth",
+    ),
+    path(
+        "<slug:slug>/loyalty/",
+        SpaceConsoleCapabilityHubView.as_view(
+            module_key="loyalty",
+            page_title="Fidélité",
+            destination_name="loyalty:workspace",
+            description="Programme, niveaux, avantages et relations de fidélité gérés par cet Espace.",
+        ),
+        name="console-loyalty",
+    ),
+    path(
+        "<slug:slug>/recognition/",
+        SpaceConsoleCapabilityHubView.as_view(
+            module_key="recognition",
+            page_title="Reconnaissance",
+            destination_name="recognition:space-dashboard",
+            destination_scope="space_id",
+            description="Crédits, accomplissements, avantages et demandes de reconnaissance propres à cet Espace.",
+        ),
+        name="console-recognition",
+    ),
+    path(
+        "<slug:slug>/trust/",
+        SpaceConsoleCapabilityHubView.as_view(
+            module_key="trust",
+            page_title="Confiance",
+            destination_name="trust:space-console",
+            description="Vérification, qualité opérationnelle et éléments de confiance propres à cet Espace.",
+        ),
+        name="console-trust",
+    ),
     path("<slug:slug>/places/", SpaceConsolePlacesView.as_view(), name="console-places"),
     path("<slug:slug>/control/", SpaceConsoleControlView.as_view(), name="console-control"),
     path("<slug:slug>/control/<uuid:activity_id>/", SpaceActivityScannerView.as_view(), name="console-control-activity"),

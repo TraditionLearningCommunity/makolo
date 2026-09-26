@@ -6,12 +6,13 @@
 
 - Dépôt : `TraditionLearningCommunity/makolo`
 - Branche principale : `main`
-- HEAD de réconciliation Z15 : `main@be196db9d2e0135e14b2a5eb7a220e880e4f3237`
+- HEAD Z15 intégré : `main@993e17d64372dea2d4da36c5c3274e5df378cb89`
 - PR #288 — Z14 : mergée ; programme Z1–Z14 fermé
 - PR #290 — M10.0 Shell & Structured Navigation : mergée ; aucune migration
 - PR #303 — A0 architecture mobile local-first : mergée ; le développement Flutter reste un programme séparé
 - PR #301 — W6 Desktop Power Layer & Closure : mergée ; Z15 ne modifie aucune surface W
-- Z15 : gate backend de réconciliation ; fermé seulement après CI verte, merge et vérification du `main` post-merge
+- PR #304 — Z15 : mergée sur `main` après CI verte ; réconciliation backend des capacités orphelines intégrée
+- PR #312 — W7 : chantier web de fermeture des capacités orphelines, basé sur le `main` post-Z15
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -44,7 +45,8 @@ Le programme Z n'est pas un nouveau domaine. Il a recomposé le backend existant
 - M10.0 intégré ;
 - A0 architecture mobile réconciliée ;
 - W6 intégré ;
-- Z15 est un chantier post-closeout borné : il ferme les capacités backend orphelines sans rouvrir les surfaces personnelles ;
+- Z15 est intégré : les capacités backend orphelines sont classifiées et exposées sans rouvrir les surfaces personnelles ;
+- W7 consomme ces contrats côté Web Mature/Espace sans construire Platform ;
 - M10 reste un gate global distinct. Z15 ne signifie pas « production-ready ».
 
 La navigation personnelle canonique reste :
@@ -75,7 +77,7 @@ Z11   sécurité/autorité/confidentialité          ✅ intégré
 Z12+  performance/stabilité/coût                ✅ intégré
 Z13   contrat final Web/API/Flutter              ✅ intégré
 Z14   fermeture/readiness mobile                 ✅ intégré
-Z15   réconciliation capacités orphelines         ✅ lorsque le gate Z15 est présent sur main après CI verte
+Z15   réconciliation capacités orphelines         ✅ intégré via PR #304
 ```
 
 L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée #274 déjà mergée.
@@ -116,7 +118,7 @@ Makolo Mark reste un orchestrateur borné et owner-directed. Les futures capacit
 
 ## 7. Collision audit courant
 
-PR ouvertes pertinentes au réaudit Z15 :
+PR ouvertes pertinentes après intégration Z15 :
 
 - #252 Space archetypes : ancienne branche profondément divergente, programme Space séparé ;
 - #270 ECC : documentation d'orchestration ;
@@ -124,7 +126,7 @@ PR ouvertes pertinentes au réaudit Z15 :
 - #284 Pré-8 Actors/Universe input : documentation ;
 - #223 research lab : isolé hors runtime.
 
-W6 #301 et ACT-F #305 sont désormais intégrés sur la base Z15 courante. Aucune de ces lignes n'est utilisée pour réécrire les surfaces W ou les runtimes Actors.
+W6 #301, ACT-F #305 et Z15 #304 sont intégrés. W7 #312 est le chantier Web borné qui consomme Z15 ; les autres lignes ouvertes ne doivent pas réécrire simultanément la Console Espace ni les runtimes Actors.
 
 ## 8. Qualité et CI
 
@@ -139,13 +141,15 @@ Le head Z13 #287 a été mergé seulement après succès de :
 - Conversation PostgreSQL ;
 - Subscriptions.
 
-Le `main` Z12+ précédent avait également une CI verte avec 2519 tests Django. Z14 doit à son tour finir avec le dernier head vert, puis vérifier le `main` post-merge.
+Z15 #304 a été fusionné après CI PR verte. W7 doit conserver la même règle : tests ciblés puis CI complète verte avant merge, sans migration ni affaiblissement des invariants d'autorité.
 
 ## 9. Prochaine décision
 
 ```text
 Programme Z historique fermé
-→ Z15 réconciliation backend orpheline
+→ Z15 ✅ réconciliation backend orpheline intégrée
+→ W7 fermeture Web des capacités réconciliées
+→ Platform séparé après W
 → suite M10 / production readiness globale
 → A Mobile
 ```
