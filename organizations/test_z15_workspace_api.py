@@ -5,6 +5,7 @@ from accounts.models import User
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_space_role
+from core.capabilities import get_web_capabilities
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 
 
@@ -113,3 +114,13 @@ class Z15WorkspaceContractTests(TestCase):
         self.assertTrue(
             any(row["key"] == "operations" for row in response.data["modules"])
         )
+
+        platform_caps = get_web_capabilities(self.platform)
+        self.assertFalse(platform_caps["has_organizer_tools"])
+        self.assertFalse(platform_caps["has_organization"])
+        self.assertTrue(platform_caps["can_access_operations"])
+        self.assertTrue(platform_caps["can_curate_opportunities"])
+
+        owner_caps = get_web_capabilities(self.owner)
+        self.assertTrue(owner_caps["has_organizer_tools"])
+        self.assertTrue(owner_caps["has_organization"])
