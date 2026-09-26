@@ -58,6 +58,8 @@ Inversement, les nouveaux contrats Espace Z15 utilisent des selectors d'autorit�
 
 Le read-model historique `core.capabilities.get_web_capabilities()` est également réconcilié : ses indicateurs d'outils Espace/Activity sont calculés depuis les Mandates locaux uniquement, tandis que les capacités Platform restent dans leur famille Platform. Un administrateur Platform sans Mandate local ne reçoit donc plus `has_organizer_tools` simplement parce que `platform.manage` supervise globalement le backend.
 
+La même correction est appliquée à l'entrée Console/Workspace : une `ScannerAssignment` reste visible à l'agent comme responsabilité opérationnelle, mais ne suffit plus à faire apparaître l'Espace ni à produire la capability `scan`. Le scan réel exige toujours `activity.access.scan` ou `access.manage` via Mandate/Permission.
+
 ## 3. Classification auditée
 
 | Capacité | Classe | État Z15 | Owner / contrat |
