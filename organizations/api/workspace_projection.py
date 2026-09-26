@@ -1,29 +1,91 @@
 from __future__ import annotations
 
-from authorization.constants import PermissionCode
-from authorization.services import activity_ids_with_permission, can
+from django.db.models import Q
+from django.utils import timezone
 
-from organizations.console_context import SpaceConsoleContext
+from authorization.constants import PermissionCode
+from authorization.models import AuthorityScope
+from authorization.selectors import current_mandates
+from scanner.models import ScannerAssignment
+
+from organizations.models import Organization
+
+
+def _space_mandates(profile, space):
+    if not getattr(profile, "is_authenticated", False):
+        return current_mandates().none()
+    return current_mandates().filter(
+        profile=profile,
+        scope_type=AuthorityScope.SPACE,
+        space=space,
+    )
+
+
+def _has_space_permission(profile, space, permission_code):
+    return _space_mandates(profile, space).filter(
+        role__role_permissions__permission__code=permission_code,
+        role__role_permissions__permission__is_active=True,
+    ).exists()
+
+
+def _activity_ids_with_space_context(profile, space, permission_code):
+    if not getattr(profile, "is_authenticated", False):
+        return set()
+    return set(
+        current_mandates()
+        .filter(
+            profile=profile,
+            scope_type=AuthorityScope.ACTIVITY,
+            activity__space=space,
+            role__role_permissions__permission__code=permission_code,
+            role__role_permissions__permission__is_active=True,
+        )
+        .values_list("activity_id", flat=True)
+    )
 
 
 def _has_activity_permission(profile, space, permission_code):
-    ids = activity_ids_with_permission(profile, permission_code)
-    if ids is None:
-        return space.activities.exists()
-    return bool(ids) and space.activities.filter(pk__in=ids).exists()
+    return bool(_activity_ids_with_space_context(profile, space, permission_code))
 
 
 def _has_activity_permission_pair(profile, space, first, second):
-    first_ids = activity_ids_with_permission(profile, first)
-    second_ids = activity_ids_with_permission(profile, second)
-    if first_ids is None and second_ids is None:
-        return space.activities.exists()
-    if first_ids is None:
-        return bool(second_ids) and space.activities.filter(pk__in=second_ids).exists()
-    if second_ids is None:
-        return bool(first_ids) and space.activities.filter(pk__in=first_ids).exists()
-    shared = set(first_ids) & set(second_ids)
-    return bool(shared) and space.activities.filter(pk__in=shared).exists()
+    first_ids = _activity_ids_with_space_context(profile, space, first)
+    second_ids = _activity_ids_with_space_context(profile, space, second)
+    return bool(first_ids & second_ids)
+
+
+def has_direct_space_authority(profile, space):
+    return _space_mandates(profile, space).exists()
+
+
+def workspace_spaces(profile):
+    """Return Spaces reachable from Space/Activity authority or scanner assignment.
+
+    Platform authority is deliberately excluded: Platform supervises through its
+    own contract and never becomes Space authority merely by being Platform.
+    """
+    if not getattr(profile, "is_authenticated", False):
+        return Organization.objects.none()
+    mandates = current_mandates().filter(profile=profile)
+    ids = set(
+        mandates.filter(scope_type=AuthorityScope.SPACE)
+        .exclude(space_id=None)
+        .values_list("space_id", flat=True)
+    )
+    ids.update(
+        mandates.filter(scope_type=AuthorityScope.ACTIVITY)
+        .exclude(activity__space_id=None)
+        .values_list("activity__space_id", flat=True)
+    )
+    now = timezone.now()
+    ids.update(
+        ScannerAssignment.objects.filter(agent=profile, is_active=True)
+        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
+        .exclude(activity__space_id=None)
+        .values_list("activity__space_id", flat=True)
+    )
+    return Organization.objects.filter(pk__in=ids).order_by("name")
 
 
 def _module(key, *, status="active", capabilities=(), links=None, notes=()):
@@ -38,14 +100,13 @@ def _module(key, *, status="active", capabilities=(), links=None, notes=()):
 
 
 def build_space_workspace(profile, space):
-    context = SpaceConsoleContext.build(profile, space)
-    if context is None:
+    if not workspace_spaces(profile).filter(pk=space.pk).exists():
         return None
 
     modules = []
 
-    partner_manage = can(profile, PermissionCode.PARTNERS_MANAGE, space)
-    partner_finance = can(profile, PermissionCode.PARTNERS_FINANCE, space)
+    partner_manage = _has_space_permission(profile, space, PermissionCode.PARTNERS_MANAGE)
+    partner_finance = _has_space_permission(profile, space, PermissionCode.PARTNERS_FINANCE)
     if partner_manage or partner_finance:
         caps = ["view"]
         if partner_manage:
@@ -64,10 +125,10 @@ def build_space_workspace(profile, space):
             })
         modules.append(_module("partners", capabilities=caps, links=links))
 
-    growth_view = can(profile, PermissionCode.ANALYTICS_GROWTH_VIEW, space)
-    growth_manage = can(profile, PermissionCode.MARKETING_MANAGE, space)
-    growth_feedback = can(profile, PermissionCode.GROWTH_FEEDBACK_VIEW, space)
-    growth_finance = can(profile, PermissionCode.ANALYTICS_FINANCIALS_VIEW, space)
+    growth_view = _has_space_permission(profile, space, PermissionCode.ANALYTICS_GROWTH_VIEW)
+    growth_manage = _has_space_permission(profile, space, PermissionCode.MARKETING_MANAGE)
+    growth_feedback = _has_space_permission(profile, space, PermissionCode.GROWTH_FEEDBACK_VIEW)
+    growth_finance = _has_space_permission(profile, space, PermissionCode.ANALYTICS_FINANCIALS_VIEW)
     if growth_view or growth_manage or growth_feedback or growth_finance:
         caps, links = [], {}
         if growth_view:
@@ -107,9 +168,9 @@ def build_space_workspace(profile, space):
             notes=("Event and Service analytics remain vertical adapters over canonical owners.",),
         ))
 
-    loyalty_view = can(profile, PermissionCode.LOYALTY_VIEW, space)
-    loyalty_manage = can(profile, PermissionCode.LOYALTY_MANAGE, space)
-    loyalty_finance = can(profile, PermissionCode.LOYALTY_FINANCE, space)
+    loyalty_view = _has_space_permission(profile, space, PermissionCode.LOYALTY_VIEW)
+    loyalty_manage = _has_space_permission(profile, space, PermissionCode.LOYALTY_MANAGE)
+    loyalty_finance = _has_space_permission(profile, space, PermissionCode.LOYALTY_FINANCE)
     if loyalty_view or loyalty_manage or loyalty_finance:
         caps = ["view"]
         if loyalty_manage:
@@ -125,8 +186,8 @@ def build_space_workspace(profile, space):
             },
         ))
 
-    recognition_view = can(profile, PermissionCode.SPACE_RECOGNITION_VIEW, space)
-    recognition_spend = can(profile, PermissionCode.SPACE_RECOGNITION_SPEND, space)
+    recognition_view = _has_space_permission(profile, space, PermissionCode.SPACE_RECOGNITION_VIEW)
+    recognition_spend = _has_space_permission(profile, space, PermissionCode.SPACE_RECOGNITION_SPEND)
     if recognition_view or recognition_spend:
         caps = ["view"]
         if recognition_spend:
@@ -137,8 +198,8 @@ def build_space_workspace(profile, space):
             links={"summary": f"/api/v1/recognition/spaces/{space.pk}/"},
         ))
 
-    trust_view = can(profile, PermissionCode.SPACE_TRUST_VIEW, space)
-    trust_manage = can(profile, PermissionCode.SPACE_TRUST_MANAGE, space)
+    trust_view = _has_space_permission(profile, space, PermissionCode.SPACE_TRUST_VIEW)
+    trust_manage = _has_space_permission(profile, space, PermissionCode.SPACE_TRUST_MANAGE)
     if trust_view or trust_manage:
         caps = ["view"]
         links = {"summary": f"/api/v1/trust/spaces/{space.pk}/operator/"}
@@ -148,8 +209,8 @@ def build_space_workspace(profile, space):
         modules.append(_module("trust", capabilities=caps, links=links))
 
     funding_space_create = (
-        can(profile, PermissionCode.SPACE_ACTIVITIES_MANAGE, space)
-        and can(profile, PermissionCode.FINANCE_MANAGE, space)
+        _has_space_permission(profile, space, PermissionCode.SPACE_ACTIVITIES_MANAGE)
+        and _has_space_permission(profile, space, PermissionCode.FINANCE_MANAGE)
     )
     funding_activity_manage = _has_activity_permission_pair(
         profile, space, PermissionCode.ACTIVITY_MANAGE, PermissionCode.ACTIVITY_FINANCE_MANAGE
@@ -164,7 +225,7 @@ def build_space_workspace(profile, space):
             links={"fundings": f"/api/v1/funding/?space={space.pk}"},
         ))
 
-    scanner_manage = can(profile, PermissionCode.ACCESS_MANAGE, space) or _has_activity_permission(
+    scanner_manage = _has_space_permission(profile, space, PermissionCode.ACCESS_MANAGE) or _has_activity_permission(
         profile, space, PermissionCode.ACTIVITY_ACCESS_MANAGE
     )
     scanner_use = scanner_manage or _has_activity_permission(profile, space, PermissionCode.ACTIVITY_ACCESS_SCAN)
@@ -183,8 +244,8 @@ def build_space_workspace(profile, space):
             notes=("Access remains the right; Event gates/logs are compatibility adapters.",),
         ))
 
-    crm_view = can(profile, PermissionCode.CRM_VIEW, space)
-    crm_manage = can(profile, PermissionCode.CRM_MANAGE, space)
+    crm_view = _has_space_permission(profile, space, PermissionCode.CRM_VIEW)
+    crm_manage = _has_space_permission(profile, space, PermissionCode.CRM_MANAGE)
     if crm_view or crm_manage:
         caps = ["view"] + (["manage"] if crm_manage else [])
         modules.append(_module(
@@ -202,8 +263,8 @@ def build_space_workspace(profile, space):
             notes=("Automation executes CRM workflows but CRM remains owner of contacts/consent.",),
         ))
 
-    promo_view = can(profile, PermissionCode.PROMOTIONS_VIEW, space)
-    promo_manage = can(profile, PermissionCode.PROMOTIONS_MANAGE, space)
+    promo_view = _has_space_permission(profile, space, PermissionCode.PROMOTIONS_VIEW)
+    promo_manage = _has_space_permission(profile, space, PermissionCode.PROMOTIONS_MANAGE)
     if promo_view or promo_manage:
         caps = ["view"] + (["manage"] if promo_manage else [])
         modules.append(_module(
@@ -226,8 +287,8 @@ def build_space_workspace(profile, space):
     return {
         "space": {"id": str(space.pk), "slug": space.slug, "name": space.name},
         "authority": {
-            "scope": "activity_limited" if context.limited_to_activities else "space",
-            "limited_to_activities": context.limited_to_activities,
+            "scope": "space" if has_direct_space_authority(profile, space) else "activity_limited",
+            "limited_to_activities": not has_direct_space_authority(profile, space),
         },
         "modules": modules,
         "platform_modules_included": False,
