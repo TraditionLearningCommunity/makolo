@@ -1,10 +1,14 @@
+from datetime import timedelta
+
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_space_role
+from events.models import Event, EventStatus, EventVisibility
 from organizations.console_context import SpaceConsoleContext
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 
@@ -98,6 +102,17 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
             self.assertEqual(self.client.get(path).status_code, 403)
 
     def test_existing_space_surfaces_reach_advanced_owner_tools(self):
+        start_at = timezone.now() + timedelta(hours=2)
+        Event.objects.create(
+            organizer=self.owner,
+            organization=self.space,
+            title="W7 Access Event",
+            status=EventStatus.PUBLISHED,
+            visibility=EventVisibility.PUBLIC,
+            start_at=start_at,
+            end_at=start_at + timedelta(hours=3),
+            published_at=timezone.now(),
+        )
         self.client.force_authenticate(self.owner)
 
         analytics = self.client.get("/spaces/w7-space/analytics/")
