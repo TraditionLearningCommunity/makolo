@@ -140,26 +140,43 @@ class FundingListCreateAPIView(APIView):
 
     def get(self, request):
         space_id = request.query_params.get("space")
-        if not space_id:
-            raise ValidationError({
-                "space": "Le paramètre space est obligatoire pour la collection de gestion."
-            })
-        space = Organization.objects.filter(pk=space_id).first()
-        if space is None:
-            raise NotFound()
-        queryset = list(
-            FundingDetails.objects.filter(activity__space=space)
-            .select_related("activity", "activity__space", "activity__owner_profile")
-            .order_by("activity__title", "id")[:100]
+        base = FundingDetails.objects.select_related(
+            "activity", "activity__space", "activity__owner_profile"
         )
-        manageable = [
-            row
-            for row in queryset
-            if _can_manage_funding_direct(request.user, row)
-            and can_manage_funding(request.user, row)
-        ]
-        if not manageable and not _can_create_space_funding_direct(request.user, space):
-            raise NotFound()
+
+        if space_id:
+            space = Organization.objects.filter(pk=space_id).first()
+            if space is None:
+                raise NotFound()
+            queryset = list(
+                base.filter(activity__space=space)
+                .order_by("activity__title", "id")[:100]
+            )
+            manageable = [
+                row
+                for row in queryset
+                if _can_manage_funding_direct(request.user, row)
+                and can_manage_funding(request.user, row)
+            ]
+            if not manageable and not _can_create_space_funding_direct(request.user, space):
+                raise NotFound()
+        else:
+            # Personal funding is an Activity owned by the authenticated Profile.
+            # No client-supplied profile id is accepted.
+            queryset = list(
+                base.filter(
+                    activity__space__isnull=True,
+                    activity__owner_profile=request.user,
+                )
+                .order_by("activity__title", "id")[:100]
+            )
+            manageable = [
+                row
+                for row in queryset
+                if _can_manage_funding_direct(request.user, row)
+                and can_manage_funding(request.user, row)
+            ]
+
         rows = [_payload(row, request.user) for row in manageable]
         response = Response(rows)
         response["Cache-Control"] = "private, no-store"
