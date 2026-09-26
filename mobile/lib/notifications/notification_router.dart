@@ -14,9 +14,7 @@ class NotificationRouteIntent {
 }
 
 class NotificationRouter {
-  const NotificationRouter({
-    this.deepLinks = const DeepLinkResolver(),
-  });
+  const NotificationRouter({this.deepLinks = const DeepLinkResolver()});
 
   final DeepLinkResolver deepLinks;
 
