@@ -1,7 +1,8 @@
 {% extends "base/app.html" %}
 {% block title %}{{ project.title }} | En cours{% endblock %}
+{% block workspace_layout %}inspect{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-4xl space-y-6 pb-10">
+<div class="mk-deep-workspace mx-auto max-w-4xl space-y-6 pb-10">
   <section class="mk-panel p-5 sm:p-7">
     <span class="mk-kicker">Horizon durable</span>
     <h1 class="mk-page-title mt-2">{{ project.title }}</h1>
@@ -9,7 +10,7 @@
     <div class="mt-4 flex flex-wrap gap-2"><span class="mk-badge">{{ project.get_lifecycle_display }}</span>{% if project.starts_on or project.ends_on %}<span class="mk-badge">{% if project.starts_on %}Depuis {{ project.starts_on }}{% endif %}{% if project.ends_on %} · jusqu’au {{ project.ends_on }}{% endif %}</span>{% endif %}</div>
   </section>
 
-  <section>
+  <section id="project-dossiers">
     <div class="flex items-end justify-between gap-4"><div><span class="mk-kicker">Ce qui avance dans ce Projet</span><h2 class="mt-2 text-xl font-extrabold">Dossiers</h2></div><span class="mk-badge">{{ visible_dossier_count }} dossier{{ visible_dossier_count|pluralize }} visible{{ visible_dossier_count|pluralize }}</span></div>
     <div class="mt-4 space-y-3">
       {% for row in dossier_rows %}
@@ -32,4 +33,15 @@
   </section>
   {% endif %}
 </div>
+{% endblock %}
+{% block workspace_context %}
+<aside class="mk-workspace__context mk-workspace-panel mk-deep-context" aria-label="Contexte du Projet">
+  <div class="mk-workspace-panel__header"><div><span class="mk-kicker">Projet</span><p class="mt-1 text-sm font-bold">{{ project.title }}</p></div><i data-lucide="building-2" class="h-4 w-4" aria-hidden="true"></i></div>
+  <div class="mk-workspace-panel__body space-y-4">
+    <div class="flex flex-wrap gap-2"><span class="mk-badge">{{ project.get_lifecycle_display }}</span><span class="mk-badge">{{ visible_dossier_count }} dossier{{ visible_dossier_count|pluralize }}</span></div>
+    {% if project.starts_on or project.ends_on %}<p class="text-sm" style="color:var(--mk-muted)">{% if project.starts_on %}Depuis {{ project.starts_on }}{% endif %}{% if project.ends_on %} · jusqu’au {{ project.ends_on }}{% endif %}</p>{% endif %}
+    <nav class="grid gap-2 text-sm" aria-label="Repères du Projet"><a class="mk-deep-context-link" href="#project-dossiers">Dossiers visibles</a></nav>
+    <p class="text-xs leading-5" style="color:var(--mk-subtle)">Le Projet reste un horizon durable. Les Dossiers conservent leur propre cycle de vie et leurs propres autorités.</p>
+  </div>
+</aside>
 {% endblock %}

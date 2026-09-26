@@ -78,6 +78,8 @@ class M8CJourneyOccurrenceActionWebTests(TestCase):
         self.assertContains(response, "Tout est prêt.")
         self.assertContains(response, "Vous n’avez rien d’autre à préparer pour l’instant.")
         self.assertContains(response, "Voir les informations pratiques")
+        self.assertContains(response, 'data-workspace-layout="inspect"')
+        self.assertContains(response, 'aria-label="Contexte de la démarche"')
         self.assertContains(response, reverse("core:participant-occurrence-live", args=[self.occurrence.pk]))
 
     def test_journey_direct_idor_is_hidden(self):
