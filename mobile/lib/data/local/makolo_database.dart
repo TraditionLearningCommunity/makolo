@@ -43,6 +43,7 @@ class MakoloDatabase extends _$MakoloDatabase {
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) {
+            await m.createTable(resourceIndex);
             await m.addColumn(
               outboxOperations,
               outboxOperations.lastErrorCode,
@@ -51,6 +52,10 @@ class MakoloDatabase extends _$MakoloDatabase {
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS outbox_profile_state '
+            'ON outbox_operations(profile_id, state, observed_at)',
+          );
         },
       );
 }
