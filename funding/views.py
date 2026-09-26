@@ -43,7 +43,13 @@ class FundingCreateView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form"] = kwargs.get("form") or FundingConfigurationForm(actor=self.request.user)
+        form = kwargs.get("form") or FundingConfigurationForm(actor=self.request.user)
+        requested_space = (self.request.GET.get("space") or "").strip()
+        if requested_space and not form.is_bound:
+            space = form.fields["space"].queryset.filter(slug=requested_space).first()
+            if space is not None:
+                form.initial["space"] = space
+        context["form"] = form
         context["form_title"] = "Créer un financement"
         return context
 
