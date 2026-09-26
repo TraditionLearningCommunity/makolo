@@ -69,7 +69,7 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
             self.assertIn(expected, keys)
 
     def test_reconciled_capabilities_have_mature_space_entry_points(self):
-        self.client.force_authenticate(self.owner)
+        self.client.force_login(self.owner)
         for path in (
             "/spaces/w7-space/partners/",
             "/spaces/w7-space/growth/",
@@ -83,7 +83,7 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
             self.assertContains(response, "W7 Space")
 
     def test_membership_without_mandate_does_not_gain_w7_entries(self):
-        self.client.force_authenticate(self.member)
+        self.client.force_login(self.member)
         for path in (
             "/spaces/w7-space/partners/",
             "/spaces/w7-space/loyalty/",
@@ -93,7 +93,7 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
             self.assertEqual(self.client.get(path).status_code, 403)
 
     def test_platform_authority_does_not_gain_space_w7_entries(self):
-        self.client.force_authenticate(self.platform)
+        self.client.force_login(self.platform)
         for path in (
             "/spaces/w7-space/partners/",
             "/spaces/w7-space/recognition/",
@@ -113,7 +113,7 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
             end_at=start_at + timedelta(hours=3),
             published_at=timezone.now(),
         )
-        self.client.force_authenticate(self.owner)
+        self.client.force_login(self.owner)
 
         analytics = self.client.get("/spaces/w7-space/analytics/")
         self.assertEqual(analytics.status_code, 200)
@@ -130,7 +130,7 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
         self.assertContains(control, "/scanner/assignments/")
 
     def test_space_funding_create_keeps_space_preselected(self):
-        self.client.force_authenticate(self.owner)
+        self.client.force_login(self.owner)
         response = self.client.get("/funding/new/?space=w7-space")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
