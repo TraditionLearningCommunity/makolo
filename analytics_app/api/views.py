@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 
 from authorization.constants import PermissionCode
-from authorization.services import space_ids_with_permission
+from authorization.selectors import space_ids_with_direct_permission
 from organizations.models import Organization
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -70,14 +70,14 @@ class AnalyticsOverviewAPIView(APIView):
         organization = None
         organization_slug = str(request.query_params.get("organization") or "").strip()
         if organization_slug:
-            visible_ids = space_ids_with_permission(
+            visible_ids = space_ids_with_direct_permission(
                 request.user,
                 PermissionCode.ANALYTICS_VIEW,
             )
-            organizations = Organization.objects.all()
-            if visible_ids is not None:
-                organizations = organizations.filter(pk__in=visible_ids)
-            organization = get_object_or_404(organizations, slug=organization_slug)
+            organization = get_object_or_404(
+                Organization.objects.filter(pk__in=visible_ids),
+                slug=organization_slug,
+            )
         return Response(
             _serialize_portfolio(
                 build_portfolio_analytics(
