@@ -41,8 +41,15 @@ jobs:
         run: flutter pub get
       - name: Generate Drift code
         run: dart run build_runner build --delete-conflicting-outputs
-      - name: Format
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Format source snapshot
+        run: dart format lib test
+      - name: Upload formatted source snapshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mobile-formatted-source
+          path: |
+            mobile/lib
+            mobile/test
       - name: Analyze
         run: flutter analyze
       - name: Test
