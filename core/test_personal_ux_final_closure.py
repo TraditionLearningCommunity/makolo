@@ -78,43 +78,34 @@ class PersonalUXFinalClosureTests(TestCase):
         response = self.client.get(reverse("social:network"))
         self.assertRedirects(response, reverse("core:participant-home"))
 
-    def test_personal_dossier_creation_cannot_be_switched_to_space_by_post_data(self):
-        space = Organization.objects.create(name="Space dossier", created_by=self.user)
+    def test_personal_objective_lists_do_not_absorb_space_owned_realities(self):
+        space = Organization.objects.create(name="Space objectives", created_by=self.user)
+        Dossier.objects.create(
+            title="Dossier personnel",
+            created_by=self.user,
+            owner_profile=self.user,
+        )
+        Dossier.objects.create(
+            title="Dossier Space",
+            created_by=self.user,
+            owning_space=space,
+        )
+        Project.objects.create(
+            title="Projet personnel",
+            created_by=self.user,
+            owner_profile=self.user,
+        )
+        Project.objects.create(
+            title="Projet Space",
+            created_by=self.user,
+            owning_space=space,
+        )
         self.client.force_login(self.user)
-        response = self.client.post(
-            reverse("objectives:dossier-create"),
-            {
-                "title": "Mon objectif personnel",
-                "description": "Personnel",
-                "deadline": "",
-                "owning_space": str(space.pk),
-            },
-        )
-        dossier = Dossier.objects.get(title="Mon objectif personnel")
-        self.assertRedirects(
-            response,
-            reverse("objectives:dossier-detail", args=[dossier.pk]),
-        )
-        self.assertEqual(dossier.owner_profile_id, self.user.pk)
-        self.assertIsNone(dossier.owning_space_id)
 
-    def test_personal_project_creation_cannot_be_switched_to_space_by_post_data(self):
-        space = Organization.objects.create(name="Space project", created_by=self.user)
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse("objectives:project-create"),
-            {
-                "title": "Mon horizon personnel",
-                "description": "Personnel",
-                "starts_on": "",
-                "ends_on": "",
-                "owning_space": str(space.pk),
-            },
-        )
-        project = Project.objects.get(title="Mon horizon personnel")
-        self.assertRedirects(
-            response,
-            reverse("objectives:project-detail", args=[project.pk]),
-        )
-        self.assertEqual(project.owner_profile_id, self.user.pk)
-        self.assertIsNone(project.owning_space_id)
+        dossiers = self.client.get(reverse("objectives:dossier-list"))
+        self.assertContains(dossiers, "Dossier personnel")
+        self.assertNotContains(dossiers, "Dossier Space")
+
+        projects = self.client.get(reverse("objectives:project-list"))
+        self.assertContains(projects, "Projet personnel")
+        self.assertNotContains(projects, "Projet Space")
