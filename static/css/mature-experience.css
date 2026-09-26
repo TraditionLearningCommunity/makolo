@@ -125,14 +125,14 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 .mk-deep-context{display:none}
 .mk-deep-context-link{display:flex;align-items:center;min-height:40px;padding:0 11px;border:1px solid var(--mk-border);border-radius:12px;background:var(--mk-surface-muted);font-weight:760;color:var(--mk-text)}
 .mk-deep-context-link:hover,.mk-deep-context-link:focus-visible{border-color:color-mix(in srgb,var(--mk-brand) 34%,var(--mk-border));color:var(--mk-brand)}
-@media(min-width:1200px){
+@media(min-width:1200px){.mk-command-label-adaptive{display:none}.mk-command-label-expanded{display:inline}
   .mk-deep-workspace{max-width:none}
   .mk-deep-context{display:block;position:sticky;top:84px;max-height:calc(100vh - 108px);overflow:auto;align-self:start}
 }
 
 
 /* W6 — Desktop power layer. Accelerators stay out of Compact/mobile. */
-.mk-command-trigger{display:none}
+.mk-command-trigger{display:none}.mk-command-label-expanded{display:none}
 .mk-command-backdrop{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.44);backdrop-filter:blur(4px);padding:10vh 16px 16px}
 .mk-command-backdrop[hidden]{display:none}
 .mk-command-palette{width:min(620px,100%);max-height:min(72vh,640px);margin:0 auto;overflow:hidden;border:1px solid var(--mk-border);border-radius:24px;background:var(--mk-surface-solid);box-shadow:var(--mk-shadow-float)}
