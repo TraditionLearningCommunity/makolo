@@ -5,7 +5,7 @@ from accounts.models import User
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_space_role
-from organizations.models import Organization, OrganizationMembership, OrganizationRole
+from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 
 
 class Z15WorkspaceContractTests(TestCase):
@@ -28,11 +28,15 @@ class Z15WorkspaceContractTests(TestCase):
             role=SystemRoleCode.SPACE_OWNER,
             granted_by=self.owner,
         )
-        OrganizationMembership.objects.create(
+        team = Team.objects.create(
             organization=self.space,
-            user=self.member,
-            role=OrganizationRole.ADMIN,
+            name="Collaborateurs Z15",
             is_active=True,
+        )
+        TeamMembership.objects.create(
+            team=team,
+            user=self.member,
+            status=TeamMembershipStatus.ACTIVE,
         )
         grant_platform_role(
             profile=self.platform,
