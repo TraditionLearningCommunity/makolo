@@ -30,15 +30,30 @@ from .normalization import endpoint_key, normalize_text, semantic_fingerprint
 from .ports import FactHistoryComparison
 
 STRATEGY_KEY = "deterministic-first"
-STRATEGY_VERSION = "1.0"
+STRATEGY_VERSION = "1.1"
 STRATEGY_COMPONENTS = {
     "contracts": "1",
     "family_routing": "1",
     "canonical_lookup": "1",
     "history_comparison": "1",
-    "conflicts": "1",
+    "conflicts": "2",
 }
 STRATEGY_FINGERPRINT = strategy_fingerprint(STRATEGY_COMPONENTS)
+
+# Only predicates with a clear single-value semantic may conflict merely because
+# two different values appear in the same interpreted material. Everything else
+# is additive by default: contacts, links, references and requirements can be
+# legitimately multivalued.
+_SINGLE_VALUED_FACT_PREDICATES = frozenset({
+    "publication_date",
+    "start_date",
+    "end_date",
+    "deadline",
+})
+
+
+def _locally_exclusive_fact(candidate) -> bool:
+    return isinstance(candidate, CandidateFact) and candidate.predicate in _SINGLE_VALUED_FACT_PREDICATES
 
 
 def _facts_by_subject(material):
@@ -216,7 +231,10 @@ class DeterministicResolver:
                         pending_history_conflicts.append((candidate, subject, comparison.related_candidate_refs, comparison.basis_codes))
             group_key = (endpoint_key(subject), candidate.predicate, kind.value)
             previous = local_fact_groups.setdefault(group_key, [])
-            if any(other_fingerprint != fingerprint for _, other_fingerprint in previous):
+            if (
+                _locally_exclusive_fact(candidate)
+                and any(other_fingerprint != fingerprint for _, other_fingerprint in previous)
+            ):
                 status = ResolutionStatus.CONFLICT
                 basis.append("same_material_conflicting_values")
                 pending_conflicts.append((candidate, subject, tuple(ref for ref, _ in previous)))
