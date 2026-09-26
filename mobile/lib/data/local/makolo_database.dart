@@ -11,6 +11,7 @@ part 'makolo_database.g.dart';
 @DriftDatabase(
   tables: [
     ProjectionSnapshots,
+    ResourceIndex,
     SyncSources,
     OutboxOperations,
     LocalDrafts,
@@ -18,7 +19,7 @@ part 'makolo_database.g.dart';
   ],
 )
 class MakoloDatabase extends _$MakoloDatabase {
-  MakoloDatabase(super.executor);
+  MakoloDatabase(QueryExecutor executor) : super(executor);
 
   factory MakoloDatabase.memory() => MakoloDatabase(NativeDatabase.memory());
 
