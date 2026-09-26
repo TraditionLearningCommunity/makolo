@@ -9,8 +9,6 @@ from django.utils import timezone
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.services import activity_ids_with_permission, effective_permission_codes, has_platform_authority
-from scanner.models import ScannerAssignment
-
 from .models import Organization
 
 
@@ -46,14 +44,6 @@ def authorized_space_ids(profile):
     mandates = _current_mandates(profile)
     ids = set(mandates.filter(scope_type=AuthorityScope.SPACE).exclude(space_id=None).values_list("space_id", flat=True))
     ids.update(mandates.filter(scope_type=AuthorityScope.ACTIVITY).exclude(activity__space_id=None).values_list("activity__space_id", flat=True))
-    now = timezone.now()
-    ids.update(
-        ScannerAssignment.objects.filter(agent=profile, is_active=True)
-        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
-        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
-        .exclude(activity__space_id=None)
-        .values_list("activity__space_id", flat=True)
-    )
     return ids
 
 
@@ -76,13 +66,6 @@ def activity_ids_for_space(profile, space):
         return None
     mandates = _current_mandates(profile).filter(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
     ids = set(mandates.values_list("activity_id", flat=True))
-    now = timezone.now()
-    ids.update(
-        ScannerAssignment.objects.filter(agent=profile, is_active=True, activity__space=space)
-        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
-        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
-        .values_list("activity_id", flat=True)
-    )
     return ids
 
 
