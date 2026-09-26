@@ -84,11 +84,6 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
           profileId: profileId,
         );
 
-  if (sync != null) {
-    // Do not block startup on the network. The UI reads the local store first.
-    unawaited(sync.refreshRoots());
-  }
-
   return AppRuntime(
     tokens: tokens,
     session: session,
