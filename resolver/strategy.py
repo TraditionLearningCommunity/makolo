@@ -49,8 +49,6 @@ _SINGLE_VALUED_FACT_PREDICATES = frozenset({
     "start_date",
     "end_date",
     "deadline",
-    "duration",
-    "form_available",
 })
 
 
