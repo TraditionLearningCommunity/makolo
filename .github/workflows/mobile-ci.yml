@@ -43,7 +43,9 @@ jobs:
         working-directory: .
         run: git diff --exit-code -- mobile/lib mobile/test
       - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          dart format lib test
+          git diff --exit-code -- lib test
       - name: Analyze
         run: flutter analyze
       - name: Test
