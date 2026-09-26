@@ -53,6 +53,7 @@ class MakoloApp extends ConsumerWidget {
           builder: (context, child) => SyncLifecycle(
             runtime: runtime,
             child: child ?? const SizedBox.shrink(),
+            onSessionExpired: () => ref.invalidate(appRuntimeProvider),
           ),
         );
       },
