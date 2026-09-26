@@ -435,6 +435,13 @@ class SpaceConsoleControlView(SpaceConsoleMixin, TemplateView):
             if can(self.request.user, PermissionCode.ACTIVITY_ACCESS_SCAN, activity=activity)
             or can(self.request.user, PermissionCode.ACTIVITY_ACCESS_MANAGE, activity=activity)
         ]
+        access_control = self.space_console.workspace_module("access_control") or {"capabilities": []}
+        capabilities = set(access_control.get("capabilities", []))
+        context["scanner_logs_url"] = reverse("scanner:logs")
+        context["scanner_manage_assignments"] = "manage_assignments" in capabilities
+        if context["scanner_manage_assignments"]:
+            context["scanner_gates_url"] = reverse("scanner:gates")
+            context["scanner_assignments_url"] = reverse("scanner:assignments")
         return context
 
 
