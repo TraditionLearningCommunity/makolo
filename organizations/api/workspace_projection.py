@@ -167,11 +167,15 @@ def build_space_workspace(profile, space):
         ))
 
     analytics_view = _has_space_permission(
-        profile, space, PermissionCode.ANALYTICS_VIEW
-    ) or _has_activity_permission(profile, space, PermissionCode.ACTIVITY_VIEW)
+        profile,
+        space,
+        PermissionCode.ANALYTICS_VIEW,
+    )
     if analytics_view:
         caps = ["view"]
-        links = {"overview": "/api/v1/analytics/overview/"}
+        links = {
+            "overview": f"/api/v1/analytics/overview/?organization={space.slug}"
+        }
         if growth_view:
             links["growth"] = f"/api/v1/analytics/growth/organizations/{space.slug}/"
         if growth_finance:
