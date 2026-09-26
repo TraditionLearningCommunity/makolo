@@ -1,7 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../auth/auth_repository.dart';
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
@@ -82,8 +83,8 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
         );
 
   if (sync != null) {
-    // Local data is usable even when this best-effort refresh fails.
-    await sync.refreshRoots();
+    // Do not block startup on the network. The UI reads the local store first.
+    unawaited(sync.refreshRoots());
   }
 
   return AppRuntime(
@@ -98,9 +99,3 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   );
 });
 
-final authRepositoryProvider = Provider<AuthRepository?>((ref) {
-  final runtime = ref.watch(appRuntimeProvider).valueOrNull;
-  final api = runtime?.api;
-  if (api == null) return null;
-  return AuthRepository(api, runtime!.tokens);
-});
