@@ -33,6 +33,23 @@ Les comptes staff qui existaient lors de la migration reçoivent un Mandat plate
 
 Operations utilise désormais la Permission plateforme explicite plutôt que `is_staff` comme autorité métier.
 
+## Séparation Platform / Espace dans les contrats Z15
+
+Le résolveur général conserve ses privilèges Platform historiques pour les usages de supervision interne. Cela ne signifie pas qu'un client Platform agit implicitement **comme** un Espace.
+
+Les contrats de composition Espace introduits par Z15 utilisent les selectors directs :
+
+```text
+space_ids_with_direct_permission(...)
+has_direct_space_permission(...)
+activity_ids_with_direct_permission(...)
+has_direct_activity_permission(...)
+```
+
+Ils ne prennent en compte que des Mandates `space` / `activity` réels et leur héritage Espace→Activity documenté. Ils n'héritent ni `platform.manage`, ni un simple `is_staff`, ni une TeamMembership.
+
+Cette frontière s'applique notamment à Workspace, Funding management, Recognition Espace, Trust Espace et au narrowing Analytics Espace.
+
 ## Rôles système Espace
 
 Les anciens `OrganizationRole` sont mappés vers les rôles système canoniques suivants :
