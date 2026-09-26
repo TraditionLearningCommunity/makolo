@@ -52,6 +52,28 @@ class MakoloApiClient {
 
   Future<ApiResponse> get(String path) => _authorized('GET', path);
 
+  Future<void> logoutCurrentSession() async {
+    var session = await _tokens.readSession();
+    if (session == null) return;
+
+    var response = await _send(
+      'POST',
+      'api/v1/accounts/auth/logout/',
+      bearer: session.accessToken,
+      body: {'refresh': session.refreshToken},
+    );
+    if (response.statusCode == 401) {
+      session = await _refreshSingleFlight();
+      response = await _send(
+        'POST',
+        'api/v1/accounts/auth/logout/',
+        bearer: session.accessToken,
+        body: {'refresh': session.refreshToken},
+      );
+    }
+    _ensureSuccess(response);
+  }
+
   Future<ApiResponse> post(
     String path, {
     Map<String, dynamic>? body,
@@ -137,7 +159,9 @@ class MakoloApiClient {
       completer.complete(rotated);
       return rotated;
     } on Object catch (error, stackTrace) {
-      if (error is MakoloApiError && error.statusCode == 401) {
+      if (error is MakoloApiError &&
+          error.statusCode >= 400 &&
+          error.statusCode < 500) {
         await _tokens.clearSession();
       }
       completer.completeError(error, stackTrace);
