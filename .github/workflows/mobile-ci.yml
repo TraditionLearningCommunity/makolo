@@ -8,7 +8,7 @@ on:
       - "docs/architecture/mobile-*.md"
       - ".github/workflows/mobile-ci.yml"
   push:
-    branches: [main]
+    branches: [main, mobile/a1-native-host-foundation]
     paths:
       - "mobile/**"
       - "docs/architecture/mobile-*.md"
@@ -64,6 +64,13 @@ jobs:
         run: flutter test
       - name: Build Android debug
         run: flutter build apk --debug
+      - name: Publish Android debug APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: makolo-android-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
       - name: Preserve resolved lockfile
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
