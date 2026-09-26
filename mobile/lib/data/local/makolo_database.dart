@@ -19,7 +19,7 @@ part 'makolo_database.g.dart';
   ],
 )
 class MakoloDatabase extends _$MakoloDatabase {
-  MakoloDatabase(QueryExecutor executor) : super(executor);
+  MakoloDatabase(super.executor);
 
   factory MakoloDatabase.memory() => MakoloDatabase(NativeDatabase.memory());
 
