@@ -67,7 +67,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Mark intake'), findsOneWidget);
 
-    await tester.pageBack();
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('/ongoing'), findsOneWidget);
   });
