@@ -138,16 +138,13 @@ L'identité iOS reste non définie. Aucun `PRODUCT_BUNDLE_IDENTIFIER` n'est inve
 
 ## 9. CI
 
-Le workflow `.github/workflows/mobile-ci.yml` est filtré sur le mobile et les contrats mobiles. Il exécute :
+La CI mobile est séparée en trois niveaux afin de ne pas fabriquer une APK à chaque changement :
 
-```text
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test
-flutter build apk --debug
-```
+- `.github/workflows/mobile-ci.yml` : gate rapide par défaut sur les changements `mobile/**` ; résolution, génération Drift, vérification du code généré committé, format, analyse et tests ;
+- `.github/workflows/mobile-android-build.yml` : compilation Android debug automatique uniquement quand le host Android, les dépendances ou le toolchain mobile changent, et déclenchable manuellement pour un checkpoint ;
+- `.github/workflows/mobile-apk.yml` : packaging APK manuel uniquement, avec artifact GitHub conservé 14 jours.
+
+Le gate rapide n'écrit pas dans la branche : un écart de format ou de code généré fait échouer la CI et doit être corrigé à la source.
 
 Les workflows backend génériques CI, Conversations PostgreSQL, Funding PostgreSQL et Beta seed ignorent désormais les changements strictement mobiles. Les workflows de sécurité transversaux restent actifs.
 
