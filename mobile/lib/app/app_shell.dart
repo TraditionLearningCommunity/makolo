@@ -9,11 +9,7 @@ import '../sync/sync_status.dart';
 import 'session_recovery.dart';
 
 class AppShell extends StatelessWidget {
-  const AppShell({
-    super.key,
-    required this.child,
-    required this.recovery,
-  });
+  const AppShell({super.key, required this.child, required this.recovery});
 
   final Widget child;
   final SessionRecoveryController recovery;
