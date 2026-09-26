@@ -100,3 +100,13 @@ a[aria-label="Revenir à Mon espace"]{display:none}
   .mk-discovery-workspace[data-discovery-context="search"] .mk-discovery-results>.mk-empty,
   .mk-discovery-workspace[data-discovery-context="search"] .mk-discovery-results>nav{grid-column:1/-1}
 }
+
+
+/* W5 — Deep workspaces. Keep Compact untouched; context appears only on Expanded. */
+.mk-deep-context{display:none}
+.mk-deep-context-link{display:flex;align-items:center;min-height:40px;padding:0 11px;border:1px solid var(--mk-border);border-radius:12px;background:var(--mk-surface-muted);font-weight:760;color:var(--mk-text)}
+.mk-deep-context-link:hover,.mk-deep-context-link:focus-visible{border-color:color-mix(in srgb,var(--mk-brand) 34%,var(--mk-border));color:var(--mk-brand)}
+@media(min-width:1200px){
+  .mk-deep-workspace{max-width:none}
+  .mk-deep-context{display:block;position:sticky;top:84px;max-height:calc(100vh - 108px);overflow:auto;align-self:start}
+}
