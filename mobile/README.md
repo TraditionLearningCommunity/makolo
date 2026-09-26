@@ -72,6 +72,10 @@ Pour les APK de test générées par GitHub Actions, le workflow manuel `Mobile 
 
 Aucune identité iOS n'est encore fixée : aucun `PRODUCT_BUNDLE_IDENTIFIER` n'est inventé et aucun host iOS n'est généré dans ce chantier.
 
+### Validation A1 bêta
+
+Le 26 septembre 2026, GitHub Actions a validé sur Flutter 3.47.3 / Dart 3.13.3 : génération Drift, analyse, tests, joignabilité de l'environnement bêta PythonAnywhere et build Android debug avec `MAKOLO_API_BASE_URL=https://makolo.pythonanywhere.com`. L'APK générée est destinée aux tests réels A1 ; PythonAnywhere reste un environnement temporaire de test/bêta.
+
 ## Frontières
 
 A1 ne recalcule jamais Readiness, Permission, Mandate, Access, Capacity, Payment, inclusion Maintenant/En cours ni autre vérité métier. Il ne crée ni `/api/v1/mobile/` ni `/sync/` générique.
