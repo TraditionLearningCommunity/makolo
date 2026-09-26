@@ -40,14 +40,14 @@ def dossier_list(request):
 @login_required
 def dossier_create(request):
     form = DossierCreateForm(request.POST or None, actor=request.user)
-    form.fields.pop("owning_space", None)
     if request.method == "POST" and form.is_valid():
+        space = form.cleaned_data["owning_space"]
         dossier = create_dossier(
             actor=request.user,
             title=form.cleaned_data["title"],
             description=form.cleaned_data["description"],
-            owner_profile=request.user,
-            owning_space=None,
+            owner_profile=None if space else request.user,
+            owning_space=space,
             deadline=form.cleaned_data["deadline"],
         )
         return redirect("objectives:dossier-detail", dossier_id=dossier.pk)
@@ -63,14 +63,14 @@ def project_list(request):
 @login_required
 def project_create(request):
     form = ProjectCreateForm(request.POST or None, actor=request.user)
-    form.fields.pop("owning_space", None)
     if request.method == "POST" and form.is_valid():
+        space = form.cleaned_data["owning_space"]
         project = create_project(
             actor=request.user,
             title=form.cleaned_data["title"],
             description=form.cleaned_data["description"],
-            owner_profile=request.user,
-            owning_space=None,
+            owner_profile=None if space else request.user,
+            owning_space=space,
             starts_on=form.cleaned_data["starts_on"],
             ends_on=form.cleaned_data["ends_on"],
         )
