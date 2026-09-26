@@ -36,7 +36,7 @@
 {% endblock %}
 {% block workspace_context %}
 <aside class="mk-workspace__context mk-workspace-panel mk-deep-context" aria-label="Contexte du Projet">
-  <div class="mk-workspace-panel__header"><div><span class="mk-kicker">Projet</span><p class="mt-1 text-sm font-bold">{{ project.title }}</p></div><i data-lucide="landmark" class="h-4 w-4" aria-hidden="true"></i></div>
+  <div class="mk-workspace-panel__header"><div><span class="mk-kicker">Projet</span><p class="mt-1 text-sm font-bold">{{ project.title }}</p></div><i data-lucide="building-2" class="h-4 w-4" aria-hidden="true"></i></div>
   <div class="mk-workspace-panel__body space-y-4">
     <div class="flex flex-wrap gap-2"><span class="mk-badge">{{ project.get_lifecycle_display }}</span><span class="mk-badge">{{ visible_dossier_count }} dossier{{ visible_dossier_count|pluralize }}</span></div>
     {% if project.starts_on or project.ends_on %}<p class="text-sm" style="color:var(--mk-muted)">{% if project.starts_on %}Depuis {{ project.starts_on }}{% endif %}{% if project.ends_on %} · jusqu’au {{ project.ends_on }}{% endif %}</p>{% endif %}
