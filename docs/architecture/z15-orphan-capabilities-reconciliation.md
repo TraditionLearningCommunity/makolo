@@ -38,12 +38,9 @@ GET /api/v1/organizations/workspaces/
 GET /api/v1/organizations/workspaces/<slug>/
 ```
 
-Elle ne possède aucune vérité métier. Elle indique seulement, pour l'Espace déjà autorisé :
+Elle ne possède aucune vérité métier. Elle indique, pour l'Espace déjà autorisé, les **modules Z15 réconciliés** : capacités réellement visibles, actions réellement autorisées, owner APIs à consommer et statut du contrat lorsqu'une compatibilité historique subsiste.
 
-- les capacités réellement visibles ;
-- les actions réellement autorisées ;
-- les owner APIs à consommer ;
-- le statut du contrat quand une compatibilité historique subsiste.
+Cette liste n'est volontairement **pas un second registre universel de toute la Console Espace**. Les modules déjà correctement branchés avant Z15 — Activity/Occurrence, Journey/demandes, Access, Capacity, Commerce, Payments, Services, Teams, Groups, Places, Subscription — restent servis par leurs owners et par le `SpaceConsoleContext` canonique. Z15 les classe explicitement `SPACE / actif, non orphelin` au lieu de les recopier dans une nouvelle projection.
 
 ### PLATFORM
 
@@ -65,9 +62,16 @@ Inversement, les nouveaux contrats Espace Z15 utilisent des selectors d'autorit�
 | --- | --- | --- | --- |
 | Maintenant / En cours / Moi / Mark | PERSONAL | actif | projections Z existantes |
 | Journey / Access / Resources / Passport / Groups | PERSONAL | actif | owners existants |
+| Activity / Occurrence personnelles | PERSONAL | actif lorsque le domaine le permet | Activities owner |
 | Recognition personnelle | PERSONAL | actif | `/api/v1/recognition/me/` |
 | Loyalty personnelle | PERSONAL | actif | `/api/v1/loyalty/me/` |
 | Partner personnel | PERSONAL | actif | projection Moi/Partner existante |
+| Activity / Occurrence | SPACE | actif, non orphelin | Activities + Space Console |
+| Journey / demandes | SPACE | actif, non orphelin | Journeys/Requests + Space Console |
+| Access / Capacity / Commerce / Payments | SPACE | actifs, non orphelins | owners canoniques + Space Console |
+| Services | SPACE | actif, non orphelin | Services owner |
+| Équipes / Groupes / Lieux | SPACE | actifs, non orphelins | Organizations / Groups / Geography |
+| Abonnement Espace | SPACE | actif, non orphelin | Subscriptions owner |
 | Partners Espace | SPACE | actif, auparavant partiellement orphelin de composition | selectors Partners + collections filtrables par Espace |
 | Growth | SPACE | actif avec compatibilité Event | Growth owner + Analytics owner ; aucun stockage métrique Z15 |
 | Analytics | SPACE | actif avec adaptateurs verticaux | analytics_app ; Event/Service restent des vues verticales |
@@ -289,9 +293,9 @@ docs
 
 W peut ensuite intégrer les modules Espace sans reconstruire les règles métier :
 
-1. charger les Espaces depuis `/api/v1/organizations/workspaces/` ;
-2. ouvrir `/workspaces/<slug>/` ;
-3. rendre uniquement les modules fournis ;
+1. conserver le `SpaceConsoleContext` et les owner APIs pour les modules Espace déjà branchés ;
+2. charger les Espaces Z15 depuis `/api/v1/organizations/workspaces/` lorsqu'il faut découvrir les modules auparavant orphelins ;
+3. ouvrir `/workspaces/<slug>/` et traiter `modules` comme inventaire des modules **réconciliés par Z15**, pas comme liste exhaustive de la Console ;
 4. suivre les owner links ;
 5. afficher uniquement les actions présentes dans `capabilities`.
 
