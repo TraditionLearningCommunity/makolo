@@ -35,10 +35,7 @@ class AuthRepository {
     final session = await tokens.readSession();
     if (session == null) return;
     try {
-      await api.post(
-        'api/v1/accounts/auth/logout/',
-        body: {'refresh': session.refreshToken},
-      );
+      await api.logoutCurrentSession();
     } on Object {
       // Local credentials are still removed. The server-side refresh may
       // already be expired/revoked or the device may be offline.
