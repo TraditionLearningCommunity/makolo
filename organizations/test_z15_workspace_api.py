@@ -71,6 +71,24 @@ class Z15WorkspaceContractTests(TestCase):
             self.client.get("/api/v1/organizations/workspaces/").data,
             [],
         )
+        self.assertEqual(
+            self.client.get(f"/api/v1/recognition/spaces/{self.space.pk}/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/trust/spaces/{self.space.pk}/operator/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/funding/?space={self.space.pk}").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/api/v1/analytics/overview/?organization={self.space.slug}"
+            ).status_code,
+            404,
+        )
 
         self.client.force_authenticate(self.owner)
         self.assertEqual(
