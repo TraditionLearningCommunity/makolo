@@ -9,10 +9,12 @@ from django.utils import timezone as django_timezone
 from activities.models import Activity, Occurrence
 from geography.models import Place
 from interpreter.contracts import (
+    CandidateConstraint,
     CandidateEntity,
     CandidateFact,
     CandidateRelation,
     CandidateValue,
+    ConstraintOperator,
     InterpretedMaterial,
     InterpretationOutcome,
     LogicOperator,
@@ -219,21 +221,19 @@ class ResolverContractTests(SimpleTestCase):
 
     def test_same_material_multiple_constraints_are_additive_not_conflicts(self):
         entity = CandidateEntity("entity-1", "Offer X", ("employment",))
-        from interpreter.contracts import CandidateConstraint, ConstraintOperator
-
         a = CandidateConstraint(
             "constraint-a",
+            "entity-1",
             "eligibility",
             ConstraintOperator.GTE,
-            CandidateValue(kind="number", raw_text="18", number_value=18),
-            subject_ref="entity-1",
+            CandidateValue(kind="number", raw_text="18", number=18),
         )
         b = CandidateConstraint(
             "constraint-b",
+            "entity-1",
             "eligibility",
             ConstraintOperator.LTE,
-            CandidateValue(kind="number", raw_text="35", number_value=35),
-            subject_ref="entity-1",
+            CandidateValue(kind="number", raw_text="35", number=35),
         )
         result, _ = self.resolve(interpreted(entity, a, b))
         self.assertEqual(result.outcome, ResolutionOutcome.RESOLVED)
