@@ -178,12 +178,15 @@ Funding était fonctionnel sur le Web et correctement construit sur Activity + P
 Z15 expose les services existants :
 
 ```text
-GET  /api/v1/funding/?space=<space-id>
+GET  /api/v1/funding/                  → financements personnels gérables du Profile courant
+GET  /api/v1/funding/?space=<space-id> → financements gérables dans cet Espace
 POST /api/v1/funding/
 GET  /api/v1/funding/<id>/
 PATCH /api/v1/funding/<id>/
 POST /api/v1/funding/<id>/contributions/
 ```
+
+Sans `space_id`, la création et la collection restent strictement personnelles : l'Activity est possédée par `request.user` et aucun `profile_id` client n'est accepté.
 
 Créer pour un Espace continue d'exiger `space.activities.manage` **et** `finance.manage`.
 
