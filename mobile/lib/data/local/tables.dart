@@ -22,6 +22,23 @@ class ProjectionSnapshots extends Table {
       };
 }
 
+class ResourceIndex extends Table {
+  TextColumn get profileId => text()();
+  TextColumn get resourceKind => text()();
+  TextColumn get resourceId => text()();
+  TextColumn get label => text().nullable()();
+  TextColumn get projectionKind => text()();
+  TextColumn get navigationJson => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {
+        profileId,
+        resourceKind,
+        resourceId,
+      };
+}
+
 class SyncSources extends Table {
   TextColumn get profileId => text()();
   TextColumn get sourceKey => text()();
