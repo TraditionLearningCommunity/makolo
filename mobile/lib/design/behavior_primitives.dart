@@ -5,21 +5,17 @@ import '../sync/sync_status.dart';
 import 'makolo_theme.dart';
 
 class MakoloSkeleton extends StatelessWidget {
-  const MakoloSkeleton({
-    super.key,
-    this.lines = 4,
-    this.lineHeight = 16,
-  });
+  const MakoloSkeleton({super.key, this.lines = 4, this.lineHeight = 16});
 
   final int lines;
   final double lineHeight;
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final color = Theme.of(
-      context,
-    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.7);
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest
+        .withValues(alpha: 0.7);
 
     return Semantics(
       label: 'Chargement du contenu',
@@ -34,9 +30,7 @@ class MakoloSkeleton extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                 child: AnimatedContainer(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : MakoloMotion.short,
+                  duration: reduceMotion ? Duration.zero : MakoloMotion.short,
                   height: lineHeight,
                   width: double.infinity,
                   constraints: const BoxConstraints(minWidth: 48),
@@ -58,19 +52,10 @@ class MakoloSkeleton extends StatelessWidget {
   }
 }
 
-enum SuccessFeedbackKind {
-  savedOnDevice,
-  pendingSync,
-  synced,
-  confirmed,
-}
+enum SuccessFeedbackKind { savedOnDevice, pendingSync, synced, confirmed }
 
 class SuccessFeedback extends StatelessWidget {
-  const SuccessFeedback({
-    super.key,
-    required this.kind,
-    this.compact = false,
-  });
+  const SuccessFeedback({super.key, required this.kind, this.compact = false});
 
   final SuccessFeedbackKind kind;
   final bool compact;
@@ -112,9 +97,10 @@ class NetworkStateIndicator extends StatelessWidget {
   String get _label => switch (status.state) {
     SyncVisualState.synced => 'À jour',
     SyncVisualState.syncing => 'Mise à jour…',
-    SyncVisualState.pending => status.pendingCount > 1
-        ? '${status.pendingCount} actions en attente de synchronisation'
-        : 'En attente de synchronisation',
+    SyncVisualState.pending =>
+      status.pendingCount > 1
+          ? '${status.pendingCount} actions en attente de synchronisation'
+          : 'En attente de synchronisation',
     SyncVisualState.offline => 'Hors connexion',
     SyncVisualState.conflict => 'Une modification demande votre attention',
     SyncVisualState.failed => 'Impossible de synchroniser pour le moment',
@@ -268,8 +254,7 @@ class PermissionExplainer extends StatelessWidget {
           if (denied) ...[
             const SizedBox(height: MakoloSpacing.md),
             Text(
-              deniedMessage ??
-                  'Cette autorisation est refusée. Vous pouvez continuer sans cette fonction et la réactiver plus tard si nécessaire.',
+              deniedMessage ?? 'Cette autorisation est refusée. Vous pouvez continuer sans cette fonction et la réactiver plus tard si nécessaire.',
             ),
           ],
           const SizedBox(height: MakoloSpacing.lg),
