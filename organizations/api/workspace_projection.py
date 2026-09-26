@@ -5,7 +5,11 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope
-from authorization.selectors import current_mandates
+from authorization.selectors import (
+    activity_ids_with_direct_permission,
+    current_mandates,
+    has_direct_space_permission,
+)
 from scanner.models import ScannerAssignment
 
 from organizations.models import Organization
@@ -22,25 +26,15 @@ def _space_mandates(profile, space):
 
 
 def _has_space_permission(profile, space, permission_code):
-    return _space_mandates(profile, space).filter(
-        role__role_permissions__permission__code=permission_code,
-        role__role_permissions__permission__is_active=True,
-    ).exists()
+    return has_direct_space_permission(profile, space, permission_code)
 
 
 def _activity_ids_with_space_context(profile, space, permission_code):
-    if not getattr(profile, "is_authenticated", False):
+    ids = activity_ids_with_direct_permission(profile, permission_code)
+    if not ids:
         return set()
     return set(
-        current_mandates()
-        .filter(
-            profile=profile,
-            scope_type=AuthorityScope.ACTIVITY,
-            activity__space=space,
-            role__role_permissions__permission__code=permission_code,
-            role__role_permissions__permission__is_active=True,
-        )
-        .values_list("activity_id", flat=True)
+        space.activities.filter(pk__in=ids).values_list("pk", flat=True)
     )
 
 
