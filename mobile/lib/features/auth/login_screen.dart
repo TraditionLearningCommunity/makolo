@@ -4,12 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
+import '../../auth/auth_repository.dart';
 import '../../network/api_error.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key, required this.apiConfigured});
+  const LoginScreen({super.key, required this.runtime});
 
-  final bool apiConfigured;
+  final AppRuntime runtime;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -29,8 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
-    final auth = ref.read(authRepositoryProvider);
-    if (auth == null) return;
+    final api = widget.runtime.api;
+    if (api == null) return;
+    final auth = AuthRepository(api, widget.runtime.tokens);
     setState(() {
       _busy = true;
       _error = null;
@@ -77,13 +79,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
-                      widget.apiConfigured
+                      widget.runtime.apiConfigured
                           ? 'Connectez-vous pour constituer la projection Makolo de cet appareil.'
                           : 'Une première connexion est nécessaire. Configurez un environnement Makolo autorisé pour continuer.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: MakoloSpacing.xl),
-                    if (widget.apiConfigured) ...[
+                    if (widget.runtime.apiConfigured) ...[
                       TextField(
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
