@@ -62,6 +62,16 @@ class Z15WorkspaceContractTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_platform_contract_is_separate(self):
+        self.client.force_authenticate(self.platform)
+        self.assertEqual(
+            self.client.get("/api/v1/organizations/workspaces/z15-space/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get("/api/v1/organizations/workspaces/").data,
+            [],
+        )
+
         self.client.force_authenticate(self.owner)
         self.assertEqual(
             self.client.get("/api/v1/platform/capabilities/").status_code,
