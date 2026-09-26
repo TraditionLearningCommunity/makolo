@@ -1,28 +1,34 @@
-name: Mobile CI
+name: Mobile Android Build
 
 on:
   pull_request:
     paths:
-      - "mobile/**"
-      - ".github/workflows/mobile-ci.yml"
+      - "mobile/android/**"
+      - "mobile/pubspec.yaml"
+      - "mobile/pubspec.lock"
+      - "mobile/.flutter-version"
+      - ".github/workflows/mobile-android-build.yml"
   push:
     branches: [main]
     paths:
-      - "mobile/**"
-      - ".github/workflows/mobile-ci.yml"
+      - "mobile/android/**"
+      - "mobile/pubspec.yaml"
+      - "mobile/pubspec.lock"
+      - "mobile/.flutter-version"
+      - ".github/workflows/mobile-android-build.yml"
   workflow_dispatch:
 
 concurrency:
-  group: mobile-ci-${{ github.event.pull_request.number || github.ref }}
+  group: mobile-android-build-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  flutter-checks:
+  android-debug-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: mobile
@@ -39,12 +45,5 @@ jobs:
         run: flutter pub get
       - name: Generate Drift code
         run: dart run build_runner build
-      - name: Verify generated code is committed
-        working-directory: .
-        run: git diff --exit-code -- mobile/lib mobile/test
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
-      - name: Analyze
-        run: flutter analyze
-      - name: Test
-        run: flutter test
+      - name: Build Android debug
+        run: flutter build apk --debug

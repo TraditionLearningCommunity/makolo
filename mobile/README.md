@@ -53,7 +53,28 @@ Les stores sont isolés par Profile. Une déconnexion retire les credentials act
 
 ## Android / iOS
 
-Le dépôt canonique ne fixe encore aucun `applicationId` Android ni `PRODUCT_BUNDLE_IDENTIFIER` iOS. A0 interdit de les inventer et reporte l'identité native officielle à A4. Les hôtes natifs ne sont donc pas générés avec `com.example.*` ou un autre identifiant fictif dans cette branche. C'est un gate explicite à résoudre avec une identité approuvée avant de revendiquer un build installable Android/iOS.
+L'identité Android approuvée est désormais :
+
+```text
+applicationId / namespace : com.makolo
+```
+
+Le host Android vit sous `mobile/android/` et suit les templates Flutter 3.47.3 (Gradle 9.3.1, AGP 9.1.0, Kotlin 2.4.0, Java 17). Les sauvegardes applicatives Android sont désactivées en A1 afin de ne pas restaurer aveuglément sessions, outbox ou données privées sur un nouvel appareil.
+
+Validation Android :
+
+```bash
+flutter build apk --debug
+flutter run -d <device-id> --dart-define=MAKOLO_API_BASE_URL=https://<hote-autorise>
+```
+
+Pour les APK de test générées par GitHub Actions, le workflow manuel `Mobile APK` demande l'URL API au déclenchement. Sa valeur bêta par défaut est `https://makolo.pythonanywhere.com`. Cette valeur est un environnement de test temporaire, pas une cible de production.
+
+Aucune identité iOS n'est encore fixée : aucun `PRODUCT_BUNDLE_IDENTIFIER` n'est inventé et aucun host iOS n'est généré dans ce chantier.
+
+### Validation A1 bêta
+
+Le 26 septembre 2026, GitHub Actions a validé sur Flutter 3.47.3 / Dart 3.13.3 : génération Drift, analyse, tests, joignabilité de l'environnement bêta PythonAnywhere et build Android debug avec `MAKOLO_API_BASE_URL=https://makolo.pythonanywhere.com`. L'APK générée est destinée aux tests réels A1 ; PythonAnywhere reste un environnement temporaire de test/bêta.
 
 ## Frontières
 

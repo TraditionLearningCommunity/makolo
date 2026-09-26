@@ -119,27 +119,32 @@ Primitives déjà livrées :
 - AccessCredential/Payment secrets : aucune persistance A1 prévue ;
 - aucun token, QR, credential ou payload sensible n'est loggé par le code A1.
 
-La configuration de backup OS ne peut pas encore être figée sans les hôtes natifs officiels.
+Sur Android, le host natif A1 désactive les sauvegardes applicatives (`android:allowBackup="false"` et `android:fullBackupContent="false"`). Un nouvel appareil doit repasser par authentification, bootstrap et sync plutôt que restaurer silencieusement session, outbox ou données privées.
 
 ## 8. Android / iOS
 
-Le dépôt courant et A0 ne définissent toujours aucun `applicationId` Android ni `PRODUCT_BUNDLE_IDENTIFIER` iOS.
+L'identité Android a été explicitement approuvée pour ce chantier :
 
-A1 n'invente donc aucun identifiant permanent et ne génère pas des hôtes portant `com.example.makolo`.
+```text
+applicationId = com.makolo
+namespace     = com.makolo
+```
 
-Cette absence est un blocker explicite pour déclarer un build Android/iOS installable. Elle doit être résolue par une identité native approuvée conformément à A0 avant fermeture complète du gate « application installée ».
+Le host Android est désormais présent sous `mobile/android/`. Il suit les valeurs des templates Flutter 3.47.3 : Gradle 9.3.1, Android Gradle Plugin 9.1.0, Kotlin 2.4.0 et Java 17. Il n'introduit aucun `com.example.*`, aucun secret de signature et aucune URL d'environnement.
+
+Le build debug Android devient un gate A1. La signature de production reste hors de portée de ce chantier ; la configuration release du template ne doit pas être interprétée comme une configuration de production.
+
+L'identité iOS reste non définie. Aucun `PRODUCT_BUNDLE_IDENTIFIER` n'est inventé et aucun host iOS n'est généré tant qu'une identité iOS officielle n'est pas approuvée.
 
 ## 9. CI
 
-Le workflow `.github/workflows/mobile-ci.yml` est filtré sur le mobile et les contrats mobiles. Il exécute :
+La CI mobile est séparée en trois niveaux afin de ne pas fabriquer une APK à chaque changement :
 
-```text
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test
-```
+- `.github/workflows/mobile-ci.yml` : gate rapide par défaut sur les changements `mobile/**` ; résolution, génération Drift, vérification du code généré committé, format, analyse et tests ;
+- `.github/workflows/mobile-android-build.yml` : compilation Android debug automatique uniquement quand le host Android, les dépendances ou le toolchain mobile changent, et déclenchable manuellement pour un checkpoint ;
+- `.github/workflows/mobile-apk.yml` : packaging APK manuel uniquement, avec artifact GitHub conservé 14 jours.
+
+Le gate rapide n'écrit pas dans la branche : un écart de format ou de code généré fait échouer la CI et doit être corrigé à la source.
 
 Les workflows backend génériques CI, Conversations PostgreSQL, Funding PostgreSQL et Beta seed ignorent désormais les changements strictement mobiles. Les workflows de sécurité transversaux restent actifs.
 
