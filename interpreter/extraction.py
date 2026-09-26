@@ -42,8 +42,8 @@ except ImportError:  # deployment check will expose a missing pinned dependency
     PdfReader = None
 
 STRATEGY_KEY = "deterministic-first"
-STRATEGY_VERSION = "2.0"
-STRATEGY_COMPONENTS = {"document_structure": "1", "html": "2", "json": "1", "xml": "1", "text": "2", "pdf_text": "2", "generalist_semantics": "1", "intelligence_grounding": "1"}
+STRATEGY_VERSION = "2.1"
+STRATEGY_COMPONENTS = {"document_structure": "2", "html": "2", "json": "1", "xml": "1", "text": "2", "pdf_text": "2", "generalist_semantics": "2", "intelligence_grounding": "1"}
 STRATEGY_FINGERPRINT = strategy_fingerprint(STRATEGY_COMPONENTS)
 
 MAX_TOTAL_BYTES = 16 * 1024 * 1024

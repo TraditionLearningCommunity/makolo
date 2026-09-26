@@ -31,6 +31,19 @@ class SemanticDocumentTests(TestCase):
         self.assertEqual(doc.title, "Le Recteur inaugure un centre de formation")
         self.assertTrue(any(f.kind == "json_ld" for f in doc.structured_fragments))
 
+    def test_website_and_breadcrumb_are_not_folded_into_current_document_type(self):
+        doc = parse_html_document("""<html><head><title>Guide</title>
+        <script type="application/ld+json">{
+          "@graph": [
+            {"@type": "WebSite", "name": "INOHA"},
+            {"@type": "BreadcrumbList", "name": "Navigation"},
+            {"@type": "WebPage", "name": "Guide"}
+          ]
+        }</script></head><body><h1>Guide</h1></body></html>""", artifact())
+        self.assertIn("webpage", doc.type_hints)
+        self.assertNotIn("website", doc.type_hints)
+        self.assertNotIn("breadcrumblist", doc.type_hints)
+
     def test_void_elements_never_become_false_parents(self):
         doc = parse_html_document('<html><head><meta name="description" content="Info"><link rel="canonical" href="/x"></head><body><h1>Guide</h1><p>A<br>B<img src="x">C</p></body></html>', artifact())
         h1 = next(b for b in doc.blocks if b.kind == "h1")

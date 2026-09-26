@@ -72,6 +72,16 @@ _THRESHOLD = re.compile(
 )
 _EMAIL = re.compile(r"(?<![\w.+-])([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})(?![\w.-])", re.I)
 _PHONE = re.compile(r"(?<!\w)(\+?\d[\d ()-]{6,}\d)(?!\w)")
+_YEAR_RANGE = re.compile(r"^\d{4}\s*[-–—]\s*\d{4}$")
+_TECHNICAL_ASSET = re.compile(
+    r"\.(?:css|js|mjs|map|woff2?|ttf|otf|eot|png|jpe?g|gif|webp|svg|ico|mp4|webm|mp3|wav)(?:[?#].*)?$",
+    re.I,
+)
+_PROCEDURE_STEP = re.compile(
+    r"\b(?:submit|submission|apply|application|register|registration|interview|review|validation|confirmation|selection|shortlist|shortlisted|"
+    r"soumettre|d[eé]p[oô]t|d[eé]poser|candidater|candidature|inscription|entretien|examen du dossier|validation|confirmation|s[eé]lection|pr[eé]s[eé]lection)\b",
+    re.I,
+)
 _URL = re.compile(r"https?://[^\s<>()\"']+", re.I)
 
 _REQUIREMENT_CONTEXT = re.compile(
@@ -108,6 +118,26 @@ _ENTITY_LABELS = (
 
 def _clean(value: str) -> str:
     return _WS.sub(" ", value or "").strip()
+
+
+def _phone_value(value: str) -> str | None:
+    value = _clean(value)
+    if not value or _YEAR_RANGE.fullmatch(value):
+        return None
+    digits = re.sub(r"\D", "", value)
+    if not 9 <= len(digits) <= 15:
+        return None
+    return value
+
+
+def _usable_link(href: str) -> bool:
+    href = _clean(href)
+    lower = href.lower()
+    if not href or href == "#" or lower.startswith(("javascript:", "data:", "about:")):
+        return False
+    if _TECHNICAL_ASSET.search(lower):
+        return False
+    return True
 
 
 def _decimal(value: str) -> Decimal | None:
@@ -334,7 +364,15 @@ def extract_document_semantics(builder, document, subject_ref):
                         builder.relation(subject_ref, predicate, ref, evidence=evidence)
 
         heading = " ".join(block.heading_context)
-        if _REQUIREMENT_CONTEXT.search(heading) or _REQUIREMENT_CONTEXT.match(text):
+        requirement_context = _REQUIREMENT_CONTEXT.search(heading) or _REQUIREMENT_CONTEXT.match(text)
+        procedure_step = _PROCEDURE_STEP.search(text)
+        explicit_requirement = (
+            _REQUIRED.search(text)
+            or _OPTIONAL.search(text)
+            or _PROHIBITED.search(text)
+            or _THRESHOLD.search(text)
+        )
+        if requirement_context and (explicit_requirement or not procedure_step):
             if not re.fullmatch(r"[A-Za-zÀ-ÿ ]{1,40}:?", text) or block.kind in {"li", "dd", "p"}:
                 _requirement(builder, subject_ref, block, text)
 
@@ -374,7 +412,10 @@ def extract_document_semantics(builder, document, subject_ref):
                 CandidateValue(kind="text", raw_text=email, text=email, language=block.language),
                 subject_ref=subject_ref, evidence=evidence,
             )
-        for phone in dict.fromkeys(_clean(v) for v in _PHONE.findall(text)):
+        for raw_phone in dict.fromkeys(_clean(v) for v in _PHONE.findall(text)):
+            phone = _phone_value(raw_phone)
+            if phone is None:
+                continue
             builder.fact(
                 "contact_phone",
                 CandidateValue(kind="text", raw_text=phone, text=phone, language=block.language),
@@ -386,14 +427,17 @@ def extract_document_semantics(builder, document, subject_ref):
         if block is None:
             continue
         href = _clean(link.href)
-        if not href:
+        if not _usable_link(href):
             continue
         evidence = (block.evidence("document_link"),)
         lower = f"{link.text} {href}".lower()
         if href.lower().startswith("mailto:"):
             predicate, value = "contact_email", href[7:]
         elif href.lower().startswith("tel:"):
-            predicate, value = "contact_phone", href[4:]
+            value = _phone_value(href[4:])
+            if value is None:
+                continue
+            predicate = "contact_phone"
         elif re.search(r"\b(apply|application|candidature|candidate)\b", lower):
             predicate, value = "application_url", href
         elif re.search(r"\b(register|registration|inscription|reservation|book)\b", lower):
