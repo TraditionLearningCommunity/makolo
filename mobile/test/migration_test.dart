@@ -53,6 +53,13 @@ void main() {
       columns.map((row) => row.data['name']),
       contains('last_error_code'),
     );
+    final resourceIndex = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master "
+          "WHERE type='table' AND name='resource_index'",
+        )
+        .get();
+    expect(resourceIndex, hasLength(1));
     final rows =
         await database.customSelect('SELECT * FROM outbox_operations').get();
     expect(rows.single.data['operation_id'], 'op-preserved');
