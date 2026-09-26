@@ -169,3 +169,36 @@ class GeneralistDeterministicExtractionTests(SimpleTestCase):
         self.assertTrue(any(c.predicate == "contact_phone" for c in facts))
         deadlines = {c.value.raw_text for c in facts if c.predicate == "deadline"}
         self.assertEqual(deadlines, {"2026-11-01", "2026-11-05"})
+
+    def test_real_world_noise_does_not_become_contacts_or_procedures(self):
+        result = self._html(
+            "<h1>Admission</h1><h2>Conditions d’admission</h2>"
+            "<p>Examen du dossier déposé</p>"
+            "<p>Entretien avec le candidat présélectionné sur dossier</p>"
+            "<p>Passport required</p>"
+            "<p>2026-2027</p><p>1 2 3 4 5</p>"
+            "<p>+243896846702</p>"
+            "<a href='#'>Inscription</a>"
+            "<a href='https://example.test/wp-content/plugins/contact-form/styles.css'>Contact form</a>"
+            "<a href='https://example.test/contact/'>Contact</a>"
+            "<a href='https://example.test/admission-form.pdf'>Application form PDF</a>"
+        )
+        entities = [
+            c for c in result.candidates
+            if isinstance(c, CandidateEntity)
+            and "requirement_subject" in c.type_hints
+        ]
+        labels = {c.label for c in entities}
+        self.assertIn("Passport", labels)
+        self.assertNotIn("Examen du dossier déposé", labels)
+        self.assertNotIn("Entretien avec le candidat présélectionné sur dossier", labels)
+
+        facts = [c for c in result.candidates if isinstance(c, CandidateFact)]
+        phones = {c.value.text for c in facts if c.predicate == "contact_phone"}
+        self.assertEqual(phones, {"+243896846702"})
+
+        urls = {c.value.text for c in facts if c.predicate.endswith("_url")}
+        self.assertNotIn("#", urls)
+        self.assertFalse(any(url.endswith(".css") for url in urls))
+        self.assertIn("https://example.test/contact/", urls)
+        self.assertIn("https://example.test/admission-form.pdf", urls)

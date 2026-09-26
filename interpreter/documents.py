@@ -17,9 +17,11 @@ MAX_DOCUMENT_NODES = 25_000
 MAX_DOCUMENT_DEPTH = 64
 MAX_ATTRIBUTE_CHARS = 2_000
 DOCUMENT_TYPES = frozenset({
-    "article", "newsarticle", "webpage", "website", "faqpage",
-    "breadcrumblist", "blogposting", "report", "scholarlyarticle",
+    "article", "newsarticle", "webpage", "faqpage",
+    "blogposting", "report", "scholarlyarticle",
 })
+# WebSite and BreadcrumbList are structured objects present on a page; they
+# must not be folded into the type of the current document itself.
 ARTICLE_TYPES = frozenset({"article", "newsarticle", "blogposting", "report", "scholarlyarticle"})
 _VOID = frozenset("area base br col embed hr img input link meta param source track wbr".split())
 _INERT = frozenset({"script", "style", "noscript", "template"})

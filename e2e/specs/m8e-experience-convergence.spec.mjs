@@ -32,17 +32,17 @@ test('mature personal navigation keeps the five canonical contexts on desktop', 
 });
 
 
-test('mature mobile shell stays usable from 320px through tablet @mobile', async ({ page }) => {
+test('mature shell keeps Compact below 768px and switches to Adaptive at tablet width @mobile', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
-  const viewports = [
+  const compactViewports = [
     { width: 320, height: 700 },
     { width: 360, height: 800 },
     { width: 390, height: 844 },
     { width: 430, height: 932 },
-    { width: 768, height: 1024 },
+    { width: 767, height: 1024 },
   ];
 
-  for (const viewport of viewports) {
+  for (const viewport of compactViewports) {
     await page.setViewportSize(viewport);
     await page.goto('/me/');
     await expectNoHorizontalOverflow(page);
@@ -56,6 +56,13 @@ test('mature mobile shell stays usable from 320px through tablet @mobile', async
     await expect(mobileNav.getByText('Profil', { exact: true })).toHaveCount(0);
     await expect(mobileNav.getByText('Plus', { exact: true })).toHaveCount(0);
   }
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto('/me/');
+  await expectNoHorizontalOverflow(page);
+  await expect(page.locator('#mobile-primary-nav')).toBeHidden();
+  await expect(page.locator('#desktop-sidebar')).toBeVisible();
+  await expect(page.locator('#desktop-sidebar')).toHaveCSS('width', '84px');
 });
 
 

@@ -9,10 +9,12 @@ from django.utils import timezone as django_timezone
 from activities.models import Activity, Occurrence
 from geography.models import Place
 from interpreter.contracts import (
+    CandidateConstraint,
     CandidateEntity,
     CandidateFact,
     CandidateRelation,
     CandidateValue,
+    ConstraintOperator,
     InterpretedMaterial,
     InterpretationOutcome,
     LogicOperator,
@@ -185,6 +187,58 @@ class ResolverContractTests(SimpleTestCase):
         self.assertEqual(assertion.status, ResolutionStatus.LINKED)
         self.assertEqual(assertion.candidate_payload["logic_operator"], "or")
         self.assertEqual(assertion.candidate_payload["logic_group"], "group-1")
+
+    def test_same_material_multivalue_contacts_are_linked_not_conflicts(self):
+        entity = CandidateEntity("entity-1", "Organisation X", ("organization",))
+        phone_a = CandidateFact(
+            "fact-phone-a",
+            "contact_phone",
+            CandidateValue(kind="text", raw_text="+243800000001", text="+243800000001"),
+            subject_ref="entity-1",
+        )
+        phone_b = CandidateFact(
+            "fact-phone-b",
+            "contact_phone",
+            CandidateValue(kind="text", raw_text="+243800000002", text="+243800000002"),
+            subject_ref="entity-1",
+        )
+        url_a = CandidateFact(
+            "fact-url-a",
+            "registration_url",
+            CandidateValue(kind="text", raw_text="https://example.test/apply", text="https://example.test/apply"),
+            subject_ref="entity-1",
+        )
+        url_b = CandidateFact(
+            "fact-url-b",
+            "registration_url",
+            CandidateValue(kind="text", raw_text="https://example.test/form.pdf", text="https://example.test/form.pdf"),
+            subject_ref="entity-1",
+        )
+        result, _ = self.resolve(interpreted(entity, phone_a, phone_b, url_a, url_b))
+        self.assertEqual(result.outcome, ResolutionOutcome.RESOLVED)
+        self.assertFalse(result.conflicts)
+        self.assertTrue(all(item.status is ResolutionStatus.LINKED for item in result.fact_resolutions))
+
+    def test_same_material_multiple_constraints_are_additive_not_conflicts(self):
+        entity = CandidateEntity("entity-1", "Offer X", ("employment",))
+        a = CandidateConstraint(
+            "constraint-a",
+            "entity-1",
+            "eligibility",
+            ConstraintOperator.GTE,
+            CandidateValue(kind="number", raw_text="18", number=18),
+        )
+        b = CandidateConstraint(
+            "constraint-b",
+            "entity-1",
+            "eligibility",
+            ConstraintOperator.LTE,
+            CandidateValue(kind="number", raw_text="35", number=35),
+        )
+        result, _ = self.resolve(interpreted(entity, a, b))
+        self.assertEqual(result.outcome, ResolutionOutcome.RESOLVED)
+        self.assertFalse(result.conflicts)
+        self.assertTrue(all(item.status is ResolutionStatus.LINKED for item in result.constraint_resolutions))
 
     def test_same_material_conflicting_deadlines_are_not_silently_chosen(self):
         entity = CandidateEntity("entity-1", "Offer X", ("employment",))
