@@ -66,3 +66,35 @@ class Z15FundingApiTests(TestCase):
             self.client.get(f"/api/v1/funding/{funding_id}/").status_code,
             404,
         )
+
+
+    def test_personal_funding_collection_uses_authenticated_profile_only(self):
+        self.client.force_authenticate(self.participant)
+        create = self.client.post(
+            "/api/v1/funding/",
+            {
+                "title": "Projet personnel Z15",
+                "currency": "USD",
+                "target_amount": "75.00",
+                "status": "draft",
+                "visibility": "private",
+            },
+            format="json",
+        )
+        self.assertEqual(create.status_code, 201, create.data)
+        funding_id = create.data["id"]
+
+        mine = self.client.get("/api/v1/funding/")
+        self.assertEqual(mine.status_code, 200, mine.data)
+        self.assertEqual([row["id"] for row in mine.data], [funding_id])
+        self.assertTrue(mine.data[0]["activity"]["personal"])
+        self.assertIsNone(mine.data[0]["activity"]["space_id"])
+
+        self.client.force_authenticate(self.outsider)
+        foreign = self.client.get("/api/v1/funding/")
+        self.assertEqual(foreign.status_code, 200, foreign.data)
+        self.assertEqual(foreign.data, [])
+        self.assertEqual(
+            self.client.get(f"/api/v1/funding/{funding_id}/").status_code,
+            404,
+        )
