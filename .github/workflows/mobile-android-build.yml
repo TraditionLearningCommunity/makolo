@@ -1,0 +1,48 @@
+name: Mobile Android Build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "mobile/android/**"
+      - "mobile/pubspec.yaml"
+      - "mobile/pubspec.lock"
+      - "mobile/.flutter-version"
+      - ".github/workflows/mobile-android-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mobile/android/**"
+      - "mobile/pubspec.yaml"
+      - "mobile/pubspec.lock"
+      - "mobile/.flutter-version"
+      - ".github/workflows/mobile-android-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-android-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android-debug-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: "3.47.3"
+          channel: stable
+          cache: true
+      - name: Toolchain
+        run: flutter --version
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build Android debug
+        run: flutter build apk --debug
