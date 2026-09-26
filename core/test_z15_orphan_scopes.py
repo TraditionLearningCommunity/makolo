@@ -84,7 +84,7 @@ class Z15OrphanScopeTests(TestCase):
             code="z15-space-reward",
             version=1,
             name="Reward Espace Z15",
-            kind=RewardKind.PROMOTION,
+            kind=RewardKind.OTHER,
             points_cost=5,
             beneficiary_allowed=True,
             eligibility={"beneficiary_subject_types": ["space"]},
