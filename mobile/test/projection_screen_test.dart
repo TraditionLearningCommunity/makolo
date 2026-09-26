@@ -62,6 +62,7 @@ void main() {
 
     controller.add(_projection());
     await tester.pump();
+    await tester.pump();
 
     expect(find.byType(MakoloSkeleton), findsNothing);
     expect(find.text('Préparer le rendez-vous'), findsOneWidget);
