@@ -31,6 +31,8 @@ class MakoloApp extends ConsumerWidget {
           body: MakoloErrorState(
             message:
                 'Makolo n’a pas pu ouvrir les données locales de cet appareil.',
+            preservedMessage:
+                'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
             onRetry: () => ref.invalidate(appRuntimeProvider),
           ),
         ),
@@ -53,7 +55,10 @@ class MakoloApp extends ConsumerWidget {
           builder: (context, child) => SyncLifecycle(
             runtime: runtime,
             child: child ?? const SizedBox.shrink(),
-            onSessionExpired: () => ref.invalidate(appRuntimeProvider),
+            onSessionExpired: () {
+              runtime.recovery.markSessionExpired();
+              ref.invalidate(appRuntimeProvider);
+            },
           ),
         );
       },

@@ -27,6 +27,24 @@ enum ReplayPolicy {
   final String wireValue;
 }
 
+class OutboxSummary {
+  const OutboxSummary({
+    required this.pendingCount,
+    required this.conflictCount,
+    required this.failedCount,
+  });
+
+  final int pendingCount;
+  final int conflictCount;
+  final int failedCount;
+
+  static const empty = OutboxSummary(
+    pendingCount: 0,
+    conflictCount: 0,
+    failedCount: 0,
+  );
+}
+
 class OutboxRepository {
   OutboxRepository(this.database, this.profileId);
 
@@ -80,6 +98,32 @@ class OutboxRepository {
           )
           ..orderBy([(row) => OrderingTerm.asc(row.observedAt)]))
         .get();
+  }
+
+  Stream<OutboxSummary> watchSummary() {
+    final query = database.select(database.outboxOperations)
+      ..where((row) => row.profileId.equals(profileId));
+    return query.watch().map((rows) {
+      var pendingCount = 0;
+      var conflictCount = 0;
+      var failedCount = 0;
+      for (final row in rows) {
+        if (row.state == OutboxState.conflict.wireValue) {
+          conflictCount += 1;
+        } else if (row.state == OutboxState.failed.wireValue) {
+          failedCount += 1;
+        } else if (row.state == OutboxState.queued.wireValue ||
+            row.state == OutboxState.inFlight.wireValue ||
+            row.state == OutboxState.awaitingConfirmation.wireValue) {
+          pendingCount += 1;
+        }
+      }
+      return OutboxSummary(
+        pendingCount: pendingCount,
+        conflictCount: conflictCount,
+        failedCount: failedCount,
+      );
+    });
   }
 
   Future<void> setState(

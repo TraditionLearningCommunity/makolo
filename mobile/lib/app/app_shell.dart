@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../design/behavior_primitives.dart';
 import '../design/makolo_theme.dart';
 import '../navigation/destination.dart';
+import '../sync/sync_status.dart';
+import 'session_recovery.dart';
 
 class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.child});
+  const AppShell({
+    super.key,
+    required this.child,
+    required this.recovery,
+  });
 
   final Widget child;
+  final SessionRecoveryController recovery;
 
   int _selected(String path) {
     final destinations = MakoloDestination.values;
@@ -21,11 +29,30 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final path = GoRouterState.of(context).uri.path;
-    final selected = _selected(path);
+    final path = GoRouterState.of(context).uri.toString();
+    recovery.rememberLocation(path);
+    final selected = _selected(GoRouterState.of(context).uri.path);
+    final syncStatus = SyncStatusScope.maybeOf(context);
 
     return Scaffold(
-      body: SafeArea(child: child),
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (syncStatus != null &&
+                syncStatus.state != SyncVisualState.synced)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MakoloSpacing.md,
+                  MakoloSpacing.sm,
+                  MakoloSpacing.md,
+                  0,
+                ),
+                child: NetworkStateIndicator(status: syncStatus),
+              ),
+            Expanded(child: child),
+          ],
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Material(

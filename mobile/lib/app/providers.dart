@@ -11,11 +11,13 @@ import '../repositories/personal_repository.dart';
 import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_engine.dart';
 import 'environment.dart';
+import 'session_recovery.dart';
 
 class AppRuntime {
   AppRuntime({
     required this.tokens,
     required this.session,
+    required this.recovery,
     this.api,
     this.database,
     this.store,
@@ -26,6 +28,7 @@ class AppRuntime {
 
   final TokenStore tokens;
   final AuthSession? session;
+  final SessionRecoveryController recovery;
   final MakoloApiClient? api;
   final MakoloDatabase? database;
   final ProfileStore? store;
@@ -45,6 +48,10 @@ final tokenStoreProvider = Provider<TokenStore>(
   (ref) => FlutterSecureTokenStore(),
 );
 
+final sessionRecoveryProvider = Provider<SessionRecoveryController>(
+  (ref) => SessionRecoveryController(),
+);
+
 final httpClientProvider = Provider<http.Client>((ref) {
   final client = http.Client();
   ref.onDispose(client.close);
@@ -53,6 +60,7 @@ final httpClientProvider = Provider<http.Client>((ref) {
 
 final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   final tokens = ref.watch(tokenStoreProvider);
+  final recovery = ref.watch(sessionRecoveryProvider);
   final session = await tokens.readSession();
   final baseUri = MakoloEnvironment.apiBaseUri;
   final api = baseUri == null
@@ -65,7 +73,12 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
 
   final profileId = session?.profileId;
   if (profileId == null) {
-    return AppRuntime(tokens: tokens, session: session, api: api);
+    return AppRuntime(
+      tokens: tokens,
+      session: session,
+      recovery: recovery,
+      api: api,
+    );
   }
 
   final database = await MakoloDatabase.openForProfile(profileId);
@@ -87,6 +100,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   return AppRuntime(
     tokens: tokens,
     session: session,
+    recovery: recovery,
     api: api,
     database: database,
     store: store,

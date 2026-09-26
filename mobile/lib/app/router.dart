@@ -10,10 +10,13 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
   final personal = runtime.personal!;
 
   return GoRouter(
-    initialLocation: '/now',
+    initialLocation: runtime.recovery.initialLocation(),
     routes: [
       ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
+        builder: (context, state, child) => AppShell(
+          recovery: runtime.recovery,
+          child: child,
+        ),
         routes: [
           GoRoute(
             path: '/now',
@@ -27,7 +30,8 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             path: '/discover',
             builder: (context, state) => const PlaceholderScreen(
               title: 'Découvrir',
-              message: 'La fondation A1 est prête. L’expérience exploratoire complète arrive dans A2.',
+              message:
+                  'De nouvelles possibilités apparaîtront ici lorsqu’elles seront disponibles.',
             ),
           ),
           GoRoute(
@@ -48,7 +52,10 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
           ),
         ],
       ),
-      GoRoute(path: '/mark', builder: (context, state) => const MarkScreen()),
+      GoRoute(
+        path: '/mark',
+        builder: (context, state) => const MarkScreen(),
+      ),
       for (final prefix in const [
         'journeys',
         'activities',
@@ -60,10 +67,14 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
       ])
         GoRoute(
           path: '/$prefix/:id',
-          builder: (context, state) => PlaceholderScreen(
-            title: 'Continuer dans Makolo',
-            message: 'Cette destination structurée sera revalidée par son domaine propriétaire avant d’exposer une action.',
-          ),
+          builder: (context, state) {
+            runtime.recovery.rememberLocation(state.uri.toString());
+            return const PlaceholderScreen(
+              title: 'Continuer dans Makolo',
+              message:
+                  'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
+            );
+          },
         ),
     ],
   );

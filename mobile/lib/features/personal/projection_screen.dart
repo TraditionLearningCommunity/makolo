@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
 
@@ -23,13 +24,14 @@ class ProjectionScreen extends StatelessWidget {
       builder: (context, snapshot) {
         if (!snapshot.hasData &&
             snapshot.connectionState == ConnectionState.waiting) {
-          return const MakoloLoadingState();
+          return const MakoloSkeleton(lines: 5);
         }
         final projection = snapshot.data;
         if (projection == null) {
-          return MakoloEmptyState(
+          return const MakoloEmptyState(
             title: 'Pas encore disponible sur cet appareil',
-            body: 'Makolo affichera ici les données déjà synchronisées. Une connexion est nécessaire pour les obtenir la première fois.',
+            body:
+                'Une première connexion est nécessaire pour rendre ce contenu disponible ici.',
             icon: Icons.cloud_off_outlined,
           );
         }
@@ -45,7 +47,7 @@ class ProjectionScreen extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: MakoloSpacing.sm),
             Text(
-              'Projection locale synchronisée · ${projection.receivedAt.toLocal()}',
+              'Disponible sur cet appareil',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: MakoloSpacing.lg),
@@ -60,7 +62,7 @@ class ProjectionScreen extends StatelessWidget {
               )
             else
               const InlineMessage(
-                message: 'Cette projection est disponible localement. Son expérience détaillée arrive dans A2.',
+                message: 'Ce contenu est disponible sur cet appareil.',
               ),
           ],
         );
