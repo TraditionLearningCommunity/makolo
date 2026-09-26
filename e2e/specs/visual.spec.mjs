@@ -93,7 +93,7 @@ async function enableDiscoveryNearby(page) {
 
 async function assertDesktopShellStable(page) {
   await expect(page.locator('aside.mk-sidebar').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ouvrir la navigation' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Ouvrir la navigation', exact: true })).toBeHidden();
   await expect(page.getByRole('dialog', { name: 'Navigation Makolo' })).toBeHidden();
 
   const layout = await page.evaluate(() => {
