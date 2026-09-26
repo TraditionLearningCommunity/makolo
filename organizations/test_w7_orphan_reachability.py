@@ -135,3 +135,9 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial["space"], self.space)
+    def test_personal_ongoing_exposes_funding_entry(self):
+        self.client.force_login(self.owner)
+        response = self.client.get("/me/ongoing/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/funding/new/")
+
