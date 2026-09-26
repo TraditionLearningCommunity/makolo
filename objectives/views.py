@@ -32,7 +32,9 @@ def _visible_dependency_or_404(profile, dossier, dependency_id):
 
 
 @login_required
-def dossier_list(request): return render(request, "objectives/dossier_list.html", {"dossiers": dossiers_for_profile(request.user)})
+def dossier_list(request):
+    dossiers = dossiers_for_profile(request.user).filter(owner_profile=request.user, owning_space__isnull=True)
+    return render(request, "objectives/dossier_list.html", {"dossiers": dossiers})
 
 
 @login_required
@@ -40,13 +42,22 @@ def dossier_create(request):
     form = DossierCreateForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
         space = form.cleaned_data["owning_space"]
-        dossier = create_dossier(actor=request.user, title=form.cleaned_data["title"], description=form.cleaned_data["description"], owner_profile=None if space else request.user, owning_space=space, deadline=form.cleaned_data["deadline"])
+        dossier = create_dossier(
+            actor=request.user,
+            title=form.cleaned_data["title"],
+            description=form.cleaned_data["description"],
+            owner_profile=None if space else request.user,
+            owning_space=space,
+            deadline=form.cleaned_data["deadline"],
+        )
         return redirect("objectives:dossier-detail", dossier_id=dossier.pk)
     return render(request, "objectives/dossier_form.html", {"form": form})
 
 
 @login_required
-def project_list(request): return render(request, "objectives/project_list.html", {"projects": projects_for_profile(request.user)})
+def project_list(request):
+    projects = projects_for_profile(request.user).filter(owner_profile=request.user, owning_space__isnull=True)
+    return render(request, "objectives/project_list.html", {"projects": projects})
 
 
 @login_required
@@ -54,7 +65,15 @@ def project_create(request):
     form = ProjectCreateForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
         space = form.cleaned_data["owning_space"]
-        project = create_project(actor=request.user, title=form.cleaned_data["title"], description=form.cleaned_data["description"], owner_profile=None if space else request.user, owning_space=space, starts_on=form.cleaned_data["starts_on"], ends_on=form.cleaned_data["ends_on"])
+        project = create_project(
+            actor=request.user,
+            title=form.cleaned_data["title"],
+            description=form.cleaned_data["description"],
+            owner_profile=None if space else request.user,
+            owning_space=space,
+            starts_on=form.cleaned_data["starts_on"],
+            ends_on=form.cleaned_data["ends_on"],
+        )
         return redirect("objectives:project-detail", project_id=project.pk)
     return render(request, "objectives/project_form.html", {"form": form})
 
