@@ -49,13 +49,14 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         working-directory: .
         run: |
-          if git diff --quiet -- mobile/lib mobile/test; then
+          if git diff --quiet -- mobile/lib mobile/test mobile/pubspec.lock && \
+             test -z "$(git ls-files --others --exclude-standard mobile/pubspec.lock)"; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add mobile/lib mobile/test
-          git commit -m "style(mobile): apply dart format"
+          git add mobile/lib mobile/test mobile/pubspec.lock
+          git commit -m "chore(mobile): apply Dart format and lock dependencies"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
       - name: Analyze
         run: flutter analyze
