@@ -1,0 +1,55 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - "docs/architecture/mobile-*.md"
+      - ".github/workflows/mobile-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - "docs/architecture/mobile-*.md"
+      - ".github/workflows/mobile-ci.yml"
+
+concurrency:
+  group: mobile-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: "3.47.3"
+          channel: stable
+          cache: true
+      - name: Toolchain
+        run: flutter --version
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Generate Drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+      - name: Preserve resolved lockfile
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mobile-pubspec-lock
+          path: mobile/pubspec.lock
+          if-no-files-found: error
