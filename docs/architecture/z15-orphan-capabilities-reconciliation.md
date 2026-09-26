@@ -56,6 +56,8 @@ Elle est résolue exclusivement depuis les Permissions Platform et n'inclut aucu
 
 Inversement, les nouveaux contrats Espace Z15 utilisent des selectors d'autorité directe qui excluent l'héritage Platform. Une Permission Platform ne devient donc pas silencieusement une Permission Espace dans Workspace, Recognition Espace, Trust Espace, Funding management ou Analytics Espace.
 
+Le read-model historique `core.capabilities.get_web_capabilities()` est également réconcilié : ses indicateurs d'outils Espace/Activity sont calculés depuis les Mandates locaux uniquement, tandis que les capacités Platform restent dans leur famille Platform. Un administrateur Platform sans Mandate local ne reçoit donc plus `has_organizer_tools` simplement parce que `platform.manage` supervise globalement le backend.
+
 ## 3. Classification auditée
 
 | Capacité | Classe | État Z15 | Owner / contrat |
