@@ -43,5 +43,7 @@ jobs:
         run: flutter --version
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Generate Drift code
+        run: dart run build_runner build
       - name: Build Android debug
         run: flutter build apk --debug
