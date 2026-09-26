@@ -53,9 +53,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     final results = await Connectivity().checkConnectivity();
     if (!mounted) return;
     setState(
-      () => _online = results.any(
-        (result) => result != ConnectivityResult.none,
-      ),
+      () =>
+          _online = results.any((result) => result != ConnectivityResult.none),
     );
   }
 
@@ -95,10 +94,9 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     }
     try {
       await sync.refreshRoots();
-      final failedSources =
-          await (database.select(database.syncSources)
-                ..where((row) => row.invalidated.equals(true)))
-              .get();
+      final failedSources = await (database.select(
+        database.syncSources,
+      )..where((row) => row.invalidated.equals(true))).get();
       if (mounted) {
         setState(() {
           _syncFailed = failedSources.isNotEmpty;
