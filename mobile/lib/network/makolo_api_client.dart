@@ -124,12 +124,24 @@ class MakoloApiClient {
 
   Completer<AuthSession>? _refreshCompleter;
 
-  Future<AuthSession> _refreshSingleFlight() async {
+  Future<AuthSession> _refreshSingleFlight() {
     final existing = _refreshCompleter;
     if (existing != null) return existing.future;
 
     final completer = Completer<AuthSession>();
     _refreshCompleter = completer;
+    _performRefresh().then(
+      completer.complete,
+      onError: completer.completeError,
+    ).whenComplete(() {
+      if (identical(_refreshCompleter, completer)) {
+        _refreshCompleter = null;
+      }
+    });
+    return completer.future;
+  }
+
+  Future<AuthSession> _performRefresh() async {
     try {
       final current = await _tokens.readSession();
       if (current == null) {
@@ -152,18 +164,14 @@ class MakoloApiClient {
         profileId: current.profileId,
       );
       await _tokens.writeSession(rotated);
-      completer.complete(rotated);
       return rotated;
-    } on Object catch (error, stackTrace) {
+    } on Object catch (error) {
       if (error is MakoloApiError &&
           error.statusCode >= 400 &&
           error.statusCode < 500) {
         await _tokens.clearSession();
       }
-      completer.completeError(error, stackTrace);
       rethrow;
-    } finally {
-      _refreshCompleter = null;
     }
   }
 
