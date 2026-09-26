@@ -101,6 +101,8 @@ Aucune identité iOS n'est encore fixée : aucun `PRODUCT_BUNDLE_IDENTIFIER` n'e
 
 ## CI
 
+Le gate A1 Behavior utilise les mêmes checks rapides ; aucun workflow parallèle n’est introduit.
+
 - `Mobile CI` : checks Flutter rapides.
 - `Mobile Android Build` : compilation Android lorsque nécessaire.
 - `Mobile APK` : packaging manuel/checkpoint.
