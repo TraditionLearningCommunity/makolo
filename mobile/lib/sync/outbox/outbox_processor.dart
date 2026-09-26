@@ -22,8 +22,12 @@ class OutboxProcessor {
       final handler = handlers[operation.operationKind];
       if (handler == null) continue;
 
-      if (operation.state == OutboxState.failed.wireValue &&
-          operation.replayPolicy == ReplayPolicy.noBlindRetry.wireValue) {
+      if (operation.replayPolicy == ReplayPolicy.noBlindRetry.wireValue &&
+          operation.state != OutboxState.queued.wireValue) {
+        await repository.setState(
+          operation.operationId,
+          OutboxState.awaitingConfirmation,
+        );
         continue;
       }
 
