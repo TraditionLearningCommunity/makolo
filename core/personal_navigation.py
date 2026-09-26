@@ -64,7 +64,7 @@ ROUTES = {
     "objectives:dossier-list": ("ongoing", "Dossiers", "n2", "Dossiers"),
     "objectives:dossier-create": ("ongoing", "Nouveau Dossier", "n4", "Dossiers"),
     "objectives:dossier-detail": ("ongoing", "Dossier", "n3", "Dossiers"),
-    "objectives:project-list": ("ongoing", "Projets", "n2", "Projets"),
+    "objectives:project-list": ("ongoing", "En cours", "n2", "Projets"),
     "objectives:project-create": ("ongoing", "Nouveau Projet", "n4", "Projets"),
     "objectives:project-detail": ("ongoing", "Projet", "n3", "Projets"),
     "tickets:list": ("ongoing", "Mes billets", "n2", "Billets"),
