@@ -32,12 +32,14 @@ def _raise_service(exc):
     raise ValidationError(getattr(exc, "messages", [str(exc)])) from exc
 
 
-def _reward_payload(reward):
+def _reward_payload(reward, *, allow_redeem=None, redeem_url=None):
     self_eligible = bool(getattr(reward, "recognition_self_eligible", False))
-    capabilities = ["redeem"] if self_eligible else []
+    if allow_redeem is None:
+        allow_redeem = self_eligible
+    capabilities = ["redeem"] if allow_redeem else []
     links = {}
-    if self_eligible:
-        links["redeem"] = reverse(
+    if allow_redeem:
+        links["redeem"] = redeem_url or reverse(
             "recognition_api:reward-redeem",
             kwargs={"reward_id": reward.pk},
         )
@@ -66,20 +68,22 @@ def _reward_payload(reward):
     }
 
 
-def _redemption_payload(redemption, *, incoming=False):
+def _redemption_payload(redemption, *, incoming=False, decision_links=None):
     consent_state = (redemption.fulfillment_snapshot or {}).get("consent_state")
     capabilities = []
     links = {}
     if incoming and redemption.status == "requested" and consent_state == "pending":
         capabilities = ["accept", "decline"]
-        links["accept"] = reverse(
-            "recognition_api:redemption-decision",
-            kwargs={"redemption_id": redemption.pk, "decision": "accept"},
-        )
-        links["decline"] = reverse(
-            "recognition_api:redemption-decision",
-            kwargs={"redemption_id": redemption.pk, "decision": "decline"},
-        )
+        links = decision_links or {
+            "accept": reverse(
+                "recognition_api:redemption-decision",
+                kwargs={"redemption_id": redemption.pk, "decision": "accept"},
+            ),
+            "decline": reverse(
+                "recognition_api:redemption-decision",
+                kwargs={"redemption_id": redemption.pk, "decision": "decline"},
+            ),
+        }
     return {
         "id": str(redemption.pk),
         "reward": {
@@ -383,8 +387,25 @@ class SpaceRecognitionAPIView(APIView):
             },
             "account": _account_payload(account),
             "achievements": achievements,
-            "rewards": [_reward_payload(reward) for reward in rewards],
-            "incoming": [_redemption_payload(row, incoming=True) for row in incoming],
+            "rewards": [
+                _reward_payload(
+                    reward,
+                    allow_redeem=can_spend,
+                    redeem_url=f"/api/v1/recognition/spaces/{space.pk}/rewards/{reward.pk}/redeem/",
+                )
+                for reward in rewards
+            ],
+            "incoming": [
+                _redemption_payload(
+                    row,
+                    incoming=True,
+                    decision_links={
+                        "accept": f"/api/v1/recognition/spaces/{space.pk}/redemptions/{row.pk}/accept/",
+                        "decline": f"/api/v1/recognition/spaces/{space.pk}/redemptions/{row.pk}/decline/",
+                    },
+                )
+                for row in incoming
+            ],
             "redemptions": [_redemption_payload(row) for row in owned],
             "recent_activity": recent_activity,
             "benefits_received": [_redemption_payload(row) for row in received],
