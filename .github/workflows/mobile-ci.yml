@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter-foundation:
@@ -30,6 +30,8 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: "3.47.3"
@@ -43,13 +45,18 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Format source snapshot
         run: dart format lib test
-      - name: Upload formatted source snapshot
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: mobile-formatted-source
-          path: |
-            mobile/lib
-            mobile/test
+      - name: Commit formatter output on the A1 branch
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        working-directory: .
+        run: |
+          if git diff --quiet -- mobile/lib mobile/test; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/lib mobile/test
+          git commit -m "style(mobile): apply dart format"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
       - name: Analyze
         run: flutter analyze
       - name: Test
