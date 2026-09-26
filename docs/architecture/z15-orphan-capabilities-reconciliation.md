@@ -29,7 +29,7 @@ Z15 ne crée pas de seconde projection personnelle. Les contrats Z1–Z14 resten
 
 ### SPACE
 
-Un Profile agit dans un Espace uniquement sous Mandate/Permission réel. TeamMembership, GroupMembership et `OrganizationMembership` ne suffisent jamais.
+Un Profile agit dans un Espace uniquement sous Mandate/Permission réel. TeamMembership et GroupMembership ne suffisent jamais. `OrganizationMembership` reste une projection legacy particulière : les anciens writers peuvent encore la synchroniser vers un vrai Mandate par le bridge de compatibilité ; l'autorité qui en résulte vient du Mandate créé, jamais du champ `role` lu directement.
 
 Z15 ajoute une projection d'inventaire permissionnée :
 
@@ -88,7 +88,7 @@ Elle est résolue exclusivement depuis les Permissions Platform et n'inclut aucu
 | Trust public | PUBLIC | actif | Trust public summaries / verify endpoints |
 | Event/Ticket façades | LEGACY / COMPATIBILITY | conservées | verticales historiques, pas noyau transversal |
 | Scanner Event gates/logs/live | LEGACY / COMPATIBILITY | conservés | adaptateurs autour d'Access / Activity |
-| OrganizationMembership.role | LEGACY / COMPATIBILITY | aucune nouvelle autorité | Mandate reste source d'autorité |
+| OrganizationMembership.role | LEGACY / COMPATIBILITY | bridge historique vers Team/Mandate ; aucune lecture d'autorité directe | Mandate reste source d'autorité |
 | anciennes surfaces `network/` | LEGACY / COMPATIBILITY | non reconnectées comme feed | ActionNeed/Contribution/Group conservent leurs owners |
 | Prospector | INTERNAL_RUNTIME | runtime actif | worker/leases/healthcheck |
 | Observer | INTERNAL_RUNTIME | runtime actif selon activation | acquisition + worker |
