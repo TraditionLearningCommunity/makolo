@@ -146,16 +146,16 @@ Le nombre de N4 peut augmenter avec les capacités métier sans faire croître N
 
 ### Personnel
 
-Les listes et créations `Dossier` / `Project` ouvertes depuis **En cours** sont strictement personnelles :
+Les listes `Dossier` / `Project` ouvertes depuis **En cours** ne projettent que les réalités personnelles :
 
 - `owner_profile = request.user`
 - `owning_space = null`
 
-Un POST ne peut pas transformer silencieusement cette création en réalité Space.
+Le formulaire historique de création conserve toutefois son contrat brownfield : un Profile disposant de l’autorité requise peut choisir explicitement un `Espace porteur`. Cette capacité ne transforme pas pour autant la liste **En cours** en projection Space.
 
 ### Space
 
-Les capacités Space restent dans leur console/contextes dédiés. Une route opérateur ou staff partageant un namespace Django avec une capacité personnelle n’est **pas** automatiquement absorbée par le shell personnel.
+Les capacités Space restent dans leur console/contextes dédiés. La création explicite d’un Dossier/Projet avec `Espace porteur` respecte les permissions existantes, mais cette réalité n’est pas absorbée dans les listes personnelles. Une route opérateur ou staff partageant un namespace Django avec une capacité personnelle n’est **pas** automatiquement absorbée par le shell personnel.
 
 ### Platform
 
