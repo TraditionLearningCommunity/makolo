@@ -106,6 +106,9 @@ class Z15WorkspaceContractTests(TestCase):
             self.client.get("/api/v1/organizations/workspaces/").data,
             [],
         )
+        self.assertFalse(
+            authorized_spaces(self.platform).filter(pk=self.space.pk).exists()
+        )
         self.assertEqual(
             self.client.get(f"/api/v1/recognition/spaces/{self.space.pk}/").status_code,
             404,
