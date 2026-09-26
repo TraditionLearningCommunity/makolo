@@ -10,13 +10,13 @@ This document records architectural decisions, not a substitute for the current 
 
 Makolo keeps one Web product with different compositions by available space.
 
-- Compact: phone/mobile Web.
-- Adaptive: tablet and narrow desktop.
-- Expanded: starts at **1200 CSS px**.
+- Compact: **< 768 CSS px** — phone/mobile Web, bottom navigation, no desktop rail.
+- Adaptive: **768–1199 CSS px** — tablet and narrow desktop, compact desktop rail, no bottom navigation, primarily one main column.
+- Expanded: **>= 1200 CSS px** — full desktop workspace, with simultaneous context only when that context helps the user act.
 
-The 1200 px threshold intentionally includes smaller laptop-class screens. Expanded must never be interpreted as “make mobile cards wider”; it may add simultaneous context only when that context helps the user act.
+A narrow laptop must not fall back to a phone composition simply because it cannot sustain multiple panes. Adaptive is the desktop-like middle regime: it uses desktop navigation and accelerators without forcing Master/Detail, Explore or Inspect into insufficient width.
 
-The mobile bottom navigation and Compact presentation remain the fallback below Expanded.
+Expanded must never be interpreted as “make mobile cards wider”. It enables multi-pane compositions when the available width actually supports them.
 
 ## Canonical desktop compositions
 
@@ -88,7 +88,7 @@ Before W is considered closed:
 
 1. W5 and W6 must each have targeted tests.
 2. Compact/mobile Web must remain usable without horizontal overflow.
-3. 1200 px laptop-class Expanded behavior must be explicitly covered.
+3. Responsive boundaries must be explicitly covered: Compact around 400 px, Adaptive at 800 px and 1199 px, Expanded at 1200 px.
 4. HTMX navigation, direct URLs and browser history must remain valid.
 5. No migration or new business model may be introduced by W.
 6. All applicable PR CI gates must be terminally green before merge.
