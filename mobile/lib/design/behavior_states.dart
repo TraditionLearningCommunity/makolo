@@ -2,14 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'makolo_theme.dart';
 
-enum ContentVisualState {
-  initial,
-  loading,
-  content,
-  empty,
-  success,
-  error,
-}
+enum ContentVisualState { initial, loading, content, empty, success, error }
 
 class MakoloLoadingState extends StatelessWidget {
   const MakoloLoadingState({super.key, this.label = 'Chargement…'});
