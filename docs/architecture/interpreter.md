@@ -718,3 +718,41 @@ Actor 1 Prospector
 
 Les documents, blocs et normalisations restent éphémères. Les vérités durables
 restent dans leurs domaines propriétaires.
+
+---
+
+# ACT-F — Raffinement après test Web réel
+
+Le 25 septembre 2026, un pilote local réel a exercé la chaîne
+Prospecteur → Observateur HTTP → Interpréteur sur des pages publiques découvertes
+par Common Crawl. Le runtime Actor 3 a finalisé ses runs sans échec, mais
+l'inspection des candidates a révélé plusieurs faux positifs déterministes que
+la matrice synthétique ne couvrait pas encore.
+
+Corrections retenues :
+
+- les assets techniques `.css/.js/fonts/images/media` ne deviennent plus
+  `contact_url`, `registration_url` ou `reference_url` par simple présence
+  de mots comme « contact », « form » ou « search » dans leur chemin ;
+- les pseudo-liens vides/`#` et schémas inertes ne deviennent plus des URLs
+  de procédure ;
+- l'extraction téléphone exige désormais une quantité plausible de chiffres et
+  rejette notamment les plages d'années telles que `2026-2027` ;
+- dans un contexte d'admission, une étape procédurale telle que examen de
+  dossier, entretien, sélection, validation ou confirmation n'est plus
+  automatiquement transformée en `requirement_subject` sans marqueur explicite
+  d'obligation/condition ;
+- `WebSite` et `BreadcrumbList` restent des objets structurés de la page et ne
+  sont plus fusionnés dans les `type_hints` du document courant ;
+- la stratégie passe en version `2.1` avec fingerprints
+  `document_structure=2` et `generalist_semantics=2`, ce qui permet de rejouer
+  les mêmes ObservationMaterial sans refetch.
+
+Le pilote a aussi montré qu'un cycle `ProspectorRuntime.run_cycle()` revendique
+la Frontier READY globale, pas « la mission qui vient juste d'être lancée ».
+Un batch de 10 handoffs peut donc mélanger cibles de la mission courante et
+cibles READY antérieures. Une comparaison mission-scoped doit filtrer par
+provenance `mission_key`; l'écart 10 cibles découvertes / 7 runs associés dans
+ce pilote n'est donc pas, à lui seul, une perte Actor 3.
+
+Aucune migration, aucun nouveau fetch, aucun changement Actor 4.
