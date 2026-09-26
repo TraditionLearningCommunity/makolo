@@ -6,9 +6,9 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from authorization.constants import PermissionCode, SystemRoleCode
+from authorization.constants import PermissionCode, SPACE_PERMISSION_CODES, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, MandateStatus
-from authorization.services import activity_ids_with_permission, effective_permission_codes, has_platform_authority
+from authorization.selectors import activity_ids_with_direct_permission
 from .models import Organization
 
 
@@ -39,7 +39,7 @@ def _current_mandates(profile):
 def authorized_space_ids(profile):
     if not getattr(profile, "is_authenticated", False):
         return set()
-    if getattr(profile, "is_superuser", False) or has_platform_authority(profile):
+    if getattr(profile, "is_superuser", False):
         return None
     mandates = _current_mandates(profile)
     ids = set(mandates.filter(scope_type=AuthorityScope.SPACE).exclude(space_id=None).values_list("space_id", flat=True))
@@ -54,7 +54,7 @@ def authorized_spaces(profile):
 
 
 def has_space_authority(profile, space):
-    if getattr(profile, "is_superuser", False) or has_platform_authority(profile):
+    if getattr(profile, "is_superuser", False):
         return True
     return _current_mandates(profile).filter(scope_type=AuthorityScope.SPACE, space=space).exists()
 
@@ -62,11 +62,21 @@ def has_space_authority(profile, space):
 def activity_ids_for_space(profile, space):
     if not getattr(profile, "is_authenticated", False):
         return set()
-    if getattr(profile, "is_superuser", False) or has_platform_authority(profile) or has_space_authority(profile, space):
+    if getattr(profile, "is_superuser", False) or has_space_authority(profile, space):
         return None
     mandates = _current_mandates(profile).filter(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
     ids = set(mandates.values_list("activity_id", flat=True))
     return ids
+
+
+def _space_permission_codes(profile, space):
+    if getattr(profile, "is_superuser", False):
+        return set(SPACE_PERMISSION_CODES)
+    return set(
+        _current_mandates(profile)
+        .filter(scope_type=AuthorityScope.SPACE, space=space)
+        .values_list("role__role_permissions__permission__code", flat=True)
+    )
 
 
 def _space_role_codes(profile, space):
@@ -92,9 +102,9 @@ def _has_space_permission_outside_activity_manager(profile, space, permission_co
 
 
 def _has_activity_capability(profile, space, permission_code):
-    permitted = activity_ids_with_permission(profile, permission_code)
-    if permitted is None:
+    if getattr(profile, "is_superuser", False):
         return True
+    permitted = activity_ids_with_direct_permission(profile, permission_code)
     if not permitted:
         return False
     from activities.models import Activity
@@ -174,7 +184,7 @@ class SpaceConsoleContext:
         if allowed_ids is not None and space.pk not in allowed_ids:
             return None
         limited = not has_space_authority(profile, space)
-        permissions = frozenset(effective_permission_codes(profile, space=space))
+        permissions = frozenset(_space_permission_codes(profile, space))
         role_codes = frozenset(_space_role_codes(profile, space))
         activity_ids = activity_ids_for_space(profile, space)
         if activity_ids is not None:
