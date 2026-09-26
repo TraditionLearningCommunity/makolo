@@ -7,6 +7,7 @@ import '../features/auth/login_screen.dart';
 import '../features/splash/splash_screen.dart';
 import 'providers.dart';
 import 'router.dart';
+import 'sync_lifecycle.dart';
 
 class MakoloApp extends ConsumerWidget {
   const MakoloApp({super.key});
@@ -49,6 +50,10 @@ class MakoloApp extends ConsumerWidget {
           debugShowCheckedModeBanner: false,
           theme: buildMakoloTheme(),
           routerConfig: createMakoloRouter(runtime),
+          builder: (context, child) => SyncLifecycle(
+            runtime: runtime,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
