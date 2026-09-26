@@ -41,7 +41,7 @@ void main() {
       );
       PRAGMA user_version = 1;
     ''');
-    raw.dispose();
+    raw.close();
 
     final database = MakoloDatabase(NativeDatabase(file));
     addTearDown(database.close);
