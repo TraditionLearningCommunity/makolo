@@ -1,6 +1,6 @@
 # Z15 — Réconciliation des capacités orphelines
 
-> **Statut : chantier de fermeture backend.** Z15 ne crée pas une nouvelle expérience, ne refait pas W et ne construit ni desktop ni mobile. Il classe et expose proprement les capacités déjà présentes afin que Personnel, Espace et Platform restent trois contextes distincts.
+> **Statut : gate final de réconciliation backend.** Z15 ne crée pas une nouvelle expérience, ne refait pas W et ne construit ni desktop ni mobile. Il est fermé seulement lorsque la PR est intégrée sur `main` avec CI verte puis vérification post-merge. Il classe et expose proprement les capacités déjà présentes afin que Personnel, Espace et Platform restent trois contextes distincts.
 
 ## 1. Mission
 
