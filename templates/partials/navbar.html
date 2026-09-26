@@ -6,7 +6,7 @@
   <div class="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
     <div class="flex min-w-0 items-center gap-3">
       {% if space_console %}
-        <button type="button" @click="sidebarOpen=true" class="mk-icon-btn lg:hidden" aria-label="Ouvrir la navigation" aria-controls="app-sidebar" :aria-expanded="sidebarOpen ? 'true' : 'false'"><i data-lucide="menu"></i></button>
+        <button type="button" @click="sidebarOpen=true" class="mk-icon-btn md:hidden" aria-label="Ouvrir la navigation" aria-controls="app-sidebar" :aria-expanded="sidebarOpen ? 'true' : 'false'"><i data-lucide="menu"></i></button>
       {% elif personal_nav.back_url %}
         <a href="{{ personal_nav.back_url }}" class="mk-icon-btn" aria-label="Retour à {% if personal_nav.owner == 'now' %}Maintenant{% elif personal_nav.owner == 'discover' %}Découvrir{% elif personal_nav.owner == 'ongoing' %}En cours{% elif personal_nav.owner == 'me' %}Moi{% else %}Makolo{% endif %}"><i data-lucide="arrow-left"></i></a>
       {% endif %}
@@ -17,6 +17,7 @@
     </div>
 
     <div class="flex items-center gap-2">
+      {% if request.user.is_authenticated %}<button type="button" class="mk-command-trigger mk-icon-btn" data-mk-command-trigger aria-haspopup="dialog" aria-expanded="false" title="Navigation rapide · Ctrl/Cmd+K"><span class="mk-command-label-adaptive sr-only">Ouvrir la navigation rapide</span><span class="mk-command-label-expanded sr-only">Navigation rapide</span><i data-lucide="search" aria-hidden="true"></i></button>{% endif %}
       {% if not space_console and personal_nav.owner == 'now' and personal_nav.is_primary %}
         <a href="{% url 'conversations:list' %}" aria-label="Conversations{% if conversation_attention %}, {{ conversation_attention }} point{{ conversation_attention|pluralize }} pour vous{% endif %}" class="mk-icon-btn relative"><i data-lucide="message-square-heart"></i>{% if conversation_attention %}<span class="mk-attention-dot">{{ conversation_attention }}</span>{% endif %}</a>
         <a href="{% url 'notifications:list' %}" aria-label="Notifications" class="mk-icon-btn relative"><i data-lucide="bell"></i>{% if unread_notifications %}<span class="mk-attention-dot">{% if unread_notifications > 9 %}9+{% else %}{{ unread_notifications }}{% endif %}</span>{% endif %}</a>

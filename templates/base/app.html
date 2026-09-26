@@ -2,14 +2,14 @@
 {% personal_navigation request as personal_nav %}
 <!DOCTYPE html>
 <html lang="fr" class="h-full"{% if request.user.is_authenticated %} data-theme-preference="{{ request.user.profile.theme|default:'system' }}"{% endif %}>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><link rel="stylesheet" href="{% static 'css/mature-experience.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/workspace-runtime.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#2B176E"><title>{% block title %}Makolo{% endblock %}</title>{% block extra_meta %}{% endblock %}{% include 'partials/brand_head.html' %}<script src="{% static 'js/theme-preference.js' %}"></script><link rel="stylesheet" href="{% static 'dist/makolo.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-compat.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}"><link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}"><link rel="stylesheet" href="{% static 'css/mature-experience.css' %}"><script defer src="{% static 'dist/makolo.js' %}"></script><script defer src="{% static 'js/workspace-runtime.js' %}"></script><script defer src="{% static 'js/desktop-power.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% block extra_css %}{% endblock %}</head>
 <body class="min-h-full" x-data="{ sidebarOpen: false, navCompact: false }" @keydown.escape.window="sidebarOpen = false">
 <a href="#main-content" class="fixed left-4 top-2 z-[100] -translate-y-16 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">Aller au contenu principal</a>
 <div class="mk-app-shell flex min-h-screen" :class="{ 'mk-nav-compact': navCompact }">
   {% include 'partials/sidebar.html' %}
   <div class="mk-app-main min-w-0 flex-1">
     {% include 'partials/navbar.html' %}
-    <main id="main-content" tabindex="-1" data-mk-runtime-scope="{% if space_console %}space:{{ space.pk }}{% elif request.user.is_authenticated %}personal{% else %}public{% endif %}" class="mk-content-bg min-h-[calc(100vh-64px)] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
+    <main id="main-content" tabindex="-1" data-mk-runtime-scope="{% if space_console %}space:{{ space.pk }}{% elif request.user.is_authenticated %}personal{% else %}public{% endif %}" class="mk-content-bg min-h-[calc(100vh-64px)] px-4 pb-28 pt-5 sm:px-6 md:px-6 md:pb-12 md:pt-7 lg:px-8">
       <div class="mk-page-shell">
         {% include 'partials/messages.html' %}
         <div class="mk-workspace" data-workspace-layout="{% block workspace_layout %}focus{% endblock %}">
@@ -21,7 +21,7 @@
       </div>
     </main>
     {% if request.user.is_authenticated and not space_console %}
-    <nav id="mobile-primary-nav" class="mk-mobile-primary-nav mk-mature-bottom-nav lg:hidden" aria-label="Navigation principale" hx-boost="true" hx-target="#main-content" hx-select="#main-content" hx-select-oob="#app-topbar:outerHTML,#desktop-sidebar:outerHTML,#mobile-primary-nav:outerHTML" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-indicator="#main-content">
+    <nav id="mobile-primary-nav" class="mk-mobile-primary-nav mk-mature-bottom-nav md:hidden lg:hidden" aria-label="Navigation principale" hx-boost="true" hx-target="#main-content" hx-select="#main-content" hx-select-oob="#app-topbar:outerHTML,#desktop-sidebar:outerHTML,#mobile-primary-nav:outerHTML" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-indicator="#main-content">
       <a href="{% url 'core:participant-home' %}" {% if personal_nav.owner == 'now' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="clock-3" aria-hidden="true"></i><span>Maintenant</span></a>
       <a href="{% url 'discovery:home' %}" {% if personal_nav.owner == 'discover' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="compass" aria-hidden="true"></i><span>Découvrir</span></a>
       <a href="{% url 'core:makolo-mark' %}" class="mk-bottom-mark{% if personal_nav.owner == 'mark' %} is-active{% endif %}" {% if personal_nav.owner == 'mark' %}aria-current="page"{% endif %} aria-label="Makolo Mark"><span class="mk-bottom-mark__symbol">{% include 'partials/makolo_mark_inline.html' %}</span><span>Makolo</span></a>
@@ -31,6 +31,19 @@
     {% endif %}
     {% include 'partials/footer.html' %}
   </div>
+</div>
+<div id="mk-command-palette" class="mk-command-backdrop" role="dialog" aria-modal="true" aria-labelledby="mk-command-title" hidden>
+  <section class="mk-command-palette" aria-describedby="mk-command-shortcuts">
+    <div class="mk-command-header">
+      <div><span class="mk-kicker">Navigation rapide</span><h2 id="mk-command-title">Aller à</h2></div>
+      <button type="button" class="mk-icon-btn" data-mk-command-close aria-label="Fermer la palette"><i data-lucide="x" aria-hidden="true"></i></button>
+    </div>
+    <label class="sr-only" for="mk-command-input">Rechercher une destination</label>
+    <div class="mk-command-search"><i data-lucide="search" aria-hidden="true"></i><input id="mk-command-input" type="search" autocomplete="off" placeholder="Aller à…" aria-controls="mk-command-results" aria-autocomplete="list"></div>
+    <div id="mk-command-results" class="mk-command-results" role="listbox" aria-label="Destinations"></div>
+    <div id="mk-command-shortcuts" class="mk-command-shortcuts"><span><kbd>↑</kbd><kbd>↓</kbd> choisir</span><span><kbd>↵</kbd> ouvrir</span><span><kbd>Esc</kbd> fermer</span><span><kbd>?</kbd> aide</span></div>
+    <p id="mk-command-status" class="sr-only" aria-live="polite"></p>
+  </section>
 </div>
 {% block extra_js %}{% endblock %}
 </body></html>

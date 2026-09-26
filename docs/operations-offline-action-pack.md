@@ -18,7 +18,7 @@ La fenêtre actuelle est volontairement courte : une minute de fraîcheur et qui
 
 Le pack est viewer-aware et conserve uniquement le contexte opérationnel déjà autorisé par `Occurrence Live`. Avant sérialisation offline, il retire les champs de transport ou sensibles qui ne sont pas nécessaires pour agir hors connexion, notamment credentials, QR brut, token, secret, coordonnées de contact, données de paiement, URL d’action/itinéraire et historique de localisation.
 
-La réponse HTTP est marquée `Cache-Control: private, no-store` pour éviter qu’un cache HTTP partagé ou navigateur ne devienne un stockage implicite du pack. Le stockage offline explicite appartient au client mobile A4.
+La réponse HTTP est marquée `Cache-Control: private, no-store` pour éviter qu’un cache HTTP partagé, navigateur ou intermédiaire ne devienne un stockage implicite du pack. Après A0, un client installé authentifié peut toutefois absorber explicitement les champs autorisés du pack dans sa projection locale protégée. Cette persistance applicative appartient à la fondation local-first A1 ; elle n’est ni un cache HTTP ni une nouvelle vérité métier.
 
 Le pack ne contient aucune capacité de validation Access offline et aucun secret permettant de la simuler.
 
@@ -28,6 +28,14 @@ Un pack téléchargé précédemment n’accorde aucun droit. Toute mutation re�
 
 Les mutations live Operations refusent désormais une Occurrence `completed`, `cancelled` ou dont `end_at` est dépassé. Les opérations terminales de nettoyage restent possibles : fermeture d’une queue/checkpoint, expiration ou annulation d’une entrée, fin d’une affectation et désaffectation de placement.
 
-## Frontière mobile A4
+## Frontière mobile A1 / A4 / A5
 
-O5 ne fournit pas de stockage mobile chiffré, SQLite native, background sync OS, scanner réellement offline, validation Access offline, protocole double-use/double-spend, réconciliation multi-device, résolution de conflit, géofencing, GPS de fond, biométrie ou secure enclave/keystore. Ces responsabilités appartiennent au runtime mobile A4.
+O5 reste une projection serveur et ne fournit aucun runtime mobile.
+
+La fondation **A1 — Installed Makolo Core** possède le stockage privé local, la base SQLite/Drift, les migrations locales, l’outbox durable, la synchronisation owner-scoped, la reprise après crash et la convergence multi-device côté client. Cela rend Makolo local-first sans déplacer l’autorité métier.
+
+**A4 — Native & Ambient Makolo** possède les déclencheurs propres aux OS et aux capacités natives lorsqu’ils deviennent nécessaires : fenêtres de background, push, caméra, localisation, share sheet, widgets et deep links natifs.
+
+**A5 — Field Operations & Delegated Offline Authority** possède le scanner réellement offline, la validation Access hors connexion, le protocole double-use/double-spend, le clock skew, les allocations déléguées, les coordinateurs locaux et la réconciliation terrain.
+
+La biométrie/secure enclave/keystore peut protéger les données ou secrets locaux dès que le client en a besoin ; elle ne crée jamais une Permission, un Mandate, un Access ni une autorité offline.

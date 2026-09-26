@@ -250,18 +250,13 @@ Avant mobile, O peut définir :
 - politique de révocation ;
 - contrat de synchronisation/lecture lorsque nécessaire.
 
-Restent explicitement au programme mobile A4 :
+La frontière mobile est désormais séparée par responsabilité :
 
-- secure local storage natif ;
-- background sync OS ;
-- vrai scanner offline ;
-- réconciliation multi-device ;
-- replay/double-use ;
-- clock skew ;
-- conflits ;
-- protocole offline Access.
+- **A1** porte la fondation local-first : secure storage, DB locale, migrations locales, outbox durable, sync owner-scoped, reprise après crash et convergence multi-device côté client ;
+- **A4** porte les déclencheurs et capacités propres aux OS : push, fenêtres de background, caméra, localisation, share sheet, widgets et deep links natifs ;
+- **A5** porte l'autorité terrain avancée : vrai scanner offline, protocole Access offline, double-use/double-spend, clock skew, allocations déléguées, coordinateur local et réconciliation opérationnelle.
 
-O ne doit pas improviser ces garanties dans Django ou le navigateur uniquement pour « cocher offline ».
+O ne doit pas improviser ces garanties dans Django ou le navigateur uniquement pour « cocher offline ». Le pack O5 reste une projection de lecture sans autorité.
 
 ## 9. G — Profil, pertinence & réseau d'action
 
@@ -569,36 +564,92 @@ Après M10, la phrase suivante doit être vraie :
 
 ## 16. Programme A — mobile natif
 
-Le programme A commence seulement après M10.
+Le programme A commence après M10 et la réconciliation A0. Sa spécification architecturale de départ est [`mobile-a0-architecture-reconciliation.md`](mobile-a0-architecture-reconciliation.md).
 
-### A1 — Application Makolo
+### A0 — Mobile Architecture Reconciliation
 
-Nouveau client natif : architecture, navigation, auth, API client, state management, secure storage, design system, deep links, erreurs et cache de base. La technologie mobile n'est pas fixée sans décision réelle.
+A0 réconcilie Domain Architecture, M8, projections Z, M10, Product Language, Brand, Behavior & Interaction et le contrat local-first. Il ne construit pas encore l'application ; il ferme les choix de données, stockage, synchronisation, autorité, sécurité, navigation et tests nécessaires à A1.
 
-A1 consomme les contrats Makolo ; il ne réimplémente pas Readiness, Trust, ranking, permissions, goal progress, Hazards, Payment state ou Access validity.
+### A1 — Installed Makolo Core
 
-### A2 — Native Capabilities
+Fondation installée et **local-first dès la première ligne** :
 
-Device registration/push, biométrie locale, caméra/scanner natif, share sheet, contacts consentis, localisation native, geofencing et intents/voice lorsque justifiés.
+- scaffold Flutter dans `mobile/` du dépôt principal ;
+- auth JWT + secure storage + refresh sérialisé ;
+- SQLite/Drift et migrations locales ;
+- isolation locale par Profile ;
+- repositories ;
+- outbox durable ;
+- bootstrap + synchronisation owner-scoped ;
+- reprise après crash ;
+- design foundation et navigation structurée ;
+- CI mobile indépendante.
+
+A1 consomme les contrats Makolo ; il ne réimplémente pas Readiness, Trust, ranking, permissions, Payment state, Capacity ou Access validity.
+
+### A2 — Personal Makolo
+
+Implémente l'expérience personnelle canonique :
+
+`Maintenant · Découvrir · [Makolo Mark] · En cours · Moi`
+
+avec Avatar, restauration de contexte, états local-first et Discover Pack borné. Le Mark reste une porte d'intake/orchestration, pas un chatbot générique ni un propriétaire de fichiers.
+
+### A3 — Action Continuity
+
+Profondeurs nécessaires à la continuité d'action :
+
+- Journey ;
+- Forms ;
+- Requirements / Readiness en présentation ;
+- Access online ;
+- Resources / JourneyArtifact ;
+- Dossier / Project ;
+- Historique ;
+- Jour J et autres profondeurs owner-backed.
+
+### A4 — Native & Ambient Makolo
+
+Capacités réellement propres au téléphone :
+
+- caméra et fichiers ;
+- localisation native ;
+- share sheet ;
+- push ;
+- widgets / Live Activities ou équivalents ;
+- Universal Links / Android App Links après décision officielle ;
+- fenêtres de background et déclencheurs de sync lorsque justifiés.
+
+> **Push = signal. Sync = vérité.**
+
+### A5 — Field Operations & Delegated Offline Authority
+
+Recherche et implémentation des cas où le terrain doit agir sans l'autorité serveur immédiatement disponible :
+
+- scanner offline ;
+- Access offline ;
+- double-use / double-spend ;
+- clock skew ;
+- Capacity déléguée ;
+- Placement / Queue coordonnés localement ;
+- OfflineGrant uniquement si le besoin est démontré ;
+- réconciliation terrain.
+
+A5 n'est pas « rendre l'application offline » : l'application est déjà local-first depuis A1.
+
+### A6 — Mobile Mature & Release
+
+Fermeture mobile :
+
+- hardening sécurité ;
+- gestion/révocation native des appareils si requise ;
+- performance ;
+- stockage faible ;
+- observabilité privacy-safe ;
+- builds de release ;
+- préparation et publication stores.
 
 Biométrie et capacités device ne remplacent jamais l'autorisation serveur.
-
-### A3 — Ambient Makolo
-
-Widgets, lock screen, Live Activities/équivalents et notifications ambiantes affichent les projections Makolo — par exemple Readiness, NextAction, départ recommandé et état d'Occurrence — sans recalculer la vérité métier sur le téléphone.
-
-### A4 — Operations & Offline R&D
-
-Scanner offline, participant offline, background sync et résolution de conflits. Le backend reste source de vérité ; aucun `last write wins` aveugle pour Access ou Payment.
-
-Le mobile amplifie les rituels existants :
-
-- Aujourd'hui → widget ;
-- Il est temps d'y aller → push / Live Activity ;
-- Autour de moi → localisation ponctuelle ;
-- On fait ça ? → share sheet ;
-- document → caméra ;
-- Occurrence Live → haptique/offline/push.
 
 ## 17. Capacités réservées au mobile
 
@@ -658,4 +709,5 @@ Pas de merge rouge, pas de test affaibli pour obtenir du vert, pas de duplicatio
 - [`spatiotemporal-intelligence.md`](spatiotemporal-intelligence.md) — M6 et contrats provider-neutral existants ;
 - [`domain-events-automation.md`](domain-events-automation.md) — Domain Events/Automation ;
 - [`authorization-boundaries.md`](authorization-boundaries.md) — autorisation runtime ;
+- [`mobile-a0-architecture-reconciliation.md`](mobile-a0-architecture-reconciliation.md) — fondation local-first et handoff A1 ;
 - `docs/operations-runbook.md` — exploitation réelle.
