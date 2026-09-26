@@ -73,7 +73,6 @@ class OutboxRepository {
                 row.state.isIn([
                   OutboxState.queued.wireValue,
                   OutboxState.inFlight.wireValue,
-                  OutboxState.awaitingConfirmation.wireValue,
                   OutboxState.failed.wireValue,
                 ]),
           )
