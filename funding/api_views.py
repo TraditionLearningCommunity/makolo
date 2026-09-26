@@ -8,7 +8,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from activities.models import ActivityStatus, ActivityVisibility
-from organizations.console_context import authorized_spaces
+from authorization.constants import PermissionCode
+from authorization.selectors import (
+    has_direct_activity_permission,
+    has_direct_space_permission,
+)
 from organizations.models import Organization
 
 from .api_serializers import (
@@ -81,6 +85,39 @@ def _payload(funding, actor):
     }
 
 
+def _can_manage_funding_direct(actor, funding):
+    activity = funding.activity
+    if activity.space_id is None:
+        return activity.owner_profile_id == getattr(actor, "pk", None)
+    if not has_direct_activity_permission(
+        actor,
+        activity,
+        PermissionCode.ACTIVITY_MANAGE,
+    ):
+        return False
+    return has_direct_space_permission(
+        actor,
+        activity.space,
+        PermissionCode.FINANCE_MANAGE,
+    ) or has_direct_activity_permission(
+        actor,
+        activity,
+        PermissionCode.ACTIVITY_FINANCE_MANAGE,
+    )
+
+
+def _can_create_space_funding_direct(actor, space):
+    return has_direct_space_permission(
+        actor,
+        space,
+        PermissionCode.SPACE_ACTIVITIES_MANAGE,
+    ) and has_direct_space_permission(
+        actor,
+        space,
+        PermissionCode.FINANCE_MANAGE,
+    )
+
+
 def _managed_funding(actor, pk):
     funding = (
         FundingDetails.objects.select_related(
@@ -89,7 +126,11 @@ def _managed_funding(actor, pk):
         .filter(pk=pk)
         .first()
     )
-    if funding is None or not can_manage_funding(actor, funding):
+    if (
+        funding is None
+        or not _can_manage_funding_direct(actor, funding)
+        or not can_manage_funding(actor, funding)
+    ):
         raise NotFound()
     return funding
 
@@ -103,19 +144,23 @@ class FundingListCreateAPIView(APIView):
             raise ValidationError({
                 "space": "Le paramètre space est obligatoire pour la collection de gestion."
             })
-        space = authorized_spaces(request.user).filter(pk=space_id).first()
+        space = Organization.objects.filter(pk=space_id).first()
         if space is None:
             raise NotFound()
-        queryset = (
+        queryset = list(
             FundingDetails.objects.filter(activity__space=space)
             .select_related("activity", "activity__space", "activity__owner_profile")
             .order_by("activity__title", "id")[:100]
         )
-        rows = [
-            _payload(row, request.user)
+        manageable = [
+            row
             for row in queryset
-            if can_manage_funding(request.user, row)
+            if _can_manage_funding_direct(request.user, row)
+            and can_manage_funding(request.user, row)
         ]
+        if not manageable and not _can_create_space_funding_direct(request.user, space):
+            raise NotFound()
+        rows = [_payload(row, request.user) for row in manageable]
         response = Response(rows)
         response["Cache-Control"] = "private, no-store"
         return response
@@ -126,6 +171,8 @@ class FundingListCreateAPIView(APIView):
         data = dict(serializer.validated_data)
         space_id = data.pop("space_id", None)
         space = get_object_or_404(Organization, pk=space_id) if space_id else None
+        if space is not None and not _can_create_space_funding_direct(request.user, space):
+            raise NotFound()
         try:
             funding = create_funding(actor=request.user, space=space, **data)
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
