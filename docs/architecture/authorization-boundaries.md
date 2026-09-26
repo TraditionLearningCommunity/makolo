@@ -50,6 +50,8 @@ Ils ne prennent en compte que des Mandates `space` / `activity` réels et leur h
 
 Cette frontière s'applique notamment à Workspace, Funding management, Recognition Espace, Trust Espace et au narrowing Analytics Espace.
 
+Z15 l'applique aussi à la Console Espace elle-même : `authorized_spaces()`, la résolution des Activity accessibles et les permissions de navigation ne prennent plus un Mandat Platform pour une autorité Espace. Un administrateur Platform doit entrer par le contrat Platform ; s'il doit réellement agir au nom d'un Espace, il lui faut un Mandat Espace/Activity explicite. `is_superuser` reste le privilège technique Django ultime et conserve son bypass documenté.
+
 ## Rôles système Espace
 
 Les anciens `OrganizationRole` sont mappés vers les rôles système canoniques suivants :
