@@ -47,7 +47,10 @@ void main() {
     );
 
     expect(find.byType(SnackBar), findsNothing);
-    expect(find.text('Vos données déjà disponibles sont conservées.'), findsOneWidget);
+    expect(
+      find.text('Vos données déjà disponibles sont conservées.'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Réessayer'));
     expect(retries, 1);
   });
@@ -116,10 +119,7 @@ void main() {
         theme: buildMakoloTheme(),
         home: const Scaffold(
           body: NetworkStateIndicator(
-            status: SyncStatus(
-              state: SyncVisualState.offline,
-              pendingCount: 1,
-            ),
+            status: SyncStatus(state: SyncVisualState.offline, pendingCount: 1),
           ),
         ),
       ),
