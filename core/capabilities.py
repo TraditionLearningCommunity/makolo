@@ -1,4 +1,4 @@
-from authorization.constants import PermissionCode
+from authorization.constants import ACTIVITY_PERMISSION_CODES, PermissionCode, SPACE_PERMISSION_CODES
 from authorization.models import AuthorityScope
 from authorization.selectors import current_mandates
 from authorization.services import effective_permission_codes
@@ -68,16 +68,19 @@ def get_web_capabilities(user) -> dict[str, bool]:
     effective = effective_permission_codes(user)
     # Presentation of Space/Activity tools must not inherit Platform authority.
     # Platform supervision has its own capability family and server entry.
-    local_codes = set(
-        current_mandates()
-        .filter(
-            profile=user,
-            scope_type__in=(AuthorityScope.SPACE, AuthorityScope.ACTIVITY),
-            role__role_permissions__permission__is_active=True,
+    if getattr(user, "is_superuser", False):
+        local_codes = set(SPACE_PERMISSION_CODES) | set(ACTIVITY_PERMISSION_CODES)
+    else:
+        local_codes = set(
+            current_mandates()
+            .filter(
+                profile=user,
+                scope_type__in=(AuthorityScope.SPACE, AuthorityScope.ACTIVITY),
+                role__role_permissions__permission__is_active=True,
+            )
+            .values_list("role__role_permissions__permission__code", flat=True)
+            .distinct()
         )
-        .values_list("role__role_permissions__permission__code", flat=True)
-        .distinct()
-    )
     has_team = TeamMembership.objects.filter(
         user=user,
         status=TeamMembershipStatus.ACTIVE,
