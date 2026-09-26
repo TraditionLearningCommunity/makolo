@@ -5,20 +5,26 @@ import 'package:drift/drift.dart';
 import '../../data/local/makolo_database.dart';
 
 enum OutboxState {
-  queued,
-  inFlight,
-  awaitingConfirmation,
-  confirmed,
-  conflict,
-  failed,
-  cancelled,
+  queued('queued'),
+  inFlight('in_flight'),
+  awaitingConfirmation('awaiting_confirmation'),
+  confirmed('confirmed'),
+  conflict('conflict'),
+  failed('failed'),
+  cancelled('cancelled');
+
+  const OutboxState(this.wireValue);
+  final String wireValue;
 }
 
 enum ReplayPolicy {
-  safe,
-  idempotent,
-  refetchBeforeRetry,
-  noBlindRetry,
+  safe('safe'),
+  idempotent('idempotent'),
+  refetchBeforeRetry('refetch-before-retry'),
+  noBlindRetry('no-blind-retry');
+
+  const ReplayPolicy(this.wireValue);
+  final String wireValue;
 }
 
 class OutboxRepository {
@@ -54,7 +60,7 @@ class OutboxRepository {
             observedAt: DateTime.now().toUtc(),
             intentId: intentId,
             ownerIdempotencyKey: Value(ownerIdempotencyKey),
-            replayPolicy: replayPolicy.name,
+            replayPolicy: replayPolicy.wireValue,
           ),
         );
   }
@@ -65,10 +71,10 @@ class OutboxRepository {
             (row) =>
                 row.profileId.equals(profileId) &
                 row.state.isIn([
-                  OutboxState.queued.name,
-                  OutboxState.inFlight.name,
-                  OutboxState.awaitingConfirmation.name,
-                  OutboxState.failed.name,
+                  OutboxState.queued.wireValue,
+                  OutboxState.inFlight.wireValue,
+                  OutboxState.awaitingConfirmation.wireValue,
+                  OutboxState.failed.wireValue,
                 ]),
           )
           ..orderBy([(row) => OrderingTerm.asc(row.observedAt)]))
@@ -84,7 +90,7 @@ class OutboxRepository {
           ..where((row) => row.operationId.equals(operationId)))
         .write(
       OutboxOperationsCompanion(
-        state: Value(state.name),
+        state: Value(state.wireValue),
         lastErrorCode: Value(errorCode),
       ),
     );
