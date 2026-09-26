@@ -97,6 +97,23 @@ class W7OrphanCapabilityReachabilityTests(TestCase):
         ):
             self.assertEqual(self.client.get(path).status_code, 403)
 
+    def test_existing_space_surfaces_reach_advanced_owner_tools(self):
+        self.client.force_authenticate(self.owner)
+
+        analytics = self.client.get("/spaces/w7-space/analytics/")
+        self.assertEqual(analytics.status_code, 200)
+        self.assertContains(analytics, "/analytics/growth/o/w7-space/")
+
+        automation = self.client.get("/spaces/w7-space/automation/")
+        self.assertEqual(automation.status_code, 200)
+        self.assertContains(automation, "/autopilot/crm/w7-space/")
+
+        control = self.client.get("/spaces/w7-space/control/")
+        self.assertEqual(control.status_code, 200)
+        self.assertContains(control, "/scanner/logs/")
+        self.assertContains(control, "/scanner/gates/")
+        self.assertContains(control, "/scanner/assignments/")
+
     def test_space_funding_create_keeps_space_preselected(self):
         self.client.force_authenticate(self.owner)
         response = self.client.get("/funding/new/?space=w7-space")
