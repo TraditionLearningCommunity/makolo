@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart';
+
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
 import '../network/api_error.dart';
