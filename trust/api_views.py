@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 from rest_framework.views import APIView
 
+from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
 from journeys.models import Journey
 from organizations.models import Organization
 
@@ -121,7 +123,22 @@ class SpaceOperatorTrustAPIView(APIView):
 
     def get(self, request, space_id):
         space = Organization.objects.filter(pk=space_id).first()
-        if space is None or not can_view_space_trust(request.user, space):
+        if (
+            space is None
+            or not (
+                has_direct_space_permission(
+                    request.user,
+                    space,
+                    PermissionCode.SPACE_TRUST_VIEW,
+                )
+                or has_direct_space_permission(
+                    request.user,
+                    space,
+                    PermissionCode.SPACE_TRUST_MANAGE,
+                )
+            )
+            or not can_view_space_trust(request.user, space)
+        ):
             from rest_framework.exceptions import NotFound
             raise NotFound()
 
@@ -138,7 +155,14 @@ class SpaceOperatorTrustAPIView(APIView):
             for claim in VerificationClaim.objects.filter(subject_space=space)
             .order_by("-requested_at", "id")[:50]
         ]
-        can_manage = can_manage_space_trust(request.user, space)
+        can_manage = (
+            has_direct_space_permission(
+                request.user,
+                space,
+                PermissionCode.SPACE_TRUST_MANAGE,
+            )
+            and can_manage_space_trust(request.user, space)
+        )
         payload["capabilities"] = ["view"] + (["request_verification"] if can_manage else [])
         payload["links"] = {"self": f"/api/v1/trust/spaces/{space.pk}/operator/"}
         if can_manage:
@@ -156,7 +180,15 @@ class SpaceVerificationRequestAPIView(APIView):
 
     def post(self, request, space_id):
         space = Organization.objects.filter(pk=space_id).first()
-        if space is None or not can_manage_space_trust(request.user, space):
+        if (
+            space is None
+            or not has_direct_space_permission(
+                request.user,
+                space,
+                PermissionCode.SPACE_TRUST_MANAGE,
+            )
+            or not can_manage_space_trust(request.user, space)
+        ):
             from rest_framework.exceptions import NotFound
             raise NotFound()
 
