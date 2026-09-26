@@ -48,17 +48,13 @@ User = get_user_model()
 
 
 class NetworkView(LoginRequiredMixin, TemplateView):
+    """Compatibility route for the retired generic personal action stream."""
+
     template_name = "social/network.html"
     login_url = "core:login"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        try:
-            offset = max(0, int(self.request.GET.get("offset", "0")))
-        except ValueError:
-            offset = 0
-        context["stream_page"] = build_action_stream(self.request.user, offset=offset, limit=20)
-        return context
+    def get(self, request, *args, **kwargs):
+        return redirect("core:participant-home")
 
 
 class GroupNetworkView(LoginRequiredMixin, TemplateView):
