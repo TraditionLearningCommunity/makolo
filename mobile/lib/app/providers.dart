@@ -69,7 +69,9 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   }
 
   final database = await MakoloDatabase.openForProfile(profileId);
-  ref.onDispose(database.close);
+  ref.onDispose(() {
+    unawaited(database.close());
+  });
   final store = ProfileStore(database, profileId);
   final personal = PersonalRepository(store);
   final outbox = OutboxRepository(database, profileId);
