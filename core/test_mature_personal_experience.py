@@ -53,7 +53,7 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertIn('data-mk-runtime-scope="personal"', html)
         self.assertIn('js/workspace-runtime.js', html)
         self.assertIn('id="mobile-primary-nav"', html)
-        self.assertIn('lg:hidden', html)
+        self.assertIn('md:hidden', html)
 
     def test_personal_surfaces_expose_their_expanded_compositions(self):
         now_response = self.client.get(reverse("core:participant-home"))
