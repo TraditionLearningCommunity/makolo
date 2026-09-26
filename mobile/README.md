@@ -68,6 +68,8 @@ flutter build apk --debug
 flutter run -d <device-id> --dart-define=MAKOLO_API_BASE_URL=https://<hote-autorise>
 ```
 
+Pour les APK de test générées par GitHub Actions, le workflow manuel `Mobile APK` demande l'URL API au déclenchement. Sa valeur bêta par défaut est `https://makolo.pythonanywhere.com`. Cette valeur est un environnement de test temporaire, pas une cible de production.
+
 Aucune identité iOS n'est encore fixée : aucun `PRODUCT_BUNDLE_IDENTIFIER` n'est inventé et aucun host iOS n'est généré dans ce chantier.
 
 ## Frontières
