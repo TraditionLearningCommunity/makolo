@@ -7,6 +7,7 @@ from authorization.services import grant_space_role
 from automation.models import CRMWorkflow, CRMWorkflowTrigger
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 from partners.models import Partner
+from recognition.models import RewardDefinition, RewardKind
 from recognition.services import get_or_create_account
 
 
@@ -77,12 +78,32 @@ class Z15OrphanScopeTests(TestCase):
     def test_space_recognition_is_space_scoped(self):
         account = get_or_create_account(space=self.space)
         account.points_balance = 12
+        account.lifetime_earned = 12
         account.save()
+        reward = RewardDefinition.objects.create(
+            code="z15-space-reward",
+            version=1,
+            name="Reward Espace Z15",
+            kind=RewardKind.PROMOTION,
+            points_cost=5,
+            beneficiary_allowed=True,
+            eligibility={"beneficiary_subject_types": ["space"]},
+            fulfillment={"owner_domain": "external"},
+        )
 
         self.client.force_authenticate(self.owner)
         response = self.client.get(f"/api/v1/recognition/spaces/{self.space.pk}/")
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["summary"]["available_credits"], 12)
+        rendered = next(row for row in response.data["rewards"] if row["id"] == str(reward.pk))
+        self.assertEqual(
+            rendered["links"]["redeem"],
+            f"/api/v1/recognition/spaces/{self.space.pk}/rewards/{reward.pk}/redeem/",
+        )
+        self.assertNotEqual(
+            rendered["links"]["redeem"],
+            f"/api/v1/recognition/rewards/{reward.pk}/redeem/",
+        )
 
         self.client.force_authenticate(self.other)
         self.assertEqual(
