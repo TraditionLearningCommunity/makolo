@@ -82,7 +82,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Actions secondaires'), findsOneWidget);
 
-    await tester.pageBack();
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('Actions secondaires'), findsNothing);
   });
