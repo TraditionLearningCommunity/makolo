@@ -5,7 +5,7 @@ from accounts.models import User
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_space_role
 from automation.models import CRMWorkflow, CRMWorkflowTrigger
-from organizations.models import Organization, OrganizationMembership, OrganizationRole
+from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 from partners.models import Partner
 from recognition.services import get_or_create_account
 
@@ -39,11 +39,15 @@ class Z15OrphanScopeTests(TestCase):
             role=SystemRoleCode.SPACE_OWNER,
             granted_by=self.owner,
         )
-        OrganizationMembership.objects.create(
+        team = Team.objects.create(
             organization=self.space,
-            user=self.member,
-            role=OrganizationRole.MARKETING,
+            name="Collaborateurs Z15",
             is_active=True,
+        )
+        TeamMembership.objects.create(
+            team=team,
+            user=self.member,
+            status=TeamMembershipStatus.ACTIVE,
         )
         Partner.objects.create(organization=self.space, name="Partner A")
         Partner.objects.create(organization=self.space_b, name="Partner B")
