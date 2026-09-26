@@ -19,15 +19,14 @@ class ApiResponse {
 
 class MakoloApiClient {
   MakoloApiClient({
-    required Uri baseUri,
+    required this.baseUri,
     required http.Client httpClient,
     required TokenStore tokenStore,
     this.timeout = const Duration(seconds: 15),
-  })  : _baseUri = baseUri,
-        _http = httpClient,
+  })  : _http = httpClient,
         _tokens = tokenStore;
 
-  final Uri _baseUri;
+  final Uri baseUri;
   final http.Client _http;
   final TokenStore _tokens;
   final Duration timeout;
@@ -178,7 +177,7 @@ class MakoloApiClient {
     Map<String, dynamic>? body,
     Map<String, String>? extraHeaders,
   }) async {
-    final uri = _baseUri.resolve(path);
+    final uri = baseUri.resolve(path);
     final headers = <String, String>{
       'Accept': 'application/json',
       if (body != null) 'Content-Type': 'application/json',
