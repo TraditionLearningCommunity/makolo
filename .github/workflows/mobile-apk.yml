@@ -2,6 +2,12 @@ name: Mobile APK
 
 on:
   workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Makolo API base URL for this test APK"
+        required: true
+        default: "https://makolo.pythonanywhere.com"
+        type: string
 
 concurrency:
   group: mobile-apk-${{ github.ref }}
@@ -33,7 +39,7 @@ jobs:
       - name: Test
         run: flutter test
       - name: Build Android debug APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug --dart-define=MAKOLO_API_BASE_URL=${{ inputs.api_base_url }}
       - name: Publish Android debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
