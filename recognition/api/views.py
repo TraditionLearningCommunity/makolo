@@ -19,6 +19,7 @@ from recognition.selectors import (
 )
 from recognition.services import get_or_create_account
 from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
 from authorization.services import can
 from organizations.models import Organization
 
@@ -311,10 +312,18 @@ def _space_for_recognition(actor, space_id, *, spend=False):
     space = Organization.objects.filter(pk=space_id).first()
     if space is None:
         raise NotFound()
-    code = PermissionCode.SPACE_RECOGNITION_SPEND if spend else PermissionCode.SPACE_RECOGNITION_VIEW
-    allowed = can(actor, code, space=space)
+    code = (
+        PermissionCode.SPACE_RECOGNITION_SPEND
+        if spend
+        else PermissionCode.SPACE_RECOGNITION_VIEW
+    )
+    allowed = has_direct_space_permission(actor, space, code)
     if not allowed and not spend:
-        allowed = can(actor, PermissionCode.SPACE_RECOGNITION_SPEND, space=space)
+        allowed = has_direct_space_permission(
+            actor,
+            space,
+            PermissionCode.SPACE_RECOGNITION_SPEND,
+        )
     if not allowed:
         raise NotFound()
     return space
@@ -326,7 +335,11 @@ class SpaceRecognitionAPIView(APIView):
     def get(self, request, space_id):
         space = _space_for_recognition(request.user, space_id)
         account = account_for_space(space)
-        can_spend = can(request.user, PermissionCode.SPACE_RECOGNITION_SPEND, space=space)
+        can_spend = has_direct_space_permission(
+            request.user,
+            space,
+            PermissionCode.SPACE_RECOGNITION_SPEND,
+        )
         rewards = active_rewards(owner_account=account)[:PERSONAL_RECOGNITION_LIMIT] if account else []
         incoming = []
         owned = []
