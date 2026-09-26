@@ -353,7 +353,17 @@ class ProgramListCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        return Response(LoyaltyProgramSerializer(get_programs_visible_to(request.user).prefetch_related("tiers", "membership_plans", "rewards"), many=True).data)
+        queryset = get_programs_visible_to(request.user).prefetch_related("tiers", "membership_plans", "rewards")
+        organization = str(request.query_params.get("organization") or "").strip()
+        if organization:
+            try:
+                import uuid
+                uuid.UUID(organization)
+            except (ValueError, TypeError, AttributeError):
+                queryset = queryset.filter(organization__slug=organization)
+            else:
+                queryset = queryset.filter(organization_id=organization)
+        return Response(LoyaltyProgramSerializer(queryset, many=True).data)
 
     def post(self, request):
         serializer = ProgramCreateSerializer(data=request.data)

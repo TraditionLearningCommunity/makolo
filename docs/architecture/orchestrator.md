@@ -29,10 +29,14 @@ Le manque réel était surtout une frontière explicite et sûre
 `ResolvedMaterial v1 -> décision applicative -> owner`, ainsi qu'un contrat
 commun interdisant de transformer l'Orchestrateur en God Object.
 
-Aucun runtime `Projector` ou `Univers Makolo` n'est actuellement présent
-dans le code du `main` audité. Actor 5 ne fabrique donc aucun faux handoff vers
-ces acteurs. Ces ports devront être ajoutés seulement lorsque leurs contrats
-runtime existeront.
+Cette conclusion était vraie sur la base historique Actor 5 mais n'est plus la
+vérité du `main` courant. Actor 7 `projector` est désormais intégré : il
+construit des `UniverseSnapshot` / `UniverseDelta` déterministes depuis les
+owners canoniques et expose le port provider-neutral `UniverseProjectionPort`.
+
+Actor 8 reste en revanche **non livré**. `projector_rebuild` n'accepte donc
+toujours que `--dry-run` et n'envoie aucun snapshot vers une cible inventée.
+Actor 5 ne doit pas absorber Actor 7 ni simuler Actor 8.
 
 ## Formule stabilisée
 
@@ -180,7 +184,9 @@ Dérivées : décision, reason code, opération appelée, ref de résultat.
 Actor 4 Resolver, services propriétaires, Authorization et, selon le workflow,
 Domain Events / M7 Interoperability.
 
-Aucune dépendance à une implémentation Univers inexistante.
+Aucune dépendance à une implémentation Actor 8 inexistante. Actor 7 Projector
+existe maintenant comme frontière interne séparée et ne devient pas une
+dépendance implicite de chaque orchestration Actor 5.
 
 ## 14. Consommateurs
 
@@ -188,7 +194,9 @@ Aucune dépendance à une implémentation Univers inexistante.
 - futures boucles event-driven ;
 - Presenter via un résultat déjà autorisé ;
 - futur Persistateur pour les décisions de durabilité sous ownership métier ;
-- futur Projecteur lorsque son port existera.
+- Actor 7 Projector via ses contrats explicites uniquement lorsqu'un workflow
+  le justifie ; jamais comme dispatch implicite ;
+- futur Actor 8 lorsqu'un runtime réel existera.
 
 ## 15. Déclencheurs
 

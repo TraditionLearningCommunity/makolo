@@ -7,8 +7,8 @@ from django.db.models.functions import TruncDate, TruncHour
 from django.utils import timezone
 
 from events.models import EventStatus
-from organizations.models import OrganizationMembership
-from organizations.permissions import FINANCE_ROLES
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
 from payments.models import Payment, PaymentStatus, Refund, RefundStatus
 from scanner.models import ScanLog, ScanResult
 from tickets.models import (
@@ -400,8 +400,11 @@ def build_event_analytics(event, user, *, days=30):
     }
 
 
-def build_portfolio_analytics(user):
-    events = list(get_analytics_events(user).order_by("-start_at")[:40])
+def build_portfolio_analytics(user, *, organization=None):
+    events_queryset = get_analytics_events(user)
+    if organization is not None:
+        events_queryset = events_queryset.filter(activity__space=organization)
+    events = list(events_queryset.order_by("-start_at")[:40])
     event_ids = [event.pk for event in events]
     now = timezone.now()
 
@@ -440,22 +443,26 @@ def build_portfolio_analytics(user):
     ):
         waiting_by_event[row["ticket_type__event_id"]] = row["total"]
 
-    if user.is_staff:
-        financial_event_ids = set(event_ids)
-    else:
-        finance_org_ids = set(
-            OrganizationMembership.objects.filter(
-                user=user,
-                is_active=True,
-                role__in=FINANCE_ROLES,
-            ).values_list("organization_id", flat=True)
+    finance_space_ids = space_ids_with_permission(
+        user,
+        PermissionCode.ANALYTICS_FINANCIALS_VIEW,
+    )
+    finance_space_ids = None if finance_space_ids is None else set(finance_space_ids)
+    financial_event_ids = {
+        event.pk
+        for event in events
+        if (
+            event.activity.space_id
+            and (
+                finance_space_ids is None
+                or event.activity.space_id in finance_space_ids
+            )
         )
-        financial_event_ids = {
-            event.pk
-            for event in events
-            if (event.organization_id and event.organization_id in finance_org_ids)
-            or (not event.organization_id and user_can_view_event_financials(user, event))
-        }
+        or (
+            not event.activity.space_id
+            and user_can_view_event_financials(user, event)
+        )
+    }
 
     gross_by_event = defaultdict(lambda: defaultdict(lambda: Decimal("0")))
     for row in (

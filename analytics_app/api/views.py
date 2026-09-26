@@ -1,4 +1,8 @@
 from django.shortcuts import get_object_or_404
+
+from authorization.constants import PermissionCode
+from authorization.selectors import space_ids_with_direct_permission
+from organizations.models import Organization
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -63,7 +67,25 @@ class AnalyticsOverviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(_serialize_portfolio(build_portfolio_analytics(request.user)))
+        organization = None
+        organization_slug = str(request.query_params.get("organization") or "").strip()
+        if organization_slug:
+            visible_ids = space_ids_with_direct_permission(
+                request.user,
+                PermissionCode.ANALYTICS_VIEW,
+            )
+            organization = get_object_or_404(
+                Organization.objects.filter(pk__in=visible_ids),
+                slug=organization_slug,
+            )
+        return Response(
+            _serialize_portfolio(
+                build_portfolio_analytics(
+                    request.user,
+                    organization=organization,
+                )
+            )
+        )
 
 
 class EventAnalyticsAPIView(APIView):

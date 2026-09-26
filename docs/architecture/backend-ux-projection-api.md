@@ -49,6 +49,16 @@ Z1 réserve le contrat mais ne crée pas de route vide.
 
 `GET /api/v1/accounts/auth/me/` reste l'identité/auth bootstrap. Il ne devient pas la projection UX `Moi`.
 
+Z15 étend la même discipline sans créer de mega-endpoint :
+
+```text
+GET /api/v1/organizations/workspaces/          → Espaces où le Profile peut réellement agir
+GET /api/v1/organizations/workspaces/<slug>/   → modules/capabilities/owner links de cet Espace
+GET /api/v1/platform/capabilities/              → porte serveur Platform, strictement séparée
+```
+
+Le read-model Espace ne possède aucune vérité des domaines Partners, Growth, Analytics, Loyalty, Recognition, Trust, Funding, Scanner, CRM, Automation ou Promotions. Il indique seulement quels contrats propriétaires sont accessibles sous les Permissions actuelles.
+
 Les APIs domaine existantes restent dans leurs namespaces lorsqu'elles sont déjà adaptées, par exemple Operations, Trust, Preparation, Loyalty et Discovery. Une profondeur UX les référence plutôt que les dupliquer.
 
 Discover continue sous `/api/v1/discovery/`. Z3 alignera l'API sur la composition Mature existante sans créer un second moteur de recherche. Makolo Mark n'obtient pas de route générique en Z1.
