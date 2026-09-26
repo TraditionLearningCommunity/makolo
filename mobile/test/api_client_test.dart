@@ -59,6 +59,50 @@ void main() {
     expect((await tokens.readSession())?.refreshToken, 'new-refresh');
   });
 
+  test('logout after access expiry blacklists the rotated refresh', () async {
+    var refreshCalls = 0;
+    String? loggedOutRefresh;
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'expired-access',
+        refreshToken: 'old-refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/refresh/')) {
+        refreshCalls += 1;
+        return http.Response(
+          jsonEncode({
+            'access': 'fresh-access',
+            'refresh': 'fresh-refresh',
+          }),
+          200,
+        );
+      }
+      if (request.url.path.endsWith('/auth/logout/')) {
+        if (request.headers['Authorization'] == 'Bearer expired-access') {
+          return http.Response(jsonEncode({'detail': 'expired'}), 401);
+        }
+        loggedOutRefresh =
+            (jsonDecode(request.body) as Map<String, dynamic>)['refresh']
+                as String;
+        return http.Response(jsonEncode({'message': 'ok'}), 200);
+      }
+      throw StateError('unexpected request');
+    });
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      httpClient: client,
+      tokenStore: tokens,
+    );
+
+    await api.logoutCurrentSession();
+
+    expect(refreshCalls, 1);
+    expect(loggedOutRefresh, 'fresh-refresh');
+  });
+
   test('invalid refresh removes credentials without touching local data', () async {
     final tokens = MemoryTokenStore(
       session: const AuthSession(
