@@ -1,8 +1,12 @@
 # Actor 6 — Persistateur Makolo
 
-> Statut : spécification de fermeture Actor 6, auditée sur `main` au 23 septembre 2026.
+> **Statut : FERMÉ — Actor 6 vérifié sur `main`.**
 >
-> Référence d'audit : `0f884b1d034a0e96bca7f2be635efa53620257f8`.
+> Audit P0 initial : `main@0f884b1d034a0e96bca7f2be635efa53620257f8`.
+>
+> Hardening Actor 6 : PR #281, merge `4eedcb736fa4f037b2a873b3c288d3e2829b46a7`.
+>
+> Vérification post-merge : `aggregate-main-status = success` le 23 septembre 2026 ; Django complet, E2E, PostgreSQL, sécurité et seeds verts.
 >
 > Le runtime, les migrations et les tests gagnent sur ce document en cas de divergence.
 
@@ -497,7 +501,7 @@ Actor 6 est fermé lorsque :
 | InterpretationRun / Candidates | Interpreter | technique/historique | reconstruisible depuis Observer retenu | privé | fingerprint/version | CORRECTE |
 | ResolutionRun / Assertions | Resolver | technique/historique | reconstruisible depuis Interpreter retenu | privé | immutable finalized history | CORRECTE |
 | Prospector frontier/checkpoints | Prospector | technique opérationnel | convergence possible depuis sources selon doc | privé | leases/checkpoints | CORRECTE |
-| DomainEventOutbox | Domain Events | historique de changement + delivery state | essentiel pour consumers non rejoués | payload minimal | transactional outbox | À DURCIR : fait immuable vs bookkeeping mutable |
+| DomainEventOutbox | Domain Events | historique de changement + delivery state | essentiel pour consumers non rejoués | payload minimal | transactional outbox ; fait persistant immuable, bookkeeping mutable | CORRECTE — hardening Actor 6 |
 | DomainEventConsumption | Domain Events | technique delivery | reconstructible partiellement | interne | consumer idempotence | CORRECTE |
 | Readiness | Readiness | projection | reconstruisible | viewer-aware | jamais vérité canonique | CORRECTE |
 | Discovery/Home participant state | Discovery/Core | projection | reconstruisible | viewer-aware | composition depuis faits | CORRECTE |
@@ -663,6 +667,41 @@ python manage.py migrate --noinput
 PostgreSQL doit exécuter au minimum les tests Domain Events et les shards propriétaires déjà couverts par la CI lorsqu'une surface correspondante change.
 
 Aucune data migration Actor 6 n'est nécessaire dans cette fermeture.
+
+---
+
+# Fermeture vérifiée Actor 6
+
+La fermeture a été exécutée et vérifiée sur le runtime réel :
+
+```text
+P0 — audit + classification + ownership                         ✅
+P1 — hardening du fait Domain Event                            ✅
+P2 — reconstruction / privacy / DR / frontière Actor 7        ✅
+P3 — PostgreSQL + migration gate + CI                          ✅
+P4 — merge PR #281 + vérification post-merge de main          ✅
+```
+
+Preuves de fermeture :
+
+- aucun package `persistator/` ni service de sauvegarde générique ;
+- aucun nouveau modèle ni table miroir ;
+- aucune migration Actor 6 ;
+- `makemigrations --check --dry-run` vert ;
+- application complète des migrations verte ;
+- tests Domain Events + concurrence sur PostgreSQL verts ;
+- suites PostgreSQL transverses vertes ;
+- E2E vert ;
+- Django complet vert ;
+- sécurité/supply-chain verte ;
+- seeds frais SQLite et PostgreSQL verts ;
+- `aggregate-main-status` du merge `4eedcb736fa4f037b2a873b3c288d3e2829b46a7` = `success`.
+
+Verdict final :
+
+> **Makolo possède déjà son Persistateur sous forme de responsabilités distribuées dans les domaines et acteurs propriétaires. Actor 6 est fermé pour cette phase.**
+
+La prochaine responsabilité à ouvrir est **Actor 7 — Projecteur**, à partir du contrat de handoff ci-dessous.
 
 ---
 
