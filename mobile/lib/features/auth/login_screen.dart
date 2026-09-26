@@ -50,8 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on Object {
       if (mounted) {
         setState(
-          () => _error =
-              'Connexion impossible pour le moment. Votre saisie reste disponible.',
+          () => _error = 'Connexion impossible pour le moment. Votre saisie reste disponible.',
         );
       }
     } finally {
