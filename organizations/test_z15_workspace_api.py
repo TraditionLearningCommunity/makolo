@@ -91,8 +91,9 @@ class Z15WorkspaceContractTests(TestCase):
         self.assertFalse(authorized_spaces(self.member).filter(pk=self.space.pk).exists())
         current = self.client.get("/api/v1/scanner/assignments/current/")
         self.assertEqual(current.status_code, 200, current.data)
-        self.assertEqual(len(current.data), 1)
-        self.assertEqual(str(current.data[0]["id"]), str(
+        self.assertEqual(current.data["count"], 1)
+        self.assertEqual(len(current.data["results"]), 1)
+        self.assertEqual(str(current.data["results"][0]["id"]), str(
             ScannerAssignment.objects.get(activity=activity, agent=self.member).pk
         ))
 
