@@ -333,6 +333,14 @@ Aucun match sûr ⇒ `NEW_CANDIDATE` avec provisional_ref, sans création ORM.
 Même réalité + même predicate + valeurs incompatibles inter-sources ⇒
 `CONFLICT`.
 
+Dans un même `InterpretedMaterial`, deux valeurs différentes ne constituent
+pas automatiquement une contradiction. Les prédicats naturellement
+multivalués (contacts, liens, références, conditions, etc.) sont additifs.
+`same_material_conflicting_values` n'est produit que pour des facts dont la
+sémantique est explicitement mono-valuée par la stratégie (par exemple une
+deadline unique). Les `Constraint` restent additives par défaut : plusieurs
+conditions peuvent décrire simultanément la même réalité.
+
 ### G — update
 
 Même source, observation ultérieure, même identité/predicate et valeur nouvelle
