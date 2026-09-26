@@ -13,10 +13,8 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
     initialLocation: runtime.recovery.initialLocation(),
     routes: [
       ShellRoute(
-        builder: (context, state, child) => AppShell(
-          recovery: runtime.recovery,
-          child: child,
-        ),
+        builder: (context, state, child) =>
+            AppShell(recovery: runtime.recovery, child: child),
         routes: [
           GoRoute(
             path: '/now',
@@ -30,8 +28,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             path: '/discover',
             builder: (context, state) => const PlaceholderScreen(
               title: 'Découvrir',
-              message:
-                  'De nouvelles possibilités apparaîtront ici lorsqu’elles seront disponibles.',
+              message: 'De nouvelles possibilités apparaîtront ici lorsqu’elles seront disponibles.',
             ),
           ),
           GoRoute(
@@ -52,10 +49,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
           ),
         ],
       ),
-      GoRoute(
-        path: '/mark',
-        builder: (context, state) => const MarkScreen(),
-      ),
+      GoRoute(path: '/mark', builder: (context, state) => const MarkScreen()),
       for (final prefix in const [
         'journeys',
         'activities',
@@ -71,8 +65,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             runtime.recovery.rememberLocation(state.uri.toString());
             return const PlaceholderScreen(
               title: 'Continuer dans Makolo',
-              message:
-                  'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
+              message: 'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
             );
           },
         ),
