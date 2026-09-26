@@ -28,13 +28,13 @@ La navigation Espace consomme désormais directement la projection `build_space_
 - Trust Espace ;
 - Funding.
 
-Les modules déjà présents avant Z15 restent sur leurs chemins canoniques : CRM/Audiences/Promotions, Analytics, Automation, Control/Scanner et Operations.
+Les modules déjà présents avant Z15 restent sur leurs chemins canoniques : CRM/Audiences/Promotions, Analytics, Automation, Control/Scanner et Operations. W7 ferme aussi leur reachability secondaire : Analytics mène vers les analyses Growth avancées lorsqu'elles sont autorisées, Automatisations mène vers les scénarios CRM owner-backed, et Contrôle d'accès expose les outils Scanner compatibility utiles (historique, portes, agents) sans recréer Access.
 
 ## Composition
 
 - **Commercial** : Financements rejoint Tarifs, Commandes, Paiements et Promotions.
 - **Relations** : Partenaires, Fidélité, Reconnaissance et Confiance.
-- **Pilotage** : Acquisition rejoint Analyses et Automatisations.
+- **Pilotage** : Acquisition rejoint Analyses et Automatisations ; les détails avancés restent accessibles depuis ces surfaces canoniques plutôt que par une nouvelle entrée primaire.
 
 La présence d'un module ne vient pas d'un rôle frontend ni d'un simple Membership. Elle vient du read-model Z15, lui-même dérivé des Mandates/Permissions directs.
 
@@ -58,7 +58,7 @@ Funding reçoit une vue Espace dédiée qui liste uniquement les financements r�
 
 Les anciens workspaces Partners/Growth/Loyalty/Recognition/Trust restent des destinations secondaires owner-backed. W7 les rend atteignables depuis la Console Espace au lieu de les dupliquer ou de supprimer brutalement leurs URLs.
 
-Les anciennes racines Network/Event/Ticket/Scanner restent compatibility selon Z15 ; W7 ne les remet pas dans la navigation primaire.
+Les anciennes racines Network/Event/Ticket/Scanner restent compatibility selon Z15 ; W7 ne les remet pas dans la navigation primaire. Les outils Scanner encore nécessaires sont atteignables depuis « Contrôle d'accès », tandis que les Event façades restent des adaptateurs historiques.
 
 ## Tests ciblés
 
@@ -68,7 +68,10 @@ Les anciennes racines Network/Event/Ticket/Scanner restent compatibility selon Z
 - reachability web des six nouvelles entrées Mature ;
 - absence d'accès par TeamMembership seul ;
 - absence d'héritage Platform → Space ;
-- conservation du contexte Espace pour la création Funding.
+- conservation du contexte Espace pour la création Funding ;
+- reachability des Analytics Growth avancés depuis Analyses ;
+- reachability des scénarios CRM depuis Automatisations ;
+- reachability des outils Scanner compatibility depuis Contrôle d'accès.
 
 ## Platform
 
