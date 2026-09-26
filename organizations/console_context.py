@@ -74,7 +74,11 @@ def _space_permission_codes(profile, space):
         return set(SPACE_PERMISSION_CODES)
     return set(
         _current_mandates(profile)
-        .filter(scope_type=AuthorityScope.SPACE, space=space)
+        .filter(
+            scope_type=AuthorityScope.SPACE,
+            space=space,
+            role__role_permissions__permission__is_active=True,
+        )
         .values_list("role__role_permissions__permission__code", flat=True)
     )
 
