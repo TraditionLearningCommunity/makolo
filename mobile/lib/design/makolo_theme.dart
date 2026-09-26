@@ -29,6 +29,12 @@ abstract final class MakoloRadii {
 abstract final class MakoloMotion {
   static const short = Duration(milliseconds: 160);
   static const medium = Duration(milliseconds: 240);
+
+  static Duration effective(BuildContext context, Duration duration) {
+    return MediaQuery.maybeOf(context)?.disableAnimations == true
+        ? Duration.zero
+        : duration;
+  }
 }
 
 ThemeData buildMakoloTheme() {
