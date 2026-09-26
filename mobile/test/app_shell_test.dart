@@ -12,10 +12,8 @@ GoRouter _router(SessionRecoveryController recovery) {
     initialLocation: '/now',
     routes: [
       ShellRoute(
-        builder: (context, state, child) => AppShell(
-          recovery: recovery,
-          child: child,
-        ),
+        builder: (context, state, child) =>
+            AppShell(recovery: recovery, child: child),
         routes: [
           for (final path in const ['/now', '/discover', '/ongoing', '/me'])
             GoRoute(path: path, builder: (context, state) => Text(path)),
@@ -37,10 +35,7 @@ void main() {
     final router = _router(recovery);
 
     await tester.pumpWidget(
-      MaterialApp.router(
-        theme: buildMakoloTheme(),
-        routerConfig: router,
-      ),
+      MaterialApp.router(theme: buildMakoloTheme(), routerConfig: router),
     );
     await tester.pumpAndSettle();
 
@@ -62,10 +57,7 @@ void main() {
     final router = _router(SessionRecoveryController());
 
     await tester.pumpWidget(
-      MaterialApp.router(
-        theme: buildMakoloTheme(),
-        routerConfig: router,
-      ),
+      MaterialApp.router(theme: buildMakoloTheme(), routerConfig: router),
     );
     await tester.pumpAndSettle();
 
