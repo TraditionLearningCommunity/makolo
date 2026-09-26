@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'makolo_theme.dart';
 
+enum ContentVisualState { initial, loading, content, empty, success, error }
+
 class MakoloLoadingState extends StatelessWidget {
   const MakoloLoadingState({super.key, this.label = 'Chargement…'});
 
@@ -54,26 +56,44 @@ class MakoloEmptyState extends StatelessWidget {
 }
 
 class MakoloErrorState extends StatelessWidget {
-  const MakoloErrorState({super.key, required this.message, this.onRetry});
+  const MakoloErrorState({
+    super.key,
+    required this.message,
+    this.preservedMessage,
+    this.onRetry,
+  });
 
   final String message;
+  final String? preservedMessage;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
       padding: const EdgeInsets.all(MakoloSpacing.xl),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 36),
-          const SizedBox(height: MakoloSpacing.md),
-          Text(message, textAlign: TextAlign.center),
-          if (onRetry != null) ...[
+      child: Semantics(
+        container: true,
+        liveRegion: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 36),
             const SizedBox(height: MakoloSpacing.md),
-            FilledButton(onPressed: onRetry, child: const Text('Réessayer')),
+            Text(message, textAlign: TextAlign.center),
+            if (preservedMessage != null) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(
+                preservedMessage!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+            if (onRetry != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              FilledButton(onPressed: onRetry, child: const Text('Réessayer')),
+            ],
           ],
-        ],
+        ),
       ),
     ),
   );
@@ -93,7 +113,7 @@ class OfflineBanner extends StatelessWidget {
       ),
       color: MakoloColors.warning.withValues(alpha: 0.12),
       child: const Text(
-        'Hors connexion · Makolo continue avec ce qui est disponible sur cet appareil.',
+        'Hors connexion · Ce qui est déjà disponible reste utilisable.',
         textAlign: TextAlign.center,
       ),
     ),
