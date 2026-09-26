@@ -122,3 +122,27 @@ class InlineMessage extends StatelessWidget {
         child: Text(message),
       );
 }
+
+class PendingIndicator extends StatelessWidget {
+  const PendingIndicator({super.key, this.label = 'En attente de synchronisation'});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        liveRegion: true,
+        label: label,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: MakoloSpacing.sm),
+            Flexible(child: Text(label)),
+          ],
+        ),
+      );
+}
