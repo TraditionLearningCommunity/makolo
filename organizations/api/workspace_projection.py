@@ -58,6 +58,22 @@ def has_direct_space_authority(profile, space):
     return _space_mandates(profile, space).exists()
 
 
+def _has_current_scanner_assignment(profile, space):
+    if not getattr(profile, "is_authenticated", False):
+        return False
+    now = timezone.now()
+    return (
+        ScannerAssignment.objects.filter(
+            agent=profile,
+            is_active=True,
+            activity__space=space,
+        )
+        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
+        .exists()
+    )
+
+
 def workspace_spaces(profile):
     """Return Spaces reachable from Space/Activity authority or scanner assignment.
 
@@ -150,9 +166,9 @@ def build_space_workspace(profile, space):
             notes=("MarketingLink/EventFeedback keep Event adapters; Growth summary remains Space-owned.",),
         ))
 
-    analytics_view = can(profile, PermissionCode.ANALYTICS_VIEW, space) or _has_activity_permission(
-        profile, space, PermissionCode.ACTIVITY_VIEW
-    )
+    analytics_view = _has_space_permission(
+        profile, space, PermissionCode.ANALYTICS_VIEW
+    ) or _has_activity_permission(profile, space, PermissionCode.ACTIVITY_VIEW)
     if analytics_view:
         caps = ["view"]
         links = {"overview": "/api/v1/analytics/overview/"}
@@ -228,7 +244,11 @@ def build_space_workspace(profile, space):
     scanner_manage = _has_space_permission(profile, space, PermissionCode.ACCESS_MANAGE) or _has_activity_permission(
         profile, space, PermissionCode.ACTIVITY_ACCESS_MANAGE
     )
-    scanner_use = scanner_manage or _has_activity_permission(profile, space, PermissionCode.ACTIVITY_ACCESS_SCAN)
+    scanner_use = (
+        scanner_manage
+        or _has_activity_permission(profile, space, PermissionCode.ACTIVITY_ACCESS_SCAN)
+        or _has_current_scanner_assignment(profile, space)
+    )
     if scanner_use:
         caps = ["scan"]
         if scanner_manage:
