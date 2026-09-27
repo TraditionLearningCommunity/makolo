@@ -54,8 +54,9 @@ A1 n'est pas encore canoniquement fermé :
 - HEAD audité : **7e233118c207578ac4da65221a30009474ba75c8** ;
 - PR #319 — **A1 — close Android native identity and APK checkpoint** : ouverte vers la branche A1 ;
 - HEAD #319 audité : **e001aaeca85cdcc57da6db31b08f25aca97345e2** ;
-- les nouveaux runs CI/Android/APK de #319 étaient encore en cours lors du dernier contrôle ;
-- le head précédent de #319 avait Mobile CI verte mais Android Build et APK rouges.
+- au dernier contrôle P0, les runs du HEAD #319 sont terminés et verts : **Mobile CI**, **Mobile Android Build** et **Mobile APK** ;
+- #319 reste néanmoins ouverte et n'est pas encore intégrée dans la branche A1 principale ;
+- #306 reste ouverte et non fusionnée sur `main`.
 
 Conclusion :
 
@@ -356,7 +357,7 @@ Règle de shared component :
 | Source | Risque A2 | Décision |
 |---|---|---|
 | #306 A1 Installed Core | direct, tout mobile/ | bloque P1 ; ne jamais brancher A2 fonctionnel avant merge |
-| #319 A1 native identity | direct Android/build | bloque fermeture A1 ; surveiller CI/build/APK |
+| #319 A1 native identity | direct Android/build | CI/Android/APK verts au dernier contrôle, mais PR encore ouverte ; intégrer proprement avant fermeture A1 |
 | #308 Personal UX closure | vocabulaire/navigation/profondeurs web | relire si merge avant P1 ; pas de collision mobile actuelle |
 | #307 Product copy polish | Product Language, templates web ; CI non fiable lors de l'audit | ne pas copier ses chaînes tant qu'elles ne sont pas canoniques |
 | #320 W7 status docs | docs statut programme | faible collision ; réconcilier current-program-status si nécessaire |
