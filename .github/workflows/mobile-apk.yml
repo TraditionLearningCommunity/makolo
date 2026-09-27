@@ -1,12 +1,25 @@
 name: Mobile APK
 
+# A2 reconciled checkpoint: package the exact integration HEAD for device smoke tests.
+
 on:
   workflow_dispatch:
     inputs:
       api_base_url:
-        description: "Makolo API base URL for this manual test APK"
+        description: "Makolo API base URL for this test APK"
         required: true
+        default: "https://makolo.pythonanywhere.com"
         type: string
+  push:
+    branches:
+      - main
+      - mobile/a1-native-identity-closure
+      - mobile/a1-installed-makolo-core
+      - mobile/a1-shell-behavior-closure
+      - mobile/a2-integration
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-apk.yml"
 
 concurrency:
   group: mobile-apk-${{ github.ref }}
@@ -34,6 +47,8 @@ jobs:
           flutter-version: "3.47.3"
           channel: stable
           cache: true
+      - name: Toolchain
+        run: flutter --version
       - name: Resolve dependencies
         run: flutter pub get
       - name: Generate Dart sources
@@ -44,7 +59,7 @@ jobs:
         run: flutter test --exclude-tags golden
       - name: Build Android debug APK
         env:
-          MAKOLO_APK_API_BASE_URL: ${{ inputs.api_base_url }}
+          MAKOLO_APK_API_BASE_URL: ${{ inputs.api_base_url || 'https://makolo.pythonanywhere.com' }}
         run: flutter build apk --debug --dart-define=MAKOLO_API_BASE_URL="$MAKOLO_APK_API_BASE_URL"
       - name: Publish Android debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
