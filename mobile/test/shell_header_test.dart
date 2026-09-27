@@ -31,7 +31,6 @@ void main() {
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 
-
   testWidgets('brand lockup stays vector-sized on a small phone at large text', (
     tester,
   ) async {
