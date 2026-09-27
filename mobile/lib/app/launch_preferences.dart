@@ -94,3 +94,25 @@ class FileLaunchPreferencesStore implements LaunchPreferencesStore {
     await _file.writeAsString(jsonEncode(snapshot.toJson()), flush: true);
   }
 }
+
+
+class MemoryLaunchPreferencesStore implements LaunchPreferencesStore {
+  MemoryLaunchPreferencesStore([
+    this.snapshot = const LaunchPreferencesSnapshot(),
+  ]);
+
+  LaunchPreferencesSnapshot snapshot;
+
+  @override
+  Future<LaunchPreferencesSnapshot> read() async => snapshot;
+
+  @override
+  Future<void> setOnboardingCompleted() async {
+    snapshot = snapshot.copyWith(hasCompletedOnboarding: true);
+  }
+
+  @override
+  Future<void> setLastBrandMomentAt(DateTime value) async {
+    snapshot = snapshot.copyWith(lastBrandMomentAt: value.toUtc());
+  }
+}
