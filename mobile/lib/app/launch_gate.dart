@@ -37,21 +37,18 @@ class _LaunchGateState extends State<LaunchGate> {
   _LaunchStage _stage = _LaunchStage.preparing;
   LaunchPreferencesSnapshot _preferences = const LaunchPreferencesSnapshot();
   bool _priorityNavigation = false;
-  late final DateTime _launchStartedAt;
+  late final Future<void> _minimumVisibleFuture;
 
   @override
   void initState() {
     super.initState();
-    _launchStartedAt = widget.launchStartedAt ?? DateTime.now();
-    _prepare();
-  }
-
-  Future<void> _waitForMinimumVisibleTime() async {
-    final elapsed = DateTime.now().difference(_launchStartedAt);
+    final launchStartedAt = widget.launchStartedAt ?? DateTime.now();
+    final elapsed = DateTime.now().difference(launchStartedAt);
     final remaining = widget.minimumVisible - elapsed;
-    if (remaining > Duration.zero) {
-      await Future<void>.delayed(remaining);
-    }
+    _minimumVisibleFuture = remaining > Duration.zero
+        ? Future<void>.delayed(remaining)
+        : Future<void>.value();
+    _prepare();
   }
 
   Future<void> _prepareInitialPersonalSurface(String path) async {
@@ -80,14 +77,14 @@ class _LaunchGateState extends State<LaunchGate> {
   Future<void> _prepare() async {
     final store = widget.runtime.launchPreferences;
     if (store == null) {
-      await _waitForMinimumVisibleTime();
+      await _minimumVisibleFuture;
       if (mounted) setState(() => _stage = _LaunchStage.content);
       return;
     }
     final preferences = await store.read();
     final path = widget.router.routeInformationProvider.value.uri.path;
     await _prepareInitialPersonalSurface(path);
-    await _waitForMinimumVisibleTime();
+    await _minimumVisibleFuture;
     if (!mounted) return;
 
     final priorityNavigation = hasPriorityLaunchPath(
