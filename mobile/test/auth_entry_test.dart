@@ -207,15 +207,23 @@ void main() {
     final runtime = _runtime(tokens: tokens, client: client);
 
     await _pumpLogin(tester, runtime);
-    TextFormField password = tester.widget(
-      find.byKey(const Key('login-password')),
+    EditableText password = tester.widget(
+      find.descendant(
+        of: find.byKey(const Key('login-password')),
+        matching: find.byType(EditableText),
+      ),
     );
     expect(password.obscureText, isTrue);
 
     await tester.tap(find.byKey(const Key('login-password-toggle')));
     await tester.pump();
 
-    password = tester.widget(find.byKey(const Key('login-password')));
+    password = tester.widget(
+      find.descendant(
+        of: find.byKey(const Key('login-password')),
+        matching: find.byType(EditableText),
+      ),
+    );
     expect(password.obscureText, isFalse);
   });
 
