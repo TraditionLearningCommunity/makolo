@@ -341,8 +341,6 @@ void main() {
   });
 
   testWidgets('entry remains usable with large text', (tester) async {
-    final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
     final tokens = MemoryTokenStore();
     final client = MockClient(
       (request) async => http.Response(jsonEncode({}), 500),
