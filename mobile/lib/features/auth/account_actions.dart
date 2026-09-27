@@ -7,6 +7,30 @@ import '../../auth/auth_repository.dart';
 
 enum _AccountAction { switchAccount, logout }
 
+Future<void> endMakoloAccountSession({
+  required AppRuntime runtime,
+  required VoidCallback onAuthenticationChanged,
+  required bool switchAccount,
+}) async {
+  if (switchAccount) {
+    runtime.recovery.markAccountSwitch();
+  } else {
+    runtime.recovery.markLoggedOut();
+  }
+
+  final api = runtime.api;
+  if (api == null) {
+    await runtime.tokens.clearSession();
+    onAuthenticationChanged();
+    return;
+  }
+
+  await AuthRepository(
+    api,
+    runtime.tokens,
+  ).logout(onLocalSessionEnded: onAuthenticationChanged);
+}
+
 class AccountActionsButton extends StatefulWidget {
   const AccountActionsButton({
     super.key,
@@ -27,25 +51,10 @@ class _AccountActionsButtonState extends State<AccountActionsButton> {
   Future<void> _endSession(_AccountAction action) async {
     if (_busy) return;
     setState(() => _busy = true);
-
-    if (action == _AccountAction.switchAccount) {
-      widget.runtime.recovery.markAccountSwitch();
-    } else {
-      widget.runtime.recovery.markLoggedOut();
-    }
-
-    final api = widget.runtime.api;
-    if (api == null) {
-      await widget.runtime.tokens.clearSession();
-      widget.onAuthenticationChanged();
-      return;
-    }
-
-    unawaited(
-      AuthRepository(
-        api,
-        widget.runtime.tokens,
-      ).logout(onLocalSessionEnded: widget.onAuthenticationChanged),
+    await endMakoloAccountSession(
+      runtime: widget.runtime,
+      onAuthenticationChanged: widget.onAuthenticationChanged,
+      switchAccount: action == _AccountAction.switchAccount,
     );
   }
 

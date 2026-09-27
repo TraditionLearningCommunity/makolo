@@ -89,6 +89,112 @@ class SuccessFeedback extends StatelessWidget {
   );
 }
 
+enum MakoloNoticeKind { info, success, warning, error }
+
+enum MakoloNoticeBehavior { transient, persistent }
+
+class MakoloNotice extends StatelessWidget {
+  const MakoloNotice({
+    super.key,
+    required this.message,
+    this.kind = MakoloNoticeKind.info,
+    this.behavior = MakoloNoticeBehavior.transient,
+    this.onDismiss,
+    this.actionLabel,
+    this.onAction,
+    this.liveRegion = true,
+  });
+
+  final String message;
+  final MakoloNoticeKind kind;
+  final MakoloNoticeBehavior behavior;
+  final VoidCallback? onDismiss;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool liveRegion;
+
+  Color _accent(BuildContext context) => switch (kind) {
+    MakoloNoticeKind.info => MakoloColors.info,
+    MakoloNoticeKind.success => MakoloColors.success,
+    MakoloNoticeKind.warning => MakoloColors.warning,
+    MakoloNoticeKind.error => MakoloColors.danger,
+  };
+
+  IconData get _icon => switch (kind) {
+    MakoloNoticeKind.info => Icons.info_outline,
+    MakoloNoticeKind.success => Icons.check_circle_outline,
+    MakoloNoticeKind.warning => Icons.warning_amber_rounded,
+    MakoloNoticeKind.error => Icons.error_outline,
+  };
+
+  String get _semanticKind => switch (kind) {
+    MakoloNoticeKind.info => 'Information',
+    MakoloNoticeKind.success => 'Succès',
+    MakoloNoticeKind.warning => 'Attention',
+    MakoloNoticeKind.error => 'Erreur',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _accent(context);
+    final dismissible =
+        behavior == MakoloNoticeBehavior.persistent && onDismiss != null;
+    final hasInteractiveChild =
+        dismissible || (actionLabel != null && onAction != null);
+    return Semantics(
+      container: true,
+      liveRegion: liveRegion,
+      label: '$_semanticKind. $message',
+      excludeSemantics: !hasInteractiveChild,
+      child: AnimatedContainer(
+        duration: MakoloMotion.effective(context, MakoloMotion.short),
+        padding: const EdgeInsets.symmetric(
+          horizontal: MakoloSpacing.md,
+          vertical: MakoloSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: accent.withValues(alpha: 0.28)),
+          borderRadius: BorderRadius.circular(MakoloRadii.medium),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).colorScheme.shadow
+                  .withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ExcludeSemantics(child: Icon(_icon, color: accent, size: 20)),
+            const SizedBox(width: MakoloSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(width: MakoloSpacing.xs),
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+            if (dismissible)
+              IconButton(
+                tooltip: 'Fermer',
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                onPressed: onDismiss,
+                icon: const Icon(Icons.close, size: 18),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class NetworkStateIndicator extends StatelessWidget {
   const NetworkStateIndicator({super.key, required this.status});
 
@@ -101,20 +207,21 @@ class NetworkStateIndicator extends StatelessWidget {
       status.pendingCount > 1
           ? '${status.pendingCount} actions en attente de synchronisation'
           : 'En attente de synchronisation',
-    SyncVisualState.offline => 'Hors connexion',
-    SyncVisualState.conflict => 'Une modification demande votre attention',
-    SyncVisualState.failed => 'Impossible de synchroniser pour le moment',
-    SyncVisualState.stale => 'Données disponibles, vérification nécessaire',
+    SyncVisualState.offline =>
+      'Hors connexion · Ce qui est déjà disponible reste utilisable.',
+    SyncVisualState.conflict => 'Une modification demande votre attention.',
+    SyncVisualState.failed => 'Impossible de mettre à jour pour le moment.',
+    SyncVisualState.stale => 'Données disponibles, vérification nécessaire.',
   };
 
-  IconData get _icon => switch (status.state) {
-    SyncVisualState.synced => Icons.cloud_done_outlined,
-    SyncVisualState.syncing => Icons.sync,
-    SyncVisualState.pending => Icons.schedule_outlined,
-    SyncVisualState.offline => Icons.cloud_off_outlined,
-    SyncVisualState.conflict => Icons.compare_arrows_outlined,
-    SyncVisualState.failed => Icons.sync_problem_outlined,
-    SyncVisualState.stale => Icons.history_toggle_off_outlined,
+  MakoloNoticeKind get _kind => switch (status.state) {
+    SyncVisualState.synced ||
+    SyncVisualState.syncing ||
+    SyncVisualState.pending => MakoloNoticeKind.info,
+    SyncVisualState.offline ||
+    SyncVisualState.conflict ||
+    SyncVisualState.stale => MakoloNoticeKind.warning,
+    SyncVisualState.failed => MakoloNoticeKind.error,
   };
 
   @override
@@ -122,40 +229,65 @@ class NetworkStateIndicator extends StatelessWidget {
     if (status.state == SyncVisualState.synced) {
       return const SizedBox.shrink();
     }
-    return Semantics(
-      liveRegion: true,
-      label: _label,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: MakoloSpacing.md,
-          vertical: MakoloSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(MakoloRadii.small),
-        ),
-        child: Row(
-          children: [
-            Icon(_icon, size: 18),
-            const SizedBox(width: MakoloSpacing.sm),
-            Expanded(child: Text(_label)),
-          ],
-        ),
-      ),
+    return MakoloNotice(
+      message: _label,
+      kind: _kind,
+      behavior: status.state == SyncVisualState.conflict
+          ? MakoloNoticeBehavior.persistent
+          : MakoloNoticeBehavior.transient,
     );
   }
+}
+
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showMakoloNotice(
+  BuildContext context,
+  String message, {
+  MakoloNoticeKind kind = MakoloNoticeKind.info,
+  MakoloNoticeBehavior behavior = MakoloNoticeBehavior.transient,
+  Duration duration = const Duration(seconds: 3),
+  String? actionLabel,
+  VoidCallback? onAction,
+}) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.hideCurrentSnackBar();
+  late ScaffoldFeatureController<SnackBar, SnackBarClosedReason> controller;
+  controller = messenger.showSnackBar(
+    SnackBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.all(MakoloSpacing.md),
+      padding: EdgeInsets.zero,
+      duration: behavior == MakoloNoticeBehavior.persistent
+          ? const Duration(days: 365)
+          : duration,
+      content: MakoloNotice(
+        message: message,
+        kind: kind,
+        behavior: behavior,
+        onDismiss: behavior == MakoloNoticeBehavior.persistent
+            ? () => controller.close()
+            : null,
+        actionLabel: actionLabel,
+        onAction: onAction == null
+            ? null
+            : () {
+                controller.close();
+                onAction();
+              },
+      ),
+    ),
+  );
+  return controller;
 }
 
 void showMakoloToast(
   BuildContext context,
   String message, {
   Duration duration = const Duration(seconds: 3),
+  MakoloNoticeKind kind = MakoloNoticeKind.info,
 }) {
-  final messenger = ScaffoldMessenger.of(context);
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message), duration: duration));
+  showMakoloNotice(context, message, kind: kind, duration: duration);
 }
 
 void showMakoloUndoToast(
@@ -164,15 +296,13 @@ void showMakoloUndoToast(
   required VoidCallback onUndo,
   String undoLabel = 'Annuler',
 }) {
-  final messenger = ScaffoldMessenger.of(context);
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message),
-        action: SnackBarAction(label: undoLabel, onPressed: onUndo),
-      ),
-    );
+  showMakoloNotice(
+    context,
+    message,
+    kind: MakoloNoticeKind.info,
+    actionLabel: undoLabel,
+    onAction: onUndo,
+  );
 }
 
 Future<bool> showMakoloConfirmationDialog(

@@ -12,6 +12,7 @@ on:
     branches:
       - mobile/a1-native-identity-closure
       - mobile/a1-installed-makolo-core
+      - mobile/a1-shell-behavior-closure
     paths:
       - "mobile/**"
       - ".github/workflows/mobile-apk.yml"

@@ -8,6 +8,22 @@ import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 
+class SyncRefreshScope extends InheritedWidget {
+  const SyncRefreshScope({
+    super.key,
+    required this.refresh,
+    required super.child,
+  });
+
+  final Future<void> Function() refresh;
+
+  static SyncRefreshScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SyncRefreshScope>();
+
+  @override
+  bool updateShouldNotify(SyncRefreshScope oldWidget) => false;
+}
+
 class SyncLifecycle extends StatefulWidget {
   const SyncLifecycle({
     super.key,
@@ -166,6 +182,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SyncStatusScope(status: _status, child: widget.child);
+  Widget build(BuildContext context) => SyncRefreshScope(
+    refresh: _refresh,
+    child: SyncStatusScope(status: _status, child: widget.child),
+  );
 }
