@@ -87,11 +87,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               .map((item) => Map<String, dynamic>.from(item))
               .toList(growable: false);
         } on Object {
-          if (mounted)
+          if (mounted) {
             setState(
               () => _error =
                   'Impossible d’actualiser les possibilités publiques.',
             );
+          }
           return const <Map<String, dynamic>>[];
         }
       }();
