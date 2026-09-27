@@ -11,10 +11,7 @@ void main() {
         expect(signal.data['kind'], 'journey.changed');
         return const NormalizedPushSignal(
           sourceKeys: {'now', 'ongoing'},
-          destination: StructuredDestination(
-            kind: 'Journey',
-            id: 'journey-a',
-          ),
+          destination: StructuredDestination(kind: 'Journey', id: 'journey-a'),
         );
       },
       invalidate: (sourceKey) async {

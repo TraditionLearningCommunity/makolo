@@ -21,9 +21,6 @@ void main() {
   });
 
   test('unknown workmanager task is rejected', () {
-    expect(
-      decodeWorkmanagerTask('other.task', {'task_id': 'x'}),
-      isNull,
-    );
+    expect(decodeWorkmanagerTask('other.task', {'task_id': 'x'}), isNull);
   });
 }
