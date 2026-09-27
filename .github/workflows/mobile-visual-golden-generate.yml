@@ -3,7 +3,16 @@ name: Mobile Visual Golden Regression
 on:
   pull_request:
     paths:
-      - "mobile/**"
+      - "mobile/assets/**"
+      - "mobile/lib/design/**"
+      - "mobile/lib/**/design/**"
+      - "mobile/lib/**/widgets/**"
+      - "mobile/lib/app/app_shell.dart"
+      - "mobile/lib/app/brand_moment.dart"
+      - "mobile/lib/app/mark_screen.dart"
+      - "mobile/test/visual_regression_test.dart"
+      - "mobile/test/goldens/**"
+      - "mobile/test/goldens.sha256"
       - ".github/workflows/mobile-visual-golden-generate.yml"
 
 permissions:

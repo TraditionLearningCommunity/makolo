@@ -57,3 +57,20 @@ class MakoloApiError implements Exception {
   @override
   String toString() => 'MakoloApiError($code, $statusCode)';
 }
+
+class MakoloTransportError implements Exception {
+  const MakoloTransportError(this.code, this.message);
+
+  final String code;
+  final String message;
+
+  @override
+  String toString() => 'MakoloTransportError($code)';
+}
+
+class MakoloRequestCancelled implements Exception {
+  const MakoloRequestCancelled();
+
+  @override
+  String toString() => 'MakoloRequestCancelled';
+}

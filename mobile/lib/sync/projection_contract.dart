@@ -1,3 +1,5 @@
+import 'projection_meta_dto.dart';
+
 class ProjectionEnvelope {
   const ProjectionEnvelope({
     required this.projection,
@@ -17,15 +19,19 @@ class ProjectionEnvelope {
     if (meta is! Map<String, dynamic> || data is! Map<String, dynamic>) {
       throw const FormatException('Invalid projection envelope');
     }
-    final version = meta['schema_version'];
-    if (version != 1) {
-      throw FormatException('Unsupported schema_version: $version');
+
+    final parsedMeta = ProjectionMetaDto.fromJson(meta);
+    if (parsedMeta.schemaVersion != 1) {
+      throw FormatException(
+        'Unsupported schema_version: ${parsedMeta.schemaVersion}',
+      );
     }
+
     return ProjectionEnvelope(
-      projection: meta['projection']?.toString() ?? '',
-      schemaVersion: version as int,
+      projection: parsedMeta.projection,
+      schemaVersion: parsedMeta.schemaVersion,
       data: data,
-      generatedAt: DateTime.tryParse(meta['generated_at']?.toString() ?? ''),
+      generatedAt: parsedMeta.generatedAt,
     );
   }
 }

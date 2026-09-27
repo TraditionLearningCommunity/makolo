@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "mobile/**"
+      - "docs/architecture/mobile-*"
       - ".github/workflows/mobile-ci.yml"
   push:
     branches: [main]
     paths:
       - "mobile/**"
+      - "docs/architecture/mobile-*"
       - ".github/workflows/mobile-ci.yml"
   workflow_dispatch:
 
@@ -20,9 +22,46 @@ permissions:
   contents: read
 
 jobs:
-  flutter-checks:
+  scope:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    outputs:
+      flutter: ${{ steps.scope.outputs.flutter }}
+      full_test: ${{ steps.scope.outputs.full_test }}
+      design: ${{ steps.scope.outputs.design }}
+      network: ${{ steps.scope.outputs.network }}
+      data: ${{ steps.scope.outputs.data }}
+      drift: ${{ steps.scope.outputs.drift }}
+      sync: ${{ steps.scope.outputs.sync }}
+      platform: ${{ steps.scope.outputs.platform }}
+      app_shell: ${{ steps.scope.outputs.app_shell }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Validate scope selector
+        working-directory: mobile
+        run: bash tool/test_ci_scope.sh
+      - name: Determine impacted mobile scopes
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            base="${{ github.event.before }}"
+          else
+            base="$(git rev-parse HEAD^)"
+          fi
+          git diff --name-only "$base" "${{ github.sha }}" > /tmp/mobile-changed-files.txt
+          cat /tmp/mobile-changed-files.txt
+          bash mobile/tool/ci_scope.sh < /tmp/mobile-changed-files.txt | tee -a "$GITHUB_OUTPUT"
+
+  flutter-checks:
+    needs: scope
+    if: needs.scope.outputs.flutter == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile
@@ -36,15 +75,49 @@ jobs:
       - name: Toolchain
         run: flutter --version
       - name: Resolve dependencies
-        run: flutter pub get
-      - name: Generate Drift code
-        run: dart run build_runner build
-      - name: Verify generated code is committed
-        working-directory: .
-        run: git diff --exit-code -- mobile/lib mobile/test
+        run: |
+          flutter pub get
+          git diff --exit-code -- pubspec.lock
+      - name: Generate Dart sources once
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Verify generated-code policy
+        run: git diff --exit-code -- lib test
       - name: Format check
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze
         run: flutter analyze
-      - name: Test
-        run: flutter test --exclude-tags golden
+      - name: Run impacted tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.scope.outputs.full_test }}" == "true" ]]; then
+            flutter test --exclude-tags golden
+            exit 0
+          fi
+
+          tests=()
+          if [[ "${{ needs.scope.outputs.network }}" == "true" ]]; then
+            tests+=(test/api_client_test.dart test/account_session_test.dart test/projection_contract_test.dart)
+          fi
+          if [[ "${{ needs.scope.outputs.data }}" == "true" || "${{ needs.scope.outputs.drift }}" == "true" ]]; then
+            tests+=(test/local_database_test.dart test/migration_test.dart test/file_media_core_test.dart)
+          fi
+          if [[ "${{ needs.scope.outputs.sync }}" == "true" ]]; then
+            tests+=(test/sync_engine_test.dart test/outbox_processor_test.dart test/projection_contract_test.dart)
+          fi
+          if [[ "${{ needs.scope.outputs.platform }}" == "true" ]]; then
+            tests+=(test/background_coordinator_test.dart test/workmanager_scheduler_test.dart test/incoming_intent_test.dart test/notification_router_test.dart test/push_signal_processor_test.dart test/observability_test.dart test/file_media_core_test.dart)
+          fi
+          if [[ "${{ needs.scope.outputs.app_shell }}" == "true" ]]; then
+            tests+=(test/app_shell_test.dart test/auth_entry_test.dart test/guest_router_test.dart test/launch_gate_test.dart test/launch_policy_test.dart test/session_recovery_test.dart test/onboarding_flow_test.dart)
+          fi
+          if [[ "${{ needs.scope.outputs.design }}" == "true" ]]; then
+            tests+=(test/makolo_theme_test.dart test/makolo_mark_test.dart test/brand_moment_test.dart test/mark_screen_test.dart test/shell_header_test.dart test/behavior_primitives_test.dart)
+          fi
+
+          if (("${#tests[@]}" == 0)); then
+            flutter test --exclude-tags golden
+            exit 0
+          fi
+          mapfile -t tests < <(printf '%s\n' "${tests[@]}" | sort -u)
+          flutter test --exclude-tags golden "${tests[@]}"

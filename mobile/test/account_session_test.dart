@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/auth_repository.dart';
@@ -13,6 +11,7 @@ import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/auth/account_actions.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
+import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
@@ -28,9 +27,9 @@ void main() {
       );
       final api = MakoloApiClient(
         baseUri: Uri.parse('https://makolo.invalid/'),
-        httpClient: MockClient((request) async {
+        dio: MockClient((request) async {
           throw Exception('offline');
-        }),
+        }).dio,
         tokenStore: tokens,
       );
 
@@ -67,9 +66,9 @@ void main() {
         ..markAccountSwitch();
       final api = MakoloApiClient(
         baseUri: Uri.parse('https://makolo.invalid/'),
-        httpClient: MockClient((request) async {
+        dio: MockClient((request) async {
           throw Exception('offline');
-        }),
+        }).dio,
         tokenStore: tokens,
       );
 
@@ -98,13 +97,13 @@ void main() {
     final recovery = SessionRecoveryController();
     final client = MockClient((request) async {
       if (request.url.path.endsWith('/auth/logout/')) {
-        return http.Response(jsonEncode({'message': 'ok'}), 200);
+        return MockResponse(jsonEncode({'message': 'ok'}), 200);
       }
       throw StateError('unexpected request');
     });
     final api = MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
-      httpClient: client,
+      dio: client.dio,
       tokenStore: tokens,
     );
     var authenticationChanges = 0;
