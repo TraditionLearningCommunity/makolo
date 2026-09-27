@@ -229,6 +229,48 @@ class NetworkStateIndicator extends StatelessWidget {
     if (status.state == SyncVisualState.synced) {
       return const SizedBox.shrink();
     }
+    if (status.state == SyncVisualState.syncing) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          liveRegion: true,
+          label: 'Information. Mise à jour en cours',
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: MakoloColors.info.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: MakoloColors.info.withValues(alpha: 0.24),
+              ),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.sm,
+                vertical: MakoloSpacing.xs,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.sync_rounded,
+                    size: 16,
+                    color: MakoloColors.info,
+                  ),
+                  SizedBox(width: MakoloSpacing.xs),
+                  Text(
+                    'Mise à jour…',
+                    style: TextStyle(
+                      color: MakoloColors.info,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return MakoloNotice(
       message: _label,
       kind: _kind,

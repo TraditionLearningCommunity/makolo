@@ -125,7 +125,7 @@ GoRouter createMakoloRouter(
         path: '/notifications',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Notifications',
-          message: 'Les notifications Makolo auront ici leur destination mobile dédiée.',
+          message: 'Rien de nouveau pour le moment.',
         ),
       ),
       GoRoute(
@@ -166,7 +166,7 @@ GoRouter createMakoloRouter(
             runtime.recovery.rememberLocation(state.uri.toString());
             return const MakoloSecondaryScreen(
               title: 'Continuer dans Makolo',
-              message: 'Cette destination n’a rien d’autre à afficher pour le moment.',
+              message: 'Rien d’autre à afficher pour le moment.',
             );
           },
         ),
