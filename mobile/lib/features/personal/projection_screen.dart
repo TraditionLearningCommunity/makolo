@@ -11,61 +11,100 @@ class ProjectionScreen extends StatelessWidget {
     required this.title,
     required this.stream,
     required this.emptyMessage,
+    this.headerAction,
   });
 
   final String title;
   final Stream<StoredProjection?> stream;
   final String emptyMessage;
+  final Widget? headerAction;
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<StoredProjection?>(
+    final body = StreamBuilder<StoredProjection?>(
       stream: stream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData &&
-            snapshot.connectionState == ConnectionState.waiting) {
-          return const MakoloSkeleton(lines: 5);
-        }
-        final projection = snapshot.data;
-        if (projection == null) {
-          return const MakoloEmptyState(
-            title: 'Pas encore disponible sur cet appareil',
-            body: 'Une première connexion est nécessaire pour rendre ce contenu disponible ici.',
-            icon: Icons.cloud_off_outlined,
-          );
-        }
+      builder: (context, snapshot) =>
+          _buildBody(context, snapshot, includeTitle: headerAction == null),
+    );
 
-        final items = projection.payload['items'];
-        if (items is List && items.isEmpty) {
-          return MakoloEmptyState(title: emptyMessage);
-        }
+    if (headerAction == null) return body;
 
-        return ListView(
-          padding: const EdgeInsets.all(MakoloSpacing.lg),
-          children: [
-            Text(title, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              'Disponible sur cet appareil',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: MakoloSpacing.lg),
-            if (items is List)
-              ...items.map(
-                (item) => Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(MakoloSpacing.md),
-                    child: Text(_humanLabel(item)),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MakoloSpacing.lg,
+            MakoloSpacing.md,
+            MakoloSpacing.sm,
+            0,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-              )
-            else
-              const InlineMessage(
-                message: 'Ce contenu est disponible sur cet appareil.',
               ),
-          ],
-        );
-      },
+              headerAction!,
+            ],
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    AsyncSnapshot<StoredProjection?> snapshot, {
+    required bool includeTitle,
+  }) {
+    if (!snapshot.hasData &&
+        snapshot.connectionState == ConnectionState.waiting) {
+      return const MakoloSkeleton(lines: 5);
+    }
+    final projection = snapshot.data;
+    if (projection == null) {
+      return const MakoloEmptyState(
+        title: 'Pas encore disponible sur cet appareil',
+        body: 'Une première connexion est nécessaire pour rendre ce contenu disponible ici.',
+        icon: Icons.cloud_off_outlined,
+      );
+    }
+
+    final items = projection.payload['items'];
+    if (items is List && items.isEmpty) {
+      return MakoloEmptyState(title: emptyMessage);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(MakoloSpacing.lg),
+      children: [
+        if (includeTitle) ...[
+          Text(title, style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: MakoloSpacing.sm),
+        ],
+        Text(
+          'Disponible sur cet appareil',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: MakoloSpacing.lg),
+        if (items is List)
+          ...items.map(
+            (item) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(MakoloSpacing.md),
+                child: Text(_humanLabel(item)),
+              ),
+            ),
+          )
+        else
+          const InlineMessage(
+            message: 'Ce contenu est disponible sur cet appareil.',
+          ),
+      ],
     );
   }
 

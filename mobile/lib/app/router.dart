@@ -1,12 +1,16 @@
 import 'package:go_router/go_router.dart';
 
+import '../features/auth/account_actions.dart';
 import '../features/mark/mark_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
 import 'app_shell.dart';
 import 'providers.dart';
 
-GoRouter createMakoloRouter(AppRuntime runtime) {
+GoRouter createMakoloRouter(
+  AppRuntime runtime, {
+  required void Function() onAuthenticationChanged,
+}) {
   final personal = runtime.personal!;
 
   return GoRouter(
@@ -45,6 +49,10 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
               title: 'Moi',
               stream: personal.watchMe(),
               emptyMessage: 'Aucune information personnelle à afficher.',
+              headerAction: AccountActionsButton(
+                runtime: runtime,
+                onAuthenticationChanged: onAuthenticationChanged,
+              ),
             ),
           ),
         ],

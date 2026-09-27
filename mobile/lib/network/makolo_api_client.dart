@@ -48,25 +48,91 @@ class MakoloApiClient {
     return session;
   }
 
+  Future<ApiResponse> register({
+    required String email,
+    required String username,
+    required String password,
+    required String passwordConfirm,
+    String? firstName,
+    String? lastName,
+    String? phone,
+  }) {
+    final body = <String, dynamic>{
+      'email': email,
+      'username': username,
+      'password': password,
+      'password_confirm': passwordConfirm,
+    };
+    if (firstName != null && firstName.isNotEmpty) {
+      body['first_name'] = firstName;
+    }
+    if (lastName != null && lastName.isNotEmpty) {
+      body['last_name'] = lastName;
+    }
+    if (phone != null && phone.isNotEmpty) {
+      body['phone'] = phone;
+    }
+    return _sendPublic('POST', 'api/v1/accounts/auth/register/', body: body);
+  }
+
+  Future<ApiResponse> forgotPassword({required String email}) {
+    return _sendPublic(
+      'POST',
+      'api/v1/accounts/auth/password/forgot/',
+      body: {'email': email},
+    );
+  }
+
+  Future<ApiResponse> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirm,
+  }) {
+    return post(
+      'api/v1/accounts/auth/password/change/',
+      body: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'new_password_confirm': newPasswordConfirm,
+      },
+    );
+  }
+
   Future<ApiResponse> get(String path) => _authorized('GET', path);
 
   Future<void> logoutCurrentSession() async {
-    var session = await _tokens.readSession();
+    final session = await _tokens.readSession();
     if (session == null) return;
+    await logoutSession(session);
+  }
 
+  Future<void> logoutSession(AuthSession session) async {
+    var current = session;
     var response = await _send(
       'POST',
       'api/v1/accounts/auth/logout/',
-      bearer: session.accessToken,
-      body: {'refresh': session.refreshToken},
+      bearer: current.accessToken,
+      body: {'refresh': current.refreshToken},
     );
     if (response.statusCode == 401) {
-      session = await _refreshSingleFlight();
+      final refreshed = _ensureSuccess(
+        await _send(
+          'POST',
+          'api/v1/accounts/auth/refresh/',
+          body: {'refresh': current.refreshToken},
+        ),
+      );
+      final json = refreshed.jsonObject();
+      current = AuthSession(
+        accessToken: json['access'] as String,
+        refreshToken: (json['refresh'] as String?) ?? current.refreshToken,
+        profileId: current.profileId,
+      );
       response = await _send(
         'POST',
         'api/v1/accounts/auth/logout/',
-        bearer: session.accessToken,
-        body: {'refresh': session.refreshToken},
+        bearer: current.accessToken,
+        body: {'refresh': current.refreshToken},
       );
     }
     _ensureSuccess(response);
