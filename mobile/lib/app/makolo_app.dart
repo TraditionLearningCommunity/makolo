@@ -10,6 +10,8 @@ import 'providers.dart';
 import 'router.dart';
 import 'sync_lifecycle.dart';
 
+final DateTime _makoloLaunchStartedAt = DateTime.now();
+
 class MakoloApp extends ConsumerWidget {
   const MakoloApp({super.key});
 
@@ -73,6 +75,7 @@ class MakoloApp extends ConsumerWidget {
               child: LaunchGate(
                 runtime: runtime,
                 router: router,
+                launchStartedAt: _makoloLaunchStartedAt,
                 child: routedChild,
               ),
             );
