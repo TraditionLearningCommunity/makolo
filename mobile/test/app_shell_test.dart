@@ -135,7 +135,6 @@ void main() {
     expect(find.byIcon(Icons.home_outlined), findsNothing);
   });
 
-
   testWidgets(
     'wide available space uses a rail without changing destinations',
     (tester) async {
