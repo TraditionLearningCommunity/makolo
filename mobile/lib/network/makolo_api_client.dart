@@ -72,11 +72,7 @@ class MakoloApiClient {
     if (phone != null && phone.isNotEmpty) {
       body['phone'] = phone;
     }
-    return _sendPublic(
-      'POST',
-      'api/v1/accounts/auth/register/',
-      body: body,
-    );
+    return _sendPublic('POST', 'api/v1/accounts/auth/register/', body: body);
   }
 
   Future<ApiResponse> forgotPassword({required String email}) {

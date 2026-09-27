@@ -23,11 +23,8 @@ class ProjectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = StreamBuilder<StoredProjection?>(
       stream: stream,
-      builder: (context, snapshot) => _buildBody(
-        context,
-        snapshot,
-        includeTitle: headerAction == null,
-      ),
+      builder: (context, snapshot) =>
+          _buildBody(context, snapshot, includeTitle: headerAction == null),
     );
 
     if (headerAction == null) return body;
