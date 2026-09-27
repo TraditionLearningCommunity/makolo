@@ -5,6 +5,7 @@ import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
 import '../features/auth/login_screen.dart';
 import '../features/splash/splash_screen.dart';
+import '../design/system_ui.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'sync_lifecycle.dart';
@@ -20,19 +21,25 @@ class MakoloApp extends ConsumerWidget {
       loading: () => MaterialApp(
         title: 'Makolo',
         debugShowCheckedModeBanner: false,
-        theme: buildMakoloTheme(),
-        home: const SplashScreen(),
+        theme: buildMakoloLightTheme(),
+        darkTheme: buildMakoloDarkTheme(),
+        themeMode: ThemeMode.system,
+        home: const MakoloSystemUi(child: SplashScreen()),
       ),
       error: (error, stackTrace) => MaterialApp(
         title: 'Makolo',
         debugShowCheckedModeBanner: false,
-        theme: buildMakoloTheme(),
-        home: Scaffold(
-          body: MakoloErrorState(
+        theme: buildMakoloLightTheme(),
+        darkTheme: buildMakoloDarkTheme(),
+        themeMode: ThemeMode.system,
+        home: MakoloSystemUi(
+          child: Scaffold(
+            body: MakoloErrorState(
             message:
                 'Makolo n’a pas pu ouvrir les données locales de cet appareil.',
             preservedMessage: 'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
-            onRetry: () => ref.invalidate(appRuntimeProvider),
+              onRetry: () => ref.invalidate(appRuntimeProvider),
+            ),
           ),
         ),
       ),
@@ -41,26 +48,32 @@ class MakoloApp extends ConsumerWidget {
           return MaterialApp(
             title: 'Makolo',
             debugShowCheckedModeBanner: false,
-            theme: buildMakoloTheme(),
-            home: LoginScreen(runtime: runtime),
+            theme: buildMakoloLightTheme(),
+        darkTheme: buildMakoloDarkTheme(),
+        themeMode: ThemeMode.system,
+            home: MakoloSystemUi(child: LoginScreen(runtime: runtime)),
           );
         }
 
         return MaterialApp.router(
           title: 'Makolo',
           debugShowCheckedModeBanner: false,
-          theme: buildMakoloTheme(),
+          theme: buildMakoloLightTheme(),
+        darkTheme: buildMakoloDarkTheme(),
+        themeMode: ThemeMode.system,
           routerConfig: createMakoloRouter(
             runtime,
             onAuthenticationChanged: () => ref.invalidate(appRuntimeProvider),
           ),
-          builder: (context, child) => SyncLifecycle(
-            runtime: runtime,
-            child: child ?? const SizedBox.shrink(),
-            onSessionExpired: () {
-              runtime.recovery.markSessionExpired();
-              ref.invalidate(appRuntimeProvider);
-            },
+          builder: (context, child) => MakoloSystemUi(
+            child: SyncLifecycle(
+              runtime: runtime,
+              child: child ?? const SizedBox.shrink(),
+              onSessionExpired: () {
+                runtime.recovery.markSessionExpired();
+                ref.invalidate(appRuntimeProvider);
+              },
+            ),
           ),
         );
       },
