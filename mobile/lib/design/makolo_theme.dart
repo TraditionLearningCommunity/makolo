@@ -48,6 +48,19 @@ abstract final class MakoloRadii {
   static const pill = 999.0;
 }
 
+abstract final class MakoloLayout {
+  static const screenMargin = 20.0;
+  static const compactScreenMargin = 16.0;
+  static const navigationRailMinWidth = 840.0;
+  static const navigationRailMinHeight = 480.0;
+  static const navigationRailWidth = 104.0;
+
+  static bool useNavigationRail(Size size) {
+    return size.width >= navigationRailMinWidth &&
+        size.height >= navigationRailMinHeight;
+  }
+}
+
 abstract final class MakoloElevation {
   static const level0 = 0.0;
   static const level1 = 1.0;
