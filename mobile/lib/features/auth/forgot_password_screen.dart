@@ -62,7 +62,8 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error = 'La récupération est indisponible sur cette installation pour le moment.';
+        _error =
+            'La récupération est indisponible sur cette installation pour le moment.';
       });
       return;
     }
