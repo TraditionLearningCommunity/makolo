@@ -61,7 +61,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (widget.runtime.recovery.entryReason == EntryReason.sessionExpired) {
       _notice = 'Reconnectez-vous pour continuer.';
-    } else if (widget.runtime.recovery.entryReason == EntryReason.protectedAction) {
+    } else if (widget.runtime.recovery.entryReason ==
+        EntryReason.protectedAction) {
       _notice = 'Connectez-vous pour continuer.';
     }
   }
@@ -78,8 +79,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _draftTimer = Timer(const Duration(milliseconds: 250), () {
       unawaited(
         widget.runtime.interactions?.save('login', {
-          'email': _email.text.trim(),
-        }) ?? Future<void>.value(),
+              'email': _email.text.trim(),
+            }) ??
+            Future<void>.value(),
       );
     });
   }

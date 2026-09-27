@@ -135,23 +135,24 @@ void main() {
     expect(find.byType(Card), findsNothing);
   });
 
-  testWidgets('personal guest destination asks for auth without personal shell', (
-    tester,
-  ) async {
-    final recovery = SessionRecoveryController();
-    final router = _router(_guestRuntime(recovery));
+  testWidgets(
+    'personal guest destination asks for auth without personal shell',
+    (tester) async {
+      final recovery = SessionRecoveryController();
+      final router = _router(_guestRuntime(recovery));
 
-    await _pump(tester, router);
-    router.go('/ongoing');
-    await tester.pumpAndSettle();
+      await _pump(tester, router);
+      router.go('/ongoing');
+      await tester.pumpAndSettle();
 
-    expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
-    expect(find.text('Now'), findsNothing);
-    expect(find.text('En cours'), findsNothing);
-    expect(find.byTooltip('Avatar'), findsNothing);
-    expect(recovery.lastUsefulLocation, '/ongoing');
-  });
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+      expect(find.text('Now'), findsNothing);
+      expect(find.text('En cours'), findsNothing);
+      expect(find.byTooltip('Avatar'), findsNothing);
+      expect(recovery.lastUsefulLocation, '/ongoing');
+    },
+  );
 
   testWidgets('login and create-account remain explicit public destinations', (
     tester,

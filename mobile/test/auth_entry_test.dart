@@ -452,9 +452,15 @@ void main() {
       find.byKey(const Key('signup-email')),
       'draft@example.com',
     );
-    await tester.enterText(find.byKey(const Key('signup-username')), 'draftuser');
+    await tester.enterText(
+      find.byKey(const Key('signup-username')),
+      'draftuser',
+    );
     await tester.enterText(find.byKey(const Key('signup-first-name')), 'Amina');
-    await tester.enterText(find.byKey(const Key('signup-password')), 'secret-pass');
+    await tester.enterText(
+      find.byKey(const Key('signup-password')),
+      'secret-pass',
+    );
     await tester.pump(const Duration(milliseconds: 300));
 
     final draft = await runtime.interactions!.read('signup');
@@ -496,7 +502,10 @@ void main() {
 
     await _tapVisible(tester, find.byKey(const Key('create-account-link')));
     await tester.pumpAndSettle();
-    expect(find.text('Quelques informations suffisent pour commencer avec Makolo.'), findsNothing);
+    expect(
+      find.text('Quelques informations suffisent pour commencer avec Makolo.'),
+      findsNothing,
+    );
     expect(find.text('Votre accès'), findsNothing);
     expect(find.text('Vous'), findsNothing);
     expect(find.text('Sécurité'), findsNothing);

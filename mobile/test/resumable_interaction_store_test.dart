@@ -23,14 +23,17 @@ void main() {
     expect(draft.containsKey('refresh_token'), isFalse);
   });
 
-  test('clearing one interaction leaves other resumable state intact', () async {
-    final store = ResumableInteractionStore.memory();
-    await store.save('login', {'email': 'a@example.com'});
-    await store.save('public-discover', {'query': 'formation'});
+  test(
+    'clearing one interaction leaves other resumable state intact',
+    () async {
+      final store = ResumableInteractionStore.memory();
+      await store.save('login', {'email': 'a@example.com'});
+      await store.save('public-discover', {'query': 'formation'});
 
-    await store.clear('login');
+      await store.clear('login');
 
-    expect(await store.read('login'), isEmpty);
-    expect((await store.read('public-discover'))['query'], 'formation');
-  });
+      expect(await store.read('login'), isEmpty);
+      expect((await store.read('public-discover'))['query'], 'formation');
+    },
+  );
 }

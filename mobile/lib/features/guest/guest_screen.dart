@@ -37,8 +37,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _queryDraftTimer = Timer(const Duration(milliseconds: 250), () {
       unawaited(
         widget.runtime.interactions?.save(_interactionId, {
-          'query': _search.text.trim(),
-        }) ?? Future<void>.value(),
+              'query': _search.text.trim(),
+            }) ??
+            Future<void>.value(),
       );
     });
   }
@@ -86,7 +87,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               .map((item) => Map<String, dynamic>.from(item))
               .toList(growable: false);
         } on Object {
-          if (mounted) setState(() => _error = 'Impossible d’actualiser les possibilités publiques.');
+          if (mounted)
+            setState(
+              () => _error =
+                  'Impossible d’actualiser les possibilités publiques.',
+            );
           return const <Map<String, dynamic>>[];
         }
       }();
@@ -148,10 +153,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               ),
               const SizedBox(height: MakoloSpacing.xl),
               if (_error != null) ...[
-                Text(
-                  _error!,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text(_error!, style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: MakoloSpacing.md),
               ],
               FutureBuilder<List<Map<String, dynamic>>>(
@@ -161,7 +163,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(
                       padding: EdgeInsets.only(top: MakoloSpacing.md),
-                      child: MakoloLoadingState(label: 'Chargement des possibilités'),
+                      child: MakoloLoadingState(
+                        label: 'Chargement des possibilités',
+                      ),
                     );
                   }
                   final items = snapshot.data ?? const <Map<String, dynamic>>[];

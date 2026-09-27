@@ -86,52 +86,52 @@ void main() {
     },
   );
 
-  testWidgets('account action opens chooser without ending the active session', (
-    tester,
-  ) async {
-    final active = const AuthSession(
-      accessToken: 'access-a',
-      refreshToken: 'refresh-a',
-      profileId: 'profile-a',
-    );
-    final tokens = MemoryTokenStore(session: active);
-    final recovery = SessionRecoveryController();
-    final runtime = AppRuntime(
-      tokens: tokens,
-      session: active,
-      recovery: recovery,
-    );
-    final router = GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => Scaffold(
-            body: AccountActionsButton(
-              runtime: runtime,
-              onAuthenticationChanged: () {},
+  testWidgets(
+    'account action opens chooser without ending the active session',
+    (tester) async {
+      final active = const AuthSession(
+        accessToken: 'access-a',
+        refreshToken: 'refresh-a',
+        profileId: 'profile-a',
+      );
+      final tokens = MemoryTokenStore(session: active);
+      final recovery = SessionRecoveryController();
+      final runtime = AppRuntime(
+        tokens: tokens,
+        session: active,
+        recovery: recovery,
+      );
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Scaffold(
+              body: AccountActionsButton(
+                runtime: runtime,
+                onAuthenticationChanged: () {},
+              ),
             ),
           ),
-        ),
-        GoRoute(
-          path: '/accounts',
-          builder: (context, state) => const Scaffold(
-            body: Text('Choisir un compte'),
+          GoRoute(
+            path: '/accounts',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Choisir un compte')),
           ),
-        ),
-      ],
-    );
+        ],
+      );
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('account-actions')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Changer de compte'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account-actions')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Changer de compte'));
+      await tester.pumpAndSettle();
 
-    expect(await tokens.readSession(), same(active));
-    expect(find.text('Choisir un compte'), findsOneWidget);
-    expect(recovery.entryReason, EntryReason.accountSwitch);
-  });
+      expect(await tokens.readSession(), same(active));
+      expect(find.text('Choisir un compte'), findsOneWidget);
+      expect(recovery.entryReason, EntryReason.accountSwitch);
+    },
+  );
 }

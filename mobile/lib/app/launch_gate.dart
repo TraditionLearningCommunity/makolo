@@ -54,7 +54,6 @@ class _LaunchGateState extends State<LaunchGate> {
     }
   }
 
-
   Future<void> _prepareInitialPersonalSurface(String path) async {
     if (!widget.runtime.isAuthenticated) return;
     final store = widget.runtime.store;

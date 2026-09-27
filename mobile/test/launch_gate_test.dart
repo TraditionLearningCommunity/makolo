@@ -75,9 +75,7 @@ void main() {
     );
     final runtime = _runtime(preferences);
 
-    await tester.pumpWidget(
-      _app(runtime, launchStartedAt: DateTime.now()),
-    );
+    await tester.pumpWidget(_app(runtime, launchStartedAt: DateTime.now()));
     expect(find.byType(SplashScreen), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 699));
@@ -101,9 +99,7 @@ void main() {
     );
     final runtime = _runtime(preferences);
 
-    await tester.pumpWidget(
-      _app(runtime, launchStartedAt: DateTime.now()),
-    );
+    await tester.pumpWidget(_app(runtime, launchStartedAt: DateTime.now()));
     await tester.pump(const Duration(milliseconds: 701));
     expect(find.byType(SplashScreen), findsOneWidget);
 
@@ -112,31 +108,30 @@ void main() {
     expect(find.byType(SplashScreen), findsNothing);
   });
 
-  testWidgets('new installation reaches concise onboarding then public landing', (
-    tester,
-  ) async {
-    final preferences = _MemoryLaunchPreferences(
-      LaunchPreferencesSnapshot(lastBrandMomentAt: DateTime.now()),
-    );
-    final runtime = _runtime(preferences);
+  testWidgets(
+    'new installation reaches concise onboarding then public landing',
+    (tester) async {
+      final preferences = _MemoryLaunchPreferences(
+        LaunchPreferencesSnapshot(lastBrandMomentAt: DateTime.now()),
+      );
+      final runtime = _runtime(preferences);
 
-    await tester.pumpWidget(
-      _app(
-        runtime,
-        launchStartedAt: DateTime.now().subtract(
-          const Duration(seconds: 1),
+      await tester.pumpWidget(
+        _app(
+          runtime,
+          launchStartedAt: DateTime.now().subtract(const Duration(seconds: 1)),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
-    expect(find.text('Passer'), findsNothing);
+      expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
+      expect(find.text('Passer'), findsNothing);
 
-    await tester.tap(find.text('Découvrir Makolo'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Découvrir Makolo'));
+      await tester.pumpAndSettle();
 
-    expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
-    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
-  });
+      expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
+      expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+    },
+  );
 }

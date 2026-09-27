@@ -54,7 +54,13 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void initState() {
     super.initState();
-    for (final controller in [_email, _username, _firstName, _lastName, _phone]) {
+    for (final controller in [
+      _email,
+      _username,
+      _firstName,
+      _lastName,
+      _phone,
+    ]) {
       controller.addListener(_scheduleDraftSave);
     }
     unawaited(_restoreDraft());
@@ -65,9 +71,15 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!mounted || draft == null || draft.isEmpty) return;
     _restoringDraft = true;
     _email.text = draft['email'] is String ? draft['email'] as String : '';
-    _username.text = draft['username'] is String ? draft['username'] as String : '';
-    _firstName.text = draft['first_name'] is String ? draft['first_name'] as String : '';
-    _lastName.text = draft['last_name'] is String ? draft['last_name'] as String : '';
+    _username.text = draft['username'] is String
+        ? draft['username'] as String
+        : '';
+    _firstName.text = draft['first_name'] is String
+        ? draft['first_name'] as String
+        : '';
+    _lastName.text = draft['last_name'] is String
+        ? draft['last_name'] as String
+        : '';
     _phone.text = draft['phone'] is String ? draft['phone'] as String : '';
     _rememberOnDevice = draft['remember_on_device'] == true;
     _restoringDraft = false;
@@ -80,13 +92,14 @@ class _SignupScreenState extends State<SignupScreen> {
     _draftTimer = Timer(const Duration(milliseconds: 250), () {
       unawaited(
         widget.runtime.interactions?.save('signup', {
-          'email': _email.text.trim(),
-          'username': _username.text.trim(),
-          'first_name': _firstName.text.trim(),
-          'last_name': _lastName.text.trim(),
-          'phone': _phone.text.trim(),
-          'remember_on_device': _rememberOnDevice,
-        }) ?? Future<void>.value(),
+              'email': _email.text.trim(),
+              'username': _username.text.trim(),
+              'first_name': _firstName.text.trim(),
+              'last_name': _lastName.text.trim(),
+              'phone': _phone.text.trim(),
+              'remember_on_device': _rememberOnDevice,
+            }) ??
+            Future<void>.value(),
       );
     });
   }

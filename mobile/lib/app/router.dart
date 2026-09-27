@@ -150,7 +150,8 @@ GoRouter createMakoloRouter(
                     child: ProjectionScreen(
                       title: 'Moi',
                       stream: personal.watchMe(),
-                      emptyMessage: 'Aucune information à afficher pour le moment.',
+                      emptyMessage:
+                          'Aucune information à afficher pour le moment.',
                       showTitle: false,
                     ),
                   ),

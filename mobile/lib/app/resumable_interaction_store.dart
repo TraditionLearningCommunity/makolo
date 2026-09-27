@@ -38,10 +38,7 @@ class ResumableInteractionStore {
     return Map<String, dynamic>.from(value);
   }
 
-  Future<void> save(
-    String interactionId,
-    Map<String, dynamic> values,
-  ) async {
+  Future<void> save(String interactionId, Map<String, dynamic> values) async {
     final safe = <String, dynamic>{};
     for (final entry in values.entries) {
       final normalized = entry.key.toLowerCase();
