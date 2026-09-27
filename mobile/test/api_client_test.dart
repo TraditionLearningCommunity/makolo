@@ -346,7 +346,10 @@ void main() {
         tokenStore: tokens,
         dio: testDio((request, requestStream) async {
           expect(request.path, 'api/v1/owner-specific-endpoint/');
-          expect(request.headers['content-type'], contains('multipart/form-data'));
+          expect(
+            request.headers['content-type'],
+            contains('multipart/form-data'),
+          );
           expect(requestStream, isNotNull);
           final bytes = await requestStream!.fold<List<int>>(
             <int>[],
