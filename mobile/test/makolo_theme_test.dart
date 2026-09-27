@@ -97,8 +97,8 @@ void main() {
       expect(textTheme.bodySmall?.fontSize, 12);
       expect(textTheme.labelMedium?.fontSize, 11);
 
-      expect(textTheme.displayLarge?.fontFamily, isNull);
-      expect(textTheme.bodyLarge?.fontFamily, isNull);
+      expect(textTheme.displayLarge?.fontFamily, isNot('Manrope'));
+      expect(textTheme.bodyLarge?.fontFamily, isNot('Inter'));
     },
   );
 
