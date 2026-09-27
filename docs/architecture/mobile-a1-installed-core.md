@@ -1,10 +1,10 @@
 # A1 — Installed Makolo Core
 
-> Statut : A1 Behavior Closure en validation
+> Statut : A1 Shell / Header / Navigation / Refresh / Feedback Closure en validation
 >
-> Base du dernier audit : `main@993e17d64372dea2d4da36c5c3274e5df378cb89`
+> Base du dernier audit : `main@98618746d2d4c0ae1b3e1a4ce3da0c6bdfbca527`
 >
-> Branche de fermeture : `mobile/a1-behavior-closure`
+> Branche de fermeture : `mobile/a1-shell-behavior-closure`
 >
 > A1 reste ouvert jusqu'à validation CI et smoke bêta de ce dernier chantier.
 
@@ -91,6 +91,8 @@ L'outbox porte identité d'opération, Profile, installation locale, owner, inte
 
 Le lifecycle déclenche un refresh au démarrage de l'expérience authentifiée, au resume et au retour d'un signal réseau. `connectivity_plus` n'est jamais considéré comme une preuve que le serveur est réellement joignable.
 
+A1 expose également une commande de refresh explicite via `SyncRefreshScope`. Le shell l'utilise pour le pull-to-refresh sans vider le contenu local. Toucher un onglet ne déclenche pas cette commande : navigation = retrouver ; pull-to-refresh = demander le plus récent ; resume = vérifier discrètement.
+
 L'UI distingue deux axes indépendants :
 
 ```text
@@ -111,8 +113,9 @@ A1 fournit des primitives réutilisables, sans métier A2/A3 :
 - `OfflineBanner` ;
 - `InlineMessage` ;
 - `NetworkStateIndicator` ;
+- `MakoloNotice` avec variantes `info`, `success`, `warning`, `error` et comportements transient/persistent ;
 - `SuccessFeedback` distinguant « Enregistré sur cet appareil », « En attente de synchronisation », « Synchronisé » et « Confirmé » ;
-- toast léger et `UndoToast` uniquement pour une action réellement réversible ;
+- `showMakoloToast` et `UndoToast` reposant sur la même fondation `MakoloNotice`, avec icône + texte + Semantics ;
 - `ConfirmationDialog` pour les décisions destructives/sensibles ;
 - bottom sheet générique ;
 - `PermissionExplainer`, y compris l'état refusé, sans demander de permission OS au lancement ;
@@ -123,7 +126,7 @@ Ces primitives représentent les faits ; elles n'en deviennent pas propriétaire
 
 ## 7. Loading, feedback et erreurs
 
-Un refresh ne remplace pas le contenu local par un spinner. Le store local reste la source de lecture, tandis que l'état `syncing` est présenté séparément.
+Un refresh ne remplace pas le contenu local par un spinner. Le store local reste la source de lecture, tandis que l'état `syncing` est présenté séparément par une notice légère « Mise à jour… ». Un échec conserve le contenu et affiche « Impossible de mettre à jour pour le moment. » ; le mode hors connexion conserve lui aussi le contenu disponible.
 
 Le chargement initial d'une projection inconnue utilise un skeleton. A1 ne force aucun délai artificiel pour l'afficher.
 
@@ -159,10 +162,14 @@ Les tests ciblés couvrent text scaling, Semantics, Reduce Motion, bottom sheet/
 La structure reste :
 
 ```text
-Maintenant | Découvrir | [Makolo Mark] | En cours | Moi
+Now | Découvrir | [Makolo Mark] | En cours | Moi
 ```
 
-Le Mark reste une action centrale et non un cinquième onglet ordinaire. Les destinations structurées restent des placeholders propres tant que leur expérience métier n'est pas construite.
+Le shell utilise `StatefulShellRoute.indexedStack` : changer d'onglet retrouve la branche existante, son état local et son scroll au lieu de recréer l'expérience. Le Mark reste une action centrale et non un cinquième onglet ordinaire ; il utilise `push` afin que le back revienne à l'origine réelle.
+
+Les headers A1 sont contextuels : Now expose Conversations, Notifications et Avatar ; Découvrir expose Recherche, Filtres et Avatar ; Mark reste minimal avec Avatar ; En cours expose Calendrier et Avatar ; Moi expose uniquement Avatar. Le calendrier est une lecture UX, pas un domaine Agenda. Les entrées Search/Filtres/Calendrier restent des structures propres tant que leur profondeur n'est pas livrée.
+
+L'Avatar ouvre une bottom sheet compacte, distincte de Moi. Elle consomme l'identité locale `personal.me`, l'activation Profile dérivée et, lorsqu'il est joignable, l'e-mail via `accounts/auth/me/`. Le contexte A1 est Personnel. Aucun membership n'accorde d'autorité et aucun catalogue de Démarches, Accès, Dossiers, Projets, Bibliothèque, Historique, Veilles ou Groupes n'est ajouté au menu. Les callbacks de changement de compte/logout restent prêts pour la fermeture Auth portée séparément.
 
 Aucun texte visible ne mentionne A1, A2, « projection locale », owner-scoped, outbox ou schema.
 
@@ -188,6 +195,8 @@ namespace     = com.makolo
 ```
 
 Le host Android vit sous `mobile/android/` et suit les templates Flutter 3.47.3 : Gradle 9.3.1, Android Gradle Plugin 9.1.0, Kotlin 2.4.0 et Java 17.
+
+Le launcher Android A1 utilise un fond `#5232DB` et le Makolo Mark blanc canonique, avec un foreground adaptatif réduit dans la safe zone Android. Le fallback et l'icône round suivent la même identité. La splash native utilise le même fond violet et le Mark blanc, sans `android:postSplashScreenTheme`.
 
 Le build debug Android est un gate A1. La signature de production reste hors de portée. L'identité iOS reste non définie ; aucun `PRODUCT_BUNDLE_IDENTIFIER` n'est inventé.
 
