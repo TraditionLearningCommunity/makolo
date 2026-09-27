@@ -72,10 +72,9 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       _error = null;
     });
     try {
-      await AuthRepository(
-        api,
-        widget.runtime.tokens,
-      ).forgotPassword(email: _email.text.trim());
+      await AuthRepository(api, widget.runtime.tokens).forgotPassword(
+        email: _email.text.trim(),
+      );
       if (!mounted) return;
       setState(() => _sent = true);
     } on Object catch (error) {
