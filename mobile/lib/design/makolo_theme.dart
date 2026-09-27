@@ -238,13 +238,12 @@ TextTheme _makoloTextTheme(Color foreground) {
     required double size,
     required FontWeight weight,
     double? height,
-  }) =>
-      TextStyle(
-        fontSize: size,
-        fontWeight: weight,
-        height: height,
-        color: foreground,
-      );
+  }) => TextStyle(
+    fontSize: size,
+    fontWeight: weight,
+    height: height,
+    color: foreground,
+  );
 
   // Manrope and Inter are intentionally not named here until their official
   // local font assets are available in the repository. Flutter therefore uses
