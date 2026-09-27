@@ -10,20 +10,47 @@ class AuthRepository {
   Future<AuthSession> login({
     required String email,
     required String password,
+    bool rememberOnDevice = false,
   }) async {
     var session = await api.login(email: email, password: password);
     try {
       final me = await api.get('api/v1/accounts/auth/me/');
-      final profileId = me.jsonObject()['id']?.toString();
+      final payload = me.jsonObject();
+      final profileId = payload['id']?.toString();
       if (profileId == null || profileId.isEmpty) {
         throw const FormatException('auth/me missing id');
       }
+
       session = AuthSession(
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
         profileId: profileId,
       );
       await tokens.writeSession(session);
+
+      final canonicalEmail = payload['email'] is String
+          ? (payload['email'] as String).trim()
+          : email.trim();
+      final fullName = payload['full_name'] is String
+          ? (payload['full_name'] as String).trim()
+          : '';
+      final username = payload['username'] is String
+          ? (payload['username'] as String).trim()
+          : '';
+      final displayName = fullName.isNotEmpty
+          ? fullName
+          : (username.isNotEmpty ? username : canonicalEmail);
+
+      await tokens.saveAccount(
+        DeviceAccount(
+          profileId: profileId,
+          email: canonicalEmail,
+          displayName: displayName,
+          hasQuickAccess: rememberOnDevice,
+          lastUsedAt: DateTime.now().toUtc(),
+        ),
+        quickAccessSession: rememberOnDevice ? session : null,
+      );
       return session;
     } on Object {
       await tokens.clearSession();
@@ -51,6 +78,32 @@ class AuthRepository {
     );
   }
 
+  Future<AuthSession> registerAndLogin({
+    required String email,
+    required String username,
+    required String password,
+    required String passwordConfirm,
+    String? firstName,
+    String? lastName,
+    String? phone,
+    bool rememberOnDevice = false,
+  }) async {
+    await register(
+      email: email,
+      username: username,
+      password: password,
+      passwordConfirm: passwordConfirm,
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+    );
+    return login(
+      email: email,
+      password: password,
+      rememberOnDevice: rememberOnDevice,
+    );
+  }
+
   Future<void> forgotPassword({required String email}) async {
     await api.forgotPassword(email: email);
   }
@@ -65,7 +118,11 @@ class AuthRepository {
       newPassword: newPassword,
       newPasswordConfirm: newPasswordConfirm,
     );
+    final profileId = (await tokens.readSession())?.profileId;
     await tokens.clearSession();
+    if (profileId != null) {
+      await tokens.clearAccountSession(profileId);
+    }
   }
 
   Future<void> logout({void Function()? onLocalSessionEnded}) async {
@@ -75,13 +132,7 @@ class AuthRepository {
       return;
     }
 
-    // Remove local credentials before any network dependency. The Profile DB,
-    // drafts and outbox live outside TokenStore and are intentionally preserved.
     await tokens.clearSession();
-
-    // Start the blacklist attempt before notifying the UI. If the app runtime
-    // is rebuilt immediately, local logout is already complete even when this
-    // best-effort request is interrupted or the server is unreachable.
     final serverLogout = api.logoutSession(session);
     onLocalSessionEnded?.call();
     try {

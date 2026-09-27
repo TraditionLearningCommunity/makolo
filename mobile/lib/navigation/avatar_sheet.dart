@@ -168,8 +168,7 @@ class _MakoloAvatarSheetState extends State<MakoloAvatarSheet> {
                 const ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.person_pin_circle_outlined),
-                  title: Text('Contexte actif'),
-                  subtitle: Text('Personnel'),
+                  title: Text('Agir en mon nom'),
                 ),
                 if (widget.onAccount != null)
                   ListTile(

@@ -27,9 +27,12 @@ class AuthEntryFrame extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.lg,
-              vertical: MakoloSpacing.lg,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              MakoloSpacing.lg,
+              MakoloSpacing.md,
+              MakoloSpacing.lg,
+              MakoloSpacing.lg + MediaQuery.viewInsetsOf(context).bottom,
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -37,7 +40,7 @@ class AuthEntryFrame extends StatelessWidget {
               ),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
+                  constraints: const BoxConstraints(maxWidth: 440),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -52,7 +55,7 @@ class AuthEntryFrame extends StatelessWidget {
                           ),
                         ),
                       const SizedBox(height: MakoloSpacing.sm),
-                      const Center(child: MakoloMark(size: 72, white: true)),
+                      const Center(child: MakoloMark(size: 64, white: true)),
                       const SizedBox(height: MakoloSpacing.lg),
                       Text(
                         title,
@@ -60,6 +63,7 @@ class AuthEntryFrame extends StatelessWidget {
                         style: textTheme.headlineSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
+                          height: 1.12,
                         ),
                       ),
                       const SizedBox(height: MakoloSpacing.sm),
@@ -67,32 +71,22 @@ class AuthEntryFrame extends StatelessWidget {
                         subtitle,
                         textAlign: TextAlign.center,
                         style: textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.88),
-                          height: 1.45,
+                          color: Colors.white.withValues(alpha: 0.86),
+                          height: 1.4,
                         ),
                       ),
                       const SizedBox(height: MakoloSpacing.xl),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            MakoloRadii.large,
+                      child,
+                      const SizedBox(height: MakoloSpacing.xl),
+                      if (footer.isNotEmpty)
+                        Text(
+                          footer,
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(MakoloSpacing.lg),
-                          child: child,
-                        ),
-                      ),
-                      const SizedBox(height: MakoloSpacing.lg),
-                      Text(
-                        footer,
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
                     ],
                   ),
                 ),

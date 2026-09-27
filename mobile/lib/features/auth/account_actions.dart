@@ -12,10 +12,23 @@ Future<void> endMakoloAccountSession({
   required VoidCallback onAuthenticationChanged,
   required bool switchAccount,
 }) async {
+  final profileId = runtime.session?.profileId;
+
   if (switchAccount) {
     runtime.recovery.markAccountSwitch();
+    final remembered = profileId == null
+        ? null
+        : await runtime.tokens.readAccountSession(profileId);
+    if (remembered != null) {
+      await runtime.tokens.clearSession();
+      onAuthenticationChanged();
+      return;
+    }
   } else {
     runtime.recovery.markLoggedOut();
+    if (profileId != null) {
+      await runtime.tokens.clearAccountSession(profileId);
+    }
   }
 
   final api = runtime.api;
@@ -25,10 +38,12 @@ Future<void> endMakoloAccountSession({
     return;
   }
 
-  await AuthRepository(
-    api,
-    runtime.tokens,
-  ).logout(onLocalSessionEnded: onAuthenticationChanged);
+  unawaited(
+    AuthRepository(
+      api,
+      runtime.tokens,
+    ).logout(onLocalSessionEnded: onAuthenticationChanged),
+  );
 }
 
 class AccountActionsButton extends StatefulWidget {
