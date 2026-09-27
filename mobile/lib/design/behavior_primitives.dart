@@ -239,9 +239,7 @@ class NetworkStateIndicator extends StatelessWidget {
             decoration: BoxDecoration(
               color: MakoloColors.info.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: MakoloColors.info.withValues(alpha: 0.24),
-              ),
+              border: Border.all(color: MakoloColors.info.withValues(alpha: 0.24)),
             ),
             child: const Padding(
               padding: EdgeInsets.symmetric(
