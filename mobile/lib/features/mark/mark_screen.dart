@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../app/providers.dart';
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
@@ -14,10 +15,7 @@ class MarkScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: MakoloPrimaryHeader(
       kind: MakoloHeaderKind.mark,
-      onAvatar: () => showMakoloAvatarSheet(
-        context,
-        runtime: runtime,
-      ),
+      onAvatar: () => showMakoloAvatarSheet(context, runtime: runtime),
     ),
     body: SafeArea(
       top: false,

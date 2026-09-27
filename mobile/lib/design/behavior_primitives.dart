@@ -137,8 +137,8 @@ class MakoloNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = _accent(context);
-    final dismissible = behavior == MakoloNoticeBehavior.persistent &&
-        onDismiss != null;
+    final dismissible =
+        behavior == MakoloNoticeBehavior.persistent && onDismiss != null;
     return Semantics(
       container: true,
       liveRegion: liveRegion,
@@ -155,9 +155,8 @@ class MakoloNotice extends StatelessWidget {
           borderRadius: BorderRadius.circular(MakoloRadii.medium),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(
-                context,
-              ).colorScheme.shadow.withValues(alpha: 0.06),
+              color: Theme.of(context).colorScheme.shadow
+                  .withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -171,9 +170,8 @@ class MakoloNotice extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             if (actionLabel != null && onAction != null) ...[
@@ -383,8 +381,7 @@ class PermissionExplainer extends StatelessWidget {
           if (denied) ...[
             const SizedBox(height: MakoloSpacing.md),
             Text(
-              deniedMessage ??
-                  'Cette autorisation est refusée. Vous pouvez continuer sans cette fonction et la réactiver plus tard si nécessaire.',
+              deniedMessage ?? 'Cette autorisation est refusée. Vous pouvez continuer sans cette fonction et la réactiver plus tard si nécessaire.',
             ),
           ],
           const SizedBox(height: MakoloSpacing.lg),

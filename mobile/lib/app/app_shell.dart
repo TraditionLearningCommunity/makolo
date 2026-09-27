@@ -60,15 +60,14 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  MakoloHeaderKind get _headerKind => switch (
-    widget.navigationShell.currentIndex
-  ) {
-    0 => MakoloHeaderKind.now,
-    1 => MakoloHeaderKind.discover,
-    2 => MakoloHeaderKind.ongoing,
-    3 => MakoloHeaderKind.me,
-    _ => MakoloHeaderKind.now,
-  };
+  MakoloHeaderKind get _headerKind =>
+      switch (widget.navigationShell.currentIndex) {
+        0 => MakoloHeaderKind.now,
+        1 => MakoloHeaderKind.discover,
+        2 => MakoloHeaderKind.ongoing,
+        3 => MakoloHeaderKind.me,
+        _ => MakoloHeaderKind.now,
+      };
 
   void _goBranch(int index) {
     if (index == widget.navigationShell.currentIndex) return;
@@ -96,7 +95,8 @@ class _AppShellState extends State<AppShell> {
       builder: (context, snapshot) {
         final identity = snapshot.data?.payload['identity'];
         final displayName = identity is Map ? identity['display_name'] : null;
-        final avatarLetter = displayName is String && displayName.trim().isNotEmpty
+        final avatarLetter =
+            displayName is String && displayName.trim().isNotEmpty
             ? displayName.trim().substring(0, 1).toUpperCase()
             : null;
 

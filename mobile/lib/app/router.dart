@@ -41,8 +41,7 @@ GoRouter createMakoloRouter(
                 path: '/discover',
                 builder: (context, state) => const PlaceholderScreen(
                   title: 'Découvrir',
-                  message:
-                      'Les possibilités à explorer apparaîtront ici lorsque leur expérience mobile sera prête.',
+                  message: 'Les possibilités à explorer apparaîtront ici lorsque leur expérience mobile sera prête.',
                 ),
               ),
             ],
@@ -89,32 +88,28 @@ GoRouter createMakoloRouter(
         path: '/notifications',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Notifications',
-          message:
-              'Les notifications Makolo auront ici leur destination mobile dédiée.',
+          message: 'Les notifications Makolo auront ici leur destination mobile dédiée.',
         ),
       ),
       GoRoute(
         path: '/discover/search',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Rechercher',
-          message:
-              'La recherche globale sera branchée ici sans simuler de résultats.',
+          message: 'La recherche globale sera branchée ici sans simuler de résultats.',
         ),
       ),
       GoRoute(
         path: '/discover/filters',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Filtres',
-          message:
-              'Les filtres de Découvrir seront proposés ici lorsqu’ils auront un contrat consommable.',
+          message: 'Les filtres de Découvrir seront proposés ici lorsqu’ils auront un contrat consommable.',
         ),
       ),
       GoRoute(
         path: '/ongoing/calendar',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Calendrier',
-          message:
-              'Cette lecture temporelle organisera les dates déjà exposées par En cours.',
+          message: 'Cette lecture temporelle organisera les dates déjà exposées par En cours.',
         ),
       ),
       for (final prefix in const [
@@ -132,8 +127,7 @@ GoRouter createMakoloRouter(
             runtime.recovery.rememberLocation(state.uri.toString());
             return const MakoloSecondaryScreen(
               title: 'Continuer dans Makolo',
-              message:
-                  'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
+              message: 'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
             );
           },
         ),

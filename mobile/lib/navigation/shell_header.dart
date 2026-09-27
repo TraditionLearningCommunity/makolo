@@ -69,11 +69,7 @@ class MakoloPrimaryHeader extends StatelessWidget
         icon: Icons.search,
         onPressed: onSearch,
       ),
-      _HeaderAction(
-        tooltip: 'Filtres',
-        icon: Icons.tune,
-        onPressed: onFilters,
-      ),
+      _HeaderAction(tooltip: 'Filtres', icon: Icons.tune, onPressed: onFilters),
     ],
     MakoloHeaderKind.ongoing => [
       _HeaderAction(
@@ -132,17 +128,15 @@ class MakoloPrimaryHeader extends StatelessWidget
                   ? Icon(
                       Icons.person_outline,
                       size: 20,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onPrimaryContainer,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     )
                   : Center(
                       child: Text(
                         avatarLetter!,
                         style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimaryContainer,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimaryContainer,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -187,7 +181,8 @@ class MakoloSecondaryHeader extends StatelessWidget
           tooltip: 'Retour',
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           icon: const Icon(Icons.arrow_back),
-          onPressed: onBack ??
+          onPressed:
+              onBack ??
               () {
                 if (context.canPop()) {
                   context.pop();

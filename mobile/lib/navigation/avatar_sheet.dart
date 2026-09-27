@@ -57,7 +57,8 @@ class _MakoloAvatarSheetState extends State<MakoloAvatarSheet> {
   }
 
   Stream<StoredProjection?> get _identityStream =>
-      widget.runtime.personal?.watchMe() ?? Stream<StoredProjection?>.value(null);
+      widget.runtime.personal?.watchMe() ??
+      Stream<StoredProjection?>.value(null);
 
   Map<String, dynamic>? _identity(StoredProjection? projection) {
     final raw = projection?.payload['identity'];
@@ -89,7 +90,8 @@ class _MakoloAvatarSheetState extends State<MakoloAvatarSheet> {
           final activationPercentage = activation is Map
               ? activation['percentage']
               : null;
-          final firstLetter = displayName != null && displayName.trim().isNotEmpty
+          final firstLetter =
+              displayName != null && displayName.trim().isNotEmpty
               ? displayName.trim().substring(0, 1).toUpperCase()
               : null;
 
@@ -104,12 +106,12 @@ class _MakoloAvatarSheetState extends State<MakoloAvatarSheet> {
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                      foregroundColor: Theme.of(
-                        context,
-                      ).colorScheme.onPrimaryContainer,
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer,
+                      foregroundColor: Theme.of(context)
+                          .colorScheme
+                          .onPrimaryContainer,
                       child: firstLetter == null
                           ? const Icon(Icons.person_outline)
                           : Text(

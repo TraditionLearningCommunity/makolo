@@ -110,9 +110,7 @@ void main() {
 
     expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     expect(
-      find.bySemanticsLabel(
-        'Attention. Vérifiez cette information.',
-      ),
+      find.bySemanticsLabel('Attention. Vérifiez cette information.'),
       findsOneWidget,
     );
   });

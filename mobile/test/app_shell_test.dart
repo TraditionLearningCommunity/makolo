@@ -13,11 +13,8 @@ import 'package:makolo_mobile/sync/sync_status.dart';
 
 import 'fakes.dart';
 
-AppRuntime _runtime(SessionRecoveryController recovery) => AppRuntime(
-  tokens: MemoryTokenStore(),
-  session: null,
-  recovery: recovery,
-);
+AppRuntime _runtime(SessionRecoveryController recovery) =>
+    AppRuntime(tokens: MemoryTokenStore(), session: null, recovery: recovery);
 
 GoRouter _router(AppRuntime runtime) {
   return GoRouter(
@@ -105,9 +102,8 @@ Future<void> _pumpRouter(
         }
         if (textScale != 1) {
           result = MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler: TextScaler.linear(textScale),
-            ),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(textScale)),
             child: result,
           );
         }
@@ -198,7 +194,10 @@ void main() {
   testWidgets('tab scroll position survives branch changes', (tester) async {
     await _pumpRouter(tester);
 
-    await tester.drag(find.byKey(const Key('now-scroll')), const Offset(0, -700));
+    await tester.drag(
+      find.byKey(const Key('now-scroll')),
+      const Offset(0, -700),
+    );
     await tester.pumpAndSettle();
     final before = tester
         .state<ScrollableState>(
