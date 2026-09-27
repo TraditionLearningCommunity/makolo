@@ -13,7 +13,6 @@ import '../navigation/shell_header.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
 import 'session_recovery.dart';
-import 'sync_lifecycle.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({
