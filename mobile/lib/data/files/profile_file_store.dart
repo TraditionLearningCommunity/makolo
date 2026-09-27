@@ -66,25 +66,25 @@ class ProfileFileStore {
 
     await stagingDirectory.create(recursive: true);
     final suffix = _safeSuffix(source.uri.pathSegments.last);
-    final target = File(
-      '${stagingDirectory.path}/${_safeName(fileId)}$suffix',
-    );
+    final target = File('${stagingDirectory.path}/${_safeName(fileId)}$suffix');
     if (await target.exists()) await target.delete();
     await source.copy(target.path);
 
     final now = DateTime.now().toUtc();
-    await database.into(database.fileRecords).insertOnConflictUpdate(
-      FileRecordsCompanion.insert(
-        fileId: fileId,
-        profileId: profileId,
-        owner: owner,
-        localPath: target.path,
-        purpose: purpose,
-        sensitivity: sensitivity,
-        reconstructible: const Value(false),
-        createdAt: now,
-      ),
-    );
+    await database
+        .into(database.fileRecords)
+        .insertOnConflictUpdate(
+          FileRecordsCompanion.insert(
+            fileId: fileId,
+            profileId: profileId,
+            owner: owner,
+            localPath: target.path,
+            purpose: purpose,
+            sensitivity: sensitivity,
+            reconstructible: const Value(false),
+            createdAt: now,
+          ),
+        );
 
     return StoredLocalFile(
       fileId: fileId,
@@ -101,8 +101,7 @@ class ProfileFileStore {
   Future<StoredLocalFile?> read(String fileId) async {
     final query = database.select(database.fileRecords)
       ..where(
-        (row) =>
-            row.profileId.equals(profileId) & row.fileId.equals(fileId),
+        (row) => row.profileId.equals(profileId) & row.fileId.equals(fileId),
       );
     final row = await query.getSingleOrNull();
     if (row == null) return null;
@@ -138,11 +137,9 @@ class ProfileFileStore {
       await current.delete();
     }
 
-    await (database.update(database.fileRecords)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) & row.fileId.equals(fileId),
-          ))
+    await (database.update(database.fileRecords)..where(
+          (row) => row.profileId.equals(profileId) & row.fileId.equals(fileId),
+        ))
         .write(
           FileRecordsCompanion(
             localPath: Value(destination.path),
@@ -168,11 +165,9 @@ class ProfileFileStore {
       final file = File(record.path);
       if (await file.exists()) await file.delete();
     }
-    await (database.delete(database.fileRecords)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) & row.fileId.equals(fileId),
-          ))
+    await (database.delete(database.fileRecords)..where(
+          (row) => row.profileId.equals(profileId) & row.fileId.equals(fileId),
+        ))
         .go();
   }
 

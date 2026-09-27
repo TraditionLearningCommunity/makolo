@@ -1,11 +1,6 @@
 import 'package:permission_handler/permission_handler.dart';
 
-enum MakoloPermission {
-  camera,
-  microphone,
-  locationWhenInUse,
-  notifications,
-}
+enum MakoloPermission { camera, microphone, locationWhenInUse, notifications }
 
 enum PermissionDecision {
   granted,

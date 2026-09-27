@@ -3,10 +3,7 @@ import 'profile_file_store.dart';
 typedef FileTransferProgress = void Function(int transferred, int total);
 
 class FileTransferReceipt {
-  const FileTransferReceipt({
-    required this.confirmed,
-    this.remoteVersion,
-  });
+  const FileTransferReceipt({required this.confirmed, this.remoteVersion});
 
   final bool confirmed;
   final String? remoteVersion;

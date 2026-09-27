@@ -11,11 +11,10 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 import 'fakes.dart';
 
-typedef RequestHandler =
-    Future<ResponseBody> Function(
-      RequestOptions options,
-      Stream<Uint8List>? requestStream,
-    );
+typedef RequestHandler = Future<ResponseBody> Function(
+  RequestOptions options,
+  Stream<Uint8List>? requestStream,
+);
 
 class TestHttpAdapter implements HttpClientAdapter {
   TestHttpAdapter(this.handler);
@@ -141,10 +140,10 @@ void main() {
           refreshCalls += 1;
           await Future<void>.delayed(const Duration(milliseconds: 25));
           expect(request.data, {'refresh': 'old-refresh'});
-          return jsonResponse(
-            {'access': 'new-access', 'refresh': 'new-refresh'},
-            200,
-          );
+          return jsonResponse({
+            'access': 'new-access',
+            'refresh': 'new-refresh',
+          }, 200);
         }
         if (request.headers['Authorization'] == 'Bearer old-access') {
           return jsonResponse({'detail': 'Token expired'}, 401);
@@ -179,10 +178,10 @@ void main() {
       dio: testDio((request, _) async {
         if (request.path.endsWith('/auth/refresh/')) {
           seen.add('refresh');
-          return jsonResponse(
-            {'access': 'new-access', 'refresh': 'new-refresh'},
-            200,
-          );
+          return jsonResponse({
+            'access': 'new-access',
+            'refresh': 'new-refresh',
+          }, 200);
         }
         if (request.headers['Authorization'] == 'Bearer old-access') {
           seen.add('old');
@@ -198,28 +197,31 @@ void main() {
     expect(seen, ['old', 'refresh', 'new-refresh']);
   });
 
-  test('invalid refresh removes credentials without touching local data', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'expired',
-        refreshToken: 'revoked',
-        profileId: 'profile-a',
-      ),
-    );
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: tokens,
-      dio: testDio((request, _) async {
-        return jsonResponse({'detail': 'invalid'}, 401);
-      }),
-    );
+  test(
+    'invalid refresh removes credentials without touching local data',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'expired',
+          refreshToken: 'revoked',
+          profileId: 'profile-a',
+        ),
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: tokens,
+        dio: testDio((request, _) async {
+          return jsonResponse({'detail': 'invalid'}, 401);
+        }),
+      );
 
-    await expectLater(
-      api.get('api/v1/me/now/'),
-      throwsA(isA<MakoloApiError>()),
-    );
-    expect(await tokens.readSession(), isNull);
-  });
+      await expectLater(
+        api.get('api/v1/me/now/'),
+        throwsA(isA<MakoloApiError>()),
+      );
+      expect(await tokens.readSession(), isNull);
+    },
+  );
 
   test('server errors are normalized through MakoloApiError', () async {
     final tokens = MemoryTokenStore(
@@ -255,38 +257,41 @@ void main() {
     );
   });
 
-  test('transport timeout remains distinguishable from server errors', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        profileId: 'profile-a',
-      ),
-    );
-    final dio = Dio();
-    dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          handler.reject(
-            DioException(
-              requestOptions: options,
-              type: DioExceptionType.receiveTimeout,
-            ),
-          );
-        },
-      ),
-    );
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: tokens,
-      dio: dio,
-    );
+  test(
+    'transport timeout remains distinguishable from server errors',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      );
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.receiveTimeout,
+              ),
+            );
+          },
+        ),
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: tokens,
+        dio: dio,
+      );
 
-    await expectLater(
-      api.get('api/v1/me/now/'),
-      throwsA(isA<TimeoutException>()),
-    );
-  });
+      await expectLater(
+        api.get('api/v1/me/now/'),
+        throwsA(isA<TimeoutException>()),
+      );
+    },
+  );
 
   test('cancellation is exposed without leaking Dio CancelToken', () async {
     final tokens = MemoryTokenStore(
@@ -321,44 +326,47 @@ void main() {
     );
   });
 
-  test('multipart upload keeps transport generic and owner path explicit', () async {
-    final directory = await Directory.systemTemp.createTemp('makolo-upload-');
-    addTearDown(() => directory.delete(recursive: true));
-    final file = File('${directory.path}/proof.txt');
-    await file.writeAsString('payload');
+  test(
+    'multipart upload keeps transport generic and owner path explicit',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('makolo-upload-');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/proof.txt');
+      await file.writeAsString('payload');
 
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        profileId: 'profile-a',
-      ),
-    );
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: tokens,
-      dio: testDio((request, _) async {
-        expect(request.path, 'api/v1/owner-specific-endpoint/');
-        expect(request.data, isA<FormData>());
-        final form = request.data as FormData;
-        expect(form.fields, contains(const MapEntry('kind', 'proof')));
-        expect(form.files.single.key, 'file');
-        return jsonResponse({'ok': true}, 201);
-      }),
-    );
-
-    await api.upload(
-      'api/v1/owner-specific-endpoint/',
-      fields: {'kind': 'proof'},
-      files: [
-        MakoloUploadFile(
-          fieldName: 'file',
-          path: file.path,
-          filename: 'proof.txt',
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
         ),
-      ],
-    );
-  });
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: tokens,
+        dio: testDio((request, _) async {
+          expect(request.path, 'api/v1/owner-specific-endpoint/');
+          expect(request.data, isA<FormData>());
+          final form = request.data as FormData;
+          expect(form.fields, contains(const MapEntry('kind', 'proof')));
+          expect(form.files.single.key, 'file');
+          return jsonResponse({'ok': true}, 201);
+        }),
+      );
+
+      await api.upload(
+        'api/v1/owner-specific-endpoint/',
+        fields: {'kind': 'proof'},
+        files: [
+          MakoloUploadFile(
+            fieldName: 'file',
+            path: file.path,
+            filename: 'proof.txt',
+          ),
+        ],
+      );
+    },
+  );
 
   test('logout after access expiry blacklists the rotated refresh', () async {
     var refreshCalls = 0;
@@ -376,10 +384,10 @@ void main() {
       dio: testDio((request, _) async {
         if (request.path.endsWith('/auth/refresh/')) {
           refreshCalls += 1;
-          return jsonResponse(
-            {'access': 'fresh-access', 'refresh': 'fresh-refresh'},
-            200,
-          );
+          return jsonResponse({
+            'access': 'fresh-access',
+            'refresh': 'fresh-refresh',
+          }, 200);
         }
         if (request.path.endsWith('/auth/logout/')) {
           if (request.headers['Authorization'] == 'Bearer expired-access') {

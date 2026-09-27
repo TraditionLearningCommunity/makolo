@@ -2,17 +2,15 @@ import '../../navigation/destination.dart';
 import 'push_signal.dart';
 
 class NormalizedPushSignal {
-  const NormalizedPushSignal({
-    required this.sourceKeys,
-    this.destination,
-  });
+  const NormalizedPushSignal({required this.sourceKeys, this.destination});
 
   final Set<String> sourceKeys;
   final StructuredDestination? destination;
 }
 
-typedef PushSignalNormalizer =
-    Future<NormalizedPushSignal?> Function(PushSignal signal);
+typedef PushSignalNormalizer = Future<NormalizedPushSignal?> Function(
+  PushSignal signal,
+);
 typedef PushSourceInvalidator = Future<void> Function(String sourceKey);
 typedef PushOwnerRefresh = Future<void> Function(Set<String> sourceKeys);
 

@@ -10,9 +10,7 @@ class ProfilePaths {
 
   static Future<Directory> privateRoot(String profileId) async {
     final base = await getApplicationSupportDirectory();
-    final dir = Directory(
-      '${base.path}/profiles/${safeProfileId(profileId)}',
-    );
+    final dir = Directory('${base.path}/profiles/${safeProfileId(profileId)}');
     await dir.create(recursive: true);
     return dir;
   }
@@ -33,9 +31,7 @@ class ProfilePaths {
 
   static Future<Directory> reconstructibleCache(String profileId) async {
     final base = await getTemporaryDirectory();
-    final dir = Directory(
-      '${base.path}/makolo/${safeProfileId(profileId)}',
-    );
+    final dir = Directory('${base.path}/makolo/${safeProfileId(profileId)}');
     await dir.create(recursive: true);
     return dir;
   }

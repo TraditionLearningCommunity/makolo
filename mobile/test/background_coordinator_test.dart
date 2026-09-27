@@ -34,19 +34,22 @@ void main() {
     expect(await registry.execute(unknown), isFalse);
   });
 
-  test('coordinator delegates OS scheduling without claiming execution', () async {
-    final scheduler = MemoryScheduler();
-    final coordinator = BackgroundCoordinator(
-      registry: TaskRegistry(),
-      scheduler: scheduler,
-    );
-    const task = BackgroundTask(
-      id: 'refresh-a',
-      kind: BackgroundTaskKind.refresh,
-      profileId: 'profile-a',
-    );
+  test(
+    'coordinator delegates OS scheduling without claiming execution',
+    () async {
+      final scheduler = MemoryScheduler();
+      final coordinator = BackgroundCoordinator(
+        registry: TaskRegistry(),
+        scheduler: scheduler,
+      );
+      const task = BackgroundTask(
+        id: 'refresh-a',
+        kind: BackgroundTaskKind.refresh,
+        profileId: 'profile-a',
+      );
 
-    await coordinator.schedule(task);
-    expect(scheduler.scheduled.single, same(task));
-  });
+      await coordinator.schedule(task);
+      expect(scheduler.scheduled.single, same(task));
+    },
+  );
 }

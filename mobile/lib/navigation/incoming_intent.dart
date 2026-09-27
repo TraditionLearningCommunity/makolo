@@ -12,10 +12,7 @@ enum IncomingIntentSource {
 }
 
 class IncomingIntent {
-  const IncomingIntent({
-    required this.source,
-    required this.destination,
-  });
+  const IncomingIntent({required this.source, required this.destination});
 
   final IncomingIntentSource source;
   final StructuredDestination destination;
@@ -32,9 +29,7 @@ class IngressResolution {
 }
 
 class IncomingIntentResolver {
-  const IncomingIntentResolver({
-    this.deepLinks = const DeepLinkResolver(),
-  });
+  const IncomingIntentResolver({this.deepLinks = const DeepLinkResolver()});
 
   final DeepLinkResolver deepLinks;
 
@@ -46,10 +41,7 @@ class IncomingIntentResolver {
     final route = deepLinks.resolve(intent.destination);
     if (route == null) return null;
     if (authenticated) {
-      return IngressResolution(
-        route: route,
-        requiresAuthentication: false,
-      );
+      return IngressResolution(route: route, requiresAuthentication: false);
     }
     recovery.requireAuthenticationFor(route);
     return const IngressResolution(

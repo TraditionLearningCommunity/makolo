@@ -24,9 +24,7 @@ class NativeSystemFilePicker implements SystemFilePicker {
   const NativeSystemFilePicker();
 
   @override
-  Future<List<PickedSystemFile>> pick({
-    List<String>? allowedExtensions,
-  }) async {
+  Future<List<PickedSystemFile>> pick({List<String>? allowedExtensions}) async {
     final files = await FilePicker.pickFiles(
       type: allowedExtensions == null ? FileType.any : FileType.custom,
       allowedExtensions: allowedExtensions,

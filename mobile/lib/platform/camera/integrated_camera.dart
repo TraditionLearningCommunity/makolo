@@ -4,10 +4,7 @@ import 'package:flutter/widgets.dart';
 enum MakoloCameraLens { front, back, external }
 
 class IntegratedCapture {
-  const IntegratedCapture({
-    required this.path,
-    required this.isVideo,
-  });
+  const IntegratedCapture({required this.path, required this.isVideo});
 
   final String path;
   final bool isVideo;

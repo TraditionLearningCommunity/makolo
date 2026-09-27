@@ -1,11 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 class PushSignal {
-  const PushSignal({
-    required this.data,
-    this.messageId,
-    this.sentAt,
-  });
+  const PushSignal({required this.data, this.messageId, this.sentAt});
 
   final Map<String, String> data;
   final String? messageId;
@@ -40,9 +36,7 @@ class FirebasePushSignalReceiver implements PushSignalReceiver {
 
   PushSignal _signal(RemoteMessage message) {
     return PushSignal(
-      data: message.data.map(
-        (key, value) => MapEntry(key, value.toString()),
-      ),
+      data: message.data.map((key, value) => MapEntry(key, value.toString())),
       messageId: message.messageId,
       sentAt: message.sentTime,
     );

@@ -5,10 +5,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:video_player/video_player.dart';
 
 class PrivatePdfView extends StatelessWidget {
-  const PrivatePdfView({
-    required this.path,
-    super.key,
-  });
+  const PrivatePdfView({required this.path, super.key});
 
   final String path;
 

@@ -156,12 +156,7 @@ class MakoloApiClient {
     Map<String, String>? headers,
     MakoloCancelHandle? cancel,
   }) {
-    return _publicRequest(
-      'GET',
-      path,
-      extraHeaders: headers,
-      cancel: cancel,
-    );
+    return _publicRequest('GET', path, extraHeaders: headers, cancel: cancel);
   }
 
   Future<ApiResponse> publicPost(
@@ -184,12 +179,7 @@ class MakoloApiClient {
     Map<String, String>? headers,
     MakoloCancelHandle? cancel,
   }) {
-    return _authorized(
-      'GET',
-      path,
-      extraHeaders: headers,
-      cancel: cancel,
-    );
+    return _authorized('GET', path, extraHeaders: headers, cancel: cancel);
   }
 
   Future<ApiResponse> post(
@@ -276,10 +266,7 @@ class MakoloApiClient {
           data.files.add(
             MapEntry(
               file.fieldName,
-              await MultipartFile.fromFile(
-                file.path,
-                filename: file.filename,
-              ),
+              await MultipartFile.fromFile(file.path, filename: file.filename),
             ),
           );
         }
@@ -587,9 +574,7 @@ class MakoloApiClient {
   }
 
   static Map<String, String> _headers(Headers headers) {
-    return headers.map.map(
-      (key, values) => MapEntry(key, values.join(',')),
-    );
+    return headers.map.map((key, values) => MapEntry(key, values.join(',')));
   }
 
   static Future<void> _deleteIfExists(String path) async {
@@ -603,10 +588,9 @@ class MakoloApiClient {
     final file = File(path);
     if (!await file.exists()) return '';
     const maxBytes = 64 * 1024;
-    final bytes = await file.openRead(0, maxBytes).fold<List<int>>(
-      <int>[],
-      (buffer, chunk) => buffer..addAll(chunk),
-    );
+    final bytes = await file
+        .openRead(0, maxBytes)
+        .fold<List<int>>(<int>[], (buffer, chunk) => buffer..addAll(chunk));
     return utf8.decode(bytes, allowMalformed: true);
   }
 }

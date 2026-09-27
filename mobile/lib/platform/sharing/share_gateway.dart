@@ -16,15 +16,9 @@ class SystemShareGateway implements ShareGateway {
   }
 
   @override
-  Future<void> shareFiles({
-    required List<String> paths,
-    String? text,
-  }) async {
+  Future<void> shareFiles({required List<String> paths, String? text}) async {
     await SharePlus.instance.share(
-      ShareParams(
-        text: text,
-        files: paths.map(XFile.new).toList(),
-      ),
+      ShareParams(text: text, files: paths.map(XFile.new).toList()),
     );
   }
 

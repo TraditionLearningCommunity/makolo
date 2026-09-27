@@ -1,9 +1,4 @@
-enum EntryReason {
-  normal,
-  sessionExpired,
-  accountSwitch,
-  protectedIntent,
-}
+enum EntryReason { normal, sessionExpired, accountSwitch, protectedIntent }
 
 class SessionRecoveryController {
   String? _lastUsefulLocation;
