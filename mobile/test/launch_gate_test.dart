@@ -46,7 +46,6 @@ AppRuntime _runtime(_MemoryLaunchPreferences preferences) {
 
 Widget _app(
   AppRuntime runtime, {
-  required DateTime launchStartedAt,
   Duration minimumVisible = const Duration(milliseconds: 700),
 }) {
   final router = createMakoloRouter(runtime, onAuthenticationChanged: () {});
@@ -56,7 +55,6 @@ Widget _app(
     builder: (context, child) => LaunchGate(
       runtime: runtime,
       router: router,
-      launchStartedAt: launchStartedAt,
       minimumVisible: minimumVisible,
       child: child ?? const SizedBox.shrink(),
     ),
@@ -75,7 +73,7 @@ void main() {
     );
     final runtime = _runtime(preferences);
 
-    await tester.pumpWidget(_app(runtime, launchStartedAt: DateTime.now()));
+    await tester.pumpWidget(_app(runtime));
     expect(find.byType(SplashScreen), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 699));
@@ -99,7 +97,7 @@ void main() {
     );
     final runtime = _runtime(preferences);
 
-    await tester.pumpWidget(_app(runtime, launchStartedAt: DateTime.now()));
+    await tester.pumpWidget(_app(runtime));
     await tester.pump(const Duration(milliseconds: 701));
     expect(find.byType(SplashScreen), findsOneWidget);
 
@@ -116,12 +114,7 @@ void main() {
       );
       final runtime = _runtime(preferences);
 
-      await tester.pumpWidget(
-        _app(
-          runtime,
-          launchStartedAt: DateTime.now().subtract(const Duration(seconds: 1)),
-        ),
-      );
+      await tester.pumpWidget(_app(runtime));
       await tester.pumpAndSettle();
 
       expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
