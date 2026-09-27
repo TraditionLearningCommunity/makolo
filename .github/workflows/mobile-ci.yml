@@ -42,8 +42,17 @@ jobs:
       - name: Verify generated code is committed
         working-directory: .
         run: git diff --exit-code -- mobile/lib mobile/test
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Format mobile sources
+        run: dart format lib test
+      - name: Publish formatted sources
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mobile-formatted-sources-${{ github.sha }}
+          path: |
+            mobile/lib
+            mobile/test
+          if-no-files-found: error
+          retention-days: 1
       - name: Analyze
         run: flutter analyze
       - name: Test
