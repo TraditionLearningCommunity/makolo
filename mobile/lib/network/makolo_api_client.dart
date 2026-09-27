@@ -493,7 +493,7 @@ class MakoloApiClient {
             ...?extraHeaders,
           },
           contentType: body is Map ? Headers.jsonContentType : null,
-          responseType: ResponseType.plain,
+          responseType: ResponseType.json,
           validateStatus: (_) => true,
         ),
         cancelToken: cancel?._token,
@@ -501,7 +501,7 @@ class MakoloApiClient {
       );
       return ApiResponse(
         response.statusCode ?? 0,
-        response.data?.toString() ?? '',
+        _responseBody(response.data),
         _headers(response.headers),
       );
     } on DioException catch (error) {
@@ -572,6 +572,12 @@ class MakoloApiClient {
       return response;
     }
     throw MakoloApiError.fromResponse(response.statusCode, response.body);
+  }
+
+  static String _responseBody(Object? data) {
+    if (data == null) return '';
+    if (data is String) return data;
+    return jsonEncode(data);
   }
 
   static Map<String, String> _headers(Headers headers) {
