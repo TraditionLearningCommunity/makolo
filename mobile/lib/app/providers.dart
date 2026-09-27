@@ -12,6 +12,7 @@ import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_engine.dart';
 import 'environment.dart';
 import 'launch_preferences.dart';
+import 'resumable_interaction_store.dart';
 import 'session_recovery.dart';
 
 class AppRuntime {
@@ -20,6 +21,7 @@ class AppRuntime {
     required this.session,
     required this.recovery,
     this.launchPreferences,
+    this.interactions,
     this.api,
     this.database,
     this.store,
@@ -32,6 +34,7 @@ class AppRuntime {
   final AuthSession? session;
   final SessionRecoveryController recovery;
   final LaunchPreferencesStore? launchPreferences;
+  final ResumableInteractionStore? interactions;
   final MakoloApiClient? api;
   final MakoloDatabase? database;
   final ProfileStore? store;
@@ -65,6 +68,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   final tokens = ref.watch(tokenStoreProvider);
   final recovery = ref.watch(sessionRecoveryProvider);
   final launchPreferences = await FileLaunchPreferencesStore.open();
+  final interactions = await ResumableInteractionStore.open();
   final session = await tokens.readSession();
   final baseUri = MakoloEnvironment.apiBaseUri;
   final api = baseUri == null
@@ -82,6 +86,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
       session: session,
       recovery: recovery,
       launchPreferences: launchPreferences,
+      interactions: interactions,
       api: api,
     );
   }
@@ -107,6 +112,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     session: session,
     recovery: recovery,
     launchPreferences: launchPreferences,
+    interactions: interactions,
     api: api,
     database: database,
     store: store,
