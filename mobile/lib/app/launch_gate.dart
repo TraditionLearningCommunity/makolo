@@ -17,12 +17,16 @@ class LaunchGate extends StatefulWidget {
     required this.router,
     required this.child,
     this.brandPolicy = const BrandMomentPolicy(),
+    this.launchStartedAt,
+    this.minimumVisible = const Duration(milliseconds: 700),
   });
 
   final AppRuntime runtime;
   final GoRouter router;
   final Widget child;
   final BrandMomentPolicy brandPolicy;
+  final DateTime? launchStartedAt;
+  final Duration minimumVisible;
 
   @override
   State<LaunchGate> createState() => _LaunchGateState();
@@ -32,20 +36,32 @@ class _LaunchGateState extends State<LaunchGate> {
   _LaunchStage _stage = _LaunchStage.preparing;
   LaunchPreferencesSnapshot _preferences = const LaunchPreferencesSnapshot();
   bool _priorityNavigation = false;
+  late final DateTime _launchStartedAt;
 
   @override
   void initState() {
     super.initState();
+    _launchStartedAt = widget.launchStartedAt ?? DateTime.now();
     _prepare();
+  }
+
+  Future<void> _waitForMinimumVisibleTime() async {
+    final elapsed = DateTime.now().difference(_launchStartedAt);
+    final remaining = widget.minimumVisible - elapsed;
+    if (remaining > Duration.zero) {
+      await Future<void>.delayed(remaining);
+    }
   }
 
   Future<void> _prepare() async {
     final store = widget.runtime.launchPreferences;
     if (store == null) {
+      await _waitForMinimumVisibleTime();
       if (mounted) setState(() => _stage = _LaunchStage.content);
       return;
     }
     final preferences = await store.read();
+    await _waitForMinimumVisibleTime();
     if (!mounted) return;
 
     final path = widget.router.routeInformationProvider.value.uri.path;
