@@ -40,7 +40,12 @@ class _LaunchGateState extends State<LaunchGate> {
   }
 
   Future<void> _prepare() async {
-    final preferences = await widget.runtime.launchPreferences.read();
+    final store = widget.runtime.launchPreferences;
+    if (store == null) {
+      if (mounted) setState(() => _stage = _LaunchStage.content);
+      return;
+    }
+    final preferences = await store.read();
     if (!mounted) return;
 
     final path = widget.router.routeInformationProvider.value.uri.path;
@@ -67,7 +72,7 @@ class _LaunchGateState extends State<LaunchGate> {
 
   Future<void> _finishBrandMoment() async {
     final shownAt = DateTime.now().toUtc();
-    await widget.runtime.launchPreferences.setLastBrandMomentAt(shownAt);
+    await widget.runtime.launchPreferences?.setLastBrandMomentAt(shownAt);
     if (!mounted) return;
 
     setState(() {
@@ -79,7 +84,7 @@ class _LaunchGateState extends State<LaunchGate> {
   }
 
   Future<void> _finishOnboarding(OnboardingExit exit) async {
-    await widget.runtime.launchPreferences.setOnboardingCompleted();
+    await widget.runtime.launchPreferences?.setOnboardingCompleted();
     if (!mounted) return;
 
     switch (exit) {
