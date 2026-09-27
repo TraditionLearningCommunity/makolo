@@ -6,14 +6,13 @@ class PickedSystemFile {
   PickedSystemFile({
     required this.name,
     required this.byteLength,
-    required Future<void> Function(String destinationPath) copyTo,
-  }) : _copyTo = copyTo;
+    required this.copyTo,
+  });
+
+  final Future<void> Function(String destinationPath) copyTo;
 
   final String name;
   final int? byteLength;
-  final Future<void> Function(String destinationPath) _copyTo;
-
-  Future<void> copyTo(String destinationPath) => _copyTo(destinationPath);
 }
 
 abstract interface class SystemFilePicker {

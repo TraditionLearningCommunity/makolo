@@ -1,4 +1,4 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebasemessaging/firebasemessaging.dart';
 
 class PushSignal {
   const PushSignal({required this.data, this.messageId, this.sentAt});
@@ -15,10 +15,9 @@ abstract interface class PushSignalReceiver {
 }
 
 class FirebasePushSignalReceiver implements PushSignalReceiver {
-  FirebasePushSignalReceiver({required FirebaseMessaging messaging})
-    : _messaging = messaging;
+  FirebasePushSignalReceiver({required this.messaging});
 
-  final FirebaseMessaging _messaging;
+  final FirebaseMessaging messaging;
 
   @override
   Stream<PushSignal> get foregroundSignals =>
@@ -30,7 +29,7 @@ class FirebasePushSignalReceiver implements PushSignalReceiver {
 
   @override
   Future<PushSignal?> initialSignal() async {
-    final message = await _messaging.getInitialMessage();
+    final message = await messaging.getInitialMessage();
     return message == null ? null : _signal(message);
   }
 
