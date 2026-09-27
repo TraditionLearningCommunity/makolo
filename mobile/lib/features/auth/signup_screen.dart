@@ -222,6 +222,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
+                fieldKey: const Key('signup-first-name'),
                 label: 'Prénom (facultatif)',
                 controller: _firstName,
                 focusNode: _firstNameFocus,
@@ -233,6 +234,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
+                fieldKey: const Key('signup-last-name'),
                 label: 'Nom (facultatif)',
                 controller: _lastName,
                 focusNode: _lastNameFocus,
@@ -244,6 +246,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
+                fieldKey: const Key('signup-phone'),
                 label: 'Téléphone (facultatif)',
                 controller: _phone,
                 focusNode: _phoneFocus,
