@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../auth/auth_repository.dart';
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
-import '../../auth/auth_repository.dart';
 import '../../network/api_error.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -41,11 +41,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await auth.login(email: _email.text.trim(), password: _password.text);
       ref.invalidate(appRuntimeProvider);
     } on MakoloApiError catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (!mounted) return;
+      setState(() {
+        _error = error.statusCode == 401 || error.statusCode == 400
+            ? 'Adresse e-mail ou mot de passe incorrect.'
+            : 'Connexion impossible pour le moment. Réessayez dans un instant.';
+      });
     } on Object {
       if (mounted) {
         setState(
-          () => _error = 'Connexion impossible pour le moment. Votre saisie n’a pas été envoyée à nouveau.',
+          () => _error = 'Connexion impossible pour le moment. Votre saisie reste disponible.',
         );
       }
     } finally {
@@ -76,7 +81,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
                       widget.runtime.apiConfigured
-                          ? 'Connectez-vous pour constituer la projection Makolo de cet appareil.'
+                          ? 'Connectez-vous pour retrouver ce qui est disponible pour vous sur cet appareil.'
                           : 'Une première connexion est nécessaire. Configurez un environnement Makolo autorisé pour continuer.',
                       textAlign: TextAlign.center,
                     ),
@@ -105,10 +110,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       if (_error != null) ...[
                         const SizedBox(height: MakoloSpacing.md),
-                        Text(
-                          _error!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            _error!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                           ),
                         ),
                       ],

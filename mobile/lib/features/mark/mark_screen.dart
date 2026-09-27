@@ -20,7 +20,7 @@ class MarkScreen extends StatelessWidget {
         ),
         const SizedBox(height: MakoloSpacing.md),
         const Text(
-          'A1 prépare cette porte d’entrée. L’intake complet et son orchestration appartiennent à A2.',
+          'Cette entrée sera disponible ici lorsqu’elle pourra vous aider à avancer.',
         ),
       ],
     ),
