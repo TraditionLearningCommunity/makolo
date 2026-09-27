@@ -63,7 +63,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
-        darkTheme: buildMakoloTheme(brightness: Brightness.dark),
+        darkTheme: ThemeData.dark(useMaterial3: true),
         themeMode: ThemeMode.dark,
         home: Scaffold(
           appBar: MakoloPrimaryHeader(
