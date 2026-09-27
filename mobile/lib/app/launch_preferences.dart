@@ -95,7 +95,6 @@ class FileLaunchPreferencesStore implements LaunchPreferencesStore {
   }
 }
 
-
 class MemoryLaunchPreferencesStore implements LaunchPreferencesStore {
   MemoryLaunchPreferencesStore([
     this.snapshot = const LaunchPreferencesSnapshot(),
