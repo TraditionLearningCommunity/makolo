@@ -2,7 +2,7 @@
 <resources>
     <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowSplashScreenBackground">@color/makolo_splash_background</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_makolo_mark_white_white</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_makolo_mark_white</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/makolo_splash_background</item>
     </style>
 </resources>
