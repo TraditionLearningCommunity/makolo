@@ -181,17 +181,25 @@ class _MakoloBottomNavigation extends StatelessWidget {
                   label: 'Makolo Mark',
                   child: Tooltip(
                     message: 'Makolo Mark',
-                    child: InkResponse(
-                      onTap: onMark,
-                      radius: 28,
-                      containedInkWell: true,
-                      child: const SizedBox(
-                        height: 64,
-                        child: Center(
-                          child: SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: Center(child: MakoloMark(size: 32)),
+                    child: Center(
+                      child: Material(
+                        color: MakoloColors.indigo.withValues(alpha: 0.06),
+                        shape: const CircleBorder(
+                          side: BorderSide(
+                            color: MakoloColors.indigo,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () {
+                            MakoloHaptics.selection();
+                            onMark();
+                          },
+                          child: const SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: Center(child: MakoloMark(size: 28)),
                           ),
                         ),
                       ),

@@ -6,7 +6,7 @@ import 'package:makolo_mobile/navigation/secondary_screen.dart';
 import 'package:makolo_mobile/navigation/shell_header.dart';
 
 void main() {
-  testWidgets('Now header can expose a sober unread attention marker', (
+  testWidgets('Now header exposes brand and sober unread attention marker', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -24,7 +24,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Makolo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Makolo'), findsOneWidget);
     expect(find.byTooltip('Conversations'), findsOneWidget);
     expect(find.byTooltip('Notifications, 3 non lues'), findsOneWidget);
     expect(find.byTooltip('Avatar'), findsOneWidget);

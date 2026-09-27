@@ -39,11 +39,42 @@ class AuthSession {
   );
 }
 
+class DeviceAccount {
+  const DeviceAccount({
+    required this.profileId,
+    required this.email,
+    required this.displayName,
+    required this.hasQuickAccess,
+    required this.lastUsedAt,
+  });
+
+  final String profileId;
+  final String email;
+  final String displayName;
+  final bool hasQuickAccess;
+  final DateTime lastUsedAt;
+
+  String get avatarLetter {
+    final source = displayName.trim().isNotEmpty ? displayName : email;
+    return source.trim().substring(0, 1).toUpperCase();
+  }
+}
+
 abstract interface class TokenStore {
   Future<AuthSession?> readSession();
   Future<void> writeSession(AuthSession session);
   Future<void> clearSession();
   Future<String> deviceInstanceId();
+
+  Future<List<DeviceAccount>> listAccounts();
+  Future<void> saveAccount(
+    DeviceAccount account, {
+    AuthSession? quickAccessSession,
+  });
+  Future<AuthSession?> readAccountSession(String profileId);
+  Future<void> clearAccountSession(String profileId);
+  Future<void> removeAccount(String profileId);
+  Future<AuthSession> activateAccount(String profileId);
 }
 
 class FlutterSecureTokenStore implements TokenStore {
@@ -52,6 +83,7 @@ class FlutterSecureTokenStore implements TokenStore {
 
   static const _sessionKey = 'makolo.active_session.v1';
   static const _deviceKey = 'makolo.device_instance_id.v1';
+  static const _accountsKey = 'makolo.device_accounts.v1';
 
   final FlutterSecureStorage _storage;
 
@@ -68,12 +100,17 @@ class FlutterSecureTokenStore implements TokenStore {
   }
 
   @override
-  Future<void> writeSession(AuthSession session) {
-    // Access + rotated refresh are replaced as one secure-storage value.
-    return _storage.write(
-      key: _sessionKey,
-      value: jsonEncode(session.toJson()),
-    );
+  Future<void> writeSession(AuthSession session) async {
+    await _storage.write(key: _sessionKey, value: jsonEncode(session.toJson()));
+
+    final profileId = session.profileId;
+    if (profileId == null || profileId.isEmpty) return;
+    final accounts = await _readAccountRecords();
+    final record = accounts[profileId];
+    if (record == null || record['session'] == null) return;
+    record['session'] = session.toJson();
+    record['last_used_at'] = DateTime.now().toUtc().toIso8601String();
+    await _writeAccountRecords(accounts);
   }
 
   @override
@@ -90,5 +127,119 @@ class FlutterSecureTokenStore implements TokenStore {
     ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
     await _storage.write(key: _deviceKey, value: value);
     return value;
+  }
+
+  @override
+  Future<List<DeviceAccount>> listAccounts() async {
+    final records = await _readAccountRecords();
+    final accounts = <DeviceAccount>[];
+    for (final entry in records.entries) {
+      final value = entry.value;
+      final email = value['email'];
+      final displayName = value['display_name'];
+      final lastUsedRaw = value['last_used_at'];
+      if (email is! String || email.trim().isEmpty) continue;
+      accounts.add(
+        DeviceAccount(
+          profileId: entry.key,
+          email: email,
+          displayName: displayName is String && displayName.trim().isNotEmpty
+              ? displayName
+              : email,
+          hasQuickAccess: value['session'] is Map,
+          lastUsedAt:
+              DateTime.tryParse(lastUsedRaw is String ? lastUsedRaw : '') ??
+              DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        ),
+      );
+    }
+    accounts.sort((a, b) => b.lastUsedAt.compareTo(a.lastUsedAt));
+    return accounts;
+  }
+
+  @override
+  Future<void> saveAccount(
+    DeviceAccount account, {
+    AuthSession? quickAccessSession,
+  }) async {
+    final accounts = await _readAccountRecords();
+    accounts[account.profileId] = <String, dynamic>{
+      'email': account.email,
+      'display_name': account.displayName,
+      'last_used_at': account.lastUsedAt.toUtc().toIso8601String(),
+      'session': quickAccessSession?.toJson(),
+    };
+    await _writeAccountRecords(accounts);
+  }
+
+  @override
+  Future<AuthSession?> readAccountSession(String profileId) async {
+    final record = (await _readAccountRecords())[profileId];
+    final raw = record?['session'];
+    if (raw is! Map) return null;
+    try {
+      return AuthSession.fromJson(Map<String, dynamic>.from(raw));
+    } on Object {
+      await clearAccountSession(profileId);
+      return null;
+    }
+  }
+
+  @override
+  Future<void> clearAccountSession(String profileId) async {
+    final accounts = await _readAccountRecords();
+    final record = accounts[profileId];
+    if (record == null) return;
+    record['session'] = null;
+    await _writeAccountRecords(accounts);
+  }
+
+  @override
+  Future<void> removeAccount(String profileId) async {
+    final active = await readSession();
+    if (active?.profileId == profileId) {
+      await clearSession();
+    }
+    final accounts = await _readAccountRecords();
+    if (accounts.remove(profileId) != null) {
+      await _writeAccountRecords(accounts);
+    }
+  }
+
+  @override
+  Future<AuthSession> activateAccount(String profileId) async {
+    final session = await readAccountSession(profileId);
+    if (session == null) {
+      throw StateError('quick access unavailable');
+    }
+    await writeSession(session);
+    return session;
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _readAccountRecords() async {
+    final raw = await _storage.read(key: _accountsKey);
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return {};
+      final result = <String, Map<String, dynamic>>{};
+      for (final entry in decoded.entries) {
+        if (entry.key is String && entry.value is Map) {
+          result[entry.key as String] = Map<String, dynamic>.from(
+            entry.value as Map,
+          );
+        }
+      }
+      return result;
+    } on Object {
+      await _storage.delete(key: _accountsKey);
+      return {};
+    }
+  }
+
+  Future<void> _writeAccountRecords(
+    Map<String, Map<String, dynamic>> accounts,
+  ) {
+    return _storage.write(key: _accountsKey, value: jsonEncode(accounts));
   }
 }

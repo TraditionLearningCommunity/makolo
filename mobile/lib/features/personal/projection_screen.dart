@@ -12,19 +12,24 @@ class ProjectionScreen extends StatelessWidget {
     required this.stream,
     required this.emptyMessage,
     this.headerAction,
+    this.showTitle = true,
   });
 
   final String title;
   final Stream<StoredProjection?> stream;
   final String emptyMessage;
   final Widget? headerAction;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
     final body = StreamBuilder<StoredProjection?>(
       stream: stream,
-      builder: (context, snapshot) =>
-          _buildBody(context, snapshot, includeTitle: headerAction == null),
+      builder: (context, snapshot) => _buildBody(
+        context,
+        snapshot,
+        includeTitle: showTitle && headerAction == null,
+      ),
     );
 
     if (headerAction == null) return body;
@@ -86,11 +91,6 @@ class ProjectionScreen extends StatelessWidget {
           Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: MakoloSpacing.sm),
         ],
-        Text(
-          'Disponible sur cet appareil',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: MakoloSpacing.lg),
         if (items is List)
           ...items.map(
             (item) => Card(
@@ -102,7 +102,7 @@ class ProjectionScreen extends StatelessWidget {
           )
         else
           const InlineMessage(
-            message: 'Ce contenu est disponible sur cet appareil.',
+            message: 'Rien d’autre à afficher pour le moment.',
           ),
       ],
     );

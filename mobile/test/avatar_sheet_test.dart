@@ -8,7 +8,7 @@ import 'package:makolo_mobile/navigation/avatar_sheet.dart';
 import 'fakes.dart';
 
 void main() {
-  testWidgets('Avatar opens a compact account and context sheet', (
+  testWidgets('Avatar opens a compact account and actor-context sheet', (
     tester,
   ) async {
     var accountOpened = false;
@@ -39,8 +39,8 @@ void main() {
     await tester.tap(find.text('Avatar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Contexte actif'), findsOneWidget);
-    expect(find.text('Personnel'), findsOneWidget);
+    expect(find.text('Agir en mon nom'), findsOneWidget);
+    expect(find.text('Contexte actif'), findsNothing);
     expect(find.text('Compte et paramètres'), findsOneWidget);
     expect(find.text('Mes démarches'), findsNothing);
     expect(find.text('Mes accès'), findsNothing);

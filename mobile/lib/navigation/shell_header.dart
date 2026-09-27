@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
-import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 
 enum MakoloHeaderKind { now, discover, mark, ongoing, me }
@@ -91,23 +91,18 @@ class MakoloPrimaryHeader extends StatelessWidget
       surfaceTintColor: Colors.transparent,
       backgroundColor: Theme.of(context).colorScheme.surface,
       titleSpacing: MakoloSpacing.md,
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_usesBrand) ...[
-            const MakoloMark(size: 24),
-            const SizedBox(width: MakoloSpacing.sm),
-          ],
-          Flexible(
-            child: Text(
+      title: _usesBrand
+          ? SvgPicture.asset(
+              'assets/brand/makolo-logo-violet.svg',
+              height: 34,
+              semanticsLabel: 'Makolo',
+            )
+          : Text(
               _title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleLarge,
             ),
-          ),
-        ],
-      ),
       actions: [
         ..._contextActions(),
         Semantics(

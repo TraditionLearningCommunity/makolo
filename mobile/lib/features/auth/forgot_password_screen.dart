@@ -3,30 +3,39 @@ import 'package:flutter/material.dart';
 import '../../app/providers.dart';
 import '../../auth/auth_repository.dart';
 import '../../design/makolo_theme.dart';
-import 'auth_entry_frame.dart';
 import 'auth_error_messages.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({
-    super.key,
+Future<String?> showForgotPasswordDialog(
+  BuildContext context, {
+  required AppRuntime runtime,
+  String initialEmail = '',
+}) {
+  return showDialog<String>(
+    context: context,
+    builder: (_) =>
+        _ForgotPasswordDialog(runtime: runtime, initialEmail: initialEmail),
+  );
+}
+
+class _ForgotPasswordDialog extends StatefulWidget {
+  const _ForgotPasswordDialog({
     required this.runtime,
-    required this.onBackToLogin,
-    this.initialEmail = '',
+    required this.initialEmail,
   });
 
   final AppRuntime runtime;
-  final ValueChanged<String> onBackToLogin;
   final String initialEmail;
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _email;
   bool _busy = false;
-  String? _error;
   bool _sent = false;
+  String? _error;
 
   @override
   void initState() {
@@ -40,21 +49,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_busy) return;
-    final email = _email.text.trim();
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
     if (email.isEmpty || !email.contains('@')) {
-      setState(() {
-        _error = 'Indiquez une adresse e-mail valide.';
-        _sent = false;
-      });
-      return;
+      return 'Indiquez une adresse e-mail valide.';
     }
+    return null;
+  }
+
+  Future<void> _submit() async {
+    if (_busy || !_formKey.currentState!.validate()) return;
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
         _error = 'La récupération est indisponible sur cette installation pour le moment.';
-        _sent = false;
       });
       return;
     }
@@ -67,7 +75,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await AuthRepository(
         api,
         widget.runtime.tokens,
-      ).forgotPassword(email: email);
+      ).forgotPassword(email: _email.text.trim());
       if (!mounted) return;
       setState(() => _sent = true);
     } on Object catch (error) {
@@ -78,7 +86,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           fallback:
               'Envoi impossible pour le moment. Réessayez dans un instant.',
         );
-        _sent = false;
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -87,62 +94,85 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AuthEntryFrame(
-      title: 'Mot de passe oublié ?',
-      subtitle: 'Si un compte correspond à cette adresse, Makolo envoie les instructions de réinitialisation.',
-      onBack: () => widget.onBackToLogin(_email.text.trim()),
-      child: AutofillGroup(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              key: const Key('forgot-email'),
-              controller: _email,
-              enabled: !_busy,
-              keyboardType: TextInputType.emailAddress,
-              autofillHints: const [AutofillHints.email],
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _submit(),
-              decoration: const InputDecoration(
-                labelText: 'Adresse e-mail',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Semantics(
+    return AlertDialog(
+      backgroundColor: MakoloColors.warm,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MakoloRadii.large),
+      ),
+      title: Text(
+        _sent ? 'Consultez votre boîte de réception' : 'Mot de passe oublié ?',
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: _sent
+            ? Semantics(
                 liveRegion: true,
                 child: Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  'Si un compte correspond à ${_email.text.trim()}, Makolo y a envoyé les instructions. Ouvrez le lien reçu pour réinitialiser votre mot de passe, puis revenez vous connecter.',
+                  style: const TextStyle(height: 1.45),
+                ),
+              )
+            : Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Indiquez l’adresse e-mail de votre compte. Makolo répond de la même façon qu’un compte existe ou non.',
+                    ),
+                    const SizedBox(height: MakoloSpacing.lg),
+                    TextFormField(
+                      key: const Key('forgot-email'),
+                      controller: _email,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      textInputAction: TextInputAction.done,
+                      validator: _validateEmail,
+                      onFieldSubmitted: (_) => _submit(),
+                      decoration: InputDecoration(
+                        labelText: 'Adresse e-mail',
+                        prefixIcon: const Icon(Icons.alternate_email),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: MakoloSpacing.md),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
-            if (_sent) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Semantics(
-                liveRegion: true,
-                child: const Text(
-                  'Si un compte correspond à cette adresse, les instructions ont été envoyées. Ouvrez le lien reçu pour terminer la réinitialisation sur le web, puis revenez vous connecter dans Makolo.',
-                ),
-              ),
-            ],
-            const SizedBox(height: MakoloSpacing.lg),
-            FilledButton(
-              key: const Key('forgot-submit'),
-              onPressed: _busy ? null : _submit,
-              child: Text(_busy ? 'Envoi…' : 'Envoyer les instructions'),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => widget.onBackToLogin(_email.text.trim()),
-              child: const Text('Retour à la connexion'),
-            ),
-          ],
-        ),
       ),
+      actions: [
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () => Navigator.of(context).pop(_email.text.trim()),
+          child: Text(_sent ? 'Fermer' : 'Annuler'),
+        ),
+        if (!_sent)
+          FilledButton(
+            key: const Key('forgot-submit'),
+            onPressed: _busy ? null : _submit,
+            child: Text(_busy ? 'Envoi…' : 'Envoyer'),
+          ),
+      ],
     );
   }
 }
