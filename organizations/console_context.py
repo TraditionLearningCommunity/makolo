@@ -9,6 +9,7 @@ from django.utils import timezone
 from authorization.constants import PermissionCode, SPACE_PERMISSION_CODES, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.selectors import activity_ids_with_direct_permission
+from .api.workspace_projection import build_space_workspace
 from .models import Organization
 
 
@@ -16,10 +17,11 @@ SPACE_NAVIGATION = (
     ("Activité", (("activities", "Activités", "calendar-days"), ("requests", "Demandes", "calendar-search"), ("access", "Accès", "badge-check"))),
     ("Services", (("services", "Services · Dossiers", "route"),)),
     ("Transport", (("transport", "Routes · Départs · Véhicules", "bus-front"),)),
-    ("Commercial", (("offers", "Tarifs", "ticket"), ("orders", "Commandes", "layout-dashboard"), ("payments", "Paiements", "wallet-cards"), ("promotions", "Promotions", "badge-percent"))),
+    ("Commercial", (("offers", "Tarifs", "ticket"), ("orders", "Commandes", "layout-dashboard"), ("payments", "Paiements", "wallet-cards"), ("funding", "Financements", "circle-dollar-sign"), ("promotions", "Promotions", "badge-percent"))),
     ("Publics", (("groups", "Groupes", "users-round"), ("crm", "Contacts", "contact-round"), ("audiences", "Audiences", "users-round"))),
+    ("Relations", (("partners", "Partenaires", "handshake"), ("loyalty", "Fidélité", "heart-handshake"), ("recognition", "Reconnaissance", "award"), ("trust", "Confiance", "shield-check"))),
     ("Exploitation", (("places", "Lieux", "building-2"), ("control", "Contrôle d’accès", "scan-line"), ("operations", "Opérations", "shield-check"))),
-    ("Pilotage", (("analytics", "Analyses", "chart-spline"), ("automation", "Automatisations", "sparkles"))),
+    ("Pilotage", (("analytics", "Analyses", "chart-spline"), ("growth", "Acquisition", "trending-up"), ("automation", "Automatisations", "sparkles"))),
     ("Espace", (("subscription", "Abonnement", "layers-3"), ("team", "Équipe", "users-round"), ("settings", "Paramètres", "building-2"))),
 )
 
@@ -115,7 +117,7 @@ def _has_activity_capability(profile, space, permission_code):
     return Activity.objects.filter(space=space, pk__in=permitted).exists()
 
 
-def _module_allowed(profile, space, key, *, space_permissions, limited, space_role_codes):
+def _module_allowed(profile, space, key, *, space_permissions, limited, space_role_codes, workspace_module_keys):
     if key in {"activities", "transport"}:
         return PermissionCode.SPACE_ACTIVITIES_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_VIEW)
     if key == "services":
@@ -139,6 +141,8 @@ def _module_allowed(profile, space, key, *, space_permissions, limited, space_ro
         return PermissionCode.FINANCE_VIEW in space_permissions or _has_activity_capability(profile, space, PermissionCode.ACTIVITY_FINANCE_VIEW)
     if key == "promotions":
         return PermissionCode.PROMOTIONS_VIEW in space_permissions
+    if key in {"funding", "partners", "growth", "loyalty", "recognition", "trust"}:
+        return key in workspace_module_keys
     if key == "groups":
         return PermissionCode.SPACE_GROUPS_VIEW in space_permissions
     if key in {"crm", "audiences"}:
@@ -181,6 +185,7 @@ class SpaceConsoleContext:
     activity_ids: frozenset | None
     navigation_groups: tuple
     switcher_items: tuple
+    workspace_modules: tuple
 
     @classmethod
     def build(cls, profile, space):
@@ -190,6 +195,9 @@ class SpaceConsoleContext:
         limited = not has_space_authority(profile, space)
         permissions = frozenset(_space_permission_codes(profile, space))
         role_codes = frozenset(_space_role_codes(profile, space))
+        workspace = build_space_workspace(profile, space) or {"modules": []}
+        workspace_modules = tuple(workspace["modules"])
+        workspace_module_keys = frozenset(module["key"] for module in workspace_modules)
         activity_ids = activity_ids_for_space(profile, space)
         if activity_ids is not None:
             activity_ids = frozenset(activity_ids)
@@ -204,6 +212,7 @@ class SpaceConsoleContext:
                     space_permissions=permissions,
                     limited=limited,
                     space_role_codes=role_codes,
+                    workspace_module_keys=workspace_module_keys,
                 ):
                     visible.append({"key": key, "label": item_label, "icon": icon, "url": reverse(f"organizations:console-{key}", kwargs={"slug": space.slug})})
             if visible:
@@ -217,10 +226,13 @@ class SpaceConsoleContext:
             }
             for candidate in authorized_spaces(profile)
         )
-        return cls(profile=profile, space=space, space_permissions=permissions, limited_to_activities=limited, activity_ids=activity_ids, navigation_groups=tuple(navigation), switcher_items=switcher)
+        return cls(profile=profile, space=space, space_permissions=permissions, limited_to_activities=limited, activity_ids=activity_ids, navigation_groups=tuple(navigation), switcher_items=switcher, workspace_modules=workspace_modules)
 
     def can(self, permission_code):
         return permission_code in self.space_permissions
+
+    def workspace_module(self, key):
+        return next((module for module in self.workspace_modules if module["key"] == key), None)
 
     @property
     def can_manage_space(self):

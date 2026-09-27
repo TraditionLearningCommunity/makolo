@@ -1,0 +1,31 @@
+{% extends 'organizations/console/base.html' %}
+{% block console_content %}
+<section class="mk-panel p-5 sm:p-6">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="max-w-3xl">
+      <span class="mk-kicker">Commercial</span>
+      <h2 class="mt-3 text-2xl font-extrabold tracking-[-.03em]">Financements</h2>
+      <p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Créez et gérez les financements portés par cet Espace. Les contributions continuent de produire leurs obligations dans Payments.</p>
+    </div>
+    {% if can_create_funding %}<a href="{{ create_funding_url }}" class="mk-btn mk-btn-primary">Créer un financement</a>{% endif %}
+  </div>
+  <div class="mt-6 space-y-3">
+    {% for funding in fundings %}
+      <a href="{% url 'funding:manage' funding.pk %}" class="block rounded-2xl border p-4 transition hover:-translate-y-0.5" style="border-color:var(--mk-border)">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="font-bold">{{ funding.activity.title }}</p>
+            <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ funding.activity.get_status_display }} · {{ funding.currency }}{% if funding.target_amount %} · objectif {{ funding.target_amount }}{% endif %}</p>
+          </div>
+          <span class="text-sm font-bold" style="color:var(--mk-brand)">Gérer →</span>
+        </div>
+      </a>
+    {% empty %}
+      <div class="rounded-2xl border border-dashed p-5" style="border-color:var(--mk-border)">
+        <p class="font-bold">Aucun financement gérable dans cet Espace.</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">Lorsqu’un financement existe ici, il apparaîtra dans cette vue.</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
