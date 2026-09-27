@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/onboarding/onboarding_flow.dart';
 import '../features/splash/brand_moment.dart';
 import '../features/splash/splash_screen.dart';
+import '../sync/sync_engine.dart';
 import 'launch_policy.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
@@ -17,12 +18,14 @@ class LaunchGate extends StatefulWidget {
     required this.router,
     required this.child,
     this.brandPolicy = const BrandMomentPolicy(),
+    this.minimumVisible = const Duration(milliseconds: 700),
   });
 
   final AppRuntime runtime;
   final GoRouter router;
   final Widget child;
   final BrandMomentPolicy brandPolicy;
+  final Duration minimumVisible;
 
   @override
   State<LaunchGate> createState() => _LaunchGateState();
@@ -32,23 +35,53 @@ class _LaunchGateState extends State<LaunchGate> {
   _LaunchStage _stage = _LaunchStage.preparing;
   LaunchPreferencesSnapshot _preferences = const LaunchPreferencesSnapshot();
   bool _priorityNavigation = false;
+  late final Future<void> _minimumVisibleFuture;
 
   @override
   void initState() {
     super.initState();
+    _minimumVisibleFuture = widget.minimumVisible > Duration.zero
+        ? Future<void>.delayed(widget.minimumVisible)
+        : Future<void>.value();
     _prepare();
+  }
+
+  Future<void> _prepareInitialPersonalSurface(String path) async {
+    if (!widget.runtime.isAuthenticated) return;
+    final store = widget.runtime.store;
+    final sync = widget.runtime.sync;
+    if (store == null || sync == null) return;
+
+    final SyncRoot root = switch (path) {
+      '/ongoing' => SyncEngine.roots[1],
+      '/me' => SyncEngine.roots[2],
+      _ => SyncEngine.roots[0],
+    };
+
+    final local = await store.readProjection(root.key);
+    if (local != null) return;
+
+    try {
+      await sync.pull(root);
+    } on Object {
+      // A first remote read is best-effort. The local-first shell can still
+      // open cleanly and SyncLifecycle will represent offline/error states.
+    }
   }
 
   Future<void> _prepare() async {
     final store = widget.runtime.launchPreferences;
     if (store == null) {
+      await _minimumVisibleFuture;
       if (mounted) setState(() => _stage = _LaunchStage.content);
       return;
     }
     final preferences = await store.read();
+    final path = widget.router.routeInformationProvider.value.uri.path;
+    await _prepareInitialPersonalSurface(path);
+    await _minimumVisibleFuture;
     if (!mounted) return;
 
-    final path = widget.router.routeInformationProvider.value.uri.path;
     final priorityNavigation = hasPriorityLaunchPath(
       path,
       authenticated: widget.runtime.isAuthenticated,
