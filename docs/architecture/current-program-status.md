@@ -6,13 +6,13 @@
 
 - Dépôt : `TraditionLearningCommunity/makolo`
 - Branche principale : `main`
-- HEAD Z15 intégré : `main@993e17d64372dea2d4da36c5c3274e5df378cb89`
+- HEAD Z15 intégré : `main@98618746d2d4c0ae1b3e1a4ce3da0c6bdfbca527`
 - PR #288 — Z14 : mergée ; programme Z1–Z14 fermé
 - PR #290 — M10.0 Shell & Structured Navigation : mergée ; aucune migration
 - PR #303 — A0 architecture mobile local-first : mergée ; le développement Flutter reste un programme séparé
 - PR #301 — W6 Desktop Power Layer & Closure : mergée ; Z15 ne modifie aucune surface W
 - PR #304 — Z15 : mergée sur `main` après CI verte ; réconciliation backend des capacités orphelines intégrée
-- PR #312 — W7 : chantier web de fermeture des capacités orphelines, basé sur le `main` post-Z15
+- PR #312 — W7 : mergée sur `main` après CI verte ; fermeture Web des capacités orphelines intégrée
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -46,7 +46,7 @@ Le programme Z n'est pas un nouveau domaine. Il a recomposé le backend existant
 - A0 architecture mobile réconciliée ;
 - W6 intégré ;
 - Z15 est intégré : les capacités backend orphelines sont classifiées et exposées sans rouvrir les surfaces personnelles ;
-- W7 consomme ces contrats côté Web Mature/Espace sans construire Platform ;
+- W7 est intégré : le Web Mature/Espace consomme ces contrats sans construire Platform ;
 - M10 reste un gate global distinct. Z15 ne signifie pas « production-ready ».
 
 La navigation personnelle canonique reste :
@@ -126,7 +126,7 @@ PR ouvertes pertinentes après intégration Z15 :
 - #284 Pré-8 Actors/Universe input : documentation ;
 - #223 research lab : isolé hors runtime.
 
-W6 #301, ACT-F #305 et Z15 #304 sont intégrés. W7 #312 est le chantier Web borné qui consomme Z15 ; les autres lignes ouvertes ne doivent pas réécrire simultanément la Console Espace ni les runtimes Actors.
+W6 #301, ACT-F #305 et Z15 #304 sont intégrés. W7 #312 est intégré. Les autres lignes ouvertes ne doivent pas réécrire simultanément la Console Espace ni les runtimes Actors.
 
 ## 8. Qualité et CI
 
@@ -141,14 +141,14 @@ Le head Z13 #287 a été mergé seulement après succès de :
 - Conversation PostgreSQL ;
 - Subscriptions.
 
-Z15 #304 a été fusionné après CI PR verte. W7 doit conserver la même règle : tests ciblés puis CI complète verte avant merge, sans migration ni affaiblissement des invariants d'autorité.
+Z15 #304 et W7 #312 ont été fusionnés après CI PR verte. W7 n'a ajouté aucune migration et conserve les invariants d'autorité.
 
 ## 9. Prochaine décision
 
 ```text
 Programme Z historique fermé
 → Z15 ✅ réconciliation backend orpheline intégrée
-→ W7 fermeture Web des capacités réconciliées
+→ W7 ✅ fermeture Web des capacités réconciliées
 → Platform séparé après W
 → suite M10 / production readiness globale
 → A Mobile
