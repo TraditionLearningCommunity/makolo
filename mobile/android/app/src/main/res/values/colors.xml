@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="makolo_background">#5232DB</color>
-    <color name="makolo_night_background">#5232DB</color>
-    <color name="makolo_launcher_background">#FAF7F5</color>
+    <color name="makolo_background">#FAF7F5</color>
+    <color name="makolo_night_background">#0F172A</color>
+    <color name="makolo_launcher_background">#5232DB</color>
+    <color name="makolo_splash_background">#5232DB</color>
 </resources>
