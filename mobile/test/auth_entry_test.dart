@@ -50,6 +50,12 @@ Future<void> _pumpLogin(
   await tester.pump();
 }
 
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+}
+
 http.Response _meResponse() {
   return http.Response(
     jsonEncode({
@@ -91,7 +97,7 @@ void main() {
       find.byKey(const Key('login-password')),
       'secret-pass',
     );
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await _tapVisible(tester, find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
     final session = await tokens.readSession();
@@ -125,8 +131,8 @@ void main() {
       find.byKey(const Key('login-password')),
       'secret-pass',
     );
-    await tester.tap(find.text('Accès rapide sur cet appareil').first);
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await _tapVisible(tester, find.text('Accès rapide sur cet appareil').first);
+    await _tapVisible(tester, find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
     final account = (await tokens.listAccounts()).single;
@@ -153,7 +159,7 @@ void main() {
       find.byKey(const Key('login-password')),
       'wrong-pass',
     );
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await _tapVisible(tester, find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
     expect(
@@ -191,8 +197,11 @@ void main() {
       find.byKey(const Key('login-password')),
       'secret-pass',
     );
-    await tester.tap(find.byKey(const Key('login-submit')));
-    await tester.tap(find.byKey(const Key('login-submit')));
+    final submit = find.byKey(const Key('login-submit'));
+    await tester.ensureVisible(submit);
+    await tester.pumpAndSettle();
+    await tester.tap(submit);
+    await tester.tap(submit);
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
 
@@ -237,7 +246,7 @@ void main() {
     final runtime = _runtime(tokens: tokens, client: client);
 
     await _pumpLogin(tester, runtime);
-    await tester.tap(find.byKey(const Key('create-account-link')));
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
     await tester.pumpAndSettle();
 
     await tester.enterText(
@@ -289,7 +298,7 @@ void main() {
     final runtime = _runtime(tokens: tokens, client: client);
 
     await _pumpLogin(tester, runtime);
-    await tester.tap(find.byKey(const Key('create-account-link')));
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
     await tester.pumpAndSettle();
 
     await tester.enterText(
@@ -341,13 +350,13 @@ void main() {
     final runtime = _runtime(tokens: tokens, client: client);
 
     await _pumpLogin(tester, runtime);
-    await tester.tap(find.byKey(const Key('forgot-password-link')));
+    await _tapVisible(tester, find.byKey(const Key('forgot-password-link')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('forgot-email')),
       'unknown@example.com',
     );
-    await tester.tap(find.byKey(const Key('forgot-submit')));
+    await _tapVisible(tester, find.byKey(const Key('forgot-submit')));
     await tester.pumpAndSettle();
 
     expect(forgotCalls, 1);
@@ -422,7 +431,7 @@ void main() {
       find.byKey(const Key('login-password')),
       'secret-pass',
     );
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await _tapVisible(tester, find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
     expect(recovery.initialLocation(), '/journeys/123');
