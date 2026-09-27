@@ -33,6 +33,25 @@ Les comptes staff qui existaient lors de la migration reçoivent un Mandat plate
 
 Operations utilise désormais la Permission plateforme explicite plutôt que `is_staff` comme autorité métier.
 
+## Séparation Platform / Espace dans les contrats Z15
+
+Le résolveur général conserve ses privilèges Platform historiques pour les usages de supervision interne. Cela ne signifie pas qu'un client Platform agit implicitement **comme** un Espace.
+
+Les contrats de composition Espace introduits par Z15 utilisent les selectors directs :
+
+```text
+space_ids_with_direct_permission(...)
+has_direct_space_permission(...)
+activity_ids_with_direct_permission(...)
+has_direct_activity_permission(...)
+```
+
+Ils ne prennent en compte que des Mandates `space` / `activity` réels et leur héritage Espace→Activity documenté. Ils n'héritent ni `platform.manage`, ni un simple `is_staff`, ni une TeamMembership.
+
+Cette frontière s'applique notamment à Workspace, Funding management, Recognition Espace, Trust Espace et au narrowing Analytics Espace.
+
+Z15 l'applique aussi à la Console Espace elle-même : `authorized_spaces()`, la résolution des Activity accessibles et les permissions de navigation ne prennent plus un Mandat Platform pour une autorité Espace. Un administrateur Platform doit entrer par le contrat Platform ; s'il doit réellement agir au nom d'un Espace, il lui faut un Mandat Espace/Activity explicite. `is_superuser` reste le privilège technique Django ultime et conserve son bypass documenté.
+
 ## Rôles système Espace
 
 Les anciens `OrganizationRole` sont mappés vers les rôles système canoniques suivants :
@@ -243,6 +262,8 @@ La source canonique d'autorité est désormais `authorization.Mandate`. Les méc
 Le modèle canonique `groups.Group` évite également toute collision avec `User.groups`, nom déjà utilisé par l'auth Django, grâce à des relations `collective_*` explicites.
 
 Aucune nouvelle fonctionnalité ne doit lire `OrganizationMembership.role`, un flag global User ou `created_by` pour décider une autorisation Activity. Les migrations de compatibilité pourront retirer ces adaptateurs une fois les données legacy classifiées.
+
+Z15 applique également cette règle aux collections transversales : la lecture Automation sans filtre Espace utilise désormais `space_ids_with_permission(..., crm.view)` au lieu de reconstruire l'accès depuis `OrganizationMembership.role`. Les read-models `/api/v1/organizations/workspaces/...` partent de `authorized_spaces()` et des Permissions/Mandates ; une membership legacy seule ne peut donc ni ouvrir la Console Espace backend ni rendre un module disponible.
 
 ## Migrations Groupe
 

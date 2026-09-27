@@ -9,6 +9,8 @@ from crm.models import AudienceSegment, CampaignTemplate, CRMTag
 from crm.permissions import user_can_manage_crm, user_can_view_crm
 from events.models import Event
 from organizations.models import Organization
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
 from tickets.models import TicketType
 
 from automation.models import CRMWorkflow, CRMWorkflowAction, CRMWorkflowRun
@@ -55,12 +57,10 @@ class CRMWorkflowListCreateAPIView(APIView):
         if organization_id:
             organization = _organization_or_403(request.user, organization_id)
             queryset = queryset.filter(organization=organization)
-        elif not request.user.is_staff:
-            queryset = queryset.filter(
-                organization__memberships__user=request.user,
-                organization__memberships__is_active=True,
-                organization__memberships__role__in=["owner", "admin", "event_manager", "marketing"],
-            ).distinct()
+        else:
+            space_ids = space_ids_with_permission(request.user, PermissionCode.CRM_VIEW)
+            if space_ids is not None:
+                queryset = queryset.filter(organization_id__in=space_ids)
         return Response(CRMWorkflowSerializer(queryset, many=True).data)
 
     def post(self, request):

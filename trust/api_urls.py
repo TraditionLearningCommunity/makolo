@@ -1,11 +1,13 @@
 from django.urls import path
 
-from .api_views import DisputeAPIView, JourneyFeedbackAPIView, JourneyReportAPIView, MyProofsAPIView, PublicProofAPIView, PublicSpaceTrustAPIView
+from .api_views import DisputeAPIView, JourneyFeedbackAPIView, JourneyReportAPIView, MyProofsAPIView, PublicProofAPIView, PublicSpaceTrustAPIView, SpaceOperatorTrustAPIView, SpaceVerificationRequestAPIView
 from .credential_api_views import ActivityCredentialIssueAPIView, CredentialRevokeAPIView, MyCredentialsAPIView, PublicCredentialAPIView
 
 app_name = "trust_api"
 
 urlpatterns = [
+    path("spaces/<uuid:space_id>/operator/", SpaceOperatorTrustAPIView.as_view(), name="space-operator"),
+    path("spaces/<uuid:space_id>/verification-requests/", SpaceVerificationRequestAPIView.as_view(), name="space-verification-request"),
     path("spaces/<uuid:space_id>/summary/", PublicSpaceTrustAPIView.as_view(), name="space-summary"),
     path("journeys/<uuid:journey_id>/feedback/", JourneyFeedbackAPIView.as_view(), name="feedback"),
     path("journeys/<uuid:journey_id>/reports/", JourneyReportAPIView.as_view(), name="report-create"),

@@ -34,6 +34,19 @@ from .write_serializers import (
 )
 
 
+def _organization_filter(queryset, request, lookup):
+    value = str(request.query_params.get("organization") or "").strip()
+    if not value:
+        return queryset
+    from django.db.models import Q
+    try:
+        import uuid
+        uuid.UUID(value)
+    except (ValueError, TypeError, AttributeError):
+        return queryset.filter(**{f"{lookup}__slug": value})
+    return queryset.filter(**{f"{lookup}__pk": value})
+
+
 def _raise_service_error(exc):
     if isinstance(exc, DjangoPermissionDenied):
         raise PermissionDenied(str(exc)) from exc
@@ -48,7 +61,7 @@ class PartnerListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(PartnerSerializer(get_partners_visible_to(request.user), many=True).data)
+        return Response(PartnerSerializer(_organization_filter(get_partners_visible_to(request.user), request, "organization"), many=True).data)
 
     def post(self, request):
         serializer = PartnerCreateSerializer(data=request.data, context={"request": request})
@@ -64,7 +77,7 @@ class CampaignListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(CampaignSerializer(get_campaigns_visible_to(request.user), many=True).data)
+        return Response(CampaignSerializer(_organization_filter(get_campaigns_visible_to(request.user), request, "organization"), many=True).data)
 
     def post(self, request):
         serializer = CampaignCreateSerializer(data=request.data, context={"request": request})
@@ -80,7 +93,7 @@ class ReferralCodeListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(ReferralCodeSerializer(get_referral_codes_visible_to(request.user), many=True).data)
+        return Response(ReferralCodeSerializer(_organization_filter(get_referral_codes_visible_to(request.user), request, "campaign__organization"), many=True).data)
 
     def post(self, request):
         serializer = ReferralCodeCreateSerializer(data=request.data, context={"request": request})
@@ -96,14 +109,14 @@ class CommissionListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(CommissionSerializer(get_commissions_visible_to(request.user), many=True).data)
+        return Response(CommissionSerializer(_organization_filter(get_commissions_visible_to(request.user), request, "campaign__organization"), many=True).data)
 
 
 class PayoutListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(PayoutSerializer(get_payouts_visible_to(request.user), many=True).data)
+        return Response(PayoutSerializer(_organization_filter(get_payouts_visible_to(request.user), request, "organization"), many=True).data)
 
     def post(self, request):
         serializer = PayoutCreateSerializer(data=request.data, context={"request": request})

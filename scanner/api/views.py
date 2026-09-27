@@ -92,7 +92,14 @@ class ScannerAssignmentViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
-        return get_assignments_visible_to(self.request.user)
+        queryset = get_assignments_visible_to(self.request.user)
+        space_id = str(self.request.query_params.get("space") or "").strip()
+        if space_id:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(activity__space_id=space_id) | Q(event__organization_id=space_id)
+            ).distinct()
+        return queryset
 
     def _can_manage_scope(self, *, activity=None, event=None):
         if event is not None and user_can_manage_scanner_assignments(self.request.user, event):
