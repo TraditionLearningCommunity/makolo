@@ -9,6 +9,7 @@ import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/app/sync_lifecycle.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/mark/mark_screen.dart';
+import 'package:makolo_mobile/navigation/refresh_boundary.dart';
 import 'package:makolo_mobile/sync/sync_status.dart';
 
 import 'fakes.dart';
@@ -31,9 +32,11 @@ GoRouter _router(AppRuntime runtime) {
             routes: [
               GoRoute(
                 path: '/now',
-                builder: (context, state) => const _TestTab(
-                  label: 'Now content',
-                  scrollKey: Key('now-scroll'),
+                builder: (context, state) => const MakoloRefreshBoundary(
+                  child: _TestTab(
+                    label: 'Now content',
+                    scrollKey: Key('now-scroll'),
+                  ),
                 ),
               ),
             ],
@@ -42,8 +45,9 @@ GoRouter _router(AppRuntime runtime) {
             routes: [
               GoRoute(
                 path: '/discover',
-                builder: (context, state) =>
-                    const _TestTab(label: 'Discover content'),
+                builder: (context, state) => const MakoloRefreshBoundary(
+                  child: _TestTab(label: 'Discover content'),
+                ),
               ),
             ],
           ),
@@ -51,8 +55,9 @@ GoRouter _router(AppRuntime runtime) {
             routes: [
               GoRoute(
                 path: '/ongoing',
-                builder: (context, state) =>
-                    const _TestTab(label: 'Ongoing content'),
+                builder: (context, state) => const MakoloRefreshBoundary(
+                  child: _TestTab(label: 'Ongoing content'),
+                ),
               ),
             ],
           ),
@@ -60,8 +65,9 @@ GoRouter _router(AppRuntime runtime) {
             routes: [
               GoRoute(
                 path: '/me',
-                builder: (context, state) =>
-                    const _TestTab(label: 'Me content'),
+                builder: (context, state) => const MakoloRefreshBoundary(
+                  child: _TestTab(label: 'Me content'),
+                ),
               ),
             ],
           ),

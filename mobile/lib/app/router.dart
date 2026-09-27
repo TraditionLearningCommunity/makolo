@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../features/mark/mark_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
+import '../navigation/refresh_boundary.dart';
 import '../navigation/secondary_screen.dart';
 import 'app_shell.dart';
 import 'providers.dart';
@@ -27,10 +28,12 @@ GoRouter createMakoloRouter(
             routes: [
               GoRoute(
                 path: '/now',
-                builder: (context, state) => ProjectionScreen(
-                  title: 'Now',
-                  stream: personal.watchNow(),
-                  emptyMessage: 'Tout est en ordre. ✓',
+                builder: (context, state) => MakoloRefreshBoundary(
+                  child: ProjectionScreen(
+                    title: 'Now',
+                    stream: personal.watchNow(),
+                    emptyMessage: 'Tout est en ordre. ✓',
+                  ),
                 ),
               ),
             ],
@@ -39,9 +42,11 @@ GoRouter createMakoloRouter(
             routes: [
               GoRoute(
                 path: '/discover',
-                builder: (context, state) => const PlaceholderScreen(
-                  title: 'Découvrir',
-                  message: 'Les possibilités à explorer apparaîtront ici lorsque leur expérience mobile sera prête.',
+                builder: (context, state) => const MakoloRefreshBoundary(
+                  child: PlaceholderScreen(
+                    title: 'Découvrir',
+                    message: 'Les possibilités à explorer apparaîtront ici lorsque leur expérience mobile sera prête.',
+                  ),
                 ),
               ),
             ],
@@ -50,10 +55,12 @@ GoRouter createMakoloRouter(
             routes: [
               GoRoute(
                 path: '/ongoing',
-                builder: (context, state) => ProjectionScreen(
-                  title: 'En cours',
-                  stream: personal.watchOngoing(),
-                  emptyMessage: 'Aucun engagement en cours.',
+                builder: (context, state) => MakoloRefreshBoundary(
+                  child: ProjectionScreen(
+                    title: 'En cours',
+                    stream: personal.watchOngoing(),
+                    emptyMessage: 'Aucun engagement en cours.',
+                  ),
                 ),
               ),
             ],
@@ -62,10 +69,12 @@ GoRouter createMakoloRouter(
             routes: [
               GoRoute(
                 path: '/me',
-                builder: (context, state) => ProjectionScreen(
-                  title: 'Moi',
-                  stream: personal.watchMe(),
-                  emptyMessage: 'Aucune information personnelle à afficher.',
+                builder: (context, state) => MakoloRefreshBoundary(
+                  child: ProjectionScreen(
+                    title: 'Moi',
+                    stream: personal.watchMe(),
+                    emptyMessage: 'Aucune information personnelle à afficher.',
+                  ),
                 ),
               ),
             ],

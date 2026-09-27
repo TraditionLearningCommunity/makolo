@@ -127,17 +127,7 @@ class _AppShellState extends State<AppShell> {
                     ),
                     child: NetworkStateIndicator(status: syncStatus),
                   ),
-                Expanded(
-                  child: RefreshIndicator(
-                    notificationPredicate: (notification) =>
-                        notification.metrics.axis == Axis.vertical,
-                    onRefresh: () async {
-                      final refresh = SyncRefreshScope.maybeOf(context);
-                      if (refresh != null) await refresh.refresh();
-                    },
-                    child: widget.navigationShell,
-                  ),
-                ),
+                Expanded(child: widget.navigationShell),
               ],
             ),
           ),
