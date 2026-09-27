@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
+import 'package:dio/dio.dart';
 import 'package:makolo_mobile/app/launch_preferences.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/resumable_interaction_store.dart';
@@ -35,9 +34,29 @@ class _MemoryLaunchPreferences implements LaunchPreferencesStore {
   }
 }
 
+class _FakeApiClient extends MakoloApiClient {
+  _FakeApiClient({
+    required TokenStore tokenStore,
+    required this.onPublicGet,
+  }) : super(
+         baseUri: Uri.parse('https://makolo.invalid/'),
+         tokenStore: tokenStore,
+         dio: Dio(),
+       );
+
+  final Future<ApiResponse> Function(String path) onPublicGet;
+
+  @override
+  Future<ApiResponse> publicGet(
+    String path, {
+    Map<String, String>? headers,
+    MakoloCancelHandle? cancel,
+  }) => onPublicGet(path);
+}
+
 AppRuntime _guestRuntime(
   SessionRecoveryController recovery, {
-  MockClient? client,
+  Future<ApiResponse> Function(String path)? onPublicGet,
 }) {
   final tokens = MemoryTokenStore();
   return AppRuntime(
@@ -46,12 +65,11 @@ AppRuntime _guestRuntime(
     recovery: recovery,
     launchPreferences: _MemoryLaunchPreferences(),
     interactions: ResumableInteractionStore.memory(),
-    api: client == null
+    api: onPublicGet == null
         ? null
-        : MakoloApiClient(
-            baseUri: Uri.parse('https://makolo.invalid/'),
-            httpClient: client,
+        : _FakeApiClient(
             tokenStore: tokens,
+            onPublicGet: onPublicGet,
           ),
   );
 }
@@ -76,28 +94,30 @@ void main() {
   testWidgets('guest sees a standalone public landing without personal shell', (
     tester,
   ) async {
-    final client = MockClient((request) async {
-      expect(request.headers.containsKey('Authorization'), isFalse);
-      expect(request.url.path, '/api/v1/discovery/items/');
-      return http.Response(
-        jsonEncode({
-          'data': {
-            'results': [
-              {
-                'representation': {
-                  'title': 'Possibilité réelle',
-                  'summary': 'Résumé public.',
-                  'eyebrow': 'Public',
-                },
-              },
-            ],
-          },
-        }),
-        200,
-      );
-    });
     final router = _router(
-      _guestRuntime(SessionRecoveryController(), client: client),
+      _guestRuntime(
+        SessionRecoveryController(),
+        onPublicGet: (path) async {
+          expect(path, 'api/v1/discovery/items/?page_size=20');
+          return ApiResponse(
+            200,
+            jsonEncode({
+              'data': {
+                'results': [
+                  {
+                    'representation': {
+                      'title': 'Possibilité réelle',
+                      'summary': 'Résumé public.',
+                      'eyebrow': 'Public',
+                    },
+                  },
+                ],
+              },
+            }),
+            const {},
+          );
+        },
+      ),
     );
 
     await _pump(tester, router);
@@ -115,16 +135,17 @@ void main() {
   testWidgets('empty public contract stays calm without invented cards', (
     tester,
   ) async {
-    final client = MockClient(
-      (request) async => http.Response(
-        jsonEncode({
-          'data': {'results': <Object>[]},
-        }),
-        200,
-      ),
-    );
     final router = _router(
-      _guestRuntime(SessionRecoveryController(), client: client),
+      _guestRuntime(
+        SessionRecoveryController(),
+        onPublicGet: (_) async => ApiResponse(
+          200,
+          jsonEncode({
+            'data': {'results': <Object>[]},
+          }),
+          const {},
+        ),
+      ),
     );
 
     await _pump(tester, router);
