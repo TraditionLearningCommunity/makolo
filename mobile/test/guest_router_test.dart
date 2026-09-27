@@ -81,6 +81,7 @@ void main() {
   ) async {
     final router = createMakoloRouter(
       _guestRuntime(SessionRecoveryController()),
+      onAuthenticationChanged: () {},
     );
 
     await tester.pumpWidget(
