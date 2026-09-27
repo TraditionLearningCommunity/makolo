@@ -32,15 +32,18 @@ void main() {
   });
 
 
-  testWidgets('brand lockup stays vector-sized under large text scaling', (
+  testWidgets('brand lockup stays vector-sized on a small phone at large text', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 568));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
-      MediaQuery(
-        data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
-        child: MaterialApp(
-          theme: buildMakoloTheme(),
-          home: Scaffold(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
+          child: Scaffold(
             appBar: MakoloPrimaryHeader(
               kind: MakoloHeaderKind.now,
               onAvatar: () {},
