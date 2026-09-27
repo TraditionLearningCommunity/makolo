@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter-checks:
@@ -53,6 +53,17 @@ jobs:
             mobile/test
           if-no-files-found: error
           retention-days: 1
+      - name: Commit Dart formatting
+        working-directory: .
+        shell: bash
+        run: |
+          if ! git diff --quiet -- mobile/lib mobile/test; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add mobile/lib mobile/test
+            git commit -m "style(mobile): apply Dart formatter"
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
       - name: Analyze
         run: flutter analyze
       - name: Test
