@@ -16,9 +16,14 @@ import 'signup_screen.dart';
 enum _EntryMode { login, signup, accounts }
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key, required this.runtime});
+  const LoginScreen({
+    super.key,
+    required this.runtime,
+    this.startInSignup = false,
+  });
 
   final AppRuntime runtime;
+  final bool startInSignup;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -40,7 +45,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _mode = widget.runtime.recovery.entryReason == EntryReason.accountSwitch
+    _mode = widget.startInSignup
+        ? _EntryMode.signup
+        : widget.runtime.recovery.entryReason == EntryReason.accountSwitch
         ? _EntryMode.accounts
         : _EntryMode.login;
     if (widget.runtime.recovery.entryReason == EntryReason.sessionExpired) {
