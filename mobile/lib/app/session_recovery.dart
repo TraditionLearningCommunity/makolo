@@ -1,4 +1,4 @@
-enum EntryReason { normal, sessionExpired, accountSwitch }
+enum EntryReason { normal, sessionExpired, accountSwitch, protectedAction }
 
 class SessionRecoveryController {
   String? _lastUsefulLocation;
@@ -19,6 +19,12 @@ class SessionRecoveryController {
     _lastUsefulLocation = null;
     _recoverAfterAuthentication = false;
     _entryReason = EntryReason.accountSwitch;
+  }
+
+  void requireAuthentication(String location) {
+    rememberLocation(location);
+    _recoverAfterAuthentication = true;
+    _entryReason = EntryReason.protectedAction;
   }
 
   void markLoggedOut() {
