@@ -12,10 +12,8 @@ Future<String?> showForgotPasswordDialog(
 }) {
   return showDialog<String>(
     context: context,
-    builder: (_) => _ForgotPasswordDialog(
-      runtime: runtime,
-      initialEmail: initialEmail,
-    ),
+    builder: (_) =>
+        _ForgotPasswordDialog(runtime: runtime, initialEmail: initialEmail),
   );
 }
 
@@ -29,8 +27,7 @@ class _ForgotPasswordDialog extends StatefulWidget {
   final String initialEmail;
 
   @override
-  State<_ForgotPasswordDialog> createState() =>
-      _ForgotPasswordDialogState();
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
 }
 
 class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
@@ -65,8 +62,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error =
-            'La récupération est indisponible sur cette installation pour le moment.';
+        _error = 'La récupération est indisponible sur cette installation pour le moment.';
       });
       return;
     }

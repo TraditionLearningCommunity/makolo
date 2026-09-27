@@ -100,9 +100,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                 Text(
                   'Aucun autre compte n’est enregistré sur cet appareil.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.86),
-                  ),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.86)),
                 ),
                 const SizedBox(height: MakoloSpacing.lg),
                 FilledButton(
@@ -224,9 +222,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                 onPressed: widget.onAddAccount,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.68),
-                  ),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.68)),
                   minimumSize: const Size.fromHeight(54),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),

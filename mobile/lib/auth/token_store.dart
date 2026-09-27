@@ -101,10 +101,7 @@ class FlutterSecureTokenStore implements TokenStore {
 
   @override
   Future<void> writeSession(AuthSession session) async {
-    await _storage.write(
-      key: _sessionKey,
-      value: jsonEncode(session.toJson()),
-    );
+    await _storage.write(key: _sessionKey, value: jsonEncode(session.toJson()));
 
     final profileId = session.profileId;
     if (profileId == null || profileId.isEmpty) return;

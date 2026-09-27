@@ -107,8 +107,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error =
-            'La création de compte est indisponible sur cette installation pour le moment.';
+        _error = 'La création de compte est indisponible sur cette installation pour le moment.';
       });
       return;
     }
@@ -140,10 +139,8 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   TextStyle _sectionStyle(BuildContext context) {
-    return Theme.of(context).textTheme.titleLarge!.copyWith(
-      color: Colors.white,
-      fontWeight: FontWeight.w800,
-    );
+    return Theme.of(context).textTheme.titleLarge!
+        .copyWith(color: Colors.white, fontWeight: FontWeight.w800);
   }
 
   @override

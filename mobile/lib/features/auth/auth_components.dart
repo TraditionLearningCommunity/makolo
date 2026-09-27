@@ -40,9 +40,7 @@ class MakoloAuthField extends StatelessWidget {
   Widget build(BuildContext context) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide(
-        color: Colors.white.withValues(alpha: 0.22),
-      ),
+      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
     );
     return TextFormField(
       key: fieldKey,
@@ -64,9 +62,7 @@ class MakoloAuthField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(
-          color: MakoloColors.deep.withValues(alpha: 0.72),
-        ),
+        labelStyle: TextStyle(color: MakoloColors.deep.withValues(alpha: 0.72)),
         floatingLabelStyle: const TextStyle(
           color: MakoloColors.deep,
           fontWeight: FontWeight.w700,
@@ -86,24 +82,15 @@ class MakoloAuthField extends StatelessWidget {
         disabledBorder: border,
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: Colors.white,
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: Colors.white, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: Color(0xFFFFB4AB),
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFFFB4AB), width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: Color(0xFFFFDAD6),
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFFFDAD6), width: 2),
         ),
         errorStyle: const TextStyle(
           color: Color(0xFFFFDAD6),
@@ -139,13 +126,8 @@ class MakoloAuthPrimaryButton extends StatelessWidget {
         disabledBackgroundColor: Colors.white.withValues(alpha: 0.62),
         disabledForegroundColor: MakoloColors.indigo.withValues(alpha: 0.7),
         minimumSize: const Size.fromHeight(56),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
       ),
       child: busy
           ? const SizedBox(

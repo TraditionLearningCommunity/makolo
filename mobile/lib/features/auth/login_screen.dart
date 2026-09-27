@@ -86,8 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error =
-            'La connexion est indisponible sur cette installation pour le moment.';
+        _error = 'La connexion est indisponible sur cette installation pour le moment.';
       });
       return;
     }
@@ -97,10 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await AuthRepository(
-        api,
-        widget.runtime.tokens,
-      ).login(
+      await AuthRepository(api, widget.runtime.tokens).login(
         email: _email.text.trim(),
         password: _password.text,
         rememberOnDevice: _rememberOnDevice,
@@ -119,8 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on Object {
       if (!mounted) return;
       setState(() {
-        _error =
-            'Connexion impossible pour le moment. Votre saisie reste disponible.';
+        _error = 'Connexion impossible pour le moment. Votre saisie reste disponible.';
       });
     } finally {
       if (mounted) setState(() => _busy = false);

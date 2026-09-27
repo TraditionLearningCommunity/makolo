@@ -323,8 +323,7 @@ void main() {
         forgotCalls += 1;
         return http.Response(
           jsonEncode({
-            'message':
-                'Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé.',
+            'message': 'Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé.',
           }),
           200,
         );

@@ -132,14 +132,16 @@ GoRouter createMakoloRouter(
         path: '/discover/search',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Rechercher',
-          message: 'Commencez une recherche pour explorer les possibilités Makolo.',
+          message:
+              'Commencez une recherche pour explorer les possibilités Makolo.',
         ),
       ),
       GoRoute(
         path: '/discover/filters',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Filtres',
-          message: 'Aucun filtre supplémentaire n’est nécessaire pour le moment.',
+          message:
+              'Aucun filtre supplémentaire n’est nécessaire pour le moment.',
         ),
       ),
       GoRoute(
