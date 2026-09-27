@@ -227,13 +227,12 @@ TextTheme _makoloTextTheme(Color foreground) {
     required double size,
     required FontWeight weight,
     double? height,
-  }) =>
-      TextStyle(
-        fontSize: size,
-        fontWeight: weight,
-        height: height,
-        color: foreground,
-      );
+  }) => TextStyle(
+    fontSize: size,
+    fontWeight: weight,
+    height: height,
+    color: foreground,
+  );
 
   TextStyle inter({
     required double size,
@@ -335,9 +334,7 @@ ThemeData _buildTheme({
         borderSide: BorderSide(color: surfaces.border),
       ),
       focusedBorder: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(
-          Radius.circular(MakoloRadii.control),
-        ),
+        borderRadius: BorderRadius.all(Radius.circular(MakoloRadii.control)),
         borderSide: BorderSide(color: MakoloColors.indigo, width: 2),
       ),
       labelStyle: textTheme.bodyMedium,

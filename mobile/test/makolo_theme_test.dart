@@ -56,7 +56,9 @@ void main() {
     expect(MakoloMotion.structural, const Duration(milliseconds: 320));
   });
 
-  testWidgets('Reduce Motion collapses Makolo motion durations', (tester) async {
+  testWidgets('Reduce Motion collapses Makolo motion durations', (
+    tester,
+  ) async {
     late Duration duration;
     await tester.pumpWidget(
       MaterialApp(
@@ -78,24 +80,27 @@ void main() {
     expect(duration, Duration.zero);
   });
 
-  test('canonical typography scale is defined without pretending fonts exist', () {
-    final textTheme = buildMakoloLightTheme().textTheme;
+  test(
+    'canonical typography scale is defined without pretending fonts exist',
+    () {
+      final textTheme = buildMakoloLightTheme().textTheme;
 
-    expect(textTheme.displayLarge?.fontSize, 32);
-    expect(textTheme.displayLarge?.fontWeight, FontWeight.w800);
-    expect(textTheme.headlineLarge?.fontSize, 28);
-    expect(textTheme.headlineMedium?.fontSize, 24);
-    expect(textTheme.headlineSmall?.fontSize, 20);
-    expect(textTheme.titleLarge?.fontSize, 17);
-    expect(textTheme.bodyLarge?.fontSize, 16);
-    expect(textTheme.bodyMedium?.fontSize, 14);
-    expect(textTheme.labelLarge?.fontSize, 13);
-    expect(textTheme.bodySmall?.fontSize, 12);
-    expect(textTheme.labelMedium?.fontSize, 11);
+      expect(textTheme.displayLarge?.fontSize, 32);
+      expect(textTheme.displayLarge?.fontWeight, FontWeight.w800);
+      expect(textTheme.headlineLarge?.fontSize, 28);
+      expect(textTheme.headlineMedium?.fontSize, 24);
+      expect(textTheme.headlineSmall?.fontSize, 20);
+      expect(textTheme.titleLarge?.fontSize, 17);
+      expect(textTheme.bodyLarge?.fontSize, 16);
+      expect(textTheme.bodyMedium?.fontSize, 14);
+      expect(textTheme.labelLarge?.fontSize, 13);
+      expect(textTheme.bodySmall?.fontSize, 12);
+      expect(textTheme.labelMedium?.fontSize, 11);
 
-    expect(textTheme.displayLarge?.fontFamily, isNull);
-    expect(textTheme.bodyLarge?.fontFamily, isNull);
-  });
+      expect(textTheme.displayLarge?.fontFamily, isNull);
+      expect(textTheme.bodyLarge?.fontFamily, isNull);
+    },
+  );
 
   test('shared component themes enforce charter geometry', () {
     final theme = buildMakoloLightTheme();
