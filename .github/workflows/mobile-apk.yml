@@ -1,5 +1,7 @@
 name: Mobile APK
 
+# A2 reconciled checkpoint: package the exact integration HEAD for device smoke tests.
+
 on:
   workflow_dispatch:
     inputs:
