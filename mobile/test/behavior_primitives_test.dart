@@ -29,6 +29,111 @@ void main() {
     expect(find.text('Confirmé'), findsOneWidget);
   });
 
+  testWidgets('transient toast uses the Makolo notice foundation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showMakoloToast(
+                context,
+                'Enregistré.',
+                kind: MakoloNoticeKind.success,
+              ),
+              child: const Text('Afficher'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Afficher'));
+    await tester.pump();
+    expect(find.byType(MakoloNotice), findsOneWidget);
+    expect(find.text('Enregistré.'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+  });
+
+  testWidgets('persistent notice stays dismissible with an explicit close', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showMakoloNotice(
+                context,
+                'Une modification demande votre attention.',
+                kind: MakoloNoticeKind.warning,
+                behavior: MakoloNoticeBehavior.persistent,
+              ),
+              child: const Text('Afficher'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Afficher'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Fermer'), findsOneWidget);
+    expect(
+      find.text('Une modification demande votre attention.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byTooltip('Fermer'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Une modification demande votre attention.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('notice meaning never depends on color alone', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: const Scaffold(
+          body: MakoloNotice(
+            message: 'Vérifiez cette information.',
+            kind: MakoloNoticeKind.warning,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Attention. Vérifiez cette information.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('notice motion collapses under Reduce Motion', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: Scaffold(body: MakoloNotice(message: 'Information calme.')),
+        ),
+      ),
+    );
+
+    final animated = tester.widget<AnimatedContainer>(
+      find.byType(AnimatedContainer),
+    );
+    expect(animated.duration, Duration.zero);
+  });
+
   testWidgets('blocking errors remain persistent and actionable', (
     tester,
   ) async {
@@ -111,7 +216,7 @@ void main() {
     expect(continued, isTrue);
   });
 
-  testWidgets('network states remain textual and not color-only', (
+  testWidgets('network states remain textual and use semantic notice icons', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -125,8 +230,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Hors connexion'), findsOneWidget);
-    expect(find.byIcon(Icons.cloud_off_outlined), findsOneWidget);
+    expect(find.textContaining('Hors connexion'), findsOneWidget);
+    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
   });
 
   testWidgets('skeleton respects Reduce Motion and large text context', (
