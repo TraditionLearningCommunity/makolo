@@ -23,15 +23,29 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   final _search = TextEditingController();
   Future<List<Map<String, dynamic>>>? _results;
   String? _error;
+  Timer? _queryDraftTimer;
 
   @override
   void initState() {
     super.initState();
+    _search.addListener(_scheduleQueryDraft);
     unawaited(_restoreAndLoad());
+  }
+
+  void _scheduleQueryDraft() {
+    _queryDraftTimer?.cancel();
+    _queryDraftTimer = Timer(const Duration(milliseconds: 250), () {
+      unawaited(
+        widget.runtime.interactions?.save(_interactionId, {
+          'query': _search.text.trim(),
+        }) ?? Future<void>.value(),
+      );
+    });
   }
 
   @override
   void dispose() {
+    _queryDraftTimer?.cancel();
     _search.dispose();
     super.dispose();
   }
