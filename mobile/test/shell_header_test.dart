@@ -31,33 +31,34 @@ void main() {
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 
-  testWidgets('brand lockup stays vector-sized on a small phone at large text', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(320, 568));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'brand lockup stays vector-sized on a small phone at large text',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 568));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
-          child: Scaffold(
-            appBar: MakoloPrimaryHeader(
-              kind: MakoloHeaderKind.now,
-              onAvatar: () {},
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
+            child: Scaffold(
+              appBar: MakoloPrimaryHeader(
+                kind: MakoloHeaderKind.now,
+                onAvatar: () {},
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final logo = tester.widget<SvgPicture>(find.byType(SvgPicture).first);
-    expect(logo.height, 34);
-    expect(find.text('Makolo'), findsNothing);
-    expect(find.bySemanticsLabel('Makolo'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      final logo = tester.widget<SvgPicture>(find.byType(SvgPicture).first);
+      expect(logo.height, 34);
+      expect(find.text('Makolo'), findsNothing);
+      expect(find.bySemanticsLabel('Makolo'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('brand lockup renders in dark mode without duplicate semantics', (
     tester,
