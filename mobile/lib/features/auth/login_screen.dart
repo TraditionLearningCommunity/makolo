@@ -121,7 +121,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_mode == _EntryMode.signup) {
       return SignupScreen(
         runtime: widget.runtime,
-        onBackToLogin: (email) => _backToLogin(
+        onBackToLogin: _backToLogin,
+        onRegistered: (email) => _backToLogin(
           email,
           notice: 'Votre compte est prêt. Connectez-vous pour continuer.',
         ),
