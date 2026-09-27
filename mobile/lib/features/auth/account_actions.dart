@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../auth/auth_repository.dart';
@@ -10,25 +11,11 @@ enum _AccountAction { switchAccount, logout }
 Future<void> endMakoloAccountSession({
   required AppRuntime runtime,
   required VoidCallback onAuthenticationChanged,
-  required bool switchAccount,
 }) async {
   final profileId = runtime.session?.profileId;
-
-  if (switchAccount) {
-    runtime.recovery.markAccountSwitch();
-    final remembered = profileId == null
-        ? null
-        : await runtime.tokens.readAccountSession(profileId);
-    if (remembered != null) {
-      await runtime.tokens.clearSession();
-      onAuthenticationChanged();
-      return;
-    }
-  } else {
-    runtime.recovery.markLoggedOut();
-    if (profileId != null) {
-      await runtime.tokens.clearAccountSession(profileId);
-    }
+  runtime.recovery.markLoggedOut();
+  if (profileId != null) {
+    await runtime.tokens.clearAccountSession(profileId);
   }
 
   final api = runtime.api;
@@ -63,13 +50,18 @@ class AccountActionsButton extends StatefulWidget {
 class _AccountActionsButtonState extends State<AccountActionsButton> {
   bool _busy = false;
 
-  Future<void> _endSession(_AccountAction action) async {
+  Future<void> _handle(_AccountAction action) async {
     if (_busy) return;
+    if (action == _AccountAction.switchAccount) {
+      widget.runtime.recovery.markAccountSwitch();
+      context.push('/accounts');
+      return;
+    }
+
     setState(() => _busy = true);
     await endMakoloAccountSession(
       runtime: widget.runtime,
       onAuthenticationChanged: widget.onAuthenticationChanged,
-      switchAccount: action == _AccountAction.switchAccount,
     );
   }
 
@@ -80,7 +72,7 @@ class _AccountActionsButtonState extends State<AccountActionsButton> {
       tooltip: 'Compte',
       enabled: !_busy,
       icon: const Icon(Icons.account_circle_outlined),
-      onSelected: _endSession,
+      onSelected: _handle,
       itemBuilder: (context) => const [
         PopupMenuItem(
           value: _AccountAction.switchAccount,
