@@ -34,7 +34,7 @@ e001aaeca85cdcc57da6db31b08f25aca97345e2
 état P0: OPEN
 ~~~
 
-Lors du dernier contrôle P0, les workflows du nouveau head #319 étaient encore en cours. Le head précédent avait Mobile CI verte, Android Build et APK rouges.
+Au dernier contrôle P0, les workflows du HEAD #319 sont terminés et verts : **Mobile CI**, **Mobile Android Build** et **Mobile APK**. #319 reste toutefois ouverte et non intégrée dans #306 ; #306 reste elle-même ouverte et non fusionnée sur `main`.
 
 Conclusion P0 :
 
