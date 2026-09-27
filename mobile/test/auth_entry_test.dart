@@ -356,9 +356,6 @@ void main() {
 
     await tester.ensureVisible(find.byKey(const Key('login-password-toggle')));
     await tester.pumpAndSettle();
-    expect(
-      find.bySemanticsLabel(RegExp('Afficher le mot de passe')),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('Afficher le mot de passe'), findsOneWidget);
   });
 }
