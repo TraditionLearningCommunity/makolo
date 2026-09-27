@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:makolo_mobile/app/providers.dart';
@@ -85,54 +86,52 @@ void main() {
     },
   );
 
-  testWidgets('account action switches identity without deleting local data', (
+  testWidgets('account action opens chooser without ending the active session', (
     tester,
   ) async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access-a',
-        refreshToken: 'refresh-a',
-        profileId: 'profile-a',
-      ),
+    final active = const AuthSession(
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      profileId: 'profile-a',
     );
+    final tokens = MemoryTokenStore(session: active);
     final recovery = SessionRecoveryController();
-    final client = MockClient((request) async {
-      if (request.url.path.endsWith('/auth/logout/')) {
-        return http.Response(jsonEncode({'message': 'ok'}), 200);
-      }
-      throw StateError('unexpected request');
-    });
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      httpClient: client,
-      tokenStore: tokens,
-    );
-    var authenticationChanges = 0;
     final runtime = AppRuntime(
       tokens: tokens,
-      session: tokens.session,
+      session: active,
       recovery: recovery,
-      api: api,
     );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: AccountActionsButton(
-            runtime: runtime,
-            onAuthenticationChanged: () => authenticationChanges += 1,
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: AccountActionsButton(
+              runtime: runtime,
+              onAuthenticationChanged: () {},
+            ),
           ),
         ),
-      ),
+        GoRoute(
+          path: '/accounts',
+          builder: (context, state) => const Scaffold(
+            body: Text('Choisir un compte'),
+          ),
+        ),
+      ],
     );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('account-actions')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Changer de compte'));
     await tester.pumpAndSettle();
 
-    expect(await tokens.readSession(), isNull);
-    expect(authenticationChanges, 1);
+    expect(await tokens.readSession(), same(active));
+    expect(find.text('Choisir un compte'), findsOneWidget);
     expect(recovery.entryReason, EntryReason.accountSwitch);
   });
 }
