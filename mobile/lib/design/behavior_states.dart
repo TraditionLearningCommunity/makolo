@@ -111,7 +111,7 @@ class OfflineBanner extends StatelessWidget {
         horizontal: MakoloSpacing.md,
         vertical: MakoloSpacing.sm,
       ),
-      color: MakoloColors.warning.withValues(alpha: 0.12),
+      color: context.makoloSurfaces.warning.withValues(alpha: 0.12),
       child: const Text(
         'Hors connexion · Ce qui est déjà disponible reste utilisable.',
         textAlign: TextAlign.center,
@@ -129,7 +129,7 @@ class InlineMessage extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(MakoloSpacing.md),
     decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: context.makoloSurfaces.low,
       borderRadius: BorderRadius.circular(MakoloRadii.medium),
     ),
     child: Text(message),
