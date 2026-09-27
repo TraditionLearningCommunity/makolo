@@ -4,7 +4,10 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 class ResumableInteractionStore {
-  ResumableInteractionStore._(this._file);
+  ResumableInteractionStore._(this._file, this._memory);
+
+  factory ResumableInteractionStore.memory() =>
+      ResumableInteractionStore._(null, <String, dynamic>{});
 
   static const _fileName = 'makolo-resumable-interactions-v1.json';
   static const _sensitiveFragments = <String>{
@@ -17,12 +20,14 @@ class ResumableInteractionStore {
     'access_token',
   };
 
-  final File _file;
+  final File? _file;
+  final Map<String, dynamic>? _memory;
 
   static Future<ResumableInteractionStore> open() async {
     final directory = await getApplicationSupportDirectory();
     return ResumableInteractionStore._(
       File('${directory.path}${Platform.pathSeparator}$_fileName'),
+      null,
     );
   }
 
@@ -64,9 +69,12 @@ class ResumableInteractionStore {
   }
 
   Future<Map<String, dynamic>> _readAll() async {
-    if (!await _file.exists()) return {};
+    final memory = _memory;
+    if (memory != null) return Map<String, dynamic>.from(memory);
+    final file = _file!;
+    if (!await file.exists()) return {};
     try {
-      final decoded = jsonDecode(await _file.readAsString());
+      final decoded = jsonDecode(await file.readAsString());
       if (decoded is! Map) return {};
       return Map<String, dynamic>.from(decoded);
     } on Object {
@@ -75,7 +83,15 @@ class ResumableInteractionStore {
   }
 
   Future<void> _writeAll(Map<String, dynamic> values) async {
-    await _file.parent.create(recursive: true);
-    await _file.writeAsString(jsonEncode(values), flush: true);
+    final memory = _memory;
+    if (memory != null) {
+      memory
+        ..clear()
+        ..addAll(values);
+      return;
+    }
+    final file = _file!;
+    await file.parent.create(recursive: true);
+    await file.writeAsString(jsonEncode(values), flush: true);
   }
 }
