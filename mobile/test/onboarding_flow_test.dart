@@ -4,7 +4,7 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/onboarding/onboarding_flow.dart';
 
 void main() {
-  testWidgets('first onboarding page stays concise and can be skipped', (
+  testWidgets('guest onboarding is concise and has no meaningless Skip', (
     tester,
   ) async {
     OnboardingExit? exit;
@@ -20,17 +20,22 @@ void main() {
     );
 
     expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
-    expect(find.text('Services'), findsOneWidget);
-    expect(find.text('Transports'), findsOneWidget);
-    expect(find.text('Événements'), findsOneWidget);
+    expect(find.text('Passer'), findsNothing);
+    expect(find.text('Continuer'), findsNothing);
+    expect(find.text('Services'), findsNothing);
+    expect(find.text('Transports'), findsNothing);
+    expect(find.text('Événements'), findsNothing);
+    expect(find.text('Découvrir Makolo'), findsOneWidget);
+    expect(find.text('Se connecter'), findsOneWidget);
+    expect(find.text('Créer un compte'), findsOneWidget);
 
-    await tester.tap(find.text('Passer'));
+    await tester.tap(find.text('Découvrir Makolo'));
     await tester.pump();
 
-    expect(exit, OnboardingExit.skip);
+    expect(exit, OnboardingExit.continueGuest);
   });
 
-  testWidgets('onboarding offers sign-in, account creation and guest mode', (
+  testWidgets('authenticated onboarding has one contextual primary action', (
     tester,
   ) async {
     OnboardingExit? exit;
@@ -39,26 +44,28 @@ void main() {
       MaterialApp(
         theme: buildMakoloTheme(),
         home: OnboardingFlow(
-          isAuthenticated: false,
+          isAuthenticated: true,
           onComplete: (value) async => exit = value,
         ),
       ),
     );
 
-    await tester.tap(find.text('Continuer'));
+    expect(find.text('Ouvrir Makolo'), findsOneWidget);
+    expect(find.text('Se connecter'), findsNothing);
+    expect(find.text('Créer un compte'), findsNothing);
+
+    await tester.tap(find.text('Ouvrir Makolo'));
     await tester.pump();
 
-    expect(find.text('Se connecter'), findsOneWidget);
-    expect(find.text('Créer un compte'), findsOneWidget);
-    expect(find.text('Continuer sans compte'), findsOneWidget);
-
-    await tester.tap(find.text('Continuer sans compte'));
-    await tester.pump();
-
-    expect(exit, OnboardingExit.continueGuest);
+    expect(exit, OnboardingExit.continueAuthenticated);
   });
 
-  testWidgets('onboarding survives large text scale', (tester) async {
+  testWidgets('onboarding survives large text scale and small viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 568));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
@@ -73,6 +80,6 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
+    expect(find.text('Découvrir Makolo'), findsOneWidget);
   });
 }
