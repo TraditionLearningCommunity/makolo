@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
@@ -43,6 +42,7 @@ class AppRuntime {
   bool get apiConfigured => api != null;
 
   Future<void> close() async {
+    api?.close();
     await database?.close();
   }
 }
@@ -55,12 +55,6 @@ final sessionRecoveryProvider = Provider<SessionRecoveryController>(
   (ref) => SessionRecoveryController(),
 );
 
-final httpClientProvider = Provider<http.Client>((ref) {
-  final client = http.Client();
-  ref.onDispose(client.close);
-  return client;
-});
-
 final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   final tokens = ref.watch(tokenStoreProvider);
   final recovery = ref.watch(sessionRecoveryProvider);
@@ -69,11 +63,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   final baseUri = MakoloEnvironment.apiBaseUri;
   final api = baseUri == null
       ? null
-      : MakoloApiClient(
-          baseUri: baseUri,
-          httpClient: ref.watch(httpClientProvider),
-          tokenStore: tokens,
-        );
+      : MakoloApiClient(baseUri: baseUri, tokenStore: tokens);
 
   final profileId = session?.profileId;
   if (profileId == null) {
@@ -88,6 +78,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
 
   final database = await MakoloDatabase.openForProfile(profileId);
   ref.onDispose(() {
+    api?.close();
     unawaited(database.close());
   });
   final store = ProfileStore(database, profileId);
