@@ -47,8 +47,7 @@ GoRouter createMakoloRouter(
     initialLocation: initialLocation,
     redirect: (context, state) {
       if (runtime.isAuthenticated &&
-          (state.uri.path == '/login' ||
-              state.uri.path == '/create-account')) {
+          (state.uri.path == '/login' || state.uri.path == '/create-account')) {
         return '/now';
       }
       return null;
@@ -70,8 +69,7 @@ GoRouter createMakoloRouter(
                 builder: (context, state) => personal == null
                     ? const GuestPersonalScreen(
                         title: 'Now',
-                        message:
-                            'Cette partie devient personnelle lorsque vous vous connectez. Vous pouvez continuer à découvrir Makolo sans compte.',
+                        message: 'Cette partie devient personnelle lorsque vous vous connectez. Vous pouvez continuer à découvrir Makolo sans compte.',
                       )
                     : MakoloRefreshBoundary(
                         child: ProjectionScreen(
@@ -101,8 +99,7 @@ GoRouter createMakoloRouter(
                 builder: (context, state) => personal == null
                     ? const GuestPersonalScreen(
                         title: 'En cours',
-                        message:
-                            'Vos démarches et éléments en cours apparaissent ici après connexion. Découvrir reste disponible sans compte.',
+                        message: 'Vos démarches et éléments en cours apparaissent ici après connexion. Découvrir reste disponible sans compte.',
                       )
                     : MakoloRefreshBoundary(
                         child: ProjectionScreen(
@@ -122,8 +119,7 @@ GoRouter createMakoloRouter(
                 builder: (context, state) => personal == null
                     ? const GuestPersonalScreen(
                         title: 'Moi',
-                        message:
-                            'Cette partie rassemble vos informations personnelles. Elle reste protégée tant que vous continuez sans compte.',
+                        message: 'Cette partie rassemble vos informations personnelles. Elle reste protégée tant que vous continuez sans compte.',
                       )
                     : MakoloRefreshBoundary(
                         child: ProjectionScreen(
@@ -145,10 +141,8 @@ GoRouter createMakoloRouter(
       ),
       GoRoute(
         path: '/create-account',
-        builder: (context, state) => LoginScreen(
-          runtime: runtime,
-          startInSignup: true,
-        ),
+        builder: (context, state) =>
+            LoginScreen(runtime: runtime, startInSignup: true),
       ),
       GoRoute(
         path: '/mark',
@@ -156,8 +150,7 @@ GoRouter createMakoloRouter(
             ? MarkScreen(runtime: runtime)
             : const GuestPersonalScreen(
                 title: 'Connectez-vous pour continuer',
-                message:
-                    'Le Makolo Mark devient une action personnelle lorsque vous êtes connecté.',
+                message: 'Le Makolo Mark devient une action personnelle lorsque vous êtes connecté.',
               ),
       ),
       GoRoute(
@@ -165,13 +158,11 @@ GoRouter createMakoloRouter(
         builder: (context, state) => runtime.isAuthenticated
             ? const MakoloSecondaryScreen(
                 title: 'Conversations',
-                message:
-                    'Vos conversations auront ici leur destination mobile dédiée.',
+                message: 'Vos conversations auront ici leur destination mobile dédiée.',
               )
             : const GuestPersonalScreen(
                 title: 'Connectez-vous pour continuer',
-                message:
-                    'Vos conversations sont personnelles et restent protégées sans connexion.',
+                message: 'Vos conversations sont personnelles et restent protégées sans connexion.',
               ),
       ),
       GoRoute(
@@ -183,8 +174,7 @@ GoRouter createMakoloRouter(
               )
             : const GuestPersonalScreen(
                 title: 'Connectez-vous pour continuer',
-                message:
-                    'Vos notifications sont personnelles et restent protégées sans connexion.',
+                message: 'Vos notifications sont personnelles et restent protégées sans connexion.',
               ),
       ),
       GoRoute(
@@ -212,8 +202,7 @@ GoRouter createMakoloRouter(
               )
             : const GuestPersonalScreen(
                 title: 'Connectez-vous pour continuer',
-                message:
-                    'Le calendrier organise vos éléments personnels après connexion.',
+                message: 'Le calendrier organise vos éléments personnels après connexion.',
               ),
       ),
       for (final prefix in const [
@@ -232,8 +221,7 @@ GoRouter createMakoloRouter(
             if (!runtime.isAuthenticated) {
               return const GuestPersonalScreen(
                 title: 'Connectez-vous pour continuer',
-                message:
-                    'Cette destination concerne une activité personnelle. Votre destination reste disponible après reconnexion.',
+                message: 'Cette destination concerne une activité personnelle. Votre destination reste disponible après reconnexion.',
               );
             }
             return const MakoloSecondaryScreen(
