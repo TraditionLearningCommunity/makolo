@@ -6,16 +6,23 @@ import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/router.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/features/splash/splash_screen.dart';
 
 import 'fakes.dart';
 
 class _MemoryLaunchPreferences implements LaunchPreferencesStore {
-  _MemoryLaunchPreferences(this.snapshot);
+  _MemoryLaunchPreferences(this.snapshot, {this.readDelay = Duration.zero});
 
   LaunchPreferencesSnapshot snapshot;
+  final Duration readDelay;
 
   @override
-  Future<LaunchPreferencesSnapshot> read() async => snapshot;
+  Future<LaunchPreferencesSnapshot> read() async {
+    if (readDelay > Duration.zero) {
+      await Future<void>.delayed(readDelay);
+    }
+    return snapshot;
+  }
 
   @override
   Future<void> setLastBrandMomentAt(DateTime value) async {
@@ -37,7 +44,10 @@ AppRuntime _runtime(_MemoryLaunchPreferences preferences) {
   );
 }
 
-Widget _app(AppRuntime runtime) {
+Widget _app(
+  AppRuntime runtime, {
+  Duration minimumVisible = const Duration(milliseconds: 700),
+}) {
   final router = createMakoloRouter(runtime, onAuthenticationChanged: () {});
   return MaterialApp.router(
     theme: buildMakoloTheme(),
@@ -45,14 +55,59 @@ Widget _app(AppRuntime runtime) {
     builder: (context, child) => LaunchGate(
       runtime: runtime,
       router: router,
+      minimumVisible: minimumVisible,
       child: child ?? const SizedBox.shrink(),
     ),
   );
 }
 
 void main() {
+  testWidgets('launch splash remains until the perceptible minimum', (
+    tester,
+  ) async {
+    final preferences = _MemoryLaunchPreferences(
+      LaunchPreferencesSnapshot(
+        hasCompletedOnboarding: true,
+        lastBrandMomentAt: DateTime.now(),
+      ),
+    );
+    final runtime = _runtime(preferences);
+
+    await tester.pumpWidget(_app(runtime));
+    expect(find.byType(SplashScreen), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 699));
+    expect(find.byType(SplashScreen), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 2));
+    await tester.pump();
+    expect(find.byType(SplashScreen), findsNothing);
+    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+  });
+
+  testWidgets('real initialization can keep splash longer than the minimum', (
+    tester,
+  ) async {
+    final preferences = _MemoryLaunchPreferences(
+      LaunchPreferencesSnapshot(
+        hasCompletedOnboarding: true,
+        lastBrandMomentAt: DateTime.now(),
+      ),
+      readDelay: const Duration(milliseconds: 900),
+    );
+    final runtime = _runtime(preferences);
+
+    await tester.pumpWidget(_app(runtime));
+    await tester.pump(const Duration(milliseconds: 701));
+    expect(find.byType(SplashScreen), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
+    expect(find.byType(SplashScreen), findsNothing);
+  });
+
   testWidgets(
-    'new installation shows onboarding and Skip exits to guest mode',
+    'new installation reaches concise onboarding then public landing',
     (tester) async {
       final preferences = _MemoryLaunchPreferences(
         LaunchPreferencesSnapshot(lastBrandMomentAt: DateTime.now()),
@@ -63,39 +118,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
+      expect(find.text('Passer'), findsNothing);
 
-      await tester.tap(find.text('Passer'));
+      await tester.tap(find.text('Découvrir Makolo'));
       await tester.pumpAndSettle();
 
       expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
-      expect(
-        find.text(
-          'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
-        ),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
     },
   );
-
-  testWidgets('completed onboarding does not return on normal launch', (
-    tester,
-  ) async {
-    final preferences = _MemoryLaunchPreferences(
-      LaunchPreferencesSnapshot(
-        hasCompletedOnboarding: true,
-        lastBrandMomentAt: DateTime.now(),
-      ),
-    );
-
-    await tester.pumpWidget(_app(_runtime(preferences)));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsNothing);
-    expect(
-      find.text(
-        'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
-      ),
-      findsOneWidget,
-    );
-  });
 }
