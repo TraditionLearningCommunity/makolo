@@ -7,7 +7,6 @@ import 'package:makolo_mobile/app/router.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/auth/login_screen.dart';
-import 'package:makolo_mobile/features/auth/register_screen.dart';
 
 import 'fakes.dart';
 
@@ -43,6 +42,7 @@ void main() {
     (tester) async {
       final router = createMakoloRouter(
         _guestRuntime(SessionRecoveryController()),
+        onAuthenticationChanged: () {},
       );
 
       await tester.pumpWidget(
@@ -99,14 +99,18 @@ void main() {
 
     router.go('/create-account');
     await tester.pumpAndSettle();
-    expect(find.byType(RegisterScreen), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Créer un compte'), findsWidgets);
   });
 
   testWidgets(
     'protected deep destination is preserved instead of redirecting',
     (tester) async {
       final recovery = SessionRecoveryController();
-      final router = createMakoloRouter(_guestRuntime(recovery));
+      final router = createMakoloRouter(
+        _guestRuntime(recovery),
+        onAuthenticationChanged: () {},
+      );
 
       await tester.pumpWidget(
         ProviderScope(
