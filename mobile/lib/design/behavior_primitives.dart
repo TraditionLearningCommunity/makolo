@@ -139,10 +139,13 @@ class MakoloNotice extends StatelessWidget {
     final accent = _accent(context);
     final dismissible =
         behavior == MakoloNoticeBehavior.persistent && onDismiss != null;
+    final hasInteractiveChild =
+        dismissible || (actionLabel != null && onAction != null);
     return Semantics(
       container: true,
       liveRegion: liveRegion,
       label: '$_semanticKind. $message',
+      excludeSemantics: !hasInteractiveChild,
       child: AnimatedContainer(
         duration: MakoloMotion.effective(context, MakoloMotion.short),
         padding: const EdgeInsets.symmetric(
