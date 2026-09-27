@@ -39,10 +39,7 @@ AppRuntime _guestRuntime(SessionRecoveryController recovery) {
 }
 
 GoRouter _router(AppRuntime runtime) {
-  return createMakoloRouter(
-    runtime,
-    onAuthenticationChanged: () {},
-  );
+  return createMakoloRouter(runtime, onAuthenticationChanged: () {});
 }
 
 void main() {
