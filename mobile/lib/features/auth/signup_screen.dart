@@ -11,10 +11,12 @@ class SignupScreen extends StatefulWidget {
     super.key,
     required this.runtime,
     required this.onBackToLogin,
+    required this.onRegistered,
   });
 
   final AppRuntime runtime;
   final ValueChanged<String> onBackToLogin;
+  final ValueChanged<String> onRegistered;
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -114,7 +116,7 @@ class _SignupScreenState extends State<SignupScreen> {
         phone: _phone.text.trim(),
       );
       if (!mounted) return;
-      widget.onBackToLogin(_email.text.trim());
+      widget.onRegistered(_email.text.trim());
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _error = signupErrorMessage(error));
