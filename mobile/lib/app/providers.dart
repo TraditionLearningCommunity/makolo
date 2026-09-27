@@ -26,8 +26,7 @@ class AppRuntime {
     this.personal,
     this.outbox,
     this.sync,
-  }) : launchPreferences =
-           launchPreferences ?? MemoryLaunchPreferencesStore();
+  }) : launchPreferences = launchPreferences ?? MemoryLaunchPreferencesStore();
 
   final TokenStore tokens;
   final AuthSession? session;
