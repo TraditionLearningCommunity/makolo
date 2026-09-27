@@ -49,8 +49,7 @@ GoRouter createMakoloRouter(
     initialLocation: initialLocation,
     redirect: (context, state) {
       if (runtime.isAuthenticated &&
-          (state.uri.path == '/login' ||
-              state.uri.path == '/create-account')) {
+          (state.uri.path == '/login' || state.uri.path == '/create-account')) {
         return '/now';
       }
       return null;
