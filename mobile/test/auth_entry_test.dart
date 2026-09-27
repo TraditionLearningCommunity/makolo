@@ -353,6 +353,9 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Connectez-vous à Makolo'), findsOneWidget);
     expect(find.byKey(const Key('login-submit')), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('login-password-toggle')));
+    await tester.pumpAndSettle();
     expect(
       find.bySemanticsLabel(RegExp('Afficher le mot de passe')),
       findsOneWidget,
