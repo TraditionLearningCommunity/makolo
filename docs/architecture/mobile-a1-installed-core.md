@@ -64,14 +64,23 @@ La version courante du schéma est 2. La migration synthétique v1→v2 ajoute `
 
 Le client réutilise exclusivement les routes Accounts existantes :
 
+- `POST /api/v1/accounts/auth/register/` ;
 - `POST /api/v1/accounts/auth/login/` ;
 - `POST /api/v1/accounts/auth/refresh/` ;
 - `POST /api/v1/accounts/auth/logout/` ;
+- `POST /api/v1/accounts/auth/password/forgot/` ;
+- `POST /api/v1/accounts/auth/password/change/` ;
 - `GET /api/v1/accounts/auth/me/`.
+
+L'Entry natif ferme désormais les parcours login, inscription et mot de passe oublié. L'inscription suit strictement `RegisterSerializer` et revient au login après création ; aucun auto-login n'est inventé. Le mot de passe oublié conserve la réponse anti-énumération du serveur. Le lien reçu par e-mail continue d'ouvrir le reset Web existant : A1 n'introduit aucun App Link ou Universal Link artificiel.
+
+`password/reset/` reste un contrat serveur valide mais n'est pas simulé dans l'application sans `uid` et `token`. `password/change/` est préparé dans le client/repository authentifié sans construire une grande surface Settings hors A1.
 
 Access et refresh sont stockés ensemble dans une seule valeur de secure storage afin de remplacer atomiquement la paire lors d'une rotation. Les refresh concurrents sont sérialisés par un single-flight.
 
 Une session distante invalide retire les credentials actifs sans supprimer la DB, les drafts ni l'outbox. Le contrôleur `SessionRecoveryController` conserve la dernière route utile en mémoire de processus, demande la reconnexion puis restaure cette route une seule fois après authentification. Il ne transforme pas cet état de navigation en vérité métier persistante. Toute opération sensible reste revalidée par son owner serveur.
+
+La déconnexion est local-first pour les credentials : la session sécurisée locale est retirée avant de dépendre du réseau, puis le blacklist du refresh est tenté côté serveur. Un serveur indisponible ne réactive donc pas la session locale. « Changer de compte » suit la même fermeture d'identité, conserve les stores locaux isolés par Profile et revient à Entry sans transformer l'opération en changement de Profile métier dans une session active.
 
 Les erreurs d'authentification visibles sont traduites en messages sûrs ; aucun détail backend brut, JWT ou payload privé n'est présenté.
 
@@ -152,7 +161,7 @@ Le retour depuis l'arrière-plan conserve la route courante et lance un refresh 
 
 Les cibles principales restent au moins à la taille tactile prévue par Flutter/Material. Les contrôles importants portent des labels Semantics. Les états réseau ne sont pas transmis uniquement par la couleur : icône et texte les accompagnent.
 
-Les tests ciblés couvrent text scaling, Semantics, Reduce Motion, bottom sheet/back, permission explainer et états réseau.
+Les tests ciblés couvrent text scaling, Semantics, Reduce Motion, bottom sheet/back, permission explainer, états réseau ainsi que login valide/invalide, conservation de saisie, double submit, visibilité du mot de passe, inscription, récupération neutre, logout dégradé, changement de compte et SessionRecovery.
 
 ## 10. Navigation primaire
 
