@@ -18,7 +18,6 @@ class LaunchGate extends StatefulWidget {
     required this.router,
     required this.child,
     this.brandPolicy = const BrandMomentPolicy(),
-    this.launchStartedAt,
     this.minimumVisible = const Duration(milliseconds: 700),
   });
 
@@ -26,7 +25,6 @@ class LaunchGate extends StatefulWidget {
   final GoRouter router;
   final Widget child;
   final BrandMomentPolicy brandPolicy;
-  final DateTime? launchStartedAt;
   final Duration minimumVisible;
 
   @override
@@ -42,11 +40,8 @@ class _LaunchGateState extends State<LaunchGate> {
   @override
   void initState() {
     super.initState();
-    final launchStartedAt = widget.launchStartedAt ?? DateTime.now();
-    final elapsed = DateTime.now().difference(launchStartedAt);
-    final remaining = widget.minimumVisible - elapsed;
-    _minimumVisibleFuture = remaining > Duration.zero
-        ? Future<void>.delayed(remaining)
+    _minimumVisibleFuture = widget.minimumVisible > Duration.zero
+        ? Future<void>.delayed(widget.minimumVisible)
         : Future<void>.value();
     _prepare();
   }
