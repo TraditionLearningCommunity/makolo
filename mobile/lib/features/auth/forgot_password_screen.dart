@@ -64,8 +64,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _error = null;
     });
     try {
-      await AuthRepository(api, widget.runtime.tokens)
-          .forgotPassword(email: email);
+      await AuthRepository(
+        api,
+        widget.runtime.tokens,
+      ).forgotPassword(email: email);
       if (!mounted) return;
       setState(() => _sent = true);
     } on Object catch (error) {
@@ -73,7 +75,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       setState(() {
         _error = authErrorMessage(
           error,
-          fallback: 'Envoi impossible pour le moment. Réessayez dans un instant.',
+          fallback:
+              'Envoi impossible pour le moment. Réessayez dans un instant.',
         );
         _sent = false;
       });
@@ -86,8 +89,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return AuthEntryFrame(
       title: 'Mot de passe oublié ?',
-      subtitle:
-          'Si un compte correspond à cette adresse, Makolo envoie les instructions de réinitialisation.',
+      subtitle: 'Si un compte correspond à cette adresse, Makolo envoie les instructions de réinitialisation.',
       onBack: () => widget.onBackToLogin(_email.text.trim()),
       child: AutofillGroup(
         child: Column(
@@ -112,9 +114,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 liveRegion: true,
                 child: Text(
                   _error!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
             ],

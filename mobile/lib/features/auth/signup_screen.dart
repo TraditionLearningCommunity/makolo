@@ -129,16 +129,14 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return AuthEntryFrame(
       title: 'Créer un compte',
-      subtitle: 'Quelques informations suffisent pour préparer votre accès à Makolo.',
+      subtitle:
+          'Quelques informations suffisent pour préparer votre accès à Makolo.',
       onBack: () => widget.onBackToLogin(_email.text.trim()),
       child: AutofillGroup(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Votre accès',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Votre accès', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: MakoloSpacing.md),
             TextField(
               key: const Key('signup-email'),
@@ -168,10 +166,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
             const SizedBox(height: MakoloSpacing.lg),
-            Text(
-              'Votre nom',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Votre nom', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: MakoloSpacing.md),
             TextField(
               controller: _firstName,
@@ -213,10 +208,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
             const SizedBox(height: MakoloSpacing.lg),
-            Text(
-              'Sécurité',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Sécurité', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: MakoloSpacing.sm),
             Text(
               'Utilisez au moins 8 caractères et évitez un mot de passe courant ou trop proche de vos informations personnelles.',
@@ -284,9 +276,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 liveRegion: true,
                 child: Text(
                   _error!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
             ],

@@ -52,10 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _backToLogin(
-    String email, {
-    String? notice,
-  }) {
+  void _backToLogin(String email, {String? notice}) {
     setState(() {
       _mode = _EntryMode.login;
       if (email.isNotEmpty) _email.text = email;
@@ -90,10 +87,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await AuthRepository(api, widget.runtime.tokens).login(
-        email: email,
-        password: _password.text,
-      );
+      await AuthRepository(
+        api,
+        widget.runtime.tokens,
+      ).login(email: email, password: _password.text);
       TextInput.finishAutofillContext();
       ref.invalidate(appRuntimeProvider);
     } on MakoloApiError catch (error) {
@@ -108,8 +105,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on Object {
       if (!mounted) return;
       setState(() {
-        _error =
-            'Connexion impossible pour le moment. Votre saisie reste disponible.';
+        _error = 'Connexion impossible pour le moment. Votre saisie reste disponible.';
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -221,9 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Text(
                   _error!,
                   key: const Key('login-error'),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
               const SizedBox(height: MakoloSpacing.md),
