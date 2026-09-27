@@ -31,16 +31,55 @@ class AuthRepository {
     }
   }
 
+  Future<void> register({
+    required String email,
+    required String username,
+    required String password,
+    required String passwordConfirm,
+    String? firstName,
+    String? lastName,
+    String? phone,
+  }) async {
+    await api.register(
+      email: email,
+      username: username,
+      password: password,
+      passwordConfirm: passwordConfirm,
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+    );
+  }
+
+  Future<void> forgotPassword({required String email}) async {
+    await api.forgotPassword(email: email);
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirm,
+  }) async {
+    await api.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+      newPasswordConfirm: newPasswordConfirm,
+    );
+    await tokens.clearSession();
+  }
+
   Future<void> logout() async {
     final session = await tokens.readSession();
     if (session == null) return;
+
+    // Remove local credentials before any network dependency. The Profile DB,
+    // drafts and outbox live outside TokenStore and are intentionally preserved.
+    await tokens.clearSession();
     try {
-      await api.logoutCurrentSession();
+      await api.logoutSession(session);
     } on Object {
-      // Local credentials are still removed. The server-side refresh may
-      // already be expired/revoked or the device may be offline.
-    } finally {
-      await tokens.clearSession();
+      // Best-effort server blacklist. Local logout remains effective when the
+      // server is unreachable or the refresh has already expired/revoked.
     }
   }
 }
