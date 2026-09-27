@@ -48,10 +48,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 }
 
 class _Introduction extends StatelessWidget {
-  const _Introduction({
-    required this.onContinue,
-    required this.onSkip,
-  });
+  const _Introduction({required this.onContinue, required this.onSkip});
 
   final VoidCallback onContinue;
   final VoidCallback onSkip;
@@ -88,10 +85,8 @@ class _Introduction extends StatelessWidget {
                   const SizedBox(height: MakoloSpacing.xl),
                   Text(
                     'Découvrir.\nPréparer.\nAvancer.',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontSize: 34,
-                      height: 1.16,
-                    ),
+                    style: Theme.of(context).textTheme.headlineSmall
+                        ?.copyWith(fontSize: 34, height: 1.16),
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
                   Text(

@@ -38,37 +38,38 @@ AppRuntime _guestRuntime(SessionRecoveryController recovery) {
 }
 
 void main() {
-  testWidgets('guest starts on a useful Discover surface without forced login', (
-    tester,
-  ) async {
-    final router = createMakoloRouter(
-      _guestRuntime(SessionRecoveryController()),
-    );
+  testWidgets(
+    'guest starts on a useful Discover surface without forced login',
+    (tester) async {
+      final router = createMakoloRouter(
+        _guestRuntime(SessionRecoveryController()),
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp.router(
-          theme: buildMakoloTheme(),
-          routerConfig: router,
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp.router(
+            theme: buildMakoloTheme(),
+            routerConfig: router,
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(
-      find.text(
-        'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
-      ),
-      findsOneWidget,
-    );
-    expect(find.byType(LoginScreen), findsNothing);
+      expect(
+        find.text(
+          'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(LoginScreen), findsNothing);
 
-    router.go('/ongoing');
-    await tester.pumpAndSettle();
+      router.go('/ongoing');
+      await tester.pumpAndSettle();
 
-    expect(find.text('En cours'), findsOneWidget);
-    expect(find.byType(LoginScreen), findsNothing);
-  });
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+    },
+  );
 
   testWidgets('login and create-account routes are real destinations', (
     tester,
@@ -96,26 +97,27 @@ void main() {
     expect(find.byType(RegisterScreen), findsOneWidget);
   });
 
-  testWidgets('protected deep destination is preserved instead of redirecting', (
-    tester,
-  ) async {
-    final recovery = SessionRecoveryController();
-    final router = createMakoloRouter(_guestRuntime(recovery));
+  testWidgets(
+    'protected deep destination is preserved instead of redirecting',
+    (tester) async {
+      final recovery = SessionRecoveryController();
+      final router = createMakoloRouter(_guestRuntime(recovery));
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp.router(
-          theme: buildMakoloTheme(),
-          routerConfig: router,
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp.router(
+            theme: buildMakoloTheme(),
+            routerConfig: router,
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    router.go('/journeys/journey-1');
-    await tester.pumpAndSettle();
+      router.go('/journeys/journey-1');
+      await tester.pumpAndSettle();
 
-    expect(find.text('Connectez-vous pour continuer'), findsOneWidget);
-    expect(recovery.lastUsefulLocation, '/journeys/journey-1');
-  });
+      expect(find.text('Connectez-vous pour continuer'), findsOneWidget);
+      expect(recovery.lastUsefulLocation, '/journeys/journey-1');
+    },
+  );
 }

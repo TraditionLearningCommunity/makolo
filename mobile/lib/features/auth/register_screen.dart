@@ -7,10 +7,7 @@ import '../../design/makolo_theme.dart';
 import '../../network/api_error.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({
-    super.key,
-    required this.runtime,
-  });
+  const RegisterScreen({super.key, required this.runtime});
 
   final AppRuntime runtime;
 
@@ -46,7 +43,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (api == null) return;
 
     if (_password.text != _passwordConfirm.text) {
-      setState(() => _error = 'Les deux mots de passe doivent être identiques.');
+      setState(
+        () => _error = 'Les deux mots de passe doivent être identiques.',
+      );
       return;
     }
 
@@ -72,8 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on Object {
       if (!mounted) return;
       setState(
-        () => _error =
-            'Création de compte impossible pour le moment. Votre saisie reste disponible.',
+        () => _error = 'Création de compte impossible pour le moment. Votre saisie reste disponible.',
       );
     } finally {
       if (mounted) setState(() => _busy = false);

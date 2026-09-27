@@ -21,8 +21,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
     initialLocation: initialLocation,
     redirect: (context, state) {
       if (runtime.isAuthenticated &&
-          (state.uri.path == '/login' ||
-              state.uri.path == '/create-account')) {
+          (state.uri.path == '/login' || state.uri.path == '/create-account')) {
         return '/now';
       }
       return null;
@@ -37,8 +36,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             builder: (context, state) => personal == null
                 ? const GuestPersonalScreen(
                     title: 'Maintenant',
-                    message:
-                        'Cette partie devient personnelle lorsque vous vous connectez. Vous pouvez continuer à découvrir Makolo sans compte.',
+                    message: 'Cette partie devient personnelle lorsque vous vous connectez. Vous pouvez continuer à découvrir Makolo sans compte.',
                   )
                 : ProjectionScreen(
                     title: 'Maintenant',
@@ -48,17 +46,15 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
           ),
           GoRoute(
             path: '/discover',
-            builder: (context, state) => GuestDiscoverScreen(
-              isAuthenticated: runtime.isAuthenticated,
-            ),
+            builder: (context, state) =>
+                GuestDiscoverScreen(isAuthenticated: runtime.isAuthenticated),
           ),
           GoRoute(
             path: '/ongoing',
             builder: (context, state) => personal == null
                 ? const GuestPersonalScreen(
                     title: 'En cours',
-                    message:
-                        'Vos démarches et éléments en cours apparaissent ici après connexion. Découvrir reste disponible sans compte.',
+                    message: 'Vos démarches et éléments en cours apparaissent ici après connexion. Découvrir reste disponible sans compte.',
                   )
                 : ProjectionScreen(
                     title: 'En cours',
@@ -71,8 +67,7 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             builder: (context, state) => personal == null
                 ? const GuestPersonalScreen(
                     title: 'Moi',
-                    message:
-                        'Cette partie rassemble vos informations personnelles. Elle reste protégée tant que vous continuez sans compte.',
+                    message: 'Cette partie rassemble vos informations personnelles. Elle reste protégée tant que vous continuez sans compte.',
                   )
                 : ProjectionScreen(
                     title: 'Moi',
@@ -107,14 +102,12 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             if (!runtime.isAuthenticated) {
               return const GuestPersonalScreen(
                 title: 'Connectez-vous pour continuer',
-                message:
-                    'Cette destination concerne une activité personnelle. Votre destination reste disponible après reconnexion.',
+                message: 'Cette destination concerne une activité personnelle. Votre destination reste disponible après reconnexion.',
               );
             }
             return const PlaceholderScreen(
               title: 'Continuer dans Makolo',
-              message:
-                  'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
+              message: 'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
             );
           },
         ),

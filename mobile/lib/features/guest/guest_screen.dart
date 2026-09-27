@@ -5,10 +5,7 @@ import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
 
 class GuestDiscoverScreen extends StatelessWidget {
-  const GuestDiscoverScreen({
-    super.key,
-    required this.isAuthenticated,
-  });
+  const GuestDiscoverScreen({super.key, required this.isAuthenticated});
 
   final bool isAuthenticated;
 

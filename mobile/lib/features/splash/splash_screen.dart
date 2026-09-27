@@ -9,10 +9,6 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Scaffold(
     backgroundColor: MakoloColors.indigo,
-    body: SafeArea(
-      child: Center(
-        child: MakoloMark(size: 72, white: true),
-      ),
-    ),
+    body: SafeArea(child: Center(child: MakoloMark(size: 72, white: true))),
   );
 }

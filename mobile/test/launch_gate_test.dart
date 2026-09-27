@@ -51,30 +51,31 @@ Widget _app(AppRuntime runtime) {
 }
 
 void main() {
-  testWidgets('new installation shows onboarding and Skip exits to guest mode', (
-    tester,
-  ) async {
-    final preferences = _MemoryLaunchPreferences(
-      LaunchPreferencesSnapshot(lastBrandMomentAt: DateTime.now()),
-    );
-    final runtime = _runtime(preferences);
+  testWidgets(
+    'new installation shows onboarding and Skip exits to guest mode',
+    (tester) async {
+      final preferences = _MemoryLaunchPreferences(
+        LaunchPreferencesSnapshot(lastBrandMomentAt: DateTime.now()),
+      );
+      final runtime = _runtime(preferences);
 
-    await tester.pumpWidget(_app(runtime));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(runtime));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
+      expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
 
-    await tester.tap(find.text('Passer'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Passer'));
+      await tester.pumpAndSettle();
 
-    expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
-    expect(
-      find.text(
-        'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
-      ),
-      findsOneWidget,
-    );
-  });
+      expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
+      expect(
+        find.text(
+          'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('completed onboarding does not return on normal launch', (
     tester,

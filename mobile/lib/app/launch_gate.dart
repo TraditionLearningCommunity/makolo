@@ -30,8 +30,7 @@ class LaunchGate extends StatefulWidget {
 
 class _LaunchGateState extends State<LaunchGate> {
   _LaunchStage _stage = _LaunchStage.preparing;
-  LaunchPreferencesSnapshot _preferences =
-      const LaunchPreferencesSnapshot();
+  LaunchPreferencesSnapshot _preferences = const LaunchPreferencesSnapshot();
   bool _priorityNavigation = false;
 
   @override
@@ -105,9 +104,7 @@ class _LaunchGateState extends State<LaunchGate> {
   Widget build(BuildContext context) {
     return switch (_stage) {
       _LaunchStage.preparing => const SplashScreen(),
-      _LaunchStage.brandMoment => BrandMoment(
-        onFinished: _finishBrandMoment,
-      ),
+      _LaunchStage.brandMoment => BrandMoment(onFinished: _finishBrandMoment),
       _LaunchStage.onboarding => OnboardingFlow(
         isAuthenticated: widget.runtime.isAuthenticated,
         onComplete: _finishOnboarding,

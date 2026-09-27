@@ -25,9 +25,7 @@ void main() {
     expect(finished, isTrue);
   });
 
-  testWidgets('Reduce Motion uses a short static Mark variant', (
-    tester,
-  ) async {
+  testWidgets('Reduce Motion uses a short static Mark variant', (tester) async {
     var finished = false;
 
     await tester.pumpWidget(

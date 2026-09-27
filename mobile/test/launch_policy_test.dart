@@ -47,9 +47,7 @@ void main() {
   });
 
   test('three-day cadence is switchable in one policy value', () {
-    const policy = BrandMomentPolicy(
-      cadence: BrandMomentCadence.threeDays,
-    );
+    const policy = BrandMomentPolicy(cadence: BrandMomentCadence.threeDays);
 
     expect(
       policy.isEligible(
@@ -87,17 +85,11 @@ void main() {
   test('notification destination remains a priority launch path', () {
     const notifications = NotificationRouter();
     final route = notifications.resolve(
-      const NotificationRouteIntent(
-        kind: 'Journey',
-        id: 'journey-1',
-      ),
+      const NotificationRouteIntent(kind: 'Journey', id: 'journey-1'),
     );
 
     expect(route, '/journeys/journey-1');
-    expect(
-      hasPriorityLaunchPath(route!, authenticated: true),
-      isTrue,
-    );
+    expect(hasPriorityLaunchPath(route!, authenticated: true), isTrue);
   });
 
   test('background resume never replays brand moment', () {
@@ -114,17 +106,8 @@ void main() {
   });
 
   test('priority launch path is any non-default destination', () {
-    expect(
-      hasPriorityLaunchPath('/journeys/abc', authenticated: true),
-      isTrue,
-    );
-    expect(
-      hasPriorityLaunchPath('/now', authenticated: true),
-      isFalse,
-    );
-    expect(
-      hasPriorityLaunchPath('/discover', authenticated: false),
-      isFalse,
-    );
+    expect(hasPriorityLaunchPath('/journeys/abc', authenticated: true), isTrue);
+    expect(hasPriorityLaunchPath('/now', authenticated: true), isFalse);
+    expect(hasPriorityLaunchPath('/discover', authenticated: false), isFalse);
   });
 }

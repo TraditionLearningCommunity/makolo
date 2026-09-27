@@ -10,9 +10,7 @@ extension BrandMomentCadenceDuration on BrandMomentCadence {
 }
 
 class BrandMomentPolicy {
-  const BrandMomentPolicy({
-    this.cadence = configuredCadence,
-  });
+  const BrandMomentPolicy({this.cadence = configuredCadence});
 
   static const configuredCadence = BrandMomentCadence.oneDay;
 
@@ -35,10 +33,7 @@ class BrandMomentPolicy {
   }
 }
 
-bool hasPriorityLaunchPath(
-  String path, {
-  required bool authenticated,
-}) {
+bool hasPriorityLaunchPath(String path, {required bool authenticated}) {
   final defaultPath = authenticated ? '/now' : '/discover';
   return path.isNotEmpty && path != '/' && path != defaultPath;
 }

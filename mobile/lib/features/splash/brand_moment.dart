@@ -7,10 +7,7 @@ import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
 
 class BrandMoment extends StatefulWidget {
-  const BrandMoment({
-    super.key,
-    required this.onFinished,
-  });
+  const BrandMoment({super.key, required this.onFinished});
 
   final VoidCallback onFinished;
 
@@ -102,10 +99,7 @@ class _BrandMomentState extends State<BrandMoment>
                             opacity: markProgress,
                             child: Transform.scale(
                               scale: 0.92 + (0.08 * markProgress),
-                              child: const MakoloMark(
-                                size: 78,
-                                white: true,
-                              ),
+                              child: const MakoloMark(size: 78, white: true),
                             ),
                           ),
                         ],
