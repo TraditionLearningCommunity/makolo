@@ -72,7 +72,7 @@ Le client réutilise exclusivement les routes Accounts existantes :
 - `POST /api/v1/accounts/auth/password/change/` ;
 - `GET /api/v1/accounts/auth/me/`.
 
-L'Entry natif ferme désormais les parcours login, inscription et mot de passe oublié. L'inscription suit strictement `RegisterSerializer` et revient au login après création ; aucun auto-login n'est inventé. Le mot de passe oublié conserve la réponse anti-énumération du serveur. Le lien reçu par e-mail continue d'ouvrir le reset Web existant : A1 n'introduit aucun App Link ou Universal Link artificiel.
+L'Entry natif ferme désormais les parcours login, inscription et mot de passe oublié. L'inscription suit strictement `RegisterSerializer`. Après création réussie, le client réutilise immédiatement le contrat Login existant avec les mêmes identifiants afin d'établir la session : aucune nouvelle route ni aucun token n'est inventé par Register. Le mot de passe oublié conserve la réponse anti-énumération du serveur et s'ouvre depuis Login dans une modale dédiée ; après envoi, la modale demande simplement de consulter la boîte de réception et d'ouvrir le lien reçu. Le lien reçu par e-mail continue d'ouvrir le reset Web existant : A1 n'introduit aucun App Link ou Universal Link artificiel.
 
 `password/reset/` reste un contrat serveur valide mais n'est pas simulé dans l'application sans `uid` et `token`. `password/change/` est préparé dans le client/repository authentifié sans construire une grande surface Settings hors A1.
 
@@ -80,9 +80,20 @@ Access et refresh sont stockés ensemble dans une seule valeur de secure storage
 
 Une session distante invalide retire les credentials actifs sans supprimer la DB, les drafts ni l'outbox. Le contrôleur `SessionRecoveryController` conserve la dernière route utile en mémoire de processus, demande la reconnexion puis restaure cette route une seule fois après authentification. Il ne transforme pas cet état de navigation en vérité métier persistante. Toute opération sensible reste revalidée par son owner serveur.
 
-La déconnexion est local-first pour les credentials : la session sécurisée locale est retirée avant de dépendre du réseau, puis le blacklist du refresh est tenté côté serveur. Un serveur indisponible ne réactive donc pas la session locale. « Changer de compte » suit la même fermeture d'identité, conserve les stores locaux isolés par Profile et revient à Entry sans transformer l'opération en changement de Profile métier dans une session active.
+La déconnexion est local-first pour les credentials : la session sécurisée locale est retirée avant de dépendre du réseau, puis le blacklist du refresh est tenté côté serveur. Un serveur indisponible ne réactive donc pas la session locale. « Changer de compte » ouvre désormais une surface locale de comptes déjà utilisés sur l'appareil. Chaque entrée reste une identité authentifiée distincte ; les stores locaux restent isolés par Profile. Un compte peut proposer un accès rapide uniquement lorsque la personne l'a explicitement choisi : Makolo conserve alors la session renouvelable dans le secure storage, jamais le mot de passe. Sans accès rapide, sélectionner le compte demande le mot de passe et le gestionnaire de mots de passe du système reste libre de proposer sa propre conservation. « Retirer de cet appareil » supprime uniquement cette présence locale et son accès rapide ; cela ne supprime jamais le compte serveur.
 
 Les erreurs d'authentification visibles sont traduites en messages sûrs ; aucun détail backend brut, JWT ou payload privé n'est présenté.
+
+
+### Finition Auth & identité installée
+
+La fermeture A1 issue du smoke Android réel fixe également :
+
+- une surface Auth violette continue, sans grand panneau blanc contenant tout le formulaire ;
+- des champs Material 3 Makolo réutilisables avec validation inline, clavier/focus, autofill et états busy ;
+- un header shell qui utilise le lockup Makolo dérivé de l'asset officiel avec wordmark violet ;
+- « Agir en mon nom » pour le contexte personnel dans Avatar, au lieu d'un libellé administratif « Contexte actif / Personnel » ;
+- le Makolo Mark central reste une action et reçoit une affordance tactile explicite (cible circulaire, contour violet, ripple/haptic) sans devenir un cinquième onglet.
 
 ## 5. Sync, outbox et deux axes d'état
 
