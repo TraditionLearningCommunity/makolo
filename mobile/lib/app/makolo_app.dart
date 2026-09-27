@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
-import '../features/auth/login_screen.dart';
 import '../features/splash/splash_screen.dart';
+import 'launch_gate.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'sync_lifecycle.dart';
@@ -31,34 +31,39 @@ class MakoloApp extends ConsumerWidget {
           body: MakoloErrorState(
             message:
                 'Makolo n’a pas pu ouvrir les données locales de cet appareil.',
-            preservedMessage: 'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
+            preservedMessage:
+                'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
             onRetry: () => ref.invalidate(appRuntimeProvider),
           ),
         ),
       ),
       data: (runtime) {
-        if (!runtime.isAuthenticated) {
-          return MaterialApp(
-            title: 'Makolo',
-            debugShowCheckedModeBanner: false,
-            theme: buildMakoloTheme(),
-            home: LoginScreen(runtime: runtime),
-          );
-        }
+        final router = createMakoloRouter(runtime);
 
         return MaterialApp.router(
           title: 'Makolo',
           debugShowCheckedModeBanner: false,
           theme: buildMakoloTheme(),
-          routerConfig: createMakoloRouter(runtime),
-          builder: (context, child) => SyncLifecycle(
-            runtime: runtime,
-            child: child ?? const SizedBox.shrink(),
-            onSessionExpired: () {
-              runtime.recovery.markSessionExpired();
-              ref.invalidate(appRuntimeProvider);
-            },
-          ),
+          routerConfig: router,
+          builder: (context, child) {
+            Widget routedChild = child ?? const SizedBox.shrink();
+            if (runtime.isAuthenticated) {
+              routedChild = SyncLifecycle(
+                runtime: runtime,
+                onSessionExpired: () {
+                  runtime.recovery.markSessionExpired();
+                  ref.invalidate(appRuntimeProvider);
+                },
+                child: routedChild,
+              );
+            }
+
+            return LaunchGate(
+              runtime: runtime,
+              router: router,
+              child: routedChild,
+            );
+          },
         );
       },
     );

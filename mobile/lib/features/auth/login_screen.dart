@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../auth/auth_repository.dart';
@@ -50,7 +51,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on Object {
       if (mounted) {
         setState(
-          () => _error = 'Connexion impossible pour le moment. Votre saisie reste disponible.',
+          () => _error =
+              'Connexion impossible pour le moment. Votre saisie reste disponible.',
         );
       }
     } finally {
@@ -61,6 +63,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: const Text('Se connecter')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -81,8 +84,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
                       widget.runtime.apiConfigured
-                          ? 'Connectez-vous pour retrouver ce qui est disponible pour vous sur cet appareil.'
-                          : 'Une première connexion est nécessaire. Configurez un environnement Makolo autorisé pour continuer.',
+                          ? 'Connectez-vous pour retrouver votre activité personnelle et ce qui est déjà en cours.'
+                          : 'La connexion n’est pas disponible dans cet environnement. Vous pouvez continuer sans compte.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: MakoloSpacing.xl),
@@ -125,7 +128,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: _busy ? null : _login,
                         child: Text(_busy ? 'Connexion…' : 'Continuer'),
                       ),
+                      const SizedBox(height: MakoloSpacing.sm),
+                      OutlinedButton(
+                        onPressed: () => context.go('/create-account'),
+                        child: const Text('Créer un compte'),
+                      ),
                     ],
+                    const SizedBox(height: MakoloSpacing.sm),
+                    TextButton(
+                      onPressed: () => context.go('/discover'),
+                      child: const Text('Continuer sans compte'),
+                    ),
                   ],
                 ),
               ),

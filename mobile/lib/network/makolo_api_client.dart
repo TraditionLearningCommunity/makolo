@@ -48,6 +48,28 @@ class MakoloApiClient {
     return session;
   }
 
+  Future<ApiResponse> register({
+    required String email,
+    required String username,
+    required String password,
+    required String passwordConfirm,
+    String firstName = '',
+    String lastName = '',
+  }) {
+    return _sendPublic(
+      'POST',
+      'api/v1/accounts/auth/register/',
+      body: {
+        'email': email,
+        'username': username,
+        'password': password,
+        'password_confirm': passwordConfirm,
+        if (firstName.isNotEmpty) 'first_name': firstName,
+        if (lastName.isNotEmpty) 'last_name': lastName,
+      },
+    );
+  }
+
   Future<ApiResponse> get(String path) => _authorized('GET', path);
 
   Future<void> logoutCurrentSession() async {
