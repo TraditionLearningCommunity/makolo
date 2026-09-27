@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/account_actions.dart';
+import '../features/auth/login_screen.dart';
+import '../features/auth/signup_screen.dart';
+import '../features/guest/guest_screen.dart';
 import '../features/mark/mark_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
@@ -15,7 +18,12 @@ GoRouter createMakoloRouter(
   AppRuntime runtime, {
   required void Function() onAuthenticationChanged,
 }) {
-  final personal = runtime.personal!;
+  final personal = runtime.personal;
+  final initialLocation = runtime.isAuthenticated
+      ? runtime.recovery.initialLocation()
+      : runtime.recovery.awaitingAuthentication
+      ? '/login'
+      : '/discover';
 
   void switchAccount() {
     unawaited(
@@ -38,29 +46,43 @@ GoRouter createMakoloRouter(
   }
 
   return GoRouter(
-    initialLocation: runtime.recovery.initialLocation(),
+    initialLocation: initialLocation,
+    redirect: (context, state) {
+      if (runtime.isAuthenticated &&
+          (state.uri.path == '/login' ||
+              state.uri.path == '/create-account')) {
+        return '/now';
+      }
+      return null;
+    },
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(
           navigationShell: navigationShell,
           recovery: runtime.recovery,
           runtime: runtime,
-          onSwitchAccount: switchAccount,
-          onLogout: logout,
+          onSwitchAccount: runtime.isAuthenticated ? switchAccount : null,
+          onLogout: runtime.isAuthenticated ? logout : null,
         ),
         branches: [
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/now',
-                builder: (context, state) => MakoloRefreshBoundary(
-                  child: ProjectionScreen(
-                    title: 'Now',
-                    stream: personal.watchNow(),
-                    emptyMessage: 'Tout est en ordre. ✓',
-                    showTitle: false,
-                  ),
-                ),
+                builder: (context, state) => personal == null
+                    ? const GuestPersonalScreen(
+                        title: 'Now',
+                        message:
+                            'Cette partie devient personnelle lorsque vous vous connectez. Vous pouvez continuer à découvrir Makolo sans compte.',
+                      )
+                    : MakoloRefreshBoundary(
+                        child: ProjectionScreen(
+                          title: 'Now',
+                          stream: personal.watchNow(),
+                          emptyMessage: 'Tout est en ordre. ✓',
+                          showTitle: false,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -68,12 +90,14 @@ GoRouter createMakoloRouter(
             routes: [
               GoRoute(
                 path: '/discover',
-                builder: (context, state) => const MakoloRefreshBoundary(
-                  child: PlaceholderScreen(
-                    title: 'Découvrir',
-                    message: 'Rien à explorer pour le moment.',
-                  ),
-                ),
+                builder: (context, state) => personal == null
+                    ? const GuestDiscoverScreen(isAuthenticated: false)
+                    : const MakoloRefreshBoundary(
+                        child: PlaceholderScreen(
+                          title: 'Découvrir',
+                          message: 'Rien à explorer pour le moment.',
+                        ),
+                      ),
               ),
             ],
           ),
@@ -81,14 +105,20 @@ GoRouter createMakoloRouter(
             routes: [
               GoRoute(
                 path: '/ongoing',
-                builder: (context, state) => MakoloRefreshBoundary(
-                  child: ProjectionScreen(
-                    title: 'En cours',
-                    stream: personal.watchOngoing(),
-                    emptyMessage: 'Aucun engagement en cours.',
-                    showTitle: false,
-                  ),
-                ),
+                builder: (context, state) => personal == null
+                    ? const GuestPersonalScreen(
+                        title: 'En cours',
+                        message:
+                            'Vos démarches et éléments en cours apparaissent ici après connexion. Découvrir reste disponible sans compte.',
+                      )
+                    : MakoloRefreshBoundary(
+                        child: ProjectionScreen(
+                          title: 'En cours',
+                          stream: personal.watchOngoing(),
+                          emptyMessage: 'Aucun engagement en cours.',
+                          showTitle: false,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -96,18 +126,36 @@ GoRouter createMakoloRouter(
             routes: [
               GoRoute(
                 path: '/me',
-                builder: (context, state) => MakoloRefreshBoundary(
-                  child: ProjectionScreen(
-                    title: 'Moi',
-                    stream: personal.watchMe(),
-                    emptyMessage: 'Aucune information personnelle à afficher.',
-                    showTitle: false,
-                  ),
-                ),
+                builder: (context, state) => personal == null
+                    ? const GuestPersonalScreen(
+                        title: 'Moi',
+                        message:
+                            'Cette partie rassemble vos informations personnelles. Elle reste protégée tant que vous continuez sans compte.',
+                      )
+                    : MakoloRefreshBoundary(
+                        child: ProjectionScreen(
+                          title: 'Moi',
+                          stream: personal.watchMe(),
+                          emptyMessage: 'Aucune information personnelle à afficher.',
+                          showTitle: false,
+                        ),
+                      ),
               ),
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => LoginScreen(runtime: runtime),
+      ),
+      GoRoute(
+        path: '/create-account',
+        builder: (context, state) => SignupScreen(
+          runtime: runtime,
+          onBackToLogin: (_) => context.go('/login'),
+          onAuthenticated: onAuthenticationChanged,
+        ),
       ),
       GoRoute(
         path: '/mark',
@@ -164,6 +212,13 @@ GoRouter createMakoloRouter(
           path: '/$prefix/:id',
           builder: (context, state) {
             runtime.recovery.rememberLocation(state.uri.toString());
+            if (!runtime.isAuthenticated) {
+              return const GuestPersonalScreen(
+                title: 'Connectez-vous pour continuer',
+                message:
+                    'Cette destination concerne une action personnelle. Votre destination reste disponible après reconnexion.',
+              );
+            }
             return const MakoloSecondaryScreen(
               title: 'Continuer dans Makolo',
               message: 'Rien d’autre à afficher pour le moment.',
