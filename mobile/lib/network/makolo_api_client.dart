@@ -100,6 +100,8 @@ class MakoloApiClient {
 
   Future<ApiResponse> get(String path) => _authorized('GET', path);
 
+  Future<ApiResponse> publicGet(String path) => _sendPublic('GET', path);
+
   Future<void> logoutCurrentSession() async {
     final session = await _tokens.readSession();
     if (session == null) return;
