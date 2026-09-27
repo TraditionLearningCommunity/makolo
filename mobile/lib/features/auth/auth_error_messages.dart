@@ -1,9 +1,6 @@
 import '../../network/api_error.dart';
 
-String authErrorMessage(
-  Object error, {
-  required String fallback,
-}) {
+String authErrorMessage(Object error, {required String fallback}) {
   if (error is! MakoloApiError) return fallback;
 
   if (error.code == 'throttled' || error.statusCode == 429) {

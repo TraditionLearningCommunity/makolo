@@ -129,8 +129,7 @@ class MakoloApiClient {
       final json = refreshed.jsonObject();
       current = AuthSession(
         accessToken: json['access'] as String,
-        refreshToken:
-            (json['refresh'] as String?) ?? current.refreshToken,
+        refreshToken: (json['refresh'] as String?) ?? current.refreshToken,
         profileId: current.profileId,
       );
       response = await _send(

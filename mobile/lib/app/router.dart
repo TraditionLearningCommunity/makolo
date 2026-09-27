@@ -32,8 +32,7 @@ GoRouter createMakoloRouter(
             path: '/discover',
             builder: (context, state) => const PlaceholderScreen(
               title: 'Découvrir',
-              message:
-                  'De nouvelles possibilités apparaîtront ici lorsqu’elles seront disponibles.',
+              message: 'De nouvelles possibilités apparaîtront ici lorsqu’elles seront disponibles.',
             ),
           ),
           GoRoute(
@@ -74,8 +73,7 @@ GoRouter createMakoloRouter(
             runtime.recovery.rememberLocation(state.uri.toString());
             return const PlaceholderScreen(
               title: 'Continuer dans Makolo',
-              message:
-                  'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
+              message: 'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
             );
           },
         ),
