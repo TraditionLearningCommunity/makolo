@@ -239,7 +239,9 @@ class NetworkStateIndicator extends StatelessWidget {
             decoration: BoxDecoration(
               color: MakoloColors.info.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: MakoloColors.info.withValues(alpha: 0.24)),
+              border: Border.all(
+                color: MakoloColors.info.withValues(alpha: 0.24),
+              ),
             ),
             child: const Padding(
               padding: EdgeInsets.symmetric(
@@ -249,11 +251,7 @@ class NetworkStateIndicator extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.sync_rounded,
-                    size: 16,
-                    color: MakoloColors.info,
-                  ),
+                  Icon(Icons.sync_rounded, size: 16, color: MakoloColors.info),
                   SizedBox(width: MakoloSpacing.xs),
                   Text(
                     'Mise à jour…',
