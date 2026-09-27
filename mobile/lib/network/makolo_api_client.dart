@@ -255,7 +255,7 @@ class MakoloApiClient {
       method,
       path,
       bodyFactory: () async {
-        final data = FormData();
+        final data = FormData(boundaryName: 'makolo');
         for (final entry in fields.entries) {
           final value = entry.value;
           if (value != null) {
