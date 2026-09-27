@@ -1,0 +1,41 @@
+import '../../network/api_error.dart';
+
+String authErrorMessage(
+  Object error, {
+  required String fallback,
+}) {
+  if (error is! MakoloApiError) return fallback;
+
+  if (error.code == 'throttled' || error.statusCode == 429) {
+    return 'Trop de tentatives pour le moment. Réessayez un peu plus tard.';
+  }
+  if (error.statusCode >= 500) {
+    return fallback;
+  }
+  return fallback;
+}
+
+String signupErrorMessage(Object error) {
+  if (error is! MakoloApiError) {
+    return 'Création du compte impossible pour le moment. Réessayez dans un instant.';
+  }
+
+  final fields = error.fields;
+  if (fields.containsKey('email')) {
+    return 'Cette adresse e-mail ne peut pas être utilisée pour ce nouveau compte.';
+  }
+  if (fields.containsKey('username')) {
+    return 'Ce nom d’utilisateur ne peut pas être utilisé. Choisissez-en un autre.';
+  }
+  if (fields.containsKey('phone')) {
+    return 'Vérifiez le numéro de téléphone indiqué.';
+  }
+  if (fields.containsKey('password') ||
+      fields.containsKey('password_confirm')) {
+    return 'Choisissez un mot de passe qui respecte les règles de sécurité et confirmez-le à l’identique.';
+  }
+  return authErrorMessage(
+    error,
+    fallback: 'Vérifiez les informations saisies puis réessayez.',
+  );
+}
