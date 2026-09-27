@@ -31,6 +31,7 @@
     {% if has_personal_projects %}<a href="{% url 'objectives:project-list' %}">Projets</a>{% endif %}
     {% if has_waitlist %}<a href="{% url 'tickets:waitlist-list' %}">Liste d’attente</a>{% endif %}
     {% if has_transfers %}<a href="{% url 'tickets:transfer-list' %}">Transferts</a>{% endif %}
+    {% if has_personal_fundings %}<a href="{% url 'funding:create' %}">Nouveau financement</a>{% else %}<a href="{% url 'funding:create' %}">Créer un financement</a>{% endif %}
   </div>
 </div>
 {% endblock %}
