@@ -66,7 +66,12 @@ void main() {
       router.go('/ongoing');
       await tester.pumpAndSettle();
 
-      expect(find.text('En cours'), findsOneWidget);
+      expect(
+        find.text(
+          'Vos démarches et éléments en cours apparaissent ici après connexion. Découvrir reste disponible sans compte.',
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(LoginScreen), findsNothing);
     },
   );

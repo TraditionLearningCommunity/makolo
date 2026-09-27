@@ -9,10 +9,16 @@ import '../sync/sync_status.dart';
 import 'session_recovery.dart';
 
 class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.child, required this.recovery});
+  const AppShell({
+    super.key,
+    required this.child,
+    required this.recovery,
+    this.trackLocation = true,
+  });
 
   final Widget child;
   final SessionRecoveryController recovery;
+  final bool trackLocation;
 
   int _selected(String path) {
     final destinations = MakoloDestination.values;
@@ -26,7 +32,7 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = GoRouterState.of(context).uri.toString();
-    recovery.rememberLocation(path);
+    if (trackLocation) recovery.rememberLocation(path);
     final selected = _selected(GoRouterState.of(context).uri.path);
     final syncStatus = SyncStatusScope.maybeOf(context);
 

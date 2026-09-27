@@ -28,8 +28,11 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
     },
     routes: [
       ShellRoute(
-        builder: (context, state, child) =>
-            AppShell(recovery: runtime.recovery, child: child),
+        builder: (context, state, child) => AppShell(
+          recovery: runtime.recovery,
+          trackLocation: runtime.isAuthenticated,
+          child: child,
+        ),
         routes: [
           GoRoute(
             path: '/now',

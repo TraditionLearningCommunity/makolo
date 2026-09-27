@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../design/makolo_mark.dart';
@@ -64,8 +66,10 @@ class _Introduction extends StatelessWidget {
             padding: const EdgeInsets.all(MakoloSpacing.xl),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight:
-                    MediaQuery.sizeOf(context).height - (MakoloSpacing.xl * 2),
+                minHeight: math.max(
+                  0,
+                  MediaQuery.sizeOf(context).height - (MakoloSpacing.xl * 2),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
