@@ -301,7 +301,7 @@ void main() {
     await tester.tap(find.byTooltip('Makolo Mark'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Makolo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Makolo'), findsOneWidget);
     expect(find.byTooltip('Avatar'), findsOneWidget);
     expect(find.byTooltip('Notifications'), findsNothing);
     expect(find.byTooltip('Rechercher'), findsNothing);
