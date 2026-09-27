@@ -38,10 +38,7 @@ AppRuntime _runtime(_MemoryLaunchPreferences preferences) {
 }
 
 Widget _app(AppRuntime runtime) {
-  final router = createMakoloRouter(
-    runtime,
-    onAuthenticationChanged: () {},
-  );
+  final router = createMakoloRouter(runtime, onAuthenticationChanged: () {});
   return MaterialApp.router(
     theme: buildMakoloTheme(),
     routerConfig: router,
