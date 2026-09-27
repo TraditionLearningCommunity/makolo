@@ -37,7 +37,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Préparer le rendez-vous'), findsOneWidget);
-    expect(find.text('Disponible sur cet appareil'), findsOneWidget);
+    expect(find.text('Maintenant'), findsOneWidget);
     expect(find.textContaining('Projection locale'), findsNothing);
   });
 
