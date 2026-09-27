@@ -8,18 +8,22 @@ class PlaceholderScreen extends StatelessWidget {
     super.key,
     required this.title,
     required this.message,
+    this.showTitle = true,
   });
 
   final String title;
   final String message;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(MakoloSpacing.lg),
     children: [
-      Text(title, style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: MakoloSpacing.lg),
-      InlineMessage(message: message),
+      if (showTitle) ...[
+        Text(title, style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: MakoloSpacing.lg),
+      ],
+      MakoloEmptyState(title: message),
     ],
   );
 }
