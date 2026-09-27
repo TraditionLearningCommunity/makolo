@@ -91,10 +91,8 @@ void main() {
   ) async {
     final tokens = MemoryTokenStore();
     final client = MockClient(
-      (request) async => http.Response(
-        jsonEncode({'detail': 'No active account found'}),
-        401,
-      ),
+      (request) async =>
+          http.Response(jsonEncode({'detail': 'No active account found'}), 401),
     );
     final runtime = _runtime(tokens: tokens, client: client);
 
@@ -163,9 +161,7 @@ void main() {
     final runtime = _runtime(tokens: tokens, client: client);
 
     await _pumpLogin(tester, runtime);
-    TextField password = tester.widget(
-      find.byKey(const Key('login-password')),
-    );
+    TextField password = tester.widget(find.byKey(const Key('login-password')));
     expect(password.obscureText, isTrue);
 
     await tester.tap(find.byKey(const Key('login-password-toggle')));
@@ -192,10 +188,7 @@ void main() {
       find.byKey(const Key('signup-email')),
       'amina@example.com',
     );
-    await tester.enterText(
-      find.byKey(const Key('signup-username')),
-      'amina',
-    );
+    await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
     await tester.enterText(
       find.byKey(const Key('signup-password')),
       'password-one',
@@ -239,10 +232,7 @@ void main() {
       find.byKey(const Key('signup-email')),
       'amina@example.com',
     );
-    await tester.enterText(
-      find.byKey(const Key('signup-username')),
-      'amina',
-    );
+    await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
     await tester.enterText(
       find.byKey(const Key('signup-password')),
       'password-one',
@@ -275,8 +265,7 @@ void main() {
         forgotCalls += 1;
         return http.Response(
           jsonEncode({
-            'message':
-                'Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé.',
+            'message': 'Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé.',
           }),
           200,
         );
@@ -358,9 +347,6 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Connectez-vous à Makolo'), findsOneWidget);
     expect(find.byKey(const Key('login-submit')), findsOneWidget);
-    expect(
-      find.bySemanticsLabel('Afficher le mot de passe'),
-      findsOneWidget,
-    );
+    expect(find.bySemanticsLabel('Afficher le mot de passe'), findsOneWidget);
   });
 }

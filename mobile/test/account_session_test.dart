@@ -16,26 +16,29 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'fakes.dart';
 
 void main() {
-  test('logout removes credentials even when the server is unavailable', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access-a',
-        refreshToken: 'refresh-a',
-        profileId: 'profile-a',
-      ),
-    );
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      httpClient: MockClient((request) async {
-        throw Exception('offline');
-      }),
-      tokenStore: tokens,
-    );
+  test(
+    'logout removes credentials even when the server is unavailable',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access-a',
+          refreshToken: 'refresh-a',
+          profileId: 'profile-a',
+        ),
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        httpClient: MockClient((request) async {
+          throw Exception('offline');
+        }),
+        tokenStore: tokens,
+      );
 
-    await AuthRepository(api, tokens).logout();
+      await AuthRepository(api, tokens).logout();
 
-    expect(await tokens.readSession(), isNull);
-  });
+      expect(await tokens.readSession(), isNull);
+    },
+  );
 
   test(
     'account switch preserves Profile data and keeps Profiles isolated',
@@ -47,7 +50,9 @@ void main() {
       await profileA.putProjection(
         kind: 'personal.me',
         schemaVersion: 1,
-        payload: {'items': ['kept']},
+        payload: {
+          'items': ['kept'],
+        },
       );
 
       final tokens = MemoryTokenStore(
@@ -71,10 +76,9 @@ void main() {
       await AuthRepository(api, tokens).logout();
 
       expect(await tokens.readSession(), isNull);
-      expect(
-        (await profileA.readProjection('personal.me'))?.payload['items'],
-        ['kept'],
-      );
+      expect((await profileA.readProjection('personal.me'))?.payload['items'], [
+        'kept',
+      ]);
       expect(await profileB.readProjection('personal.me'), isNull);
       expect(recovery.entryReason, EntryReason.accountSwitch);
       expect(recovery.lastUsefulLocation, isNull);
