@@ -368,6 +368,44 @@ void main() {
     },
   );
 
+  test('download writes through a partial file and commits the destination', () async {
+    final directory = await Directory.systemTemp.createTemp('makolo-download-');
+    addTearDown(() => directory.delete(recursive: true));
+    final destination = File('${directory.path}/resource.bin');
+
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: testDio((request, _) async {
+        expect(request.path, 'api/v1/resources/r-1/file/');
+        expect(request.headers['Authorization'], 'Bearer access');
+        return ResponseBody.fromString(
+          'download-body',
+          200,
+          headers: {
+            'content-type': ['application/octet-stream'],
+            'content-length': ['13'],
+          },
+        );
+      }),
+    );
+
+    await api.download(
+      'api/v1/resources/r-1/file/',
+      destinationPath: destination.path,
+    );
+
+    expect(await destination.readAsString(), 'download-body');
+    expect(File('${destination.path}.part').existsSync(), isFalse);
+  });
+
   test('logout after access expiry blacklists the rotated refresh', () async {
     var refreshCalls = 0;
     String? loggedOutRefresh;
