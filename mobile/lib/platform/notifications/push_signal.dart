@@ -1,4 +1,4 @@
-import 'package:firebasemessaging/firebasemessaging.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class PushSignal {
   const PushSignal({required this.data, this.messageId, this.sentAt});

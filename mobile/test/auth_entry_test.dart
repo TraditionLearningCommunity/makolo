@@ -55,7 +55,7 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
 }
 
-http.Response _meResponse() {
+MockResponse _meResponse() {
   return MockResponse(
     jsonEncode({
       'id': 'profile-a',
