@@ -1,4 +1,4 @@
-name: Mobile Visual Golden Generate
+name: Mobile Visual Golden Regression
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  generate-goldens:
+  visual-goldens:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,8 +24,12 @@ jobs:
           cache: true
       - name: Resolve dependencies
         run: flutter pub get
-      - name: Generate visual references
+      - name: Generate deterministic visual references
         run: flutter test --update-goldens test/visual_regression_test.dart
+      - name: Verify approved visual baselines
+        run: sha256sum -c test/goldens.sha256
+      - name: Re-run golden assertions
+        run: flutter test test/visual_regression_test.dart
       - name: Publish visual references
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

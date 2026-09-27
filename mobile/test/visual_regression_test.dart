@@ -41,7 +41,7 @@ void main() {
       find.byType(_VisualSystemFixture),
       matchesGoldenFile('goldens/visual-system-light.png'),
     );
-  });
+  }, tags: 'golden');
 
   testWidgets('visual system dark reference', (tester) async {
     await pumpGolden(
@@ -54,7 +54,7 @@ void main() {
       find.byType(_VisualSystemFixture),
       matchesGoldenFile('goldens/visual-system-dark.png'),
     );
-  });
+  }, tags: 'golden');
 
   testWidgets('all-clear remains calm with elevated text scaling', (
     tester,
@@ -77,7 +77,7 @@ void main() {
       find.byType(MakoloEmptyState),
       matchesGoldenFile('goldens/all-clear-large-text.png'),
     );
-  });
+  }, tags: 'golden');
 }
 
 class _VisualSystemFixture extends StatelessWidget {
