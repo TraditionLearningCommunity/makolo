@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/launch_policy.dart';
 import 'package:makolo_mobile/app/launch_preferences.dart';
+import 'package:makolo_mobile/notifications/notification_router.dart';
 
 void main() {
   final now = DateTime.utc(2026, 9, 27, 8);
@@ -80,6 +81,22 @@ void main() {
         hasPriorityNavigation: true,
       ),
       isFalse,
+    );
+  });
+
+  test('notification destination remains a priority launch path', () {
+    const notifications = NotificationRouter();
+    final route = notifications.resolve(
+      const NotificationRouteIntent(
+        kind: 'Journey',
+        id: 'journey-1',
+      ),
+    );
+
+    expect(route, '/journeys/journey-1');
+    expect(
+      hasPriorityLaunchPath(route!, authenticated: true),
+      isTrue,
     );
   });
 
