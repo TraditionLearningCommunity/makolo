@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-
 import '../../app/providers.dart';
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
@@ -19,7 +17,6 @@ class MarkScreen extends StatelessWidget {
       onAvatar: () => showMakoloAvatarSheet(
         context,
         runtime: runtime,
-        onAccount: () => context.push('/account'),
       ),
     ),
     body: SafeArea(

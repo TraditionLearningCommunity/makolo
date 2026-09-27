@@ -117,14 +117,6 @@ GoRouter createMakoloRouter(
               'Cette lecture temporelle organisera les dates déjà exposées par En cours.',
         ),
       ),
-      GoRoute(
-        path: '/account',
-        builder: (context, state) => const MakoloSecondaryScreen(
-          title: 'Compte et paramètres',
-          message:
-              'Les réglages de compte seront branchés ici sur leurs routes propriétaires.',
-        ),
-      ),
       for (final prefix in const [
         'journeys',
         'activities',

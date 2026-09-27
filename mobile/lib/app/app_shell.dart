@@ -79,7 +79,6 @@ class _AppShellState extends State<AppShell> {
     showMakoloAvatarSheet(
       context,
       runtime: widget.runtime,
-      onAccount: () => context.push('/account'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
     );
