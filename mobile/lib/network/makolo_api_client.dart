@@ -550,6 +550,7 @@ class MakoloApiClient {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
         return TimeoutException('Makolo network request timed out.');
       case DioExceptionType.connectionError:
       case DioExceptionType.badCertificate:

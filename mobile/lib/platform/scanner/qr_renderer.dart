@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 class MakoloQrView extends StatelessWidget {
   const MakoloQrView({required this.payload, this.size = 220, super.key});
@@ -9,6 +9,9 @@ class MakoloQrView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return QrImageView(data: payload, version: QrVersions.auto, size: size);
+    return SizedBox.square(
+      dimension: size,
+      child: PrettyQrView.data(data: payload),
+    );
   }
 }
