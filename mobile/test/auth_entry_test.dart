@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:makolo_mobile/app/providers.dart';
+import 'package:makolo_mobile/app/resumable_interaction_store.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
@@ -23,6 +24,7 @@ AppRuntime _runtime({
     tokens: tokens,
     session: tokens.session,
     recovery: recovery ?? SessionRecoveryController(),
+    interactions: ResumableInteractionStore.memory(),
     api: MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
       httpClient: client,
@@ -35,6 +37,8 @@ Future<void> _pumpLogin(
   WidgetTester tester,
   AppRuntime runtime, {
   double textScale = 1,
+  String? initialEmail,
+  bool startWithAccounts = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -42,7 +46,11 @@ Future<void> _pumpLogin(
         theme: buildMakoloTheme(),
         home: MediaQuery(
           data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-          child: LoginScreen(runtime: runtime),
+          child: LoginScreen(
+            runtime: runtime,
+            initialEmail: initialEmail,
+            startWithAccounts: startWithAccounts,
+          ),
         ),
       ),
     ),
@@ -131,7 +139,7 @@ void main() {
       find.byKey(const Key('login-password')),
       'secret-pass',
     );
-    await _tapVisible(tester, find.text('Accès rapide sur cet appareil').first);
+    await _tapVisible(tester, find.text('Se souvenir de moi').first);
     await _tapVisible(tester, find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
@@ -369,7 +377,7 @@ void main() {
   testWidgets('account switch opens the device account chooser', (
     tester,
   ) async {
-    final recovery = SessionRecoveryController()..markAccountSwitch();
+    final recovery = SessionRecoveryController();
     final tokens = MemoryTokenStore();
     await tokens.saveAccount(
       DeviceAccount(
@@ -389,12 +397,110 @@ void main() {
       recovery: recovery,
     );
 
-    await _pumpLogin(tester, runtime);
+    await _pumpLogin(tester, runtime, startWithAccounts: true);
 
     expect(find.text('Choisir un compte'), findsOneWidget);
     expect(find.text('Amina K.'), findsOneWidget);
     expect(find.text('Mot de passe requis'), findsOneWidget);
     expect(find.text('Ajouter un compte'), findsOneWidget);
+  });
+
+  testWidgets('login restores only the non-sensitive email draft', (
+    tester,
+  ) async {
+    final tokens = MemoryTokenStore();
+    final client = MockClient(
+      (request) async => http.Response(jsonEncode({}), 500),
+    );
+    final runtime = _runtime(tokens: tokens, client: client);
+    await runtime.interactions!.save('login', {
+      'email': 'restore@example.com',
+      'password': 'must-not-survive',
+    });
+
+    await _pumpLogin(tester, runtime);
+    await tester.pump();
+
+    expect(find.text('restore@example.com'), findsOneWidget);
+    expect(
+      (await runtime.interactions!.read('login')).containsKey('password'),
+      isFalse,
+    );
+    final password = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const Key('login-password')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(password.controller.text, isEmpty);
+  });
+
+  testWidgets('signup restores safe fields without persisting passwords', (
+    tester,
+  ) async {
+    final tokens = MemoryTokenStore();
+    final client = MockClient(
+      (request) async => http.Response(jsonEncode({}), 500),
+    );
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('signup-email')),
+      'draft@example.com',
+    );
+    await tester.enterText(find.byKey(const Key('signup-username')), 'draftuser');
+    await tester.enterText(find.byKey(const Key('signup-first-name')), 'Amina');
+    await tester.enterText(find.byKey(const Key('signup-password')), 'secret-pass');
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final draft = await runtime.interactions!.read('signup');
+    expect(draft['email'], 'draft@example.com');
+    expect(draft['username'], 'draftuser');
+    expect(draft['first_name'], 'Amina');
+    expect(draft.containsKey('password'), isFalse);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('draft@example.com'), findsOneWidget);
+    expect(find.text('draftuser'), findsOneWidget);
+    final password = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const Key('signup-password')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(password.controller.text, isEmpty);
+  });
+
+  testWidgets('auth copy is concise and uses explicit secondary actions', (
+    tester,
+  ) async {
+    final tokens = MemoryTokenStore();
+    final client = MockClient(
+      (request) async => http.Response(jsonEncode({}), 500),
+    );
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    expect(find.text('Se souvenir de moi'), findsOneWidget);
+    expect(find.text('Accès rapide sur cet appareil'), findsNothing);
+    expect(find.text('Mot de passe oublié ?'), findsOneWidget);
+    expect(find.byType(OutlinedButton), findsOneWidget);
+
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('Quelques informations suffisent pour commencer avec Makolo.'), findsNothing);
+    expect(find.text('Votre accès'), findsNothing);
+    expect(find.text('Vous'), findsNothing);
+    expect(find.text('Sécurité'), findsNothing);
+    expect(find.text('J’ai déjà un compte'), findsOneWidget);
   });
 
   testWidgets('expired session explains reconnect and preserves route once', (
