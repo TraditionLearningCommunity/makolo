@@ -344,12 +344,20 @@ void main() {
       final api = MakoloApiClient(
         baseUri: Uri.parse('https://makolo.invalid/'),
         tokenStore: tokens,
-        dio: testDio((request, _) async {
+        dio: testDio((request, requestStream) async {
           expect(request.path, 'api/v1/owner-specific-endpoint/');
-          expect(request.data, isA<FormData>());
-          final form = request.data as FormData;
-          expect(form.fields, contains(const MapEntry('kind', 'proof')));
-          expect(form.files.single.key, 'file');
+          expect(request.headers['content-type'], contains('multipart/form-data'));
+          expect(requestStream, isNotNull);
+          final bytes = await requestStream!.fold<List<int>>(
+            <int>[],
+            (buffer, chunk) => buffer..addAll(chunk),
+          );
+          final multipartBody = utf8.decode(bytes);
+          expect(multipartBody, contains('name="kind"'));
+          expect(multipartBody, contains('proof'));
+          expect(multipartBody, contains('name="file"'));
+          expect(multipartBody, contains('filename="proof.txt"'));
+          expect(multipartBody, contains('payload'));
           return jsonResponse({'ok': true}, 201);
         }),
       );
