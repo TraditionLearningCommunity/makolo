@@ -236,39 +236,26 @@ class NetworkStateIndicator extends StatelessWidget {
       return Align(
         alignment: Alignment.centerLeft,
         child: Semantics(
-          liveRegion: true,
-          label: 'Information. Mise à jour en cours',
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: context.makoloSurfaces.info.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(MakoloRadii.pill),
-              border: Border.all(
-                color: context.makoloSurfaces.info.withValues(alpha: 0.24),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MakoloSpacing.sm,
-                vertical: MakoloSpacing.xs,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.sync_rounded,
-                    size: 16,
-                    color: context.makoloSurfaces.info,
+          label: 'Mise à jour en cours',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.xs),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.sync_rounded,
+                  size: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  'Mise à jour',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
                   ),
-                  const SizedBox(width: MakoloSpacing.xs),
-                  Text(
-                    'Mise à jour…',
-                    style: TextStyle(
-                      color: context.makoloSurfaces.info,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
