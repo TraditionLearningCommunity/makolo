@@ -32,7 +32,8 @@ Before proposing or changing code:
 5. Inspect migrations and tests in the touched domain.
 6. Read the current implementation before relying on a roadmap or handoff.
 7. Read the canonical domain blueprint and relevant canonical docs.
-8. Run a collision audit.
+8. Read `docs/operations/ai-development-guardrails.md` for production-grade agent quality rules.
+9. Run a collision audit.
 
 Do not treat old SHAs, old PR descriptions or historical discussions as current state.
 
@@ -189,7 +190,7 @@ Use them for:
 
 Do not give them an open-ended instruction such as “improve Makolo” or “finish the architecture”.
 
-Every Codex/ECC lane must receive the same work-item contract and Makolo invariants.
+Every Codex/ECC lane must receive the same work-item contract, Makolo invariants and the production-grade guardrails in `docs/operations/ai-development-guardrails.md`.
 
 ECC must not become a repository dependency merely to coordinate work. Install/use it at the developer tool level unless a future explicit product decision requires otherwise.
 
@@ -269,6 +270,12 @@ Files/surfaces intentionally not touched:
 ```
 
 Do not include secrets or unnecessary personal data.
+
+## Production-quality guardrail
+
+Agent orchestration does not relax product quality. Unless a lane is explicitly a prototype/spike/exploration, it is production-bound: no required mocks, placeholders, TODOs, fake success states, invented product truth or prototype-style explanatory copy may be hidden behind a completion claim.
+
+Before closing an implementation lane, run the self-review in `docs/operations/ai-development-guardrails.md`.
 
 ## Current-project rule
 
