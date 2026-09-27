@@ -8,8 +8,9 @@ SystemUiOverlayStyle makoloSystemUiStyle(BuildContext context) {
     systemNavigationBarColor: Colors.transparent,
     systemNavigationBarDividerColor: Colors.transparent,
     statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-    systemNavigationBarIconBrightness:
-        dark ? Brightness.light : Brightness.dark,
+    systemNavigationBarIconBrightness: dark
+        ? Brightness.light
+        : Brightness.dark,
     statusBarBrightness: dark ? Brightness.dark : Brightness.light,
     systemStatusBarContrastEnforced: false,
     systemNavigationBarContrastEnforced: false,

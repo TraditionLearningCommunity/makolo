@@ -136,24 +136,25 @@ void main() {
   });
 
 
-  testWidgets('wide available space uses a rail without changing destinations', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1100, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'wide available space uses a rail without changing destinations',
+    (tester) async {
+      tester.view.physicalSize = const Size(1100, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    await _pumpRouter(tester);
+      await _pumpRouter(tester);
 
-    expect(find.byKey(const Key('makolo-navigation-rail')), findsOneWidget);
-    expect(find.byKey(const Key('makolo-bottom-navigation')), findsNothing);
-    expect(find.text('Now'), findsOneWidget);
-    expect(find.text('Découvrir'), findsOneWidget);
-    expect(find.text('En cours'), findsOneWidget);
-    expect(find.text('Moi'), findsOneWidget);
-    expect(find.byTooltip('Makolo Mark'), findsOneWidget);
-  });
+      expect(find.byKey(const Key('makolo-navigation-rail')), findsOneWidget);
+      expect(find.byKey(const Key('makolo-bottom-navigation')), findsNothing);
+      expect(find.text('Now'), findsOneWidget);
+      expect(find.text('Découvrir'), findsOneWidget);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text('Moi'), findsOneWidget);
+      expect(find.byTooltip('Makolo Mark'), findsOneWidget);
+    },
+  );
 
   testWidgets('touching a tab restores it without requesting refresh', (
     tester,

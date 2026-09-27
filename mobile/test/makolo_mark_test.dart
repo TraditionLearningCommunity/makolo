@@ -20,11 +20,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      wrap(
-        const MakoloMark(
-          semantics: MakoloMarkSemantics.structural,
-        ),
-      ),
+      wrap(const MakoloMark(semantics: MakoloMarkSemantics.structural)),
     );
 
     expect(find.bySemanticsLabel('Makolo'), findsOneWidget);
@@ -32,11 +28,7 @@ void main() {
 
   testWidgets('decorative Mark is excluded from semantics', (tester) async {
     await tester.pumpWidget(
-      wrap(
-        const MakoloMark(
-          semantics: MakoloMarkSemantics.decorative,
-        ),
-      ),
+      wrap(const MakoloMark(semantics: MakoloMarkSemantics.decorative)),
     );
 
     expect(find.bySemanticsLabel('Makolo'), findsNothing);

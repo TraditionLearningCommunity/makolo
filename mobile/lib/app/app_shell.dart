@@ -87,8 +87,7 @@ class _AppShellState extends State<AppShell> {
       top: false,
       child: Column(
         children: [
-          if (syncStatus != null &&
-              syncStatus.state != SyncVisualState.synced)
+          if (syncStatus != null && syncStatus.state != SyncVisualState.synced)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 MakoloSpacing.md,
@@ -392,10 +391,7 @@ class _RailButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(MakoloRadii.control),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: 72,
-            minHeight: 56,
-          ),
+          constraints: const BoxConstraints(minWidth: 72, minHeight: 56),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
             child: Column(

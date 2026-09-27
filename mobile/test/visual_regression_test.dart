@@ -92,10 +92,7 @@ class _VisualSystemFixture extends StatelessWidget {
           children: [
             const MakoloMark(size: 44),
             const SizedBox(height: MakoloSpacing.lg),
-            Text(
-              'Makolo',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
+            Text('Makolo', style: Theme.of(context).textTheme.headlineLarge),
             const SizedBox(height: MakoloSpacing.sm),
             Text(
               'Calme quand tout va bien, précis quand quelque chose compte.',
