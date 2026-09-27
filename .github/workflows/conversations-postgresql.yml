@@ -4,10 +4,18 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "mobile/**"
+      - "docs/architecture/mobile-*.md"
+      - ".github/workflows/mobile-ci.yml"
   pull_request:
     branches:
       - main
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+    paths-ignore:
+      - "mobile/**"
+      - "docs/architecture/mobile-*.md"
+      - ".github/workflows/mobile-ci.yml"
 
 concurrency:
   group: conversation-postgresql-${{ github.event.pull_request.number || github.ref }}
