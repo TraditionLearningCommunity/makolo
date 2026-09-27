@@ -19,14 +19,15 @@ class AppRuntime {
     required this.tokens,
     required this.session,
     required this.recovery,
-    required this.launchPreferences,
+    LaunchPreferencesStore? launchPreferences,
     this.api,
     this.database,
     this.store,
     this.personal,
     this.outbox,
     this.sync,
-  });
+  }) : launchPreferences =
+           launchPreferences ?? MemoryLaunchPreferencesStore();
 
   final TokenStore tokens;
   final AuthSession? session;
