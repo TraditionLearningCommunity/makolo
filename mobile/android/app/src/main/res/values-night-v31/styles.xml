@@ -4,6 +4,5 @@
         <item name="android:windowSplashScreenBackground">@color/makolo_night_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_makolo_mark_white</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/makolo_night_background</item>
-        <item name="android:postSplashScreenTheme">@style/NormalTheme</item>
     </style>
 </resources>
