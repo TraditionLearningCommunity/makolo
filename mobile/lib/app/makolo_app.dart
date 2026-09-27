@@ -31,7 +31,8 @@ class MakoloApp extends ConsumerWidget {
           body: MakoloErrorState(
             message:
                 'Makolo n’a pas pu ouvrir les données locales de cet appareil.',
-            preservedMessage: 'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
+            preservedMessage:
+                'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
             onRetry: () => ref.invalidate(appRuntimeProvider),
           ),
         ),
@@ -50,7 +51,11 @@ class MakoloApp extends ConsumerWidget {
           title: 'Makolo',
           debugShowCheckedModeBanner: false,
           theme: buildMakoloTheme(),
-          routerConfig: createMakoloRouter(runtime),
+          routerConfig: createMakoloRouter(
+            runtime,
+            onAuthenticationChanged: () =>
+                ref.invalidate(appRuntimeProvider),
+          ),
           builder: (context, child) => SyncLifecycle(
             runtime: runtime,
             child: child ?? const SizedBox.shrink(),

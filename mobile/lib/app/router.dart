@@ -1,12 +1,16 @@
 import 'package:go_router/go_router.dart';
 
+import '../features/auth/account_actions.dart';
 import '../features/mark/mark_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
 import 'app_shell.dart';
 import 'providers.dart';
 
-GoRouter createMakoloRouter(AppRuntime runtime) {
+GoRouter createMakoloRouter(
+  AppRuntime runtime, {
+  required void Function() onAuthenticationChanged,
+}) {
   final personal = runtime.personal!;
 
   return GoRouter(
@@ -28,7 +32,8 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             path: '/discover',
             builder: (context, state) => const PlaceholderScreen(
               title: 'Découvrir',
-              message: 'De nouvelles possibilités apparaîtront ici lorsqu’elles seront disponibles.',
+              message:
+                  'De nouvelles possibilités apparaîtront ici lorsqu’elles seront disponibles.',
             ),
           ),
           GoRoute(
@@ -45,6 +50,10 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
               title: 'Moi',
               stream: personal.watchMe(),
               emptyMessage: 'Aucune information personnelle à afficher.',
+              headerAction: AccountActionsButton(
+                runtime: runtime,
+                onAuthenticationChanged: onAuthenticationChanged,
+              ),
             ),
           ),
         ],
@@ -65,7 +74,8 @@ GoRouter createMakoloRouter(AppRuntime runtime) {
             runtime.recovery.rememberLocation(state.uri.toString());
             return const PlaceholderScreen(
               title: 'Continuer dans Makolo',
-              message: 'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
+              message:
+                  'Cette destination sera disponible ici lorsque son expérience mobile sera prête.',
             );
           },
         ),

@@ -68,15 +68,24 @@ class AuthRepository {
     await tokens.clearSession();
   }
 
-  Future<void> logout() async {
+  Future<void> logout({void Function()? onLocalSessionEnded}) async {
     final session = await tokens.readSession();
-    if (session == null) return;
+    if (session == null) {
+      onLocalSessionEnded?.call();
+      return;
+    }
 
     // Remove local credentials before any network dependency. The Profile DB,
     // drafts and outbox live outside TokenStore and are intentionally preserved.
     await tokens.clearSession();
+
+    // Start the blacklist attempt before notifying the UI. If the app runtime
+    // is rebuilt immediately, local logout is already complete even when this
+    // best-effort request is interrupted or the server is unreachable.
+    final serverLogout = api.logoutSession(session);
+    onLocalSessionEnded?.call();
     try {
-      await api.logoutSession(session);
+      await serverLogout;
     } on Object {
       // Best-effort server blacklist. Local logout remains effective when the
       // server is unreachable or the refresh has already expired/revoked.
