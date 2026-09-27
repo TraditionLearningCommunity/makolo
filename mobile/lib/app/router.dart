@@ -134,7 +134,7 @@ GoRouter createMakoloRouter(
                   builder: (context, state) => MakoloRefreshBoundary(
                     child: ProjectionScreen(
                       title: 'En cours',
-                      stream: personal.watchOngoing(),
+                      stream: personal!.watchOngoing(),
                       emptyMessage: 'Aucun engagement en cours.',
                       showTitle: false,
                     ),
@@ -149,7 +149,7 @@ GoRouter createMakoloRouter(
                   builder: (context, state) => MakoloRefreshBoundary(
                     child: ProjectionScreen(
                       title: 'Moi',
-                      stream: personal.watchMe(),
+                      stream: personal!.watchMe(),
                       emptyMessage:
                           'Aucune information à afficher pour le moment.',
                       showTitle: false,
