@@ -38,12 +38,52 @@ class WebAccountJourneyTests(TestCase):
 
         parsed = urlparse(response.url)
         self.assertEqual(parsed.path, reverse("core:login"))
-        self.assertEqual(parse_qs(parsed.query).get("email"), ["new.member@example.com"])
+        self.assertEqual(parse_qs(parsed.query).get("login"), ["@new-member"])
         self.assertNotIn("password", parse_qs(parsed.query))
         user = User.objects.get(email="new.member@example.com")
         self.assertTrue(user.check_password(self.password))
         self.assertTrue(UserProfile.objects.filter(user=user).exists())
         self.assertTrue(NotificationPreference.objects.filter(user=user).exists())
+
+    def test_web_registration_accepts_no_email(self):
+        response = self.client.post(
+            reverse("account:register"),
+            {
+                "email": "",
+                "username": "sans-email-web",
+                "password": self.password,
+                "password_confirm": self.password,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username="sans-email-web")
+        self.assertIsNone(user.email)
+
+    def test_identifier_setup_is_required_only_for_unconfigured_account(self):
+        user = User.objects.create_user(
+            username="makolo_socialtmp",
+            password=self.password,
+            username_configured=False,
+            username_changed_at=None,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("account:identifier-setup"))
+        self.assertEqual(response.status_code, 200)
+
+        saved = self.client.post(
+            reverse("account:identifier-setup"),
+            {"username": "amina-sociale"},
+        )
+        self.assertRedirects(saved, reverse("core:participant-home"))
+        user.refresh_from_db()
+        self.assertEqual(user.username, "amina-sociale")
+        self.assertTrue(user.username_configured)
+        self.assertIsNotNone(user.username_changed_at)
+
+        already_done = self.client.get(reverse("account:identifier-setup"))
+        self.assertRedirects(already_done, reverse("core:participant-home"))
 
     def test_invalid_web_registration_does_not_create_user(self):
         response = self.client.post(
