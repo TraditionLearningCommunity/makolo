@@ -169,8 +169,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   child: Text(
                     _isLastPage
                         ? widget.isAuthenticated
-                              ? 'Ouvrir Makolo'
-                              : 'Découvrir Makolo'
+                            ? 'Ouvrir Makolo'
+                            : 'Découvrir Makolo'
                         : 'Continuer',
                   ),
                 ),
