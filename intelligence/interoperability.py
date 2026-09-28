@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
 from authorization.services import can
 from interoperability.connections import ConnectionRef, ConnectionScope, authorize_connection
 
@@ -45,6 +46,10 @@ def authorize_provider_connection(*, actor, connection: ProviderConnection) -> N
         has_space_authority=lambda _space_id: bool(
             connection.scope == ProviderScope.SPACE
             and connection.space_id
-            and can(actor, PermissionCode.SPACE_MANAGE, space=connection.space)
+            and has_direct_space_permission(
+                actor,
+                connection.space,
+                PermissionCode.SPACE_MANAGE,
+            )
         ),
     )
