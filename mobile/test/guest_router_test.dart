@@ -1,10 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import 'package:makolo_mobile/app/launch_preferences.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/resumable_interaction_store.dart';
@@ -13,7 +10,6 @@ import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/auth/login_screen.dart';
 import 'package:makolo_mobile/features/auth/signup_screen.dart';
-import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 import 'fakes.dart';
 
@@ -34,43 +30,13 @@ class _MemoryLaunchPreferences implements LaunchPreferencesStore {
   }
 }
 
-class _FakeApiClient extends MakoloApiClient {
-  _FakeApiClient({
-    required TokenStore tokenStore,
-    required this.onPublicGet,
-  }) : super(
-         baseUri: Uri.parse('https://makolo.invalid/'),
-         tokenStore: tokenStore,
-         dio: Dio(),
-       );
-
-  final Future<ApiResponse> Function(String path) onPublicGet;
-
-  @override
-  Future<ApiResponse> publicGet(
-    String path, {
-    Map<String, String>? headers,
-    MakoloCancelHandle? cancel,
-  }) => onPublicGet(path);
-}
-
-AppRuntime _guestRuntime(
-  SessionRecoveryController recovery, {
-  Future<ApiResponse> Function(String path)? onPublicGet,
-}) {
-  final tokens = MemoryTokenStore();
+AppRuntime _guestRuntime(SessionRecoveryController recovery) {
   return AppRuntime(
-    tokens: tokens,
+    tokens: MemoryTokenStore(),
     session: null,
     recovery: recovery,
     launchPreferences: _MemoryLaunchPreferences(),
     interactions: ResumableInteractionStore.memory(),
-    api: onPublicGet == null
-        ? null
-        : _FakeApiClient(
-            tokenStore: tokens,
-            onPublicGet: onPublicGet,
-          ),
   );
 }
 
@@ -94,36 +60,17 @@ void main() {
   testWidgets('guest sees a standalone public landing without personal shell', (
     tester,
   ) async {
-    final router = _router(
-      _guestRuntime(
-        SessionRecoveryController(),
-        onPublicGet: (path) async {
-          expect(path, 'api/v1/discovery/items/?page_size=20');
-          return ApiResponse(
-            200,
-            jsonEncode({
-              'data': {
-                'results': [
-                  {
-                    'representation': {
-                      'title': 'Possibilité réelle',
-                      'summary': 'Résumé public.',
-                      'eyebrow': 'Public',
-                    },
-                  },
-                ],
-              },
-            }),
-            const {},
-          );
-        },
-      ),
-    );
+    final router = _router(_guestRuntime(SessionRecoveryController()));
 
     await _pump(tester, router);
 
     expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
-    expect(find.text('Possibilité réelle'), findsOneWidget);
+    expect(
+      find.text(
+        'Qu’est-ce que vous pourriez avoir envie de vivre, faire ou obtenir ?',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Now'), findsNothing);
     expect(find.text('En cours'), findsNothing);
     expect(find.text('Moi'), findsNothing);
@@ -135,18 +82,7 @@ void main() {
   testWidgets('empty public contract stays calm without invented cards', (
     tester,
   ) async {
-    final router = _router(
-      _guestRuntime(
-        SessionRecoveryController(),
-        onPublicGet: (_) async => ApiResponse(
-          200,
-          jsonEncode({
-            'data': {'results': <Object>[]},
-          }),
-          const {},
-        ),
-      ),
-    );
+    final router = _router(_guestRuntime(SessionRecoveryController()));
 
     await _pump(tester, router);
 
