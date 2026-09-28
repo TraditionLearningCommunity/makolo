@@ -6,8 +6,6 @@ on:
       - "interpreter/**"
       - "config/settings.py"
       - "requirements.txt"
-      - "docs/architecture/interpreter.md"
-      - "docs/operations-runbook.md"
       - ".github/workflows/interpreter.yml"
   push:
     branches: [main]
@@ -16,6 +14,13 @@ on:
       - "config/settings.py"
       - "requirements.txt"
       - ".github/workflows/interpreter.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   interpreter-postgresql:
