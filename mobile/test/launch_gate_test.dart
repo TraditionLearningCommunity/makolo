@@ -78,7 +78,7 @@ void main() {
 
     await tester.pumpWidget(_app(runtime));
     expect(find.byType(SplashScreen), findsOneWidget);
-    expect(find.byKey(const Key('splash-footsteps')), findsOneWidget);
+    expect(find.byKey(const Key('animated-splash-mark')), findsOneWidget);
     expect(find.byType(BrandMoment), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 999));
