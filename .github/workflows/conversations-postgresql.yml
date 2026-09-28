@@ -6,16 +6,22 @@ on:
       - main
     paths-ignore:
       - "mobile/**"
-      - "docs/architecture/mobile-*.md"
-      - ".github/workflows/mobile-ci.yml"
+      - "docs/**"
+      - "*.md"
+      - "frontend/**"
+      - "static/**"
+      - ".github/workflows/mobile-*.yml"
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - "mobile/**"
-      - "docs/architecture/mobile-*.md"
-      - ".github/workflows/mobile-ci.yml"
+      - "docs/**"
+      - "*.md"
+      - "frontend/**"
+      - "static/**"
+      - ".github/workflows/mobile-*.yml"
 
 concurrency:
   group: conversation-postgresql-${{ github.event.pull_request.number || github.ref }}

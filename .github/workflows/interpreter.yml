@@ -2,12 +2,12 @@ name: Interpreter Actor 3
 
 on:
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "interpreter/**"
       - "config/settings.py"
       - "requirements.txt"
-      - "docs/architecture/interpreter.md"
-      - "docs/operations-runbook.md"
       - ".github/workflows/interpreter.yml"
   push:
     branches: [main]
@@ -17,8 +17,16 @@ on:
       - "requirements.txt"
       - ".github/workflows/interpreter.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   interpreter-postgresql:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
