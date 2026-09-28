@@ -22,17 +22,17 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
   final _search = TextEditingController();
   Future<List<Map<String, dynamic>>>? _results;
+  List<Map<String, dynamic>> _allItems = const [];
   String? _error;
   Timer? _queryDraftTimer;
 
   @override
   void initState() {
     super.initState();
-    _search.addListener(_scheduleQueryDraft);
     unawaited(_restoreAndLoad());
   }
 
-  void _scheduleQueryDraft() {
+  void _persistQueryDraft() {
     _queryDraftTimer?.cancel();
     _queryDraftTimer = Timer(const Duration(milliseconds: 250), () {
       unawaited(
@@ -41,6 +41,33 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             }) ??
             Future<void>.value(),
       );
+    });
+  }
+
+  void _onQueryChanged(String value) {
+    _persistQueryDraft();
+    _applyLocalFilter();
+  }
+
+  void _applyLocalFilter() {
+    final query = _search.text.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? _allItems
+        : _allItems.where((item) {
+            final raw = item['representation'];
+            if (raw is! Map) return false;
+            final representation = Map<String, dynamic>.from(raw);
+            final searchable = [
+              representation['title'],
+              representation['summary'],
+              representation['eyebrow'],
+            ].whereType<Object>().map((value) => value.toString().toLowerCase());
+            return searchable.any((value) => value.contains(query));
+          }).toList(growable: false);
+
+    if (!mounted) return;
+    setState(() {
+      _results = Future.value(filtered);
     });
   }
 
@@ -62,30 +89,51 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   Future<void> _load() async {
     final api = widget.runtime.api;
     if (api == null) {
-      setState(() {
-        _results = Future.value(const <Map<String, dynamic>>[]);
-        _error = null;
-      });
+      _allItems = const [];
+      if (mounted) {
+        setState(() {
+          _results = Future.value(const <Map<String, dynamic>>[]);
+          _error = null;
+        });
+      }
       return;
     }
 
     final query = _search.text.trim();
     await widget.runtime.interactions?.save(_interactionId, {'query': query});
+
     setState(() {
       _error = null;
       _results = () async {
         try {
-          final path = query.isEmpty
-              ? 'api/v1/discovery/items/?page_size=20'
-              : 'api/v1/discovery/items/?page_size=20&q=${Uri.encodeQueryComponent(query)}';
-          final payload = (await api.publicGet(path)).jsonObject();
+          final payload = (
+            await api.publicGet('api/v1/discovery/items/?page_size=20')
+          ).jsonObject();
           final data = payload['data'];
           final rawResults = data is Map ? data['results'] : null;
-          if (rawResults is! List) return const <Map<String, dynamic>>[];
-          return rawResults
+          if (rawResults is! List) {
+            _allItems = const [];
+            return const <Map<String, dynamic>>[];
+          }
+          _allItems = rawResults
               .whereType<Map>()
               .map((item) => Map<String, dynamic>.from(item))
               .toList(growable: false);
+
+          final localQuery = _search.text.trim().toLowerCase();
+          if (localQuery.isEmpty) return _allItems;
+          return _allItems.where((item) {
+            final raw = item['representation'];
+            if (raw is! Map) return false;
+            final representation = Map<String, dynamic>.from(raw);
+            return [
+              representation['title'],
+              representation['summary'],
+              representation['eyebrow'],
+            ].whereType<Object>().map((value) => value.toString().toLowerCase()).any(
+              (value) => value.contains(localQuery),
+            );
+          }).toList(growable: false);
         } on Object {
           if (mounted) {
             setState(
@@ -115,17 +163,30 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             ),
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const MakoloMark(size: 38),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => context.push('/login'),
-                    child: const Text('Se connecter'),
+                  const Padding(
+                    padding: EdgeInsets.only(top: MakoloSpacing.xs),
+                    child: MakoloMark(size: 38),
                   ),
-                  const SizedBox(width: MakoloSpacing.xs),
-                  OutlinedButton(
-                    onPressed: () => context.push('/create-account'),
-                    child: const Text('Créer un compte'),
+                  const SizedBox(width: MakoloSpacing.sm),
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: MakoloSpacing.xs,
+                      runSpacing: MakoloSpacing.xs,
+                      children: [
+                        TextButton(
+                          onPressed: () => context.push('/login'),
+                          child: const Text('Se connecter'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => context.push('/create-account'),
+                          child: const Text('Créer un compte'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -139,14 +200,15 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 controller: _search,
                 hintText: 'Rechercher',
                 leading: const Icon(Icons.search),
-                onSubmitted: (_) => _load(),
+                onChanged: _onQueryChanged,
+                onSubmitted: (_) => _applyLocalFilter(),
                 trailing: [
                   if (_search.text.isNotEmpty)
                     IconButton(
                       tooltip: 'Effacer',
                       onPressed: () {
                         _search.clear();
-                        _load();
+                        _onQueryChanged('');
                       },
                       icon: const Icon(Icons.close),
                     ),
@@ -172,7 +234,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   final items = snapshot.data ?? const <Map<String, dynamic>>[];
                   if (items.isEmpty) {
                     return const MakoloEmptyState(
-                      title: 'Aucune possibilité publique à afficher pour le moment.',
+                      title:
+                          'Aucune possibilité publique à afficher pour le moment.',
                       icon: Icons.explore_outlined,
                     );
                   }
