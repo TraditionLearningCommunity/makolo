@@ -6,7 +6,7 @@
   <section class="mk-panel overflow-hidden">
     {% for account in remembered_accounts %}
       <div class="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-5 last:border-b-0 sm:px-6" style="border-color:var(--mk-border)">
-        <div class="min-w-0"><p class="truncate font-bold">{% if account.full_name %}{{ account.full_name }}{% else %}{{ account.username }}{% endif %}</p><p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{{ account.email }}</p>{% if account.pk == request.user.pk %}<span class="mk-badge mk-badge-success mt-2">Compte actuel</span>{% else %}<span class="mk-badge mt-2">Mot de passe requis</span>{% endif %}</div>
+        <div class="min-w-0"><p class="truncate font-bold">{% if account.full_name %}{{ account.full_name }}{% else %}{{ account.username }}{% endif %}</p><p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{% if account.email %}{{ account.email }}{% else %}@{{ account.username }}{% endif %}</p>{% if account.pk == request.user.pk %}<span class="mk-badge mk-badge-success mt-2">Compte actuel</span>{% else %}<span class="mk-badge mt-2">Mot de passe requis</span>{% endif %}</div>
         <div class="flex flex-wrap gap-2">
           {% if account.pk != request.user.pk %}<form method="post" action="{% url 'account:switch-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Continuer</button></form>{% endif %}
           <form method="post" action="{% url 'account:remove-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-ghost" type="submit">Retirer de cet appareil</button></form>
