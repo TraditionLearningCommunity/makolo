@@ -14,7 +14,7 @@
     {% if socialaccount_providers %}
     <div class="grid gap-3 sm:grid-cols-2">
         {% for provider in socialaccount_providers %}
-        <form method="post" action="{% provider_login_url provider.id process='login' %}">
+        <form method="post" action="{% provider_login_url provider.id process='login' next=next_url %}">
             {% csrf_token %}
             <button type="submit" class="mk-btn mk-btn-ghost min-h-11 w-full justify-center">Continuer avec {{ provider.name }}</button>
         </form>
