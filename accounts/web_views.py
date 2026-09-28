@@ -109,7 +109,7 @@ class MakoloIdentifierSetupView(LoginRequiredMixin, FormView):
     form_class = MakoloIdentifierWebForm
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.username_configured:
+        if request.user.is_authenticated and request.user.username_configured:
             return redirect("core:participant-home")
         return super().dispatch(request, *args, **kwargs)
 
