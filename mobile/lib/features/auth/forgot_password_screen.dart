@@ -98,28 +98,34 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final dialogTitle = !_sent
+        ? 'Mot de passe oublié ?'
+        : _externalDelivery
+        ? 'Consultez votre boîte de réception'
+        : 'Demande prise en compte';
+    final confirmationMessage = _externalDelivery
+        ? 'Si un compte correspond à ${_email.text.trim()}, Makolo a traité '
+              'la demande de réinitialisation. Consultez votre boîte de '
+              'réception et le dossier spam. Ouvrez le lien reçu pour choisir '
+              'un nouveau mot de passe, puis revenez vous connecter.'
+        : 'La demande a été prise en compte. Cet environnement Makolo ne '
+              'délivre pas encore les e-mails vers une boîte réelle. Aucun '
+              'message ne peut donc arriver ici pour le moment.';
+
     return AlertDialog(
       backgroundColor: MakoloColors.warm,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(MakoloRadii.large),
       ),
-      title: Text(
-        _sent
-            ? _externalDelivery
-                ? 'Consultez votre boîte de réception'
-                : 'Demande prise en compte'
-            : 'Mot de passe oublié ?',
-      ),
+      title: Text(dialogTitle),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: _sent
             ? Semantics(
                 liveRegion: true,
                 child: Text(
-                  _externalDelivery
-                      ? 'Si un compte correspond à ${_email.text.trim()}, Makolo a traité la demande de réinitialisation. Consultez votre boîte de réception et le dossier spam. Ouvrez le lien reçu pour choisir un nouveau mot de passe, puis revenez vous connecter.'
-                      : 'La demande a été prise en compte. Cet environnement Makolo ne délivre pas encore les e-mails vers une boîte réelle. Aucun message ne peut donc arriver ici pour le moment.',
+                  confirmationMessage,
                   style: const TextStyle(height: 1.45),
                 ),
               )
