@@ -178,7 +178,7 @@ A2 ne construit pas la profondeur métier complète :
 - owner workspaces complets ;
 - push FCM/APNs ;
 - caméra/GPS/uploads profonds ;
-- autorité offline déléguée ;
+- autorité terrain déléguée lorsque l'owner n'est pas joignable ;
 - scanner terrain autonome ;
 - identité iOS si elle n'est toujours pas canoniquement décidée.
 
@@ -380,7 +380,7 @@ migrations
 
 ### Discovery local-first
 
-A1 synchronise aujourd'hui surtout personal.now, personal.ongoing et personal.me. A2 doit installer un cache/pack Discovery borné à partir de l'API propriétaire existante sans créer /sync/ ni moteur de ranking local. Toute modification de Drift/sync nécessaire est orchestrator-owned.
+A1 synchronise aujourd'hui surtout personal.now, personal.ongoing et personal.me. A2 doit installer une projection/pack Discovery locale bornée acquise depuis l'API propriétaire existante, sans créer /sync/ ni moteur de ranking local. Toute modification de Drift/sync nécessaire est orchestrator-owned.
 
 ### Avatar / Agir comme
 
@@ -400,7 +400,7 @@ Les collections serveur existent :
 - /api/v1/notifications/
 - /api/v1/conversations/
 
-A1 n'installe pas encore une projection locale dédiée à ces listes. A2 ne montre leurs icônes dans un header que si l'orchestrateur ferme un slice secondaire utilisable, local-first ou honnêtement network-required. Sinon les icônes restent absentes plutôt que mortes.
+A1 n'installe pas encore une projection locale dédiée à ces listes. A2 ne montre leurs icônes dans un header que si l'orchestrateur ferme un slice secondaire utilisable depuis le local, ou explicitement dépendant d'une acquisition/revalidation distante. Sinon les icônes restent absentes plutôt que mortes.
 
 ## 13. Gates de lane
 
