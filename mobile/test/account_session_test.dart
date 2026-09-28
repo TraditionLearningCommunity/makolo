@@ -145,7 +145,7 @@ void main() {
     expect(find.text('Choisir un compte'), findsOneWidget);
     expect((await tokens.readSession())?.profileId, 'profile-a');
     expect(authenticationChanges, 0);
-      expect(recovery.entryReason, EntryReason.accountSwitch);
+    expect(recovery.entryReason, EntryReason.accountSwitch);
     },
   );
 }
