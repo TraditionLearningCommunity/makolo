@@ -30,6 +30,7 @@ from .forms import (
     AccountProfileForm,
     AccountRegistrationForm,
     AppearancePreferencesForm,
+    MakoloIdentifierWebForm,
     NotificationPreferencesForm,
     PasswordForgotForm,
     PasswordResetWebForm,
@@ -96,10 +97,40 @@ class AccountRegistrationView(FormView):
         messages.success(self.request, "Compte créé. Vous pouvez maintenant vous connecter.")
         next_url = _safe_next_url(self.request, self.request.POST.get("next"))
         login_url = reverse("core:login")
-        query = {"email": form.cleaned_data["email"]}
+        query = {"login": f"@{form.cleaned_data['username']}"}
         if next_url:
             query["next"] = next_url
         return redirect(f"{login_url}?{urlencode(query)}")
+
+
+class MakoloIdentifierSetupView(LoginRequiredMixin, FormView):
+    login_url = "core:login"
+    template_name = "accounts/identifier_setup.html"
+    form_class = MakoloIdentifierWebForm
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.username_configured:
+            return redirect("core:participant-home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(self.request, "Votre Identifiant Makolo est prêt.")
+        next_url = _safe_next_url(self.request, self.request.POST.get("next"))
+        return redirect(next_url or "core:participant-home")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["next_url"] = _safe_next_url(
+            self.request,
+            self.request.POST.get("next") or self.request.GET.get("next"),
+        )
+        return context
 
 
 class PasswordForgotView(FormView):
@@ -287,10 +318,10 @@ class SwitchRememberedAccountView(LoginRequiredMixin, View):
             raise Http404("Ce compte n'est pas mémorisé sur cet appareil.")
         if device.user_id == request.user.pk:
             return redirect("core:participant-home")
-        target_email = device.user.email
+        target_login = device.user.email or f"@{device.user.username}"
         logout(request)
         login_url = reverse("core:login")
-        query = urlencode({"email": target_email, "next": reverse("core:participant-home")})
+        query = urlencode({"login": target_login, "next": reverse("core:participant-home")})
         return redirect(f"{login_url}?{query}")
 
 
