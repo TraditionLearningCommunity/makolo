@@ -19,7 +19,13 @@ String signupErrorMessage(Object error) {
 
   final fields = error.fields;
   if (fields.containsKey('email')) {
-    return 'Cette adresse e-mail ne peut pas être utilisée pour ce nouveau compte.';
+    final emailError = fields['email'].toString().toLowerCase();
+    if (emailError.contains('already') ||
+        emailError.contains('unique') ||
+        emailError.contains('déjà')) {
+      return 'Cette adresse e-mail est déjà associée à un compte. Connectez-vous ou utilisez « Mot de passe oublié ? ».';
+    }
+    return 'Vérifiez l’adresse e-mail indiquée.';
   }
   if (fields.containsKey('username')) {
     return 'Ce nom d’utilisateur ne peut pas être utilisé. Choisissez-en un autre.';

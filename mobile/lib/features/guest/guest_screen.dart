@@ -21,18 +21,19 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   static const _interactionId = 'public-discover';
 
   final _search = TextEditingController();
-  Future<List<Map<String, dynamic>>>? _results;
+  List<Map<String, dynamic>> _allItems = const [];
+  List<Map<String, dynamic>> _visibleItems = const [];
+  bool _loading = true;
   String? _error;
   Timer? _queryDraftTimer;
 
   @override
   void initState() {
     super.initState();
-    _search.addListener(_scheduleQueryDraft);
     unawaited(_restoreAndLoad());
   }
 
-  void _scheduleQueryDraft() {
+  void _persistQueryDraft() {
     _queryDraftTimer?.cancel();
     _queryDraftTimer = Timer(const Duration(milliseconds: 250), () {
       unawaited(
@@ -41,6 +42,43 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             }) ??
             Future<void>.value(),
       );
+    });
+  }
+
+  void _onQueryChanged(String value) {
+    _persistQueryDraft();
+    _applyLocalFilter();
+  }
+
+  bool _matchesQuery(Map<String, dynamic> item, String query) {
+    final raw = item['representation'];
+    if (raw is! Map) return false;
+    final representation = Map<String, dynamic>.from(raw);
+    final values = <Object?>[
+      representation['title'],
+      representation['summary'],
+      representation['eyebrow'],
+    ];
+    for (final value in values) {
+      if (value != null && value.toString().toLowerCase().contains(query)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<Map<String, dynamic>> _filteredItems() {
+    final query = _search.text.trim().toLowerCase();
+    if (query.isEmpty) return _allItems;
+    return _allItems
+        .where((item) => _matchesQuery(item, query))
+        .toList(growable: false);
+  }
+
+  void _applyLocalFilter() {
+    if (!mounted) return;
+    setState(() {
+      _visibleItems = _filteredItems();
     });
   }
 
@@ -61,42 +99,54 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
   Future<void> _load() async {
     final api = widget.runtime.api;
+    final query = _search.text.trim();
+    await widget.runtime.interactions?.save(_interactionId, {'query': query});
+
     if (api == null) {
+      if (!mounted) return;
       setState(() {
-        _results = Future.value(const <Map<String, dynamic>>[]);
+        _allItems = const [];
+        _visibleItems = const [];
+        _loading = false;
         _error = null;
       });
       return;
     }
 
-    final query = _search.text.trim();
-    await widget.runtime.interactions?.save(_interactionId, {'query': query});
-    setState(() {
-      _error = null;
-      _results = () async {
-        try {
-          final path = query.isEmpty
-              ? 'api/v1/discovery/items/?page_size=20'
-              : 'api/v1/discovery/items/?page_size=20&q=${Uri.encodeQueryComponent(query)}';
-          final payload = (await api.publicGet(path)).jsonObject();
-          final data = payload['data'];
-          final rawResults = data is Map ? data['results'] : null;
-          if (rawResults is! List) return const <Map<String, dynamic>>[];
-          return rawResults
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList(growable: false);
-        } on Object {
-          if (mounted) {
-            setState(
-              () => _error =
-                  'Impossible d’actualiser les possibilités publiques.',
-            );
-          }
-          return const <Map<String, dynamic>>[];
-        }
-      }();
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final response = await api.publicGet(
+        'api/v1/discovery/items/?page_size=20',
+      );
+      final payload = response.jsonObject();
+      final data = payload['data'];
+      final rawResults = data is Map ? data['results'] : null;
+      final items = rawResults is List
+          ? rawResults
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList(growable: false)
+          : const <Map<String, dynamic>>[];
+
+      if (!mounted) return;
+      _allItems = items;
+      setState(() {
+        _visibleItems = _filteredItems();
+        _loading = false;
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Impossible d’actualiser les possibilités publiques.';
+      });
+    }
   }
 
   @override
@@ -115,17 +165,30 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             ),
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const MakoloMark(size: 38),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => context.push('/login'),
-                    child: const Text('Se connecter'),
+                  const Padding(
+                    padding: EdgeInsets.only(top: MakoloSpacing.xs),
+                    child: MakoloMark(size: 38),
                   ),
-                  const SizedBox(width: MakoloSpacing.xs),
-                  OutlinedButton(
-                    onPressed: () => context.push('/create-account'),
-                    child: const Text('Créer un compte'),
+                  const SizedBox(width: MakoloSpacing.sm),
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: MakoloSpacing.xs,
+                      runSpacing: MakoloSpacing.xs,
+                      children: [
+                        TextButton(
+                          onPressed: () => context.push('/login'),
+                          child: const Text('Se connecter'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => context.push('/create-account'),
+                          child: const Text('Créer un compte'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -139,14 +202,15 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 controller: _search,
                 hintText: 'Rechercher',
                 leading: const Icon(Icons.search),
-                onSubmitted: (_) => _load(),
+                onChanged: _onQueryChanged,
+                onSubmitted: (_) => _applyLocalFilter(),
                 trailing: [
                   if (_search.text.isNotEmpty)
                     IconButton(
                       tooltip: 'Effacer',
                       onPressed: () {
                         _search.clear();
-                        _load();
+                        _onQueryChanged('');
                       },
                       icon: const Icon(Icons.close),
                     ),
@@ -157,32 +221,25 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 Text(_error!, style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: MakoloSpacing.md),
               ],
-              FutureBuilder<List<Map<String, dynamic>>>(
-                future: _results,
-                builder: (context, snapshot) {
-                  if (_results == null ||
-                      snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.only(top: MakoloSpacing.md),
-                      child: MakoloLoadingState(
-                        label: 'Chargement des possibilités',
-                      ),
-                    );
-                  }
-                  final items = snapshot.data ?? const <Map<String, dynamic>>[];
-                  if (items.isEmpty) {
-                    return const MakoloEmptyState(
-                      title: 'Aucune possibilité publique à afficher pour le moment.',
-                      icon: Icons.explore_outlined,
-                    );
-                  }
-                  return Column(
-                    children: items
-                        .map((item) => _PublicPossibilityCard(item: item))
-                        .toList(growable: false),
-                  );
-                },
-              ),
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.only(top: MakoloSpacing.md),
+                  child: MakoloLoadingState(
+                    label: 'Chargement des possibilités',
+                  ),
+                )
+              else if (_visibleItems.isEmpty)
+                const MakoloEmptyState(
+                  title:
+                      'Aucune possibilité publique à afficher pour le moment.',
+                  icon: Icons.explore_outlined,
+                )
+              else
+                Column(
+                  children: _visibleItems
+                      .map((item) => _PublicPossibilityCard(item: item))
+                      .toList(growable: false),
+                ),
             ],
           ),
         ),

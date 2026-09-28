@@ -343,7 +343,8 @@ void main() {
         forgotCalls += 1;
         return MockResponse(
           jsonEncode({
-            'message': 'Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé.',
+            'message': 'Demande de réinitialisation traitée.',
+            'email_delivery': 'external',
           }),
           200,
         );
@@ -365,8 +366,89 @@ void main() {
     expect(forgotCalls, 1);
     expect(find.text('Consultez votre boîte de réception'), findsOneWidget);
     expect(find.textContaining('unknown@example.com'), findsOneWidget);
+    expect(find.textContaining('dossier spam'), findsOneWidget);
     expect(find.textContaining('n’existe pas'), findsNothing);
     expect(find.textContaining('existe bien'), findsNothing);
+  });
+
+  testWidgets(
+    'password reset explains when this environment cannot deliver mail',
+    (tester) async {
+      final tokens = MemoryTokenStore();
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('/auth/password/forgot/')) {
+          return MockResponse(
+            jsonEncode({
+              'message': 'Demande traitée.',
+              'email_delivery': 'local_only',
+            }),
+            200,
+          );
+        }
+        throw StateError('unexpected request');
+      });
+      final runtime = _runtime(tokens: tokens, client: client);
+
+      await _pumpLogin(tester, runtime);
+      await _tapVisible(tester, find.byKey(const Key('forgot-password-link')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('forgot-email')),
+        'amina@example.com',
+      );
+      await _tapVisible(tester, find.byKey(const Key('forgot-submit')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'ne délivre pas encore les e-mails vers une boîte réelle',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('dossier spam'), findsNothing);
+    },
+  );
+
+  testWidgets('signup explains an email already linked to an account', (
+    tester,
+  ) async {
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/register/')) {
+        return MockResponse(
+          jsonEncode({
+            'email': ['User with this email already exists.'],
+          }),
+          400,
+        );
+      }
+      throw StateError('unexpected request');
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('signup-email')),
+      'amina@example.com',
+    );
+    await tester.enterText(find.byKey(const Key('signup-username')), 'amina-2');
+    await tester.enterText(
+      find.byKey(const Key('signup-password')),
+      'Strong-registration-password-2026!',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-password-confirm')),
+      'Strong-registration-password-2026!',
+    );
+    await tester.ensureVisible(find.byKey(const Key('signup-submit')));
+    await tester.tap(find.byKey(const Key('signup-submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('déjà associée à un compte'), findsOneWidget);
+    expect(find.textContaining('Mot de passe oublié'), findsWidgets);
   });
 
   testWidgets('account switch opens the device account chooser', (
