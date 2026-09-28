@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/auth_repository.dart';
@@ -114,24 +115,37 @@ void main() {
       api: api,
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: AccountActionsButton(
-            runtime: runtime,
-            onAuthenticationChanged: () => authenticationChanges += 1,
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: AccountActionsButton(
+              runtime: runtime,
+              onAuthenticationChanged: () => authenticationChanges += 1,
+            ),
           ),
         ),
-      ),
+        GoRoute(
+          path: '/accounts',
+          builder: (context, state) =>
+              const Scaffold(body: Text('Choisir un compte')),
+        ),
+      ],
     );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('account-actions')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Changer de compte'));
     await tester.pumpAndSettle();
 
-    expect(await tokens.readSession(), isNull);
-    expect(authenticationChanges, 1);
+    expect(await tokens.readSession(), isNotNull);
+    expect(authenticationChanges, 0);
+    expect(find.text('Choisir un compte'), findsOneWidget);
     expect(recovery.entryReason, EntryReason.accountSwitch);
   });
 }
