@@ -121,11 +121,11 @@ Le template Django conserve l’échappement HTML par défaut. W8 n’ajoute ni 
 
 ## 10. Collision audit
 
-W8 est basé sur `main@9448f0a51d6627995b6d314fd5112e0db945403d`.
+W8 a démarré sur `main@9448f0a51d6627995b6d314fd5112e0db945403d`, puis a été réconcilié avec `main@fe4016ae010fb85c643152768ee40c90fd588eca` après l’intégration de #353.
 
 La PR #308 reste ouverte sur la fermeture de hiérarchie Personal UX et peut toucher navigation/`/me/`. W8 ne reprend pas sa cartographie non mergée comme vérité : il applique le `main` courant et borne son changement à l’entrée Avatar, la route Connexions et son rattachement à `Moi`.
 
-Les PR #353/#354 concernent l’identité/auth Web ; W8 ne modifie ni `config/urls.py` ni les flows d’authentification. La PR #358 appartient au programme mobile A2.x et ne doit pas être confondue avec W8.
+#353 est désormais intégré sur le `main` réconcilié ; #354 reste le chantier Web d’identité/social auth. W8 ne modifie ni `config/urls.py` ni les flows d’authentification. La PR #358 appartient au programme mobile A2.x et ne doit pas être confondue avec W8.
 
 ## 11. Persistance
 
