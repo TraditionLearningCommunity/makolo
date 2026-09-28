@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -46,9 +48,65 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _showPasswordConfirm = false;
   bool _rememberOnDevice = false;
   String? _error;
+  Timer? _draftTimer;
+  bool _restoringDraft = false;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [
+      _email,
+      _username,
+      _firstName,
+      _lastName,
+      _phone,
+    ]) {
+      controller.addListener(_scheduleDraftSave);
+    }
+    unawaited(_restoreDraft());
+  }
+
+  Future<void> _restoreDraft() async {
+    final draft = await widget.runtime.interactions?.read('signup');
+    if (!mounted || draft == null || draft.isEmpty) return;
+    _restoringDraft = true;
+    _email.text = draft['email'] is String ? draft['email'] as String : '';
+    _username.text = draft['username'] is String
+        ? draft['username'] as String
+        : '';
+    _firstName.text = draft['first_name'] is String
+        ? draft['first_name'] as String
+        : '';
+    _lastName.text = draft['last_name'] is String
+        ? draft['last_name'] as String
+        : '';
+    _phone.text = draft['phone'] is String ? draft['phone'] as String : '';
+    _rememberOnDevice = draft['remember_on_device'] == true;
+    _restoringDraft = false;
+    if (mounted) setState(() {});
+  }
+
+  void _scheduleDraftSave() {
+    if (_restoringDraft) return;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 250), () {
+      unawaited(
+        widget.runtime.interactions?.save('signup', {
+              'email': _email.text.trim(),
+              'username': _username.text.trim(),
+              'first_name': _firstName.text.trim(),
+              'last_name': _lastName.text.trim(),
+              'phone': _phone.text.trim(),
+              'remember_on_device': _rememberOnDevice,
+            }) ??
+            Future<void>.value(),
+      );
+    });
+  }
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
     for (final controller in [
       _email,
       _username,
@@ -128,6 +186,7 @@ class _SignupScreenState extends State<SignupScreen> {
         rememberOnDevice: _rememberOnDevice,
       );
       TextInput.finishAutofillContext();
+      await widget.runtime.interactions?.clear('signup');
       if (!mounted) return;
       widget.onAuthenticated();
     } on Object catch (error) {
@@ -138,16 +197,10 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  TextStyle _sectionStyle(BuildContext context) {
-    return Theme.of(context).textTheme.titleLarge!
-        .copyWith(color: Colors.white, fontWeight: FontWeight.w800);
-  }
-
   @override
   Widget build(BuildContext context) {
     return AuthEntryFrame(
       title: 'Créer un compte',
-      subtitle: 'Quelques informations suffisent pour commencer avec Makolo.',
       onBack: () => widget.onBackToLogin(_email.text.trim()),
       child: AutofillGroup(
         child: Form(
@@ -155,8 +208,6 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Votre accès', style: _sectionStyle(context)),
-              const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
                 fieldKey: const Key('signup-email'),
                 label: 'Adresse e-mail',
@@ -182,10 +233,9 @@ class _SignupScreenState extends State<SignupScreen> {
                 validator: _requiredUsername,
                 onEditingComplete: () => _firstNameFocus.requestFocus(),
               ),
-              const SizedBox(height: MakoloSpacing.xl),
-              Text('Vous', style: _sectionStyle(context)),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
+                fieldKey: const Key('signup-first-name'),
                 label: 'Prénom (facultatif)',
                 controller: _firstName,
                 focusNode: _firstNameFocus,
@@ -197,6 +247,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
+                fieldKey: const Key('signup-last-name'),
                 label: 'Nom (facultatif)',
                 controller: _lastName,
                 focusNode: _lastNameFocus,
@@ -208,6 +259,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
+                fieldKey: const Key('signup-phone'),
                 label: 'Téléphone (facultatif)',
                 controller: _phone,
                 focusNode: _phoneFocus,
@@ -217,16 +269,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 textInputAction: TextInputAction.next,
                 prefixIcon: Icons.phone_outlined,
                 onEditingComplete: () => _passwordFocus.requestFocus(),
-              ),
-              const SizedBox(height: MakoloSpacing.xl),
-              Text('Sécurité', style: _sectionStyle(context)),
-              const SizedBox(height: MakoloSpacing.xs),
-              Text(
-                'Au moins 8 caractères. Les règles de sécurité finales restent celles du serveur Makolo.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.76),
-                  height: 1.35,
-                ),
               ),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
@@ -289,7 +331,10 @@ class _SignupScreenState extends State<SignupScreen> {
                 value: _rememberOnDevice,
                 onChanged: _busy
                     ? null
-                    : (value) => setState(() => _rememberOnDevice = value),
+                    : (value) {
+                        setState(() => _rememberOnDevice = value);
+                        _scheduleDraftSave();
+                      },
               ),
               if (_error != null) ...[
                 const SizedBox(height: MakoloSpacing.md),
@@ -312,7 +357,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 onPressed: _submit,
               ),
               const SizedBox(height: MakoloSpacing.sm),
-              MakoloAuthTextAction(
+              MakoloAuthSecondaryButton(
                 label: 'J’ai déjà un compte',
                 onPressed: _busy
                     ? null

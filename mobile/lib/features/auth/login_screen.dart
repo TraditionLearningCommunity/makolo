@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,9 +18,16 @@ import 'signup_screen.dart';
 enum _EntryMode { login, signup, accounts }
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key, required this.runtime});
+  const LoginScreen({
+    super.key,
+    required this.runtime,
+    this.initialEmail,
+    this.startWithAccounts = false,
+  });
 
   final AppRuntime runtime;
+  final String? initialEmail;
+  final bool startWithAccounts;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -36,20 +45,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberOnDevice = false;
   String? _error;
   String? _notice;
+  Timer? _draftTimer;
 
   @override
   void initState() {
     super.initState();
-    _mode = widget.runtime.recovery.entryReason == EntryReason.accountSwitch
-        ? _EntryMode.accounts
-        : _EntryMode.login;
+    _mode = widget.startWithAccounts ? _EntryMode.accounts : _EntryMode.login;
+    final initialEmail = widget.initialEmail?.trim() ?? '';
+    if (initialEmail.isNotEmpty) {
+      _email.text = initialEmail;
+    } else {
+      unawaited(_restoreDraft());
+    }
+    _email.addListener(_scheduleDraftSave);
+
     if (widget.runtime.recovery.entryReason == EntryReason.sessionExpired) {
       _notice = 'Reconnectez-vous pour continuer.';
+    } else if (widget.runtime.recovery.entryReason ==
+        EntryReason.protectedAction) {
+      _notice = 'Connectez-vous pour continuer.';
     }
+  }
+
+  Future<void> _restoreDraft() async {
+    final draft = await widget.runtime.interactions?.read('login');
+    if (!mounted || _email.text.isNotEmpty) return;
+    final email = draft?['email'];
+    if (email is String) _email.text = email;
+  }
+
+  void _scheduleDraftSave() {
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 250), () {
+      unawaited(
+        widget.runtime.interactions?.save('login', {
+              'email': _email.text.trim(),
+            }) ??
+            Future<void>.value(),
+      );
+    });
   }
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
     _email.dispose();
     _password.dispose();
     _passwordFocus.dispose();
@@ -102,6 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         rememberOnDevice: _rememberOnDevice,
       );
       TextInput.finishAutofillContext();
+      await widget.runtime.interactions?.clear('login');
       ref.invalidate(appRuntimeProvider);
     } on MakoloApiError catch (error) {
       if (!mounted) return;
@@ -228,6 +268,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: 'Mot de passe oublié ?',
                   buttonKey: const Key('forgot-password-link'),
                   onPressed: _busy ? null : _forgotPassword,
+                  underline: true,
                 ),
               ),
               MakoloQuickAccessChoice(
@@ -258,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: _login,
               ),
               const SizedBox(height: MakoloSpacing.sm),
-              MakoloAuthTextAction(
+              MakoloAuthSecondaryButton(
                 label: 'Créer un compte',
                 buttonKey: const Key('create-account-link'),
                 onPressed: _busy

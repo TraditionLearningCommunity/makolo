@@ -149,11 +149,13 @@ class MakoloAuthTextAction extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.buttonKey,
+    this.underline = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Key? buttonKey;
+  final bool underline;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +164,40 @@ class MakoloAuthTextAction extends StatelessWidget {
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: Colors.white,
-        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        textStyle: TextStyle(
+          fontWeight: FontWeight.w700,
+          decoration: underline ? TextDecoration.underline : null,
+          decorationColor: Colors.white,
+        ),
+      ),
+      child: Text(label),
+    );
+  }
+}
+
+class MakoloAuthSecondaryButton extends StatelessWidget {
+  const MakoloAuthSecondaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.buttonKey,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final Key? buttonKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      key: buttonKey,
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.72)),
+        minimumSize: const Size.fromHeight(54),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
       ),
       child: Text(label),
     );
@@ -183,7 +218,7 @@ class MakoloQuickAccessChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
-      label: 'Accès rapide sur cet appareil',
+      label: 'Se souvenir de moi',
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onChanged == null ? null : () => onChanged!(!value),
@@ -209,25 +244,12 @@ class MakoloQuickAccessChoice extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Accès rapide sur cet appareil',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Makolo peut garder une session sécurisée pour ce compte. Votre mot de passe n’est jamais stocké par Makolo.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.76),
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
+                  child: const Text(
+                    'Se souvenir de moi',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),

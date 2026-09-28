@@ -101,9 +101,7 @@ class ProjectionScreen extends StatelessWidget {
             ),
           )
         else
-          const InlineMessage(
-            message: 'Rien d’autre à afficher pour le moment.',
-          ),
+          MakoloEmptyState(title: emptyMessage),
       ],
     );
   }

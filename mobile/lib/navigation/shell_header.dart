@@ -93,8 +93,11 @@ class MakoloPrimaryHeader extends StatelessWidget
       titleSpacing: MakoloSpacing.md,
       title: _usesBrand
           ? SvgPicture.asset(
-              'assets/brand/makolo-logo-violet.svg',
+              Theme.of(context).brightness == Brightness.dark
+                  ? 'assets/brand/makolo-logo-white.svg'
+                  : 'assets/brand/makolo-logo-violet.svg',
               height: 34,
+              fit: BoxFit.contain,
               semanticsLabel: 'Makolo',
             )
           : Text(

@@ -1,63 +1,28 @@
-# Makolo Mobile — A1 Installed Core
+# Makolo Mobile
 
-Ce dossier contient le client Flutter Makolo A1. Il reste un client local-first des vérités autoritatives du serveur.
+Client Flutter local-first de Makolo. Le serveur reste autoritatif pour l'état partagé, la concurrence, Access, Permission, Mandate, Capacity, Payment et les autres décisions sensibles.
 
 ## Architecture
 
 ```text
-UI
+UI / Experiences
 ↓
-repositories / use-cases
+application / use-cases
 ↓
-projection locale Drift + drafts + outbox
-↕
-sync owner-scoped
-↕
-API Makolo
+repositories propriétaires
+↓
+Local Core + Remote Core
+↓
+Sync / Continuity
+↓
+Native Capabilities
 ```
 
-Pour une donnée déjà synchronisée, l'UI lit le store local. Le réseau sert au bootstrap, au rafraîchissement, à la synchronisation, à la confirmation et aux opérations intrinsèquement distantes.
+Le socle détaillé et ses règles d'extension sont dans `docs/architecture/mobile-production-infrastructure.md`.
 
-## Behavior foundation
+## Développement
 
-A1 fournit les comportements transversaux que les expériences suivantes réutilisent :
-
-- contenu et synchronisation sont deux axes d'état distincts ;
-- un refresh conserve le contenu local et ajoute un indicateur discret ;
-- offline conserve le contenu disponible ;
-- skeleton pour chargement initial perceptible, pas de spinner universel ;
-- erreurs persistantes et récupérables pour les échecs importants ;
-- feedback distinct pour stockage local, pending, synchronisé et confirmé ;
-- toast/undo pour feedback léger et actions réellement réversibles ;
-- confirmation pour actions destructives ou sensibles ;
-- bottom sheet générique ;
-- récupération de session vers le dernier contexte utile ;
-- permission explainer sans permission OS au lancement ;
-- Reduce Motion via `MediaQuery.disableAnimations` ;
-- haptics encapsulés ;
-- fondation NotificationRouter sans push réel.
-
-La navigation primaire reste :
-
-```text
-Maintenant | Découvrir | [Makolo Mark] | En cours | Moi
-```
-
-Le Mark est une action centrale. Il préserve l'historique afin que le back système revienne au contexte précédent.
-
-## Configuration
-
-Aucune URL d'environnement n'est codée en dur. Fournir la base API au build/runtime :
-
-```bash
-flutter run --dart-define=MAKOLO_API_BASE_URL=https://<hote-autorise>
-```
-
-Ne jamais committer de secret, token ou URL de production supposée.
-
-## Validation locale
-
-Flutter 3.47.3 / Dart 3.13.3 sont les versions A1 pinées.
+Flutter 3.47.3 / Dart 3.13.3 sont pinés.
 
 ```bash
 cd mobile
@@ -65,52 +30,56 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test
+flutter test --exclude-tags golden
 ```
 
-## Stockage et récupération
+Les `*.g.dart` sont générés et ignorés par Git. Drift et json_serializable utilisent le même passage build_runner.
 
-- Drift : projections personnelles allowlistées, metadata de sync, outbox, drafts et metadata de fichiers.
-- Cache : uniquement reconstructible.
-- Stockage privé Makolo : documents/captures autorisés et non exposés automatiquement.
-- Export utilisateur : uniquement par action explicite.
-- Secure storage : JWT et petits secrets locaux.
+## Configuration
 
-Les stores sont isolés par Profile. Une déconnexion ou une session expirée retire les credentials actifs mais ne détruit pas silencieusement la DB, les drafts ni l'outbox. Après reconnexion, A1 peut restaurer le dernier contexte de navigation utile du processus courant.
+La seule base API consommée par le client reste la configuration existante :
+
+```bash
+flutter run --dart-define=MAKOLO_API_BASE_URL=https://<hote-autorise>
+```
+
+Ne jamais committer de secret ni supposer une URL de production.
+
+Firebase, Sentry, le provider/style de carte et le host iOS ne sont pas configurés tant que leurs identités/options canoniques ne sont pas disponibles. Les adaptateurs Dart correspondants n'inventent aucune valeur.
+
+## Stockage
+
+- Drift : projections allowlistées, sync sources, outbox, drafts et metadata de fichiers.
+- Staging privé : captures/fichiers en préparation.
+- Private Profile file store : actifs locaux durables autorisés.
+- Cache média/cartes : reconstructible et isolé par Profile.
+- Secure storage : JWT et petits secrets.
+
+Déconnexion ou session expirée retirent les credentials sans effacer silencieusement DB, drafts, outbox ou fichiers privés.
 
 ## Android / iOS
 
-L'identité Android approuvée est :
+L'identité Android déjà approuvée reste `com.makolo`. Le host Android est sous `mobile/android/`. Les plugins actuels exigent au moins API 24 ; MapLibre exige JDK 21 pour la compilation Android. Le bytecode de l'application reste ciblé Java/Kotlin 17.
 
-```text
-applicationId / namespace : com.makolo
-```
-
-Le host Android vit sous `mobile/android/` et suit les templates Flutter 3.47.3 (Gradle 9.3.1, AGP 9.1.0, Kotlin 2.4.0, Java 17). Les sauvegardes applicatives Android sont désactivées afin de ne pas restaurer aveuglément sessions, outbox ou données privées sur un nouvel appareil.
-
-Validation Android :
+Validation native :
 
 ```bash
 flutter build apk --debug
-flutter run -d <device-id> --dart-define=MAKOLO_API_BASE_URL=https://<hote-autorise>
 ```
 
-Le workflow manuel `Mobile APK` peut construire un APK de test contre `https://makolo.pythonanywhere.com`. PythonAnywhere est uniquement un environnement temporaire de test/bêta, jamais une cible de production finale.
+Le workflow `Mobile APK` est uniquement manuel et exige une URL de bêta/test fournie explicitement au lancement.
 
-Aucune identité iOS n'est encore fixée : aucun `PRODUCT_BUNDLE_IDENTIFIER` n'est inventé et aucun host iOS n'est généré dans A1.
+Aucun host iOS n'est présent. Aucun bundle identifier, signing team, provisioning, App Group ou entitlement iOS n'est inventé.
 
 ## CI
 
-Le gate A1 Behavior utilise les mêmes checks rapides ; aucun workflow parallèle n’est introduit.
+- `Mobile CI` : sélection du scope réel du diff, format/analyze/codegen et tests impactés avec fallback sûr.
+- `Mobile Android Build` : debug build seulement pour dependency/native impact.
+- `Mobile Visual Golden Regression` : design/surfaces visuelles uniquement.
+- `Mobile APK` : checkpoint manuel.
 
-- `Mobile CI` : checks Flutter rapides.
-- `Mobile Android Build` : compilation Android lorsque nécessaire.
-- `Mobile APK` : packaging manuel/checkpoint.
+Un changement backend-only ne lance pas Flutter. Un changement mobile inconnu tombe sur la suite Flutter complète.
 
-Le build Android génère le code Drift avant compilation.
+## Frontières métier
 
-## Frontières
-
-A1 ne recalcule jamais Readiness, Permission, Mandate, Access, Capacity, Payment, inclusion Maintenant/En cours ni autre vérité métier. Il ne crée ni `/api/v1/mobile/` ni `/sync/` générique.
-
-A1 ne livre pas les expériences complètes A2, le push réel, caméra/GPS, scanner offline, OfflineGrant ni autorité Access/Capacity offline.
+Le client ne recalcule jamais Readiness et ne crée jamais Permission, Mandate, Access, Capacity ou Payment. Il ne crée ni `/api/v1/mobile/`, ni `/sync/` générique, ni endpoint générique d'upload. Les owners métier possèdent leurs contrats et leur idempotence.

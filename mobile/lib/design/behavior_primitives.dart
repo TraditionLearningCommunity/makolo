@@ -113,12 +113,15 @@ class MakoloNotice extends StatelessWidget {
   final VoidCallback? onAction;
   final bool liveRegion;
 
-  Color _accent(BuildContext context) => switch (kind) {
-    MakoloNoticeKind.info => MakoloColors.info,
-    MakoloNoticeKind.success => MakoloColors.success,
-    MakoloNoticeKind.warning => MakoloColors.warning,
-    MakoloNoticeKind.error => MakoloColors.danger,
-  };
+  Color _accent(BuildContext context) {
+    final surfaces = context.makoloSurfaces;
+    return switch (kind) {
+      MakoloNoticeKind.info => surfaces.info,
+      MakoloNoticeKind.success => surfaces.success,
+      MakoloNoticeKind.warning => surfaces.warning,
+      MakoloNoticeKind.error => Theme.of(context).colorScheme.error,
+    };
+  }
 
   IconData get _icon => switch (kind) {
     MakoloNoticeKind.info => Icons.info_outline,
@@ -153,7 +156,7 @@ class MakoloNotice extends StatelessWidget {
           vertical: MakoloSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: context.makoloSurfaces.raised,
           border: Border.all(color: accent.withValues(alpha: 0.28)),
           borderRadius: BorderRadius.circular(MakoloRadii.medium),
           boxShadow: [
@@ -233,35 +236,26 @@ class NetworkStateIndicator extends StatelessWidget {
       return Align(
         alignment: Alignment.centerLeft,
         child: Semantics(
-          liveRegion: true,
-          label: 'Information. Mise à jour en cours',
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: MakoloColors.info.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: MakoloColors.info.withValues(alpha: 0.24),
-              ),
-            ),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: MakoloSpacing.sm,
-                vertical: MakoloSpacing.xs,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.sync_rounded, size: 16, color: MakoloColors.info),
-                  SizedBox(width: MakoloSpacing.xs),
-                  Text(
-                    'Mise à jour…',
-                    style: TextStyle(
-                      color: MakoloColors.info,
-                      fontWeight: FontWeight.w700,
-                    ),
+          label: 'Mise à jour en cours',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.xs),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.sync_rounded,
+                  size: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  'Mise à jour',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

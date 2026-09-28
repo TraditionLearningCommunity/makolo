@@ -74,7 +74,13 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
       ),
     );
     if (remove != true) return;
+    final wasActive = widget.runtime.session?.profileId == account.profileId;
     await widget.runtime.tokens.removeAccount(account.profileId);
+    if (wasActive) {
+      widget.runtime.recovery.markLoggedOut();
+      ref.invalidate(appRuntimeProvider);
+      return;
+    }
     _reload();
   }
 

@@ -7,14 +7,14 @@ class AuthEntryFrame extends StatelessWidget {
   const AuthEntryFrame({
     super.key,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.child,
     this.onBack,
     this.footer = 'Avance, tout est déjà prêt.',
   });
 
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final Widget child;
   final VoidCallback? onBack;
   final String footer;
@@ -66,15 +66,17 @@ class AuthEntryFrame extends StatelessWidget {
                           height: 1.12,
                         ),
                       ),
-                      const SizedBox(height: MakoloSpacing.sm),
-                      Text(
-                        subtitle,
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.86),
-                          height: 1.4,
+                      if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Text(
+                          subtitle!,
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.86),
+                            height: 1.4,
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: MakoloSpacing.xl),
                       child,
                       const SizedBox(height: MakoloSpacing.xl),
@@ -82,9 +84,9 @@ class AuthEntryFrame extends StatelessWidget {
                         Text(
                           footer,
                           textAlign: TextAlign.center,
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                     ],

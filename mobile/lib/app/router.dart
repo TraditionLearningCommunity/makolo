@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/account_actions.dart';
+import '../features/auth/account_chooser_screen.dart';
+import '../features/auth/login_screen.dart';
+import '../features/auth/signup_screen.dart';
+import '../features/guest/guest_screen.dart';
 import '../features/mark/mark_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
@@ -15,99 +19,181 @@ GoRouter createMakoloRouter(
   AppRuntime runtime, {
   required void Function() onAuthenticationChanged,
 }) {
-  final personal = runtime.personal!;
-
-  void switchAccount() {
-    unawaited(
-      endMakoloAccountSession(
-        runtime: runtime,
-        onAuthenticationChanged: onAuthenticationChanged,
-        switchAccount: true,
-      ),
-    );
-  }
+  final personal = runtime.personal;
+  final initialLocation = runtime.isAuthenticated
+      ? runtime.recovery.initialLocation()
+      : runtime.recovery.awaitingAuthentication
+      ? '/login'
+      : '/discover';
 
   void logout() {
     unawaited(
       endMakoloAccountSession(
         runtime: runtime,
         onAuthenticationChanged: onAuthenticationChanged,
-        switchAccount: false,
       ),
     );
   }
 
+  bool isProtectedPath(String path) {
+    if (const {
+      '/now',
+      '/ongoing',
+      '/me',
+      '/mark',
+      '/conversations',
+      '/notifications',
+      '/ongoing/calendar',
+    }.contains(path)) {
+      return true;
+    }
+    return const [
+      '/journeys/',
+      '/activities/',
+      '/occurrences/',
+      '/accesses/',
+      '/dossiers/',
+      '/projects/',
+      '/groups/',
+    ].any(path.startsWith);
+  }
+
   return GoRouter(
-    initialLocation: runtime.recovery.initialLocation(),
+    initialLocation: initialLocation,
+    redirect: (context, state) {
+      final path = state.uri.path;
+      final switchingAccount = state.uri.queryParameters['switch'] == '1';
+      final addingAccount = state.uri.queryParameters['add'] == '1';
+
+      if (runtime.isAuthenticated &&
+          (path == '/login' || path == '/create-account') &&
+          !switchingAccount &&
+          !addingAccount) {
+        return '/now';
+      }
+
+      if (!runtime.isAuthenticated && isProtectedPath(path)) {
+        runtime.recovery.requireAuthentication(state.uri.toString());
+        return '/login';
+      }
+
+      if (!runtime.isAuthenticated &&
+          (path == '/discover/search' || path == '/discover/filters')) {
+        return '/discover';
+      }
+
+      return null;
+    },
     routes: [
-      StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => AppShell(
-          navigationShell: navigationShell,
-          recovery: runtime.recovery,
-          runtime: runtime,
-          onSwitchAccount: switchAccount,
-          onLogout: logout,
+      if (runtime.isAuthenticated)
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) => AppShell(
+            navigationShell: navigationShell,
+            recovery: runtime.recovery,
+            runtime: runtime,
+            onSwitchAccount: () {
+              runtime.recovery.markAccountSwitch();
+              context.push('/accounts');
+            },
+            onLogout: logout,
+          ),
+          branches: [
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/now',
+                  builder: (context, state) => MakoloRefreshBoundary(
+                    child: ProjectionScreen(
+                      title: 'Now',
+                      stream: personal!.watchNow(),
+                      emptyMessage: 'Tout est en ordre. ✓',
+                      showTitle: false,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/discover',
+                  builder: (context, state) => const MakoloRefreshBoundary(
+                    child: PlaceholderScreen(
+                      title: 'Découvrir',
+                      message: 'Aucune possibilité à afficher pour le moment.',
+                      showTitle: false,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/ongoing',
+                  builder: (context, state) => MakoloRefreshBoundary(
+                    child: ProjectionScreen(
+                      title: 'En cours',
+                      stream: personal!.watchOngoing(),
+                      emptyMessage: 'Aucun engagement en cours.',
+                      showTitle: false,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/me',
+                  builder: (context, state) => MakoloRefreshBoundary(
+                    child: ProjectionScreen(
+                      title: 'Moi',
+                      stream: personal!.watchMe(),
+                      emptyMessage:
+                          'Aucune information à afficher pour le moment.',
+                      showTitle: false,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        )
+      else
+        GoRoute(
+          path: '/discover',
+          builder: (context, state) => GuestDiscoverScreen(runtime: runtime),
         ),
-        branches: [
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/now',
-                builder: (context, state) => MakoloRefreshBoundary(
-                  child: ProjectionScreen(
-                    title: 'Now',
-                    stream: personal.watchNow(),
-                    emptyMessage: 'Tout est en ordre. ✓',
-                    showTitle: false,
-                  ),
-                ),
-              ),
-            ],
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => LoginScreen(
+          runtime: runtime,
+          initialEmail: state.uri.queryParameters['email'],
+          startWithAccounts: state.uri.queryParameters['accounts'] == '1',
+        ),
+      ),
+      GoRoute(
+        path: '/create-account',
+        builder: (context, state) => SignupScreen(
+          runtime: runtime,
+          onBackToLogin: (email) => context.go(
+            email.isEmpty
+                ? '/login'
+                : '/login?email=${Uri.encodeQueryComponent(email)}',
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/discover',
-                builder: (context, state) => const MakoloRefreshBoundary(
-                  child: PlaceholderScreen(
-                    title: 'Découvrir',
-                    message: 'Rien à explorer pour le moment.',
-                  ),
-                ),
-              ),
-            ],
+          onAuthenticated: onAuthenticationChanged,
+        ),
+      ),
+      GoRoute(
+        path: '/accounts',
+        builder: (context, state) => DeviceAccountsScreen(
+          runtime: runtime,
+          onUsePassword: (email) => context.push(
+            '/login?switch=1&email=${Uri.encodeQueryComponent(email)}',
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/ongoing',
-                builder: (context, state) => MakoloRefreshBoundary(
-                  child: ProjectionScreen(
-                    title: 'En cours',
-                    stream: personal.watchOngoing(),
-                    emptyMessage: 'Aucun engagement en cours.',
-                    showTitle: false,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/me',
-                builder: (context, state) => MakoloRefreshBoundary(
-                  child: ProjectionScreen(
-                    title: 'Moi',
-                    stream: personal.watchMe(),
-                    emptyMessage: 'Aucune information personnelle à afficher.',
-                    showTitle: false,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+          onAddAccount: () => context.push('/login?add=1'),
+        ),
       ),
       GoRoute(
         path: '/mark',
@@ -117,8 +203,7 @@ GoRouter createMakoloRouter(
         path: '/conversations',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Conversations',
-          message:
-              'Vos conversations auront ici leur destination mobile dédiée.',
+          message: 'Aucune conversation à afficher pour le moment.',
         ),
       ),
       GoRoute(
@@ -132,16 +217,14 @@ GoRouter createMakoloRouter(
         path: '/discover/search',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Rechercher',
-          message:
-              'Commencez une recherche pour explorer les possibilités Makolo.',
+          message: 'Recherchez une possibilité.',
         ),
       ),
       GoRoute(
         path: '/discover/filters',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Filtres',
-          message:
-              'Aucun filtre supplémentaire n’est nécessaire pour le moment.',
+          message: 'Aucun filtre actif.',
         ),
       ),
       GoRoute(
@@ -165,8 +248,8 @@ GoRouter createMakoloRouter(
           builder: (context, state) {
             runtime.recovery.rememberLocation(state.uri.toString());
             return const MakoloSecondaryScreen(
-              title: 'Continuer dans Makolo',
-              message: 'Rien d’autre à afficher pour le moment.',
+              title: 'Makolo',
+              message: 'Aucun détail supplémentaire à afficher pour le moment.',
             );
           },
         ),

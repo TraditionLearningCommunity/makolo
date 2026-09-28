@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
@@ -12,6 +10,7 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/auth/login_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
+import 'dio_testing.dart';
 import 'fakes.dart';
 
 AppRuntime _runtime({
@@ -25,7 +24,7 @@ AppRuntime _runtime({
     recovery: recovery ?? SessionRecoveryController(),
     api: MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
-      httpClient: client,
+      dio: client.dio,
       tokenStore: tokens,
     ),
   );
@@ -35,6 +34,7 @@ Future<void> _pumpLogin(
   WidgetTester tester,
   AppRuntime runtime, {
   double textScale = 1,
+  bool startWithAccounts = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -42,7 +42,10 @@ Future<void> _pumpLogin(
         theme: buildMakoloTheme(),
         home: MediaQuery(
           data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-          child: LoginScreen(runtime: runtime),
+          child: LoginScreen(
+            runtime: runtime,
+            startWithAccounts: startWithAccounts,
+          ),
         ),
       ),
     ),
@@ -56,8 +59,8 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
 }
 
-http.Response _meResponse() {
-  return http.Response(
+MockResponse _meResponse() {
+  return MockResponse(
     jsonEncode({
       'id': 'profile-a',
       'email': 'amina@example.com',
@@ -75,7 +78,7 @@ void main() {
     final tokens = MemoryTokenStore();
     final client = MockClient((request) async {
       if (request.url.path.endsWith('/auth/login/')) {
-        return http.Response(
+        return MockResponse(
           jsonEncode({'access': 'access-a', 'refresh': 'refresh-a'}),
           200,
         );
@@ -112,7 +115,7 @@ void main() {
     final tokens = MemoryTokenStore();
     final client = MockClient((request) async {
       if (request.url.path.endsWith('/auth/login/')) {
-        return http.Response(
+        return MockResponse(
           jsonEncode({'access': 'access-a', 'refresh': 'refresh-a'}),
           200,
         );
@@ -131,7 +134,7 @@ void main() {
       find.byKey(const Key('login-password')),
       'secret-pass',
     );
-    await _tapVisible(tester, find.text('Accès rapide sur cet appareil').first);
+    await _tapVisible(tester, find.text('Se souvenir de moi').first);
     await _tapVisible(tester, find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
@@ -146,7 +149,7 @@ void main() {
     final tokens = MemoryTokenStore();
     final client = MockClient(
       (request) async =>
-          http.Response(jsonEncode({'detail': 'No active account found'}), 401),
+          MockResponse(jsonEncode({'detail': 'No active account found'}), 401),
     );
     final runtime = _runtime(tokens: tokens, client: client);
 
@@ -178,7 +181,7 @@ void main() {
       if (request.url.path.endsWith('/auth/login/')) {
         loginCalls += 1;
         await Future<void>.delayed(const Duration(milliseconds: 80));
-        return http.Response(
+        return MockResponse(
           jsonEncode({'access': 'access-a', 'refresh': 'refresh-a'}),
           200,
         );
@@ -211,7 +214,7 @@ void main() {
   testWidgets('password visibility can be toggled', (tester) async {
     final tokens = MemoryTokenStore();
     final client = MockClient(
-      (request) async => http.Response(jsonEncode({}), 500),
+      (request) async => MockResponse(jsonEncode({}), 500),
     );
     final runtime = _runtime(tokens: tokens, client: client);
 
@@ -241,7 +244,7 @@ void main() {
     final tokens = MemoryTokenStore();
     final client = MockClient((request) async {
       requestCount += 1;
-      return http.Response(jsonEncode({}), 500);
+      return MockResponse(jsonEncode({}), 500);
     });
     final runtime = _runtime(tokens: tokens, client: client);
 
@@ -281,13 +284,13 @@ void main() {
     final client = MockClient((request) async {
       if (request.url.path.endsWith('/auth/register/')) {
         payload = jsonDecode(request.body) as Map<String, dynamic>;
-        return http.Response(
+        return MockResponse(
           jsonEncode({'message': 'Compte créé.', 'user': {}}),
           201,
         );
       }
       if (request.url.path.endsWith('/auth/login/')) {
-        return http.Response(
+        return MockResponse(
           jsonEncode({'access': 'access-a', 'refresh': 'refresh-a'}),
           200,
         );
@@ -338,7 +341,7 @@ void main() {
     final client = MockClient((request) async {
       if (request.url.path.endsWith('/auth/password/forgot/')) {
         forgotCalls += 1;
-        return http.Response(
+        return MockResponse(
           jsonEncode({
             'message': 'Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé.',
           }),
@@ -381,7 +384,7 @@ void main() {
       ),
     );
     final client = MockClient(
-      (request) async => http.Response(jsonEncode({}), 500),
+      (request) async => MockResponse(jsonEncode({}), 500),
     );
     final runtime = _runtime(
       tokens: tokens,
@@ -389,7 +392,7 @@ void main() {
       recovery: recovery,
     );
 
-    await _pumpLogin(tester, runtime);
+    await _pumpLogin(tester, runtime, startWithAccounts: true);
 
     expect(find.text('Choisir un compte'), findsOneWidget);
     expect(find.text('Amina K.'), findsOneWidget);
@@ -406,7 +409,7 @@ void main() {
     final tokens = MemoryTokenStore();
     final client = MockClient((request) async {
       if (request.url.path.endsWith('/auth/login/')) {
-        return http.Response(
+        return MockResponse(
           jsonEncode({'access': 'new-access', 'refresh': 'new-refresh'}),
           200,
         );
@@ -441,7 +444,7 @@ void main() {
   testWidgets('entry remains usable with large text', (tester) async {
     final tokens = MemoryTokenStore();
     final client = MockClient(
-      (request) async => http.Response(jsonEncode({}), 500),
+      (request) async => MockResponse(jsonEncode({}), 500),
     );
     final runtime = _runtime(tokens: tokens, client: client);
 

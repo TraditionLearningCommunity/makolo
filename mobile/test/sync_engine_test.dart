@@ -2,14 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
 
+import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
@@ -33,7 +32,7 @@ void main() {
           '/api/v1/me/' => 'personal.me',
           _ => throw StateError('unexpected route ${request.url.path}'),
         };
-        return http.Response(
+        return MockResponse(
           jsonEncode({
             'meta': {
               'projection': key,
@@ -56,7 +55,7 @@ void main() {
 
       final api = MakoloApiClient(
         baseUri: Uri.parse('https://makolo.invalid/'),
-        httpClient: client,
+        dio: client.dio,
         tokenStore: tokens,
       );
       final database = MakoloDatabase.memory();
