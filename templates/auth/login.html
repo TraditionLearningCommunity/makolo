@@ -17,6 +17,18 @@
     </div>
     {% endif %}
 
+    {% if socialaccount_providers %}
+    <div class="grid gap-3 sm:grid-cols-2">
+        {% for provider in socialaccount_providers %}
+        <form method="post" action="{% provider_login_url provider.id process='login' next=next %}">
+            {% csrf_token %}
+            <button type="submit" class="mk-btn mk-btn-ghost min-h-11 w-full justify-center">Continuer avec {{ provider.name }}</button>
+        </form>
+        {% endfor %}
+    </div>
+    <div class="my-6 flex items-center gap-3"><span class="h-px flex-1" style="background:var(--mk-border)"></span><span class="text-[11px] font-semibold uppercase tracking-[.12em]" style="color:var(--mk-subtle)">ou</span><span class="h-px flex-1" style="background:var(--mk-border)"></span></div>
+    {% endif %}
+
     <form method="post" class="space-y-5">
         {% csrf_token %}
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
@@ -30,17 +42,6 @@
         </div>
         <button type="submit" class="mk-btn mk-btn-primary min-h-11 w-full"><span>Se connecter</span><i data-lucide="arrow-right" class="h-4 w-4"></i></button>
     </form>
-    {% if socialaccount_providers %}
-    <div class="my-6 flex items-center gap-3"><span class="h-px flex-1" style="background:var(--mk-border)"></span><span class="text-[11px] font-semibold uppercase tracking-[.12em]" style="color:var(--mk-subtle)">ou continuer avec</span><span class="h-px flex-1" style="background:var(--mk-border)"></span></div>
-    <div class="grid gap-3 sm:grid-cols-2">
-        {% for provider in socialaccount_providers %}
-        <form method="post" action="{% provider_login_url provider.id process='login' %}">
-            {% csrf_token %}
-            <button type="submit" class="mk-btn mk-btn-ghost min-h-11 w-full justify-center">Continuer avec {{ provider.name }}</button>
-        </form>
-        {% endfor %}
-    </div>
-    {% endif %}
     <p class="mt-6 text-center text-xs" style="color:var(--mk-muted)">Pas encore de compte ? <a href="{% url 'account:register' %}" class="font-bold" style="color:var(--mk-brand)">Créer un compte</a></p>
 </div>
 {% endblock %}
