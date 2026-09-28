@@ -372,9 +372,9 @@ void main() {
   });
 
 
-  testWidgets('password reset explains when this environment cannot deliver mail', (
-    tester,
-  ) async {
+  testWidgets(
+    'password reset explains when this environment cannot deliver mail',
+    (tester) async {
     final tokens = MemoryTokenStore();
     final client = MockClient((request) async {
       if (request.url.path.endsWith('/auth/password/forgot/')) {
@@ -401,7 +401,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('ne délivre pas encore les e-mails vers une boîte réelle'),
+      find.textContaining(
+        'ne délivre pas encore les e-mails vers une boîte réelle',
+      ),
       findsOneWidget,
     );
     expect(find.textContaining('dossier spam'), findsNothing);
