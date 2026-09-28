@@ -283,6 +283,54 @@ void main() {
     expect(registrationRequests, 0);
   });
 
+  testWidgets('signup does not probe e-mail availability', (tester) async {
+    var availabilityCalls = 0;
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/identifier/availability/')) {
+        availabilityCalls += 1;
+        return MockResponse(jsonEncode({'available': true}), 200);
+      }
+      throw StateError('unexpected request');
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('signup-email')),
+      'amina@example.com',
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(availabilityCalls, 0);
+  });
+
+  testWidgets('locally invalid identifier never hits availability API', (
+    tester,
+  ) async {
+    var availabilityCalls = 0;
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/identifier/availability/')) {
+        availabilityCalls += 1;
+      }
+      return MockResponse(jsonEncode({}), 500);
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('signup-username')), 'a');
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(availabilityCalls, 0);
+  });
+
   testWidgets('signup checks Makolo identifier after debounce', (
     tester,
   ) async {
