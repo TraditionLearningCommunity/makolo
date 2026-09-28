@@ -2,6 +2,8 @@ name: Orchestrator Actor 5
 
 on:
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "orchestration/**"
       - "resolver/**"
@@ -26,6 +28,7 @@ permissions:
 
 jobs:
   orchestrator-postgresql:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
