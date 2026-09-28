@@ -145,7 +145,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         MakoloSpacing.lg,
         MakoloSpacing.md,
         MakoloSpacing.lg,
-        MakoloSpacing.xxl,
+        MakoloSpacing.strong,
       ),
       children: [
         Text(
