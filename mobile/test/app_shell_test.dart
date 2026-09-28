@@ -7,6 +7,7 @@ import 'package:makolo_mobile/app/app_shell.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/app/sync_lifecycle.dart';
+import 'package:makolo_mobile/design/makolo_mark.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/mark/mark_screen.dart';
 import 'package:makolo_mobile/navigation/refresh_boundary.dart';
@@ -133,6 +134,29 @@ void main() {
     expect(find.byTooltip('Makolo Mark'), findsOneWidget);
     expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
     expect(find.byIcon(Icons.home_outlined), findsNothing);
+  });
+
+  testWidgets('central Makolo Mark uses the enlarged visual size', (
+    tester,
+  ) async {
+    await _pumpRouter(tester);
+
+    final markFinder = find.descendant(
+      of: find.byTooltip('Makolo Mark'),
+      matching: find.byType(MakoloMark),
+    );
+    final mark = tester.widget<MakoloMark>(markFinder);
+    expect(mark.size, 38);
+  });
+
+  testWidgets('Avatar exposes the personal Connexions entry', (tester) async {
+    await _pumpRouter(tester);
+
+    await tester.tap(find.byTooltip('Avatar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Connexions'), findsOneWidget);
+    expect(find.byIcon(Icons.link_outlined), findsOneWidget);
   });
 
   testWidgets('touching a tab restores it without requesting refresh', (
