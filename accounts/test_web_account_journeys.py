@@ -22,6 +22,22 @@ User = get_user_model()
 class WebAccountJourneyTests(TestCase):
     password = "Strong-web-account-password-2026!"
 
+    def test_login_surface_accepts_identifier_or_email(self):
+        response = self.client.get(reverse("core:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Identifiant Makolo ou adresse e-mail")
+        self.assertContains(response, 'type="text"')
+        self.assertNotContains(response, 'type="email" value=')
+
+    def test_registration_surface_marks_email_optional_and_checks_identifier(self):
+        response = self.client.get(reverse("account:register"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Adresse e-mail (facultatif)")
+        self.assertContains(response, "Identifiant Makolo")
+        self.assertContains(response, "data-identifier-check")
+
     def test_valid_web_registration_reuses_account_initialization(self):
         response = self.client.post(
             reverse("account:register"),
