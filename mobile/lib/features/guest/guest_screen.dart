@@ -230,7 +230,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 )
               else if (_visibleItems.isEmpty)
                 const MakoloEmptyState(
-                  title: 'Aucune possibilité publique à afficher pour le moment.',
+                  title:
+                      'Aucune possibilité publique à afficher pour le moment.',
                   icon: Icons.explore_outlined,
                 )
               else
