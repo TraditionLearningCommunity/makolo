@@ -29,20 +29,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   static const _pages = <({String title, String body, IconData icon})>[
     (
       title: 'Découvrez ce qui compte vraiment.',
-      body:
-          'Explorez des possibilités réelles sans transformer Makolo en simple fil à parcourir.',
+      body: 'Explorez des possibilités réelles sans transformer Makolo en simple fil à parcourir.',
       icon: Icons.explore_outlined,
     ),
     (
       title: 'Préparez ce qui peut l’être.',
-      body:
-          'Rassemblez le contexte utile avant le moment d’agir et voyez clairement ce qui reste à faire.',
+      body: 'Rassemblez le contexte utile avant le moment d’agir et voyez clairement ce qui reste à faire.',
       icon: Icons.inventory_2_outlined,
     ),
     (
       title: 'Avancez dans l’action réelle.',
-      body:
-          'Retrouvez vos démarches, vos prochaines actions et la continuité nécessaire pour aller jusqu’au bout.',
+      body: 'Retrouvez vos démarches, vos prochaines actions et la continuité nécessaire pour aller jusqu’au bout.',
       icon: Icons.arrow_forward_rounded,
     ),
   ];

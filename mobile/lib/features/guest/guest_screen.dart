@@ -232,8 +232,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   final items = snapshot.data ?? const <Map<String, dynamic>>[];
                   if (items.isEmpty) {
                     return const MakoloEmptyState(
-                      title:
-                          'Aucune possibilité publique à afficher pour le moment.',
+                      title: 'Aucune possibilité publique à afficher pour le moment.',
                       icon: Icons.explore_outlined,
                     );
                   }
