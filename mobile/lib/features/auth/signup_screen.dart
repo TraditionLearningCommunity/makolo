@@ -168,7 +168,118 @@ class _SignupScreenState extends State<SignupScreen> {
       return 'Utilisez entre 3 et 30 caractères.';
     }
     final pattern = RegExp(
-      r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?  String? _requiredPassword(String? value) {
+      r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$',
+    );
+    if (!pattern.hasMatch(normalized)) {
+      return 'Utilisez lettres, chiffres, points, tirets ou underscores.';
+    }
+    const reserved = {
+      'admin',
+      'api',
+      'help',
+      'login',
+      'logout',
+      'makolo',
+      'me',
+      'support',
+      'system',
+    };
+    if (reserved.contains(normalized)) {
+      return 'Cet Identifiant Makolo est réservé.';
+    }
+    return null;
+  }
+
+  String? _requiredUsername(String? value) {
+    final error = _localUsernameError(value ?? '');
+    if (error != null) return error;
+    if (_usernameAvailability == _IdentifierAvailability.unavailable) {
+      return _usernameAvailabilityMessage ??
+          'Cet Identifiant Makolo n’est pas disponible.';
+    }
+    return null;
+  }
+
+  void _scheduleUsernameAvailabilityCheck() {
+    if (_restoringDraft) return;
+    _usernameAvailabilityTimer?.cancel();
+    _usernameAvailabilityVersion += 1;
+    final version = _usernameAvailabilityVersion;
+    final normalized = _normalizedUsername(_username.text);
+    final localError = _localUsernameError(normalized);
+
+    if (localError != null) {
+      if (mounted) {
+        setState(() {
+          _usernameAvailability = _IdentifierAvailability.idle;
+          _usernameAvailabilityMessage = null;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.checking;
+        _usernameAvailabilityMessage = 'Vérification…';
+      });
+    }
+
+    _usernameAvailabilityTimer = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_checkUsernameAvailability(normalized, version)),
+    );
+  }
+
+  Future<void> _checkUsernameAvailability(
+    String normalized,
+    int version,
+  ) async {
+    final api = widget.runtime.api;
+    if (api == null) {
+      if (!mounted || version != _usernameAvailabilityVersion) return;
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.unableToCheck;
+        _usernameAvailabilityMessage =
+            'Impossible de vérifier pour le moment.';
+      });
+      return;
+    }
+
+    try {
+      final response = await api.publicGet(
+        'api/v1/accounts/auth/identifier/availability/?value=${Uri.encodeQueryComponent(normalized)}',
+      );
+      final payload = response.jsonObject();
+      if (!mounted ||
+          version != _usernameAvailabilityVersion ||
+          _normalizedUsername(_username.text) != normalized) {
+        return;
+      }
+      final available = payload['available'] == true;
+      setState(() {
+        _usernameAvailability = available
+            ? _IdentifierAvailability.available
+            : _IdentifierAvailability.unavailable;
+        _usernameAvailabilityMessage = available
+            ? 'Identifiant Makolo disponible.'
+            : 'Cet Identifiant Makolo n’est pas disponible.';
+      });
+    } on Object {
+      if (!mounted ||
+          version != _usernameAvailabilityVersion ||
+          _normalizedUsername(_username.text) != normalized) {
+        return;
+      }
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.unableToCheck;
+        _usernameAvailabilityMessage =
+            'Impossible de vérifier pour le moment.';
+      });
+    }
+  }
+
+  String? _requiredPassword(String? value) {
     if (value == null || value.length < 8) {
       return 'Utilisez au moins 8 caractères.';
     }
