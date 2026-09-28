@@ -26,6 +26,14 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
+enum _IdentifierAvailability {
+  idle,
+  checking,
+  available,
+  unavailable,
+  unableToCheck,
+}
+
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
@@ -49,6 +57,11 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _rememberOnDevice = false;
   String? _error;
   Timer? _draftTimer;
+  Timer? _usernameAvailabilityTimer;
+  int _usernameAvailabilityVersion = 0;
+  _IdentifierAvailability _usernameAvailability =
+      _IdentifierAvailability.idle;
+  String? _usernameAvailabilityMessage;
   bool _restoringDraft = false;
 
   @override
@@ -63,6 +76,7 @@ class _SignupScreenState extends State<SignupScreen> {
     ]) {
       controller.addListener(_scheduleDraftSave);
     }
+    _username.addListener(_scheduleUsernameAvailabilityCheck);
     unawaited(_restoreDraft());
   }
 
@@ -107,6 +121,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void dispose() {
     _draftTimer?.cancel();
+    _usernameAvailabilityTimer?.cancel();
     for (final controller in [
       _email,
       _username,
@@ -139,11 +154,378 @@ class _SignupScreenState extends State<SignupScreen> {
     return null;
   }
 
-  String? _requiredUsername(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Choisissez un nom d’utilisateur.';
+  String _normalizedUsername(String value) {
+    final trimmed = value.trim().toLowerCase();
+    return trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
+  }
+
+  String? _localUsernameError(String value) {
+    final normalized = _normalizedUsername(value);
+    if (normalized.isEmpty) {
+      return 'Choisissez un Identifiant Makolo.';
+    }
+    if (normalized.length < 3 || normalized.length > 30) {
+      return 'Utilisez entre 3 et 30 caractères.';
+    }
+    final pattern = RegExp(r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?
+
+  String? _requiredPassword(String? value) {
+    if (value == null || value.length < 8) {
+      return 'Utilisez au moins 8 caractères.';
     }
     return null;
+  }
+
+  String? _confirmPassword(String? value) {
+    if (value != _password.text) {
+      return 'Les deux mots de passe doivent être identiques.';
+    }
+    return null;
+  }
+
+  Future<void> _submit() async {
+    if (_busy || !_formKey.currentState!.validate()) return;
+    final api = widget.runtime.api;
+    if (api == null) {
+      setState(() {
+        _error = 'La création de compte est indisponible sur cette installation pour le moment.';
+      });
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AuthRepository(api, widget.runtime.tokens).registerAndLogin(
+        email: _email.text.trim(),
+        username: _username.text.trim(),
+        password: _password.text,
+        passwordConfirm: _passwordConfirm.text,
+        firstName: _firstName.text.trim(),
+        lastName: _lastName.text.trim(),
+        phone: _phone.text.trim(),
+        rememberOnDevice: _rememberOnDevice,
+      );
+      TextInput.finishAutofillContext();
+      await widget.runtime.interactions?.clear('signup');
+      if (!mounted) return;
+      widget.onAuthenticated();
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _error = signupErrorMessage(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AuthEntryFrame(
+      title: 'Créer un compte',
+      onBack: () => widget.onBackToLogin(_email.text.trim()),
+      child: AutofillGroup(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MakoloAuthField(
+                fieldKey: const Key('signup-email'),
+                label: 'Adresse e-mail',
+                controller: _email,
+                enabled: !_busy,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                textInputAction: TextInputAction.next,
+                prefixIcon: Icons.alternate_email,
+                validator: _requiredEmail,
+                onEditingComplete: () => _usernameFocus.requestFocus(),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloAuthField(
+                fieldKey: const Key('signup-username'),
+                label: 'Identifiant Makolo',
+                controller: _username,
+                focusNode: _usernameFocus,
+                enabled: !_busy,
+                autofillHints: const [AutofillHints.username],
+                textInputAction: TextInputAction.next,
+                prefixIcon: Icons.person_outline,
+                validator: _requiredUsername,
+                onEditingComplete: () => _firstNameFocus.requestFocus(),
+              ),
+              if (_usernameAvailability != _IdentifierAvailability.idle) ...[
+                const SizedBox(height: MakoloSpacing.xs),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _usernameAvailabilityMessage ?? '',
+                    key: const Key('signup-username-availability'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: switch (_usernameAvailability) {
+                        _IdentifierAvailability.available =>
+                          Theme.of(context).colorScheme.primary,
+                        _IdentifierAvailability.unavailable =>
+                          Theme.of(context).colorScheme.error,
+                        _IdentifierAvailability.unableToCheck =>
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.checking =>
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.idle =>
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                      },
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloAuthField(
+                fieldKey: const Key('signup-first-name'),
+                label: 'Prénom (facultatif)',
+                controller: _firstName,
+                focusNode: _firstNameFocus,
+                enabled: !_busy,
+                autofillHints: const [AutofillHints.givenName],
+                textInputAction: TextInputAction.next,
+                prefixIcon: Icons.badge_outlined,
+                onEditingComplete: () => _lastNameFocus.requestFocus(),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloAuthField(
+                fieldKey: const Key('signup-last-name'),
+                label: 'Nom (facultatif)',
+                controller: _lastName,
+                focusNode: _lastNameFocus,
+                enabled: !_busy,
+                autofillHints: const [AutofillHints.familyName],
+                textInputAction: TextInputAction.next,
+                prefixIcon: Icons.badge_outlined,
+                onEditingComplete: () => _phoneFocus.requestFocus(),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloAuthField(
+                fieldKey: const Key('signup-phone'),
+                label: 'Téléphone (facultatif)',
+                controller: _phone,
+                focusNode: _phoneFocus,
+                enabled: !_busy,
+                keyboardType: TextInputType.phone,
+                autofillHints: const [AutofillHints.telephoneNumber],
+                textInputAction: TextInputAction.next,
+                prefixIcon: Icons.phone_outlined,
+                onEditingComplete: () => _passwordFocus.requestFocus(),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloAuthField(
+                fieldKey: const Key('signup-password'),
+                label: 'Mot de passe',
+                controller: _password,
+                focusNode: _passwordFocus,
+                enabled: !_busy,
+                obscureText: !_showPassword,
+                autofillHints: const [AutofillHints.newPassword],
+                textInputAction: TextInputAction.next,
+                prefixIcon: Icons.lock_outline,
+                validator: _requiredPassword,
+                onEditingComplete: () => _passwordConfirmFocus.requestFocus(),
+                suffixIcon: IconButton(
+                  tooltip: _showPassword
+                      ? 'Masquer le mot de passe'
+                      : 'Afficher le mot de passe',
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _showPassword = !_showPassword),
+                  icon: Icon(
+                    _showPassword ? Icons.visibility_off : Icons.visibility,
+                    color: MakoloColors.deep,
+                  ),
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloAuthField(
+                fieldKey: const Key('signup-password-confirm'),
+                label: 'Confirmer le mot de passe',
+                controller: _passwordConfirm,
+                focusNode: _passwordConfirmFocus,
+                enabled: !_busy,
+                obscureText: !_showPasswordConfirm,
+                autofillHints: const [AutofillHints.newPassword],
+                textInputAction: TextInputAction.done,
+                prefixIcon: Icons.lock_outline,
+                validator: _confirmPassword,
+                onFieldSubmitted: (_) => _submit(),
+                suffixIcon: IconButton(
+                  tooltip: _showPasswordConfirm
+                      ? 'Masquer la confirmation'
+                      : 'Afficher la confirmation',
+                  onPressed: _busy
+                      ? null
+                      : () => setState(
+                          () => _showPasswordConfirm = !_showPasswordConfirm,
+                        ),
+                  icon: Icon(
+                    _showPasswordConfirm
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    color: MakoloColors.deep,
+                  ),
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloQuickAccessChoice(
+                value: _rememberOnDevice,
+                onChanged: _busy
+                    ? null
+                    : (value) {
+                        setState(() => _rememberOnDevice = value);
+                        _scheduleDraftSave();
+                      },
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: Color(0xFFFFDAD6),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloAuthPrimaryButton(
+                buttonKey: const Key('signup-submit'),
+                label: 'Créer mon compte',
+                busy: _busy,
+                onPressed: _submit,
+              ),
+              const SizedBox(height: MakoloSpacing.sm),
+              MakoloAuthSecondaryButton(
+                label: 'J’ai déjà un compte',
+                onPressed: _busy
+                    ? null
+                    : () => widget.onBackToLogin(_email.text.trim()),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+);
+    if (!pattern.hasMatch(normalized)) {
+      return 'Utilisez lettres, chiffres, points, tirets ou underscores.';
+    }
+    const reserved = {
+      'admin',
+      'api',
+      'help',
+      'login',
+      'logout',
+      'makolo',
+      'me',
+      'support',
+      'system',
+    };
+    if (reserved.contains(normalized)) {
+      return 'Cet Identifiant Makolo est réservé.';
+    }
+    return null;
+  }
+
+  String? _requiredUsername(String? value) {
+    final error = _localUsernameError(value ?? '');
+    if (error != null) return error;
+    if (_usernameAvailability == _IdentifierAvailability.unavailable) {
+      return _usernameAvailabilityMessage ??
+          'Cet Identifiant Makolo n’est pas disponible.';
+    }
+    return null;
+  }
+
+  void _scheduleUsernameAvailabilityCheck() {
+    if (_restoringDraft) return;
+    _usernameAvailabilityTimer?.cancel();
+    _usernameAvailabilityVersion += 1;
+    final version = _usernameAvailabilityVersion;
+    final normalized = _normalizedUsername(_username.text);
+    final localError = _localUsernameError(normalized);
+
+    if (localError != null) {
+      if (mounted) {
+        setState(() {
+          _usernameAvailability = _IdentifierAvailability.idle;
+          _usernameAvailabilityMessage = null;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.checking;
+        _usernameAvailabilityMessage = 'Vérification…';
+      });
+    }
+
+    _usernameAvailabilityTimer = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_checkUsernameAvailability(normalized, version)),
+    );
+  }
+
+  Future<void> _checkUsernameAvailability(
+    String normalized,
+    int version,
+  ) async {
+    final api = widget.runtime.api;
+    if (api == null) {
+      if (!mounted || version != _usernameAvailabilityVersion) return;
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.unableToCheck;
+        _usernameAvailabilityMessage =
+            'Impossible de vérifier pour le moment.';
+      });
+      return;
+    }
+
+    try {
+      final response = await api.publicGet(
+        'api/v1/accounts/auth/identifier/availability/?value=${Uri.encodeQueryComponent(normalized)}',
+      );
+      final payload = response.jsonObject();
+      if (!mounted ||
+          version != _usernameAvailabilityVersion ||
+          _normalizedUsername(_username.text) != normalized) {
+        return;
+      }
+      final available = payload['available'] == true;
+      setState(() {
+        _usernameAvailability = available
+            ? _IdentifierAvailability.available
+            : _IdentifierAvailability.unavailable;
+        _usernameAvailabilityMessage = available
+            ? 'Identifiant Makolo disponible.'
+            : 'Cet Identifiant Makolo n’est pas disponible.';
+      });
+    } on Object {
+      if (!mounted ||
+          version != _usernameAvailabilityVersion ||
+          _normalizedUsername(_username.text) != normalized) {
+        return;
+      }
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.unableToCheck;
+        _usernameAvailabilityMessage =
+            'Impossible de vérifier pour le moment.';
+      });
+    }
   }
 
   String? _requiredPassword(String? value) {
