@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:makolo_mobile/app/launch_preferences.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/resumable_interaction_store.dart';
@@ -16,6 +14,7 @@ import 'package:makolo_mobile/features/auth/login_screen.dart';
 import 'package:makolo_mobile/features/auth/signup_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
+import 'dio_testing.dart';
 import 'fakes.dart';
 
 class _MemoryLaunchPreferences implements LaunchPreferencesStore {
@@ -50,7 +49,7 @@ AppRuntime _guestRuntime(
         ? null
         : MakoloApiClient(
             baseUri: Uri.parse('https://makolo.invalid/'),
-            httpClient: client,
+            dio: client.dio,
             tokenStore: tokens,
           ),
   );
@@ -79,7 +78,7 @@ void main() {
     final client = MockClient((request) async {
       expect(request.headers.containsKey('Authorization'), isFalse);
       expect(request.url.path, '/api/v1/discovery/items/');
-      return http.Response(
+      return MockResponse(
         jsonEncode({
           'data': {
             'results': [
@@ -116,7 +115,7 @@ void main() {
     tester,
   ) async {
     final client = MockClient(
-      (request) async => http.Response(
+      (request) async => MockResponse(
         jsonEncode({
           'data': {'results': <Object>[]},
         }),
