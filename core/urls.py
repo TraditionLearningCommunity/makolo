@@ -2,6 +2,7 @@ from django.contrib.auth.views import LogoutView
 from django.urls import path
 
 from .home_views import MatureParticipantHomeView
+from .interoperability_views import PersonalConnectionsView
 from .m8c_participant_views import ParticipantJourneyDetailView, ParticipantOccurrenceLiveView
 from .mature_experience_views import MakoloMarkView, MatureParticipantMeView, MatureParticipantOngoingView
 from .participant_views import (
@@ -27,6 +28,7 @@ urlpatterns = [
     path("me/", MatureParticipantHomeView.as_view(), name="participant-home"),
     path("me/ongoing/", MatureParticipantOngoingView.as_view(), name="participant-ongoing"),
     path("me/moi/", MatureParticipantMeView.as_view(), name="participant-me"),
+    path("me/connections/", PersonalConnectionsView.as_view(), name="participant-connections"),
     path("mark/", MakoloMarkView.as_view(), name="makolo-mark"),
     path("me/journeys/", ParticipantJourneyListView.as_view(), name="participant-journeys"),
     path(
