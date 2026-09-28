@@ -160,6 +160,14 @@ class MakoloIdentityFoundationTests(APITestCase):
             self.assertIn("access", response.data)
             self.assertIn("refresh", response.data)
 
+        legacy_mobile = self.client.post(
+            "/api/v1/accounts/auth/login/",
+            {"email": "runner@example.com", "password": self.password},
+            format="json",
+        )
+        self.assertEqual(legacy_mobile.status_code, status.HTTP_200_OK)
+        self.assertIn("access", legacy_mobile.data)
+
         user.refresh_from_db()
         self.assertEqual(user.username, "kivu-runner")
 
