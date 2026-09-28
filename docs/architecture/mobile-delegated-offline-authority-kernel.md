@@ -688,3 +688,5 @@ Le Bloc F est fermé comme contrat de conception lorsque :
 > **Makolo Mobile peut continuer à montrer et préparer beaucoup de choses hors réseau. Il ne peut décider hors réseau que ce qu'un owner lui a explicitement délégué, pour un scope, un temps et un risque bornés.**
 
 F transforme donc l'exception terrain en protocole contrôlé, sans transformer le téléphone en seconde source de vérité.
+
+La fermeture de maturité, sécurité, observabilité, distribution et stores est portée par `mobile-mature-release-kernel.md` (Bloc G).
