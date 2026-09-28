@@ -120,3 +120,46 @@ class UploadValidationTests(APITestCase):
         )
         with self.assertRaises(ValidationError):
             validate_verification_document(uploaded_file)
+
+
+class PasswordResetRequestTests(APITestCase):
+    def test_password_reset_request_reports_local_only_delivery_in_test_environment(self):
+        user = User.objects.create_user(
+            username="reset-user",
+            email="reset@example.com",
+            password="Strong-local-password-123!",
+        )
+        self.assertIsNotNone(user.pk)
+
+        response = self.client.post(
+            "/api/v1/accounts/auth/password/forgot/",
+            {"email": "reset@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["email_delivery"], "local_only")
+        self.assertIn("demande de réinitialisation", response.data["message"])
+
+    def test_password_reset_request_does_not_reveal_account_existence(self):
+        known = User.objects.create_user(
+            username="known-reset-user",
+            email="known-reset@example.com",
+            password="Strong-local-password-123!",
+        )
+        self.assertIsNotNone(known.pk)
+
+        known_response = self.client.post(
+            "/api/v1/accounts/auth/password/forgot/",
+            {"email": "known-reset@example.com"},
+            format="json",
+        )
+        unknown_response = self.client.post(
+            "/api/v1/accounts/auth/password/forgot/",
+            {"email": "unknown-reset@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(known_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(unknown_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(known_response.data, unknown_response.data)

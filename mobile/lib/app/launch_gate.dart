@@ -19,7 +19,7 @@ class LaunchGate extends StatefulWidget {
     required this.child,
     this.brandPolicy = const BrandMomentPolicy(),
     this.launchStartedAt,
-    this.minimumVisible = const Duration(milliseconds: 700),
+    this.minimumVisible = const Duration(seconds: 1),
   });
 
   final AppRuntime runtime;

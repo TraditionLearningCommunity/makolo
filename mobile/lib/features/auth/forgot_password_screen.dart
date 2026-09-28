@@ -35,6 +35,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
   late final TextEditingController _email;
   bool _busy = false;
   bool _sent = false;
+  bool _externalDelivery = false;
   String? _error;
 
   @override
@@ -72,12 +73,15 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       _error = null;
     });
     try {
-      await AuthRepository(
+      final result = await AuthRepository(
         api,
         widget.runtime.tokens,
       ).forgotPassword(email: _email.text.trim());
       if (!mounted) return;
-      setState(() => _sent = true);
+      setState(() {
+        _sent = true;
+        _externalDelivery = result.externalDelivery;
+      });
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -94,22 +98,34 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final dialogTitle = !_sent
+        ? 'Mot de passe oublié ?'
+        : _externalDelivery
+        ? 'Consultez votre boîte de réception'
+        : 'Demande prise en compte';
+    final confirmationMessage = _externalDelivery
+        ? 'Si un compte correspond à ${_email.text.trim()}, Makolo a traité '
+              'la demande de réinitialisation. Consultez votre boîte de '
+              'réception et le dossier spam. Ouvrez le lien reçu pour choisir '
+              'un nouveau mot de passe, puis revenez vous connecter.'
+        : 'La demande a été prise en compte. Cet environnement Makolo ne '
+              'délivre pas encore les e-mails vers une boîte réelle. Aucun '
+              'message ne peut donc arriver ici pour le moment.';
+
     return AlertDialog(
       backgroundColor: MakoloColors.warm,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(MakoloRadii.large),
       ),
-      title: Text(
-        _sent ? 'Consultez votre boîte de réception' : 'Mot de passe oublié ?',
-      ),
+      title: Text(dialogTitle),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: _sent
             ? Semantics(
                 liveRegion: true,
                 child: Text(
-                  'Si un compte correspond à ${_email.text.trim()}, Makolo y a envoyé les instructions. Ouvrez le lien reçu pour réinitialiser votre mot de passe, puis revenez vous connecter.',
+                  confirmationMessage,
                   style: const TextStyle(height: 1.45),
                 ),
               )
@@ -120,7 +136,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Indiquez l’adresse e-mail de votre compte. Makolo répond de la même façon qu’un compte existe ou non.',
+                      'Indiquez l’adresse e-mail de votre compte. Par sécurité, Makolo ne confirme pas ici si un compte y est associé.',
                     ),
                     const SizedBox(height: MakoloSpacing.lg),
                     TextFormField(

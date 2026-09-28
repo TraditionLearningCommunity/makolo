@@ -33,6 +33,18 @@ def blacklist_user_refresh_tokens(user) -> int:
     return count
 
 
+def email_delivery_mode() -> str:
+    """Describe environment-level delivery capability without exposing account existence."""
+    backend = settings.EMAIL_BACKEND
+    local_only_backends = {
+        "django.core.mail.backends.console.EmailBackend",
+        "django.core.mail.backends.filebased.EmailBackend",
+        "django.core.mail.backends.locmem.EmailBackend",
+        "django.core.mail.backends.dummy.EmailBackend",
+    }
+    return "local_only" if backend in local_only_backends else "external"
+
+
 def request_password_reset(*, email: str) -> None:
     normalized_email = (email or "").strip().lower()
     user = User.objects.filter(email__iexact=normalized_email, is_active=True).first()
