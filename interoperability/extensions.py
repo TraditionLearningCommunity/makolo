@@ -82,3 +82,7 @@ class ExtensionRegistry:
             return self._extensions[code]
         except KeyError as exc:
             raise ExtensionError(f"Unknown extension: {code}") from exc
+
+    def definitions(self) -> tuple[ExtensionDefinition, ...]:
+        """Return allowlisted extension metadata only."""
+        return tuple(self._extensions[code] for code in sorted(self._extensions))

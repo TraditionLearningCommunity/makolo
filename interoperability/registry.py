@@ -114,11 +114,19 @@ class InteroperabilityRegistry:
         except KeyError as exc:
             raise UnknownProvider(code) from exc
 
+    def capabilities(self) -> tuple[CapabilityDefinition, ...]:
+        """Return stable metadata only; adapters and runtime objects stay private."""
+        return tuple(self._capabilities[code] for code in sorted(self._capabilities))
+
+    def providers(self) -> tuple[ProviderDefinition, ...]:
+        """Return installed provider definitions without Connection/secret state."""
+        return tuple(self._providers[code] for code in sorted(self._providers))
+
     def providers_for(self, capability: str) -> tuple[ProviderDefinition, ...]:
         self.get_capability(capability)
         return tuple(
             provider
-            for provider in self._providers.values()
+            for provider in self.providers()
             if capability in provider.capabilities
         )
 
