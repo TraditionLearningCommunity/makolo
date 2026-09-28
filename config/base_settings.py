@@ -220,9 +220,7 @@ SOCIALACCOUNT_PROVIDERS = {
         "SCOPE": ["email", "public_profile"],
         "VERIFIED_EMAIL": False,
     },
-    "microsoft": {
-        "SCOPE": ["User.Read"],
-    },
+    "microsoft": {},
     "openid_connect": {
         "OAUTH_PKCE_ENABLED": True,
     },
