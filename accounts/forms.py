@@ -41,6 +41,12 @@ class AccountRegistrationForm(forms.Form):
         _style_form_fields(self)
         self.fields["email"].widget.attrs.setdefault("autocomplete", "email")
         self.fields["username"].widget.attrs.setdefault("autocomplete", "username")
+        self.fields["username"].widget.attrs.update(
+            {
+                "data-identifier-check": "true",
+                "data-availability-url": "/api/v1/accounts/auth/identifier/availability/",
+            }
+        )
         self._serializer = None
 
     def clean(self):
