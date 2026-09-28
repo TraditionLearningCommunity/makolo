@@ -67,10 +67,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     return connection.available ? 'Disponible' : 'Indisponible';
   }
 
-  Widget _connectionCard(
-    BuildContext context,
-    InteroperabilityConnectionProjection connection,
-  ) {
+  Widget _connectionCard(InteroperabilityConnectionProjection connection) {
     return Card(
       child: ListTile(
         key: Key('connection-${connection.id}'),
@@ -84,10 +81,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     );
   }
 
-  Widget _providerCard(
-    BuildContext context,
-    InteroperabilityProviderProjection provider,
-  ) {
+  Widget _providerCard(InteroperabilityProviderProjection provider) {
     return Card(
       child: ListTile(
         key: Key('provider-${provider.code}'),
@@ -98,10 +92,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     );
   }
 
-  Widget _extensionCard(
-    BuildContext context,
-    InteroperabilityExtensionProjection extension,
-  ) {
+  Widget _extensionCard(InteroperabilityExtensionProjection extension) {
     return Card(
       child: ListTile(
         key: Key('extension-${extension.code}'),
@@ -112,10 +103,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     );
   }
 
-  Widget _actionCard(
-    BuildContext context,
-    InteroperabilityActionProjection action,
-  ) {
+  Widget _actionCard(InteroperabilityActionProjection action) {
     final available = action.available;
     return Card(
       child: ListTile(
@@ -166,7 +154,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           Text('Mes connexions', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: MakoloSpacing.sm),
           for (final connection in projection.connections)
-            _connectionCard(context, connection),
+            _connectionCard(connection),
         ],
         if (projection.providers.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
@@ -176,7 +164,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           ),
           const SizedBox(height: MakoloSpacing.sm),
           for (final provider in projection.providers)
-            _providerCard(context, provider),
+            _providerCard(provider),
         ],
         if (projection.actions.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
@@ -186,7 +174,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           ),
           const SizedBox(height: MakoloSpacing.sm),
           for (final action in projection.actions)
-            _actionCard(context, action),
+            _actionCard(action),
         ],
         const SizedBox(height: MakoloSpacing.lg),
         Text('Extensions', style: Theme.of(context).textTheme.titleMedium),
@@ -198,7 +186,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           )
         else
           for (final extension in projection.extensions)
-            _extensionCard(context, extension),
+            _extensionCard(extension),
       ],
     );
   }
