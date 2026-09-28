@@ -1,4 +1,4 @@
-# A2 — Launch, Brand Moment & onboarding
+# A2 — Launch & onboarding
 
 > **Statut : branche empilée de travail**
 >
@@ -10,11 +10,10 @@
 
 ## 1. Frontières
 
-Trois couches restent distinctes :
+Le runtime réconcilié conserve deux responsabilités distinctes :
 
-1. **splash natif** : couverture technique du démarrage et identité ;
-2. **Brand Moment** : transition identitaire occasionnelle et locale ;
-3. **onboarding** : première utilisation de cette installation.
+1. **lancement visuellement continu** : splash natif puis premier frame Flutter avec le même fond/Mark, sans seconde phase de marque concurrente ;
+2. **onboarding** : première utilisation de cette installation.
 
 Aucune de ces couches ne possède une vérité métier.
 
@@ -33,23 +32,23 @@ Le lancement utilise :
 
 Le splash Flutter technique reprend le même fond et le même Mark afin de réduire le risque de flash entre la fenêtre native et le premier frame Flutter.
 
-## 3. Brand Moment
+## 3. Animation de lancement
 
-Séquence visuelle :
+Le retour appareil réel a montré qu'un `SplashScreen` suivi d'un `BrandMoment` distinct produit l'impression de deux splash screens.
+
+Le runtime final n'enchaîne donc plus une seconde page de marque. Le premier frame Flutter prolonge directement le splash natif :
 
 ~~~text
-trois appuis stylisés
-→ Makolo Mark canonique
-→ destination déjà demandée
+Mark blanc sur Indigo
+→ léger mouvement du Mark évoquant la marche
+→ première surface prête
 ~~~
 
-L'animation est Flutter native, sans GIF, vidéo, Lottie ou Rive.
+Le launch gate impose un minimum visuel d'une seconde depuis le début du lancement et attend plus longtemps lorsque l'initialisation réelle n'est pas terminée. Il ne rajoute pas un délai après une initialisation déjà plus longue.
 
-La policy est centralisée dans `BrandMomentPolicy`.
+Reduce Motion conserve un Mark blanc statique.
 
-La cadence configurée sur cette branche est provisoirement **1 jour** et peut être changée en **3 jours** en modifiant uniquement `BrandMomentPolicy.configuredCadence`.
-
-Le Brand Moment est supprimé lorsqu'une navigation prioritaire est déjà demandée. Il n'est pas rejoué au simple retour depuis l'arrière-plan. Reduce Motion utilise un Mark statique très bref, sans déplacement des appuis.
+`BrandMoment` peut subsister comme ancien composant source tant qu'aucun nettoyage séparé ne le justifie, mais il n'est plus une étape du lancement.
 
 ## 4. Onboarding
 
@@ -81,12 +80,9 @@ Les destinations personnelles profondes restent préservées et demandent une au
 
 ## 6. Préférences locales
 
-Deux états installation/appareil restent séparés :
+Le runtime utilise `hasCompletedOnboarding` pour l'onboarding. Le champ historique `lastBrandMomentAt` peut encore exister dans le stockage de préférences pour compatibilité des installations déjà écrites, mais il ne commande plus une seconde phase visuelle de lancement.
 
-- `hasCompletedOnboarding` ;
-- `lastBrandMomentAt`.
-
-Ils sont stockés dans un petit fichier JSON de support applicatif via `path_provider`, déjà présent en A1.
+Ces préférences sont stockées dans un petit fichier JSON de support applicatif via `path_provider`, déjà présent en A1.
 
 Ils ne sont pas stockés dans Drift, ne deviennent pas une vérité backend et ne nécessitent aucune migration Django ou locale.
 
