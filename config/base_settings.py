@@ -196,6 +196,7 @@ else:
 
 AUTHENTICATION_BACKENDS = [
     "accounts.auth_backends.MakoloAccountBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 # django-allauth owns only the external provider handshake. Makolo keeps its
