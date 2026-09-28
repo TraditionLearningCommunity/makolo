@@ -15,6 +15,7 @@ from core.api.privacy import PrivateNoStoreMixin
 from accounts.services import (
     change_password,
     delete_account,
+    email_delivery_mode,
     request_password_reset,
     reset_password,
 )
@@ -155,7 +156,11 @@ class PasswordForgotAPIView(APIView):
         request_password_reset(email=serializer.validated_data["email"])
         return Response(
             {
-                "message": "Si un compte actif correspond à cette adresse, un e-mail de réinitialisation a été envoyé."
+                "message": (
+                    "Si un compte actif correspond à cette adresse, "
+                    "la demande de réinitialisation a été traitée."
+                ),
+                "email_delivery": email_delivery_mode(),
             }
         )
 
