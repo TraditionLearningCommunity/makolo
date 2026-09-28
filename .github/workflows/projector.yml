@@ -2,6 +2,8 @@ name: Projector Actor 7
 
 on:
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "projector/**"
       - "activities/projector_snapshots.py"
@@ -32,6 +34,7 @@ permissions:
 
 jobs:
   projector-postgresql:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
