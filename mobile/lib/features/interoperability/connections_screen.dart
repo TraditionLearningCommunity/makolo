@@ -141,7 +141,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     if (projection.isEmpty) {
       return const MakoloEmptyState(
         title: 'Aucune connexion pour le moment',
-        message:
+        body:
             'Aucun service ni aucune extension n’est encore disponible pour votre Profil.',
       );
     }
@@ -238,7 +238,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           if (syncStatus?.state == SyncVisualState.offline) {
             return const MakoloEmptyState(
               title: 'Connexions indisponibles hors ligne',
-              message:
+              body:
                   'Aucune copie locale n’est encore disponible. Réessayez lorsque le réseau revient.',
             );
           }
