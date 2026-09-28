@@ -295,6 +295,15 @@ Le portail LinkedIn doit avoir le produit « Sign In with LinkedIn using OpenID 
 
 Avant d'annoncer un provider disponible, vérifier le callback réellement enregistré chez le provider, la présence de la `SocialApp`, puis `GET /api/v1/accounts/auth/providers/`. Les boutons Web n'apparaissent que pour les providers que allauth voit comme configurés.
 
+Diagnostic opérateur sans exposition de secret :
+
+~~~bash
+python manage.py social_auth_status
+python manage.py social_auth_status --require-all
+~~~
+
+La seconde commande doit réussir avant de considérer les quatre providers externes comme activés dans un environnement.
+
 L'authentification provider et la Trust Makolo restent distinctes : un compte externe authentifié ne vaut pas vérification d'identité civile. Les tokens provider ne sont pas persistés par défaut (`SOCIALACCOUNT_STORE_TOKENS=False`).
 
 ### Fichiers, logs et sessions
