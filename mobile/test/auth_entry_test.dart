@@ -343,7 +343,7 @@ void main() {
         forgotCalls += 1;
         return MockResponse(
           jsonEncode({
-            'message': 'Si un compte actif correspond à cette adresse, la demande de réinitialisation a été traitée.',
+            'message': 'Demande de réinitialisation traitée.',
             'email_delivery': 'external',
           }),
           200,
@@ -370,7 +370,6 @@ void main() {
     expect(find.textContaining('n’existe pas'), findsNothing);
     expect(find.textContaining('existe bien'), findsNothing);
   });
-
 
   testWidgets(
     'password reset explains when this environment cannot deliver mail',
@@ -447,10 +446,7 @@ void main() {
     await tester.tap(find.byKey(const Key('signup-submit')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('déjà associée à un compte'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('déjà associée à un compte'), findsOneWidget);
     expect(find.textContaining('Mot de passe oublié'), findsWidgets);
   });
 
