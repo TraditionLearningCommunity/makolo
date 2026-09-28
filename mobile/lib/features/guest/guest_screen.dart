@@ -21,8 +21,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   static const _interactionId = 'public-discover';
 
   final _search = TextEditingController();
-  Future<List<Map<String, dynamic>>>? _results;
   List<Map<String, dynamic>> _allItems = const [];
+  List<Map<String, dynamic>> _visibleItems = const [];
+  bool _loading = true;
   String? _error;
   Timer? _queryDraftTimer;
 
@@ -77,7 +78,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   void _applyLocalFilter() {
     if (!mounted) return;
     setState(() {
-      _results = Future.value(_filteredItems());
+      _visibleItems = _filteredItems();
     });
   }
 
@@ -98,51 +99,54 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
   Future<void> _load() async {
     final api = widget.runtime.api;
-    if (api == null) {
-      _allItems = const [];
-      if (mounted) {
-        setState(() {
-          _results = Future.value(const <Map<String, dynamic>>[]);
-          _error = null;
-        });
-      }
-      return;
-    }
-
     final query = _search.text.trim();
     await widget.runtime.interactions?.save(_interactionId, {'query': query});
 
-    setState(() {
-      _error = null;
-      _results = () async {
-        try {
-          final response = await api.publicGet(
-            'api/v1/discovery/items/?page_size=20',
-          );
-          final payload = response.jsonObject();
-          final data = payload['data'];
-          final rawResults = data is Map ? data['results'] : null;
-          if (rawResults is! List) {
-            _allItems = const [];
-            return const <Map<String, dynamic>>[];
-          }
-          _allItems = rawResults
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList(growable: false);
+    if (api == null) {
+      if (!mounted) return;
+      setState(() {
+        _allItems = const [];
+        _visibleItems = const [];
+        _loading = false;
+        _error = null;
+      });
+      return;
+    }
 
-          return _filteredItems();
-        } on Object {
-          if (mounted) {
-            setState(
-              () => _error =
-                  'Impossible d’actualiser les possibilités publiques.',
-            );
-          }
-          return const <Map<String, dynamic>>[];
-        }
-      }();
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final response = await api.publicGet(
+        'api/v1/discovery/items/?page_size=20',
+      );
+      final payload = response.jsonObject();
+      final data = payload['data'];
+      final rawResults = data is Map ? data['results'] : null;
+      final items = rawResults is List
+          ? rawResults
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList(growable: false)
+          : const <Map<String, dynamic>>[];
+
+      if (!mounted) return;
+      _allItems = items;
+      setState(() {
+        _visibleItems = _filteredItems();
+        _loading = false;
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Impossible d’actualiser les possibilités publiques.';
+      });
+    }
   }
 
   @override
@@ -217,32 +221,24 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 Text(_error!, style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: MakoloSpacing.md),
               ],
-              FutureBuilder<List<Map<String, dynamic>>>(
-                future: _results,
-                builder: (context, snapshot) {
-                  if (_results == null ||
-                      snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.only(top: MakoloSpacing.md),
-                      child: MakoloLoadingState(
-                        label: 'Chargement des possibilités',
-                      ),
-                    );
-                  }
-                  final items = snapshot.data ?? const <Map<String, dynamic>>[];
-                  if (items.isEmpty) {
-                    return const MakoloEmptyState(
-                      title: 'Aucune possibilité publique à afficher pour le moment.',
-                      icon: Icons.explore_outlined,
-                    );
-                  }
-                  return Column(
-                    children: items
-                        .map((item) => _PublicPossibilityCard(item: item))
-                        .toList(growable: false),
-                  );
-                },
-              ),
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.only(top: MakoloSpacing.md),
+                  child: MakoloLoadingState(
+                    label: 'Chargement des possibilités',
+                  ),
+                )
+              else if (_visibleItems.isEmpty)
+                const MakoloEmptyState(
+                  title: 'Aucune possibilité publique à afficher pour le moment.',
+                  icon: Icons.explore_outlined,
+                )
+              else
+                Column(
+                  children: _visibleItems
+                      .map((item) => _PublicPossibilityCard(item: item))
+                      .toList(growable: false),
+                ),
             ],
           ),
         ),
