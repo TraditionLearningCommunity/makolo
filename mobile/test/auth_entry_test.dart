@@ -34,6 +34,7 @@ Future<void> _pumpLogin(
   WidgetTester tester,
   AppRuntime runtime, {
   double textScale = 1,
+  bool startWithAccounts = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -41,7 +42,10 @@ Future<void> _pumpLogin(
         theme: buildMakoloTheme(),
         home: MediaQuery(
           data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-          child: LoginScreen(runtime: runtime),
+          child: LoginScreen(
+            runtime: runtime,
+            startWithAccounts: startWithAccounts,
+          ),
         ),
       ),
     ),
@@ -130,7 +134,7 @@ void main() {
       find.byKey(const Key('login-password')),
       'secret-pass',
     );
-    await _tapVisible(tester, find.text('Accès rapide sur cet appareil').first);
+    await _tapVisible(tester, find.text('Se souvenir de moi').first);
     await _tapVisible(tester, find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
@@ -388,7 +392,7 @@ void main() {
       recovery: recovery,
     );
 
-    await _pumpLogin(tester, runtime);
+    await _pumpLogin(tester, runtime, startWithAccounts: true);
 
     expect(find.text('Choisir un compte'), findsOneWidget);
     expect(find.text('Amina K.'), findsOneWidget);
