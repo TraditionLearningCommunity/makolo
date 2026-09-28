@@ -124,10 +124,19 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     ProfileInteroperabilityProjection projection,
   ) {
     if (projection.isEmpty) {
-      return const MakoloEmptyState(
-        title: 'Aucune connexion pour le moment',
-        body:
-            'Aucun service ni aucune extension n’est encore disponible pour votre Profil.',
+      return ListView(
+        key: const Key('profile-connections-empty'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(
+            height: 520,
+            child: MakoloEmptyState(
+              title: 'Aucune connexion pour le moment',
+              body:
+                  'Aucun service ni aucune extension n’est encore disponible pour votre Profil.',
+            ),
+          ),
+        ],
       );
     }
 
@@ -219,10 +228,19 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
 
           final syncStatus = SyncStatusScope.maybeOf(context);
           if (syncStatus?.state == SyncVisualState.offline) {
-            return const MakoloEmptyState(
-              title: 'Connexions indisponibles hors ligne',
-              body:
-                  'Aucune copie locale n’est encore disponible. Réessayez lorsque le réseau revient.',
+            return ListView(
+              key: const Key('profile-connections-offline-empty'),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(
+                  height: 520,
+                  child: MakoloEmptyState(
+                    title: 'Connexions indisponibles hors ligne',
+                    body:
+                        'Aucune copie locale n’est encore disponible. Réessayez lorsque le réseau revient.',
+                  ),
+                ),
+              ],
             );
           }
 
