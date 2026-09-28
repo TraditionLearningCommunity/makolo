@@ -61,6 +61,21 @@ Every meaningful work item should state:
 
 For domain changes, include targeted tests first, then the relevant wider suite, migration checks, PostgreSQL where needed, server-side authorization/IDOR checks, concurrency/idempotence where relevant and backward-data compatibility.
 
+## Production-grade agent guardrails
+
+Unless a task explicitly says `prototype`, `spike`, `exploration` or `proof of concept`, treat requested work as production-bound.
+
+- Deliver the smallest vertically complete slice, not a scaffold another developer must finish.
+- Do not leave required mocks, placeholders, TODOs, fake success states, missing error handling or missing authorization behind a “done” claim.
+- Do not invent product features, business truth, metrics, copy, persistent state or UI data for convenience.
+- Prefer existing domain owners, read models, projections and established product patterns over parallel truths or speculative abstractions.
+- UI copy must help action, decision, consequence or recovery; it must not explain obvious interface mechanics like a prototype demo.
+- Do not hide failures with silent catches, misleading fallbacks or optimistic UI that exceeds the real confirmation level.
+- Treat concurrency, idempotence, offline/sync truth, accessibility and platform behavior as part of the feature when they are relevant.
+- Before closure, perform the self-review in `docs/operations/ai-development-guardrails.md`.
+
+Detailed guardrails: `docs/operations/ai-development-guardrails.md`.
+
 ## Product boundaries
 
 Makolo’s promise is **“Makolo marche pour vous.”**
