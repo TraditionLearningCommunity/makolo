@@ -24,7 +24,9 @@ repositories / use-cases
 UI
 ```
 
-Une donnée déjà synchronisée est lue depuis le store local. Le réseau sert au bootstrap, au rafraîchissement, à la synchronisation, à la confirmation et aux opérations intrinsèquement distantes. Il ne remplace pas le contenu local utile par un écran vide lorsque la connectivité change.
+Une donnée déjà acquise est lue depuis le store local. Le réseau sert à l'acquisition initiale lorsqu'elle est nécessaire, au rafraîchissement, à la synchronisation, à la confirmation et aux opérations intrinsèquement distantes. Il ne remplace pas le contenu local utile par un écran vide lorsque la connectivité change.
+
+A1 ne définit donc aucun « mode offline » parallèle : la disponibilité locale, la fraîcheur, la joignabilité de la source distante et l'autorité sont quatre propriétés distinctes. Une perte de connectivité modifie la reachability ; elle ne change ni l'architecture de lecture locale ni les frontières d'autorité.
 
 A1 ne construit pas les expériences complètes Maintenant, Découvrir, Makolo Mark, En cours, Moi ou Avatar. Il ferme le socle transversal que ces expériences consommeront.
 
@@ -151,7 +153,7 @@ Un succès définitif n'est jamais affiché uniquement parce qu'une opération e
 
 Une erreur importante reste persistante et récupérable : elle explique ce qui n'a pas fonctionné, ce qui reste conservé et fournit un prochain geste lorsque possible. Les erreurs de champ restent destinées à une présentation inline dans les futures surfaces métier.
 
-## 8. Offline et continuité
+## 8. Continuité locale et connectivité
 
 Après bootstrap réussi :
 
@@ -240,8 +242,8 @@ A1 ne livre pas :
 - les expériences personnelles complètes ;
 - push notification réel ;
 - caméra, GPS ou uploads profonds ;
-- scanner/offline authority avancée ;
-- OfflineGrant, Capacity ou Access autoritatifs offline ;
+- scanner / autorité terrain déléguée avancée ;
+- OfflineGrant générique, Capacity ou Access autoritatifs sans owner joignable ;
 - identité/host iOS.
 
 A2 peut construire les expériences personnelles complètes sans remplacer auth, Drift, isolation Profile, repositories, client HTTP, refresh JWT, sync owner-scoped, outbox, routing, SessionRecovery, états réseau, feedback, motion, accessibilité ou interaction mobile.
