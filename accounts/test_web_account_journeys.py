@@ -55,11 +55,19 @@ class WebAccountJourneyTests(TestCase):
             secret="test-google-secret",
         )
 
-        login = self.client.get(reverse("core:login"))
-        register = self.client.get(reverse("account:register"))
+        login = self.client.get(reverse("core:login"), {"next": "/tickets/"})
+        register = self.client.get(reverse("account:register"), {"next": "/tickets/"})
 
         self.assertContains(login, "Continuer avec Google")
         self.assertContains(register, "Continuer avec Google")
+        self.assertContains(login, "next=%2Ftickets%2F")
+        self.assertContains(register, "next=%2Ftickets%2F")
+
+        login_html = login.content.decode()
+        self.assertLess(
+            login_html.index("Continuer avec Google"),
+            login_html.index("Identifiant Makolo ou adresse e-mail"),
+        )
 
     def test_identifier_setup_requires_authentication(self):
         response = self.client.get(reverse("account:identifier-setup"))
