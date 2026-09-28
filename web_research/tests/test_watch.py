@@ -18,6 +18,7 @@ from research_missions import (
 )
 from web_research import (
     DiscoveryKnowledgeState,
+    DiscoveryKnownRef,
     DiscoveryLookup,
     DiscoveryNormalizer,
     FreshnessPolicy,
@@ -138,9 +139,10 @@ class WatchOutputContractTests(SimpleTestCase):
             _StaticWatchKnowledge(
                 WatchLookup(
                     freshness_state=WatchFreshnessState.DUE,
-                    known_ref=__import__(
-                        "web_research"
-                    ).DiscoveryKnownRef("opportunity", "known-1"),
+                    known_ref=DiscoveryKnownRef(
+                        "opportunity",
+                        "known-1",
+                    ),
                     due_at=NOW,
                     basis_codes=("known_source_never_checked",),
                 )
