@@ -85,9 +85,9 @@ void main() {
     },
   );
 
-  testWidgets('account action opens chooser without destroying current session', (
-    tester,
-  ) async {
+  testWidgets(
+    'account action opens chooser without destroying current session',
+    (tester) async {
     final tokens = MemoryTokenStore(
       session: const AuthSession(
         accessToken: 'access-a',
@@ -145,7 +145,7 @@ void main() {
     expect(find.text('Choisir un compte'), findsOneWidget);
     expect((await tokens.readSession())?.profileId, 'profile-a');
     expect(authenticationChanges, 0);
-    expect(recovery.entryReason, EntryReason.accountSwitch);
-  });
-
+      expect(recovery.entryReason, EntryReason.accountSwitch);
+    },
+  );
 }
