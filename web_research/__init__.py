@@ -13,6 +13,16 @@ from .contracts import (
     make_web_research_candidate_ref,
     make_web_research_source_ref,
 )
+from .discovery import (
+    DISCOVERY_OUTPUT_CONTRACT_VERSION,
+    DiscoveryKnowledgePort,
+    DiscoveryKnowledgeState,
+    DiscoveryKnownRef,
+    DiscoveryLookup,
+    DiscoveryNormalizer,
+    DiscoveryOutput,
+    DiscoveryRecord,
+)
 from .intelligence_engine import IntelligenceWebResearchEngine
 from .ports import WebResearchEnginePort
 
@@ -22,6 +32,14 @@ __all__ = [
     "WebResearchContractError",
     "WebResearchEnginePort",
     "IntelligenceWebResearchEngine",
+    "DISCOVERY_OUTPUT_CONTRACT_VERSION",
+    "DiscoveryKnowledgePort",
+    "DiscoveryKnowledgeState",
+    "DiscoveryKnownRef",
+    "DiscoveryLookup",
+    "DiscoveryNormalizer",
+    "DiscoveryOutput",
+    "DiscoveryRecord",
     "WebResearchMode",
     "WebResearchOutcome",
     "WebResearchRequest",
