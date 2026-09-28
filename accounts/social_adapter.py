@@ -23,6 +23,11 @@ class MakoloSocialAccountAdapter(DefaultSocialAccountAdapter):
         user.username_configured = False
 
         email = (getattr(user, "email", "") or "").strip().lower()
+        if email and User.objects.filter(email__iexact=email).exists():
+            # Equal e-mail is not authority to link two Makolo accounts.
+            # Keep the new social identity separate and let an authenticated
+            # user perform any future explicit linking flow.
+            email = ""
         user.email = email or None
         return user
 

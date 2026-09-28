@@ -4,7 +4,7 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/onboarding/onboarding_flow.dart';
 
 void main() {
-  testWidgets('guest onboarding is concise and has no meaningless Skip', (
+  testWidgets('guest onboarding explains the progression before entry', (
     tester,
   ) async {
     OnboardingExit? exit;
@@ -19,12 +19,20 @@ void main() {
       ),
     );
 
-    expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
-    expect(find.text('Passer'), findsNothing);
-    expect(find.text('Continuer'), findsNothing);
-    expect(find.text('Services'), findsNothing);
-    expect(find.text('Transports'), findsNothing);
-    expect(find.text('Événements'), findsNothing);
+    expect(find.text('Découvrez ce qui compte vraiment.'), findsOneWidget);
+    expect(find.text('Continuer'), findsOneWidget);
+    expect(find.text('1/3'), findsOneWidget);
+    expect(find.text('Se connecter'), findsNothing);
+
+    await tester.tap(find.text('Continuer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Préparez ce qui peut l’être.'), findsOneWidget);
+    expect(find.text('2/3'), findsOneWidget);
+
+    await tester.tap(find.text('Continuer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Avancez dans l’action réelle.'), findsOneWidget);
+    expect(find.text('3/3'), findsOneWidget);
     expect(find.text('Découvrir Makolo'), findsOneWidget);
     expect(find.text('Se connecter'), findsOneWidget);
     expect(find.text('Créer un compte'), findsOneWidget);
@@ -35,7 +43,7 @@ void main() {
     expect(exit, OnboardingExit.continueGuest);
   });
 
-  testWidgets('authenticated onboarding has one contextual primary action', (
+  testWidgets('authenticated onboarding ends with contextual primary action', (
     tester,
   ) async {
     OnboardingExit? exit;
@@ -49,6 +57,11 @@ void main() {
         ),
       ),
     );
+
+    await tester.tap(find.text('Continuer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuer'));
+    await tester.pumpAndSettle();
 
     expect(find.text('Ouvrir Makolo'), findsOneWidget);
     expect(find.text('Se connecter'), findsNothing);
@@ -79,7 +92,8 @@ void main() {
       ),
     );
 
+    await tester.pump();
     expect(tester.takeException(), isNull);
-    expect(find.text('Découvrir Makolo'), findsOneWidget);
+    expect(find.text('Continuer'), findsOneWidget);
   });
 }

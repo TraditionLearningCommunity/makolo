@@ -2,6 +2,7 @@ from django.urls import path
 
 from .access_views import PersonalAccessCredentialAPIView, PersonalAccessesAPIView
 from .history_views import PersonalHistoryAPIView
+from interoperability.api_views import PersonalInteroperabilityAPIView
 from .day_of_views import PersonalOccurrenceDayOfAPIView
 from .me_views import (
     PersonalCollectivesAPIView,
@@ -29,6 +30,7 @@ urlpatterns = [
     path("ongoing/", PersonalOngoingAPIView.as_view(), name="ongoing"),
     path("accesses/", PersonalAccessesAPIView.as_view(), name="accesses"),
     path("history/", PersonalHistoryAPIView.as_view(), name="history"),
+    path("interoperability/", PersonalInteroperabilityAPIView.as_view(), name="interoperability"),
     path(
         "occurrences/<uuid:pk>/day-of/",
         PersonalOccurrenceDayOfAPIView.as_view(),

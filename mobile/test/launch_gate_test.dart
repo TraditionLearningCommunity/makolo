@@ -47,7 +47,7 @@ AppRuntime _runtime(_MemoryLaunchPreferences preferences) {
 Widget _app(
   AppRuntime runtime, {
   DateTime? launchStartedAt,
-  Duration minimumVisible = const Duration(milliseconds: 700),
+  Duration minimumVisible = const Duration(seconds: 1),
 }) {
   final router = createMakoloRouter(runtime, onAuthenticationChanged: () {});
   return MaterialApp.router(
@@ -64,7 +64,7 @@ Widget _app(
 }
 
 void main() {
-  testWidgets('launch splash remains until the perceptible minimum', (
+  testWidgets('launch splash remains visible for at least one second', (
     tester,
   ) async {
     final preferences = _MemoryLaunchPreferences(
@@ -78,7 +78,7 @@ void main() {
     await tester.pumpWidget(_app(runtime));
     expect(find.byType(SplashScreen), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 699));
+    await tester.pump(const Duration(milliseconds: 999));
     expect(find.byType(SplashScreen), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 2));
@@ -95,12 +95,12 @@ void main() {
         hasCompletedOnboarding: true,
         lastBrandMomentAt: DateTime.now(),
       ),
-      readDelay: const Duration(milliseconds: 900),
+      readDelay: const Duration(milliseconds: 1200),
     );
     final runtime = _runtime(preferences);
 
     await tester.pumpWidget(_app(runtime));
-    await tester.pump(const Duration(milliseconds: 701));
+    await tester.pump(const Duration(milliseconds: 1001));
     expect(find.byType(SplashScreen), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 200));
@@ -109,7 +109,7 @@ void main() {
   });
 
   testWidgets(
-    'new installation reaches concise onboarding then public landing',
+    'new installation completes onboarding then reaches public landing',
     (tester) async {
       final preferences = _MemoryLaunchPreferences(
         LaunchPreferencesSnapshot(lastBrandMomentAt: DateTime.now()),
@@ -124,9 +124,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
-      expect(find.text('Passer'), findsNothing);
+      expect(find.text('Découvrez ce qui compte vraiment.'), findsOneWidget);
 
+      await tester.tap(find.text('Continuer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Continuer'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Découvrir Makolo'));
       await tester.pumpAndSettle();
 

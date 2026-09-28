@@ -23,10 +23,17 @@ from accounts.validators import (
 
 
 class MakoloTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """Accept the canonical login field while preserving the current mobile e-mail payload."""
+    """Accept an Identifiant Makolo or e-mail without making either a second identity."""
 
     username = serializers.CharField(required=False, allow_blank=False)
     email = serializers.EmailField(required=False, write_only=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # SimpleJWT derives this field from USERNAME_FIELD and marks it required.
+        # Makolo also accepts the historical e-mail payload, so requirement is
+        # enforced only after the two supported login keys are resolved.
+        self.fields["username"].required = False
 
     def validate(self, attrs):
         login = attrs.get("username") or attrs.pop("email", None)
