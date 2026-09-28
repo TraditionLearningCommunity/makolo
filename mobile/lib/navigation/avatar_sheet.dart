@@ -9,6 +9,7 @@ Future<void> showMakoloAvatarSheet(
   BuildContext context, {
   required AppRuntime runtime,
   VoidCallback? onAccount,
+  VoidCallback? onConnections,
   VoidCallback? onSwitchAccount,
   VoidCallback? onLogout,
 }) async {
@@ -17,6 +18,7 @@ Future<void> showMakoloAvatarSheet(
     builder: (_) => MakoloAvatarSheet(
       runtime: runtime,
       onAccount: onAccount,
+      onConnections: onConnections,
       onSwitchAccount: onSwitchAccount,
       onLogout: onLogout,
     ),
@@ -28,12 +30,14 @@ class MakoloAvatarSheet extends StatefulWidget {
     super.key,
     required this.runtime,
     this.onAccount,
+    this.onConnections,
     this.onSwitchAccount,
     this.onLogout,
   });
 
   final AppRuntime runtime;
   final VoidCallback? onAccount;
+  final VoidCallback? onConnections;
   final VoidCallback? onSwitchAccount;
   final VoidCallback? onLogout;
 
@@ -178,6 +182,15 @@ class _MakoloAvatarSheetState extends State<MakoloAvatarSheet> {
                     title: const Text('Compte et paramètres'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _closeThen(widget.onAccount!),
+                  ),
+                if (widget.onConnections != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    minVerticalPadding: MakoloSpacing.sm,
+                    leading: const Icon(Icons.link_outlined),
+                    title: const Text('Connexions'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _closeThen(widget.onConnections!),
                   ),
                 if (widget.onSwitchAccount != null)
                   ListTile(
