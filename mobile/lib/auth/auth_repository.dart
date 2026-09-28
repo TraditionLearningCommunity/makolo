@@ -104,8 +104,14 @@ class AuthRepository {
     );
   }
 
-  Future<void> forgotPassword({required String email}) async {
-    await api.forgotPassword(email: email);
+  Future<PasswordResetRequestResult> forgotPassword({
+    required String email,
+  }) async {
+    final response = await api.forgotPassword(email: email);
+    final payload = response.jsonObject();
+    return PasswordResetRequestResult(
+      externalDelivery: payload['email_delivery'] == 'external',
+    );
   }
 
   Future<void> changePassword({
@@ -142,4 +148,11 @@ class AuthRepository {
       // server is unreachable or the refresh has already expired/revoked.
     }
   }
+}
+
+
+class PasswordResetRequestResult {
+  const PasswordResetRequestResult({required this.externalDelivery});
+
+  final bool externalDelivery;
 }
