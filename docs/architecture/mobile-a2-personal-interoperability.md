@@ -244,3 +244,7 @@ Après merge :
 - vérifier le HEAD final `main` ;
 - générer l'APK depuis ce HEAD final ;
 - vérifier sur appareil réel : cold start, splash unique, signup/availability, réseau lent/absent, navigation authentifiée, Mark central, Avatar → Connexions.
+
+## 13. Réconciliation finale
+
+La branche A2 a été réconciliée le 2026-09-28 avec le `main` contenant Z16, Accounts/Identifiant Makolo et W8. Les gates mobiles finales doivent être évaluées sur cette base réconciliée avant merge ; le runtime courant et le HEAD `main` restent autoritaires si le dépôt avance de nouveau.
