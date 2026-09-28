@@ -25,7 +25,7 @@ G ne refait ni :
 - les fichiers/médias ;
 - les capacités natives ;
 - les profondeurs métier ;
-- l'autorité offline.
+- l'autorité terrain déléguée lorsque l'owner n'est pas joignable.
 
 Il vérifie que toutes ces couches peuvent être livrées comme un produit mobile réel.
 
@@ -455,7 +455,7 @@ Avant release d'une expérience Maps :
 - droits d'usage vérifiés ;
 - attribution correcte ;
 - clé éventuelle protégée selon le modèle du provider ;
-- offline policy vérifiée ;
+- disponibilité locale, freshness et revalidation vérifiées ;
 - coûts/quotas compris ;
 - fallback sans carte si service indisponible lorsque le parcours le permet.
 
@@ -669,7 +669,7 @@ Avant chaque canal de distribution :
 - fichiers ;
 - carte si activée ;
 - scanner connecté ;
-- F offline si réellement implémenté ;
+- F / autorité terrain déléguée si réellement implémentée ;
 - suppression de compte ;
 - changement de Profile si exposé.
 
