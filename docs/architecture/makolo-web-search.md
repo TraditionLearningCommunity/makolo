@@ -1043,3 +1043,249 @@ algorithmes Makolo
     ↓
 pertinence / préparation / action
 ~~~
+
+
+---
+
+## 31. Phase 1 runtime — contrat provider-neutral minimal
+
+**Statut : implémenté sur le chantier Phase 1, sans migration ni provider réel.**
+
+L’audit du runtime a confirmé que Web Research ne doit ni dupliquer ResearchMission, ni se faire passer pour une Observation Actor 2, ni introduire un second registry de providers.
+
+Le contrat minimal est donc isolé dans :
+
+~~~text
+web_research/
+  contracts.py
+  ports.py
+~~~
+
+Il porte quatre éléments principaux :
+
+- WebResearchRequest : une exécution bornée adossée à une ResearchMission existante ;
+- WebResearchSource : une source Web citée par le moteur, explicitement distincte d’un artefact Observer ;
+- WebResearchCandidate : une réalité candidate légère, obligatoirement reliée à au moins une source du résultat ;
+- WebResearchResult : le résultat provider-neutral, daté, borné et accompagné d’une raison d’arrêt.
+
+Le port d’exécution est :
+
+~~~text
+WebResearchEnginePort
+  execute(WebResearchRequest) -> WebResearchResult
+~~~
+
+### 31.1 Modes exécutables
+
+Phase 1 formalise :
+
+~~~text
+DISCOVER
+DEEPEN
+WATCH
+~~~
+
+USE reste hors de ce port : l’utilisation de la connaissance canonique appartient aux domaines et algorithmes Makolo, pas au moteur d’acquisition.
+
+### 31.2 Bornage et raisons d’arrêt
+
+Un résultat distingue notamment :
+
+~~~text
+completed
+partial
+no_results
+failed
+~~~
+
+et conserve une raison d’arrêt provider-neutral :
+
+~~~text
+completed
+coverage_saturated
+budget_exhausted
+no_new_candidates
+provider_limit
+deadline_reached
+failed
+~~~
+
+Ainsi no_results ou no_new_candidates ne signifie jamais que rien d’autre n’existe sur le Web.
+
+### 31.3 Frontière avec Actor 2 et Actor 3
+
+WebResearchSource ne possède volontairement aucun :
+
+~~~text
+artifact_ref
+artifact_observation_ref
+ObservationMaterial
+~~~
+
+Une citation produite par un moteur Web Search ne doit pas être maquillée en artefact acquis par l’Observateur.
+
+De même, WebResearchCandidate reste volontairement plus léger que les CandidateEntity / CandidateFact / CandidateRelation / CandidateConstraint de l’Interpréteur.
+
+Phase 1 ne décide pas encore si une recherche approfondie :
+
+1. produit seulement des sources à faire observer par Actor 2 ;
+2. produit aussi des faits candidats sourcés via un contrat spécifique ;
+3. combine les deux selon le niveau de preuve demandé.
+
+Cette couture reste à fermer avant l’admission de faits détaillés.
+
+### 31.4 Provider metadata
+
+WebResearchResult peut conserver des métadonnées techniques non métier telles que provider_key ou model pour la télémétrie et l’audit d’exécution.
+
+Le contrat rejette explicitement les clés sensibles usuelles telles que :
+
+~~~text
+api_key
+token
+secret
+credential
+password
+authorization
+~~~
+
+Les credentials continuent d’appartenir exclusivement à l’infrastructure intelligence.
+
+### 31.5 Ce que Phase 1 n’ajoute pas
+
+Aucun changement n’est apporté à :
+
+- IntelligenceCapability ;
+- ProviderProtocol ;
+- OpenAICompatibleProvider ;
+- ProviderConnection / IntelligenceRoute ;
+- ProspectingMission ;
+- ObservationMaterial ;
+- InterpretedMaterial ;
+- Resolver ;
+- Orchestrator ;
+- modèles Django ;
+- migrations.
+
+La Phase 2 pourra donc brancher ce contrat sur intelligence sans déplacer les frontières canoniques.
+
+
+---
+
+## 32. Phase 2 runtime — IntelligenceGateway et premier adapter Web Search
+
+**Statut : implémenté sur le même chantier que la Phase 1, sans migration.**
+
+Phase 2 raccorde le contrat Web Research au socle transversal intelligence existant :
+
+~~~text
+ResearchMission
+  ↓
+WebResearchRequest
+  ↓
+IntelligenceWebResearchEngine
+  ↓
+IntelligenceGateway
+  ↓
+IntelligenceCapability.WEB_RESEARCH
+  ↓
+IntelligenceRegistry
+  ↓
+provider adapter
+  ↓
+WebResearchResult
+~~~
+
+Le Gateway existant conserve donc ses responsabilités de routage en mémoire, fallback, erreurs provider et télémétrie sans payload brut.
+
+### 32.1 Capacité runtime, sans route persistée prématurée
+
+WEB_RESEARCH est ajouté comme IntelligenceCapability runtime.
+
+Il n’est volontairement pas encore ajouté aux choix persistés de IntelligenceRoute. Les quatre capacités persistées restent :
+
+~~~text
+text_generate
+structured_generate
+embed
+rerank
+~~~
+
+Cette séparation évite une migration purement mécanique avant d’avoir figé le protocole et la configuration durable des moteurs Web Research.
+
+Conséquence : Phase 2 prouve le raccord au Gateway et au registry provider-neutral, mais ne déclare pas encore une configuration Web Research administrable en base.
+
+### 32.2 Premier adapter : OpenAI Responses Web Search
+
+Le premier adapter concret est OpenAIResponsesWebResearchProvider.
+
+Il utilise l’API Responses avec l’outil web_search, conformément au protocole provider courant d’OpenAI, tout en restant derrière IntelligenceProvider et WEB_RESEARCH.
+
+L’adapter :
+
+- utilise POST /responses ;
+- active web_search ;
+- exige l’usage d’un outil pour une mission Web Research ;
+- demande la liste complète des sources de web_search_call ;
+- utilise Structured Outputs avec JSON Schema ;
+- ne fournit aucune localisation implicite ;
+- ne transmet que le scope explicitement présent dans ResearchMission ;
+- utilise store=false ;
+- convertit max_queries de ResearchMission.limits en max_tool_calls lorsque cette limite est définie ;
+- ne retourne jamais la clé API dans le résultat.
+
+Les détails OpenAI restent confinés à cet adapter. Un futur provider peut implémenter la même capability sans modifier WebResearchRequest ou WebResearchResult.
+
+### 32.3 Validation des sources
+
+Le provider produit deux flux distincts :
+
+~~~text
+sources réellement rapportées par le tool Web Search
++
+candidats structurés qui citent des source_urls
+~~~
+
+IntelligenceWebResearchEngine ne conserve un candidat que si toutes ses source_urls correspondent à des sources effectivement rapportées par l’exécution provider.
+
+Ainsi :
+
+~~~text
+URL inventée par le modèle
+→ candidate_unknown_source
+→ candidat rejeté
+~~~
+
+Le moteur ne transforme donc pas une simple URL générée en evidence.
+
+### 32.4 Budgets
+
+Deux limites du canevas sont déjà appliquées :
+
+~~~text
+max_queries
+→ max_tool_calls côté adapter OpenAI
+
+max_candidates
+→ limite déterministe côté moteur Makolo
+~~~
+
+Si max_candidates est atteint, le résultat devient partiel avec budget_exhausted et conserve un warning candidate_limit_reached.
+
+Les autres limites restent à mapper seulement lorsqu’un provider offre un contrôle explicite et stable.
+
+### 32.5 Ce qui reste volontairement hors Phase 2
+
+Phase 2 ne crée toujours pas :
+
+- de nouvelle table ;
+- de migration ;
+- de route persistée WEB_RESEARCH ;
+- de nouveau ProviderProtocol ;
+- de credential store parallèle ;
+- d’écriture vers Activity, Requirement ou un autre domaine ;
+- de conversion automatique d’une citation Web en CandidateEvidence Actor 3 ;
+- de scheduler ;
+- de crawl automatique.
+
+La prochaine couture utile est la Discovery générique : prendre un WebResearchResult, reconnaître ce qui est déjà connu, puis décider ce qui mérite observation, approfondissement ou résolution.
