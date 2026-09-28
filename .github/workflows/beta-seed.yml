@@ -11,6 +11,10 @@ on:
       - "*.md"
       - "frontend/**"
       - "static/**"
+      - "e2e/**"
+      - "test_support/**"
+      - "**/test*.py"
+      - "**/tests/**"
       - ".github/workflows/mobile-*.yml"
   push:
     branches:
@@ -21,6 +25,10 @@ on:
       - "*.md"
       - "frontend/**"
       - "static/**"
+      - "e2e/**"
+      - "test_support/**"
+      - "**/test*.py"
+      - "**/tests/**"
       - ".github/workflows/mobile-*.yml"
 
 concurrency:
