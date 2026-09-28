@@ -40,12 +40,34 @@ class WebAccountJourneyTests(TestCase):
         self.assertContains(response, "Identifiant Makolo")
         self.assertContains(response, "data-identifier-check")
 
-    def test_social_provider_buttons_are_not_rendered_without_configuration(self):
+    def test_social_provider_buttons_require_usable_selected_configuration(self):
         login = self.client.get(reverse("core:login"))
         register = self.client.get(reverse("account:register"))
 
         self.assertNotContains(login, "Continuer avec Google")
         self.assertNotContains(register, "Continuer avec Google")
+
+        SocialApp.objects.create(
+            provider="google",
+            name="Google incomplete",
+            client_id="",
+            secret="",
+        )
+        SocialApp.objects.create(
+            provider="openid_connect",
+            provider_id="other-oidc",
+            name="Other OIDC",
+            client_id="other-client",
+            secret="other-secret",
+            settings={"server_url": "https://example.invalid"},
+        )
+
+        login = self.client.get(reverse("core:login"))
+        register = self.client.get(reverse("account:register"))
+        self.assertNotContains(login, "Continuer avec Google")
+        self.assertNotContains(register, "Continuer avec Google")
+        self.assertNotContains(login, "Other OIDC")
+        self.assertNotContains(register, "Other OIDC")
 
     def test_configured_social_provider_is_rendered_on_login_and_registration(self):
         SocialApp.objects.create(
