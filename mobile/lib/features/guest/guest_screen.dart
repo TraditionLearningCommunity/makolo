@@ -49,27 +49,35 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _applyLocalFilter();
   }
 
-  void _applyLocalFilter() {
-    final query = _search.text.trim().toLowerCase();
-    final filtered = query.isEmpty
-        ? _allItems
-        : _allItems.where((item) {
-            final raw = item['representation'];
-            if (raw is! Map) return false;
-            final representation = Map<String, dynamic>.from(raw);
-            final searchable = [
-              representation['title'],
-              representation['summary'],
-              representation['eyebrow'],
-            ].whereType<Object>().map(
-              (value) => value.toString().toLowerCase(),
-            );
-            return searchable.any((value) => value.contains(query));
-          }).toList(growable: false);
+  bool _matchesQuery(Map<String, dynamic> item, String query) {
+    final raw = item['representation'];
+    if (raw is! Map) return false;
+    final representation = Map<String, dynamic>.from(raw);
+    final values = <Object?>[
+      representation['title'],
+      representation['summary'],
+      representation['eyebrow'],
+    ];
+    for (final value in values) {
+      if (value != null && value.toString().toLowerCase().contains(query)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
+  List<Map<String, dynamic>> _filteredItems() {
+    final query = _search.text.trim().toLowerCase();
+    if (query.isEmpty) return _allItems;
+    return _allItems
+        .where((item) => _matchesQuery(item, query))
+        .toList(growable: false);
+  }
+
+  void _applyLocalFilter() {
     if (!mounted) return;
     setState(() {
-      _results = Future.value(filtered);
+      _results = Future.value(_filteredItems());
     });
   }
 
@@ -108,9 +116,10 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       _error = null;
       _results = () async {
         try {
-          final payload = (
-            await api.publicGet('api/v1/discovery/items/?page_size=20')
-          ).jsonObject();
+          final response = await api.publicGet(
+            'api/v1/discovery/items/?page_size=20',
+          );
+          final payload = response.jsonObject();
           final data = payload['data'];
           final rawResults = data is Map ? data['results'] : null;
           if (rawResults is! List) {
@@ -122,21 +131,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               .map((item) => Map<String, dynamic>.from(item))
               .toList(growable: false);
 
-          final localQuery = _search.text.trim().toLowerCase();
-          if (localQuery.isEmpty) return _allItems;
-          return _allItems.where((item) {
-            final raw = item['representation'];
-            if (raw is! Map) return false;
-            final representation = Map<String, dynamic>.from(raw);
-            return [
-              representation['title'],
-              representation['summary'],
-              representation['eyebrow'],
-            ]
-                .whereType<Object>()
-                .map((value) => value.toString().toLowerCase())
-                .any((value) => value.contains(localQuery));
-          }).toList(growable: false);
+          return _filteredItems();
         } on Object {
           if (mounted) {
             setState(
