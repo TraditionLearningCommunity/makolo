@@ -5,14 +5,17 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     AccountDeleteAPIView,
+    IdentifierAvailabilityAPIView,
     LoginAPIView,
     LogoutAPIView,
+    MakoloIdentifierAPIView,
     MeAPIView,
     NotificationPreferencesAPIView,
     PasswordChangeAPIView,
     PasswordForgotAPIView,
     PasswordResetAPIView,
     RegisterAPIView,
+    SocialProviderStatusAPIView,
     UpdateProfileAPIView,
     UserViewSet,
 )
@@ -23,6 +26,21 @@ router.register(r"users", UserViewSet, basename="users")
 
 urlpatterns = [
     path("auth/register/", RegisterAPIView.as_view(), name="register"),
+    path(
+        "auth/identifier/availability/",
+        IdentifierAvailabilityAPIView.as_view(),
+        name="identifier-availability",
+    ),
+    path(
+        "auth/identifier/",
+        MakoloIdentifierAPIView.as_view(),
+        name="identifier",
+    ),
+    path(
+        "auth/providers/",
+        SocialProviderStatusAPIView.as_view(),
+        name="social-provider-status",
+    ),
     path("auth/login/", LoginAPIView.as_view(), name="login"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("auth/logout/", LogoutAPIView.as_view(), name="logout"),
