@@ -38,6 +38,17 @@ from .discovery import (
     DiscoveryRecord,
 )
 from .intelligence_engine import IntelligenceWebResearchEngine
+from .watch import (
+    WATCH_OUTPUT_CONTRACT_VERSION,
+    FreshnessPolicy,
+    WatchChangeState,
+    WatchFreshnessState,
+    WatchKnowledgePort,
+    WatchLookup,
+    WatchOutput,
+    WatchPlanner,
+    WatchTarget,
+)
 from .ports import WebResearchEnginePort
 
 __all__ = [
@@ -46,6 +57,15 @@ __all__ = [
     "WebResearchContractError",
     "WebResearchEnginePort",
     "IntelligenceWebResearchEngine",
+    "WATCH_OUTPUT_CONTRACT_VERSION",
+    "FreshnessPolicy",
+    "WatchChangeState",
+    "WatchFreshnessState",
+    "WatchKnowledgePort",
+    "WatchLookup",
+    "WatchOutput",
+    "WatchPlanner",
+    "WatchTarget",
     "DEEPEN_OUTPUT_CONTRACT_VERSION",
     "DeepenFamilySpec",
     "DeepenMissionSuggestion",
