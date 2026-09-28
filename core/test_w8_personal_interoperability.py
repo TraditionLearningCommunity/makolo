@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import resolve, reverse
 
 from accounts.models import User, UserProfile
@@ -67,9 +67,8 @@ class W8PersonalConnectionsWebTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("core:login"), response["Location"])
 
-        request = self.client.request().wsgi_request
+        request = RequestFactory().get(url)
         request.user = self.user
-        request.path = url
         request.resolver_match = resolve(url)
         surface = personal_surface_owner(request)
         self.assertEqual(surface.owner, "me")
