@@ -1,8 +1,12 @@
 from django.contrib.auth.password_validation import validate_password
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from accounts.models import (
     NotificationPreference,
@@ -11,7 +15,34 @@ from accounts.models import (
     UserProfile,
     UserSession,
 )
-from accounts.validators import validate_avatar
+from accounts.validators import (
+    normalize_makolo_username,
+    validate_avatar,
+    validate_makolo_username,
+)
+
+
+class MakoloTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Accept an Identifiant Makolo or e-mail without making either a second identity."""
+
+    username = serializers.CharField(required=False, allow_blank=False)
+    email = serializers.EmailField(required=False, write_only=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # SimpleJWT derives this field from USERNAME_FIELD and marks it required.
+        # Makolo also accepts the historical e-mail payload, so requirement is
+        # enforced only after the two supported login keys are resolved.
+        self.fields["username"].required = False
+
+    def validate(self, attrs):
+        login = attrs.get("username") or attrs.pop("email", None)
+        if not login:
+            raise serializers.ValidationError(
+                {"username": "Saisissez votre Identifiant Makolo ou votre adresse e-mail."}
+            )
+        attrs["username"] = login
+        return super().validate(attrs)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -80,7 +111,7 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "username", "first_name", "last_name", "full_name",
+            "id", "email", "username", "username_configured", "first_name", "last_name", "full_name",
             "phone", "avatar_url", "is_active", "last_seen", "created_at",
         ]
 
@@ -102,7 +133,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "username", "first_name", "last_name", "full_name", "phone",
+            "id", "email", "username", "username_configured", "username_changed_at",
+            "first_name", "last_name", "full_name", "phone",
             "birth_date", "gender", "bio", "avatar_url", "language", "timezone", "is_active",
             "email_verified", "phone_verified", "onboarding_completed", "onboarding_step", "last_seen",
             "website", "linkedin_url", "facebook_url", "instagram_url", "tiktok_url", "x_url",
@@ -120,6 +152,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    username = serializers.CharField(max_length=30)
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
 
@@ -129,6 +163,22 @@ class RegisterSerializer(serializers.ModelSerializer):
             "email", "username", "password", "password_confirm", "first_name", "last_name", "phone",
         ]
 
+    def validate_username(self, value):
+        normalized = normalize_makolo_username(value)
+        try:
+            validate_makolo_username(normalized)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError("Cet identifiant Makolo est déjà utilisé.")
+        return normalized
+
+    def validate_email(self, value):
+        normalized = (value or "").strip().lower()
+        if normalized and User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError("Cette adresse e-mail est déjà utilisée.")
+        return normalized or None
+
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError({"password": "Les mots de passe ne correspondent pas."})
@@ -136,18 +186,73 @@ class RegisterSerializer(serializers.ModelSerializer):
             validate_password(attrs["password"])
         except DjangoValidationError as exc:
             raise serializers.ValidationError({"password": list(exc.messages)}) from exc
-        attrs["email"] = attrs["email"].strip().lower()
         return attrs
 
     @transaction.atomic
     def create(self, validated_data):
         validated_data.pop("password_confirm")
         password = validated_data.pop("password")
-        user = User(**validated_data)
+        user = User(
+            **validated_data,
+            username_configured=True,
+            username_changed_at=timezone.now(),
+        )
         user.set_password(password)
-        user.save()
+        try:
+            user.save()
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                {"username": "Cet identifiant Makolo n’est plus disponible."}
+            ) from exc
         UserProfile.objects.create(user=user)
         NotificationPreference.objects.create(user=user)
+        return user
+
+
+class MakoloIdentifierSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=30)
+
+    def validate_username(self, value):
+        normalized = normalize_makolo_username(value)
+        try:
+            validate_makolo_username(normalized)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        return normalized
+
+
+class MakoloIdentifierChangeSerializer(MakoloIdentifierSerializer):
+    def validate_username(self, value):
+        normalized = super().validate_username(value)
+        request = self.context["request"]
+        user = request.user
+        if User.objects.filter(username__iexact=normalized).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError("Cet identifiant Makolo est déjà utilisé.")
+        if user.username_configured and user.username_changed_at:
+            next_change_at = user.username_changed_at + timedelta(days=90)
+            if timezone.now() < next_change_at:
+                raise serializers.ValidationError(
+                    f"Vous pourrez modifier votre identifiant Makolo à partir du {next_change_at.date().isoformat()}."
+                )
+        return normalized
+
+    @transaction.atomic
+    def save(self, **kwargs):
+        user = User.objects.select_for_update().get(pk=self.context["request"].user.pk)
+        username = self.validated_data["username"]
+        if User.objects.filter(username__iexact=username).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError(
+                {"username": "Cet identifiant Makolo n’est plus disponible."}
+            )
+        user.username = username
+        user.username_configured = True
+        user.username_changed_at = timezone.now()
+        try:
+            user.save(update_fields=["username", "username_configured", "username_changed_at", "updated_at"])
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                {"username": "Cet identifiant Makolo n’est plus disponible."}
+            ) from exc
         return user
 
 

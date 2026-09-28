@@ -76,6 +76,13 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.facebook",
+    "allauth.socialaccount.providers.microsoft",
+    "allauth.socialaccount.providers.openid_connect",
 ]
 LOCAL_APPS = [
     "core",
@@ -115,6 +122,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "growth.middleware.MarketingSessionUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -185,6 +193,39 @@ elif DATABASE_ENGINE in {"postgresql", "postgres"}:
         )
 else:
     raise ImproperlyConfigured("DJANGO_DATABASE_ENGINE doit être sqlite ou postgresql.")
+
+AUTHENTICATION_BACKENDS = [
+    "accounts.auth_backends.MakoloAccountBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# django-allauth owns only the external provider handshake. Makolo keeps its
+# existing local login/password-reset journeys and canonical Profile identity.
+SOCIALACCOUNT_ONLY = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = False
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_ADAPTER = "accounts.social_adapter.MakoloSocialAccountAdapter"
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_SIGNUP_FIELDS = ["username*"]
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email"],
+        "OAUTH_PKCE_ENABLED": True,
+    },
+    "facebook": {
+        "METHOD": "oauth2",
+        "SCOPE": ["email", "public_profile"],
+        "VERIFIED_EMAIL": False,
+    },
+    "microsoft": {},
+    "openid_connect": {
+        "OAUTH_PKCE_ENABLED": True,
+    },
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
