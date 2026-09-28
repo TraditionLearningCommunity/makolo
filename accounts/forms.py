@@ -4,7 +4,7 @@ from django import forms
 from django.db import transaction
 
 from .models import GenderCode, LanguageCode, NotificationPreference, User, UserProfile
-from .validators import validate_avatar
+from .validators import normalize_makolo_username, validate_avatar
 
 
 INPUT_CLASS = "w-full"
@@ -20,8 +20,16 @@ def _style_form_fields(form):
 
 
 class AccountRegistrationForm(forms.Form):
-    email = forms.EmailField(label="Adresse e-mail")
-    username = forms.CharField(max_length=150, label="Identifiant")
+    email = forms.EmailField(
+        required=False,
+        label="Adresse e-mail (facultatif)",
+        help_text="Utile pour récupérer votre compte, mais non obligatoire pour créer un Profil Makolo.",
+    )
+    username = forms.CharField(
+        max_length=30,
+        label="Identifiant Makolo",
+        help_text="Votre identifiant public Makolo, par exemple @amina.",
+    )
     first_name = forms.CharField(max_length=150, required=False, label="Prénom")
     last_name = forms.CharField(max_length=150, required=False, label="Nom")
     phone = forms.CharField(max_length=40, required=False, label="Téléphone")
@@ -57,6 +65,52 @@ class AccountRegistrationForm(forms.Form):
     def save(self):
         if self._serializer is None:
             raise ValueError("Le formulaire doit être validé avant la création du compte.")
+        return self._serializer.save()
+
+
+class MakoloIdentifierWebForm(forms.Form):
+    username = forms.CharField(
+        max_length=30,
+        label="Choisissez votre Identifiant Makolo",
+        help_text="Il sera visible sous la forme @identifiant. Vous pourrez ensuite le modifier au plus une fois tous les 90 jours.",
+    )
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+        _style_form_fields(self)
+        self.fields["username"].widget.attrs.update(
+            {
+                "autocomplete": "username",
+                "data-identifier-check": "true",
+                "data-availability-url": "/api/v1/accounts/auth/identifier/availability/",
+            }
+        )
+        self._serializer = None
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors:
+            return cleaned
+
+        from accounts.api.serializers import MakoloIdentifierChangeSerializer
+
+        request = type("RequestProxy", (), {"user": self.user})()
+        serializer = MakoloIdentifierChangeSerializer(
+            data={"username": cleaned.get("username", "")},
+            context={"request": request},
+        )
+        if not serializer.is_valid():
+            for error in serializer.errors.get("username", []):
+                self.add_error("username", str(error))
+            return cleaned
+        self._serializer = serializer
+        cleaned["username"] = normalize_makolo_username(cleaned["username"])
+        return cleaned
+
+    def save(self):
+        if self._serializer is None:
+            raise ValueError("Le formulaire doit être validé avant la mise à jour de l’identifiant.")
         return self._serializer.save()
 
 
