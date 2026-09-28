@@ -116,7 +116,7 @@ def validate_verification_document(uploaded_file) -> None:
         _verify_image(uploaded_file)
 
 
-MAKOLO_USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$")
+MAKOLO_USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$")
 MAKOLO_RESERVED_USERNAMES = {
     "admin",
     "api",
@@ -140,7 +140,7 @@ def validate_makolo_username(value: str) -> None:
         raise ValidationError("L’identifiant Makolo doit contenir entre 3 et 30 caractères.")
     if not MAKOLO_USERNAME_RE.fullmatch(normalized):
         raise ValidationError(
-            "Utilisez uniquement des lettres minuscules, chiffres, points ou underscores, "
+            "Utilisez uniquement des lettres minuscules, chiffres, points, tirets ou underscores, "
             "sans point ni underscore au début ou à la fin."
         )
     if normalized in MAKOLO_RESERVED_USERNAMES:
