@@ -199,7 +199,9 @@ GoRouter createMakoloRouter(
       ),
       GoRoute(
         path: '/connections',
-        builder: (context, state) => ProfileConnectionsScreen(runtime: runtime),
+        builder: (context, state) => MakoloRefreshBoundary(
+          child: ProfileConnectionsScreen(runtime: runtime),
+        ),
       ),
       GoRoute(
         path: '/mark',
