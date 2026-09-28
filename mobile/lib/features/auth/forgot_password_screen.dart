@@ -107,8 +107,8 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       title: Text(
         _sent
             ? _externalDelivery
-                  ? 'Consultez votre boîte de réception'
-                  : 'Demande prise en compte'
+                ? 'Consultez votre boîte de réception'
+                : 'Demande prise en compte'
             : 'Mot de passe oublié ?',
       ),
       content: ConstrainedBox(
