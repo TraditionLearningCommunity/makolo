@@ -18,12 +18,12 @@ class MakoloAccountBackend(ModelBackend):
 
         raw_login = str(login).strip()
         try:
-            if "@" in raw_login:
-                user = User.objects.get(email__iexact=raw_login.lower())
-            else:
+            if raw_login.startswith("@") or "@" not in raw_login:
                 user = User.objects.get(
                     username__iexact=normalize_makolo_username(raw_login)
                 )
+            else:
+                user = User.objects.get(email__iexact=raw_login.lower())
         except User.DoesNotExist:
             User().set_password(password)
             return None
