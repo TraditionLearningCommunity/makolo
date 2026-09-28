@@ -6,6 +6,8 @@
 >
 > **Base runtime vérifiée lors de cette consolidation :** `main@bf4ee1af02503ff7ff935939ad2ec508bf69f8cd` — “A2 — reconciled mobile integration checkpoint (#333)”.
 >
+> **Dépendances logiques présentes sur `main` :** `docs/architecture/mobile-local-data-kernel.md` (Bloc A) et `docs/architecture/mobile-sync-continuity-kernel.md` (Bloc B).
+>
 > Le runtime courant gagne toujours sur ce document. Avant implémentation, revalider `main`, les APIs owners, le schéma Drift, les migrations, les permissions OS, les limites de taille et les PR concurrentes.
 
 ---
@@ -980,7 +982,7 @@ Au moment de cette consolidation :
 - `mobile/lib/platform/media/` possède les private media views ;
 - ces fondations sont réutilisables mais ne remplacent pas les contrats owner de ce document.
 
-Les PR documentaires précédentes des Blocs A/B étaient fermées non fusionnées lors de cette vérification ; leurs décisions doivent donc être réconciliées explicitement avec `main` avant toute implémentation qui en dépend.
+Les anciennes PR documentaires #337 et #342 sont fermées sans merge direct, mais les documents `mobile-local-data-kernel.md` et `mobile-sync-continuity-kernel.md` sont bien présents sur le `main` courant. Leur contenu reste soumis à la règle générale : le runtime courant gagne et doit être revalidé avant implémentation.
 
 ---
 
