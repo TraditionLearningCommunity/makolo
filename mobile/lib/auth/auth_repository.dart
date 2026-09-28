@@ -150,7 +150,6 @@ class AuthRepository {
   }
 }
 
-
 class PasswordResetRequestResult {
   const PasswordResetRequestResult({required this.externalDelivery});
 
