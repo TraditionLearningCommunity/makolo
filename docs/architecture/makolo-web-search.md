@@ -1667,3 +1667,204 @@ DeepenOutput v1
 ~~~
 
 Ce principe sera conservé pour les phases suivantes : les moteurs et verticales peuvent être plus riches, mais Makolo garde au moins une enveloppe standard provider-neutral et versionnée pour chaque étape importante du cycle.
+
+
+---
+
+## 35. Phase 5 runtime — Watch, fraîcheur et réexamen standard
+
+**Statut : implémenté sur le même chantier, sans migration ni scheduler.**
+
+Phase 5 ajoute un troisième contrat de sortie standard :
+
+~~~text
+WatchOutput v1
+~~~
+
+Il ne réobserve pas automatiquement le Web. Il répond d’abord à une question plus simple et déterministe :
+
+> parmi les sources déjà reliées à la connaissance Makolo, lesquelles sont encore fraîches et lesquelles doivent être revérifiées ?
+
+Le cycle devient :
+
+~~~text
+DiscoveryOutput v1
+      ↓
+WatchKnowledgePort
+      ↓
+FreshnessPolicy
+      ↓
+WatchPlanner
+      ↓
+WatchOutput v1
+~~~
+
+### 35.1 États standards de fraîcheur
+
+WatchOutput utilise :
+
+~~~text
+FRESH
+DUE
+UNRESOLVED
+~~~
+
+- FRESH : une source connue a été contrôlée dans la fenêtre de fraîcheur ;
+- DUE : une source connue doit être réobservée ;
+- UNRESOLVED : la source ne peut pas encore être reliée de manière assez sûre à un propriétaire de connaissance supporté par l’adapter.
+
+Une source inconnue ne devient donc pas automatiquement DUE. Elle doit d’abord être résolue/admise dans la connaissance Makolo.
+
+### 35.2 États standards de changement
+
+Le contrat conserve aussi le dernier état de changement connu :
+
+~~~text
+UNCHANGED
+CHANGED
+UNREACHABLE
+REMOVED
+UNKNOWN
+~~~
+
+Ces états décrivent ce que Makolo sait du dernier contrôle ; ils ne déclenchent aucune mutation à eux seuls.
+
+### 35.3 FreshnessPolicy
+
+La première policy est volontairement minimale et générique :
+
+~~~text
+max_age_seconds
+~~~
+
+Pour une source connue :
+
+~~~text
+due_at = last_checked_at + max_age
+
+due_at > maintenant
+→ FRESH
+
+due_at <= maintenant
+→ DUE
+~~~
+
+Une source connue qui n’a jamais été contrôlée est DUE immédiatement.
+
+La policy est un contrat runtime, pas un modèle persistant. Des policies spécialisées pourront être ajoutées plus tard selon la volatilité d’un fait ou d’une source, sans modifier WatchOutput v1.
+
+### 35.4 Réutilisation d’OpportunitySource et de son historique
+
+DjangoWatchKnowledgeCatalog réutilise les vérités déjà présentes :
+
+~~~text
+OpportunitySource.last_checked_at
+OpportunitySource.status
+OpportunitySourceCheck[]
+~~~
+
+Il est strictement read-only.
+
+Il ne :
+
+- crée aucun OpportunitySourceCheck ;
+- ne change aucun OpportunitySource.status ;
+- ne supprime aucun ancien check ;
+- ne choisit pas une nouvelle vérité métier.
+
+Les anciens checks restent append-only et continuent à représenter l’historique des contrôles.
+
+### 35.5 Réutilisation future de l’Observateur
+
+Actor 2 possède déjà :
+
+~~~text
+ObservationTrigger.WATCH
+ObservationOutcome.NOT_MODIFIED
+~~~
+
+Phase 5 ne recrée pas ce mécanisme.
+
+WatchOutput fournit les sources DUE qui pourront être confiées à l’Observateur par une orchestration ultérieure.
+
+Le traitement attendu reste :
+
+~~~text
+source DUE
+  ↓
+Observer WATCH
+  ↓
+NOT_MODIFIED
+  → aucun besoin de réinterpréter le contenu
+
+ou
+
+OBSERVED avec changement établi
+  → nouvelle matière
+  → interprétation/résolution
+~~~
+
+Une réponse HTTP réussie ou un nouvel artefact n’est pas automatiquement considéré comme un changement métier ; la comparaison de contenu et la résolution aval restent nécessaires.
+
+### 35.6 Sortie WatchOutput v1
+
+La sortie standard contient notamment :
+
+~~~text
+discovery_request_ref
+generated_at
+policy
+target_count
+counts_by_state
+due_source_refs[]
+targets[]
+~~~
+
+Chaque WatchTarget expose :
+
+~~~text
+source_ref
+locator
+freshness_state
+known_ref
+last_checked_at
+due_at
+last_change_state
+basis_codes
+~~~
+
+Cette enveloppe ne contient aucun provider, modèle LLM ou secret.
+
+### 35.7 Pas de suppression ni d’écrasement historique
+
+Phase 5 maintient l’invariant posé par le cadrage :
+
+~~~text
+nouvelle vérification
+!=
+suppression de l’ancienne observation
+~~~
+
+Les contrôles et observations s’empilent dans les historiques propriétaires existants. L’état courant peut évoluer, mais l’ancienne connaissance reste traçable.
+
+### 35.8 Ce que Phase 5 ne fait pas encore
+
+Phase 5 ne :
+
+- lance aucun scheduler ;
+- n’exécute aucune requête HTTP ;
+- n’appelle pas Web Search pour les sources DUE ;
+- ne crée aucun SourceCheck ;
+- ne transforme pas OBSERVED en CHANGED sans comparaison ;
+- ne persiste pas WatchOutput ;
+- ne décide pas encore comment une source changée réactive Deepen ou Resolver.
+
+La prochaine étape peut maintenant relier les sorties standards du cycle :
+
+~~~text
+DiscoveryOutput
+DeepenOutput
+WatchOutput
+~~~
+
+à une orchestration bornée qui choisit explicitement quoi exécuter ensuite, sans rendre chaque suggestion automatique.
