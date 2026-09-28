@@ -1,8 +1,8 @@
 {% extends "base/auth.html" %}
-{% load static socialaccount %}
+{% load static socialaccount social_auth_tags %}
 {% block title %}Créer un compte | Makolo{% endblock %}
 {% block content %}
-{% get_providers as socialaccount_providers %}
+{% makolo_social_providers as socialaccount_providers %}
 <div>
     <div class="mb-7">
         <a href="{% url 'core:home' %}" class="mb-4 inline-flex items-center gap-2 text-xs font-semibold" style="color:var(--mk-muted)"><i data-lucide="arrow-left" class="h-3.5 w-3.5"></i>Retour à Makolo</a>
