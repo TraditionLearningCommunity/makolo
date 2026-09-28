@@ -11,11 +11,11 @@ from authorization.services import can
 from intelligence.interoperability import (
     platform_provider_connections,
     project_provider_connection,
-    provider_connections_for_profile,
     provider_connections_for_space,
 )
 from organizations.models import Organization
 
+from .profile_projection import build_profile_interoperability_payload
 from .projections import build_interoperability_payload
 
 
@@ -29,19 +29,7 @@ class PersonalInteroperabilityAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        connections = [
-            project_provider_connection(connection, manageable=True)
-            for connection in provider_connections_for_profile(request.user)
-        ]
-        return _private_response(
-            build_interoperability_payload(
-                context="profile",
-                connections=connections,
-                self_link="/api/v1/me/interoperability/",
-                actor=request.user,
-                authority_context=request.user,
-            )
-        )
+        return _private_response(build_profile_interoperability_payload(request.user))
 
 
 class SpaceInteroperabilityAPIView(APIView):
