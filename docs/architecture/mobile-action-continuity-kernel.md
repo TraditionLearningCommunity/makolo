@@ -1705,4 +1705,6 @@ Mais il maintient toujours la même frontière :
 
 E s'arrête volontairement avant l'autorité opérationnelle offline.
 
-> **La question de savoir quand, comment et jusqu'où une autorité peut être explicitement déléguée au téléphone hors réseau reste un chantier ultérieur séparé ; E n'en crée ni les règles ni l'implémentation.**
+> **La question de savoir quand, comment et jusqu'où une autorité peut être explicitement déléguée au téléphone hors réseau est désormais fermée au niveau conception par `mobile-delegated-offline-authority-kernel.md` (Bloc F). E n'en crée toujours ni les règles ni l'implémentation.**
+
+La fermeture de maturité/release est portée séparément par `mobile-mature-release-kernel.md` (Bloc G).
