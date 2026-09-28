@@ -74,7 +74,7 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
 
     email = models.EmailField(blank=True, null=True)
     username = models.CharField(
-        max_length=30,
+        max_length=150,
         unique=True,
         validators=[validate_makolo_username],
     )
