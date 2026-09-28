@@ -502,7 +502,7 @@ Stratégie :
 
 Une persistance offline durable ne sera ajoutée que lorsqu'un contrat Access explicite l'autorise.
 
-Le Bloc F traitera l'autorité offline éventuelle ; E n'en crée aucune.
+Le Bloc F traitera l'éventuelle autorité terrain déléguée lorsque l'owner n'est pas joignable ; E n'en crée aucune.
 
 Invariant :
 
@@ -642,7 +642,7 @@ Le résultat serveur détermine ensuite :
 - valider un Requirement via présence de fichier ;
 - enregistrer une AccessUse autoritative.
 
-Ces capacités appartiennent aux owners et, pour l'offline autoritatif, au Bloc F.
+Ces capacités appartiennent aux owners et, pour toute autorité terrain déléguée sans owner joignable, au Bloc F.
 
 ---
 
@@ -1199,7 +1199,7 @@ Elle ne peut pas, à cause du pack seul :
 - valider checkpoint ;
 - exercer une Permission/Mandate.
 
-Ces questions appartiennent au Bloc F — Offline Authority.
+Ces questions appartiennent au Bloc F — Delegated Authority.
 
 ---
 
@@ -1393,9 +1393,9 @@ Si ces éléments ne sont pas clairs :
 
 ---
 
-# 13. Offline policy globale du Bloc E
+# 13. Disponibilité locale, acquisition et revalidation du Bloc E
 
-## E peut fonctionner offline pour
+## E peut rester utilisable localement pour
 
 - lecture de snapshots récents ;
 - History déjà reçu ;
@@ -1406,7 +1406,7 @@ Si ces éléments ne sont pas clairs :
 - préparation de fichiers ;
 - Offline Action Pack borné en lecture.
 
-## E ne promet pas offline pour
+## E exige acquisition ou revalidation distante pour
 
 - autorité Access ;
 - validation Requirement ;
@@ -1424,7 +1424,7 @@ Ces derniers sujets seront explicitement traités dans le Bloc F.
 
 # 14. Matrice E complète
 
-| Surface / owner | Source serveur | Local | Mutation | Offline |
+| Surface / owner | Source serveur | Local | Mutation | Disponibilité locale / revalidation |
 |---|---|---|---|---|
 | Journey | personal.journey.detail | snapshot + index | owner API/capability | lecture + draft |
 | Requirement | personal.journey.requirement.detail | snapshot | owner API seulement | lecture |
@@ -1656,7 +1656,7 @@ Aucun token de concurrence Form universel, aucune nouvelle API realtime généri
 17. Operations Live est fortement volatile.
 18. Jour J peut composer visuellement plusieurs projections mais ne calcule aucune décision métier.
 19. Offline Action Pack est read-only du point de vue de l'autorité.
-20. Toute autorité opérationnelle offline appartient au Bloc F.
+20. Toute autorité opérationnelle déléguée lorsque l'owner n'est pas joignable appartient au Bloc F.
 21. Une mutation n'entre dans Outbox que si son replay contract est défini.
 22. Les capabilities serveur commandent les actions UX ; le client ne les infère pas.
 23. 403/404 après cache sont des résultats normaux à gérer.
@@ -1703,8 +1703,8 @@ Mais il maintient toujours la même frontière :
 
 > **Le téléphone peut garder la continuité de l'expérience ; le serveur garde la continuité de la vérité et de l'autorité.**
 
-E s'arrête volontairement avant l'autorité opérationnelle offline.
+E s'arrête volontairement avant toute autorité opérationnelle déléguée au téléphone lorsque l'owner n'est pas joignable.
 
-> **La question de savoir quand, comment et jusqu'où une autorité peut être explicitement déléguée au téléphone hors réseau est désormais fermée au niveau conception par `mobile-delegated-offline-authority-kernel.md` (Bloc F). E n'en crée toujours ni les règles ni l'implémentation.**
+> **La question de savoir quand, comment et jusqu'où une autorité peut être explicitement déléguée au téléphone lorsque l'owner n'est pas joignable est fermée au niveau conception par le Bloc F (`mobile-delegated-offline-authority-kernel.md`, chemin historique conservé). E n'en crée toujours ni les règles ni l'implémentation.**
 
 La fermeture de maturité/release est portée séparément par `mobile-mature-release-kernel.md` (Bloc G).
