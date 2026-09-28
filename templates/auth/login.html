@@ -22,7 +22,7 @@
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
         <div>
             <label for="id_username" class="mb-2 block text-xs">Identifiant Makolo ou adresse e-mail</label>
-            <div class="relative"><i data-lucide="at-sign" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="id_username" name="username" type="text" value="{{ request.GET.login|default:'' }}" autocomplete="username" required autofocus placeholder="@amina ou vous@exemple.com" class="!pl-12"></div>
+            <div class="relative"><i data-lucide="user-round" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="id_username" name="username" type="text" value="{{ request.GET.login|default:'' }}" autocomplete="username" required autofocus placeholder="@amina ou vous@exemple.com" class="!pl-12"></div>
         </div>
         <div>
             <div class="mb-2 flex items-center justify-between gap-3"><label for="id_password" class="block text-xs">Mot de passe</label><a href="{% url 'account:password-forgot' %}" class="text-xs font-semibold" style="color:var(--mk-brand)">Mot de passe oublié ?</a></div>
