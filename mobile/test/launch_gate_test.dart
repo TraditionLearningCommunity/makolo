@@ -115,6 +115,7 @@ void main() {
       final runtime = _runtime(preferences);
 
       await tester.pumpWidget(_app(runtime));
+      await tester.pump(const Duration(milliseconds: 701));
       await tester.pumpAndSettle();
 
       expect(find.text('Découvrir.\nPréparer.\nAvancer.'), findsOneWidget);
