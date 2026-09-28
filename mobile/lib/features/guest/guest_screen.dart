@@ -61,7 +61,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               representation['title'],
               representation['summary'],
               representation['eyebrow'],
-            ].whereType<Object>().map((value) => value.toString().toLowerCase());
+            ].whereType<Object>().map(
+              (value) => value.toString().toLowerCase(),
+            );
             return searchable.any((value) => value.contains(query));
           }).toList(growable: false);
 
@@ -130,9 +132,10 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               representation['title'],
               representation['summary'],
               representation['eyebrow'],
-            ].whereType<Object>().map((value) => value.toString().toLowerCase()).any(
-              (value) => value.contains(localQuery),
-            );
+            ]
+                .whereType<Object>()
+                .map((value) => value.toString().toLowerCase())
+                .any((value) => value.contains(localQuery));
           }).toList(growable: false);
         } on Object {
           if (mounted) {
