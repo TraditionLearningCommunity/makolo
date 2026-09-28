@@ -5,8 +5,8 @@ import { clearE2eEmails, passwordResetLinkFor } from '../helpers/email.mjs';
 
 test('registration shows validation and creates a usable account', async ({ page }) => {
   await page.goto('/account/register/');
-  await page.getByLabel('Adresse e-mail').fill('signup.user@e2e.makolo.test');
-  await page.getByLabel('Identifiant').fill('signup-e2e');
+  await page.getByLabel('Adresse e-mail (facultatif)', { exact: true }).fill('signup.user@e2e.makolo.test');
+  await page.getByLabel('Identifiant Makolo', { exact: true }).fill('signup-e2e');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByLabel('Confirmer le mot de passe').fill('Different-E2E-2026!');
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
@@ -16,8 +16,10 @@ test('registration shows validation and creates a usable account', async ({ page
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByLabel('Confirmer le mot de passe').fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
-  await expect(page).toHaveURL(/\/login\/\?email=signup\.user%40e2e\.makolo\.test$/);
-  await expect(page.getByLabel('Adresse e-mail')).toHaveValue('signup.user@e2e.makolo.test');
+  await expect(page).toHaveURL(/\/login\/\?login=%40signup-e2e$/);
+  await expect(
+    page.getByLabel('Identifiant Makolo ou adresse e-mail', { exact: true }),
+  ).toHaveValue('@signup-e2e');
   await expect(page.getByText(/Compte créé/i)).toBeVisible();
 
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
@@ -29,13 +31,15 @@ test('registration shows validation and creates a usable account', async ({ page
 
 test('login rejects a bad password and preserves next on success', async ({ page }) => {
   await page.goto('/tickets/');
-  await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
+  await page.getByLabel('Identifiant Makolo ou adresse e-mail', { exact: true }).fill('participant@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill('wrong-password');
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByText(/Adresse e-mail ou mot de passe incorrect/i)).toBeVisible();
+  await expect(
+    page.getByText(/Identifiant Makolo, adresse e-mail ou mot de passe incorrect/i),
+  ).toBeVisible();
 
   // The login form does not echo credentials after failure; re-enter both fields.
-  await page.getByLabel('Adresse e-mail').fill('participant@e2e.makolo.test');
+  await page.getByLabel('Identifiant Makolo ou adresse e-mail', { exact: true }).fill('participant@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL('/tickets/');
@@ -59,7 +63,7 @@ test('forgot password follows the real generated email link and token is one-use
   await page.getByRole('button').filter({ hasText: /Réinitialiser|Enregistrer/ }).click();
   await expect(page).toHaveURL('/login/');
 
-  await page.getByLabel('Adresse e-mail').fill('reset.user@e2e.makolo.test');
+  await page.getByLabel('Identifiant Makolo ou adresse e-mail', { exact: true }).fill('reset.user@e2e.makolo.test');
   await page.getByLabel('Mot de passe', { exact: true }).fill(newPassword);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL('/me/');
