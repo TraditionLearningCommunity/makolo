@@ -27,6 +27,7 @@ from .serializers import (
     AccountDeleteSerializer,
     MakoloIdentifierChangeSerializer,
     MakoloIdentifierSerializer,
+    MakoloTokenObtainPairSerializer,
     NotificationPreferenceSerializer,
     PasswordChangeSerializer,
     PasswordForgotSerializer,
@@ -141,6 +142,7 @@ class RegisterAPIView(APIView):
 class LoginAPIView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [LoginThrottle]
+    serializer_class = MakoloTokenObtainPairSerializer
 
 
 class LogoutAPIView(APIView):
