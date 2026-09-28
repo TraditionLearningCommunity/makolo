@@ -24,7 +24,6 @@ on:
       - "test_support/**"
       - "config/settings.py"
       - "config/urls.py"
-      - "docs/architecture/subscriptions-*.md"
       - ".github/workflows/subscriptions.yml"
   push:
     branches:
@@ -48,7 +47,6 @@ on:
       - "test_support/**"
       - "config/settings.py"
       - "config/urls.py"
-      - "docs/architecture/subscriptions-*.md"
       - ".github/workflows/subscriptions.yml"
 
 concurrency:
