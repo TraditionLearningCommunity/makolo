@@ -1459,3 +1459,211 @@ Phase 3 ne :
 - ne crée pas de scheduler.
 
 La prochaine phase peut travailler l’approfondissement en utilisant DiscoveryOutput v1 comme entrée stable, sans dépendre du provider qui a produit la découverte.
+
+
+---
+
+## 34. Phase 4 runtime — Deepen générique et missions secondaires standards
+
+**Statut : implémenté sur le même chantier, sans migration ni scheduling.**
+
+Phase 4 transforme la sortie standard de Discovery en un plan d’approfondissement également standard :
+
+~~~text
+DiscoveryOutput v1
+      ↓
+FamilyCoveragePort
+      ↓
+DeepenPlanner
+      ↓
+DeepenOutput v1
+      ↓
+ResearchMissionCandidate[]
+~~~
+
+Le but n’est pas de créer un moteur spécial bourses, transports ou emplois. Le même squelette peut être instancié avec des familles et questions différentes selon le type de mission.
+
+### 34.1 Sortie standard DeepenOutput v1
+
+DeepenOutput v1 expose :
+
+~~~text
+parent_mission_ref
+discovery_request_ref
+generated_at
+target_count
+suggestion_count
+targets[]
+suggestions[]
+~~~
+
+Chaque DeepenTarget conserve :
+
+~~~text
+candidate_ref
+knowledge_state
+coverage[]
+suggested_mission_refs[]
+~~~
+
+Chaque FamilyCoverage associe une famille de recherche à un état standard :
+
+~~~text
+PRESENT
+PARTIAL
+MISSING
+CONFLICTING
+NOT_APPLICABLE
+~~~
+
+Invariant :
+
+~~~text
+MISSING
+=
+absent du matériau actuellement acquis
+
+MISSING
+!=
+absent de la réalité
+~~~
+
+### 34.2 Les huit familles restent le squelette commun
+
+Le runtime fournit une spécification générique STANDARD_ACTION_RESEARCH_SPECIFICATION couvrant les huit familles existantes :
+
+~~~text
+POSSIBILITY
+ACTOR
+REQUIREMENT
+QUALIFICATION
+SPATIOTEMPORAL
+PROCEDURE
+ECONOMIC
+REFERENCE
+~~~
+
+Elle fournit des questions génériques et observables, sans vocabulaire propre à une verticale.
+
+Une future instance spécialisée pourra choisir un sous-ensemble ou remplacer les questions sans modifier DeepenPlanner.
+
+Exemple conceptuel :
+
+~~~text
+transport
+→ POSSIBILITY
+→ ACTOR
+→ SPATIOTEMPORAL
+→ PROCEDURE
+→ ECONOMIC
+→ REFERENCE
+
+bourse
+→ les huit familles si nécessaire
+~~~
+
+Le choix spécialisé appartient à l’instanciation de la mission, pas au moteur générique.
+
+### 34.3 Baseline prudente de couverture
+
+MinimalDiscoveryCoverage ne prétend connaître que ce que Discovery garantit réellement :
+
+~~~text
+POSSIBILITY
+→ PRESENT parce qu’un candidat a été découvert
+
+REFERENCE
+→ PRESENT parce que le candidat possède au moins une source
+
+autres familles
+→ MISSING dans le matériau de Discovery
+~~~
+
+Cette baseline ne déduit donc pas une condition, un acteur, une procédure, un coût ou une date à partir d’un simple résumé.
+
+Des implémentations futures de FamilyCoveragePort pourront exploiter des facts structurés, Actor 3 ou d’autres connaissances Makolo pour retourner PARTIAL, PRESENT, CONFLICTING ou NOT_APPLICABLE.
+
+### 34.4 Réutilisation de ResearchMissionCandidate
+
+Chaque approfondissement proposé réutilise le contrat déjà canonique ResearchMissionCandidate.
+
+Une suggestion contient notamment :
+
+~~~text
+primary_family
+subject = label de la réalité candidate
+questions
+known_context
+unknowns
+origin = previous_processing
+scope hérité explicitement
+limits héritées
+priority héritée
+~~~
+
+Le known_context transporte seulement le contexte déjà autorisé et observé :
+
+~~~text
+candidate_ref
+label
+source_refs
+type_hints
+summary
+knowledge_state
+~~~
+
+Aucune localisation utilisateur, préférence privée ou donnée de Profile n’est ajoutée implicitement.
+
+### 34.5 Pas d’exécution automatique
+
+DeepenPlanner produit des suggestions.
+
+Il ne :
+
+- schedule aucune mission ;
+- ne persiste aucune mission ;
+- ne déclenche pas automatiquement Web Search ;
+- ne déclenche pas Actor 2 ou Actor 3 ;
+- ne crée pas de vérité métier.
+
+La frontière existante reste :
+
+~~~text
+ResearchMissionCandidate
+!=
+ResearchMission exécutée
+~~~
+
+Un étage d’orchestration futur décidera quelles suggestions méritent réellement une exécution selon priorité, budget, fraîcheur, doublons et profondeur.
+
+### 34.6 KNOWN ne signifie pas « rien à approfondir »
+
+Une réalité déjà reconnue par Makolo peut encore avoir des dimensions manquantes.
+
+Ainsi :
+
+~~~text
+DiscoveryRecord
+knowledge_state = KNOWN
+
+mais
+
+REQUIREMENT = MISSING
+PROCEDURE = PARTIAL
+ECONOMIC = MISSING
+~~~
+
+peut légitimement produire de nouvelles ResearchMissionCandidate.
+
+La reconnaissance d’identité et la complétude de connaissance restent deux questions distinctes.
+
+### 34.7 Standardisation avant verticalisation
+
+Avec Phase 4, les deux premières sorties stables du cycle sont désormais :
+
+~~~text
+DiscoveryOutput v1
+DeepenOutput v1
+~~~
+
+Ce principe sera conservé pour les phases suivantes : les moteurs et verticales peuvent être plus riches, mais Makolo garde au moins une enveloppe standard provider-neutral et versionnée pour chaque étape importante du cycle.
