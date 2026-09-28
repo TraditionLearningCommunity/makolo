@@ -244,3 +244,5 @@ Après merge :
 - vérifier le HEAD final `main` ;
 - générer l'APK depuis ce HEAD final ;
 - vérifier sur appareil réel : cold start, splash unique, signup/availability, réseau lent/absent, navigation authentifiée, Mark central, Avatar → Connexions.
+
+La fermeture a ensuite été réconciliée avec `main@f3879e04` après l’intégration de Web Search #360 ; ce changement n’ajoute aucune responsabilité mobile et sert uniquement à garantir les gates sur le `main` réellement courant.
