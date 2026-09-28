@@ -6,6 +6,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from accounts.models import (
     NotificationPreference,
@@ -19,6 +20,22 @@ from accounts.validators import (
     validate_avatar,
     validate_makolo_username,
 )
+
+
+class MakoloTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Accept the canonical login field while preserving the current mobile e-mail payload."""
+
+    username = serializers.CharField(required=False, allow_blank=False)
+    email = serializers.EmailField(required=False, write_only=True)
+
+    def validate(self, attrs):
+        login = attrs.get("username") or attrs.pop("email", None)
+        if not login:
+            raise serializers.ValidationError(
+                {"username": "Saisissez votre Identifiant Makolo ou votre adresse e-mail."}
+            )
+        attrs["username"] = login
+        return super().validate(attrs)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
