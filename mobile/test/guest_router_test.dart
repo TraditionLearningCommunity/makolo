@@ -115,9 +115,9 @@ void main() {
     expect(find.byType(LoginScreen), findsNothing);
   });
 
-  testWidgets('guest search filters loaded items while typing without refetch', (
-    tester,
-  ) async {
+  testWidgets(
+    'guest search filters loaded items while typing without refetch',
+    (tester) async {
     var requestCount = 0;
     final client = MockClient((request) async {
       requestCount += 1;
