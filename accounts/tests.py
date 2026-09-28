@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from allauth.socialaccount.models import SocialApp
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -279,3 +281,48 @@ class PasswordResetRequestTests(APITestCase):
         self.assertEqual(known_response.status_code, status.HTTP_200_OK)
         self.assertEqual(unknown_response.status_code, status.HTTP_200_OK)
         self.assertEqual(known_response.data, unknown_response.data)
+
+
+class SocialProviderStatusTests(APITestCase):
+    endpoint = "/api/v1/accounts/auth/providers/"
+
+    def _statuses(self):
+        response = self.client.get(self.endpoint)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return {item["id"]: item for item in response.data["providers"]}
+
+    def test_providers_are_unavailable_without_real_credentials(self):
+        statuses = self._statuses()
+
+        self.assertEqual(set(statuses), {"google", "facebook", "microsoft", "linkedin"})
+        self.assertTrue(all(not item["configured"] for item in statuses.values()))
+
+    def test_google_requires_non_empty_client_credentials(self):
+        SocialApp.objects.create(
+            provider="google",
+            name="Google",
+            client_id="",
+            secret="",
+        )
+        self.assertFalse(self._statuses()["google"]["configured"])
+
+        app = SocialApp.objects.get(provider="google")
+        app.client_id = "test-google-client"
+        app.secret = "test-google-secret"
+        app.save(update_fields=["client_id", "secret"])
+        self.assertTrue(self._statuses()["google"]["configured"])
+
+    def test_linkedin_requires_oidc_identity_and_official_server(self):
+        app = SocialApp.objects.create(
+            provider="openid_connect",
+            provider_id="linkedin",
+            name="LinkedIn",
+            client_id="test-linkedin-client",
+            secret="test-linkedin-secret",
+            settings={"server_url": "https://example.invalid"},
+        )
+        self.assertFalse(self._statuses()["linkedin"]["configured"])
+
+        app.settings = {"server_url": "https://www.linkedin.com/oauth"}
+        app.save(update_fields=["settings"])
+        self.assertTrue(self._statuses()["linkedin"]["configured"])
