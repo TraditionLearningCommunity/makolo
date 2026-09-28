@@ -148,5 +148,4 @@ void main() {
       expect(recovery.entryReason, EntryReason.accountSwitch);
     },
   );
-
 }
