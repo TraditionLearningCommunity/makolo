@@ -76,7 +76,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
-    final page = _pages[_page];
+    final primaryLabel = !_isLastPage
+        ? 'Continuer'
+        : widget.isAuthenticated
+        ? 'Ouvrir Makolo'
+        : 'Découvrir Makolo';
 
     return Scaffold(
       body: SafeArea(
@@ -166,13 +170,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 FilledButton(
                   key: const Key('onboarding-primary'),
                   onPressed: _next,
-                  child: Text(
-                    _isLastPage
-                        ? widget.isAuthenticated
-                            ? 'Ouvrir Makolo'
-                            : 'Découvrir Makolo'
-                        : 'Continuer',
-                  ),
+                  child: Text(primaryLabel),
                 ),
                 if (!widget.isAuthenticated && _isLastPage) ...[
                   const SizedBox(height: MakoloSpacing.md),
