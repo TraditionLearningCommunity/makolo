@@ -7,6 +7,7 @@ import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/guest/guest_screen.dart';
+import '../features/interoperability/connections_screen.dart';
 import '../features/mark/mark_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
@@ -41,6 +42,7 @@ GoRouter createMakoloRouter(
       '/ongoing',
       '/me',
       '/mark',
+      '/connections',
       '/conversations',
       '/notifications',
       '/ongoing/calendar',
@@ -193,6 +195,12 @@ GoRouter createMakoloRouter(
             '/login?switch=1&email=${Uri.encodeQueryComponent(email)}',
           ),
           onAddAccount: () => context.push('/login?add=1'),
+        ),
+      ),
+      GoRoute(
+        path: '/connections',
+        builder: (context, state) => MakoloRefreshBoundary(
+          child: ProfileConnectionsScreen(runtime: runtime),
         ),
       ),
       GoRoute(
