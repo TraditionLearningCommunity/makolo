@@ -1,7 +1,5 @@
 from django.contrib.auth import get_user_model
 
-from allauth.socialaccount.models import SocialApp
-
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
@@ -12,6 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from accounts.models import NotificationPreference
+from accounts.social_providers import social_provider_statuses
 from core.api.privacy import PrivateNoStoreMixin
 
 from accounts.services import (
@@ -99,28 +98,7 @@ class SocialProviderStatusAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        apps = list(SocialApp.objects.all())
-
-        def configured(provider, *, provider_id=None):
-            return any(
-                app.provider == provider
-                and (provider_id is None or getattr(app, "provider_id", "") == provider_id)
-                for app in apps
-            )
-
-        return Response(
-            {
-                "providers": [
-                    {"id": "google", "configured": configured("google")},
-                    {"id": "facebook", "configured": configured("facebook")},
-                    {"id": "microsoft", "configured": configured("microsoft")},
-                    {
-                        "id": "linkedin",
-                        "configured": configured("openid_connect", provider_id="linkedin"),
-                    },
-                ]
-            }
-        )
+        return Response({"providers": social_provider_statuses()})
 
 
 class RegisterAPIView(APIView):
