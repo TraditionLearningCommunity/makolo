@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
-from .capabilities import IntelligenceCapability
+from .capabilities import PERSISTED_INTELLIGENCE_ROUTE_CAPABILITIES
 
 
 class ProviderProtocol(models.TextChoices):
@@ -130,7 +130,7 @@ class IntelligenceRoute(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     capability = models.CharField(
         max_length=32,
-        choices=[(item.value, item.value) for item in IntelligenceCapability],
+        choices=[(item.value, item.value) for item in PERSISTED_INTELLIGENCE_ROUTE_CAPABILITIES],
     )
     connection = models.ForeignKey(
         ProviderConnection,

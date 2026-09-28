@@ -1043,3 +1043,997 @@ algorithmes Makolo
     ↓
 pertinence / préparation / action
 ~~~
+
+
+---
+
+## 31. Phase 1 runtime — contrat provider-neutral minimal
+
+**Statut : implémenté sur le chantier Phase 1, sans migration ni provider réel.**
+
+L’audit du runtime a confirmé que Web Research ne doit ni dupliquer ResearchMission, ni se faire passer pour une Observation Actor 2, ni introduire un second registry de providers.
+
+Le contrat minimal est donc isolé dans :
+
+~~~text
+web_research/
+  contracts.py
+  ports.py
+~~~
+
+Il porte quatre éléments principaux :
+
+- WebResearchRequest : une exécution bornée adossée à une ResearchMission existante ;
+- WebResearchSource : une source Web citée par le moteur, explicitement distincte d’un artefact Observer ;
+- WebResearchCandidate : une réalité candidate légère, obligatoirement reliée à au moins une source du résultat ;
+- WebResearchResult : le résultat provider-neutral, daté, borné et accompagné d’une raison d’arrêt.
+
+Le port d’exécution est :
+
+~~~text
+WebResearchEnginePort
+  execute(WebResearchRequest) -> WebResearchResult
+~~~
+
+### 31.1 Modes exécutables
+
+Phase 1 formalise :
+
+~~~text
+DISCOVER
+DEEPEN
+WATCH
+~~~
+
+USE reste hors de ce port : l’utilisation de la connaissance canonique appartient aux domaines et algorithmes Makolo, pas au moteur d’acquisition.
+
+### 31.2 Bornage et raisons d’arrêt
+
+Un résultat distingue notamment :
+
+~~~text
+completed
+partial
+no_results
+failed
+~~~
+
+et conserve une raison d’arrêt provider-neutral :
+
+~~~text
+completed
+coverage_saturated
+budget_exhausted
+no_new_candidates
+provider_limit
+deadline_reached
+failed
+~~~
+
+Ainsi no_results ou no_new_candidates ne signifie jamais que rien d’autre n’existe sur le Web.
+
+### 31.3 Frontière avec Actor 2 et Actor 3
+
+WebResearchSource ne possède volontairement aucun :
+
+~~~text
+artifact_ref
+artifact_observation_ref
+ObservationMaterial
+~~~
+
+Une citation produite par un moteur Web Search ne doit pas être maquillée en artefact acquis par l’Observateur.
+
+De même, WebResearchCandidate reste volontairement plus léger que les CandidateEntity / CandidateFact / CandidateRelation / CandidateConstraint de l’Interpréteur.
+
+Phase 1 ne décide pas encore si une recherche approfondie :
+
+1. produit seulement des sources à faire observer par Actor 2 ;
+2. produit aussi des faits candidats sourcés via un contrat spécifique ;
+3. combine les deux selon le niveau de preuve demandé.
+
+Cette couture reste à fermer avant l’admission de faits détaillés.
+
+### 31.4 Provider metadata
+
+WebResearchResult peut conserver des métadonnées techniques non métier telles que provider_key ou model pour la télémétrie et l’audit d’exécution.
+
+Le contrat rejette explicitement les clés sensibles usuelles telles que :
+
+~~~text
+api_key
+token
+secret
+credential
+password
+authorization
+~~~
+
+Les credentials continuent d’appartenir exclusivement à l’infrastructure intelligence.
+
+### 31.5 Ce que Phase 1 n’ajoute pas
+
+Aucun changement n’est apporté à :
+
+- IntelligenceCapability ;
+- ProviderProtocol ;
+- OpenAICompatibleProvider ;
+- ProviderConnection / IntelligenceRoute ;
+- ProspectingMission ;
+- ObservationMaterial ;
+- InterpretedMaterial ;
+- Resolver ;
+- Orchestrator ;
+- modèles Django ;
+- migrations.
+
+La Phase 2 pourra donc brancher ce contrat sur intelligence sans déplacer les frontières canoniques.
+
+
+---
+
+## 32. Phase 2 runtime — IntelligenceGateway et premier adapter Web Search
+
+**Statut : implémenté sur le même chantier que la Phase 1, sans migration.**
+
+Phase 2 raccorde le contrat Web Research au socle transversal intelligence existant :
+
+~~~text
+ResearchMission
+  ↓
+WebResearchRequest
+  ↓
+IntelligenceWebResearchEngine
+  ↓
+IntelligenceGateway
+  ↓
+IntelligenceCapability.WEB_RESEARCH
+  ↓
+IntelligenceRegistry
+  ↓
+provider adapter
+  ↓
+WebResearchResult
+~~~
+
+Le Gateway existant conserve donc ses responsabilités de routage en mémoire, fallback, erreurs provider et télémétrie sans payload brut.
+
+### 32.1 Capacité runtime, sans route persistée prématurée
+
+WEB_RESEARCH est ajouté comme IntelligenceCapability runtime.
+
+Il n’est volontairement pas encore ajouté aux choix persistés de IntelligenceRoute. Les quatre capacités persistées restent :
+
+~~~text
+text_generate
+structured_generate
+embed
+rerank
+~~~
+
+Cette séparation évite une migration purement mécanique avant d’avoir figé le protocole et la configuration durable des moteurs Web Research.
+
+Conséquence : Phase 2 prouve le raccord au Gateway et au registry provider-neutral, mais ne déclare pas encore une configuration Web Research administrable en base.
+
+### 32.2 Premier adapter : OpenAI Responses Web Search
+
+Le premier adapter concret est OpenAIResponsesWebResearchProvider.
+
+Il utilise l’API Responses avec l’outil web_search, conformément au protocole provider courant d’OpenAI, tout en restant derrière IntelligenceProvider et WEB_RESEARCH.
+
+L’adapter :
+
+- utilise POST /responses ;
+- active web_search ;
+- exige l’usage d’un outil pour une mission Web Research ;
+- demande la liste complète des sources de web_search_call ;
+- utilise Structured Outputs avec JSON Schema ;
+- ne fournit aucune localisation implicite ;
+- ne transmet que le scope explicitement présent dans ResearchMission ;
+- utilise store=false ;
+- convertit max_queries de ResearchMission.limits en max_tool_calls lorsque cette limite est définie ;
+- ne retourne jamais la clé API dans le résultat.
+
+Les détails OpenAI restent confinés à cet adapter. Un futur provider peut implémenter la même capability sans modifier WebResearchRequest ou WebResearchResult.
+
+### 32.3 Validation des sources
+
+Le provider produit deux flux distincts :
+
+~~~text
+sources réellement rapportées par le tool Web Search
++
+candidats structurés qui citent des source_urls
+~~~
+
+IntelligenceWebResearchEngine ne conserve un candidat que si toutes ses source_urls correspondent à des sources effectivement rapportées par l’exécution provider.
+
+Ainsi :
+
+~~~text
+URL inventée par le modèle
+→ candidate_unknown_source
+→ candidat rejeté
+~~~
+
+Le moteur ne transforme donc pas une simple URL générée en evidence.
+
+### 32.4 Budgets
+
+Deux limites du canevas sont déjà appliquées :
+
+~~~text
+max_queries
+→ max_tool_calls côté adapter OpenAI
+
+max_candidates
+→ limite déterministe côté moteur Makolo
+~~~
+
+Si max_candidates est atteint, le résultat devient partiel avec budget_exhausted et conserve un warning candidate_limit_reached.
+
+Les autres limites restent à mapper seulement lorsqu’un provider offre un contrôle explicite et stable.
+
+### 32.5 Ce qui reste volontairement hors Phase 2
+
+Phase 2 ne crée toujours pas :
+
+- de nouvelle table ;
+- de migration ;
+- de route persistée WEB_RESEARCH ;
+- de nouveau ProviderProtocol ;
+- de credential store parallèle ;
+- d’écriture vers Activity, Requirement ou un autre domaine ;
+- de conversion automatique d’une citation Web en CandidateEvidence Actor 3 ;
+- de scheduler ;
+- de crawl automatique.
+
+La prochaine couture utile est la Discovery générique : prendre un WebResearchResult, reconnaître ce qui est déjà connu, puis décider ce qui mérite observation, approfondissement ou résolution.
+
+
+---
+
+## 33. Phase 3 runtime — Discovery générique et sorties standards
+
+**Statut : implémenté sur le même chantier, sans migration.**
+
+Phase 3 introduit une sortie standard de Discovery qui ne dépend ni du provider Web Search, ni d’un domaine métier particulier :
+
+~~~text
+WebResearchResult
+      ↓
+DiscoveryNormalizer
+      ↓
+DiscoveryOutput v1
+~~~
+
+La sortie standard existe pour que les étapes aval puissent consommer une forme stable, même si les moteurs, les providers et les stratégies de recherche évoluent.
+
+### 33.1 DiscoveryOutput v1
+
+Chaque exécution produit notamment :
+
+~~~text
+request_ref
+mission_ref
+research_outcome
+stop_reason
+generated_at
+source_count
+candidate_count
+counts_by_state
+records[]
+warning_codes
+~~~
+
+Chaque DiscoveryRecord conserve :
+
+~~~text
+candidate_ref
+label
+source_refs[]
+type_hints[]
+summary
+knowledge_state
+known_refs[]
+basis_codes[]
+~~~
+
+Aucun champ provider/model n’appartient à cette sortie standard.
+
+### 33.2 États standards de connaissance
+
+Phase 3 formalise quatre états :
+
+~~~text
+KNOWN
+NOT_KNOWN
+AMBIGUOUS
+UNRESOLVED
+~~~
+
+Leur sens est strict :
+
+- KNOWN : un lookup borné a trouvé exactement une réalité Makolo connue ;
+- NOT_KNOWN : le catalog interrogé a une couverture suffisante pour conclure que cette réalité n’y est pas connue ;
+- AMBIGUOUS : plusieurs réalités connues restent possibles ;
+- UNRESOLVED : le lookup disponible ne permet pas de conclure.
+
+Invariant :
+
+~~~text
+UNRESOLVED != NOT_KNOWN
+NOT_KNOWN != nouveau dans le monde
+~~~
+
+NOT_KNOWN signifie seulement « non connu de Makolo dans un catalog dont la couverture permet cette conclusion ».
+
+### 33.3 DiscoveryKnowledgePort
+
+La qualification known/not-known est derrière un port read-only :
+
+~~~text
+DiscoveryKnowledgePort.lookup(...)
+    → DiscoveryLookup
+~~~
+
+La couche Discovery ne lit donc pas directement tous les domaines Makolo.
+
+Un adapter peut fournir une connaissance plus ou moins forte, mais il doit retourner UNRESOLVED si sa couverture est insuffisante.
+
+### 33.4 Premier adapter de connaissance
+
+DjangoDiscoveryKnowledgeCatalog fournit un premier usage réel et volontairement prudent.
+
+Il réutilise la canonicalisation Web du Prospecteur et effectue uniquement des rapprochements exacts de source URL vers des réalités déjà connues dans les catalogs actuellement sûrs pour ce test, notamment OpportunitySource et les websites Organization.
+
+Il peut conclure :
+
+~~~text
+exactement une réalité
+→ KNOWN
+
+plusieurs réalités exactes
+→ AMBIGUOUS
+
+aucune correspondance exacte
+→ UNRESOLVED
+~~~
+
+Il ne retourne pas NOT_KNOWN sur un simple miss, parce que l’absence d’une URL de ces tables ne prouve pas que Makolo ne connaît pas la réalité autrement.
+
+### 33.5 Frontière avec Resolver
+
+Discovery n’est pas un deuxième Resolver.
+
+La sortie standard indique seulement ce que le lookup amont peut savoir avant approfondissement.
+
+Le Resolver conserve l’autorité sur :
+
+- identity matching complet ;
+- provisional identity ;
+- heuristiques bornées ;
+- new_candidate ;
+- relations ;
+- facts ;
+- updates ;
+- conflicts.
+
+Phase 3 permet simplement d’éviter de retraiter aveuglément une source dont Makolo possède déjà une correspondance exacte.
+
+### 33.6 Sortie standard avant spécialisation
+
+Le même DiscoveryOutput v1 doit pouvoir servir à :
+
+~~~text
+bourses
+emplois
+formations
+transports
+programmes
+services
+autres missions
+~~~
+
+Les spécialisations métier pourront ajouter des traitements aval, mais elles ne changent pas l’enveloppe standard de Discovery.
+
+C’est cette stabilité qui permet d’avoir :
+
+~~~text
+plusieurs moteurs
++ plusieurs missions
++ plusieurs domaines
+→ une sortie Makolo commune
+~~~
+
+### 33.7 Ce que Phase 3 ne fait pas encore
+
+Phase 3 ne :
+
+- crée aucune Opportunity ou autre réalité métier ;
+- ne transforme pas UNRESOLVED en NEW_CANDIDATE ;
+- ne lance pas automatiquement Actor 2 ;
+- ne lance pas automatiquement Actor 4 ;
+- ne décide pas encore quelles inconnues doivent devenir des missions DEEPEN ;
+- ne persiste pas DiscoveryOutput ;
+- ne crée pas de scheduler.
+
+La prochaine phase peut travailler l’approfondissement en utilisant DiscoveryOutput v1 comme entrée stable, sans dépendre du provider qui a produit la découverte.
+
+
+---
+
+## 34. Phase 4 runtime — Deepen générique et missions secondaires standards
+
+**Statut : implémenté sur le même chantier, sans migration ni scheduling.**
+
+Phase 4 transforme la sortie standard de Discovery en un plan d’approfondissement également standard :
+
+~~~text
+DiscoveryOutput v1
+      ↓
+FamilyCoveragePort
+      ↓
+DeepenPlanner
+      ↓
+DeepenOutput v1
+      ↓
+ResearchMissionCandidate[]
+~~~
+
+Le but n’est pas de créer un moteur spécial bourses, transports ou emplois. Le même squelette peut être instancié avec des familles et questions différentes selon le type de mission.
+
+### 34.1 Sortie standard DeepenOutput v1
+
+DeepenOutput v1 expose :
+
+~~~text
+parent_mission_ref
+discovery_request_ref
+generated_at
+target_count
+suggestion_count
+targets[]
+suggestions[]
+~~~
+
+Chaque DeepenTarget conserve :
+
+~~~text
+candidate_ref
+knowledge_state
+coverage[]
+suggested_mission_refs[]
+~~~
+
+Chaque FamilyCoverage associe une famille de recherche à un état standard :
+
+~~~text
+PRESENT
+PARTIAL
+MISSING
+CONFLICTING
+NOT_APPLICABLE
+~~~
+
+Invariant :
+
+~~~text
+MISSING
+=
+absent du matériau actuellement acquis
+
+MISSING
+!=
+absent de la réalité
+~~~
+
+### 34.2 Les huit familles restent le squelette commun
+
+Le runtime fournit une spécification générique STANDARD_ACTION_RESEARCH_SPECIFICATION couvrant les huit familles existantes :
+
+~~~text
+POSSIBILITY
+ACTOR
+REQUIREMENT
+QUALIFICATION
+SPATIOTEMPORAL
+PROCEDURE
+ECONOMIC
+REFERENCE
+~~~
+
+Elle fournit des questions génériques et observables, sans vocabulaire propre à une verticale.
+
+Une future instance spécialisée pourra choisir un sous-ensemble ou remplacer les questions sans modifier DeepenPlanner.
+
+Exemple conceptuel :
+
+~~~text
+transport
+→ POSSIBILITY
+→ ACTOR
+→ SPATIOTEMPORAL
+→ PROCEDURE
+→ ECONOMIC
+→ REFERENCE
+
+bourse
+→ les huit familles si nécessaire
+~~~
+
+Le choix spécialisé appartient à l’instanciation de la mission, pas au moteur générique.
+
+### 34.3 Baseline prudente de couverture
+
+MinimalDiscoveryCoverage ne prétend connaître que ce que Discovery garantit réellement :
+
+~~~text
+POSSIBILITY
+→ PRESENT parce qu’un candidat a été découvert
+
+REFERENCE
+→ PRESENT parce que le candidat possède au moins une source
+
+autres familles
+→ MISSING dans le matériau de Discovery
+~~~
+
+Cette baseline ne déduit donc pas une condition, un acteur, une procédure, un coût ou une date à partir d’un simple résumé.
+
+Des implémentations futures de FamilyCoveragePort pourront exploiter des facts structurés, Actor 3 ou d’autres connaissances Makolo pour retourner PARTIAL, PRESENT, CONFLICTING ou NOT_APPLICABLE.
+
+### 34.4 Réutilisation de ResearchMissionCandidate
+
+Chaque approfondissement proposé réutilise le contrat déjà canonique ResearchMissionCandidate.
+
+Une suggestion contient notamment :
+
+~~~text
+primary_family
+subject = label de la réalité candidate
+questions
+known_context
+unknowns
+origin = previous_processing
+scope hérité explicitement
+limits héritées
+priority héritée
+~~~
+
+Le known_context transporte seulement le contexte déjà autorisé et observé :
+
+~~~text
+candidate_ref
+label
+source_refs
+type_hints
+summary
+knowledge_state
+~~~
+
+Aucune localisation utilisateur, préférence privée ou donnée de Profile n’est ajoutée implicitement.
+
+### 34.5 Pas d’exécution automatique
+
+DeepenPlanner produit des suggestions.
+
+Il ne :
+
+- schedule aucune mission ;
+- ne persiste aucune mission ;
+- ne déclenche pas automatiquement Web Search ;
+- ne déclenche pas Actor 2 ou Actor 3 ;
+- ne crée pas de vérité métier.
+
+La frontière existante reste :
+
+~~~text
+ResearchMissionCandidate
+!=
+ResearchMission exécutée
+~~~
+
+Un étage d’orchestration futur décidera quelles suggestions méritent réellement une exécution selon priorité, budget, fraîcheur, doublons et profondeur.
+
+### 34.6 KNOWN ne signifie pas « rien à approfondir »
+
+Une réalité déjà reconnue par Makolo peut encore avoir des dimensions manquantes.
+
+Ainsi :
+
+~~~text
+DiscoveryRecord
+knowledge_state = KNOWN
+
+mais
+
+REQUIREMENT = MISSING
+PROCEDURE = PARTIAL
+ECONOMIC = MISSING
+~~~
+
+peut légitimement produire de nouvelles ResearchMissionCandidate.
+
+La reconnaissance d’identité et la complétude de connaissance restent deux questions distinctes.
+
+### 34.7 Standardisation avant verticalisation
+
+Avec Phase 4, les deux premières sorties stables du cycle sont désormais :
+
+~~~text
+DiscoveryOutput v1
+DeepenOutput v1
+~~~
+
+Ce principe sera conservé pour les phases suivantes : les moteurs et verticales peuvent être plus riches, mais Makolo garde au moins une enveloppe standard provider-neutral et versionnée pour chaque étape importante du cycle.
+
+
+---
+
+## 35. Phase 5 runtime — Watch, fraîcheur et réexamen standard
+
+**Statut : implémenté sur le même chantier, sans migration ni scheduler.**
+
+Phase 5 ajoute un troisième contrat de sortie standard :
+
+~~~text
+WatchOutput v1
+~~~
+
+Il ne réobserve pas automatiquement le Web. Il répond d’abord à une question plus simple et déterministe :
+
+> parmi les sources déjà reliées à la connaissance Makolo, lesquelles sont encore fraîches et lesquelles doivent être revérifiées ?
+
+Le cycle devient :
+
+~~~text
+DiscoveryOutput v1
+      ↓
+WatchKnowledgePort
+      ↓
+FreshnessPolicy
+      ↓
+WatchPlanner
+      ↓
+WatchOutput v1
+~~~
+
+### 35.1 États standards de fraîcheur
+
+WatchOutput utilise :
+
+~~~text
+FRESH
+DUE
+UNRESOLVED
+~~~
+
+- FRESH : une source connue a été contrôlée dans la fenêtre de fraîcheur ;
+- DUE : une source connue doit être réobservée ;
+- UNRESOLVED : la source ne peut pas encore être reliée de manière assez sûre à un propriétaire de connaissance supporté par l’adapter.
+
+Une source inconnue ne devient donc pas automatiquement DUE. Elle doit d’abord être résolue/admise dans la connaissance Makolo.
+
+### 35.2 États standards de changement
+
+Le contrat conserve aussi le dernier état de changement connu :
+
+~~~text
+UNCHANGED
+CHANGED
+UNREACHABLE
+REMOVED
+UNKNOWN
+~~~
+
+Ces états décrivent ce que Makolo sait du dernier contrôle ; ils ne déclenchent aucune mutation à eux seuls.
+
+### 35.3 FreshnessPolicy
+
+La première policy est volontairement minimale et générique :
+
+~~~text
+max_age_seconds
+~~~
+
+Pour une source connue :
+
+~~~text
+due_at = last_checked_at + max_age
+
+due_at > maintenant
+→ FRESH
+
+due_at <= maintenant
+→ DUE
+~~~
+
+Une source connue qui n’a jamais été contrôlée est DUE immédiatement.
+
+La policy est un contrat runtime, pas un modèle persistant. Des policies spécialisées pourront être ajoutées plus tard selon la volatilité d’un fait ou d’une source, sans modifier WatchOutput v1.
+
+### 35.4 Réutilisation d’OpportunitySource et de son historique
+
+DjangoWatchKnowledgeCatalog réutilise les vérités déjà présentes :
+
+~~~text
+OpportunitySource.last_checked_at
+OpportunitySource.status
+OpportunitySourceCheck[]
+~~~
+
+Il est strictement read-only.
+
+Il ne :
+
+- crée aucun OpportunitySourceCheck ;
+- ne change aucun OpportunitySource.status ;
+- ne supprime aucun ancien check ;
+- ne choisit pas une nouvelle vérité métier.
+
+Les anciens checks restent append-only et continuent à représenter l’historique des contrôles.
+
+### 35.5 Réutilisation future de l’Observateur
+
+Actor 2 possède déjà :
+
+~~~text
+ObservationTrigger.WATCH
+ObservationOutcome.NOT_MODIFIED
+~~~
+
+Phase 5 ne recrée pas ce mécanisme.
+
+WatchOutput fournit les sources DUE qui pourront être confiées à l’Observateur par une orchestration ultérieure.
+
+Le traitement attendu reste :
+
+~~~text
+source DUE
+  ↓
+Observer WATCH
+  ↓
+NOT_MODIFIED
+  → aucun besoin de réinterpréter le contenu
+
+ou
+
+OBSERVED avec changement établi
+  → nouvelle matière
+  → interprétation/résolution
+~~~
+
+Une réponse HTTP réussie ou un nouvel artefact n’est pas automatiquement considéré comme un changement métier ; la comparaison de contenu et la résolution aval restent nécessaires.
+
+### 35.6 Sortie WatchOutput v1
+
+La sortie standard contient notamment :
+
+~~~text
+discovery_request_ref
+generated_at
+policy
+target_count
+counts_by_state
+due_source_refs[]
+targets[]
+~~~
+
+Chaque WatchTarget expose :
+
+~~~text
+source_ref
+locator
+freshness_state
+known_ref
+last_checked_at
+due_at
+last_change_state
+basis_codes
+~~~
+
+Cette enveloppe ne contient aucun provider, modèle LLM ou secret.
+
+### 35.7 Pas de suppression ni d’écrasement historique
+
+Phase 5 maintient l’invariant posé par le cadrage :
+
+~~~text
+nouvelle vérification
+!=
+suppression de l’ancienne observation
+~~~
+
+Les contrôles et observations s’empilent dans les historiques propriétaires existants. L’état courant peut évoluer, mais l’ancienne connaissance reste traçable.
+
+### 35.8 Ce que Phase 5 ne fait pas encore
+
+Phase 5 ne :
+
+- lance aucun scheduler ;
+- n’exécute aucune requête HTTP ;
+- n’appelle pas Web Search pour les sources DUE ;
+- ne crée aucun SourceCheck ;
+- ne transforme pas OBSERVED en CHANGED sans comparaison ;
+- ne persiste pas WatchOutput ;
+- ne décide pas encore comment une source changée réactive Deepen ou Resolver.
+
+La prochaine étape peut maintenant relier les sorties standards du cycle :
+
+~~~text
+DiscoveryOutput
+DeepenOutput
+WatchOutput
+~~~
+
+à une orchestration bornée qui choisit explicitement quoi exécuter ensuite, sans rendre chaque suggestion automatique.
+
+
+---
+
+## 36. Phase 6 runtime — orchestration bornée du cycle standard
+
+**Statut : implémenté sur le même chantier, sans migration et sans exécution automatique.**
+
+Phase 6 relie les trois sorties standards déjà établies :
+
+~~~text
+DiscoveryOutput v1
+DeepenOutput v1
+WatchOutput v1
+        ↓
+CyclePlanner
+        ↓
+CyclePlan v1
+~~~
+
+CyclePlan v1 est une sortie de **décision**, pas une file de jobs et pas un scheduler.
+
+Il répond à :
+
+> étant donné ce que Makolo vient de découvrir, ce qu’il reste à approfondir et l’état de fraîcheur des sources, quelle est la prochaine action raisonnable ?
+
+### 36.1 Actions standards
+
+Le contrat définit :
+
+~~~text
+DEEPEN_MISSION
+OBSERVE_SOURCE
+WATCH_SOURCE
+HOLD_FOR_RESOLUTION
+NO_ACTION
+~~~
+
+Sens :
+
+- DEEPEN_MISSION : une ResearchMissionCandidate déjà préparée mérite d’être considérée pour exécution ;
+- OBSERVE_SOURCE : une source externe n’est pas encore suffisamment établie pour Watch et mérite une acquisition/observation contrôlée ;
+- WATCH_SOURCE : une source Makolo connue est arrivée à échéance de fraîcheur ;
+- HOLD_FOR_RESOLUTION : l’identité reste ambiguë/non résolue et aucune nouvelle mission d’approfondissement n’est actuellement nécessaire ;
+- NO_ACTION : la réalité est connue, suffisamment couverte dans la spécification courante et ses sources sont encore fraîches.
+
+Ces actions sont des directives standardisées. Elles ne sont pas exécutées par CyclePlanner.
+
+### 36.2 Décisions déterministes
+
+Les principales règles V1 sont :
+
+~~~text
+famille à approfondir
+→ DEEPEN_MISSION
+
+source connue + fraîcheur DUE
+→ WATCH_SOURCE
+
+source non encore watchable
+→ OBSERVE_SOURCE
+
+identité ambiguë/unresolved + aucun deepen nécessaire
+→ HOLD_FOR_RESOLUTION
+
+identité KNOWN + aucune dimension à approfondir + toutes sources FRESH
+→ NO_ACTION
+~~~
+
+Les actions peuvent coexister.
+
+Exemple :
+
+~~~text
+candidat encore unresolved
++ REQUIREMENT manquant
++ source pas encore watchable
+
+→ DEEPEN_MISSION
+→ OBSERVE_SOURCE
+~~~
+
+Le système n’est donc pas obligé de choisir artificiellement une seule action lorsque plusieurs responsabilités indépendantes sont nécessaires.
+
+### 36.3 Sortie standard CyclePlan v1
+
+CyclePlan contient :
+
+~~~text
+discovery_request_ref
+generated_at
+action_count
+counts_by_action
+actions[]
+~~~
+
+Chaque CycleAction expose seulement :
+
+~~~text
+action_kind
+candidate_ref
+source_ref
+mission_ref
+reason_codes
+~~~
+
+Le contrat ne contient :
+
+- aucun nom de provider ;
+- aucun modèle LLM ;
+- aucun secret ;
+- aucune donnée Profile implicite ;
+- aucune commande ORM.
+
+### 36.4 Frontières Actor 2 / Actor 3 / Resolver
+
+Phase 6 ne contourne pas les Actors.
+
+OBSERVE_SOURCE prépare une future acquisition par les mécanismes Observer appropriés.
+
+WATCH_SOURCE prépare une future observation avec ObservationTrigger.WATCH.
+
+HOLD_FOR_RESOLUTION ne signifie pas que DiscoveryOutput est directement consommable par Actor 4. Le Resolver conserve son entrée canonique InterpretedMaterial.
+
+Le chemin de matière forte reste :
+
+~~~text
+source
+→ Observer
+→ ObservationMaterial
+→ Interpreter
+→ InterpretedMaterial
+→ Resolver
+~~~
+
+Web Research peut découvrir et orienter ce chemin, mais ne fabrique pas artificiellement un ObservationMaterial ou un InterpretedMaterial.
+
+### 36.5 Pas d’autonomie cachée
+
+CyclePlanner ne :
+
+- lance pas Web Search ;
+- ne lance pas Actor 2 ;
+- ne lance pas Actor 3 ;
+- ne lance pas Resolver ;
+- ne persiste aucune ResearchMissionCandidate ;
+- ne crée aucun job ;
+- ne modifie aucun domaine ;
+- ne planifie aucun cron/scheduler.
+
+La prochaine couche, si elle est nécessaire, sera une orchestration d’exécution explicite avec budgets, idempotence et admission de directives, sans changer les sorties standards déjà établies.
+
+### 36.6 Les sorties standards du cycle
+
+À ce stade le canevas runtime possède quatre enveloppes provider-neutral et versionnées :
+
+~~~text
+WebResearchResult
+        ↓
+DiscoveryOutput v1
+        ↓
+DeepenOutput v1
+        ↓
+WatchOutput v1
+        ↓
+CyclePlan v1
+~~~
+
+Elles permettent aux moteurs et aux verticales de devenir plus riches sans obliger les consommateurs aval à connaître les détails d’OpenAI, Anthropic, d’un crawler particulier ou d’une verticale métier particulière.
