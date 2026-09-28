@@ -74,9 +74,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         leading: const Icon(Icons.link_outlined),
         title: Text(connection.displayName),
         subtitle: Text(_connectionState(connection)),
-        trailing: connection.manageable
-            ? const Icon(Icons.chevron_right)
-            : null,
       ),
     );
   }
@@ -143,8 +140,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         MakoloSpacing.xxl,
       ),
       children: [
-        Text('Connexions', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: MakoloSpacing.xs),
         Text(
           'Reliez Makolo aux services que vous utilisez.',
           style: Theme.of(context).textTheme.bodyMedium,
