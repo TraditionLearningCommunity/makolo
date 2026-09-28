@@ -122,6 +122,122 @@ class UploadValidationTests(APITestCase):
             validate_verification_document(uploaded_file)
 
 
+
+class MakoloIdentityFoundationTests(APITestCase):
+    password = "Strong-local-password-2026!"
+
+    def test_registration_accepts_identifier_without_email(self):
+        response = self.client.post(
+            "/api/v1/accounts/auth/register/",
+            {
+                "username": "sans-email",
+                "password": self.password,
+                "password_confirm": self.password,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(username="sans-email")
+        self.assertIsNone(user.email)
+        self.assertTrue(user.username_configured)
+        self.assertIsNotNone(user.username_changed_at)
+
+    def test_local_login_accepts_identifier_email_and_at_identifier(self):
+        user = User.objects.create_user(
+            username="kivu-runner",
+            email="runner@example.com",
+            password=self.password,
+        )
+
+        for login in ("kivu-runner", "@kivu-runner", "runner@example.com"):
+            response = self.client.post(
+                "/api/v1/accounts/auth/login/",
+                {"username": login, "password": self.password},
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK, login)
+            self.assertIn("access", response.data)
+            self.assertIn("refresh", response.data)
+
+        legacy_mobile = self.client.post(
+            "/api/v1/accounts/auth/login/",
+            {"email": "runner@example.com", "password": self.password},
+            format="json",
+        )
+        self.assertEqual(legacy_mobile.status_code, status.HTTP_200_OK)
+        self.assertIn("access", legacy_mobile.data)
+
+        user.refresh_from_db()
+        self.assertEqual(user.username, "kivu-runner")
+
+    def test_identifier_availability_normalizes_and_rejects_reserved_values(self):
+        User.objects.create_user(username="deja-pris", password=self.password)
+
+        taken = self.client.get(
+            "/api/v1/accounts/auth/identifier/availability/",
+            {"value": "@DEJA-PRIS"},
+        )
+        self.assertEqual(taken.status_code, status.HTTP_200_OK)
+        self.assertFalse(taken.data["available"])
+        self.assertEqual(taken.data["username"], "deja-pris")
+
+        reserved = self.client.get(
+            "/api/v1/accounts/auth/identifier/availability/",
+            {"value": "admin"},
+        )
+        self.assertEqual(reserved.status_code, status.HTTP_200_OK)
+        self.assertFalse(reserved.data["available"])
+        self.assertEqual(reserved.data["reason"], "invalid")
+
+    def test_social_provisional_identifier_can_be_configured_then_enters_cooldown(self):
+        user = User.objects.create_user(
+            username="makolo_a1b2c3d4e5",
+            password=self.password,
+            username_configured=False,
+            username_changed_at=None,
+        )
+        self.client.force_authenticate(user)
+
+        first = self.client.patch(
+            "/api/v1/accounts/auth/identifier/",
+            {"username": "nouvel-identifiant"},
+            format="json",
+        )
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertEqual(user.username, "nouvel-identifiant")
+        self.assertTrue(user.username_configured)
+        self.assertIsNotNone(user.username_changed_at)
+
+        second = self.client.patch(
+            "/api/v1/accounts/auth/identifier/",
+            {"username": "encore-un"},
+            format="json",
+        )
+        self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("username", second.data)
+
+    def test_email_is_unique_case_insensitively_when_present(self):
+        User.objects.create_user(
+            username="premier",
+            email="Personne@Example.com",
+            password=self.password,
+        )
+        response = self.client.post(
+            "/api/v1/accounts/auth/register/",
+            {
+                "username": "second",
+                "email": "personne@example.com",
+                "password": self.password,
+                "password_confirm": self.password,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+
+
 class PasswordResetRequestTests(APITestCase):
     def test_password_reset_request_reports_local_only_delivery_in_test_environment(self):
         user = User.objects.create_user(

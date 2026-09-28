@@ -12,6 +12,7 @@ handler500 = "core.error_views.error_500"
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("auth/", include("allauth.urls")),
     path("api/v1/health/", HealthAPIView.as_view(), name="api-health"),
     path("api/v1/readiness/", ReadinessAPIView.as_view(), name="api-readiness"),
     path("api/v1/me/", include("core.api.urls")),

@@ -6,8 +6,10 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 
 from geography.validators import validate_timezone_name
+from .validators import normalize_makolo_username, validate_makolo_username
 
 
 def user_avatar_path(instance, filename):
@@ -70,8 +72,14 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
     Role/Permission/Mandate. Trust verification is likewise owned by ``trust``.
     """
 
-    email = models.EmailField(unique=True)
-    username = models.CharField(max_length=150, unique=True)
+    email = models.EmailField(blank=True, null=True)
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        validators=[validate_makolo_username],
+    )
+    username_configured = models.BooleanField(default=True)
+    username_changed_at = models.DateTimeField(blank=True, null=True)
     phone = models.CharField(
         max_length=30,
         validators=[validate_phone_number],
@@ -121,11 +129,22 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
     metadata = models.JSONField(default=dict, blank=True)
     preferences = models.JSONField(default=dict, blank=True)
 
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username"]
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = []
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("username"),
+                name="accounts_user_username_ci_unique",
+            ),
+            models.UniqueConstraint(
+                Lower("email"),
+                condition=Q(email__isnull=False) & ~Q(email=""),
+                name="accounts_user_email_ci_unique",
+            ),
+        ]
         indexes = [
             models.Index(fields=["email"]),
             models.Index(fields=["username"]),
@@ -133,8 +152,16 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
             models.Index(fields=["created_at"]),
         ]
 
+    def save(self, *args, **kwargs):
+        self.username = normalize_makolo_username(self.username)
+        if self.email:
+            self.email = self.email.strip().lower()
+        else:
+            self.email = None
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.email
+        return f"@{self.username}"
 
     @property
     def full_name(self):
@@ -166,7 +193,7 @@ class UserProfile(UUIDModel, TimeStampedModel):
         return bool(self.user.first_name and self.user.last_name and self.city)
 
     def __str__(self):
-        return f"{self.user.email} Profile"
+        return f"@{self.user.username} Profile"
 
 
 class UserDevice(UUIDModel, TimeStampedModel):
@@ -195,7 +222,7 @@ class UserDevice(UUIDModel, TimeStampedModel):
         ]
 
     def __str__(self):
-        return f"{self.user.email} - {self.device_name}"
+        return f"@{self.user.username} - {self.device_name}"
 
 
 class UserSession(UUIDModel, TimeStampedModel):
@@ -213,7 +240,7 @@ class UserSession(UUIDModel, TimeStampedModel):
     metadata = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
-        return f"{self.user.email} session"
+        return f"@{self.user.username} session"
 
 
 class NotificationPreference(UUIDModel, TimeStampedModel):
@@ -235,4 +262,4 @@ class NotificationPreference(UUIDModel, TimeStampedModel):
     quiet_hours_end = models.TimeField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.user.email} notification preferences"
+        return f"@{self.user.username} notification preferences"

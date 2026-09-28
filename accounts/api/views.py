@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 
+from allauth.socialaccount.models import SocialApp
+
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
@@ -24,6 +26,9 @@ from .permissions import IsAdmin, IsSelfOrAdmin
 from .selectors import get_users
 from .serializers import (
     AccountDeleteSerializer,
+    MakoloIdentifierChangeSerializer,
+    MakoloIdentifierSerializer,
+    MakoloTokenObtainPairSerializer,
     NotificationPreferenceSerializer,
     PasswordChangeSerializer,
     PasswordForgotSerializer,
@@ -34,10 +39,88 @@ from .serializers import (
     UserListSerializer,
     UserUpdateSerializer,
 )
-from .throttles import LoginThrottle, PasswordResetThrottle, RegistrationThrottle
+from .throttles import (
+    IdentifierAvailabilityThrottle,
+    LoginThrottle,
+    PasswordResetThrottle,
+    RegistrationThrottle,
+)
 
 User = get_user_model()
 
+
+
+class IdentifierAvailabilityAPIView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [IdentifierAvailabilityThrottle]
+
+    def get(self, request):
+        serializer = MakoloIdentifierSerializer(
+            data={"username": request.query_params.get("value", "")}
+        )
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "available": False,
+                    "reason": "invalid",
+                    "errors": serializer.errors.get("username", []),
+                }
+            )
+        username = serializer.validated_data["username"]
+        return Response(
+            {
+                "available": not User.objects.filter(username__iexact=username).exists(),
+                "username": username,
+            }
+        )
+
+
+class MakoloIdentifierAPIView(PrivateNoStoreMixin, APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        serializer = MakoloIdentifierChangeSerializer(
+            data={"username": request.data.get("username", "")},
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(
+            {
+                "message": "Identifiant Makolo mis à jour.",
+                "user": UserDetailSerializer(user, context={"request": request}).data,
+            }
+        )
+
+
+class SocialProviderStatusAPIView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        apps = list(SocialApp.objects.all())
+
+        def configured(provider, *, provider_id=None):
+            return any(
+                app.provider == provider
+                and (provider_id is None or getattr(app, "provider_id", "") == provider_id)
+                for app in apps
+            )
+
+        return Response(
+            {
+                "providers": [
+                    {"id": "google", "configured": configured("google")},
+                    {"id": "facebook", "configured": configured("facebook")},
+                    {"id": "microsoft", "configured": configured("microsoft")},
+                    {
+                        "id": "linkedin",
+                        "configured": configured("openid_connect", provider_id="linkedin"),
+                    },
+                ]
+            }
+        )
 
 
 class RegisterAPIView(APIView):
@@ -60,6 +143,7 @@ class RegisterAPIView(APIView):
 class LoginAPIView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [LoginThrottle]
+    serializer_class = MakoloTokenObtainPairSerializer
 
 
 class LogoutAPIView(APIView):
