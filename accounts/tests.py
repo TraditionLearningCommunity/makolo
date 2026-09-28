@@ -343,6 +343,18 @@ class SocialProviderStatusTests(APITestCase):
         with self.assertRaises(CommandError):
             call_command("social_auth_status", require_all=True, stdout=StringIO())
 
+    def test_facebook_and_microsoft_are_reported_when_credentialed(self):
+        for provider, name in (("facebook", "Facebook"), ("microsoft", "Microsoft")):
+            with self.subTest(provider=provider):
+                app = SocialApp.objects.create(
+                    provider=provider,
+                    name=name,
+                    client_id=f"test-{provider}-client",
+                    secret=f"test-{provider}-secret",
+                )
+                self.assertTrue(self._statuses()[provider]["configured"])
+                app.delete()
+
     def test_linkedin_requires_oidc_identity_and_official_server(self):
         app = SocialApp.objects.create(
             provider="openid_connect",
