@@ -374,39 +374,40 @@ void main() {
   testWidgets(
     'password reset explains when this environment cannot deliver mail',
     (tester) async {
-    final tokens = MemoryTokenStore();
-    final client = MockClient((request) async {
-      if (request.url.path.endsWith('/auth/password/forgot/')) {
-        return MockResponse(
-          jsonEncode({
-            'message': 'Demande traitée.',
-            'email_delivery': 'local_only',
-          }),
-          200,
-        );
-      }
-      throw StateError('unexpected request');
-    });
-    final runtime = _runtime(tokens: tokens, client: client);
+      final tokens = MemoryTokenStore();
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('/auth/password/forgot/')) {
+          return MockResponse(
+            jsonEncode({
+              'message': 'Demande traitée.',
+              'email_delivery': 'local_only',
+            }),
+            200,
+          );
+        }
+        throw StateError('unexpected request');
+      });
+      final runtime = _runtime(tokens: tokens, client: client);
 
-    await _pumpLogin(tester, runtime);
-    await _tapVisible(tester, find.byKey(const Key('forgot-password-link')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('forgot-email')),
-      'amina@example.com',
-    );
-    await _tapVisible(tester, find.byKey(const Key('forgot-submit')));
-    await tester.pumpAndSettle();
+      await _pumpLogin(tester, runtime);
+      await _tapVisible(tester, find.byKey(const Key('forgot-password-link')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('forgot-email')),
+        'amina@example.com',
+      );
+      await _tapVisible(tester, find.byKey(const Key('forgot-submit')));
+      await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining(
-        'ne délivre pas encore les e-mails vers une boîte réelle',
-      ),
-      findsOneWidget,
-    );
-    expect(find.textContaining('dossier spam'), findsNothing);
-  });
+      expect(
+        find.textContaining(
+          'ne délivre pas encore les e-mails vers une boîte réelle',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('dossier spam'), findsNothing);
+    },
+  );
 
   testWidgets('signup explains an email already linked to an account', (
     tester,
