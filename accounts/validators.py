@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from django.core.exceptions import ValidationError
 from PIL import Image, UnidentifiedImageError
@@ -113,3 +114,34 @@ def validate_verification_document(uploaded_file) -> None:
         _verify_pdf(uploaded_file)
     else:
         _verify_image(uploaded_file)
+
+
+MAKOLO_USERNAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$")
+MAKOLO_RESERVED_USERNAMES = {
+    "admin",
+    "api",
+    "help",
+    "login",
+    "logout",
+    "makolo",
+    "me",
+    "support",
+    "system",
+}
+
+
+def normalize_makolo_username(value: str) -> str:
+    return (value or "").strip().lstrip("@").lower()
+
+
+def validate_makolo_username(value: str) -> None:
+    normalized = normalize_makolo_username(value)
+    if len(normalized) < 3 or len(normalized) > 30:
+        raise ValidationError("L’identifiant Makolo doit contenir entre 3 et 30 caractères.")
+    if not MAKOLO_USERNAME_RE.fullmatch(normalized):
+        raise ValidationError(
+            "Utilisez uniquement des lettres minuscules, chiffres, points ou underscores, "
+            "sans point ni underscore au début ou à la fin."
+        )
+    if normalized in MAKOLO_RESERVED_USERNAMES:
+        raise ValidationError("Cet identifiant Makolo est réservé.")
