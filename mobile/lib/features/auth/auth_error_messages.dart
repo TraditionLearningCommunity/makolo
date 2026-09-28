@@ -28,7 +28,7 @@ String signupErrorMessage(Object error) {
     return 'Vérifiez l’adresse e-mail indiquée.';
   }
   if (fields.containsKey('username')) {
-    return 'Ce nom d’utilisateur ne peut pas être utilisé. Choisissez-en un autre.';
+    return 'Cet Identifiant Makolo ne peut pas être utilisé. Choisissez-en un autre.';
   }
   if (fields.containsKey('phone')) {
     return 'Vérifiez le numéro de téléphone indiqué.';

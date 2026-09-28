@@ -26,6 +26,14 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
+enum _IdentifierAvailability {
+  idle,
+  checking,
+  available,
+  unavailable,
+  unableToCheck,
+}
+
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
@@ -49,6 +57,10 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _rememberOnDevice = false;
   String? _error;
   Timer? _draftTimer;
+  Timer? _usernameAvailabilityTimer;
+  int _usernameAvailabilityVersion = 0;
+  _IdentifierAvailability _usernameAvailability = _IdentifierAvailability.idle;
+  String? _usernameAvailabilityMessage;
   bool _restoringDraft = false;
 
   @override
@@ -63,6 +75,7 @@ class _SignupScreenState extends State<SignupScreen> {
     ]) {
       controller.addListener(_scheduleDraftSave);
     }
+    _username.addListener(_scheduleUsernameAvailabilityCheck);
     unawaited(_restoreDraft());
   }
 
@@ -107,6 +120,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void dispose() {
     _draftTimer?.cancel();
+    _usernameAvailabilityTimer?.cancel();
     for (final controller in [
       _email,
       _username,
@@ -139,11 +153,125 @@ class _SignupScreenState extends State<SignupScreen> {
     return null;
   }
 
-  String? _requiredUsername(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Choisissez un nom d’utilisateur.';
+  String _normalizedUsername(String value) {
+    final trimmed = value.trim().toLowerCase();
+    return trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
+  }
+
+  String? _localUsernameError(String value) {
+    final normalized = _normalizedUsername(value);
+    if (normalized.isEmpty) {
+      return 'Choisissez un Identifiant Makolo.';
+    }
+    if (normalized.length < 3 || normalized.length > 30) {
+      return 'Utilisez entre 3 et 30 caractères.';
+    }
+    final pattern = RegExp(r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$');
+    if (!pattern.hasMatch(normalized)) {
+      return 'Utilisez lettres, chiffres, points, tirets ou underscores.';
+    }
+    const reserved = {
+      'admin',
+      'api',
+      'help',
+      'login',
+      'logout',
+      'makolo',
+      'me',
+      'support',
+      'system',
+    };
+    if (reserved.contains(normalized)) {
+      return 'Cet Identifiant Makolo est réservé.';
     }
     return null;
+  }
+
+  String? _requiredUsername(String? value) {
+    final error = _localUsernameError(value ?? '');
+    if (error != null) return error;
+    if (_usernameAvailability == _IdentifierAvailability.unavailable) {
+      return _usernameAvailabilityMessage ??
+          'Cet Identifiant Makolo n’est pas disponible.';
+    }
+    return null;
+  }
+
+  void _scheduleUsernameAvailabilityCheck() {
+    if (_restoringDraft) return;
+    _usernameAvailabilityTimer?.cancel();
+    _usernameAvailabilityVersion += 1;
+    final version = _usernameAvailabilityVersion;
+    final normalized = _normalizedUsername(_username.text);
+    final localError = _localUsernameError(normalized);
+
+    if (localError != null) {
+      if (mounted) {
+        setState(() {
+          _usernameAvailability = _IdentifierAvailability.idle;
+          _usernameAvailabilityMessage = null;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.checking;
+        _usernameAvailabilityMessage = 'Vérification…';
+      });
+    }
+
+    _usernameAvailabilityTimer = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_checkUsernameAvailability(normalized, version)),
+    );
+  }
+
+  Future<void> _checkUsernameAvailability(
+    String normalized,
+    int version,
+  ) async {
+    final api = widget.runtime.api;
+    if (api == null) {
+      if (!mounted || version != _usernameAvailabilityVersion) return;
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.unableToCheck;
+        _usernameAvailabilityMessage = 'Impossible de vérifier pour le moment.';
+      });
+      return;
+    }
+
+    try {
+      final response = await api.publicGet(
+        'api/v1/accounts/auth/identifier/availability/?value=${Uri.encodeQueryComponent(normalized)}',
+      );
+      final payload = response.jsonObject();
+      if (!mounted ||
+          version != _usernameAvailabilityVersion ||
+          _normalizedUsername(_username.text) != normalized) {
+        return;
+      }
+      final available = payload['available'] == true;
+      setState(() {
+        _usernameAvailability = available
+            ? _IdentifierAvailability.available
+            : _IdentifierAvailability.unavailable;
+        _usernameAvailabilityMessage = available
+            ? 'Identifiant Makolo disponible.'
+            : 'Cet Identifiant Makolo n’est pas disponible.';
+      });
+    } on Object {
+      if (!mounted ||
+          version != _usernameAvailabilityVersion ||
+          _normalizedUsername(_username.text) != normalized) {
+        return;
+      }
+      setState(() {
+        _usernameAvailability = _IdentifierAvailability.unableToCheck;
+        _usernameAvailabilityMessage = 'Impossible de vérifier pour le moment.';
+      });
+    }
   }
 
   String? _requiredPassword(String? value) {
@@ -223,7 +351,7 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
                 fieldKey: const Key('signup-username'),
-                label: 'Nom d’utilisateur',
+                label: 'Identifiant Makolo',
                 controller: _username,
                 focusNode: _usernameFocus,
                 enabled: !_busy,
@@ -233,6 +361,36 @@ class _SignupScreenState extends State<SignupScreen> {
                 validator: _requiredUsername,
                 onEditingComplete: () => _firstNameFocus.requestFocus(),
               ),
+              if (_usernameAvailability != _IdentifierAvailability.idle) ...[
+                const SizedBox(height: MakoloSpacing.xs),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _usernameAvailabilityMessage ?? '',
+                    key: const Key('signup-username-availability'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: switch (_usernameAvailability) {
+                        _IdentifierAvailability.available => Theme.of(
+                          context,
+                        ).colorScheme.primary,
+                        _IdentifierAvailability.unavailable => Theme.of(
+                          context,
+                        ).colorScheme.error,
+                        _IdentifierAvailability.unableToCheck => Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.checking => Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.idle => Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
+                      },
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(
                 fieldKey: const Key('signup-first-name'),

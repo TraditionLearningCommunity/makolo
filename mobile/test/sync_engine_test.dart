@@ -26,6 +26,38 @@ void main() {
       );
       final client = MockClient((request) async {
         if (!online) throw const SocketException('offline');
+        if (request.url.path == '/api/v1/me/interoperability/') {
+          return MockResponse(
+            jsonEncode({
+              'schema_version': 'z16.v1',
+              'context': 'profile',
+              'providers': <Object>[],
+              'connections': [
+                {
+                  'id': 'connection-a',
+                  'scope': 'profile',
+                  'owner': 'intelligence',
+                  'provider_protocol': 'openai_compatible',
+                  'display_name': 'Personal AI',
+                  'available': true,
+                  'connected': true,
+                  'usable': true,
+                  'manageable': true,
+                  'enabled': true,
+                  'status': 'connected',
+                  'health': 'healthy',
+                  'capabilities': ['text_generate'],
+                  'permissions': {'use': true, 'manage': true},
+                },
+              ],
+              'actions': <Object>[],
+              'extensions': <Object>[],
+              'webhooks': <Object>[],
+              'links': {'self': '/api/v1/me/interoperability/'},
+            }),
+            200,
+          );
+        }
         final key = switch (request.url.path) {
           '/api/v1/me/now/' => 'personal.now',
           '/api/v1/me/ongoing/' => 'personal.ongoing',
@@ -72,6 +104,14 @@ void main() {
       expect(
         (await store.readProjection('personal.now'))?.payload['revision'],
         1,
+      );
+      final interoperability = await store.readProjection(
+        'personal.interoperability',
+      );
+      expect(interoperability?.payload['schema_version'], 'z16.v1');
+      expect(
+        (interoperability?.payload['connections'] as List).single['scope'],
+        'profile',
       );
 
       revision = 2;

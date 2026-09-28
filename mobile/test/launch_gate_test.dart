@@ -6,6 +6,7 @@ import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/router.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/features/splash/brand_moment.dart';
 import 'package:makolo_mobile/features/splash/splash_screen.dart';
 
 import 'fakes.dart';
@@ -77,6 +78,8 @@ void main() {
 
     await tester.pumpWidget(_app(runtime));
     expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.byKey(const Key('animated-splash-mark')), findsOneWidget);
+    expect(find.byType(BrandMoment), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 999));
     expect(find.byType(SplashScreen), findsOneWidget);
@@ -84,6 +87,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2));
     await tester.pump();
     expect(find.byType(SplashScreen), findsNothing);
+    expect(find.byType(BrandMoment), findsNothing);
     expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
   });
 
