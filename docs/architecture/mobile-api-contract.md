@@ -72,11 +72,12 @@ Aucune donnée d'infrastructure, version de framework, secret ou état de base d
 
 `POST /api/v1/accounts/auth/register/`
 
-Exemple :
+L'**Identifiant Makolo** (`username` côté API) est obligatoire, unique sans distinction de casse et public sous la forme `@identifiant`. L'e-mail est facultatif.
+
+Exemple sans e-mail :
 
 ```json
 {
-  "email": "amina@example.com",
   "username": "amina",
   "password": "mot-de-passe-fort",
   "password_confirm": "mot-de-passe-fort",
@@ -85,18 +86,46 @@ Exemple :
 }
 ```
 
-### Connexion
+Un e-mail peut être fourni en plus. Lorsqu'il existe il est normalisé, reste unique sans distinction de casse, et sert notamment de canal de récupération de mot de passe. Un compte sans e-mail et sans identité externe liée n'a pas de récupération par e-mail.
+
+La disponibilité d'un Identifiant Makolo se vérifie sans télécharger la population des comptes :
+
+`GET /api/v1/accounts/auth/identifier/availability/?value=amina`
+
+Le client peut l'appeler avec debounce pendant la saisie. La contrainte base de données reste l'autorité finale en cas de course.
+
+### Connexion locale
 
 `POST /api/v1/accounts/auth/login/`
 
+Le champ protocolaire reste `username` pour SimpleJWT, mais accepte soit l'Identifiant Makolo (avec ou sans `@`), soit une adresse e-mail :
+
 ```json
 {
-  "email": "amina@example.com",
+  "username": "@amina",
   "password": "mot-de-passe-fort"
 }
 ```
 
 Réponse : `access` + `refresh`. L'access token dure 15 minutes et le refresh 7 jours avec rotation/blacklist. Le client doit stocker les tokens dans un stockage sécurisé du système (Keychain/Keystore), jamais en préférence non chiffrée.
+
+### Identifiant Makolo
+
+`PATCH /api/v1/accounts/auth/identifier/`
+
+```json
+{"username": "amina-k"}
+```
+
+Une identité sociale nouvellement créée reçoit un identifiant technique provisoire non présenté comme identité choisie et `username_configured=false`. Le client doit alors demander immédiatement un Identifiant Makolo. Ce premier choix n'est pas soumis au délai. Après configuration, un nouveau changement n'est autorisé qu'après 90 jours.
+
+### Fournisseurs externes
+
+`GET /api/v1/accounts/auth/providers/` expose seulement la disponibilité de configuration de Google, Facebook, Microsoft et LinkedIn. Les secrets OAuth ne transitent jamais par ce contrat.
+
+Le handshake serveur est fourni par `django-allauth` sous `/auth/`. Google, Facebook et Microsoft utilisent leurs providers dédiés. LinkedIn utilise OpenID Connect avec le `provider_id` `linkedin`. Une authentification du fournisseur prouve la maîtrise du compte externe ; elle ne constitue jamais une vérification d'identité civile Makolo. Makolo ne marque un e-mail comme vérifié par le fournisseur que lorsque le fournisseur l'affirme explicitement.
+
+Les clients Web et Mobile ont leurs parcours propres au-dessus de ce socle. Le contrat mobile d'échange final de preuves/provider vers des JWT Makolo sera fermé dans le chantier Mobile ; il ne doit pas être inventé à partir des routes de session Web.
 
 Les appels authentifiés utilisent :
 

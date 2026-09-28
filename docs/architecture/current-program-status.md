@@ -14,10 +14,11 @@
 - PR #301 — W6 Desktop Power Layer & Closure : mergée ; Z15 ne modifie aucune surface W
 - PR #304 — Z15 : mergée sur `main` après CI verte ; réconciliation backend des capacités orphelines intégrée
 - PR #312 — W7 : mergée sur `main` après CI verte ; fermeture Web des capacités orphelines intégrée
-- PR #333 — A2 : mergée après gates Mobile/Android/visual/smoke ; l’expérience personnelle mobile est désormais intégrée
+- PR #333 — checkpoint d’intégration du programme A2.x : mergé après gates Mobile/Android/visual/smoke ; ce merge ne ferme pas le groupe A2
 - PR #350 — docs post-A2 : mergée ; documentation mobile réconciliée
 - PR #352 — Bloc D mobile natif : mergée ; conception Permissions/Push/Ingress/Ambient figée avant implémentation
-- PR #355 — Z16 : exposition consommable M7 Profile/Space/Platform ; intégrée par ce changement après CI verte
+- PR #355 — Z16 : exposition consommable M7 Profile/Space/Platform ; intégrée après CI verte
+- PR #361 — W8 : consommation Web Profil de Z16 via Avatar → Connexions ; intégrée par ce changement après CI verte
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -49,10 +50,11 @@ Le programme Z n'est pas un nouveau domaine. Il a recomposé le backend existant
 - Z1–Z14 intégrés ; programme Z historique fermé ;
 - M10.0 intégré ;
 - A0 architecture mobile réconciliée ;
-- A2 Personal Makolo intégré ;
+- programme A2.x en cours par sous-tâches ; #333 est un checkpoint d’intégration, pas une déclaration de fermeture du groupe ;
 - W6 intégré ;
 - Z15 est intégré : les capacités backend orphelines sont classifiées et exposées sans rouvrir les surfaces personnelles ;
 - W7 est intégré : le Web Mature/Espace consomme ces contrats sans construire Platform ;
+- W8 est intégré via PR #361 : le Profil Web consomme Z16 via Avatar → Connexions sans ajouter de N1 ;
 - Z16 est intégré via PR #355 : le kernel M7 dispose d’un contrat API consommable Profile/Space/Platform sans inventer de catalogue runtime ;
 - M10 reste un gate global distinct. Z15 ne signifie pas « production-ready ».
 
@@ -116,9 +118,9 @@ Le backend décide Permission, Mandate, Readiness, Requirement satisfaction, Acc
 
 Le programme mobile reste distinct du programme Z.
 
-L'ancienne PR #248 a été remplacée par la réconciliation A0 intégrée via PR #303. A2 a depuis été intégré via PR #333 et sa documentation réconciliée via #350. Le contrat mobile local-first courant doit donc être lu depuis `main`, pas depuis une ancienne branche ou roadmap.
+L'ancienne PR #248 a été remplacée par la réconciliation A0 intégrée via PR #303. Le programme A2 est un groupe de plusieurs sous-tâches A2.x : la PR #333 est un checkpoint d’intégration mergé, mais ne signifie pas que le groupe A2 est terminé. Sa documentation a été réconciliée via #350 et les sous-tâches suivantes doivent toujours être relues depuis l’état GitHub courant.
 
-Z16 ne modifie pas Flutter. Il ajoute le contrat serveur que l’expérience personnelle mobile intégrée pourra consommer pour une future surface Connexions sans connaître les registries Python ni l’ORM.
+Z16 ne modifie pas Flutter. Il ajoute le contrat serveur que les sous-tâches pertinentes du programme A2.x peuvent consommer pour une surface Connexions sans connaître les registries Python ni l’ORM.
 
 ## 6. Intelligence
 
@@ -161,8 +163,8 @@ Programme Z historique fermé
 → Z15 ✅ réconciliation backend orpheline intégrée
 → W7 ✅ fermeture Web des capacités réconciliées
 → Z16 ✅ exposition consommable du kernel M7
-→ W8 / surface Profil Web Connexions à consommer sans réinterpréter le métier
-→ A2 intégré ; consommation mobile Z16 à brancher dans une évolution personnelle dédiée
+→ W8 ✅ surface Profil Web Connexions via PR #361, après CI verte
+→ programme A2.x en cours ; consommation mobile Z16 portée par les sous-tâches pertinentes
 → suite M10 / production readiness globale selon le `main` courant
 ```
 

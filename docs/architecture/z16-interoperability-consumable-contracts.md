@@ -155,9 +155,9 @@ Z16 n’ajoute aucune vérité métier persistante et ne nécessite aucune migra
 
 Les adapters Payments, Spatiotemporal, Geocoding, Notifications et autres providers spécialisés restent dans leurs domaines propriétaires tant qu’un besoin réel ne justifie pas une composition M7.
 
-## 11. Handoff W8 et A2
+## 11. Handoff W8 et programme A2.x
 
-Après Z16, W8 et A2 peuvent consommer le même contrat pour le Profil :
+Après Z16, W8 et les sous-tâches pertinentes du programme A2.x peuvent consommer le même contrat pour le Profil :
 
 ```text
 Profil
@@ -177,7 +177,7 @@ Ils reçoivent sans réinterpréter le métier :
 
 Ils n’ont jamais besoin de connaître `InteroperabilityRegistry` Python, `ActionRegistry`, `ExtensionRegistry`, l’ORM, les credentials, `DomainEventOutbox` ou les workers.
 
-Le handoff ne préjuge pas de la hiérarchie UX W8/A2 et ne crée aucune page.
+Le handoff ne préjuge pas de la hiérarchie UX W8/A2.x et ne crée aucune page. A2 est un groupe de sous-tâches ; un checkpoint d’intégration ne vaut pas fermeture de l’ensemble du programme.
 
 ## 12. Frontières / non-objectifs
 

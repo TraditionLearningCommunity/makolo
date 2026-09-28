@@ -274,6 +274,16 @@ Pour une production e-mail réelle, configurer par environnement le backend SMTP
 
 Toutes les URLs Makolo générées par les e-mails utilisent `MAKOLO_PUBLIC_BASE_URL`. Aucun ancien domaine n'est un fallback de production.
 
+### Authentification externe
+
+Google, Facebook, Microsoft et LinkedIn sont intégrés via `django-allauth`, mais aucun client OAuth réel ni secret n'est livré dans le dépôt. Tant qu'un provider n'a pas de `SocialApp` configurée dans l'environnement, `GET /api/v1/accounts/auth/providers/` le signale comme non configuré et les clients ne doivent pas le présenter comme disponible.
+
+Les identifiants et secrets provider se configurent dans l'environnement d'exploitation via l'administration `SocialApp`; ils ne doivent jamais être committés, copiés dans une issue ou inscrits dans `.env.example`. Les callback URLs doivent être enregistrées chez chaque provider à partir de la base publique réelle de l'environnement et des routes `/auth/` exposées par allauth.
+
+LinkedIn est configuré comme provider OpenID Connect avec `provider_id=linkedin` et son issuer/server officiel dans les réglages de la `SocialApp`. Ne pas réintroduire l'ancien provider LinkedIn OAuth2 retiré d'allauth.
+
+L'authentification provider et la Trust Makolo restent distinctes : un compte externe authentifié ne vaut pas vérification d'identité civile. Les tokens provider ne sont pas persistés par défaut (`SOCIALACCOUNT_STORE_TOKENS=False`).
+
 ### Fichiers, logs et sessions
 
 Les variables facultatives sont documentées dans `.env.example`, notamment `DJANGO_MEDIA_ROOT`, `DJANGO_STATIC_ROOT`, `MAKOLO_BACKUP_DIR`, limites d'upload, rotation logs et durée de session.

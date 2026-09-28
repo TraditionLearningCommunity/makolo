@@ -21,3 +21,8 @@ class LoginThrottle(FixedRateAnonThrottle):
 class PasswordResetThrottle(FixedRateAnonThrottle):
     scope = "password_reset"
     rate = "5/hour"
+
+
+class IdentifierAvailabilityThrottle(FixedRateAnonThrottle):
+    scope = "identifier_availability"
+    rate = "60/minute"
