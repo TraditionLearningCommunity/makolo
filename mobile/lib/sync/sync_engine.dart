@@ -99,7 +99,6 @@ class SyncEngine {
     });
   }
 
-
   Future<void> pullInteroperability() async {
     final root = interoperabilityRoot;
     final response = await api.get(root.path);

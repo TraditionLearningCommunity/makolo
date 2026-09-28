@@ -59,8 +59,7 @@ class _SignupScreenState extends State<SignupScreen> {
   Timer? _draftTimer;
   Timer? _usernameAvailabilityTimer;
   int _usernameAvailabilityVersion = 0;
-  _IdentifierAvailability _usernameAvailability =
-      _IdentifierAvailability.idle;
+  _IdentifierAvailability _usernameAvailability = _IdentifierAvailability.idle;
   String? _usernameAvailabilityMessage;
   bool _restoringDraft = false;
 
@@ -167,9 +166,7 @@ class _SignupScreenState extends State<SignupScreen> {
     if (normalized.length < 3 || normalized.length > 30) {
       return 'Utilisez entre 3 et 30 caractères.';
     }
-    final pattern = RegExp(
-      r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$',
-    );
+    final pattern = RegExp(r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$');
     if (!pattern.hasMatch(normalized)) {
       return 'Utilisez lettres, chiffres, points, tirets ou underscores.';
     }
@@ -240,8 +237,7 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted || version != _usernameAvailabilityVersion) return;
       setState(() {
         _usernameAvailability = _IdentifierAvailability.unableToCheck;
-        _usernameAvailabilityMessage =
-            'Impossible de vérifier pour le moment.';
+        _usernameAvailabilityMessage = 'Impossible de vérifier pour le moment.';
       });
       return;
     }
@@ -273,8 +269,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
       setState(() {
         _usernameAvailability = _IdentifierAvailability.unableToCheck;
-        _usernameAvailabilityMessage =
-            'Impossible de vérifier pour le moment.';
+        _usernameAvailabilityMessage = 'Impossible de vérifier pour le moment.';
       });
     }
   }
@@ -375,16 +370,21 @@ class _SignupScreenState extends State<SignupScreen> {
                     key: const Key('signup-username-availability'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: switch (_usernameAvailability) {
-                        _IdentifierAvailability.available =>
-                          Theme.of(context).colorScheme.primary,
-                        _IdentifierAvailability.unavailable =>
-                          Theme.of(context).colorScheme.error,
-                        _IdentifierAvailability.unableToCheck =>
-                          Theme.of(context).colorScheme.onSurfaceVariant,
-                        _IdentifierAvailability.checking =>
-                          Theme.of(context).colorScheme.onSurfaceVariant,
-                        _IdentifierAvailability.idle =>
-                          Theme.of(context).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.available => Theme.of(
+                          context,
+                        ).colorScheme.primary,
+                        _IdentifierAvailability.unavailable => Theme.of(
+                          context,
+                        ).colorScheme.error,
+                        _IdentifierAvailability.unableToCheck => Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.checking => Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.idle => Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
                       },
                       fontWeight: FontWeight.w600,
                     ),

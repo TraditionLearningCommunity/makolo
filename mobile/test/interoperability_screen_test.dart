@@ -60,13 +60,12 @@ Map<String, dynamic> _payload({
 }
 
 void main() {
-  testWidgets('Profile Connexions renders a stable empty state', (tester) async {
+  testWidgets('Profile Connexions renders a stable empty state', (
+    tester,
+  ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
-    final runtime = await _runtimeWithPayload(
-      _payload(),
-      database: database,
-    );
+    final runtime = await _runtimeWithPayload(_payload(), database: database);
 
     await tester.pumpWidget(
       MaterialApp(

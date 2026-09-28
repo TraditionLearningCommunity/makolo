@@ -100,8 +100,9 @@ class InteroperabilityActionProjection {
   factory InteroperabilityActionProjection.fromJson(Map<String, dynamic> json) {
     return InteroperabilityActionProjection(
       code: json['code'] is String ? json['code'] as String : '',
-      capability:
-          json['capability'] is String ? json['capability'] as String : '',
+      capability: json['capability'] is String
+          ? json['capability'] as String
+          : '',
       owner: json['owner'] is String ? json['owner'] as String : '',
       requiresConnection: json['requires_connection'] == true,
       available: json['available'] == true,

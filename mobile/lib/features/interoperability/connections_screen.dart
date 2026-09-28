@@ -132,8 +132,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             height: 520,
             child: MakoloEmptyState(
               title: 'Aucune connexion pour le moment',
-              body:
-                  'Aucun service ni aucune extension n’est encore disponible pour votre Profil.',
+              body: 'Aucun service ni aucune extension n’est encore disponible pour votre Profil.',
             ),
           ),
         ],
@@ -155,7 +154,10 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         ),
         if (projection.connections.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
-          Text('Mes connexions', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Mes connexions',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: MakoloSpacing.sm),
           for (final connection in projection.connections)
             _connectionCard(connection),
@@ -167,8 +169,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: MakoloSpacing.sm),
-          for (final provider in projection.providers)
-            _providerCard(provider),
+          for (final provider in projection.providers) _providerCard(provider),
         ],
         if (projection.actions.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
@@ -177,8 +178,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: MakoloSpacing.sm),
-          for (final action in projection.actions)
-            _actionCard(action),
+          for (final action in projection.actions) _actionCard(action),
         ],
         const SizedBox(height: MakoloSpacing.lg),
         Text('Extensions', style: Theme.of(context).textTheme.titleMedium),
@@ -236,8 +236,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
                   height: 520,
                   child: MakoloEmptyState(
                     title: 'Connexions indisponibles hors ligne',
-                    body:
-                        'Aucune copie locale n’est encore disponible. Réessayez lorsque le réseau revient.',
+                    body: 'Aucune copie locale n’est encore disponible. Réessayez lorsque le réseau revient.',
                   ),
                 ),
               ],

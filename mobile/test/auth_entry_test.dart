@@ -331,9 +331,7 @@ void main() {
     expect(availabilityCalls, 0);
   });
 
-  testWidgets('signup checks Makolo identifier after debounce', (
-    tester,
-  ) async {
+  testWidgets('signup checks Makolo identifier after debounce', (tester) async {
     var availabilityCalls = 0;
     final tokens = MemoryTokenStore();
     final client = MockClient((request) async {
@@ -402,10 +400,7 @@ void main() {
     expect(find.text('Identifiant Makolo disponible.'), findsOneWidget);
 
     firstResponse.complete(
-      MockResponse(
-        jsonEncode({'available': false, 'username': 'amina'}),
-        200,
-      ),
+      MockResponse(jsonEncode({'available': false, 'username': 'amina'}), 200),
     );
     await tester.pump();
 
@@ -436,10 +431,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 401));
     await tester.pump();
 
-    expect(
-      find.text('Impossible de vérifier pour le moment.'),
-      findsOneWidget,
-    );
+    expect(find.text('Impossible de vérifier pour le moment.'), findsOneWidget);
     expect(find.text('Identifiant Makolo disponible.'), findsNothing);
   });
 
