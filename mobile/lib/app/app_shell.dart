@@ -77,6 +77,7 @@ class _AppShellState extends State<AppShell> {
     showMakoloAvatarSheet(
       context,
       runtime: widget.runtime,
+      onConnections: () => context.push('/connections'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
     );
@@ -310,7 +311,7 @@ class _MarkButton extends StatelessWidget {
               height: 56,
               child: Center(
                 child: MakoloMark(
-                  size: 32,
+                  size: 38,
                   semantics: MakoloMarkSemantics.decorative,
                 ),
               ),
