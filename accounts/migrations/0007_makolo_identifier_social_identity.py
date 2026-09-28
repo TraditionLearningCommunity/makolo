@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
             model_name="user",
             name="username",
             field=models.CharField(
-                max_length=30,
+                max_length=150,
                 unique=True,
                 validators=[accounts.validators.validate_makolo_username],
             ),
