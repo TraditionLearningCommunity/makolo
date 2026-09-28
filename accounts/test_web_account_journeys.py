@@ -38,6 +38,21 @@ class WebAccountJourneyTests(TestCase):
         self.assertContains(response, "Identifiant Makolo")
         self.assertContains(response, "data-identifier-check")
 
+    def test_social_provider_buttons_are_not_rendered_without_configuration(self):
+        login = self.client.get(reverse("core:login"))
+        register = self.client.get(reverse("account:register"))
+
+        self.assertNotContains(login, "Continuer avec Google")
+        self.assertNotContains(register, "Continuer avec Google")
+
+    def test_identifier_setup_requires_authentication(self):
+        response = self.client.get(reverse("account:identifier-setup"))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('core:login')}?next={reverse('account:identifier-setup')}",
+        )
+
     def test_valid_web_registration_reuses_account_initialization(self):
         response = self.client.post(
             reverse("account:register"),
