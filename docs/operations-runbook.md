@@ -276,11 +276,33 @@ Toutes les URLs Makolo générées par les e-mails utilisent `MAKOLO_PUBLIC_BASE
 
 ### Authentification externe
 
-Google, Facebook, Microsoft et LinkedIn sont intégrés via `django-allauth`, mais aucun client OAuth réel ni secret n'est livré dans le dépôt. Tant qu'un provider n'a pas de `SocialApp` configurée dans l'environnement, `GET /api/v1/accounts/auth/providers/` le signale comme non configuré et les clients ne doivent pas le présenter comme disponible.
+Google, Facebook, Microsoft et LinkedIn sont les quatre providers externes retenus. Makolo les consomme via `django-allauth`, mais aucun client OAuth/OIDC réel ni secret n'est livré dans le dépôt. Tant qu'un provider ne possède pas une `SocialApp` exploitable dans l'environnement, `GET /api/v1/accounts/auth/providers/` le signale comme non configuré et les clients ne doivent pas le présenter comme disponible.
 
-Les identifiants et secrets provider se configurent dans l'environnement d'exploitation via l'administration `SocialApp`; ils ne doivent jamais être committés, copiés dans une issue ou inscrits dans `.env.example`. Les callback URLs doivent être enregistrées chez chaque provider à partir de la base publique réelle de l'environnement et des routes `/auth/` exposées par allauth.
+Une `SocialApp` n'est considérée exploitable que si son `client_id` et son `secret` sont présents. LinkedIn doit en plus être configuré comme instance OpenID Connect avec `provider_id=linkedin` et `server_url=https://www.linkedin.com/oauth`. L'ancien provider `linkedin_oauth2` est déprécié : ne pas l'utiliser pour une nouvelle intégration.
 
-LinkedIn est configuré comme provider OpenID Connect avec `provider_id=linkedin` et son issuer/server officiel dans les réglages de la `SocialApp`. Ne pas réintroduire l'ancien provider LinkedIn OAuth2 retiré d'allauth.
+Les credentials se configurent uniquement dans l'environnement d'exploitation via l'administration `SocialApp`; ils ne doivent jamais être committés, copiés dans une issue, un chat, un log ou inscrits dans `.env.example`.
+
+Pour une base publique `<MAKOLO_PUBLIC_BASE_URL>`, enregistrer chez les providers les callbacks suivants :
+
+| Provider | SocialApp | Callback |
+|---|---|---|
+| Google | `provider=google` | `<MAKOLO_PUBLIC_BASE_URL>/auth/google/login/callback/` |
+| Facebook | `provider=facebook` | `<MAKOLO_PUBLIC_BASE_URL>/auth/facebook/login/callback/` |
+| Microsoft | `provider=microsoft` | `<MAKOLO_PUBLIC_BASE_URL>/auth/microsoft/login/callback/` |
+| LinkedIn | `provider=openid_connect`, `provider_id=linkedin`, `settings.server_url=https://www.linkedin.com/oauth` | `<MAKOLO_PUBLIC_BASE_URL>/auth/oidc/linkedin/login/callback/` |
+
+Le portail LinkedIn doit avoir le produit « Sign In with LinkedIn using OpenID Connect » activé afin de disposer des scopes `openid profile email`. Google utilise les scopes `profile email`; Facebook reste limité à `email public_profile`. Microsoft reste sur le provider Microsoft Graph d'allauth, sans permission métier supplémentaire ajoutée par Makolo.
+
+Avant d'annoncer un provider disponible, vérifier le callback réellement enregistré chez le provider, la présence de la `SocialApp`, puis `GET /api/v1/accounts/auth/providers/`. Les boutons Web n'apparaissent que pour les providers que allauth voit comme configurés.
+
+Diagnostic opérateur sans exposition de secret :
+
+~~~bash
+python manage.py social_auth_status
+python manage.py social_auth_status --require-all
+~~~
+
+La seconde commande doit réussir avant de considérer les quatre providers externes comme activés dans un environnement.
 
 L'authentification provider et la Trust Makolo restent distinctes : un compte externe authentifié ne vaut pas vérification d'identité civile. Les tokens provider ne sont pas persistés par défaut (`SOCIALACCOUNT_STORE_TOKENS=False`).
 
