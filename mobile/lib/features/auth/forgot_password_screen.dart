@@ -105,7 +105,11 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
         borderRadius: BorderRadius.circular(MakoloRadii.large),
       ),
       title: Text(
-        _sent ? 'Consultez votre boîte de réception' : 'Mot de passe oublié ?',
+        _sent
+            ? _externalDelivery
+                  ? 'Consultez votre boîte de réception'
+                  : 'Demande prise en compte'
+            : 'Mot de passe oublié ?',
       ),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -126,7 +130,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Indiquez l’adresse e-mail de votre compte. Makolo répond de la même façon qu’un compte existe ou non.',
+                      'Indiquez l’adresse e-mail de votre compte. Par sécurité, Makolo ne confirme pas ici si un compte y est associé.',
                     ),
                     const SizedBox(height: MakoloSpacing.lg),
                     TextFormField(
