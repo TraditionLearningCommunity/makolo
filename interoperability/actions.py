@@ -77,6 +77,10 @@ class ActionRegistry:
         except KeyError as exc:
             raise UnknownAction(code) from exc
 
+    def definitions(self) -> tuple[ActionDefinition, ...]:
+        """Return stable action contracts without executing or serializing handlers."""
+        return tuple(self._actions[code] for code in sorted(self._actions))
+
     def execute(
         self,
         code: str,

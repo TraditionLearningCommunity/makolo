@@ -44,6 +44,8 @@ Frontières à préserver :
 - M5 porte le réseau social d'action et ses projections contextualisées ;
 - M6 porte les projections spatio-temporelles, `Hazard` et `ActionAdvice` sans persister ETA, météo, trafic ou position utilisateur comme vérités métier.
 
+Lecture M7/Z16 : **M7 livré signifie que le kernel Interoperability/Connections/Actions/Extensions/Webhooks existe ; cela ne signifie pas qu’un catalogue concret de providers ou d’extensions est installé ni qu’il est déjà exposé aux clients. Z16 ajoute le contrat consommable Profile/Space/Platform, avec listes vides valides lorsque le runtime ne fournit rien.** Voir [`z16-interoperability-consumable-contracts.md`](z16-interoperability-consumable-contracts.md).
+
 ## 3. Nommage des trains stratégiques
 
 Les désignations canoniques sont :

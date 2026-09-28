@@ -1,18 +1,23 @@
 # Makolo — Current Program Status
 
-> **Statut : snapshot opérationnel.** Ce document décrit l'état observé du dépôt au **26 septembre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps. En cas de divergence, le code, les migrations, les tests et l'état GitHub courant gagnent.
+> **Statut : snapshot opérationnel.** Ce document décrit l'état observé du dépôt au **28 septembre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps. En cas de divergence, le code, les migrations, les tests et l'état GitHub courant gagnent.
 
 ## Référence auditée
 
 - Dépôt : `TraditionLearningCommunity/makolo`
 - Branche principale : `main`
-- HEAD Z15 intégré : `main@98618746d2d4c0ae1b3e1a4ce3da0c6bdfbca527`
+- HEAD audité avant Z16 : `main@ce1525075b61a7255e2a33ee8779af8a08c40008`
+- HEAD Z15 intégré historique : `main@98618746d2d4c0ae1b3e1a4ce3da0c6bdfbca527`
 - PR #288 — Z14 : mergée ; programme Z1–Z14 fermé
 - PR #290 — M10.0 Shell & Structured Navigation : mergée ; aucune migration
 - PR #303 — A0 architecture mobile local-first : mergée ; le développement Flutter reste un programme séparé
 - PR #301 — W6 Desktop Power Layer & Closure : mergée ; Z15 ne modifie aucune surface W
 - PR #304 — Z15 : mergée sur `main` après CI verte ; réconciliation backend des capacités orphelines intégrée
 - PR #312 — W7 : mergée sur `main` après CI verte ; fermeture Web des capacités orphelines intégrée
+- PR #333 — A2 : mergée après gates Mobile/Android/visual/smoke ; l’expérience personnelle mobile est désormais intégrée
+- PR #350 — docs post-A2 : mergée ; documentation mobile réconciliée
+- PR #352 — Bloc D mobile natif : mergée ; conception Permissions/Push/Ingress/Ambient figée avant implémentation
+- PR #355 — Z16 : exposition consommable M7 Profile/Space/Platform ; intégrée par ce changement après CI verte
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -44,9 +49,11 @@ Le programme Z n'est pas un nouveau domaine. Il a recomposé le backend existant
 - Z1–Z14 intégrés ; programme Z historique fermé ;
 - M10.0 intégré ;
 - A0 architecture mobile réconciliée ;
+- A2 Personal Makolo intégré ;
 - W6 intégré ;
 - Z15 est intégré : les capacités backend orphelines sont classifiées et exposées sans rouvrir les surfaces personnelles ;
 - W7 est intégré : le Web Mature/Espace consomme ces contrats sans construire Platform ;
+- Z16 est intégré via PR #355 : le kernel M7 dispose d’un contrat API consommable Profile/Space/Platform sans inventer de catalogue runtime ;
 - M10 reste un gate global distinct. Z15 ne signifie pas « production-ready ».
 
 La navigation personnelle canonique reste :
@@ -78,6 +85,7 @@ Z12+  performance/stabilité/coût                ✅ intégré
 Z13   contrat final Web/API/Flutter              ✅ intégré
 Z14   fermeture/readiness mobile                 ✅ intégré
 Z15   réconciliation capacités orphelines         ✅ intégré via PR #304
+Z16   exposition consommable interopérabilité       ✅ intégré via PR #355
 ```
 
 L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée #274 déjà mergée.
@@ -85,6 +93,8 @@ L'ancienne PR Z7 #272 a été fermée comme supersédée par la PR réconciliée
 Le closeout détaillé et les gaps classifiés sont dans [`z14-program-closeout.md`](z14-program-closeout.md).
 
 Z15 est un chantier post-closeout borné de réconciliation des capacités backend devenues totalement ou partiellement orphelines. Il ne rouvre pas les surfaces personnelles et ne construit pas W. Son inventaire canonique est [`z15-orphan-capabilities-reconciliation.md`](z15-orphan-capabilities-reconciliation.md).
+
+Z16 ferme l’écart entre le kernel M7 et sa consommation client. Il expose un read contract scoped Profile/Space/Platform, projette les `intelligence.ProviderConnection` sans secrets et conserve des listes vides lorsque les registries M7 n’ont aucune installation runtime. Son contrat canonique est [`z16-interoperability-consumable-contracts.md`](z16-interoperability-consumable-contracts.md).
 
 ## 4. Contrat personnel prêt pour client natif
 
@@ -106,9 +116,9 @@ Le backend décide Permission, Mandate, Readiness, Requirement satisfaction, Acc
 
 Le programme mobile reste distinct du programme Z.
 
-L'ancienne PR #248 a été remplacée par la réconciliation A0 intégrée via PR #303. Le contrat mobile local-first courant doit donc être lu depuis `main`, pas depuis l'ancienne branche divergente.
+L'ancienne PR #248 a été remplacée par la réconciliation A0 intégrée via PR #303. A2 a depuis été intégré via PR #333 et sa documentation réconciliée via #350. Le contrat mobile local-first courant doit donc être lu depuis `main`, pas depuis une ancienne branche ou roadmap.
 
-Le développement Flutter reste distinct de Z15.
+Z16 ne modifie pas Flutter. Il ajoute le contrat serveur que l’expérience personnelle mobile intégrée pourra consommer pour une future surface Connexions sans connaître les registries Python ni l’ORM.
 
 ## 6. Intelligence
 
@@ -118,15 +128,16 @@ Makolo Mark reste un orchestrateur borné et owner-directed. Les futures capacit
 
 ## 7. Collision audit courant
 
-PR ouvertes pertinentes après intégration Z15 :
+PR ouvertes pertinentes lors de l’audit Z16 :
 
+- #353 Accounts/social auth : touche notamment `config/urls.py`, évité par Z16 ;
+- #351 feedback mobile/device : Mobile + Accounts, sans reprise du contrat Z16 ;
+- #308 hiérarchie UX personnelle : touche la navigation personnelle, volontairement hors Z16 ;
 - #252 Space archetypes : ancienne branche profondément divergente, programme Space séparé ;
-- #270 ECC : documentation d'orchestration ;
-- #283 Actor 6 : documentation ;
-- #284 Pré-8 Actors/Universe input : documentation ;
+- #284/#283/#270 : documentation/Actors/orchestration ;
 - #223 research lab : isolé hors runtime.
 
-W6 #301, ACT-F #305 et Z15 #304 sont intégrés. W7 #312 est intégré. Les autres lignes ouvertes ne doivent pas réécrire simultanément la Console Espace ni les runtimes Actors.
+Z16 reste donc dans `interoperability/`, `intelligence/interoperability.py` et les URL modules déjà inclus, sans modifier `config/urls.py`, la navigation globale, l’Avatar, la Console Espace web ou Flutter.
 
 ## 8. Qualité et CI
 
@@ -141,7 +152,7 @@ Le head Z13 #287 a été mergé seulement après succès de :
 - Conversation PostgreSQL ;
 - Subscriptions.
 
-Z15 #304 et W7 #312 ont été fusionnés après CI PR verte. W7 n'a ajouté aucune migration et conserve les invariants d'autorité.
+Z15 #304 et W7 #312 ont été fusionnés après CI PR verte. W7 n'a ajouté aucune migration et conserve les invariants d'autorité. Z16 #355 n’ajoute aucune migration et n’est intégrable qu’après CI PR verte.
 
 ## 9. Prochaine décision
 
@@ -149,9 +160,10 @@ Z15 #304 et W7 #312 ont été fusionnés après CI PR verte. W7 n'a ajouté aucu
 Programme Z historique fermé
 → Z15 ✅ réconciliation backend orpheline intégrée
 → W7 ✅ fermeture Web des capacités réconciliées
-→ Platform séparé après W
-→ suite M10 / production readiness globale
-→ A Mobile
+→ Z16 ✅ exposition consommable du kernel M7
+→ W8 / surface Profil Web Connexions à consommer sans réinterpréter le métier
+→ A2 intégré ; consommation mobile Z16 à brancher dans une évolution personnelle dédiée
+→ suite M10 / production readiness globale selon le `main` courant
 ```
 
 M10.0 ne vaut pas déclaration de production readiness ; il ferme uniquement la couture de navigation personnelle qui aurait sinon forcé le client natif à parser des URLs HTML ou reconstruire des relations métier.
