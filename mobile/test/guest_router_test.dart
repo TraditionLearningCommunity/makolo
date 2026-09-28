@@ -118,59 +118,60 @@ void main() {
   testWidgets(
     'guest search filters loaded items while typing without refetch',
     (tester) async {
-    var requestCount = 0;
-    final client = MockClient((request) async {
-      requestCount += 1;
-      expect(request.url.queryParameters.containsKey('q'), isFalse);
-      return MockResponse(
-        jsonEncode({
-          'data': {
-            'results': [
-              {
-                'representation': {
-                  'title': 'Accompagnement bourses Accra — 023',
-                  'summary': 'Orientation et accompagnement.',
-                  'eyebrow': 'Orientation',
+      var requestCount = 0;
+      final client = MockClient((request) async {
+        requestCount += 1;
+        expect(request.url.queryParameters.containsKey('q'), isFalse);
+        return MockResponse(
+          jsonEncode({
+            'data': {
+              'results': [
+                {
+                  'representation': {
+                    'title': 'Accompagnement bourses Accra — 023',
+                    'summary': 'Orientation et accompagnement.',
+                    'eyebrow': 'Orientation',
+                  },
                 },
-              },
-              {
-                'representation': {
-                  'title': 'Atelier numérique Lubumbashi',
-                  'summary': 'Apprentissage pratique.',
-                  'eyebrow': 'Formation',
+                {
+                  'representation': {
+                    'title': 'Atelier numérique Lubumbashi',
+                    'summary': 'Apprentissage pratique.',
+                    'eyebrow': 'Formation',
+                  },
                 },
-              },
-            ],
-          },
-        }),
-        200,
+              ],
+            },
+          }),
+          200,
+        );
+      });
+      final router = _router(
+        _guestRuntime(SessionRecoveryController(), client: client),
       );
-    });
-    final router = _router(
-      _guestRuntime(SessionRecoveryController(), client: client),
-    );
 
-    await _pump(tester, router);
-    expect(requestCount, 1);
-    expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
-    expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
+      await _pump(tester, router);
+      expect(requestCount, 1);
+      expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
+      expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
 
-    await tester.enterText(find.byType(SearchBar), '023');
-    await tester.pump();
+      await tester.enterText(find.byType(SearchBar), '023');
+      await tester.pump();
 
-    expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
-    expect(find.text('Atelier numérique Lubumbashi'), findsNothing);
-    expect(requestCount, 1);
+      expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
+      expect(find.text('Atelier numérique Lubumbashi'), findsNothing);
+      expect(requestCount, 1);
 
-    await tester.enterText(find.byType(SearchBar), '023jj');
-    await tester.pump();
+      await tester.enterText(find.byType(SearchBar), '023jj');
+      await tester.pump();
 
-    expect(
-      find.text('Aucune possibilité publique à afficher pour le moment.'),
-      findsOneWidget,
-    );
-    expect(requestCount, 1);
-  });
+      expect(
+        find.text('Aucune possibilité publique à afficher pour le moment.'),
+        findsOneWidget,
+      );
+      expect(requestCount, 1);
+    },
+  );
 
   testWidgets('empty public contract stays calm without invented cards', (
     tester,
