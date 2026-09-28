@@ -6,6 +6,7 @@ import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
 import '../network/makolo_api_client.dart';
+import '../repositories/interoperability_repository.dart';
 import '../repositories/personal_repository.dart';
 import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_engine.dart';
@@ -25,6 +26,7 @@ class AppRuntime {
     this.database,
     this.store,
     this.personal,
+    this.interoperability,
     this.outbox,
     this.sync,
   });
@@ -38,6 +40,7 @@ class AppRuntime {
   final MakoloDatabase? database;
   final ProfileStore? store;
   final PersonalRepository? personal;
+  final ProfileInteroperabilityRepository? interoperability;
   final OutboxRepository? outbox;
   final SyncEngine? sync;
 
@@ -88,6 +91,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   });
   final store = ProfileStore(database, profileId);
   final personal = PersonalRepository(store);
+  final interoperability = ProfileInteroperabilityRepository(store);
   final outbox = OutboxRepository(database, profileId);
   final sync = api == null
       ? null
@@ -108,6 +112,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     database: database,
     store: store,
     personal: personal,
+    interoperability: interoperability,
     outbox: outbox,
     sync: sync,
   );
