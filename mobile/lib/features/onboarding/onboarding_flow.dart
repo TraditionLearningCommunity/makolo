@@ -76,11 +76,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryLabel = !_isLastPage
-        ? 'Continuer'
-        : widget.isAuthenticated
-        ? 'Ouvrir Makolo'
-        : 'Découvrir Makolo';
+    var primaryLabel = 'Continuer';
+    if (_isLastPage) {
+      primaryLabel = widget.isAuthenticated
+          ? 'Ouvrir Makolo'
+          : 'Découvrir Makolo';
+    }
 
     return Scaffold(
       body: SafeArea(
