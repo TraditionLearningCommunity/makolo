@@ -86,6 +86,9 @@ def personal_surface_owner(request) -> PersonalSurface:
     if namespace == "core" and url_name == "participant-history":
         return PersonalSurface("me", "Historique", _reverse("core:participant-me"), False)
 
+    if namespace == "core" and url_name == "participant-connections":
+        return PersonalSurface("me", "Connexions", _reverse("core:participant-me"), False)
+
     if namespace == "objectives":
         return PersonalSurface("ongoing", "En cours", _reverse("core:participant-ongoing"), False)
 

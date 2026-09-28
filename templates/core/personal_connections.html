@@ -1,0 +1,89 @@
+{% extends 'base/app.html' %}
+{% block title %}Connexions | Makolo{% endblock %}
+{% block content %}
+<div class="mk-mature-page mk-me-workspace" data-mk-surface="connections">
+  <section class="mk-me-identity">
+    <div>
+      <p class="mk-eyebrow">Moi</p>
+      <h1>Connexions</h1>
+      <p>Reliez Makolo aux services que vous utilisez.</p>
+    </div>
+  </section>
+
+  <div class="mk-me-grid">
+    <section class="mk-me-section" aria-labelledby="connections-services-title">
+      <div class="mk-section-heading">
+        <div>
+          <h2 id="connections-services-title">Services</h2>
+          <p>Seulement les services et connexions réellement disponibles pour votre Profil.</p>
+        </div>
+      </div>
+
+      {% if connections %}
+      <div class="mk-me-list">
+        {% for connection in connections %}
+        <div>
+          <strong>{{ connection.display_name }}</strong>
+          <span>
+            {% if connection.connected %}Connecté{% elif connection.available %}Disponible{% else %}Indisponible{% endif %}
+            {% if not connection.enabled %} · désactivé{% endif %}
+            {% if connection.usable %} · utilisable par Makolo{% endif %}
+            {% if connection.health == 'degraded' %} · service dégradé{% elif connection.health == 'unavailable' %} · momentanément indisponible{% endif %}
+          </span>
+          {% if connection.manageable %}<span>Gestion disponible depuis votre Profil lorsqu’un parcours serveur est fourni.</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% elif providers %}
+      <p class="mk-empty-copy">Des services sont disponibles, mais aucune connexion personnelle n’est encore établie.</p>
+      {% else %}
+      <p class="mk-empty-copy">Aucun service n’est encore disponible pour votre Profil.</p>
+      {% endif %}
+    </section>
+
+    <section class="mk-me-section" aria-labelledby="connections-extensions-title">
+      <div class="mk-section-heading">
+        <div>
+          <h2 id="connections-extensions-title">Extensions</h2>
+          <p>Des capacités supplémentaires apparaissent ici seulement lorsqu’elles sont réellement proposées à votre Profil.</p>
+        </div>
+      </div>
+      {% if extensions %}
+      <div class="mk-me-list">
+        {% for extension in extensions %}
+        <div>
+          <strong>{{ extension.code }}</strong>
+          <span>Extension disponible</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="mk-empty-copy">Aucune extension disponible pour le moment.</p>
+      {% endif %}
+    </section>
+
+    {% if authorized_actions %}
+    <section class="mk-me-section" aria-labelledby="connections-actions-title">
+      <div class="mk-section-heading">
+        <div>
+          <h2 id="connections-actions-title">Actions disponibles</h2>
+          <p>Makolo ne propose ici que les actions autorisées par le serveur.</p>
+        </div>
+      </div>
+      <div class="mk-me-list">
+        {% for action in authorized_actions %}
+        <div>
+          <strong>{{ action.code }}</strong>
+          <span>{% if action.available %}Disponible{% elif action.requires_connection %}Une connexion est nécessaire{% else %}Indisponible pour le moment{% endif %}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="mk-secondary-actions">
+    <a href="{% url 'core:participant-me' %}">Retour à Moi</a>
+  </div>
+</div>
+{% endblock %}
