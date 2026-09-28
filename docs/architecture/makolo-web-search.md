@@ -1289,3 +1289,173 @@ Phase 2 ne crée toujours pas :
 - de crawl automatique.
 
 La prochaine couture utile est la Discovery générique : prendre un WebResearchResult, reconnaître ce qui est déjà connu, puis décider ce qui mérite observation, approfondissement ou résolution.
+
+
+---
+
+## 33. Phase 3 runtime — Discovery générique et sorties standards
+
+**Statut : implémenté sur le même chantier, sans migration.**
+
+Phase 3 introduit une sortie standard de Discovery qui ne dépend ni du provider Web Search, ni d’un domaine métier particulier :
+
+~~~text
+WebResearchResult
+      ↓
+DiscoveryNormalizer
+      ↓
+DiscoveryOutput v1
+~~~
+
+La sortie standard existe pour que les étapes aval puissent consommer une forme stable, même si les moteurs, les providers et les stratégies de recherche évoluent.
+
+### 33.1 DiscoveryOutput v1
+
+Chaque exécution produit notamment :
+
+~~~text
+request_ref
+mission_ref
+research_outcome
+stop_reason
+generated_at
+source_count
+candidate_count
+counts_by_state
+records[]
+warning_codes
+~~~
+
+Chaque DiscoveryRecord conserve :
+
+~~~text
+candidate_ref
+label
+source_refs[]
+type_hints[]
+summary
+knowledge_state
+known_refs[]
+basis_codes[]
+~~~
+
+Aucun champ provider/model n’appartient à cette sortie standard.
+
+### 33.2 États standards de connaissance
+
+Phase 3 formalise quatre états :
+
+~~~text
+KNOWN
+NOT_KNOWN
+AMBIGUOUS
+UNRESOLVED
+~~~
+
+Leur sens est strict :
+
+- KNOWN : un lookup borné a trouvé exactement une réalité Makolo connue ;
+- NOT_KNOWN : le catalog interrogé a une couverture suffisante pour conclure que cette réalité n’y est pas connue ;
+- AMBIGUOUS : plusieurs réalités connues restent possibles ;
+- UNRESOLVED : le lookup disponible ne permet pas de conclure.
+
+Invariant :
+
+~~~text
+UNRESOLVED != NOT_KNOWN
+NOT_KNOWN != nouveau dans le monde
+~~~
+
+NOT_KNOWN signifie seulement « non connu de Makolo dans un catalog dont la couverture permet cette conclusion ».
+
+### 33.3 DiscoveryKnowledgePort
+
+La qualification known/not-known est derrière un port read-only :
+
+~~~text
+DiscoveryKnowledgePort.lookup(...)
+    → DiscoveryLookup
+~~~
+
+La couche Discovery ne lit donc pas directement tous les domaines Makolo.
+
+Un adapter peut fournir une connaissance plus ou moins forte, mais il doit retourner UNRESOLVED si sa couverture est insuffisante.
+
+### 33.4 Premier adapter de connaissance
+
+DjangoDiscoveryKnowledgeCatalog fournit un premier usage réel et volontairement prudent.
+
+Il réutilise la canonicalisation Web du Prospecteur et effectue uniquement des rapprochements exacts de source URL vers des réalités déjà connues dans les catalogs actuellement sûrs pour ce test, notamment OpportunitySource et les websites Organization.
+
+Il peut conclure :
+
+~~~text
+exactement une réalité
+→ KNOWN
+
+plusieurs réalités exactes
+→ AMBIGUOUS
+
+aucune correspondance exacte
+→ UNRESOLVED
+~~~
+
+Il ne retourne pas NOT_KNOWN sur un simple miss, parce que l’absence d’une URL de ces tables ne prouve pas que Makolo ne connaît pas la réalité autrement.
+
+### 33.5 Frontière avec Resolver
+
+Discovery n’est pas un deuxième Resolver.
+
+La sortie standard indique seulement ce que le lookup amont peut savoir avant approfondissement.
+
+Le Resolver conserve l’autorité sur :
+
+- identity matching complet ;
+- provisional identity ;
+- heuristiques bornées ;
+- new_candidate ;
+- relations ;
+- facts ;
+- updates ;
+- conflicts.
+
+Phase 3 permet simplement d’éviter de retraiter aveuglément une source dont Makolo possède déjà une correspondance exacte.
+
+### 33.6 Sortie standard avant spécialisation
+
+Le même DiscoveryOutput v1 doit pouvoir servir à :
+
+~~~text
+bourses
+emplois
+formations
+transports
+programmes
+services
+autres missions
+~~~
+
+Les spécialisations métier pourront ajouter des traitements aval, mais elles ne changent pas l’enveloppe standard de Discovery.
+
+C’est cette stabilité qui permet d’avoir :
+
+~~~text
+plusieurs moteurs
++ plusieurs missions
++ plusieurs domaines
+→ une sortie Makolo commune
+~~~
+
+### 33.7 Ce que Phase 3 ne fait pas encore
+
+Phase 3 ne :
+
+- crée aucune Opportunity ou autre réalité métier ;
+- ne transforme pas UNRESOLVED en NEW_CANDIDATE ;
+- ne lance pas automatiquement Actor 2 ;
+- ne lance pas automatiquement Actor 4 ;
+- ne décide pas encore quelles inconnues doivent devenir des missions DEEPEN ;
+- ne persiste pas DiscoveryOutput ;
+- ne crée pas de scheduler.
+
+La prochaine phase peut travailler l’approfondissement en utilisant DiscoveryOutput v1 comme entrée stable, sans dépendre du provider qui a produit la découverte.
