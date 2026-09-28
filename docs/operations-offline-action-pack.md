@@ -36,6 +36,6 @@ La fondation **A1 — Installed Makolo Core** possède le stockage privé local,
 
 **A4 — Native & Ambient Makolo** possède les déclencheurs propres aux OS et aux capacités natives lorsqu’ils deviennent nécessaires : fenêtres de background, push, caméra, localisation, share sheet, widgets et deep links natifs.
 
-**A5 — Field Operations & Delegated Offline Authority** possède le scanner réellement offline, la validation Access hors connexion, le protocole double-use/double-spend, le clock skew, les allocations déléguées, les coordinateurs locaux et la réconciliation terrain.
+**A5 — Field Operations & Delegated Authority** possède uniquement les cas où une décision opérationnelle autoritative doit être prise sur l'appareil sans owner joignable : scanner à décision déléguée, validation Access déléguée, protocole double-use/double-spend, clock skew, allocations déléguées, coordinateurs locaux et réconciliation terrain.
 
 La biométrie/secure enclave/keystore peut protéger les données ou secrets locaux dès que le client en a besoin ; elle ne crée jamais une Permission, un Mandate, un Access ni une autorité offline.
