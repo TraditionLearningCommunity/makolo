@@ -1868,3 +1868,172 @@ WatchOutput
 ~~~
 
 à une orchestration bornée qui choisit explicitement quoi exécuter ensuite, sans rendre chaque suggestion automatique.
+
+
+---
+
+## 36. Phase 6 runtime — orchestration bornée du cycle standard
+
+**Statut : implémenté sur le même chantier, sans migration et sans exécution automatique.**
+
+Phase 6 relie les trois sorties standards déjà établies :
+
+~~~text
+DiscoveryOutput v1
+DeepenOutput v1
+WatchOutput v1
+        ↓
+CyclePlanner
+        ↓
+CyclePlan v1
+~~~
+
+CyclePlan v1 est une sortie de **décision**, pas une file de jobs et pas un scheduler.
+
+Il répond à :
+
+> étant donné ce que Makolo vient de découvrir, ce qu’il reste à approfondir et l’état de fraîcheur des sources, quelle est la prochaine action raisonnable ?
+
+### 36.1 Actions standards
+
+Le contrat définit :
+
+~~~text
+DEEPEN_MISSION
+OBSERVE_SOURCE
+WATCH_SOURCE
+HOLD_FOR_RESOLUTION
+NO_ACTION
+~~~
+
+Sens :
+
+- DEEPEN_MISSION : une ResearchMissionCandidate déjà préparée mérite d’être considérée pour exécution ;
+- OBSERVE_SOURCE : une source externe n’est pas encore suffisamment établie pour Watch et mérite une acquisition/observation contrôlée ;
+- WATCH_SOURCE : une source Makolo connue est arrivée à échéance de fraîcheur ;
+- HOLD_FOR_RESOLUTION : l’identité reste ambiguë/non résolue et aucune nouvelle mission d’approfondissement n’est actuellement nécessaire ;
+- NO_ACTION : la réalité est connue, suffisamment couverte dans la spécification courante et ses sources sont encore fraîches.
+
+Ces actions sont des directives standardisées. Elles ne sont pas exécutées par CyclePlanner.
+
+### 36.2 Décisions déterministes
+
+Les principales règles V1 sont :
+
+~~~text
+famille à approfondir
+→ DEEPEN_MISSION
+
+source connue + fraîcheur DUE
+→ WATCH_SOURCE
+
+source non encore watchable
+→ OBSERVE_SOURCE
+
+identité ambiguë/unresolved + aucun deepen nécessaire
+→ HOLD_FOR_RESOLUTION
+
+identité KNOWN + aucune dimension à approfondir + toutes sources FRESH
+→ NO_ACTION
+~~~
+
+Les actions peuvent coexister.
+
+Exemple :
+
+~~~text
+candidat encore unresolved
++ REQUIREMENT manquant
++ source pas encore watchable
+
+→ DEEPEN_MISSION
+→ OBSERVE_SOURCE
+~~~
+
+Le système n’est donc pas obligé de choisir artificiellement une seule action lorsque plusieurs responsabilités indépendantes sont nécessaires.
+
+### 36.3 Sortie standard CyclePlan v1
+
+CyclePlan contient :
+
+~~~text
+discovery_request_ref
+generated_at
+action_count
+counts_by_action
+actions[]
+~~~
+
+Chaque CycleAction expose seulement :
+
+~~~text
+action_kind
+candidate_ref
+source_ref
+mission_ref
+reason_codes
+~~~
+
+Le contrat ne contient :
+
+- aucun nom de provider ;
+- aucun modèle LLM ;
+- aucun secret ;
+- aucune donnée Profile implicite ;
+- aucune commande ORM.
+
+### 36.4 Frontières Actor 2 / Actor 3 / Resolver
+
+Phase 6 ne contourne pas les Actors.
+
+OBSERVE_SOURCE prépare une future acquisition par les mécanismes Observer appropriés.
+
+WATCH_SOURCE prépare une future observation avec ObservationTrigger.WATCH.
+
+HOLD_FOR_RESOLUTION ne signifie pas que DiscoveryOutput est directement consommable par Actor 4. Le Resolver conserve son entrée canonique InterpretedMaterial.
+
+Le chemin de matière forte reste :
+
+~~~text
+source
+→ Observer
+→ ObservationMaterial
+→ Interpreter
+→ InterpretedMaterial
+→ Resolver
+~~~
+
+Web Research peut découvrir et orienter ce chemin, mais ne fabrique pas artificiellement un ObservationMaterial ou un InterpretedMaterial.
+
+### 36.5 Pas d’autonomie cachée
+
+CyclePlanner ne :
+
+- lance pas Web Search ;
+- ne lance pas Actor 2 ;
+- ne lance pas Actor 3 ;
+- ne lance pas Resolver ;
+- ne persiste aucune ResearchMissionCandidate ;
+- ne crée aucun job ;
+- ne modifie aucun domaine ;
+- ne planifie aucun cron/scheduler.
+
+La prochaine couche, si elle est nécessaire, sera une orchestration d’exécution explicite avec budgets, idempotence et admission de directives, sans changer les sorties standards déjà établies.
+
+### 36.6 Les sorties standards du cycle
+
+À ce stade le canevas runtime possède quatre enveloppes provider-neutral et versionnées :
+
+~~~text
+WebResearchResult
+        ↓
+DiscoveryOutput v1
+        ↓
+DeepenOutput v1
+        ↓
+WatchOutput v1
+        ↓
+CyclePlan v1
+~~~
+
+Elles permettent aux moteurs et aux verticales de devenir plus riches sans obliger les consommateurs aval à connaître les détails d’OpenAI, Anthropic, d’un crawler particulier ou d’une verticale métier particulière.
