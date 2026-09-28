@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
+from allauth.socialaccount.models import SocialApp
+
 from accounts.models import NotificationPreference, UserProfile
 from organizations.models import Organization, OrganizationMembership, OrganizationRole
 
@@ -44,6 +46,20 @@ class WebAccountJourneyTests(TestCase):
 
         self.assertNotContains(login, "Continuer avec Google")
         self.assertNotContains(register, "Continuer avec Google")
+
+    def test_configured_social_provider_is_rendered_on_login_and_registration(self):
+        SocialApp.objects.create(
+            provider="google",
+            name="Google",
+            client_id="test-google-client",
+            secret="test-google-secret",
+        )
+
+        login = self.client.get(reverse("core:login"))
+        register = self.client.get(reverse("account:register"))
+
+        self.assertContains(login, "Continuer avec Google")
+        self.assertContains(register, "Continuer avec Google")
 
     def test_identifier_setup_requires_authentication(self):
         response = self.client.get(reverse("account:identifier-setup"))
