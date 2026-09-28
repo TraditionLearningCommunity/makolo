@@ -1,5 +1,6 @@
 from io import StringIO
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -290,6 +291,12 @@ class PasswordResetRequestTests(APITestCase):
 
 class SocialProviderStatusTests(APITestCase):
     endpoint = "/api/v1/accounts/auth/providers/"
+
+    def test_allauth_authentication_backend_is_enabled(self):
+        self.assertIn(
+            "allauth.account.auth_backends.AuthenticationBackend",
+            settings.AUTHENTICATION_BACKENDS,
+        )
 
     def _statuses(self):
         response = self.client.get(self.endpoint)
