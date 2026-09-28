@@ -1,6 +1,11 @@
+from io import StringIO
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 
 from allauth.socialaccount.models import SocialApp
 
@@ -311,6 +316,25 @@ class SocialProviderStatusTests(APITestCase):
         app.secret = "test-google-secret"
         app.save(update_fields=["client_id", "secret"])
         self.assertTrue(self._statuses()["google"]["configured"])
+
+    @override_settings(MAKOLO_PUBLIC_BASE_URL="https://beta.example")
+    def test_social_auth_status_command_reports_callbacks_without_secrets(self):
+        output = StringIO()
+        call_command("social_auth_status", stdout=output)
+
+        report = output.getvalue()
+        self.assertIn(
+            "Google: missing | callback=https://beta.example/auth/google/login/callback/",
+            report,
+        )
+        self.assertIn(
+            "LinkedIn: missing | callback=https://beta.example/auth/oidc/linkedin/login/callback/",
+            report,
+        )
+        self.assertNotIn("secret", report.lower())
+
+        with self.assertRaises(CommandError):
+            call_command("social_auth_status", require_all=True, stdout=StringIO())
 
     def test_linkedin_requires_oidc_identity_and_official_server(self):
         app = SocialApp.objects.create(
