@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -240,10 +242,15 @@ void main() {
   });
 
   testWidgets('signup validation prevents an invalid request', (tester) async {
-    var requestCount = 0;
+    var registrationRequests = 0;
     final tokens = MemoryTokenStore();
     final client = MockClient((request) async {
-      requestCount += 1;
+      if (request.url.path.endsWith('/auth/identifier/availability/')) {
+        return MockResponse(jsonEncode({'available': true}), 200);
+      }
+      if (request.url.path.endsWith('/auth/register/')) {
+        registrationRequests += 1;
+      }
       return MockResponse(jsonEncode({}), 500);
     });
     final runtime = _runtime(tokens: tokens, client: client);
@@ -273,7 +280,119 @@ void main() {
       find.text('Les deux mots de passe doivent être identiques.'),
       findsOneWidget,
     );
-    expect(requestCount, 0);
+    expect(registrationRequests, 0);
+  });
+
+  testWidgets('signup checks Makolo identifier after debounce', (
+    tester,
+  ) async {
+    var availabilityCalls = 0;
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/identifier/availability/')) {
+        availabilityCalls += 1;
+        expect(request.url.queryParameters['value'], 'amina');
+        return MockResponse(
+          jsonEncode({'available': true, 'username': 'amina'}),
+          200,
+        );
+      }
+      throw StateError('unexpected request');
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
+    await tester.pump(const Duration(milliseconds: 399));
+    expect(availabilityCalls, 0);
+    expect(find.text('Vérification…'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 2));
+    await tester.pump();
+
+    expect(availabilityCalls, 1);
+    expect(find.text('Identifiant Makolo disponible.'), findsOneWidget);
+  });
+
+  testWidgets('stale identifier response never overwrites latest value', (
+    tester,
+  ) async {
+    final firstResponse = Completer<MockResponse>();
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (!request.url.path.endsWith('/auth/identifier/availability/')) {
+        throw StateError('unexpected request');
+      }
+      final value = request.url.queryParameters['value'];
+      if (value == 'amina') return firstResponse.future;
+      if (value == 'amina-new') {
+        return MockResponse(
+          jsonEncode({'available': true, 'username': 'amina-new'}),
+          200,
+        );
+      }
+      throw StateError('unexpected value $value');
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
+    await tester.pump(const Duration(milliseconds: 401));
+    await tester.enterText(
+      find.byKey(const Key('signup-username')),
+      'amina-new',
+    );
+    await tester.pump(const Duration(milliseconds: 401));
+    await tester.pump();
+
+    expect(find.text('Identifiant Makolo disponible.'), findsOneWidget);
+
+    firstResponse.complete(
+      MockResponse(
+        jsonEncode({'available': false, 'username': 'amina'}),
+        200,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Identifiant Makolo disponible.'), findsOneWidget);
+    expect(
+      find.text('Cet Identifiant Makolo n’est pas disponible.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('identifier availability network failure is not availability', (
+    tester,
+  ) async {
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/identifier/availability/')) {
+        throw const SocketException('offline');
+      }
+      throw StateError('unexpected request');
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
+    await tester.pump(const Duration(milliseconds: 401));
+    await tester.pump();
+
+    expect(
+      find.text('Impossible de vérifier pour le moment.'),
+      findsOneWidget,
+    );
+    expect(find.text('Identifiant Makolo disponible.'), findsNothing);
   });
 
   testWidgets('signup creates the account and authenticates immediately', (
