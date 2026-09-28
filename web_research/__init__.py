@@ -49,6 +49,13 @@ from .watch import (
     WatchPlanner,
     WatchTarget,
 )
+from .orchestration import (
+    CYCLE_PLAN_CONTRACT_VERSION,
+    CycleAction,
+    CycleActionKind,
+    CyclePlan,
+    CyclePlanner,
+)
 from .ports import WebResearchEnginePort
 
 __all__ = [
@@ -56,6 +63,11 @@ __all__ = [
     "WebResearchCandidate",
     "WebResearchContractError",
     "WebResearchEnginePort",
+    "CYCLE_PLAN_CONTRACT_VERSION",
+    "CycleAction",
+    "CycleActionKind",
+    "CyclePlan",
+    "CyclePlanner",
     "IntelligenceWebResearchEngine",
     "WATCH_OUTPUT_CONTRACT_VERSION",
     "FreshnessPolicy",
