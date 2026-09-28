@@ -9,6 +9,13 @@ on:
       - "mobile/**"
       - "docs/**"
       - "*.md"
+      - "frontend/**"
+      - "static/**"
+      - "templates/**"
+      - "e2e/**"
+      - "test_support/**"
+      - "**/test*.py"
+      - "**/tests/**"
   push:
     branches:
       - main
@@ -16,6 +23,16 @@ on:
       - "mobile/**"
       - "docs/**"
       - "*.md"
+      - "frontend/**"
+      - "static/**"
+      - "templates/**"
+      - "e2e/**"
+      - "test_support/**"
+      - "**/test*.py"
+      - "**/tests/**"
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
 
 concurrency:
   group: security-supply-chain-${{ github.event.pull_request.number || github.ref }}
@@ -26,7 +43,7 @@ permissions:
 
 jobs:
   security-supply-chain:
-    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
