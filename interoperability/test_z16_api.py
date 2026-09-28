@@ -145,6 +145,17 @@ class Z16InteroperabilityAPITests(TestCase):
         )
         return connection
 
+    def test_profile_empty_lists_are_a_stable_authenticated_result(self):
+        self.client.force_authenticate(self.member)
+        response = self.client.get("/api/v1/me/interoperability/")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["context"], "profile")
+        self.assertEqual(response.data["providers"], [])
+        self.assertEqual(response.data["connections"], [])
+        self.assertEqual(response.data["actions"], [])
+        self.assertEqual(response.data["extensions"], [])
+        self.assertEqual(response.data["webhooks"], [])
+
     def test_profile_projection_is_owner_scoped_stable_and_secret_free(self):
         self.client.force_authenticate(self.owner)
         response = self.client.get("/api/v1/me/interoperability/")
