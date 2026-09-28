@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Mapping, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from research_missions import (
     ResearchFamily,
@@ -195,8 +195,8 @@ class MinimalDiscoveryCoverage:
                         basis_codes=(
                             "discovery_candidate_observed"
                             if spec.family is ResearchFamily.POSSIBILITY
-                            else "discovery_source_present"
-                        ,),
+                            else "discovery_source_present",
+                        ),
                     )
                 )
             else:
