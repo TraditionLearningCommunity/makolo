@@ -1,5 +1,5 @@
 # Makolo Mobile — Bloc F
-## Field Operations & Delegated Offline Authority
+## Field Operations & Delegated Authority
 
 **Statut : CONCEPTION FERMÉE — implémentation conditionnée par des contrats owner démontrés**  
 **Date : 2026-09-28**  
@@ -11,7 +11,9 @@
 
 # 1. Objet
 
-Le Bloc F ferme la conception de la seule catégorie de local-first que les Blocs A–E ne doivent pas improviser :
+Le Bloc F ferme la conception d'une capacité terrain exceptionnelle que les Blocs A–E ne doivent pas improviser : **prendre une décision opérationnelle autoritative sur l'appareil lorsque l'owner autoritatif n'est pas joignable**.
+
+F n'est ni la couche « offline » de Makolo ni le mécanisme normal de continuité locale. La continuité locale, l'acquisition distante, la fraîcheur et la convergence appartiennent déjà aux Blocs A–E.
 
 > **agir sur le terrain alors que l'autorité serveur n'est momentanément pas joignable.**
 
@@ -26,7 +28,7 @@ Il correspond au jalon A5 du programme mobile :
 - délégation offline uniquement si le besoin est démontré ;
 - réconciliation terrain.
 
-F n'est pas « rendre Makolo offline ». L'application est déjà local-first depuis A.
+F n'est pas « rendre Makolo offline ». L'application est déjà local-first depuis A. L'absence de réseau n'est qu'une condition de reachability ; F ne s'active conceptuellement que lorsqu'une décision autoritative ne peut pas attendre le retour de l'owner et qu'un protocole de délégation explicite existe.
 
 F traite exclusivement l'exception où un appareil pourrait recevoir **une autorité bornée et explicitement déléguée** pour produire des faits opérationnels alors que le serveur n'est pas disponible.
 
@@ -92,7 +94,7 @@ Le travail de F consiste à fixer le protocole architectural requis avant qu'un 
 
 # 4. Trois classes à ne pas confondre
 
-## 4.1 Lecture offline
+## 4.1 Lecture locale sans owner joignable
 
 Exemples :
 
@@ -104,7 +106,7 @@ Exemples :
 
 Aucune autorité nouvelle.
 
-## 4.2 Intention préparée offline
+## 4.2 Intention préparée localement
 
 Exemples :
 
@@ -114,7 +116,7 @@ Exemples :
 
 L'appareil peut conserver l'intention, mais ne doit pas annoncer une conséquence métier définitive.
 
-## 4.3 Autorité offline déléguée
+## 4.3 Autorité terrain déléguée
 
 Cas exceptionnel où le serveur a explicitement autorisé un appareil à produire un résultat opérationnel localement dans des limites connues.
 
@@ -212,7 +214,7 @@ Le client ne prolonge jamais lui-même une délégation expirée en modifiant l'
 
 ---
 
-# 9. Scanner offline
+# 9. Scanner avec autorité déléguée sans owner joignable
 
 ## 9.1 Ce que le runtime actuel sait déjà faire
 
@@ -330,7 +332,7 @@ Le téléphone ne force jamais sa version en vérité globale.
 
 ---
 
-# 13. Access offline
+# 13. Access avec contrôle délégué sans owner joignable
 
 Access reste le droit.
 
@@ -350,7 +352,7 @@ Pour qu'un Access puisse être contrôlé offline, le protocole doit démontrer 
 
 Sans cela :
 
-> **Access offline = non autorisé.**
+> **Access autoritatif sans owner joignable = non autorisé tant qu'aucun protocole owner-issued ne le démontre.**
 
 ---
 
@@ -685,7 +687,7 @@ Le Bloc F est fermé comme contrat de conception lorsque :
 
 # 29. Formule finale
 
-> **Makolo Mobile peut continuer à montrer et préparer beaucoup de choses hors réseau. Il ne peut décider hors réseau que ce qu'un owner lui a explicitement délégué, pour un scope, un temps et un risque bornés.**
+> **Makolo Mobile peut continuer à montrer et préparer localement ce qu'il possède, quelle que soit la reachability courante. Il ne peut prendre une décision autoritative sans owner joignable que pour ce qu'un owner lui a explicitement délégué, dans un scope, un temps et un risque bornés.**
 
 F transforme donc l'exception terrain en protocole contrôlé, sans transformer le téléphone en seconde source de vérité.
 
