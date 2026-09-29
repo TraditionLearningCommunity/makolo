@@ -28,7 +28,7 @@
                 {% endif %}
                 <div class="min-w-0">
                     <p class="truncate text-lg font-extrabold">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
-                    <p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{{ request.user.email }}</p>
+                    {% if request.user.email %}<p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{{ request.user.email }}</p>{% endif %}
                     <p class="mt-1 text-xs" style="color:var(--mk-subtle)">@{{ request.user.username }}</p>
                 </div>
             </div>
@@ -37,7 +37,7 @@
             <p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">Statut</p>
             <div class="mt-3 flex flex-wrap gap-2">
                 {% if request.user.is_verified %}<span class="mk-badge mk-badge-success">Compte vérifié</span>{% else %}<span class="mk-badge mk-badge-warning">À vérifier</span>{% endif %}
-                {% if request.user.email_verified %}<span class="mk-badge mk-badge-success">E-mail vérifié</span>{% else %}<span class="mk-badge">E-mail non vérifié</span>{% endif %}
+                {% if request.user.email %}{% if request.user.email_verified %}<span class="mk-badge mk-badge-success">E-mail vérifié</span>{% else %}<span class="mk-badge">E-mail non vérifié</span>{% endif %}{% else %}<span class="mk-badge">E-mail non ajouté</span>{% endif %}
             </div>
             <p class="mt-4 text-xs" style="color:var(--mk-muted)">Membre depuis le {{ request.user.created_at|date:'d/m/Y' }}</p>
         </div>
@@ -45,7 +45,7 @@
 
     <section class="mk-panel p-5 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="shield-check" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Sécurité du compte</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Connexion : {{ request.user.email }}</p></div></div>
+            <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="shield-check" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Sécurité du compte</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Connexion : @{{ request.user.username }}{% if request.user.email %} ou {{ request.user.email }}{% endif %}</p></div></div>
             <div class="flex flex-wrap gap-2"><a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary">Changer le mot de passe</a><a href="{% url 'account:delete' %}" class="mk-btn mk-btn-ghost" style="color:var(--mk-danger)">Supprimer le compte</a></div>
         </div>
         {% if deletion_blockers %}<div class="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/[.07] p-4 text-sm"><p class="font-bold">Suppression indisponible</p><p class="mt-1 leading-6" style="color:var(--mk-muted)">Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif.</p></div>{% endif %}

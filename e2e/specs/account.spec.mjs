@@ -16,8 +16,8 @@ test('registration shows validation and creates a usable account', async ({ page
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);
   await page.getByLabel('Confirmer le mot de passe').fill(E2E_PASSWORD);
   await page.getByRole('button', { name: 'Créer mon compte' }).click();
-  await expect(page).toHaveURL(/\/login\/\?email=signup\.user%40e2e\.makolo\.test$/);
-  await expect(page.getByLabel('Adresse e-mail')).toHaveValue('signup.user@e2e.makolo.test');
+  await expect(page).toHaveURL(/\/login\/\?login=%40signup-e2e$/);
+  await expect(page.getByLabel('Identifiant Makolo ou adresse e-mail')).toHaveValue('@signup-e2e');
   await expect(page.getByText(/Compte créé/i)).toBeVisible();
 
   await page.getByLabel('Mot de passe', { exact: true }).fill(E2E_PASSWORD);

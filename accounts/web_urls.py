@@ -6,7 +6,7 @@ from .activation_views import DismissProfileInterestPromptView, ProfileInterestQ
 from .public_views import PublicProfileView
 from .web_views import (
     AccountDeleteView, AccountPasswordChangeView, AccountProfileView, AccountRegistrationView,
-    AccountSwitcherView, AddAccountView, PasswordForgotView, PasswordResetConfirmView,
+    AccountSwitcherView, AddAccountView, MakoloIdentifierSetupView, PasswordForgotView, PasswordResetConfirmView,
     RemoveRememberedAccountView, SwitchRememberedAccountView,
 )
 
@@ -14,6 +14,7 @@ app_name = "account"
 
 urlpatterns = [
     path("register/", AccountRegistrationView.as_view(), name="register"),
+    path("identifier/", MakoloIdentifierSetupView.as_view(), name="identifier-setup"),
     path("profile/", AccountProfileView.as_view(), name="profile"),
     path("interests/", ProfileInterestSettingsView.as_view(), name="interests"),
     path("interests/quick-capture/", ProfileInterestQuickCaptureView.as_view(), name="interest-quick-capture"),
