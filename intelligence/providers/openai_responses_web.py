@@ -44,12 +44,56 @@ _WEB_RESEARCH_SCHEMA = {
                         "type": "array",
                         "items": {"type": "string"},
                     },
+                    "findings": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "family": {
+                                    "type": "string",
+                                    "enum": [
+                                        "POSSIBILITY",
+                                        "REQUIREMENT",
+                                        "QUALIFICATION",
+                                        "ACTOR",
+                                        "SPATIOTEMPORAL",
+                                        "PROCEDURE",
+                                        "ECONOMIC",
+                                        "REFERENCE",
+                                    ],
+                                },
+                                "predicate": {"type": "string"},
+                                "state": {
+                                    "type": "string",
+                                    "enum": [
+                                        "observed",
+                                        "unknown",
+                                        "not_applicable",
+                                    ],
+                                },
+                                "value_text": {"type": "string"},
+                                "source_urls": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                            },
+                            "required": [
+                                "family",
+                                "predicate",
+                                "state",
+                                "value_text",
+                                "source_urls",
+                            ],
+                            "additionalProperties": False,
+                        },
+                    },
                 },
                 "required": [
                     "label",
                     "type_hints",
                     "summary",
                     "source_urls",
+                    "findings",
                 ],
                 "additionalProperties": False,
             },
@@ -65,8 +109,14 @@ Search the Web broadly unless the mission itself contains an explicit scope.
 Do not infer or inject a user's location, profile, preferences, or private context.
 Do not recommend or rank candidates for a user.
 Return only candidates supported by URLs actually consulted during this run.
-If information is absent, omit it rather than inventing it.
-A candidate source_urls list must contain only URLs that support that candidate.
+For each candidate, return fact-level findings only when they answer the bounded mission.
+Use observed only for a concise value explicitly supported by the cited consulted URLs.
+Use unknown when the searched material did not establish the requested fact; keep value_text empty.
+Never turn missing information into false, no restriction, closed, no fee, or any other assertion.
+Use not_applicable only when consulted sources explicitly establish non-applicability.
+If consulted sources disagree, emit separate observed findings with the same family and predicate and their respective values and source URLs; Makolo will classify the conflict.
+Finding predicates are stable lowercase technical codes, not canonical Makolo field names or user relevance judgments.
+A candidate source_urls list must contain every URL used by its findings and only URLs actually consulted during this run.
 The response must match the supplied JSON schema exactly.
 """
 
@@ -278,6 +328,7 @@ class OpenAIResponsesWebResearchProvider(IntelligenceProvider):
             type_hints = candidate.get("type_hints")
             summary = candidate.get("summary")
             source_urls = candidate.get("source_urls")
+            findings = candidate.get("findings")
             if (
                 not isinstance(label, str)
                 or not label.strip()
@@ -287,14 +338,64 @@ class OpenAIResponsesWebResearchProvider(IntelligenceProvider):
                 or not isinstance(source_urls, list)
                 or not source_urls
                 or not all(isinstance(item, str) and item.strip() for item in source_urls)
+                or not isinstance(findings, list)
             ):
                 raise InvalidProviderResult("web_research_candidate_invalid")
+
+            normalized_findings = []
+            for finding in findings:
+                if not isinstance(finding, dict):
+                    raise InvalidProviderResult("web_research_finding_invalid")
+                family = finding.get("family")
+                predicate = finding.get("predicate")
+                finding_state = finding.get("state")
+                value_text = finding.get("value_text")
+                finding_urls = finding.get("source_urls")
+                if (
+                    family not in {
+                        "POSSIBILITY",
+                        "REQUIREMENT",
+                        "QUALIFICATION",
+                        "ACTOR",
+                        "SPATIOTEMPORAL",
+                        "PROCEDURE",
+                        "ECONOMIC",
+                        "REFERENCE",
+                    }
+                    or not isinstance(predicate, str)
+                    or not predicate.strip()
+                    or finding_state not in {
+                        "observed",
+                        "unknown",
+                        "not_applicable",
+                    }
+                    or not isinstance(value_text, str)
+                    or not isinstance(finding_urls, list)
+                    or not all(
+                        isinstance(item, str) and item.strip()
+                        for item in finding_urls
+                    )
+                ):
+                    raise InvalidProviderResult("web_research_finding_invalid")
+                normalized_findings.append(
+                    {
+                        "family": family,
+                        "predicate": predicate.strip(),
+                        "state": finding_state,
+                        "value_text": value_text.strip(),
+                        "source_urls": [
+                            item.strip() for item in finding_urls
+                        ],
+                    }
+                )
+
             normalized_candidates.append(
                 {
                     "label": label.strip(),
                     "type_hints": type_hints,
                     "summary": summary.strip(),
                     "source_urls": [item.strip() for item in source_urls],
+                    "findings": normalized_findings,
                 }
             )
 
