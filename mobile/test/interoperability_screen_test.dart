@@ -83,12 +83,13 @@ void main() {
       find.textContaining('Aucun service ni aucune extension'),
       findsOneWidget,
     );
-    // Unsubscribe the Drift QueryStream before closing its database. Closing
-    // the database first waits on the still-mounted StreamBuilder and can
-    // deadlock widget-test teardown until the global 10-minute timeout.
+    // Unmount the StreamBuilder so its Drift subscription is cancelled before
+    // the test ends. Do not close the in-memory database here: Drift can wait
+    // for the just-cancelled watcher while the widget test fake clock is no
+    // longer advancing, which is exactly the lifecycle deadlock this
+    // regression test protects against.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await tester.runAsync(database.close);
   });
 
   testWidgets('Profile Connexions shows only Profile connections', (
@@ -151,12 +152,13 @@ void main() {
     expect(find.text('Connecté et disponible'), findsOneWidget);
     expect(find.text('Service Espace'), findsNothing);
     expect(find.textContaining('never-render-me'), findsNothing);
-    // Unsubscribe the Drift QueryStream before closing its database. Closing
-    // the database first waits on the still-mounted StreamBuilder and can
-    // deadlock widget-test teardown until the global 10-minute timeout.
+    // Unmount the StreamBuilder so its Drift subscription is cancelled before
+    // the test ends. Do not close the in-memory database here: Drift can wait
+    // for the just-cancelled watcher while the widget test fake clock is no
+    // longer advancing, which is exactly the lifecycle deadlock this
+    // regression test protects against.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await tester.runAsync(database.close);
   });
 
   testWidgets('Profile Connexions renders authorized actions and extensions', (
@@ -214,11 +216,12 @@ void main() {
     expect(find.text('Connexion requise'), findsOneWidget);
     expect(find.text('Private denied'), findsNothing);
     expect(find.text('Profile helper'), findsOneWidget);
-    // Unsubscribe the Drift QueryStream before closing its database. Closing
-    // the database first waits on the still-mounted StreamBuilder and can
-    // deadlock widget-test teardown until the global 10-minute timeout.
+    // Unmount the StreamBuilder so its Drift subscription is cancelled before
+    // the test ends. Do not close the in-memory database here: Drift can wait
+    // for the just-cancelled watcher while the widget test fake clock is no
+    // longer advancing, which is exactly the lifecycle deadlock this
+    // regression test protects against.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await tester.runAsync(database.close);
   });
 }
