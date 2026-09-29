@@ -89,7 +89,7 @@ void main() {
     // longer advancing, which is exactly the lifecycle deadlock this
     // regression test protects against.
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('Profile Connexions shows only Profile connections', (
@@ -158,7 +158,7 @@ void main() {
     // longer advancing, which is exactly the lifecycle deadlock this
     // regression test protects against.
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('Profile Connexions renders authorized actions and extensions', (
@@ -222,6 +222,6 @@ void main() {
     // longer advancing, which is exactly the lifecycle deadlock this
     // regression test protects against.
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
   });
 }
