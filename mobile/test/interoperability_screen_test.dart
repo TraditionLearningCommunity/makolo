@@ -64,7 +64,6 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(_payload(), database: database);
 
     await tester.pumpWidget(
@@ -84,13 +83,18 @@ void main() {
       find.textContaining('Aucun service ni aucune extension'),
       findsOneWidget,
     );
+    // Unsubscribe the Drift QueryStream before closing its database. Closing
+    // the database first waits on the still-mounted StreamBuilder and can
+    // deadlock widget-test teardown until the global 10-minute timeout.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await database.close();
   });
 
   testWidgets('Profile Connexions shows only Profile connections', (
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         connections: [
@@ -147,13 +151,18 @@ void main() {
     expect(find.text('Connecté et disponible'), findsOneWidget);
     expect(find.text('Service Espace'), findsNothing);
     expect(find.textContaining('never-render-me'), findsNothing);
+    // Unsubscribe the Drift QueryStream before closing its database. Closing
+    // the database first waits on the still-mounted StreamBuilder and can
+    // deadlock widget-test teardown until the global 10-minute timeout.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await database.close();
   });
 
   testWidgets('Profile Connexions renders authorized actions and extensions', (
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         actions: [
@@ -205,5 +214,11 @@ void main() {
     expect(find.text('Connexion requise'), findsOneWidget);
     expect(find.text('Private denied'), findsNothing);
     expect(find.text('Profile helper'), findsOneWidget);
+    // Unsubscribe the Drift QueryStream before closing its database. Closing
+    // the database first waits on the still-mounted StreamBuilder and can
+    // deadlock widget-test teardown until the global 10-minute timeout.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await database.close();
   });
 }
