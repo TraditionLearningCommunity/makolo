@@ -2037,3 +2037,184 @@ CyclePlan v1
 ~~~
 
 Elles permettent aux moteurs et aux verticales de devenir plus riches sans obliger les consommateurs aval à connaître les détails d’OpenAI, Anthropic, d’un crawler particulier ou d’une verticale métier particulière.
+
+
+---
+
+## 37. Phase 7 runtime — evidence factuelle sourcée et états épistémiques
+
+**Statut : implémenté sur le chantier Phase 7, sans migration, sans écriture métier et sans contournement de l’Interpréteur.**
+
+Phase 7 ferme la couture laissée ouverte entre un candidat Web Search léger et une matière factuelle exploitable par Makolo.
+
+Le cycle peut désormais produire une cinquième enveloppe standard :
+
+~~~text
+WebResearchResult
+        ↓
+EvidenceNormalizer
+        ↓
+EvidenceOutput v1
+~~~
+
+EvidenceOutput reste un contrat Web Research. Il ne devient ni ObservationMaterial, ni InterpretedMaterial, ni CandidateEvidence Actor 3.
+
+### 37.1 Pourquoi une sortie Evidence distincte
+
+Une URL de recherche et un résumé de candidat ne suffisent pas pour savoir quel fait précis est soutenu par quelle source.
+
+Phase 7 introduit donc une provenance au niveau du fait :
+
+~~~text
+candidate_ref
+family
+predicate
+state
+value_text
+source_refs[]
+observed_at
+~~~
+
+Le `value_text` reste volontairement une valeur textuelle observée/interprétée par le moteur de recherche. La normalisation sémantique forte en date, monnaie, quantité, contrainte ou relation reste une responsabilité d’interprétation ultérieure.
+
+### 37.2 États épistémiques standards
+
+EvidenceOutput formalise quatre états :
+
+~~~text
+OBSERVED
+UNKNOWN
+CONFLICTING
+NOT_APPLICABLE
+~~~
+
+Règles :
+
+- OBSERVED exige une valeur non vide et au moins une source qui soutient cette valeur ;
+- UNKNOWN ne porte aucune valeur et signifie seulement que l’exécution n’a pas établi le fait ;
+- NOT_APPLICABLE exige une source qui établit explicitement la non-applicabilité ;
+- CONFLICTING est calculé par Makolo lorsque plusieurs valeurs ou états distincts sont soutenus pour le même couple candidat/famille/predicate.
+
+Invariant conservé :
+
+~~~text
+UNKNOWN != FALSE
+UNKNOWN != NO_LIMIT
+UNKNOWN != CLOSED
+UNKNOWN != NO_FEE
+UNKNOWN != NOT_APPLICABLE
+~~~
+
+### 37.3 Les contradictions ne sont pas écrasées
+
+Le transport provider ne déclare pas directement `CONFLICTING`.
+
+S’il rencontre deux sources qui soutiennent deux valeurs différentes, il retourne deux observations séparées avec le même `family/predicate`.
+
+EvidenceNormalizer les regroupe alors en une seule finding :
+
+~~~text
+application_deadline
+  ├─ 31 January 2027 ← source A
+  └─ 15 February 2027 ← source B
+
+→ CONFLICTING
+~~~
+
+Aucune valeur n’est choisie silencieusement comme vérité actuelle.
+
+### 37.4 Provenance factuelle et validation des sources
+
+Le premier adapter Web Research peut maintenant demander des `findings` structurées par candidat.
+
+Chaque finding transporte :
+
+~~~text
+family
+predicate
+state
+value_text
+source_urls[]
+~~~
+
+IntelligenceWebResearchEngine convertit ces URL en `source_refs` Makolo seulement si :
+
+1. l’URL a réellement été rapportée parmi les sources consultées par le provider ;
+2. elle appartient aussi aux sources du candidat concerné.
+
+Sinon :
+
+~~~text
+evidence_finding_unknown_source
+→ finding rejetée
+~~~
+
+Une finding invalide ne fait pas supprimer automatiquement le candidat de Discovery ; elle est simplement exclue de la couche Evidence.
+
+### 37.5 Canal de transport interne
+
+Pour ne pas casser `WebResearchResult v1`, les findings validées transitent temporairement dans l’attribut provider-neutral réservé :
+
+~~~text
+evidence_findings_v1
+~~~
+
+Ce canal n’est pas une vérité métier et ne doit pas être consommé directement par les domaines.
+
+La forme stable pour les consommateurs est `EvidenceOutput v1`.
+
+### 37.6 Frontière avec Actor 3
+
+Une citation Web Search n’est toujours pas un artefact Observer.
+
+EvidenceFinding ne contient donc aucun :
+
+~~~text
+artifact_ref
+artifact_observation_ref
+locator HTML/PDF
+offset de texte acquis
+~~~
+
+Le chemin fort reste :
+
+~~~text
+source importante / besoin de replay
+→ Observer
+→ ObservationMaterial
+→ Interpreter
+→ CandidateEvidence / CandidateFact / ...
+→ Resolver
+~~~
+
+EvidenceOutput peut orienter ce chemin, signaler des faits candidats ou des contradictions et réduire les recherches inutiles, mais il ne maquille pas une citation moteur en preuve Actor 3.
+
+### 37.7 Premier adapter et absence d’inférence silencieuse
+
+Le premier adapter demande désormais explicitement :
+
+- `observed` seulement si une valeur est soutenue par des URL consultées ;
+- `unknown` lorsque les sources consultées n’établissent pas le fait ;
+- `not_applicable` seulement si la non-applicabilité est explicitement soutenue ;
+- des observations séparées lorsque les sources se contredisent ;
+- aucune transformation d’une information absente en faux, aucune limite, fermé ou gratuit.
+
+Ces règles restent confinées au contrat Web Research et sont revérifiées côté Makolo.
+
+### 37.8 Ce que Phase 7 ne fait toujours pas
+
+Phase 7 ne :
+
+- crée aucun CandidateEvidence Actor 3 ;
+- ne crée aucun CandidateFact Actor 3 ;
+- ne choisit aucune vérité en cas de conflit ;
+- n’écrit aucune Opportunity, Activity, Requirement ou autre réalité canonique ;
+- ne persiste pas EvidenceOutput ;
+- ne lance pas automatiquement Resolver ;
+- ne crée aucun scheduler ;
+- ne rend pas encore WEB_RESEARCH configurable via IntelligenceRoute persisté.
+
+La prochaine validation doit porter sur deux choses distinctes :
+
+1. les tests déterministes des invariants Evidence ;
+2. un smoke test Web réel, borné et non destructif, lorsqu’un provider configuré est disponible.
