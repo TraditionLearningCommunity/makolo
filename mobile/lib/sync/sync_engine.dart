@@ -34,24 +34,38 @@ class SyncEngine {
     SyncRoot('personal.me', 'api/v1/me/'),
   ];
 
+  static const interoperabilityRoot = SyncRoot(
+    'personal.interoperability',
+    'api/v1/me/interoperability/',
+  );
+
   Future<void> bootstrap() async {
     for (final root in roots) {
       await pull(root);
     }
+    await pullInteroperability();
   }
 
   Future<void> refreshRoots() async {
     for (final root in roots) {
-      try {
-        await pull(root);
-      } on TimeoutException {
-        await _recordFailure(root, 'timeout');
-      } on MakoloApiError catch (error) {
-        await _recordFailure(root, error.code);
-        if (error.statusCode == 401) rethrow;
-      } on Object {
-        await _recordFailure(root, 'transport_error');
-      }
+      await _refreshRoot(root, () => pull(root));
+    }
+    await _refreshRoot(interoperabilityRoot, pullInteroperability);
+  }
+
+  Future<void> _refreshRoot(
+    SyncRoot root,
+    Future<void> Function() refresh,
+  ) async {
+    try {
+      await refresh();
+    } on TimeoutException {
+      await _recordFailure(root, 'timeout');
+    } on MakoloApiError catch (error) {
+      await _recordFailure(root, error.code);
+      if (error.statusCode == 401) rethrow;
+    } on Object {
+      await _recordFailure(root, 'transport_error');
     }
   }
 
@@ -79,6 +93,38 @@ class SyncEngine {
               schemaVersionSeen: Value(envelope.schemaVersion),
               lastSuccessAt: Value(DateTime.now().toUtc()),
               generatedAtSeen: Value(envelope.generatedAt),
+              invalidated: const Value(false),
+            ),
+          );
+    });
+  }
+
+  Future<void> pullInteroperability() async {
+    final root = interoperabilityRoot;
+    final response = await api.get(root.path);
+    final payload = response.jsonObject();
+    if (payload['schema_version'] != 'z16.v1' ||
+        payload['context'] != 'profile') {
+      throw const FormatException(
+        'Expected z16.v1 Profile interoperability projection.',
+      );
+    }
+
+    await database.transaction(() async {
+      await store.putProjection(
+        kind: root.key,
+        schemaVersion: 1,
+        payload: payload,
+      );
+      await database
+          .into(database.syncSources)
+          .insertOnConflictUpdate(
+            SyncSourcesCompanion.insert(
+              profileId: profileId,
+              sourceKey: root.key,
+              route: root.path,
+              schemaVersionSeen: const Value(1),
+              lastSuccessAt: Value(DateTime.now().toUtc()),
               invalidated: const Value(false),
             ),
           );

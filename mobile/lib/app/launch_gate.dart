@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/onboarding/onboarding_flow.dart';
-import '../features/splash/brand_moment.dart';
 import '../features/splash/splash_screen.dart';
 import '../sync/sync_engine.dart';
 import 'launch_policy.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
 
-enum _LaunchStage { preparing, brandMoment, onboarding, content }
+enum _LaunchStage { preparing, onboarding, content }
 
 class LaunchGate extends StatefulWidget {
   const LaunchGate({
@@ -17,7 +16,6 @@ class LaunchGate extends StatefulWidget {
     required this.runtime,
     required this.router,
     required this.child,
-    this.brandPolicy = const BrandMomentPolicy(),
     this.launchStartedAt,
     this.minimumVisible = const Duration(seconds: 1),
   });
@@ -25,7 +23,6 @@ class LaunchGate extends StatefulWidget {
   final AppRuntime runtime;
   final GoRouter router;
   final Widget child;
-  final BrandMomentPolicy brandPolicy;
   final DateTime? launchStartedAt;
   final Duration minimumVisible;
 
@@ -91,31 +88,10 @@ class _LaunchGateState extends State<LaunchGate> {
       path,
       authenticated: widget.runtime.isAuthenticated,
     );
-    final showBrandMoment = widget.brandPolicy.isEligible(
-      preferences: preferences,
-      now: DateTime.now(),
-      hasPriorityNavigation: priorityNavigation,
-    );
-
     setState(() {
       _preferences = preferences;
       _priorityNavigation = priorityNavigation;
-      _stage = showBrandMoment
-          ? _LaunchStage.brandMoment
-          : preferences.hasCompletedOnboarding
-          ? _LaunchStage.content
-          : _LaunchStage.onboarding;
-    });
-  }
-
-  Future<void> _finishBrandMoment() async {
-    final shownAt = DateTime.now().toUtc();
-    await widget.runtime.launchPreferences?.setLastBrandMomentAt(shownAt);
-    if (!mounted) return;
-
-    setState(() {
-      _preferences = _preferences.copyWith(lastBrandMomentAt: shownAt);
-      _stage = _preferences.hasCompletedOnboarding
+      _stage = preferences.hasCompletedOnboarding
           ? _LaunchStage.content
           : _LaunchStage.onboarding;
     });
@@ -147,7 +123,6 @@ class _LaunchGateState extends State<LaunchGate> {
   Widget build(BuildContext context) {
     return switch (_stage) {
       _LaunchStage.preparing => const SplashScreen(),
-      _LaunchStage.brandMoment => BrandMoment(onFinished: _finishBrandMoment),
       _LaunchStage.onboarding => OnboardingFlow(
         isAuthenticated: widget.runtime.isAuthenticated,
         onComplete: _finishOnboarding,
