@@ -83,6 +83,23 @@ La Console lit directement :
 
 Aucun compteur Console ne doit additionner simultanément Ticket + Access, TicketOrder + CommerceOrder ou ScanLog + AccessUse.
 
+## Archétype d’Espace
+
+Un Espace possède un `SpaceArchetype` explicite qui décrit sa **configuration opérationnelle principale**. Cet archétype répond à « quel genre d’acteur est cet Espace et quelles capacités Makolo doit-il lui proposer nativement ? ».
+
+Il reste strictement distinct :
+
+- d’un `Topic`, qui répond à « de quoi parle cette Activity ou ce Profile ? » ;
+- d’une forme juridique ;
+- de `TeamMembership`, `Role`, `Permission` et `Mandate` ;
+- de `Open to`, qui exprime un consentement à être sollicité.
+
+L’archétype adapte la Presentation et peut activer des modules métier spécialisés de la Console. Il **n’accorde jamais d’autorité**. Une capacité visible exige toujours les Permissions/Mandates canoniques correspondants.
+
+Les archétypes initiaux sont : générique, artiste/création, média/journalisme, enseignement/formation et opérateur de transport. Cette liste est volontairement courte : elle ne doit pas devenir une taxonomie parallèle aux Topics.
+
+Transport est le premier module spécialisé réellement fermé par cet archétype : seules les Espaces `transport_operator` peuvent créer de nouvelles Routes, Services, Véhicules ou Départs Transport via les services canoniques, et la Console Transport n’est pas exposée aux autres archétypes. Les Espaces historiques possédant déjà des faits Transport canoniques sont classifiés lors de la migration afin de préserver leur état valide.
+
 ## Event comme verticale
 
 Event reste une verticale concrète d’Activity. La Console générique peut ouvrir une Activity sans Event associé. Pour une Activity Event, le vocabulaire métier peut parler d’événement, billet ou participant lorsque cette contextualisation est utile.
