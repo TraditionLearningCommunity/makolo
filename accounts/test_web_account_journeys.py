@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
+from allauth.socialaccount.models import SocialApp
+
 from accounts.models import NotificationPreference, UserProfile
 from organizations.models import Organization, OrganizationMembership, OrganizationRole
 
@@ -21,6 +23,81 @@ User = get_user_model()
 )
 class WebAccountJourneyTests(TestCase):
     password = "Strong-web-account-password-2026!"
+
+    def test_login_surface_accepts_identifier_or_email(self):
+        response = self.client.get(reverse("core:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Identifiant Makolo ou adresse e-mail")
+        self.assertContains(response, 'type="text"')
+        self.assertNotContains(response, 'type="email" value=')
+
+    def test_registration_surface_marks_email_optional_and_checks_identifier(self):
+        response = self.client.get(reverse("account:register"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Adresse e-mail (facultatif)")
+        self.assertContains(response, "Identifiant Makolo")
+        self.assertContains(response, "data-identifier-check")
+
+    def test_social_provider_buttons_require_usable_selected_configuration(self):
+        login = self.client.get(reverse("core:login"))
+        register = self.client.get(reverse("account:register"))
+
+        self.assertNotContains(login, "Continuer avec Google")
+        self.assertNotContains(register, "Continuer avec Google")
+
+        SocialApp.objects.create(
+            provider="google",
+            name="Google incomplete",
+            client_id="",
+            secret="",
+        )
+        SocialApp.objects.create(
+            provider="openid_connect",
+            provider_id="other-oidc",
+            name="Other OIDC",
+            client_id="other-client",
+            secret="other-secret",
+            settings={"server_url": "https://example.invalid"},
+        )
+
+        login = self.client.get(reverse("core:login"))
+        register = self.client.get(reverse("account:register"))
+        self.assertNotContains(login, "Continuer avec Google")
+        self.assertNotContains(register, "Continuer avec Google")
+        self.assertNotContains(login, "Other OIDC")
+        self.assertNotContains(register, "Other OIDC")
+
+    def test_configured_social_provider_is_rendered_on_login_and_registration(self):
+        SocialApp.objects.create(
+            provider="google",
+            name="Google",
+            client_id="test-google-client",
+            secret="test-google-secret",
+        )
+
+        login = self.client.get(reverse("core:login"), {"next": "/tickets/"})
+        register = self.client.get(reverse("account:register"), {"next": "/tickets/"})
+
+        self.assertContains(login, "Continuer avec Google")
+        self.assertContains(register, "Continuer avec Google")
+        self.assertContains(login, "next=%2Ftickets%2F")
+        self.assertContains(register, "next=%2Ftickets%2F")
+
+        login_html = login.content.decode()
+        self.assertLess(
+            login_html.index("Continuer avec Google"),
+            login_html.index("Identifiant Makolo ou adresse e-mail"),
+        )
+
+    def test_identifier_setup_requires_authentication(self):
+        response = self.client.get(reverse("account:identifier-setup"))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('core:login')}?next={reverse('account:identifier-setup')}",
+        )
 
     def test_valid_web_registration_reuses_account_initialization(self):
         response = self.client.post(
@@ -38,12 +115,52 @@ class WebAccountJourneyTests(TestCase):
 
         parsed = urlparse(response.url)
         self.assertEqual(parsed.path, reverse("core:login"))
-        self.assertEqual(parse_qs(parsed.query).get("email"), ["new.member@example.com"])
+        self.assertEqual(parse_qs(parsed.query).get("login"), ["@new-member"])
         self.assertNotIn("password", parse_qs(parsed.query))
         user = User.objects.get(email="new.member@example.com")
         self.assertTrue(user.check_password(self.password))
         self.assertTrue(UserProfile.objects.filter(user=user).exists())
         self.assertTrue(NotificationPreference.objects.filter(user=user).exists())
+
+    def test_web_registration_accepts_no_email(self):
+        response = self.client.post(
+            reverse("account:register"),
+            {
+                "email": "",
+                "username": "sans-email-web",
+                "password": self.password,
+                "password_confirm": self.password,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username="sans-email-web")
+        self.assertIsNone(user.email)
+
+    def test_identifier_setup_is_required_only_for_unconfigured_account(self):
+        user = User.objects.create_user(
+            username="makolo_socialtmp",
+            password=self.password,
+            username_configured=False,
+            username_changed_at=None,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("account:identifier-setup"))
+        self.assertEqual(response.status_code, 200)
+
+        saved = self.client.post(
+            reverse("account:identifier-setup"),
+            {"username": "amina-sociale"},
+        )
+        self.assertRedirects(saved, reverse("core:participant-home"))
+        user.refresh_from_db()
+        self.assertEqual(user.username, "amina-sociale")
+        self.assertTrue(user.username_configured)
+        self.assertIsNotNone(user.username_changed_at)
+
+        already_done = self.client.get(reverse("account:identifier-setup"))
+        self.assertRedirects(already_done, reverse("core:participant-home"))
 
     def test_invalid_web_registration_does_not_create_user(self):
         response = self.client.post(

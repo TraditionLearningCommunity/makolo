@@ -62,7 +62,7 @@ class Task20AccountProductUxTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("phone", serializer.errors)
 
-    def test_registration_redirect_prefills_email_without_password(self):
+    def test_registration_redirect_prefills_identifier_without_password(self):
         response = self.client.post(
             reverse("account:register"),
             {
@@ -80,5 +80,6 @@ class Task20AccountProductUxTests(TestCase):
         parsed = urlparse(response.url)
         query = parse_qs(parsed.query)
         self.assertEqual(parsed.path, reverse("core:login"))
-        self.assertEqual(query["email"], ["task20-new@example.test"])
+        self.assertEqual(query["login"], ["@task20-new"])
+        self.assertNotIn("email", query)
         self.assertNotIn("password", query)

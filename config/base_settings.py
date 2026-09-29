@@ -201,6 +201,7 @@ AUTHENTICATION_BACKENDS = [
 
 # django-allauth owns only the external provider handshake. Makolo keeps its
 # existing local login/password-reset journeys and canonical Profile identity.
+ACCOUNT_ADAPTER = "accounts.account_adapter.MakoloAccountAdapter"
 SOCIALACCOUNT_ONLY = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_REQUIRED = False
