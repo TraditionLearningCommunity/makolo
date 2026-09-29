@@ -88,7 +88,7 @@ void main() {
     // deadlock widget-test teardown until the global 10-minute timeout.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await database.close();
+    await tester.runAsync(database.close);
   });
 
   testWidgets('Profile Connexions shows only Profile connections', (
@@ -156,7 +156,7 @@ void main() {
     // deadlock widget-test teardown until the global 10-minute timeout.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await database.close();
+    await tester.runAsync(database.close);
   });
 
   testWidgets('Profile Connexions renders authorized actions and extensions', (
@@ -219,6 +219,6 @@ void main() {
     // deadlock widget-test teardown until the global 10-minute timeout.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await database.close();
+    await tester.runAsync(database.close);
   });
 }
