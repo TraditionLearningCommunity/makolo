@@ -241,7 +241,7 @@ M6 reste propriétaire du contexte spatio-temporel et des Hazards. Access reste 
 
 Occurrence Live compose les domaines existants ; il ne devient pas une seconde base opérationnelle.
 
-### Frontière O / mobile offline
+### Frontière O / mobile local-first et autorité terrain
 
 Avant mobile, O peut définir :
 
@@ -256,7 +256,7 @@ La frontière mobile est désormais séparée par responsabilité :
 
 - **A1** porte la fondation local-first : secure storage, DB locale, migrations locales, outbox durable, sync owner-scoped, reprise après crash et convergence multi-device côté client ;
 - **A4** porte les déclencheurs et capacités propres aux OS : push, fenêtres de background, caméra, localisation, share sheet, widgets et deep links natifs ;
-- **A5** porte l'autorité terrain avancée : vrai scanner offline, protocole Access offline, double-use/double-spend, clock skew, allocations déléguées, coordinateur local et réconciliation opérationnelle.
+- **A5** porte l'autorité terrain avancée lorsque l'owner n'est pas joignable : scanner à décision déléguée, protocole Access délégué, double-use/double-spend, clock skew, allocations déléguées, coordinateur local et réconciliation opérationnelle.
 
 O ne doit pas improviser ces garanties dans Django ou le navigateur uniquement pour « cocher offline ». Le pack O5 reste une projection de lecture sans autorité.
 
@@ -624,7 +624,7 @@ Capacités réellement propres au téléphone :
 
 > **Push = signal. Sync = vérité.**
 
-### A5 — Field Operations & Delegated Offline Authority
+### A5 — Field Operations & Delegated Authority
 
 Recherche et implémentation des cas où le terrain doit agir sans l'autorité serveur immédiatement disponible :
 
@@ -637,7 +637,7 @@ Recherche et implémentation des cas où le terrain doit agir sans l'autorité s
 - OfflineGrant uniquement si le besoin est démontré ;
 - réconciliation terrain.
 
-A5 n'est pas « rendre l'application offline » : l'application est déjà local-first depuis A1.
+A5 n'est pas « rendre l'application offline » : l'application est déjà local-first depuis A1. A5 ne traite que l'autorité opérationnelle explicitement déléguée lorsque l'owner autoritatif n'est pas joignable.
 
 ### A6 — Mobile Mature & Release
 

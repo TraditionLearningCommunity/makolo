@@ -99,15 +99,15 @@ Aucune action de configuration n'est inventée : Z16 expose actuellement l'état
 
 ## 5. Local-first
 
-La projection Z16 est une **copie locale**, jamais une vérité métier.
+La projection Z16 acquise est une **observation locale persistée** du contrat serveur, jamais une nouvelle vérité métier.
 
-Le cache sert à :
+La représentation locale sert à :
 
 - afficher immédiatement un snapshot déjà acquis ;
-- préserver la lecture hors ligne ;
-- conserver la dernière projection lors d'un échec de refresh.
+- préserver la lecture locale lorsque la source distante n'est pas joignable ;
+- conserver la dernière observation lors d'un échec de refresh.
 
-La fraîcheur et les échecs restent portés par le noyau sync existant.
+L'UI consomme cette représentation locale. Le réseau sert à acquérir une version absente, rafraîchir une observation devenue ancienne et revalider lorsque le contrat l'exige. Availability, freshness, reachability et authority restent distinctes. La fraîcheur et les échecs restent portés par le noyau sync existant.
 
 Aucun deuxième moteur de sync ni second client HTTP n'est introduit.
 

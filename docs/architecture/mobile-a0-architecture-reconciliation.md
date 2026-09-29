@@ -29,7 +29,16 @@ vérités partagées + calculs + arbitrages
                UI
 ~~~
 
-Pour une donnée déjà présente sur l'appareil, l'UI lit le store local. Le réseau sert à synchroniser, enrichir, rafraîchir, confirmer, arbitrer, découvrir globalement et exécuter les opérations intrinsèquement distantes.
+Pour une donnée déjà présente sur l'appareil, l'UI lit le store local. Le réseau est un moyen d'acquisition et de synchronisation : il sert à enrichir, rafraîchir, confirmer, arbitrer, découvrir globalement et exécuter les opérations intrinsèquement distantes. Son absence est une condition de transport, pas un mode architectural secondaire.
+
+Le contrat local-first distingue toujours quatre axes indépendants :
+
+- **availability** : l'information ou le travail est-il disponible localement ?
+- **freshness** : de quand date l'observation locale et reste-t-elle utilisable ?
+- **reachability** : la source distante est-elle actuellement joignable ?
+- **authority** : l'appareil est-il autorisé à décider ou seulement à montrer/préparer ?
+
+Une donnée peut donc être disponible localement, ancienne, avec un owner joignable ou non, sans que cela transfère la moindre autorité au téléphone.
 
 Le client n'est ni un navigateur Django emballé, ni une copie SQLite de PostgreSQL, ni un mini-serveur Makolo, ni une seconde implémentation des règles métier.
 
@@ -583,7 +592,7 @@ Exemples :
 - Permission/Mandate : D ;
 - live shared arbitration : D.
 
-## 20. D16 — Frontière offline opérationnelle
+## 20. D16 — Frontière d'autorité opérationnelle déconnectée
 
 Politiques disponibles conceptuellement :
 
@@ -776,7 +785,7 @@ local projection + sync + remote owner
 
 ## 26. Matrice des surfaces UX
 
-| Surface | Projection serveur | Projection locale | Online | Offline | Freshness | Pending | Empty state | Deep link | Actions possibles | Confirmation serveur | Préparation locale |
+| Surface | Projection serveur | Projection locale | Acquisition distante | Disponibilité locale | Freshness / revalidation | Pending | Empty state | Deep link | Actions possibles | Confirmation serveur | Préparation locale |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Maintenant | `GET /api/v1/me/now/` (`personal.now`) | snapshot allowlisté | refresh discret puis apply store | rendre le dernier snapshot utile | metadata locale ; ne pas recalculer Now | outbox/owner state affiché séparément ; ne modifie pas l'inclusion | **Tout est en ordre. ✓** si `items=[]` connu | `kind/id + links` de chaque item | uniquement capabilities/owner links | oui pour toute action C/D | brouillons/préparation owner-safe uniquement |
 | Découvrir | `GET /api/v1/discovery/items/` | Discover Pack borné + index + cache média | Discovery globale, pagination owner | parcourir/rechercher le pack local | TTL/policy du pack ; stale explicite | save/watch seulement si owner replay-safe | cercle borné terminé ; proposer d'élargir, pas contenu artificiel | Activity/Occurrence/owner links | recherche locale A ; save/engage selon owner | global discovery et engagement : oui | recherche locale, filtre, éventuel save B |
@@ -793,7 +802,7 @@ local projection + sync + remote owner
 Les états vides et erreurs suivent le Behavior contract. `offline` reste un axe de synchronisation, pas un écran exclusif.
 ## 27. Matrice des domaines
 
-| Domaine | Données locales ? | Projection locale | Classe A/B/C/D | Source autoritative | Bootstrap | Sync entrante | Sync sortante | Conflit | Résolution | Freshness | Idempotence | Multi-device | Offline policy | Sensible | Exportable | Owner backend | API disponible | Gap A0/A1/A5 |
+| Domaine | Données locales ? | Projection locale | Classe A/B/C/D | Source autoritative | Bootstrap | Sync entrante | Sync sortante | Conflit | Résolution | Freshness | Idempotence | Multi-device | Disponibilité locale / revalidation | Sensible | Exportable | Owner backend | API disponible | Gap A0/A1/A5 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Profile | partiel | identité minimale + sections de `personal.me` | B/D | Accounts/Profile + owners | `auth/me` puis Moi | refresh racine/sections | préférences via owner seulement | mêmes préférences sur 2 appareils | règle owner ; pas LWW global | par section + dernière auth online | mutation-specific | convergence serveur ; stores distincts | lecture locale protégée ; autorité réseau | oui | non par défaut | Accounts/Profile | `/api/v1/accounts/auth/me/`, `/api/v1/me/` | device JWT granulaire A6, pas blocker A1 |
 | Journey | oui, partiel | détail Journey + préparation locale | A/B/C | Journeys + Readiness owners | En cours → owner links | detail/refetch ciblé | drafts puis mutations owner | draft vs état serveur / deux drafts | préserver draft ; serveur décide transition | revalider transitions sensibles | submit sans blind-retry si contrat absent | serveur converge ; versions de draft si besoin | lecture/préparation offline ; transition C | oui | artifacts seulement, policy owner | Journeys | `/api/v1/me/journeys/<id>/` | A3 UI/profondeur |
@@ -997,7 +1006,7 @@ A1 doit implémenter sa fondation locale ; ce travail n'est pas un blocker A0, c
 - generic PersonalAsset upload contract si l'expérience le nécessite ;
 - background sync package selon besoin réel.
 
-### A5 — Field Operations & Delegated Offline Authority
+### A5 — Field Operations & Delegated Authority
 
 - scanner offline ;
 - OfflineGrant si démontré ;
@@ -1041,14 +1050,14 @@ Journey · Forms · Access · Resources · Jour J · profondeurs
 A4 — Native & Ambient Makolo
 caméra · fichiers · localisation · share · push · widgets · deep links
   ↓
-A5 — Field Operations & Delegated Offline Authority
+A5 — Field Operations & Delegated Authority
 Scanner · Access offline · Capacity · Placement · Queue
   ↓
 A6 — Mobile Mature & Release
 devices · hardening · performance · sécurité · stores
 ~~~
 
-Le local-first est transversal dès A1. A5 n'est pas « rendre l'app offline » ; A5 ajoute une autorité terrain bornée que A1 ne possède pas.
+Le local-first est transversal dès A1. A5 n'est pas « rendre l'app offline » ; A5 traite exclusivement le cas où une opération autoritative doit éventuellement être décidée sur un appareil alors que l'owner n'est pas joignable. Sans protocole owner démontré, aucune autorité n'est déléguée.
 
 ## 36. Critères de sortie A0
 
