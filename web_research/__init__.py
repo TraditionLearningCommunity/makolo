@@ -37,6 +37,15 @@ from .discovery import (
     DiscoveryOutput,
     DiscoveryRecord,
 )
+from .evidence import (
+    EVIDENCE_FINDINGS_ATTRIBUTE,
+    EVIDENCE_OUTPUT_CONTRACT_VERSION,
+    EvidenceAlternative,
+    EvidenceFinding,
+    EvidenceNormalizer,
+    EvidenceOutput,
+    EvidenceState,
+)
 from .intelligence_engine import IntelligenceWebResearchEngine
 from .watch import (
     WATCH_OUTPUT_CONTRACT_VERSION,
@@ -68,6 +77,13 @@ __all__ = [
     "CycleActionKind",
     "CyclePlan",
     "CyclePlanner",
+    "EVIDENCE_FINDINGS_ATTRIBUTE",
+    "EVIDENCE_OUTPUT_CONTRACT_VERSION",
+    "EvidenceAlternative",
+    "EvidenceFinding",
+    "EvidenceNormalizer",
+    "EvidenceOutput",
+    "EvidenceState",
     "IntelligenceWebResearchEngine",
     "WATCH_OUTPUT_CONTRACT_VERSION",
     "FreshnessPolicy",
