@@ -68,8 +68,14 @@ def _mission():
     )
 
 
-def _response_payload(*, source_url="https://example.org/scholarship", candidate_url=None):
+def _response_payload(
+    *,
+    source_url="https://example.org/scholarship",
+    candidate_url=None,
+    findings=None,
+):
     candidate_url = candidate_url or source_url
+    findings = [] if findings is None else findings
     structured = {
         "stop_reason": "coverage_saturated",
         "candidates": [
@@ -78,6 +84,7 @@ def _response_payload(*, source_url="https://example.org/scholarship", candidate
                 "type_hints": ["program"],
                 "summary": "Master scholarship in mechanical engineering.",
                 "source_urls": [candidate_url],
+                "findings": findings,
             }
         ],
     }
@@ -190,6 +197,11 @@ class OpenAIResponsesWebResearchProviderTests(SimpleTestCase):
         self.assertNotIn('"location"', serialized)
         self.assertNotIn("Lubumbashi", serialized)
         self.assertNotIn("Kinshasa", serialized)
+        schema = captured["payload"]["text"]["format"]["schema"]
+        finding_schema = schema["properties"]["candidates"]["items"]["properties"]["findings"]
+        self.assertEqual(finding_schema["type"], "array")
+        self.assertIn("unknown", finding_schema["items"]["properties"]["state"]["enum"])
+        self.assertIn("not_applicable", finding_schema["items"]["properties"]["state"]["enum"])
         self.assertEqual(
             result.output["sources"][0]["url"],
             "https://example.org/scholarship",
@@ -262,6 +274,82 @@ class IntelligenceWebResearchEngineTests(SimpleTestCase):
         self.assertEqual(
             result.engine_metadata["model"],
             "test-web-model",
+        )
+
+    def test_engine_carries_only_source_backed_fact_findings(self):
+        source_url = "https://example.org/scholarship"
+        findings = [
+            {
+                "family": "REQUIREMENT",
+                "predicate": "application_deadline",
+                "state": "observed",
+                "value_text": "31 January 2027",
+                "source_urls": [source_url],
+            },
+            {
+                "family": "REQUIREMENT",
+                "predicate": "age_limit",
+                "state": "unknown",
+                "value_text": "",
+                "source_urls": [],
+            },
+        ]
+        payload = _response_payload(
+            source_url=source_url,
+            findings=findings,
+        )
+        engine, _provider = self._engine(payload)
+        with patch(
+            "intelligence.providers.openai_responses_web._open_url",
+            return_value=_FakeResponse(payload),
+        ):
+            result = engine.execute(self._request())
+
+        rows = result.candidates[0].attributes["evidence_findings_v1"]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            rows[0]["source_refs"],
+            (result.sources[0].source_ref,),
+        )
+        self.assertEqual(rows[1]["state"], "unknown")
+        self.assertEqual(rows[1]["source_refs"], ())
+
+    def test_engine_rejects_finding_source_outside_candidate_sources(self):
+        candidate_url = "https://example.org/scholarship"
+        other_url = "https://example.org/other"
+        payload = _response_payload(
+            source_url=candidate_url,
+            findings=[
+                {
+                    "family": "REQUIREMENT",
+                    "predicate": "application_deadline",
+                    "state": "observed",
+                    "value_text": "31 January 2027",
+                    "source_urls": [other_url],
+                }
+            ],
+        )
+        payload["output"][0]["action"]["sources"].append(
+            {
+                "type": "url",
+                "url": other_url,
+                "title": "Other consulted page",
+            }
+        )
+        engine, _provider = self._engine(payload)
+        with patch(
+            "intelligence.providers.openai_responses_web._open_url",
+            return_value=_FakeResponse(payload),
+        ):
+            result = engine.execute(self._request())
+
+        self.assertEqual(
+            result.candidates[0].attributes.get("evidence_findings_v1"),
+            None,
+        )
+        self.assertIn(
+            "evidence_finding_unknown_source",
+            result.warning_codes,
         )
 
     def test_engine_rejects_candidate_not_backed_by_provider_sources(self):
