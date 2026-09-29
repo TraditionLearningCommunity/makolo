@@ -61,7 +61,7 @@ test('new organizer empty state keeps canonical activity creation actions visibl
   await page.goto('/spaces/makolo-e2e-nouvelle-organisation/activities/');
   await expect(page.locator('#main-content').getByRole('heading', { name: 'Activités', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Événement', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Transport / Trajet', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Transport / Trajet', exact: true })).toHaveCount(0);
   await expect(page.locator('main')).toContainText(/Aucune|aucune activité|aucune Activity/i);
 });
 
