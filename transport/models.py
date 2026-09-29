@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
+from organizations.models import SpaceArchetype
+
 
 class TransportMode(models.TextChoices):
     ROAD = "road", "Route"
@@ -34,6 +36,15 @@ class TransportRoute(models.Model):
         ordering = ["name", "id"]
         indexes = [models.Index(fields=["space", "active"], name="transport_route_space_idx")]
         constraints = [models.UniqueConstraint(fields=["space", "code"], condition=~Q(code=""), name="transport_route_code_unique")]
+
+    def clean(self):
+        super().clean()
+        if self.space_id and self.space.archetype != SpaceArchetype.TRANSPORT_OPERATOR:
+            raise ValidationError({"space": "Cet Espace n’est pas configuré comme opérateur de transport."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     @property
     def origin(self):
@@ -77,6 +88,10 @@ class TransportService(models.Model):
 
     def clean(self):
         super().clean()
+        if self.route_id and self.route.space.archetype != SpaceArchetype.TRANSPORT_OPERATOR:
+            raise ValidationError({"route": "La Route doit appartenir à un Espace opérateur de transport."})
+        if self.activity_id and self.activity.space_id and self.activity.space.archetype != SpaceArchetype.TRANSPORT_OPERATOR:
+            raise ValidationError({"activity": "L’Activity doit appartenir à un Espace opérateur de transport."})
         if self.activity_id and self.route_id and self.activity.space_id != self.route.space_id:
             raise ValidationError({"route": "La Route et l’Activity doivent appartenir au même Espace."})
 
@@ -100,6 +115,15 @@ class Vehicle(models.Model):
         ordering = ["label", "id"]
         indexes = [models.Index(fields=["space", "active"], name="transport_vehicle_space_idx")]
         constraints = [models.CheckConstraint(condition=Q(passenger_capacity__gt=0), name="transport_vehicle_capacity_positive")]
+
+    def clean(self):
+        super().clean()
+        if self.space_id and self.space.archetype != SpaceArchetype.TRANSPORT_OPERATOR:
+            raise ValidationError({"space": "Cet Espace n’est pas configuré comme opérateur de transport."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return self.label
