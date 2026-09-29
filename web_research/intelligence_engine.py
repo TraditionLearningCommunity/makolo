@@ -8,6 +8,8 @@ from intelligence.capabilities import IntelligenceCapability
 from intelligence.contracts import IntelligenceRequest
 from intelligence.gateway import IntelligenceGateway
 
+from .evidence import EVIDENCE_FINDINGS_ATTRIBUTE
+
 from .contracts import (
     WebResearchCandidate,
     WebResearchContractError,
@@ -158,6 +160,73 @@ class IntelligenceWebResearchEngine:
             if not urls or any(url not in source_by_url for url in urls):
                 warnings.append("candidate_unknown_source")
                 continue
+
+            finding_rows = []
+            raw_findings = row.get("findings") or ()
+            if not isinstance(raw_findings, (list, tuple)):
+                warnings.append("evidence_findings_invalid")
+                raw_findings = ()
+            for finding in raw_findings:
+                if not isinstance(finding, Mapping):
+                    warnings.append("evidence_finding_invalid")
+                    continue
+                family = finding.get("family")
+                predicate = finding.get("predicate")
+                state = finding.get("state")
+                value_text = finding.get("value_text")
+                finding_urls = tuple(
+                    dict.fromkeys(
+                        value.strip()
+                        for value in tuple(finding.get("source_urls") or ())
+                        if isinstance(value, str) and value.strip()
+                    )
+                )
+                if (
+                    not isinstance(family, str)
+                    or not family.strip()
+                    or not isinstance(predicate, str)
+                    or not predicate.strip()
+                    or state not in {"observed", "unknown", "not_applicable"}
+                    or not isinstance(value_text, str)
+                ):
+                    warnings.append("evidence_finding_invalid")
+                    continue
+                if any(
+                    url not in source_by_url or url not in urls
+                    for url in finding_urls
+                ):
+                    warnings.append("evidence_finding_unknown_source")
+                    continue
+                normalized_value = " ".join(value_text.split())
+                if state == "observed" and (
+                    not normalized_value or not finding_urls
+                ):
+                    warnings.append("evidence_finding_invalid")
+                    continue
+                if state == "not_applicable" and (
+                    normalized_value or not finding_urls
+                ):
+                    warnings.append("evidence_finding_invalid")
+                    continue
+                if state == "unknown" and normalized_value:
+                    warnings.append("evidence_finding_invalid")
+                    continue
+                finding_rows.append(
+                    {
+                        "family": family.strip(),
+                        "predicate": predicate.strip(),
+                        "state": state,
+                        "value_text": normalized_value,
+                        "source_refs": [
+                            source_by_url[url].source_ref
+                            for url in finding_urls
+                        ],
+                    }
+                )
+
+            attributes = {}
+            if finding_rows:
+                attributes[EVIDENCE_FINDINGS_ATTRIBUTE] = finding_rows
             try:
                 candidate = WebResearchCandidate.build(
                     request_ref=request.request_ref,
@@ -165,6 +234,7 @@ class IntelligenceWebResearchEngine:
                     source_refs=tuple(source_by_url[url].source_ref for url in urls),
                     type_hints=tuple(row.get("type_hints") or ()),
                     summary=row.get("summary") or None,
+                    attributes=attributes,
                 )
             except (TypeError, WebResearchContractError):
                 warnings.append("candidate_invalid")
