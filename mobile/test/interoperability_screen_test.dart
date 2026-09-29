@@ -64,7 +64,6 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(_payload(), database: database);
 
     await tester.pumpWidget(
@@ -73,7 +72,10 @@ void main() {
         home: ProfileConnectionsScreen(runtime: runtime),
       ),
     );
-    await tester.pumpAndSettle();
+    // Drift-backed streams stay live by design. Wait only for the first
+    // projection frame instead of asking the whole app to become quiescent.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Connexions'), findsOneWidget);
     expect(find.text('Aucune connexion pour le moment'), findsOneWidget);
@@ -81,13 +83,19 @@ void main() {
       find.textContaining('Aucun service ni aucune extension'),
       findsOneWidget,
     );
+    // Unmount the StreamBuilder so its Drift subscription is cancelled before
+    // the test ends. Do not close the in-memory database here: Drift can wait
+    // for the just-cancelled watcher while the widget test fake clock is no
+    // longer advancing, which is exactly the lifecycle deadlock this
+    // regression test protects against.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('Profile Connexions shows only Profile connections', (
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         connections: [
@@ -135,19 +143,28 @@ void main() {
         home: ProfileConnectionsScreen(runtime: runtime),
       ),
     );
-    await tester.pumpAndSettle();
+    // Drift-backed streams stay live by design. Wait only for the first
+    // projection frame instead of asking the whole app to become quiescent.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Mon service'), findsOneWidget);
     expect(find.text('Connecté et disponible'), findsOneWidget);
     expect(find.text('Service Espace'), findsNothing);
     expect(find.textContaining('never-render-me'), findsNothing);
+    // Unmount the StreamBuilder so its Drift subscription is cancelled before
+    // the test ends. Do not close the in-memory database here: Drift can wait
+    // for the just-cancelled watcher while the widget test fake clock is no
+    // longer advancing, which is exactly the lifecycle deadlock this
+    // regression test protects against.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('Profile Connexions renders authorized actions and extensions', (
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         actions: [
@@ -190,11 +207,21 @@ void main() {
         home: ProfileConnectionsScreen(runtime: runtime),
       ),
     );
-    await tester.pumpAndSettle();
+    // Drift-backed streams stay live by design. Wait only for the first
+    // projection frame instead of asking the whole app to become quiescent.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Calendar create'), findsOneWidget);
     expect(find.text('Connexion requise'), findsOneWidget);
     expect(find.text('Private denied'), findsNothing);
     expect(find.text('Profile helper'), findsOneWidget);
+    // Unmount the StreamBuilder so its Drift subscription is cancelled before
+    // the test ends. Do not close the in-memory database here: Drift can wait
+    // for the just-cancelled watcher while the widget test fake clock is no
+    // longer advancing, which is exactly the lifecycle deadlock this
+    // regression test protects against.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
   });
 }
