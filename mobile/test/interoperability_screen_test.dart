@@ -73,7 +73,10 @@ void main() {
         home: ProfileConnectionsScreen(runtime: runtime),
       ),
     );
-    await tester.pumpAndSettle();
+    // Drift-backed streams stay live by design. Wait only for the first
+    // projection frame instead of asking the whole app to become quiescent.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Connexions'), findsOneWidget);
     expect(find.text('Aucune connexion pour le moment'), findsOneWidget);
@@ -135,7 +138,10 @@ void main() {
         home: ProfileConnectionsScreen(runtime: runtime),
       ),
     );
-    await tester.pumpAndSettle();
+    // Drift-backed streams stay live by design. Wait only for the first
+    // projection frame instead of asking the whole app to become quiescent.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Mon service'), findsOneWidget);
     expect(find.text('Connecté et disponible'), findsOneWidget);
@@ -190,7 +196,10 @@ void main() {
         home: ProfileConnectionsScreen(runtime: runtime),
       ),
     );
-    await tester.pumpAndSettle();
+    // Drift-backed streams stay live by design. Wait only for the first
+    // projection frame instead of asking the whole app to become quiescent.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Calendar create'), findsOneWidget);
     expect(find.text('Connexion requise'), findsOneWidget);

@@ -402,7 +402,11 @@ void main() {
     firstResponse.complete(
       MockResponse(jsonEncode({'available': false, 'username': 'amina'}), 200),
     );
+    // Let Dio finish its response-interceptor turn as well as the widget
+    // future. A single pump can leave Dio's zero-duration completion timer
+    // pending even though the stale-result assertion already holds.
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
 
     expect(find.text('Identifiant Makolo disponible.'), findsOneWidget);
     expect(
