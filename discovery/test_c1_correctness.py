@@ -15,7 +15,7 @@ from events.models import Event
 from geography.models import Place, SpacePlace, SpacePlaceRole
 from groups.models import ActivityGroupEligibility, ActivityGroupEligibilityStatus, Group, GroupMembership, GroupMembershipSource, GroupMembershipStatus
 from opportunities.models import Opportunity, OpportunityKind, OpportunityPublicationStatus, OpportunityRevision
-from organizations.models import Organization, OrganizationFollow
+from organizations.models import Organization, OrganizationFollow, SpaceArchetype
 from services.models import OpportunityPolicy, ServiceDetails, ServiceKind
 from transport.selectors import next_public_departure_for_activity
 from transport.services import configure_transport_fare, create_transport_departure, create_transport_route, create_transport_service, publish_transport_departure
@@ -37,7 +37,7 @@ class C1DiscoveryCorrectnessTests(TestCase):
         self.owner = User.objects.create_user(username="c1-owner", email="c1-owner@example.test", password="StrongPass2026!")
         self.participant = User.objects.create_user(username="c1-participant", email="c1-participant@example.test", password="StrongPass2026!")
         self.outsider = User.objects.create_user(username="c1-outsider", email="c1-outsider@example.test", password="StrongPass2026!")
-        self.space = Organization.objects.create(name="C1 Space", slug="c1-space", city="Lubumbashi", country="CD", public_profile=True, created_by=self.owner)
+        self.space = Organization.objects.create(name="C1 Space", slug="c1-space", archetype=SpaceArchetype.TRANSPORT_OPERATOR, city="Lubumbashi", country="CD", public_profile=True, created_by=self.owner)
         self.place = Place.objects.create(name="C1 Lubumbashi", locality="Lubumbashi", country_code="CD", latitude=Decimal("-11.664700"), longitude=Decimal("27.479400"), timezone="Africa/Lubumbashi", created_by=self.owner)
         self.destination = Place.objects.create(name="C1 Kolwezi", locality="Kolwezi", country_code="CD", latitude=Decimal("-10.716700"), longitude=Decimal("25.466700"), timezone="Africa/Lubumbashi", created_by=self.owner)
         for place in (self.place, self.destination):
