@@ -12,6 +12,9 @@ from web_research import (
     CycleActionKind,
     CyclePlanner,
     DeepenPlanner,
+    EVIDENCE_FINDINGS_ATTRIBUTE,
+    EvidenceNormalizer,
+    EvidenceState,
     DiscoveryKnowledgeState,
     DiscoveryKnownRef,
     DiscoveryLookup,
@@ -101,6 +104,24 @@ class WebResearchCycleScenarioTests(SimpleTestCase):
             source_refs=(source.source_ref,),
             type_hints=("scholarship",),
             summary="A sourced scholarship candidate used by the deterministic test.",
+            attributes={
+                EVIDENCE_FINDINGS_ATTRIBUTE: [
+                    {
+                        "family": "POSSIBILITY",
+                        "predicate": "candidate_title",
+                        "state": "observed",
+                        "value_text": "Mechanical Engineering Scholarship",
+                        "source_refs": [source.source_ref],
+                    },
+                    {
+                        "family": "REQUIREMENT",
+                        "predicate": "age_limit",
+                        "state": "unknown",
+                        "value_text": "",
+                        "source_refs": [],
+                    },
+                ]
+            },
         )
         return WebResearchResult.from_request(
             request,
@@ -174,6 +195,25 @@ class WebResearchCycleScenarioTests(SimpleTestCase):
                 CycleActionKind.DEEPEN_MISSION,
                 CycleActionKind.OBSERVE_SOURCE,
             },
+        )
+
+    def test_t0_fact_evidence_preserves_observed_and_unknown_states(self):
+        mission = self._mission()
+        result = self._result(mission)
+        evidence = EvidenceNormalizer().normalize(result)
+
+        self.assertEqual(len(evidence.findings), 2)
+        states = {
+            (item.family, item.predicate): item.state
+            for item in evidence.findings
+        }
+        self.assertEqual(
+            states[(ResearchFamily.POSSIBILITY, "candidate_title")],
+            EvidenceState.OBSERVED,
+        )
+        self.assertEqual(
+            states[(ResearchFamily.REQUIREMENT, "age_limit")],
+            EvidenceState.UNKNOWN,
         )
 
     def test_t1_known_candidate_is_not_rediscovered_as_new(self):
@@ -278,6 +318,7 @@ class WebResearchCycleScenarioTests(SimpleTestCase):
         rendered = str(
             {
                 "research": result.to_payload(),
+                "evidence": EvidenceNormalizer().normalize(result).to_payload(),
                 "discovery": discovery.to_payload(),
                 "deepen": deepen.to_payload(),
                 "watch": watch.to_payload(),
