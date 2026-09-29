@@ -46,8 +46,8 @@ class OrganizationFollowInline(ReadOnlyCompatibilityInline):
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("name", "verification_status", "public_profile", "created_by", "created_at")
-    list_filter = ("verification_status", "public_profile", "created_at")
+    list_display = ("name", "archetype", "verification_status", "public_profile", "created_by", "created_at")
+    list_filter = ("archetype", "verification_status", "public_profile", "created_at")
     search_fields = ("name", "slug", "contact_email", "created_by__email")
     prepopulated_fields = {"slug": ("name",)}
     inlines = [TeamInline, OrganizationMembershipInline, OrganizationFollowInline]
