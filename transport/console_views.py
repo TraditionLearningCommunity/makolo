@@ -52,7 +52,7 @@ def _scoped_departures(console, space):
 
 class TransportConsoleView(SpaceConsoleMixin, TemplateView):
     template_name = "transport/console.html"
-    module_key = "activities"
+    module_key = "transport"
     page_title = "Transport"
 
     def get_context_data(self, **kwargs):
@@ -86,7 +86,7 @@ class TransportConsoleView(SpaceConsoleMixin, TemplateView):
 
 class TransportConsoleRouteDetailView(SpaceConsoleMixin, TemplateView):
     template_name = "transport/console_route_detail.html"
-    module_key = "activities"
+    module_key = "transport"
     page_title = "Route Transport"
 
     def get_context_data(self, **kwargs):
@@ -116,7 +116,7 @@ class TransportConsoleRouteDetailView(SpaceConsoleMixin, TemplateView):
 
 class TransportConsoleDepartureDetailView(SpaceConsoleMixin, TemplateView):
     template_name = "transport/console_departure_detail.html"
-    module_key = "activities"
+    module_key = "transport"
     page_title = "Départ Transport"
 
     def get_context_data(self, **kwargs):
@@ -163,7 +163,7 @@ class TransportConsoleDepartureDetailView(SpaceConsoleMixin, TemplateView):
 
 
 class TransportConsoleCreateRouteView(SpaceConsoleMixin, View):
-    module_key = "activities"
+    module_key = "transport"
 
     def post(self, request, *args, **kwargs):
         if not self.space_console.can_manage_activities:
@@ -195,7 +195,7 @@ class TransportConsoleCreateRouteView(SpaceConsoleMixin, View):
 
 
 class TransportConsoleCreateVehicleView(SpaceConsoleMixin, View):
-    module_key = "activities"
+    module_key = "transport"
 
     def post(self, request, *args, **kwargs):
         if not self.space_console.can_manage_activities:
@@ -216,7 +216,7 @@ class TransportConsoleCreateVehicleView(SpaceConsoleMixin, View):
 
 
 class TransportConsoleCreateDepartureView(SpaceConsoleMixin, View):
-    module_key = "activities"
+    module_key = "transport"
 
     def post(self, request, *args, **kwargs):
         if not self.space_console.can_manage_activities:
