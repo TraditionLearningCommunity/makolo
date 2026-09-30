@@ -6,9 +6,13 @@ import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
 import '../features/journey/journey_repository.dart';
+import '../features/questionnaires/questionnaire_repository.dart';
+import '../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../network/makolo_api_client.dart';
+import '../repositories/draft_repository.dart';
 import '../repositories/interoperability_repository.dart';
 import '../repositories/personal_repository.dart';
+import '../sync/outbox/outbox_processor.dart';
 import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_engine.dart';
 import 'environment.dart';
@@ -29,7 +33,11 @@ class AppRuntime {
     this.personal,
     this.interoperability,
     this.journeys,
+    this.questionnaires,
+    this.drafts,
+    this.questionnaireSubmit,
     this.outbox,
+    this.outboxProcessor,
     this.sync,
   });
 
@@ -44,7 +52,11 @@ class AppRuntime {
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
   final JourneyRepository? journeys;
+  final QuestionnaireRepository? questionnaires;
+  final DraftRepository? drafts;
+  final QuestionnaireSubmitCoordinator? questionnaireSubmit;
   final OutboxRepository? outbox;
+  final OutboxProcessor? outboxProcessor;
   final SyncEngine? sync;
 
   bool get isAuthenticated => session?.profileId != null;
@@ -96,6 +108,11 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   final personal = PersonalRepository(store);
   final interoperability = ProfileInteroperabilityRepository(store);
   final outbox = OutboxRepository(database, profileId);
+  final drafts = DraftRepository(
+    database: database,
+    outbox: outbox,
+    profileId: profileId,
+  );
   final sync = api == null
       ? null
       : SyncEngine(
@@ -110,6 +127,35 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     profileId: profileId,
     sync: sync,
   );
+  final questionnaires = QuestionnaireRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final questionnaireSubmit = api == null
+      ? null
+      : QuestionnaireSubmitCoordinator(
+          api: api,
+          tokens: tokens,
+          outbox: outbox,
+          drafts: drafts,
+          questionnaires: questionnaires,
+          journeys: journeys,
+        );
+  final outboxProcessor = questionnaireSubmit == null
+      ? null
+      : OutboxProcessor(
+          repository: outbox,
+          handlers: {
+            QuestionnaireSubmitCoordinator.operationKind:
+                questionnaireSubmit.handler,
+          },
+          reconcilers: {
+            QuestionnaireSubmitCoordinator.operationKind:
+                questionnaireSubmit.reconciler,
+          },
+        );
 
   return AppRuntime(
     tokens: tokens,
@@ -123,7 +169,11 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     personal: personal,
     interoperability: interoperability,
     journeys: journeys,
+    questionnaires: questionnaires,
+    drafts: drafts,
+    questionnaireSubmit: questionnaireSubmit,
     outbox: outbox,
+    outboxProcessor: outboxProcessor,
     sync: sync,
   );
 });
