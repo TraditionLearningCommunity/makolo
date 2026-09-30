@@ -9,6 +9,11 @@ from activities.services import create_activity, update_activity_common
 from authorization.constants import PermissionCode
 from authorization.services import can
 from journeys.models import Journey, JourneyStatus, WorkflowKind
+from journeys.plan_services import (
+    create_journey_plan_template,
+    materialize_journey_plan,
+    publish_journey_plan_template,
+)
 from journeys.services import confirm_journey, create_journey, fulfill_journey, submit_journey
 from readiness import ReadinessStatus, resolve_journey_readiness
 
@@ -76,6 +81,7 @@ def _create_configuration(
     minimum_targets=None,
     beneficiary_confirmation_required=True,
     operator_confirmation_required=False,
+    plan_steps=None,
 ):
     targets = list(targets)
     modes = list(modes)
@@ -91,6 +97,19 @@ def _create_configuration(
         .order_by("-version")
         .first()
     )
+    plan_template = None
+    if plan_steps:
+        plan_template = create_journey_plan_template(
+            activity=obtention.activity,
+            key="obtention-default",
+            name=f"{obtention.activity.title} — parcours",
+            steps=plan_steps,
+            actor=actor,
+        )
+        plan_template = publish_journey_plan_template(
+            template=plan_template,
+            actor=actor,
+        )
     configuration = ObtentionConfiguration(
         obtention=obtention,
         version=(latest.version + 1) if latest else 1,
@@ -99,6 +118,7 @@ def _create_configuration(
         minimum_targets=minimum_targets,
         beneficiary_confirmation_required=beneficiary_confirmation_required,
         operator_confirmation_required=operator_confirmation_required,
+        journey_plan_template=plan_template,
         created_by=actor,
     )
     configuration.save()
@@ -223,6 +243,7 @@ def create_obtention(
         minimum_targets=minimum_targets,
         beneficiary_confirmation_required=beneficiary_confirmation_required,
         operator_confirmation_required=operator_confirmation_required,
+        plan_steps=plan_steps,
     )
     publish_configuration(configuration=configuration, actor=actor)
     return obtention
@@ -272,6 +293,7 @@ def revise_obtention(
         minimum_targets=minimum_targets,
         beneficiary_confirmation_required=beneficiary_confirmation_required,
         operator_confirmation_required=operator_confirmation_required,
+        plan_steps=plan_steps,
     )
     publish_configuration(configuration=configuration, actor=actor)
     return obtention
@@ -328,6 +350,10 @@ def create_obtention_journey(
     if occurrence is not None and occurrence.activity_id != obtention.activity_id:
         raise ValidationError({"occurrence": "L'Occurrence doit appartenir à cette Obtention."})
     beneficiary = beneficiary or actor
+    if beneficiary.pk != actor.pk and not can(
+        actor, PermissionCode.ACTIVITY_MANAGE, activity=obtention.activity
+    ):
+        raise PermissionDenied("Vous ne pouvez pas initier une Journey pour ce bénéficiaire.")
     journey = create_journey(
         initiated_by=actor,
         beneficiary=beneficiary,
@@ -336,11 +362,19 @@ def create_obtention_journey(
         workflow=workflow,
         expires_at=expires_at,
     )
-    ObtentionJourneyContext.objects.create(
+    context = ObtentionJourneyContext.objects.create(
         journey=journey,
         configuration=configuration,
         mode=selected_mode,
     )
+    if configuration.journey_plan_template_id:
+        materialize_journey_plan(
+            journey=journey,
+            template=configuration.journey_plan_template,
+            actor=actor,
+        )
+        context.plan_materialized_at = timezone.now()
+        context.save(update_fields=["plan_materialized_at"])
     return journey
 
 
