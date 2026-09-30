@@ -115,6 +115,15 @@ class QuestionnaireSubmitCoordinator {
       if (!parsed.isSubmitted) {
         return OutboxResolution.awaitingConfirmation;
       }
+      try {
+        await questionnaires.refresh(
+          requestId: requestId,
+          detailPath: links.detail,
+        );
+      } on Object {
+        // The owner response already confirms submission. A later sync can
+        // retry this verification without rolling back the confirmed intent.
+      }
       await _finalizeConfirmed(
         requestId: requestId,
         journeyId: journeyId,
