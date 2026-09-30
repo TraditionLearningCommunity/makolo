@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/behavior_states.dart';
-import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/design/makolo_components.dart';
 import 'package:makolo_mobile/design/makolo_patterns.dart';
+import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/sync/sync_status.dart';
 
@@ -255,7 +255,7 @@ void main() {
     expect(find.bySemanticsLabel('Chargement du contenu'), findsOneWidget);
   });
 
-  testWidgets('surface refresh preserves usable content and exposes stale cue', (
+  testWidgets('refresh preserves usable content', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -282,7 +282,7 @@ void main() {
     expect(find.byType(MakoloSkeleton), findsNothing);
   });
 
-  testWidgets('surface pending and confirmed are visually distinct', (
+  testWidgets('pending differs from confirmed', (
     tester,
   ) async {
     Future<void> pump(MakoloCommitCue commit) async {
@@ -311,7 +311,7 @@ void main() {
     expect(find.text('En attente de synchronisation'), findsNothing);
   });
 
-  testWidgets('blocking error keeps consequence and recovery visible', (
+  testWidgets('blocking error stays recoverable', (
     tester,
   ) async {
     var retries = 0;
@@ -340,7 +340,7 @@ void main() {
     expect(retries, 1);
   });
 
-  testWidgets('shared components compose under large text scaling', (
+  testWidgets('components support large text', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -383,7 +383,7 @@ void main() {
     expect(find.bySemanticsLabel('Statut : À vérifier'), findsOneWidget);
   });
 
-  testWidgets('patterns expose semantic timeline state and attention', (
+  testWidgets('patterns expose semantics', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -431,7 +431,7 @@ void main() {
     );
   });
 
-  testWidgets('state transition collapses under Reduce Motion', (
+  testWidgets('state transition respects Reduce Motion', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -451,5 +451,4 @@ void main() {
     );
     expect(switcher.duration, Duration.zero);
   });
-
 }
