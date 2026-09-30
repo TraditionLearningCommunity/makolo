@@ -27,11 +27,7 @@ class FileTransferFailure implements Exception {
 }
 
 class FileTransferResult {
-  const FileTransferResult({
-    required this.state,
-    this.receipt,
-    this.errorCode,
-  });
+  const FileTransferResult({required this.state, this.receipt, this.errorCode});
 
   final FileTransferState state;
   final FileTransferReceipt? receipt;
