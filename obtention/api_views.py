@@ -20,12 +20,14 @@ from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission, can
 from organizations.models import Organization
 from readiness import resolve_journey_readiness
+from requirements.domain_services import assess_journey_requirement
 
 from .api_serializers import (
     ObtentionConfigurationSerializer,
     ObtentionJourneyCreateSerializer,
     OperatorReceiptSerializer,
     ReceiptSerializer,
+    RequirementAssessmentInputSerializer,
 )
 from .models import (
     ObtentionConfigurationStatus,
@@ -82,6 +84,23 @@ def _plan_steps_payload(configuration):
     ]
 
 
+def _requirements_payload(configuration):
+    return [
+        {
+            "key": link.requirement.key,
+            "title": link.requirement.title,
+            "description": link.requirement.description,
+            "mode": link.requirement.mode,
+            "is_mandatory": link.requirement.is_mandatory,
+            "position": link.position,
+            "step_key": link.step_key,
+            "evaluator_key": link.requirement.evaluator_key,
+            "evaluator_config": link.requirement.evaluator_config,
+        }
+        for link in configuration.requirement_links.select_related("requirement").all()
+    ]
+
+
 def _configuration_payload(configuration):
     return {
         "version": configuration.version,
@@ -91,6 +110,7 @@ def _configuration_payload(configuration):
         "beneficiary_confirmation_required": configuration.beneficiary_confirmation_required,
         "operator_confirmation_required": configuration.operator_confirmation_required,
         "plan_steps": _plan_steps_payload(configuration),
+        "requirements": _requirements_payload(configuration),
         "targets": [
             {
                 "id": str(target.pk),
@@ -229,6 +249,27 @@ def _journey_payload(journey, actor):
             ),
         },
         "fulfillment": _fulfillment_payload(journey),
+        "requirements": [
+            {
+                "id": str(assessment.pk),
+                "key": assessment.requirement.key,
+                "title": assessment.requirement.title,
+                "description": assessment.requirement.description,
+                "mode": assessment.requirement.mode,
+                "is_mandatory": assessment.requirement.is_mandatory,
+                "state": assessment.state,
+                "reason_code": assessment.reason_code,
+                "note": assessment.note,
+                "journey_step_id": str(assessment.journey_step_id) if assessment.journey_step_id else None,
+                "assessed_at": assessment.assessed_at,
+                "links": {
+                    "assess": f"/api/v1/obtention/journeys/{journey.pk}/requirements/{assessment.pk}/assess/",
+                },
+            }
+            for assessment in journey.requirement_assessments.select_related(
+                "requirement", "journey_step"
+            ).all()
+        ],
         "steps": [
             {
                 "id": str(step.pk),
@@ -336,6 +377,7 @@ class ObtentionDetailAPIView(APIView):
             "beneficiary_confirmation_required": configuration.beneficiary_confirmation_required,
             "operator_confirmation_required": configuration.operator_confirmation_required,
             "plan_steps": _plan_steps_payload(configuration),
+            "requirements": _requirements_payload(configuration),
             "status": obtention.activity.status,
             "visibility": obtention.activity.visibility,
         }
@@ -506,6 +548,41 @@ class ObtentionStepCompleteAPIView(APIView):
                 complete_participant_step(step=step, actor=request.user)
             else:
                 complete_step(step=step, actor=request.user)
+        except (DjangoPermissionDenied, DjangoValidationError) as exc:
+            _raise_service(exc)
+        journey = _journey_for_actor(request.user, pk)
+        response = Response(_journey_payload(journey, request.user))
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class ObtentionRequirementAssessmentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, assessment_id):
+        journey = _journey_for_actor(request.user, pk)
+        if not can(
+            request.user,
+            PermissionCode.ACTIVITY_MANAGE,
+            activity=journey.activity,
+        ):
+            raise NotFound()
+        assessment = get_object_or_404(
+            journey.requirement_assessments.select_related(
+                "journey__activity",
+                "requirement",
+            ),
+            pk=assessment_id,
+        )
+        serializer = RequirementAssessmentInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            assess_journey_requirement(
+                assessment=assessment,
+                actor=request.user,
+                reason_code="obtention_operator_assessment",
+                **serializer.validated_data,
+            )
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _raise_service(exc)
         journey = _journey_for_actor(request.user, pk)
