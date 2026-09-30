@@ -3,7 +3,12 @@ from decimal import Decimal, InvalidOperation
 
 from django import forms
 
-from activities.models import ActivityStatus, ActivityVisibility
+from activities.models import (
+    ActivityStatus,
+    ActivityVisibility,
+    OccurrenceStatus,
+    OccurrenceTimingKind,
+)
 from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 from organizations.models import Organization
@@ -375,3 +380,52 @@ class ReceiptForm(forms.Form):
         decimal_places=3,
         min_value=Decimal("0"),
     )
+
+
+
+class ObtentionOccurrenceForm(forms.Form):
+    label = forms.CharField(label="Libellé", max_length=180, required=False)
+    start_date = forms.DateField(
+        label="Date de début",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    timing_kind = forms.ChoiceField(
+        label="Précision temporelle",
+        choices=OccurrenceTimingKind.choices,
+        initial=OccurrenceTimingKind.EXACT,
+    )
+    start_time = forms.TimeField(
+        label="Heure de début",
+        required=False,
+        widget=forms.TimeInput(attrs={"type": "time"}),
+    )
+    end_date = forms.DateField(
+        label="Date de fin",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    end_time = forms.TimeField(
+        label="Heure de fin",
+        required=False,
+        widget=forms.TimeInput(attrs={"type": "time"}),
+    )
+    timezone = forms.CharField(
+        label="Fuseau horaire",
+        max_length=100,
+        initial="Africa/Lubumbashi",
+    )
+    status = forms.ChoiceField(
+        label="État",
+        choices=OccurrenceStatus.choices,
+        initial=OccurrenceStatus.SCHEDULED,
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        timing_kind = cleaned.get("timing_kind")
+        if timing_kind == OccurrenceTimingKind.EXACT and not cleaned.get("start_time"):
+            self.add_error("start_time", "Une heure de début est requise pour une date exacte.")
+        if timing_kind != OccurrenceTimingKind.EXACT:
+            cleaned["start_time"] = None
+            cleaned["end_time"] = None
+        return cleaned
