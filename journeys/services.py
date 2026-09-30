@@ -27,6 +27,7 @@ APPROVAL_WORKFLOWS = {
     WorkflowKind.REGISTRATION,
     WorkflowKind.INVITATION,
     WorkflowKind.SERVICE,
+    WorkflowKind.FULFILLMENT,
 }
 
 
@@ -237,6 +238,8 @@ def confirm_journey(*, journey, actor=None, reason="confirmed"):
     elif journey.workflow == WorkflowKind.INVITATION:
         allowed = journey.status == JourneyStatus.APPROVED
     elif journey.workflow == WorkflowKind.SERVICE:
+        allowed = journey.status in {JourneyStatus.SUBMITTED, JourneyStatus.APPROVED}
+    elif journey.workflow == WorkflowKind.FULFILLMENT:
         allowed = journey.status in {JourneyStatus.SUBMITTED, JourneyStatus.APPROVED}
     if not allowed:
         raise ValidationError("Cette Démarche ne peut pas être confirmée depuis son état actuel.")
