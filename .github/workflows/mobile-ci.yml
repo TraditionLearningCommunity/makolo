@@ -85,7 +85,12 @@ jobs:
       - name: Format diagnostic
         run: |
           dart format lib test
-          git diff -- lib/app/router.dart lib/features/discovery/discovery_repository.dart lib/features/discovery/discovery_screens.dart lib/features/discovery/discovery_selector.dart lib/features/discovery/discovery_watch_screens.dart test/dg_discovery_geography_test.dart
+          for file in lib/app/router.dart lib/features/discovery/discovery_repository.dart lib/features/discovery/discovery_screens.dart lib/features/discovery/discovery_selector.dart lib/features/discovery/discovery_watch_screens.dart test/dg_discovery_geography_test.dart; do
+            echo "FORMAT_FILE_BEGIN:$file"
+            base64 -w 0 "$file"
+            echo
+            echo "FORMAT_FILE_END:$file"
+          done
       - name: Analyze
         run: flutter analyze
       - name: Run impacted tests
