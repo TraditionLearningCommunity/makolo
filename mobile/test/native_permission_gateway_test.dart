@@ -38,18 +38,21 @@ void main() {
     expect(gateway.requestCount, 0);
   });
 
-  test('denied permission is requested only on explicit capability action', () async {
-    final gateway = FakePermissionGateway(
-      current: PermissionDecision.denied,
-      requested: PermissionDecision.permanentlyDenied,
-    );
+  test(
+    'denied permission is requested only on explicit capability action',
+    () async {
+      final gateway = FakePermissionGateway(
+        current: PermissionDecision.denied,
+        requested: PermissionDecision.permanentlyDenied,
+      );
 
-    expect(
-      await gateway.requestWhenNeeded(MakoloPermission.camera),
-      PermissionDecision.permanentlyDenied,
-    );
-    expect(gateway.requestCount, 1);
-  });
+      expect(
+        await gateway.requestWhenNeeded(MakoloPermission.camera),
+        PermissionDecision.permanentlyDenied,
+      );
+      expect(gateway.requestCount, 1);
+    },
+  );
 
   test('settings-required permission is not re-prompted', () async {
     final gateway = FakePermissionGateway(
