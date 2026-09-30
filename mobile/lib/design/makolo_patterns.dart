@@ -203,8 +203,8 @@ class _TimelineRow extends StatelessWidget {
         ? 'En cours'
         : 'À venir';
     final semanticLabel = item.body == null
-        ? '$stateLabel. \${item.title}'
-        : '$stateLabel. \${item.title}. \${item.body}';
+        ? '$stateLabel. ${item.title}'
+        : '$stateLabel. ${item.title}. ${item.body}';
 
     return Semantics(
       container: true,
