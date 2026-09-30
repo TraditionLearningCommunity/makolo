@@ -10,6 +10,8 @@ import '../features/continuity/conversation_screens.dart';
 import '../features/continuity/history_screen.dart';
 import '../features/continuity/objective_repository.dart';
 import '../features/continuity/objective_screen.dart';
+import '../features/discovery/discovery_screens.dart';
+import '../features/discovery/discovery_watch_screens.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/connections_screen.dart';
 import '../features/journey/journey_detail_screen.dart';
@@ -62,6 +64,7 @@ GoRouter createMakoloRouter(
     }
     return const [
       '/journeys/',
+      '/discover/items/',
       '/activities/',
       '/occurrences/',
       '/accesses/',
@@ -131,13 +134,31 @@ GoRouter createMakoloRouter(
               routes: [
                 GoRoute(
                   path: '/discover',
-                  builder: (context, state) => const MakoloRefreshBoundary(
-                    child: PlaceholderScreen(
-                      title: 'Découvrir',
-                      message: 'Aucune possibilité à afficher pour le moment.',
-                      showTitle: false,
-                    ),
-                  ),
+                  builder: (context, state) {
+                    final discovery = runtime.discovery;
+                    if (discovery == null) {
+                      return const MakoloRefreshBoundary(
+                        child: PlaceholderScreen(
+                          title: 'Découvrir',
+                          message:
+                              'Découvrir n’est pas disponible sur cet appareil.',
+                          showTitle: false,
+                        ),
+                      );
+                    }
+                    return MakoloRefreshBoundary(
+                      child: DiscoveryScreen(
+                        repository: discovery,
+                        location: runtime.location,
+                        onOpenActivity: (id) => context.push('/activities/$id'),
+                        onOpenOccurrence: (id) =>
+                            context.push('/occurrences/$id'),
+                        onOpenItem: (family, id) =>
+                            context.push('/discover/items/$family/$id'),
+                        onOpenWatches: () => context.push('/discover/watches'),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -295,6 +316,98 @@ GoRouter createMakoloRouter(
           title: 'Filtres',
           message: 'Aucun filtre actif.',
         ),
+      ),
+      GoRoute(
+        path: '/discover/watches',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Veilles',
+              message: 'Les veilles ne sont pas disponibles sur cet appareil.',
+            );
+          }
+          return DiscoveryWatchesScreen(
+            repository: discovery,
+            onOpenWatch: (id) => context.push('/discover/watches/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/discover/watches/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Veille',
+              message: 'Cette veille n’est pas disponible sur cet appareil.',
+            );
+          }
+          return DiscoveryWatchResultsScreen(
+            watchId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenActivity: (id) => context.push('/activities/$id'),
+            onOpenItem: (family, id) =>
+                context.push('/discover/items/$family/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/discover/items/:family/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Possibilité',
+              message: 'Ce détail n’est pas disponible sur cet appareil.',
+            );
+          }
+          return DiscoveryItemDetailScreen(
+            family: state.pathParameters['family']!,
+            id: state.pathParameters['id']!,
+            repository: discovery,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/activities/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Activité',
+              message: 'Cette activité n’est pas disponible sur cet appareil.',
+            );
+          }
+          return ActivityDetailScreen(
+            activityId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/occurrences/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Occurrence',
+              message:
+                  'Cette occurrence n’est pas disponible sur cet appareil.',
+            );
+          }
+          return OccurrenceDetailScreen(
+            occurrenceId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenActivity: (id) => context.push('/activities/$id'),
+          );
+        },
       ),
       GoRoute(
         path: '/ongoing/calendar',
@@ -459,12 +572,7 @@ GoRouter createMakoloRouter(
           );
         },
       ),
-      for (final prefix in const [
-        'activities',
-        'occurrences',
-        'accesses',
-        'groups',
-      ])
+      for (final prefix in const ['accesses', 'groups'])
         GoRoute(
           path: '/$prefix/:id',
           builder: (context, state) {
