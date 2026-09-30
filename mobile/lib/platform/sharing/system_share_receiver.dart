@@ -39,9 +39,8 @@ abstract interface class SystemShareReceiver {
 }
 
 class AndroidSystemShareReceiver implements SystemShareReceiver {
-  AndroidSystemShareReceiver({
-    MethodChannel? channel,
-  }) : _channel = channel ?? const MethodChannel('makolo/native_share') {
+  AndroidSystemShareReceiver({MethodChannel? channel})
+    : _channel = channel ?? const MethodChannel('makolo/native_share') {
     _channel.setMethodCallHandler(_handleMethod);
   }
 
