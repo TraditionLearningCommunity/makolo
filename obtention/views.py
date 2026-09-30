@@ -7,6 +7,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from activities.models import ActivityStatus, ActivityVisibility
+from activities.services import create_occurrence
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission, can
 from journeys.models import Journey, JourneyAssignmentStatus, JourneyStep
@@ -20,7 +21,7 @@ from readiness import resolve_journey_readiness
 from requirements.contracts import RequirementAssessmentState
 from requirements.domain_services import assess_journey_requirement
 
-from .forms import ObtentionConfigurationForm, ReceiptForm
+from .forms import ObtentionConfigurationForm, ObtentionOccurrenceForm, ReceiptForm
 from .models import ObtentionDetails, ObtentionTarget
 from .selectors import (
     fulfillment_for_journey,
@@ -143,6 +144,9 @@ class ObtentionManageView(LoginRequiredMixin, TemplateView):
                 "obtention": obtention,
                 "activity": obtention.activity,
                 "configuration": published_configuration(obtention),
+                "occurrences": obtention.activity.occurrences.order_by(
+                    "start_date", "start_time", "id"
+                ),
                 "form": kwargs.get("form")
                 or ObtentionConfigurationForm(
                     actor=self.request.user,
@@ -413,3 +417,40 @@ class ObtentionRequirementAssessmentView(LoginRequiredMixin, View):
         else:
             messages.success(request, "Condition mise à jour.")
         return redirect("obtention:journey", pk=journey.pk)
+
+
+
+class ObtentionOccurrenceCreateView(LoginRequiredMixin, TemplateView):
+    template_name = "obtention/occurrence_form.html"
+    login_url = "core:login"
+
+    def _obtention(self):
+        return _managed_obtention(self.request.user, self.kwargs["pk"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        obtention = self._obtention()
+        context.update(
+            {
+                "obtention": obtention,
+                "activity": obtention.activity,
+                "form": kwargs.get("form") or ObtentionOccurrenceForm(),
+            }
+        )
+        return context
+
+    def post(self, request, pk):
+        obtention = self._obtention()
+        form = ObtentionOccurrenceForm(request.POST)
+        if form.is_valid():
+            try:
+                create_occurrence(
+                    activity=obtention.activity,
+                    **form.cleaned_data,
+                )
+            except ValidationError as exc:
+                form.add_error(None, _message(exc))
+            else:
+                messages.success(request, "Occurrence ajoutée.")
+                return redirect("obtention:manage", pk=obtention.pk)
+        return self.render_to_response(self.get_context_data(form=form), status=400)
