@@ -296,7 +296,7 @@ class QuestionnaireRepository {
     final parsed = QuestionnaireRequestDetail.fromPayload(payload);
     if (parsed.id != requestId) {
       throw FormatException(
-        'Expected questionnaire request ' + requestId + ', got ' + parsed.id,
+        'Expected questionnaire request $requestId, got ${parsed.id}',
       );
     }
     await store.putProjection(
