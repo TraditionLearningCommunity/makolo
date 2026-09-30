@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from activities.models import Occurrence
+from activities.services import create_occurrence
 from journeys.collaboration_services import (
     complete_participant_step,
     complete_step,
@@ -25,6 +26,7 @@ from requirements.domain_services import assess_journey_requirement
 from .api_serializers import (
     ObtentionConfigurationSerializer,
     ObtentionJourneyCreateSerializer,
+    ObtentionOccurrenceInputSerializer,
     OperatorReceiptSerializer,
     ReceiptSerializer,
     RequirementAssessmentInputSerializer,
@@ -585,5 +587,39 @@ class ObtentionRequirementAssessmentAPIView(APIView):
             _raise_service(exc)
         journey = _journey_for_actor(request.user, pk)
         response = Response(_journey_payload(journey, request.user))
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+
+class ObtentionOccurrenceCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        obtention = _managed_obtention(request.user, pk)
+        serializer = ObtentionOccurrenceInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            occurrence = create_occurrence(
+                activity=obtention.activity,
+                **serializer.validated_data,
+            )
+        except DjangoValidationError as exc:
+            _raise_service(exc)
+        response = Response(
+            {
+                "id": str(occurrence.pk),
+                "activity_id": str(occurrence.activity_id),
+                "label": occurrence.label,
+                "start_date": occurrence.start_date,
+                "start_time": occurrence.start_time,
+                "end_date": occurrence.end_date,
+                "end_time": occurrence.end_time,
+                "timing_kind": occurrence.timing_kind,
+                "timezone": occurrence.timezone,
+                "status": occurrence.status,
+            },
+            status=201,
+        )
         response["Cache-Control"] = "private, no-store"
         return response
