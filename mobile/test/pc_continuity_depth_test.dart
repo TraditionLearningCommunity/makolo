@@ -51,68 +51,80 @@ void main() {
     );
   }
 
-  test('PC stores Dossier and Project owner projections without local rebuild', () async {
-    await configure((request) async {
-      if (request.url.path.endsWith('/dossiers/dossier-1/')) {
+  test(
+    'PC stores Dossier and Project owner projections without local rebuild',
+    () async {
+      await configure((request) async {
+        if (request.url.path.endsWith('/dossiers/dossier-1/')) {
+          return MockResponse(
+            jsonEncode({
+              'meta': {
+                'projection': 'objective.dossier.detail',
+                'schema_version': 1,
+                'generated_at': '2026-09-30T15:00:00Z',
+              },
+              'data': {
+                'objective': {'title': 'Départ études'},
+                'readiness': {
+                  'state': 'action_required',
+                  'partial': true,
+                  'hidden_signal':
+                      'Une dépendance privée influence le résultat',
+                },
+                'visible_items': [],
+                'visible_dependencies': [],
+                'personal_responsibilities': [],
+                'actor_interventions': [],
+                'capabilities': [],
+              },
+            }),
+            200,
+          );
+        }
         return MockResponse(
           jsonEncode({
             'meta': {
-              'projection': 'objective.dossier.detail',
+              'projection': 'objective.project.detail',
               'schema_version': 1,
               'generated_at': '2026-09-30T15:00:00Z',
             },
             'data': {
-              'objective': {'title': 'Départ études'},
-              'readiness': {
-                'state': 'action_required',
-                'partial': true,
-                'hidden_signal': 'Une dépendance privée influence le résultat',
-              },
-              'visible_items': [],
-              'visible_dependencies': [],
-              'personal_responsibilities': [],
-              'actor_interventions': [],
+              'horizon': {'title': 'Études 2027'},
+              'visible_dossiers': [
+                {
+                  'id': 'dossier-1',
+                  'title': 'Départ études',
+                  'state': 'active',
+                },
+              ],
               'capabilities': [],
             },
           }),
           200,
         );
-      }
-      return MockResponse(
-        jsonEncode({
-          'meta': {
-            'projection': 'objective.project.detail',
-            'schema_version': 1,
-            'generated_at': '2026-09-30T15:00:00Z',
-          },
-          'data': {
-            'horizon': {'title': 'Études 2027'},
-            'visible_dossiers': [
-              {'id': 'dossier-1', 'title': 'Départ études', 'state': 'active'},
-            ],
-            'capabilities': [],
-          },
-        }),
-        200,
+      });
+      final repository = ObjectiveRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+        sync: sync,
       );
-    });
-    final repository = ObjectiveRepository(
-      database: database,
-      store: store,
-      profileId: 'profile-a',
-      sync: sync,
-    );
 
-    await repository.refresh(ObjectiveDepth.dossier, 'dossier-1');
-    await repository.refresh(ObjectiveDepth.project, 'project-1');
+      await repository.refresh(ObjectiveDepth.dossier, 'dossier-1');
+      await repository.refresh(ObjectiveDepth.project, 'project-1');
 
-    final dossier =
-        await repository.read(ObjectiveDepth.dossier, 'dossier-1');
-    final project =
-        await repository.read(ObjectiveDepth.project, 'project-1');
-    expect(dossier?.payload['readiness'], isA<Map>());
-    expect(project?.payload['visible_dossiers'], isA<List>());
-  });
+      final dossier = await repository.read(
+        ObjectiveDepth.dossier,
+        'dossier-1',
+      );
+      final project = await repository.read(
+        ObjectiveDepth.project,
+        'project-1',
+      );
+      expect(dossier?.payload['readiness'], isA<Map>());
+      expect(project?.payload['visible_dossiers'], isA<List>());
+    },
+  );
 
   test('PC preserves History pages as separate owner snapshots', () async {
     await configure((request) async {
@@ -135,12 +147,7 @@ void main() {
                 'outcome': {'code': 'completed', 'label': 'Terminée'},
               },
             ],
-            'page': {
-              'count': 1,
-              'offset': 0,
-              'limit': 24,
-              'has_more': false,
-            },
+            'page': {'count': 1, 'offset': 0, 'limit': 24, 'has_more': false},
           },
         }),
         200,
@@ -158,7 +165,9 @@ void main() {
     final page = await repository.readPage(offset: 0);
     expect(page?.resourceKey, 'offset:0:limit:24');
     expect((page?.payload['items'] as List).length, 1);
-    final cached = await store.readProjections(HistoryRepository.projectionKind);
+    final cached = await store.readProjections(
+      HistoryRepository.projectionKind,
+    );
     expect(cached, hasLength(1));
   });
 

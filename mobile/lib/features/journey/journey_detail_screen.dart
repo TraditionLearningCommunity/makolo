@@ -223,8 +223,7 @@ class _JourneyContent extends StatelessWidget {
               onTap: () => onOpenResources(presentation.resourcesLink!),
               child: const MakoloStatusMetadataAction(
                 title: 'Ressources de préparation',
-                subtitle:
-                    'Consultez ce que le propriétaire de la démarche a rendu disponible.',
+                subtitle: 'Consultez ce que le propriétaire de la démarche a rendu disponible.',
                 action: Icon(Icons.chevron_right_rounded),
               ),
             ),

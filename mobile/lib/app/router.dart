@@ -65,6 +65,7 @@ GoRouter createMakoloRouter(
       '/activities/',
       '/occurrences/',
       '/accesses/',
+      '/conversations/',
       '/dossiers/',
       '/projects/',
       '/groups/',
@@ -242,7 +243,8 @@ GoRouter createMakoloRouter(
           if (conversations == null) {
             return const MakoloSecondaryScreen(
               title: 'Conversation',
-              message: 'Cette conversation n’est pas disponible sur cet appareil.',
+              message:
+                  'Cette conversation n’est pas disponible sur cet appareil.',
             );
           }
           return ConversationDetailScreen(
@@ -366,12 +368,15 @@ GoRouter createMakoloRouter(
           if (resources == null) {
             return const MakoloSecondaryScreen(
               title: 'Documents et instructions',
-              message: 'Ces ressources ne sont pas disponibles sur cet appareil.',
+              message:
+                  'Ces ressources ne sont pas disponibles sur cet appareil.',
             );
           }
           return PreparationResourcesScreen(
             journeyId: state.pathParameters['journeyId']!,
-            resourcesPath: state.extra is String ? state.extra! as String : null,
+            resourcesPath: state.extra is String
+                ? state.extra! as String
+                : null,
             repository: resources,
           );
         },

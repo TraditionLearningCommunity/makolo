@@ -58,8 +58,7 @@ class ProfileStore {
     final query = database.select(database.projectionSnapshots)
       ..where(
         (row) =>
-            row.profileId.equals(profileId) &
-            row.projectionKind.equals(kind),
+            row.profileId.equals(profileId) & row.projectionKind.equals(kind),
       );
     return query.watch().map(
       (rows) => rows.map(_storedProjection).toList(growable: false),
@@ -70,8 +69,7 @@ class ProfileStore {
     final query = database.select(database.projectionSnapshots)
       ..where(
         (row) =>
-            row.profileId.equals(profileId) &
-            row.projectionKind.equals(kind),
+            row.profileId.equals(profileId) & row.projectionKind.equals(kind),
       );
     final rows = await query.get();
     return rows.map(_storedProjection).toList(growable: false);

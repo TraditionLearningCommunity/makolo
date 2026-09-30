@@ -130,19 +130,14 @@ class PreparationResourcesRepository {
             .map((value) {
               if (value is Map<String, dynamic>) return value;
               if (value is Map) {
-                return value.map(
-                  (key, item) => MapEntry(key.toString(), item),
-                );
+                return value.map((key, item) => MapEntry(key.toString(), item));
               }
               throw const FormatException(
                 'Expected Preparation resource object.',
               );
             })
             .toList(growable: false);
-        return AcquiredProjection(
-          schemaVersion: 1,
-          payload: {'items': items},
-        );
+        return AcquiredProjection(schemaVersion: 1, payload: {'items': items});
       },
       applier: applyProjectionSnapshot,
     );
@@ -161,12 +156,11 @@ class PreparationResourcesRepository {
         sourceKey: 'preparation-resources:$journeyId',
       );
 
-  Future<OwnerSourceState> readSource(String journeyId) =>
-      readOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: 'preparation-resources:$journeyId',
-      );
+  Future<OwnerSourceState> readSource(String journeyId) => readOwnerSourceState(
+    database: database,
+    profileId: profileId,
+    sourceKey: 'preparation-resources:$journeyId',
+  );
 
   Future<void> refresh({
     required String journeyId,

@@ -136,16 +136,13 @@ class _PreparationResourcesScreenState
                 state: surface,
                 empty: const MakoloEmptyState(
                   title: 'Rien à préparer ici',
-                  body:
-                      'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
+                  body: 'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
                 ),
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement des ressources de préparation…',
                 ),
-                blockingErrorMessage:
-                    'Ces ressources ne sont pas disponibles dans votre contexte actuel.',
-                preservedMessage:
-                    'Aucune copie locale utilisable n’est disponible sur cet appareil.',
+                blockingErrorMessage: 'Ces ressources ne sont pas disponibles dans votre contexte actuel.',
+                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: ListView.separated(
                   key: const Key('preparation-resources-content'),
@@ -231,7 +228,9 @@ class _PreparationResource {
   final String? externalUrl;
   final String? downloadUrl;
 
-  static List<_PreparationResource> fromProjection(StoredProjection? projection) {
+  static List<_PreparationResource> fromProjection(
+    StoredProjection? projection,
+  ) {
     if (projection == null) return const [];
     final raw = projection.payload['items'];
     if (raw is! List) return const [];

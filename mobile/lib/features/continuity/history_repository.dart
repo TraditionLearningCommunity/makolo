@@ -39,7 +39,8 @@ class HistoryRepository {
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: sourceKey(offset: offset, limit: limit),
       owner: 'ProfileHistory',
-      path: 'api/v1/me/history/?limit=' +
+      path:
+          'api/v1/me/history/?limit=' +
           limit.toString() +
           '&offset=' +
           offset.toString(),
@@ -56,23 +57,22 @@ class HistoryRepository {
   Future<StoredProjection?> readPage({
     required int offset,
     int limit = defaultLimit,
-  }) =>
-      store.readProjection(
-        projectionKind,
-        resourceKey: resourceKey(offset: offset, limit: limit),
-      );
+  }) => store.readProjection(
+    projectionKind,
+    resourceKey: resourceKey(offset: offset, limit: limit),
+  );
 
   Stream<OwnerSourceState> watchFirstPageSource() => watchOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: sourceKey(offset: 0, limit: defaultLimit),
-      );
+    database: database,
+    profileId: profileId,
+    sourceKey: sourceKey(offset: 0, limit: defaultLimit),
+  );
 
   Future<OwnerSourceState> readFirstPageSource() => readOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: sourceKey(offset: 0, limit: defaultLimit),
-      );
+    database: database,
+    profileId: profileId,
+    sourceKey: sourceKey(offset: 0, limit: defaultLimit),
+  );
 
   Future<void> refreshPage({
     required int offset,

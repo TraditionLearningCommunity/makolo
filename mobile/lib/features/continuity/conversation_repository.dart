@@ -34,46 +34,46 @@ class ConversationRepository {
   final SyncEngine? sync;
 
   SyncSourceDefinition listSource() => SyncSourceDefinition(
-        sourceKey: 'conversations',
-        owner: 'Conversations',
-        path: 'api/v1/conversations/?limit=50',
-        projectionKind: listProjectionKind,
-        category: SyncSourceCategory.collection,
-        freshnessPolicy: listFreshness,
-        parser: (response) {
-          final payload = response.jsonObject();
-          if (payload['results'] is! List || payload['count'] is! num) {
-            throw const FormatException(
-              'Expected Conversations owner collection contract.',
-            );
-          }
-          return AcquiredProjection(schemaVersion: 1, payload: payload);
-        },
-        applier: applyProjectionSnapshot,
-      );
+    sourceKey: 'conversations',
+    owner: 'Conversations',
+    path: 'api/v1/conversations/?limit=50',
+    projectionKind: listProjectionKind,
+    category: SyncSourceCategory.collection,
+    freshnessPolicy: listFreshness,
+    parser: (response) {
+      final payload = response.jsonObject();
+      if (payload['results'] is! List || payload['count'] is! num) {
+        throw const FormatException(
+          'Expected Conversations owner collection contract.',
+        );
+      }
+      return AcquiredProjection(schemaVersion: 1, payload: payload);
+    },
+    applier: applyProjectionSnapshot,
+  );
 
   SyncSourceDefinition detailSource(String id) => SyncSourceDefinition(
-        sourceKey: 'conversation:' + id,
-        owner: 'Conversations',
-        path: 'api/v1/conversations/' + id + '/',
-        projectionKind: detailProjectionKind,
-        resourceKey: id,
-        category: SyncSourceCategory.keyedDetail,
-        freshnessPolicy: detailFreshness,
-        parser: (response) {
-          final payload = response.jsonObject();
-          if (payload['id']?.toString() != id || payload['points'] is! List) {
-            throw const FormatException(
-              'Expected Conversations owner detail contract.',
-            );
-          }
-          return AcquiredProjection(
-            schemaVersion: 1,
-            payload: jsonDecode(jsonEncode(payload)) as Map<String, dynamic>,
-          );
-        },
-        applier: applyProjectionSnapshot,
+    sourceKey: 'conversation:' + id,
+    owner: 'Conversations',
+    path: 'api/v1/conversations/' + id + '/',
+    projectionKind: detailProjectionKind,
+    resourceKey: id,
+    category: SyncSourceCategory.keyedDetail,
+    freshnessPolicy: detailFreshness,
+    parser: (response) {
+      final payload = response.jsonObject();
+      if (payload['id']?.toString() != id || payload['points'] is! List) {
+        throw const FormatException(
+          'Expected Conversations owner detail contract.',
+        );
+      }
+      return AcquiredProjection(
+        schemaVersion: 1,
+        payload: jsonDecode(jsonEncode(payload)) as Map<String, dynamic>,
       );
+    },
+    applier: applyProjectionSnapshot,
+  );
 
   Stream<StoredProjection?> watchList() =>
       store.watchProjection(listProjectionKind);
@@ -88,16 +88,16 @@ class ConversationRepository {
       store.readProjection(detailProjectionKind, resourceKey: id);
 
   Stream<OwnerSourceState> watchListSource() => watchOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: 'conversations',
-      );
+    database: database,
+    profileId: profileId,
+    sourceKey: 'conversations',
+  );
 
   Future<OwnerSourceState> readListSource() => readOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: 'conversations',
-      );
+    database: database,
+    profileId: profileId,
+    sourceKey: 'conversations',
+  );
 
   Stream<OwnerSourceState> watchDetailSource(String id) =>
       watchOwnerSourceState(
@@ -106,12 +106,11 @@ class ConversationRepository {
         sourceKey: 'conversation:' + id,
       );
 
-  Future<OwnerSourceState> readDetailSource(String id) =>
-      readOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: 'conversation:' + id,
-      );
+  Future<OwnerSourceState> readDetailSource(String id) => readOwnerSourceState(
+    database: database,
+    profileId: profileId,
+    sourceKey: 'conversation:' + id,
+  );
 
   Future<void> refreshList() async {
     final engine = sync;

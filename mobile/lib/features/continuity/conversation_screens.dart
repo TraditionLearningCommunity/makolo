@@ -284,8 +284,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de la conversation…',
                 ),
-                blockingErrorMessage:
-                    'Cette conversation n’est pas disponible dans votre contexte actuel.',
+                blockingErrorMessage: 'Cette conversation n’est pas disponible dans votre contexte actuel.',
                 onRetry: _refresh,
                 content: ListView(
                   key: const Key('conversation-detail-content'),
@@ -301,17 +300,18 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     ),
                     MakoloSection(
                       title: 'Points',
-                      description:
-                          'Les possibilités de réponse et l’attention requise viennent du serveur.',
+                      description: 'Les possibilités de réponse et l’attention requise viennent du serveur.',
                       child: detail.points.isEmpty
                           ? const MakoloCard(
                               child: Text('Aucun point à afficher.'),
                             )
                           : Column(
                               children: [
-                                for (var index = 0;
-                                    index < detail.points.length;
-                                    index++) ...[
+                                for (
+                                  var index = 0;
+                                  index < detail.points.length;
+                                  index++
+                                ) ...[
                                   _PointCard(point: detail.points[index]),
                                   if (index < detail.points.length - 1)
                                     const SizedBox(height: MakoloSpacing.sm),
@@ -383,7 +383,9 @@ class _ConversationSummary {
   final bool allClear;
   final String? contextLabel;
 
-  static List<_ConversationSummary> fromProjection(StoredProjection? projection) {
+  static List<_ConversationSummary> fromProjection(
+    StoredProjection? projection,
+  ) {
     final raw = projection?.payload['results'];
     if (raw is! List) return const [];
     return raw

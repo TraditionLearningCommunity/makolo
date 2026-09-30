@@ -162,8 +162,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     if (view.hasMore) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       OutlinedButton(
-                        onPressed:
-                            _loadingMore ? null : () => _loadMore(view),
+                        onPressed: _loadingMore ? null : () => _loadMore(view),
                         child: Text(
                           _loadingMore ? 'Chargement…' : 'Afficher la suite',
                         ),
@@ -193,8 +192,12 @@ class _HistoryCard extends StatelessWidget {
       child: MakoloStatusMetadataAction(
         title: item.title,
         subtitle: item.occurredAt,
-        status: item.outcome == null ? null : MakoloStatus(label: item.outcome!),
-        action: item.id == null ? null : const Icon(Icons.chevron_right_rounded),
+        status: item.outcome == null
+            ? null
+            : MakoloStatus(label: item.outcome!),
+        action: item.id == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
@@ -238,8 +241,7 @@ class _HistoryView {
             id: id,
             title: _string(row['title']) ?? 'Historique',
             occurredAt: _string(row['occurred_at']),
-            outcome:
-                _string(outcome['label']) ?? _string(outcome['code']),
+            outcome: _string(outcome['label']) ?? _string(outcome['code']),
           ),
         );
       }

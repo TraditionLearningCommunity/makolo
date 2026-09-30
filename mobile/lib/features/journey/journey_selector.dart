@@ -158,8 +158,7 @@ class JourneyDetailSelector {
       blockers: _readinessItems(readiness['blockers']),
       nextActionLabel: _string(_map(readiness['next'])['label']),
       nextActionLink: _string(_map(readiness['next'])['link']),
-      resourcesLink:
-          _string(resources['link']) ?? _string(links['resources']),
+      resourcesLink: _string(resources['link']) ?? _string(links['resources']),
       forms: _forms(payload['forms']),
       requirements: _requirements(payload['requirements']),
       activity: activity.isEmpty

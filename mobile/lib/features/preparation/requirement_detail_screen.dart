@@ -137,10 +137,8 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de l’élément nécessaire…',
                 ),
-                blockingErrorMessage:
-                    'Cet élément n’est pas disponible dans votre contexte actuel.',
-                preservedMessage:
-                    'Aucune copie locale utilisable n’est disponible sur cet appareil.',
+                blockingErrorMessage: 'Cet élément n’est pas disponible dans votre contexte actuel.',
+                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: _RequirementContent(presentation: presentation),
               ),
@@ -190,9 +188,11 @@ class _RequirementContent extends StatelessWidget {
                 )
               : Column(
                   children: [
-                    for (var index = 0;
-                        index < presentation.ways.length;
-                        index++) ...[
+                    for (
+                      var index = 0;
+                      index < presentation.ways.length;
+                      index++
+                    ) ...[
                       MakoloCard(
                         child: MakoloStatusMetadataAction(
                           title: presentation.ways[index].label,

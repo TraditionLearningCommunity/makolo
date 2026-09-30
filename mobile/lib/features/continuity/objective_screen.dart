@@ -131,13 +131,9 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
               ),
               body: MakoloSurfaceStateView(
                 state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement…',
-                ),
-                blockingErrorMessage:
-                    'Ce contenu n’est pas disponible dans votre contexte actuel.',
-                preservedMessage:
-                    'Aucune copie locale utilisable n’est disponible sur cet appareil.',
+                initialLoading: const MakoloLoadingState(label: 'Chargement…'),
+                blockingErrorMessage: 'Ce contenu n’est pas disponible dans votre contexte actuel.',
+                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: widget.kind == ObjectiveDepth.dossier
                     ? _DossierContent(
@@ -158,10 +154,7 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
 }
 
 class _DossierContent extends StatelessWidget {
-  const _DossierContent({
-    required this.payload,
-    required this.onOpenJourney,
-  });
+  const _DossierContent({required this.payload, required this.onOpenJourney});
 
   final Map<String, dynamic> payload;
   final void Function(String id) onOpenJourney;
@@ -239,8 +232,9 @@ class _DossierContent extends StatelessWidget {
                   MakoloCard(
                     onTap: _string(items[index]['journey_id']) == null
                         ? null
-                        : () =>
-                            onOpenJourney(_string(items[index]['journey_id'])!),
+                        : () => onOpenJourney(
+                            _string(items[index]['journey_id'])!,
+                          ),
                     child: MakoloStatusMetadataAction(
                       title: _string(items[index]['label']) ?? 'Démarche',
                       subtitle: items[index]['hidden_dependency'] == true
@@ -273,7 +267,7 @@ class _DossierContent extends StatelessWidget {
                       responsibilities.length == 1
                           ? '1 responsabilité personnelle active.'
                           : responsibilities.length.toString() +
-                              ' responsabilités personnelles actives.',
+                                ' responsabilités personnelles actives.',
                     ),
                   ),
                 if (responsibilities.isNotEmpty && dependencies.isNotEmpty)
@@ -284,7 +278,7 @@ class _DossierContent extends StatelessWidget {
                       dependencies.length == 1
                           ? '1 dépendance visible entre démarches.'
                           : dependencies.length.toString() +
-                              ' dépendances visibles entre démarches.',
+                                ' dépendances visibles entre démarches.',
                     ),
                   ),
               ],
@@ -297,10 +291,7 @@ class _DossierContent extends StatelessWidget {
 }
 
 class _ProjectContent extends StatelessWidget {
-  const _ProjectContent({
-    required this.payload,
-    required this.onOpenDossier,
-  });
+  const _ProjectContent({required this.payload, required this.onOpenDossier});
 
   final Map<String, dynamic> payload;
   final void Function(String id) onOpenDossier;
@@ -344,11 +335,11 @@ class _ProjectContent extends StatelessWidget {
                       MakoloCard(
                         onTap: _string(dossiers[index]['id']) == null
                             ? null
-                            : () =>
-                                onOpenDossier(_string(dossiers[index]['id'])!),
+                            : () => onOpenDossier(
+                                _string(dossiers[index]['id'])!,
+                              ),
                         child: MakoloStatusMetadataAction(
-                          title:
-                              _string(dossiers[index]['title']) ?? 'Dossier',
+                          title: _string(dossiers[index]['title']) ?? 'Dossier',
                           status: _string(dossiers[index]['state']) == null
                               ? null
                               : MakoloStatus(
