@@ -14,7 +14,7 @@ from operations.selectors import (
 )
 from operations.services import (
     build_operations_overview,
-    change_organization_verification,
+    change_organization_lifecycle,
     moderate_event,
 )
 
@@ -57,6 +57,7 @@ class OperationsOrganizationsAPIView(OperationsAPIView):
                 "id": organization.pk,
                 "name": organization.name,
                 "slug": organization.slug,
+                "lifecycle": organization.lifecycle,
                 "verification_status": organization.verification_status,
                 "public_profile": organization.public_profile,
                 "country": organization.country,
@@ -75,7 +76,7 @@ class OrganizationDecisionAPIView(OperationsAPIView):
         organization = get_object_or_404(get_operations_organizations(request.user), pk=pk)
         serializer = OrganizationDecisionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        organization = change_organization_verification(
+        organization = change_organization_lifecycle(
             organization=organization,
             status=serializer.validated_data["status"],
             actor=request.user,
@@ -85,6 +86,7 @@ class OrganizationDecisionAPIView(OperationsAPIView):
             {
                 "id": organization.pk,
                 "name": organization.name,
+                "lifecycle": organization.lifecycle,
                 "verification_status": organization.verification_status,
             }
         )

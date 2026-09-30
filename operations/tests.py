@@ -13,7 +13,7 @@ from automation.models import AutomationRun, AutomationRunStatus
 from events.models import Event, EventStatus, EventVisibility
 from events.selectors import get_events_visible_to
 from notifications.models import DeliveryChannel, DeliveryStatus, Notification, NotificationDelivery
-from organizations.models import Organization, OrganizationVerificationStatus
+from organizations.models import Organization, OrganizationVerificationStatus, SpaceLifecycle
 from payments.models import Payment, PaymentEvent, PaymentProvider, PaymentStatus
 from scanner.models import ScanLog, ScanResult
 from tickets.models import TicketOrder, TicketOrderStatus
@@ -30,7 +30,7 @@ from .models import (
 )
 from .services import (
     build_operations_overview,
-    change_organization_verification,
+    change_organization_lifecycle,
     create_incident,
     moderate_event,
     record_worker_heartbeat,
@@ -109,16 +109,17 @@ class OperationsCenterTests(TestCase):
         self.assertIn("metrics", response.data)
 
     def test_organization_suspension_is_audited_and_hides_public_events(self):
-        change_organization_verification(
+        change_organization_lifecycle(
             organization=self.organization,
-            status=OrganizationVerificationStatus.SUSPENDED,
+            status=SpaceLifecycle.SUSPENDED,
             actor=self.staff,
             reason="Contrôle de conformité test.",
         )
         self.organization.refresh_from_db()
-        self.assertEqual(self.organization.verification_status, OrganizationVerificationStatus.SUSPENDED)
+        self.assertEqual(self.organization.lifecycle, SpaceLifecycle.SUSPENDED)
+        self.assertEqual(self.organization.verification_status, OrganizationVerificationStatus.PENDING)
         self.assertTrue(ModerationCase.objects.filter(organization=self.organization, status="actioned").exists())
-        self.assertTrue(OperationsAuditLog.objects.filter(action="organization.verification_changed").exists())
+        self.assertTrue(OperationsAuditLog.objects.filter(action="organization.lifecycle_changed").exists())
         self.assertFalse(get_events_visible_to(AnonymousUser()).filter(pk=self.event.pk).exists())
 
     def test_event_moderation_is_explicit_and_audited(self):

@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 
 from activities.models import Activity, Occurrence
 from events.models import Event
-from organizations.models import OrganizationVerificationStatus
+from organizations.models import SpaceLifecycle
 
 from .models import OperationsIncident
 
@@ -47,7 +47,7 @@ class OperationsIncidentUpdateForm(forms.ModelForm):
 
 
 class OrganizationReviewForm(forms.Form):
-    status = forms.ChoiceField(choices=OrganizationVerificationStatus.choices)
+    status = forms.ChoiceField(choices=SpaceLifecycle.choices)
     reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 4}), max_length=2000)
 
 

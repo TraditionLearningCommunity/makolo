@@ -52,7 +52,7 @@ def get_operations_organizations(user):
         activity_count=Count("activities", distinct=True),
         event_count=Count("activities__event_vertical", distinct=True),
         member_count=Count("memberships", distinct=True),
-    ).order_by("verification_status", "-created_at")
+    ).order_by("lifecycle", "verification_status", "-created_at")
     return _staff_queryset(user, queryset)
 
 

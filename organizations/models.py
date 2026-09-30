@@ -13,6 +13,12 @@ class OrganizationVerificationStatus(models.TextChoices):
     SUSPENDED = "suspended", "Suspendu"
 
 
+class SpaceLifecycle(models.TextChoices):
+    ACTIVE = "active", "Actif"
+    SUSPENDED = "suspended", "Suspendu"
+    ARCHIVED = "archived", "Archivé"
+
+
 class SpaceArchetype(models.TextChoices):
     """Primary operating profile for one Space.
 
@@ -70,6 +76,13 @@ class Organization(models.Model):
     country = models.CharField(max_length=120, blank=True)
     city = models.CharField(max_length=120, blank=True)
     public_profile = models.BooleanField(default=True)
+    lifecycle = models.CharField(
+        max_length=16,
+        choices=SpaceLifecycle.choices,
+        default=SpaceLifecycle.ACTIVE,
+        db_default=SpaceLifecycle.ACTIVE,
+        help_text="État opérationnel de l'Espace, distinct de sa vérification Trust.",
+    )
     verification_status = models.CharField(max_length=20, choices=OrganizationVerificationStatus.choices, default=OrganizationVerificationStatus.NEW)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_organizations")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -79,6 +92,7 @@ class Organization(models.Model):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["verification_status", "public_profile"], name="organizatio_verific_68b188_idx"),
+            models.Index(fields=["lifecycle", "public_profile"], name="org_lifecycle_public_idx"),
             models.Index(fields=["created_at"], name="organizatio_created_dde2e1_idx"),
         ]
 
