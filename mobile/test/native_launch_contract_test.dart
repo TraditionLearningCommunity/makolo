@@ -24,14 +24,31 @@ void main() {
     expect(File('assets/brand/makolo-mark-white.svg').existsSync(), isTrue);
   });
 
-  test('onboarding adds no speculative Android runtime permission', () {
+  test('Android host declares only the NC runtime permissions it uses', () {
     final manifest = File('android/app/src/main/AndroidManifest.xml')
         .readAsStringSync();
 
     expect(manifest, contains('android.permission.INTERNET'));
-    expect(manifest, isNot(contains('POST_NOTIFICATIONS')));
-    expect(manifest, isNot(contains('android.permission.CAMERA')));
-    expect(manifest, isNot(contains('ACCESS_FINE_LOCATION')));
+    expect(manifest, contains('android.permission.CAMERA'));
+    expect(manifest, contains('android.permission.RECORD_AUDIO'));
+    expect(manifest, contains('android.permission.ACCESS_COARSE_LOCATION'));
+    expect(manifest, contains('android.permission.ACCESS_FINE_LOCATION'));
+    expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
+
+    expect(manifest, isNot(contains('ACCESS_BACKGROUND_LOCATION')));
     expect(manifest, isNot(contains('READ_MEDIA')));
+    expect(manifest, isNot(contains('READ_EXTERNAL_STORAGE')));
+    expect(manifest, isNot(contains('WRITE_EXTERNAL_STORAGE')));
+  });
+
+  test('Android host accepts share ingress without inventing app links', () {
+    final manifest = File('android/app/src/main/AndroidManifest.xml')
+        .readAsStringSync();
+
+    expect(manifest, contains('android.intent.action.SEND'));
+    expect(manifest, contains('android.intent.action.SEND_MULTIPLE'));
+    expect(manifest, contains('android:mimeType="*/*"'));
+    expect(manifest, isNot(contains('android.intent.action.VIEW')));
+    expect(manifest, isNot(contains('android:autoVerify="true"')));
   });
 }

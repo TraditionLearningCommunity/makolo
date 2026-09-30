@@ -993,3 +993,21 @@ Les principaux ajouts sont :
 - réutilisation PersonalAsset → JourneyArtifact idempotente sans modifier la sémantique Requirement.
 
 Aucun modèle ni migration Z10 n'est ajouté. Voir `docs/architecture/z10-cross-surface-continuity.md`.
+
+
+## Obtention — projection domaine
+
+Obtention conserve son API domaine sous `/api/v1/obtention/`. Cette API expose des vérités déjà résolues côté serveur ; elle ne demande jamais au client de reconstruire fulfillment, Requirement satisfaction, Readiness ou autorité.
+
+Contrats principaux :
+
+- la configuration publique expose Target, Mode, résultat attendu, Requirements présentables et Steps de plan utiles ;
+- la configuration interne des evaluators Requirements n’est pas divulguée dans la projection publique ;
+- une Journey privée expose sa configuration pinnée, son mode, les Steps matérialisées, les Assessments Requirements, Readiness et les constats de fulfillment ;
+- les mutations réutilisent exclusivement les services propriétaires ;
+- les profondeurs Journey sont résolues dans un queryset borné au bénéficiaire ou aux Permissions Activity, avec `404` pour un tiers ;
+- les réponses privées portent `Cache-Control: private, no-store` ;
+- les valeurs Decimal restent des chaînes dans les payloads ;
+- Payment, Access, Capacity, Form, Resource et Proof restent des liens/états de leurs domaines lorsqu’ils sont composés, jamais des copies Obtention.
+
+Le contrat métier complet est documenté dans [`obtention.md`](obtention.md).

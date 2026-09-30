@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/widgets.dart';
 
 import '../network/api_error.dart';
@@ -100,7 +101,10 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   Future<void> _refresh() async {
     final sync = widget.runtime.sync;
     final database = widget.runtime.database;
-    if (sync == null || database == null || _syncing) return;
+    final profileId = widget.runtime.session?.profileId;
+    if (sync == null || database == null || profileId == null || _syncing) {
+      return;
+    }
     if (mounted) {
       setState(() {
         _syncing = true;
@@ -109,9 +113,13 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     }
     try {
       await sync.refreshRoots();
-      final failedSources = await (database.select(
-        database.syncSources,
-      )..where((row) => row.invalidated.equals(true))).get();
+      final failedSources =
+          await (database.select(database.syncSources)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.lastErrorCode.isNotNull(),
+              ))
+              .get();
       if (mounted) {
         setState(() {
           _syncFailed = failedSources.isNotEmpty;

@@ -60,6 +60,8 @@ def vertical_for(activity):
         return "service"
     if _has_related(activity, "funding_details"):
         return "funding"
+    if _has_related(activity, "obtention_details"):
+        return "obtention"
     return "generic"
 
 
@@ -171,6 +173,66 @@ def _service_vocabulary(workflow):
     )
 
 
+
+def _obtention_mode_code(activity, mode):
+    if mode is not None:
+        return getattr(mode, "code", mode)
+    if activity is None:
+        return None
+    try:
+        configuration = (
+            activity.obtention_details.configurations
+            .filter(status="published")
+            .prefetch_related("modes")
+            .first()
+        )
+    except Exception:
+        return None
+    if configuration is None:
+        return None
+    modes = list(configuration.modes.all())
+    return modes[0].code if len(modes) == 1 else None
+
+
+def _obtention_vocabulary(activity, workflow, *, mode=None, perspective="beneficiary"):
+    code = _obtention_mode_code(activity, mode)
+    beneficiary = {
+        "buy": ("Achat", "Voir mon achat", "Acheter", "Acheteur"),
+        "rent": ("Location", "Voir ma location", "Louer", "Locataire"),
+        "borrow": ("Emprunt", "Voir mon emprunt", "Emprunter", "Emprunteur"),
+        "receive": ("Obtention", "Voir mon obtention", "Recevoir", "Bénéficiaire"),
+        "exchange": ("Échange", "Voir mon échange", "Échanger", "Bénéficiaire"),
+        "other": ("Obtention", "Voir mon obtention", "Obtenir", "Bénéficiaire"),
+    }
+    operator = {
+        "buy": ("Vente", "Voir la vente", "Mettre en vente", "Acheteur"),
+        "rent": ("Mise en location", "Voir la location", "Mettre en location", "Locataire"),
+        "borrow": ("Prêt", "Voir le prêt", "Prêter", "Emprunteur"),
+        "receive": ("Distribution", "Voir la distribution", "Distribuer", "Bénéficiaire"),
+        "exchange": ("Échange", "Voir l'échange", "Proposer un échange", "Bénéficiaire"),
+        "other": ("Obtention", "Voir l'obtention", "Proposer", "Bénéficiaire"),
+    }
+    table = operator if perspective == "operator" else beneficiary
+    journey = table.get(
+        code,
+        ("Obtention", "Voir ma démarche", "Obtenir", "Bénéficiaire"),
+    )
+    return ProductVocabulary(
+        vertical="obtention",
+        activity_noun="Obtention",
+        occurrence_noun="Disponibilité",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande",
+        offer_noun="Offre",
+        access_noun="Droit d'usage" if code in {"rent", "borrow"} else "Accès",
+        access_detail_label="Voir le droit",
+        participant_noun=journey[3],
+        operator_label="Proposé par",
+        primary_action=journey[2],
+    )
+
+
 def _funding_vocabulary(workflow):
     return ProductVocabulary(
         vertical="funding",
@@ -188,7 +250,7 @@ def _funding_vocabulary(workflow):
     )
 
 
-def vocabulary_for(*, activity=None, workflow=None):
+def vocabulary_for(*, activity=None, workflow=None, mode=None, perspective="beneficiary"):
     vertical = vertical_for(activity)
     if vertical == "transport":
         return _transport_vocabulary(workflow)
@@ -198,6 +260,8 @@ def vocabulary_for(*, activity=None, workflow=None):
         return _service_vocabulary(workflow)
     if vertical == "funding":
         return _funding_vocabulary(workflow)
+    if vertical == "obtention":
+        return _obtention_vocabulary(activity, workflow, mode=mode, perspective=perspective)
     return _generic_vocabulary(workflow)
 
 

@@ -883,3 +883,17 @@ T36 ✅
 Il n'y a pas de T37 Services automatique. Les éléments volontairement différés restent notamment l'IA, M-PESA et autres providers réels, l'hébergement de production final, le pricing/billing Subscription, un éventuel feature paywall Services explicitement décidé plus tard et les analytics prédictives avancées.
 
 PythonAnywhere reste seulement l'environnement temporaire de test/bêta ; le déploiement et les smoke tests manuels PythonAnywhere n'ont pas été réexécutés dans cette clôture documentaire et suivent le runbook lorsqu'ils sont demandés.
+
+
+### Extension horizontale Requirements pour les nouvelles compositions
+
+La description T34A ci-dessus reste exacte pour son checkpoint historique : à cette étape, `requirements` fournissait seulement le kernel d’évaluation et aucune table métier.
+
+Le runtime postérieur étend ce même domaine pour les **nouvelles** compositions génériques qui n’ont pas de persistance Requirement spécialisée :
+
+- `RequirementDefinition` : définition versionnée, Activity-scoped ;
+- `JourneyRequirementAssessment` : état individuel dans une Journey ;
+- le registry/evaluator T34A reste le moteur d’évaluation ;
+- Services et Subscriptions historiques conservent leurs agrégats existants ; aucune donnée n’est déplacée ou backfillée artificiellement.
+
+Cette extension ne fait pas de `requirements` un propriétaire de Journey, Payment, Proof ou Services. Elle évite au contraire la création de nouveaux moteurs verticaux tels que `ObtentionRequirement`.

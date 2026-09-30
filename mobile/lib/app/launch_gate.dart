@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../features/onboarding/onboarding_flow.dart';
 import '../features/splash/splash_screen.dart';
-import '../sync/sync_engine.dart';
 import 'launch_policy.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
@@ -48,29 +47,6 @@ class _LaunchGateState extends State<LaunchGate> {
     _prepare();
   }
 
-  Future<void> _prepareInitialPersonalSurface(String path) async {
-    if (!widget.runtime.isAuthenticated) return;
-    final store = widget.runtime.store;
-    final sync = widget.runtime.sync;
-    if (store == null || sync == null) return;
-
-    final SyncRoot root = switch (path) {
-      '/ongoing' => SyncEngine.roots[1],
-      '/me' => SyncEngine.roots[2],
-      _ => SyncEngine.roots[0],
-    };
-
-    final local = await store.readProjection(root.key);
-    if (local != null) return;
-
-    try {
-      await sync.pull(root);
-    } on Object {
-      // A first remote read is best-effort. The local-first shell can still
-      // open cleanly and SyncLifecycle will represent offline/error states.
-    }
-  }
-
   Future<void> _prepare() async {
     final store = widget.runtime.launchPreferences;
     if (store == null) {
@@ -80,7 +56,6 @@ class _LaunchGateState extends State<LaunchGate> {
     }
     final preferences = await store.read();
     final path = widget.router.routeInformationProvider.value.uri.path;
-    await _prepareInitialPersonalSurface(path);
     await _minimumVisibleFuture;
     if (!mounted) return;
 
