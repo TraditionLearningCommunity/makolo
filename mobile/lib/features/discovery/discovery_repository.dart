@@ -219,7 +219,8 @@ class DiscoveryRepository {
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: 'discovery-watch-results:$resourceKey',
       owner: 'Discovery',
-      path: 'api/v1/discovery/watches/$watchId/results/?page=$page&page_size=24',
+      path:
+          'api/v1/discovery/watches/$watchId/results/?page=$page&page_size=24',
       projectionKind: watchResultsProjectionKind,
       resourceKey: resourceKey,
       category: SyncSourceCategory.collection,
@@ -238,17 +239,17 @@ class DiscoveryRepository {
     );
   }
 
-  Stream<StoredProjection?> watchItems(DiscoveryQuery query) =>
-      store.watchProjection(itemsProjectionKind, resourceKey: query.fingerprint);
+  Stream<StoredProjection?> watchItems(DiscoveryQuery query) => store
+      .watchProjection(itemsProjectionKind, resourceKey: query.fingerprint);
 
   Future<StoredProjection?> readItems(DiscoveryQuery query) =>
       store.readProjection(itemsProjectionKind, resourceKey: query.fingerprint);
 
-  Stream<StoredProjection?> watchMap(DiscoveryQuery query) =>
-      store.watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
+  Stream<StoredProjection?> watchMap(DiscoveryQuery query) => store
+      .watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
 
-  Future<StoredProjection?> readMap(DiscoveryQuery query) =>
-      store.readProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
+  Future<StoredProjection?> readMap(DiscoveryQuery query) => store
+      .readProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
 
   Stream<StoredProjection?> watchItem(String family, String id) =>
       store.watchProjection(itemProjectionKind, resourceKey: '$family:$id');
@@ -318,7 +319,8 @@ class DiscoveryRepository {
     );
   }
 
-  Future<void> refreshItems(DiscoveryQuery query) => _refresh(itemsSource(query));
+  Future<void> refreshItems(DiscoveryQuery query) =>
+      _refresh(itemsSource(query));
 
   Future<void> refreshMap(DiscoveryQuery query) => _refresh(mapSource(query));
 
