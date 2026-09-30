@@ -34,10 +34,8 @@ void main() {
       ],
     );
 
-    final capture = await SharedPayloadCoordinator(store).capture(
-      payload,
-      fileIdFor: (_, __) => 'opaque-capture-1',
-    );
+    final capture = await SharedPayloadCoordinator(store)
+        .capture(payload, fileIdFor: (_, __) => 'opaque-capture-1');
 
     expect(capture.files.single.owner, 'InboundCapture');
     expect(capture.files.single.path, startsWith(staging.path));
@@ -45,29 +43,32 @@ void main() {
     expect(await File(capture.files.single.path).readAsBytes(), [9, 8, 7]);
   });
 
-  test('shared text remains technical input and creates no file record', () async {
-    final root = await Directory.systemTemp.createTemp('makolo-share-text-');
-    final database = MakoloDatabase.memory();
-    addTearDown(() async {
-      await database.close();
-      await root.delete(recursive: true);
-    });
-    final store = ProfileFileStore(
-      database: database,
-      profileId: 'profile-a',
-      privateDirectory: Directory('${root.path}/private'),
-      stagingDirectory: Directory('${root.path}/staging'),
-    );
+  test(
+    'shared text remains technical input and creates no file record',
+    () async {
+      final root = await Directory.systemTemp.createTemp('makolo-share-text-');
+      final database = MakoloDatabase.memory();
+      addTearDown(() async {
+        await database.close();
+        await root.delete(recursive: true);
+      });
+      final store = ProfileFileStore(
+        database: database,
+        profileId: 'profile-a',
+        privateDirectory: Directory('${root.path}/private'),
+        stagingDirectory: Directory('${root.path}/staging'),
+      );
 
-    final capture = await SharedPayloadCoordinator(store).capture(
-      const SharedPayload(
-        kind: SharedPayloadKind.text,
-        text: 'Préparer ce document',
-      ),
-      fileIdFor: (_, __) => 'unused',
-    );
+      final capture = await SharedPayloadCoordinator(store).capture(
+        const SharedPayload(
+          kind: SharedPayloadKind.text,
+          text: 'Préparer ce document',
+        ),
+        fileIdFor: (_, __) => 'unused',
+      );
 
-    expect(capture.text, 'Préparer ce document');
-    expect(await store.stagedFiles(), isEmpty);
-  });
+      expect(capture.text, 'Préparer ce document');
+      expect(await store.stagedFiles(), isEmpty);
+    },
+  );
 }
