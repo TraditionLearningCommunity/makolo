@@ -1142,3 +1142,327 @@ Comment deux Spaces coopèrent-ils ?
 ```
 
 La suite du chantier peut donc passer à la **propriété des données et aux modèles nécessaires**, puis à l’UX, sans rouvrir ces principes fondamentaux sauf contradiction démontrée par le runtime.
+
+
+---
+
+## 27. Fermeture explicite des six décisions structurantes
+
+Cette section ferme les six questions amont qui devaient être réglées avant de concevoir les modèles Django définitifs. Elles ne doivent plus être rouvertes par simple préférence d'implémentation ; seule une contradiction démontrée par le runtime ou un invariant canonique justifie de les réexaminer.
+
+### 27.1 Lifecycle minimal — FERMÉ
+
+Le lifecycle opérationnel cible d'un Space est limité à :
+
+```text
+ACTIVE
+SUSPENDED
+ARCHIVED
+```
+
+Règles normatives :
+
+- `ACTIVE` : fonctionnement normal, sous réserve des Permissions, Entitlements et règles des domaines propriétaires ;
+- `SUSPENDED` : identité et historique conservés, lecture/audit possibles selon autorisation, mais aucune nouvelle opération métier ordinaire ne doit être admise tant que la suspension n'est pas levée par le contrat qui l'a imposée ;
+- `ARCHIVED` : Space retiré de l'exploitation active, historique conservé, nouvelles opérations métier bloquées ; une restauration explicite peut être autorisée par le contrat d'ownership, sans recréer le Space ni ses faits.
+
+Le lifecycle ne contient pas `draft`, `configuring`, `ready`, `complete` ou autres pseudo-états d'UX. La complétude éventuelle reste une projection dérivée.
+
+```text
+lifecycle
+!=
+verification_status
+!=
+readiness
+```
+
+La vérification continue de répondre à une question de Trust/assurance ; elle ne qualifie ni la qualité générale de l'organisation ni son niveau de préparation.
+
+### 27.2 Contrat d'identité minimal — FERMÉ
+
+L'identité canonique du Space reste petite.
+
+Le noyau contient uniquement les attributs nécessaires à l'identification, la présentation générique, la provenance, la visibilité, le lifecycle et l'archétype. Le runtime possède déjà notamment nom, slug, description, site, contacts généraux, pays/ville, visibilité publique, vérification, créateur et timestamps.
+
+Ne deviennent pas automatiquement des champs `Organization` :
+
+```text
+forme juridique
+secteur détaillé
+licence
+horaires métier
+zones desservies
+moyens de paiement
+véhicules
+produits
+services
+ressources
+catalogues
+conditions
+procédures
+capacité
+documents métier
+```
+
+Règle :
+
+> une information n'entre dans l'identité canonique du Space que si elle caractérise durablement l'acteur collectif lui-même et qu'aucun domaine propriétaire existant ne peut la porter correctement.
+
+Une donnée légale, géographique, commerciale, opérationnelle ou de Trust peut être reliée au Space sans devenir un champ de `Organization`.
+
+### 27.3 Ownership et responsabilité humaine — FERMÉ
+
+À la création :
+
+```text
+Profile créateur
+→ provenance created_by
+→ Team principale
+→ TeamMembership active
+→ Mandate SPACE_OWNER
+```
+
+Décisions normatives :
+
+1. `created_by` reste une provenance historique, jamais une autorité éternelle ;
+2. il n'existe pas de champ canonique `primary_owner` ou `owner_user` sur Space ;
+3. plusieurs Owners sont permis ;
+4. l'ownership courant est exprimé exclusivement par les Mandates `SPACE_OWNER` actifs ;
+5. ajouter un Owner consiste à accorder le Mandate correspondant sous la Permission requise ;
+6. transférer l'ownership consiste à accorder d'abord un Owner valide puis, si souhaité, révoquer l'ancien ;
+7. le dernier Owner actif ne peut jamais être révoqué, retiré ou quitter le Space sans remplacement valide ;
+8. retirer une personne du Space désactive ses TeamMemberships locales et révoque ses Mandates Space ainsi que ses Mandates Activity appartenant à ce Space, sans toucher ses autres Espaces, Groups ou responsabilités extérieures ;
+9. retirer quelqu'un d'une Team secondaire ne révoque pas implicitement ses Mandates ;
+10. TeamMembership et GroupMembership restent sans autorité implicite.
+
+Il n'est donc pas nécessaire de créer un nouveau modèle d'ownership séparé tant que Mandate couvre correctement cette responsabilité.
+
+### 27.4 Configuration opérationnelle par archétype — FERMÉE
+
+Chaque archétype est défini avec le même contrat à huit dimensions :
+
+```text
+1. définition
+2. centre de gravité
+3. vocabulaire métier
+4. domaines Makolo prioritaires
+5. domaines transversaux utiles
+6. verticales suggérées en premier
+7. configurations métier normalement utiles
+8. faits qui ne doivent jamais être créés automatiquement
+```
+
+La matrice normative complète est fixée à la section 28.
+
+### 27.5 Preset vs réalité opérationnelle — FERMÉ
+
+Invariant :
+
+```text
+ARCHETYPE
+= centre de gravité + preset de départ
+
+OPERATIONAL FOOTPRINT
+= domaines/verticales réellement utilisés, dérivés des faits canoniques
+```
+
+Le Space ne change pas d'archétype parce qu'il commence à utiliser une nouvelle verticale.
+
+Exemple valide :
+
+```text
+archetype = commerce
+
+Operational Footprint:
+Obtention ✓
+Service ✓
+Transport ✓
+Event ✓
+Funding ✓
+```
+
+L'empreinte opérationnelle est calculée à partir des domaines propriétaires. Elle peut être matérialisée plus tard comme cache/read-model reconstructible pour performance, mais ne devient pas une vérité métier autonome.
+
+Aucun modèle générique `SpaceCapability(space, code, enabled)` n'est introduit à ce stade.
+
+### 27.6 Changement d'archétype et composition — FERMÉS
+
+Changer d'archétype est une reconfiguration du centre de gravité du produit, jamais une migration destructrice de l'organisation.
+
+Un changement ne modifie jamais implicitement :
+
+```text
+Activities
+Occurrences
+Journeys
+Requirements
+Routes
+Vehicles
+Access
+CRM
+Orders
+Payments
+Groups
+Mandates
+Entitlements
+Trust facts
+Analytics history
+```
+
+Il peut modifier uniquement ce qui relève du preset : vocabulaire, priorités, suggestions et Presentation.
+
+Aucune inférence silencieuse d'archétype n'est autorisée depuis le nom, Topics, historique ou comportement. Makolo peut suggérer ; un acteur autorisé décide explicitement.
+
+La composition entre Spaces utilise les relations métier propriétaires déjà disponibles ou futures : Partners, Sharing, Funding, Commerce, Activities communes, Trust, etc.
+
+Aucune composition ne transfère implicitement :
+
+```text
+Permission
+Mandate
+Access
+Payment
+Entitlement
+données privées
+```
+
+Ne pas introduire de relation générique `SpaceComposition` ou de graphe social entre Spaces tant qu'un besoin métier irréductible ne le justifie pas.
+
+---
+
+## 28. Matrice normative des huit presets
+
+### 28.1 generic
+
+1. **Définition** — organisation généraliste, multidomaine ou ne nécessitant pas un centre de gravité spécialisé.
+2. **Centre de gravité** — organiser et opérer des Activities sans hypothèse métier dominante.
+3. **Vocabulaire métier** — Espace, Activités, Demandes, Contacts, Groupes, Lieux, Équipe.
+4. **Domaines prioritaires** — Activity/Occurrence, Journey/Requests, Groups, CRM/Audiences, Places.
+5. **Transversaux utiles** — Commerce/Payments selon usage, Trust, Analytics, Automation, Subscription, Team.
+6. **Verticales suggérées** — Event, Service, Obtention, Transport ; Funding lorsqu'il devient pertinent.
+7. **Configuration normalement utile** — identité, première Activity, lieux/zones nécessaires, équipe, contacts/groupes réels.
+8. **Ne crée jamais automatiquement** — Activity, contact, groupe, offre, Requirement ou autre fait métier.
+
+`generic` garde accès au même noyau Makolo ; il n'est pas une édition réduite.
+
+### 28.2 creative
+
+1. **Définition** — artiste, collectif créatif, studio ou structure principalement tournée vers création/production artistique.
+2. **Centre de gravité** — créer, présenter, faire vivre, prester et éventuellement commercialiser.
+3. **Vocabulaire métier** — Créations, Activités, Événements, Prestations, Publics, Partenaires, Offres.
+4. **Domaines prioritaires** — Activity/Occurrence, Event, Service, Obtention, CRM/Audiences, Partners.
+5. **Transversaux utiles** — Promotions, Growth, Commerce, Payments, Loyalty, Trust, Analytics, Automation, Team.
+6. **Verticales suggérées** — Event, Service, Obtention ; Transport lorsqu'il est réellement opéré.
+7. **Configuration normalement utile** — identité artistique, premières Activities, Occurrences, prestations/bookings, offres éventuelles, publics, partenaires, paiements lorsque nécessaires.
+8. **Ne crée jamais automatiquement** — feed, Post, Story, portfolio parallèle, média orphelin, faux public, fausse prestation ou offre.
+
+### 28.3 media
+
+1. **Définition** — média, rédaction, organisation journalistique ou structure de production éditoriale/informationnelle.
+2. **Centre de gravité** — produire, documenter, organiser des publics et opérer des activités éditoriales, événementielles ou de service.
+3. **Vocabulaire métier** — Productions, Activités, Événements, Audiences, Publics, Partenaires, Références.
+4. **Domaines prioritaires** — Activity, Event, CRM/Audiences, Groups, Partners, Trust.
+5. **Transversaux utiles** — Promotions, Growth, Commerce/Payments si nécessaires, Analytics, Automation, Team.
+6. **Verticales suggérées** — Event, Service, Obtention ; Transport lorsqu'il est pertinent.
+7. **Configuration normalement utile** — identité éditoriale, premières productions/Activities, audiences/groupes, partenaires, Trust/références, éventuel modèle commercial.
+8. **Ne crée jamais automatiquement** — timeline, feed infini, métriques sociales comme vérité métier, source journalistique transformée en CRMContact, contenu sans contexte/finalité.
+
+### 28.4 education
+
+1. **Définition** — école, université, centre de formation ou acteur principalement structuré autour d'enseignement et transmission.
+2. **Centre de gravité** — programmes, sessions, demandes/inscriptions, conditions, ressources et participation réelle.
+3. **Vocabulaire métier** — Programmes, Sessions, Inscriptions, Conditions, Formulaires, Ressources, Groupes.
+4. **Domaines prioritaires** — Activity/Occurrence, Journey/Requests, Requirements, Questionnaires/Forms, Resources, Groups, Access.
+5. **Transversaux utiles** — CRM/Audiences, Commerce/Payments, Places, Trust, Analytics, Automation, Team.
+6. **Verticales suggérées** — Service, Event, Obtention, Transport.
+7. **Configuration normalement utile** — premier programme, sessions, Requirements, questionnaires, ressources, groupes/cohortes si réels, tarifs, lieux, équipe.
+8. **Ne crée jamais automatiquement** — cours, apprenant, promotion, Requirement, questionnaire, Access ou autorité pédagogique fictifs.
+
+### 28.5 commerce
+
+1. **Définition** — acteur principalement structuré autour de vente, distribution, location ou fourniture de biens, ressources ou droits d'usage.
+2. **Centre de gravité** — proposer, faire obtenir, commander, payer et remettre/rendre disponible.
+3. **Vocabulaire métier** — Offres, Obtenir, Commandes, Paiements, Disponibilité, Clients, Promotions.
+4. **Domaines prioritaires** — Obtention, Activity, Offers, Orders, Payments, Capacity lorsque pertinente.
+5. **Transversaux utiles** — CRM/Audiences, Promotions, Loyalty, Growth, Places, Trust, Analytics, Automation, Team.
+6. **Verticales suggérées** — Obtention, Service, Event, Transport.
+7. **Configuration normalement utile** — cible d'obtention, mode acheter/louer/emprunter/recevoir/échanger, offre/prix, disponibilité/capacité, lieux de retrait/remise, paiements, CRM.
+8. **Ne crée jamais automatiquement** — Product/Inventory générique dans Organization, commande, paiement, stock ou Obtention accomplie fictifs.
+
+Un paiement ou une commande ne suffit jamais à conclure une Obtention.
+
+### 28.6 service_provider
+
+1. **Définition** — entreprise, cabinet, professionnel ou organisation principalement structurée autour de prestations.
+2. **Centre de gravité** — recevoir une demande, préparer, exécuter/traiter/délivrer et constater le résultat.
+3. **Vocabulaire métier** — Prestations, Demandes, Dossiers, Clients, Conditions, Tarifs, Lieux/Zones.
+4. **Domaines prioritaires** — Service, Activity, Journey/Requests/Dossiers, Requirements, Offers, Orders, Payments, CRM.
+5. **Transversaux utiles** — Questionnaires/Forms, Places/Zones, Trust, Promotions, Analytics, Automation, Team.
+6. **Verticales suggérées** — Service, Event, Obtention, Transport ; Funding lorsqu'il correspond à une Activity réelle.
+7. **Configuration normalement utile** — première prestation, procédure de demande, Requirements, formulaire éventuel, offre/tarif, lieux/zones, modalités de réalisation, équipe, CRM.
+8. **Ne crée jamais automatiquement** — Service, client, tarif, Requirement, dossier, Journey ou contact fictifs.
+
+### 28.7 transport_operator
+
+1. **Définition** — organisation principalement structurée autour de l'exploitation de transport.
+2. **Centre de gravité** — routes, services, départs, véhicules, capacité, accès et exploitation.
+3. **Vocabulaire métier** — Routes, Services, Départs, Véhicules, Places, Voyageurs, Tarifs, Contrôle.
+4. **Domaines prioritaires** — TransportRoute/TransportService/Departure/Vehicle, Activity/Occurrence, Places, Capacity, Access/Control.
+5. **Transversaux utiles** — Offers, Orders, Payments, Operations, CRM, Trust, Analytics, Automation, Team.
+6. **Verticales suggérées** — Transport, Service, Event, Obtention.
+7. **Configuration normalement utile** — lieux/stops, première Route, TransportService, véhicules, Departure, Capacity, offre/tarif, Access/control, équipe.
+8. **Ne crée jamais automatiquement** — Route, véhicule, Departure, tarif, Access, voyageur ou mandat fictifs.
+
+`transport_operator` priorise Transport ; il ne possède aucun monopole sur cette verticale.
+
+### 28.8 community
+
+1. **Définition** — association, ONG, club, fondation ou acteur principalement structuré autour d'une mission et d'une communauté.
+2. **Centre de gravité** — mission, activités, groupes, publics, partenaires et mobilisation.
+3. **Vocabulaire métier** — Initiatives, Activités, Groupes, Publics, Partenaires, Financement, Reconnaissance.
+4. **Domaines prioritaires** — Activity/Event, Groups, CRM/Audiences, Funding, Partners.
+5. **Transversaux utiles** — Recognition, Trust, Promotions, Growth, Analytics, Automation, Team, Commerce/Payments lorsque réellement utilisés.
+6. **Verticales suggérées** — Event, Service, Funding, Obtention ; Transport lorsque pertinent.
+7. **Configuration normalement utile** — mission/identité, première Activity, groupes, publics/contacts, partenaires, Funding réel, Trust/reconnaissance, équipe.
+8. **Ne crée jamais automatiquement** — adhésion juridique depuis GroupMembership, collecte Funding, bénéficiaire, partenaire, statut légal ou relation sociale générique.
+
+---
+
+## 29. Frontière de suite
+
+Avec les sections 27 et 28, la conception amont n'a plus de question ouverte sur :
+
+- lifecycle minimal ;
+- identité minimale ;
+- ownership humain ;
+- configuration des huit archétypes ;
+- preset vs empreinte opérationnelle ;
+- changement/composition.
+
+Le prochain chantier n'est donc **pas** une nouvelle exploration conceptuelle de Space.
+
+Il doit classifier chaque besoin en :
+
+```text
+PERSISTENT DOMAIN STATE
+vs
+DERIVED READ MODEL
+vs
+PRESENTATION CONFIG
+```
+
+puis seulement décider quels modèles/champs Django sont nécessaires.
+
+Restent explicitement différés :
+
+- « Maintenant » et « en cours » ;
+- dashboards ;
+- KPI détaillés ;
+- navigation finale ;
+- responsive/mobile ;
+- notifications ;
+- suggestions intelligentes ;
+- UX détaillée ;
+- APIs finales.
+
+Ces sujets devront consommer le contrat Space ; ils ne doivent pas le redéfinir.
