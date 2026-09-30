@@ -18,6 +18,38 @@
       {% if readiness.next_action %}<p class="mt-2 text-sm">{{ readiness.next_action.label }}</p>{% endif %}
     </div>
 
+    {% if step_rows %}
+    <div class="mt-7">
+      <h2 class="text-lg font-extrabold">Étapes</h2>
+      <div class="mt-3 space-y-3">
+        {% for row in step_rows %}
+        <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="font-bold">{{ row.step.title }}</p>
+              {% if row.step.description %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ row.step.description }}</p>{% endif %}
+            </div>
+            <span class="mk-badge">{{ row.step.get_status_display }}</span>
+          </div>
+          {% if row.can_act %}
+            {% if row.step.status == 'ready' %}
+            <form method="post" action="{% url 'obtention:step-start' journey.pk row.step.pk %}" class="mt-3">
+              {% csrf_token %}
+              <button type="submit" class="mk-btn mk-btn-secondary">Commencer</button>
+            </form>
+            {% elif row.step.status == 'in_progress' %}
+            <form method="post" action="{% url 'obtention:step-complete' journey.pk row.step.pk %}" class="mt-3">
+              {% csrf_token %}
+              <button type="submit" class="mk-btn mk-btn-secondary">Marquer comme terminé</button>
+            </form>
+            {% endif %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="mt-7 space-y-3">
       {% for row in fulfillment.targets %}
       <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
