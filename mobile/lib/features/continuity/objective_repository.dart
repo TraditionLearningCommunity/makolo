@@ -35,7 +35,7 @@ class ObjectiveRepository {
 
   String sourceKey(ObjectiveDepth kind, String id) {
     final prefix = kind == ObjectiveDepth.dossier ? 'dossier' : 'project';
-    return '\$prefix:\$id';
+    return '$prefix:$id';
   }
 
   SyncSourceDefinition sourceFor(ObjectiveDepth kind, String id) {
@@ -43,7 +43,7 @@ class ObjectiveRepository {
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: sourceKey(kind, id),
       owner: 'Objectives',
-      path: 'api/v1/objectives/\$segment/\$id/',
+      path: 'api/v1/objectives/$segment/$id/',
       projectionKind: projectionKind(kind),
       resourceKey: id,
       category: SyncSourceCategory.keyedDetail,

@@ -182,7 +182,7 @@ class _DossierContent extends StatelessWidget {
               : MakoloStatus(label: _string(state['code'])!),
           metadata: [
             if (_string(payload['deadline']) != null)
-              MakoloMetadataItem('Échéance \${_string(payload['deadline'])!}'),
+              MakoloMetadataItem('Échéance ${_string(payload['deadline'])!}'),
           ],
         ),
         MakoloSection(
@@ -266,7 +266,7 @@ class _DossierContent extends StatelessWidget {
                     child: Text(
                       responsibilities.length == 1
                           ? '1 responsabilité personnelle active.'
-                          : '\${responsibilities.length} responsabilités personnelles actives.',
+                          : '${responsibilities.length} responsabilités personnelles actives.',
                     ),
                   ),
                 if (responsibilities.isNotEmpty && dependencies.isNotEmpty)
@@ -276,7 +276,7 @@ class _DossierContent extends StatelessWidget {
                     child: Text(
                       dependencies.length == 1
                           ? '1 dépendance visible entre démarches.'
-                          : '\${dependencies.length} dépendances visibles entre démarches.',
+                          : '${dependencies.length} dépendances visibles entre démarches.',
                     ),
                   ),
               ],
@@ -301,9 +301,9 @@ class _ProjectContent extends StatelessWidget {
     final dossiers = _maps(payload['visible_dossiers']);
     final metadata = <MakoloMetadataItem>[
       if (_string(horizon['starts_on']) != null)
-        MakoloMetadataItem('Début \${_string(horizon['starts_on'])!}'),
+        MakoloMetadataItem('Début ${_string(horizon['starts_on'])!}'),
       if (_string(horizon['ends_on']) != null)
-        MakoloMetadataItem('Fin \${_string(horizon['ends_on'])!}'),
+        MakoloMetadataItem('Fin ${_string(horizon['ends_on'])!}'),
     ];
 
     return ListView(
@@ -346,7 +346,7 @@ class _ProjectContent extends StatelessWidget {
                           metadata: [
                             if (_string(dossiers[index]['deadline']) != null)
                               MakoloMetadataItem(
-                                'Échéance \${_string(dossiers[index]['deadline'])!}',
+                                'Échéance ${_string(dossiers[index]['deadline'])!}',
                               ),
                           ],
                           action: const Icon(Icons.chevron_right_rounded),

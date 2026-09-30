@@ -233,7 +233,7 @@ class _HistoryView {
         final kind = _string(source['kind']) ?? _string(row['kind']) ?? '';
         final id = _string(source['id']);
         final sourceId = id ?? _string(row['title']) ?? '';
-        final identity = '\$kind:\$sourceId';
+        final identity = '$kind:$sourceId';
         if (!seen.add(identity)) continue;
         final outcome = _map(row['outcome']);
         items.add(

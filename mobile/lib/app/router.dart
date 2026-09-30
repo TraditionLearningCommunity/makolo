@@ -231,7 +231,7 @@ GoRouter createMakoloRouter(
           }
           return ConversationListScreen(
             repository: conversations,
-            onOpen: (id) => context.push('/conversations/\$id'),
+            onOpen: (id) => context.push('/conversations/$id'),
           );
         },
       ),
@@ -267,9 +267,9 @@ GoRouter createMakoloRouter(
             repository: history,
             onOpenResource: (kind, id) {
               if (kind == 'journey') {
-                context.push('/journeys/\$id');
+                context.push('/journeys/$id');
               } else if (kind == 'access') {
-                context.push('/accesses/\$id');
+                context.push('/accesses/$id');
               }
             },
           );
@@ -434,8 +434,8 @@ GoRouter createMakoloRouter(
             kind: ObjectiveDepth.dossier,
             id: state.pathParameters['id']!,
             repository: objectives,
-            onOpenDossier: (id) => context.push('/dossiers/\$id'),
-            onOpenJourney: (id) => context.push('/journeys/\$id'),
+            onOpenDossier: (id) => context.push('/dossiers/$id'),
+            onOpenJourney: (id) => context.push('/journeys/$id'),
           );
         },
       ),
@@ -454,8 +454,8 @@ GoRouter createMakoloRouter(
             kind: ObjectiveDepth.project,
             id: state.pathParameters['id']!,
             repository: objectives,
-            onOpenDossier: (id) => context.push('/dossiers/\$id'),
-            onOpenJourney: (id) => context.push('/journeys/\$id'),
+            onOpenDossier: (id) => context.push('/dossiers/$id'),
+            onOpenJourney: (id) => context.push('/journeys/$id'),
           );
         },
       ),

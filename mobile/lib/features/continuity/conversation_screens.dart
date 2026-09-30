@@ -147,7 +147,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                       metadata: [
                         if (items[index].attentionCount > 0)
                           MakoloMetadataItem(
-                            '\${items[index].attentionCount} élément(s) à voir',
+                            '${items[index].attentionCount} élément(s) à voir',
                             icon: Icons.notifications_active_outlined,
                           ),
                         if (items[index].allClear)

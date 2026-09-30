@@ -53,9 +53,9 @@ class ConversationRepository {
   );
 
   SyncSourceDefinition detailSource(String id) => SyncSourceDefinition(
-    sourceKey: 'conversation:\$id',
+    sourceKey: 'conversation:$id',
     owner: 'Conversations',
-    path: 'api/v1/conversations/\$id/',
+    path: 'api/v1/conversations/$id/',
     projectionKind: detailProjectionKind,
     resourceKey: id,
     category: SyncSourceCategory.keyedDetail,
@@ -103,13 +103,13 @@ class ConversationRepository {
       watchOwnerSourceState(
         database: database,
         profileId: profileId,
-        sourceKey: 'conversation:\$id',
+        sourceKey: 'conversation:$id',
       );
 
   Future<OwnerSourceState> readDetailSource(String id) => readOwnerSourceState(
     database: database,
     profileId: profileId,
-    sourceKey: 'conversation:\$id',
+    sourceKey: 'conversation:$id',
   );
 
   Future<void> refreshList() async {

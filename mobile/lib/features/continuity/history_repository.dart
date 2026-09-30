@@ -27,10 +27,10 @@ class HistoryRepository {
   final SyncEngine? sync;
 
   String resourceKey({required int offset, required int limit}) =>
-      'offset:\$offset:limit:\$limit';
+      'offset:$offset:limit:$limit';
 
   String sourceKey({required int offset, required int limit}) =>
-      'history:\$offset:\$limit';
+      'history:$offset:$limit';
 
   SyncSourceDefinition sourceFor({
     required int offset,
@@ -39,7 +39,7 @@ class HistoryRepository {
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: sourceKey(offset: offset, limit: limit),
       owner: 'ProfileHistory',
-      path: 'api/v1/me/history/?limit=\$limit&offset=\$offset',
+      path: 'api/v1/me/history/?limit=$limit&offset=$offset',
       projectionKind: projectionKind,
       resourceKey: resourceKey(offset: offset, limit: limit),
       category: SyncSourceCategory.collection,
