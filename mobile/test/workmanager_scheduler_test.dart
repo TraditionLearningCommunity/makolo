@@ -11,6 +11,7 @@ void main() {
         'kind': 'upload',
         'profile_id': 'profile-a',
         'operation_id': 'operation-1',
+        'requires_network': true,
       },
     );
 
@@ -18,6 +19,35 @@ void main() {
     expect(task?.kind, BackgroundTaskKind.upload);
     expect(task?.profileId, 'profile-a');
     expect(task?.operationId, 'operation-1');
+    expect(task?.requiresNetwork, isTrue);
+  });
+
+  test('workmanager round-trip preserves network-independent maintenance', () {
+    final task = decodeWorkmanagerTask(
+      WorkmanagerBackgroundScheduler.taskName,
+      {
+        'task_id': 'cache-1',
+        'kind': 'cacheMaintenance',
+        'profile_id': 'profile-a',
+        'requires_network': false,
+      },
+    );
+
+    expect(task?.kind, BackgroundTaskKind.cacheMaintenance);
+    expect(task?.requiresNetwork, isFalse);
+  });
+
+  test('legacy workmanager payload remains conservatively network-bound', () {
+    final task = decodeWorkmanagerTask(
+      WorkmanagerBackgroundScheduler.taskName,
+      {
+        'task_id': 'legacy-1',
+        'kind': 'refresh',
+        'profile_id': 'profile-a',
+      },
+    );
+
+    expect(task?.requiresNetwork, isTrue);
   });
 
   test('unknown workmanager task is rejected', () {
