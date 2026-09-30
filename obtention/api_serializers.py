@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from activities.models import ActivityStatus, ActivityVisibility
 from journeys.models import JourneyPlanStepActor, JourneyStepKind, WorkflowKind
+from requirements.contracts import RequirementAssessmentState, RequirementMode
 
 from .models import FulfillmentTargetRule, ObtentionModeCode
 
@@ -43,6 +44,26 @@ class JourneyPlanStepInputSerializer(serializers.Serializer):
     )
 
 
+class RequirementInputSerializer(serializers.Serializer):
+    key = serializers.SlugField(max_length=120)
+    title = serializers.CharField(max_length=220)
+    description = serializers.CharField(required=False, allow_blank=True)
+    mode = serializers.ChoiceField(
+        choices=RequirementMode.choices,
+        default=RequirementMode.VERIFICATION,
+    )
+    evaluator_key = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    evaluator_config = serializers.JSONField(required=False, default=dict)
+    is_mandatory = serializers.BooleanField(default=True)
+    position = serializers.IntegerField(min_value=0, required=False)
+    step_key = serializers.SlugField(max_length=120, required=False, allow_blank=True)
+
+
+class RequirementAssessmentInputSerializer(serializers.Serializer):
+    state = serializers.ChoiceField(choices=RequirementAssessmentState.choices)
+    note = serializers.CharField(required=False, allow_blank=True)
+
+
 class ObtentionConfigurationSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=220)
     short_description = serializers.CharField(max_length=320, required=False, allow_blank=True)
@@ -54,6 +75,7 @@ class ObtentionConfigurationSerializer(serializers.Serializer):
         allow_empty=False,
     )
     plan_steps = JourneyPlanStepInputSerializer(many=True, required=False, default=list)
+    requirements = RequirementInputSerializer(many=True, required=False, default=list)
     result_label = serializers.CharField(max_length=220)
     target_rule = serializers.ChoiceField(
         choices=FulfillmentTargetRule.choices,
@@ -84,9 +106,25 @@ class ObtentionConfigurationSerializer(serializers.Serializer):
     def validate(self, attrs):
         steps = attrs.get("plan_steps") or []
         keys = [step["key"] for step in steps]
+        requirement_rows = attrs.get("requirements") or []
+        requirement_keys = [item["key"] for item in requirement_rows]
+        if len(requirement_keys) != len(set(requirement_keys)):
+            raise serializers.ValidationError(
+                {"requirements": "Les clés Requirement doivent être uniques."}
+            )
         if len(keys) != len(set(keys)):
             raise serializers.ValidationError({"plan_steps": "Les clés d'étapes doivent être uniques."})
         known = set(keys)
+        for item in requirement_rows:
+            step_key = item.get("step_key") or ""
+            if step_key and step_key not in known:
+                raise serializers.ValidationError(
+                    {"requirements": f"Step inconnue pour {item['key']}: {step_key}."}
+                )
+            if item.get("mode") == RequirementMode.ACTION and not step_key:
+                raise serializers.ValidationError(
+                    {"requirements": f"Le Requirement action {item['key']} doit référencer une Step."}
+                )
         for step in steps:
             missing = [key for key in step.get("depends_on", []) if key not in known]
             if missing:
@@ -112,6 +150,7 @@ class ObtentionConfigurationSerializer(serializers.Serializer):
 
 class ObtentionUpdateSerializer(ObtentionConfigurationSerializer):
     plan_steps = JourneyPlanStepInputSerializer(many=True, required=False)
+    requirements = RequirementInputSerializer(many=True, required=False)
     title = serializers.CharField(max_length=220, required=False)
     targets = ObtentionTargetInputSerializer(many=True, required=False)
     modes = serializers.ListField(
