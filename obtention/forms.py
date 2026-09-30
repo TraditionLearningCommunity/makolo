@@ -7,6 +7,7 @@ from activities.models import ActivityStatus, ActivityVisibility
 from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 from organizations.models import Organization
+from journeys.models import JourneyPlanStepActor, JourneyStepKind
 
 from .models import (
     FulfillmentTargetRule,
@@ -14,6 +15,31 @@ from .models import (
     ObtentionModeCode,
 )
 from .selectors import published_configuration
+
+
+def _serialize_plan_steps(configuration):
+    if configuration is None or not configuration.journey_plan_template_id:
+        return ""
+    rows = []
+    for step in configuration.journey_plan_template.steps.prefetch_related("dependencies__depends_on").all():
+        depends_on = ",".join(
+            dependency.depends_on.key for dependency in step.dependencies.all()
+        )
+        rows.append(
+            " | ".join(
+                [
+                    step.key,
+                    step.actor_kind,
+                    step.kind,
+                    "yes" if step.is_required else "no",
+                    str(step.relative_due_days) if step.relative_due_days is not None else "",
+                    step.title,
+                    depends_on,
+                    step.description,
+                ]
+            ).rstrip(" |")
+        )
+    return "\n".join(rows)
 
 
 def _serialize_targets(configuration):
@@ -65,6 +91,14 @@ class ObtentionConfigurationForm(forms.Form):
         help_text=(
             "Une cible par ligne : nom | quantité | unité | description | caractéristiques JSON. "
             "Seul le nom est obligatoire."
+        ),
+    )
+    plan_steps = forms.CharField(
+        label="Étapes préparées",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 7}),
+        help_text=(
+            "Optionnel. Une étape par ligne : clé | beneficiary/operator | type | yes/no | délai jours | titre | dépendances (clés séparées par virgule) | description."
         ),
     )
     result_label = forms.CharField(
@@ -124,6 +158,7 @@ class ObtentionConfigurationForm(forms.Form):
                     "space": activity.space,
                     "modes": [mode.code for mode in configuration.modes.all()] if configuration else [],
                     "targets": _serialize_targets(configuration),
+                    "plan_steps": _serialize_plan_steps(configuration),
                     "result_label": configuration.result_label if configuration else "",
                     "target_rule": configuration.target_rule if configuration else FulfillmentTargetRule.ALL,
                     "minimum_targets": configuration.minimum_targets if configuration else None,
@@ -133,6 +168,72 @@ class ObtentionConfigurationForm(forms.Form):
                     "visibility": activity.visibility,
                 }
             )
+
+    def clean_plan_steps(self):
+        raw = self.cleaned_data.get("plan_steps") or ""
+        steps = []
+        valid_kinds = set(JourneyStepKind.values)
+        valid_actors = set(JourneyPlanStepActor.values)
+        seen = set()
+        for line_number, raw_line in enumerate(raw.splitlines(), start=1):
+            line = raw_line.strip()
+            if not line:
+                continue
+            parts = [part.strip() for part in line.split("|", 7)]
+            if len(parts) < 6:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : utilisez au moins clé | acteur | type | yes/no | délai | titre."
+                )
+            key, actor_kind, kind, required_raw, due_raw, title = parts[:6]
+            if not key or key in seen:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : clé d'étape absente ou dupliquée."
+                )
+            seen.add(key)
+            if actor_kind not in valid_actors:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : acteur attendu beneficiary ou operator."
+                )
+            if kind not in valid_kinds:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : type d'étape inconnu."
+                )
+            required = required_raw.lower() not in {"no", "non", "false", "0"}
+            relative_due_days = None
+            if due_raw:
+                try:
+                    relative_due_days = int(due_raw)
+                except ValueError as exc:
+                    raise forms.ValidationError(
+                        f"Ligne {line_number} : délai invalide."
+                    ) from exc
+                if relative_due_days < 0:
+                    raise forms.ValidationError(
+                        f"Ligne {line_number} : le délai ne peut pas être négatif."
+                    )
+            depends_on = []
+            if len(parts) > 6 and parts[6]:
+                depends_on = [value.strip() for value in parts[6].split(",") if value.strip()]
+            steps.append(
+                {
+                    "key": key,
+                    "actor_kind": actor_kind,
+                    "kind": kind,
+                    "is_required": required,
+                    "relative_due_days": relative_due_days,
+                    "title": title,
+                    "depends_on": depends_on,
+                    "description": parts[7] if len(parts) > 7 else "",
+                }
+            )
+        known = {step["key"] for step in steps}
+        for step in steps:
+            missing = [key for key in step["depends_on"] if key not in known]
+            if missing:
+                raise forms.ValidationError(
+                    f"Étape {step['key']} : dépendance inconnue {', '.join(missing)}."
+                )
+        return steps
 
     def clean_targets(self):
         raw = self.cleaned_data["targets"]
