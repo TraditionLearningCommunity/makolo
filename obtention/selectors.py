@@ -42,7 +42,13 @@ class ObtentionFulfillment:
 def published_configuration(obtention: ObtentionDetails):
     return (
         obtention.configurations.filter(status=ObtentionConfigurationStatus.PUBLISHED)
-        .prefetch_related("targets", "modes")
+        .select_related("journey_plan_template")
+        .prefetch_related(
+            "targets",
+            "modes",
+            "journey_plan_template__steps__dependencies__depends_on",
+            "requirement_links__requirement",
+        )
         .first()
     )
 
@@ -64,7 +70,13 @@ def public_obtentions():
                 "configurations",
                 queryset=ObtentionConfiguration.objects.filter(
                     status=ObtentionConfigurationStatus.PUBLISHED
-                ).prefetch_related("targets", "modes"),
+                )
+                .select_related("journey_plan_template")
+                .prefetch_related(
+                    "targets",
+                    "modes",
+                    "requirement_links__requirement",
+                ),
                 to_attr="published_configurations",
             )
         )
@@ -85,6 +97,10 @@ def obtention_journey_queryset(queryset=None):
     ).prefetch_related(
         "obtention_context__configuration__targets",
         "obtention_target_receipts",
+        "steps__assignments",
+        "requirement_assessments__requirement",
+        "requirement_assessments__journey_step",
+        "assignments",
     )
 
 
