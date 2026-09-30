@@ -7,6 +7,7 @@ import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/discovery/discovery_screens.dart';
+import '../features/discovery/discovery_watch_screens.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/connections_screen.dart';
 import '../features/journey/journey_detail_screen.dart';
@@ -148,6 +149,8 @@ GoRouter createMakoloRouter(
                         onOpenItem: (family, id) => context.push(
                           '/discover/items/$family/$id',
                         ),
+                        onOpenWatches: () =>
+                            context.push('/discover/watches'),
                       ),
                     );
                   },
@@ -259,6 +262,43 @@ GoRouter createMakoloRouter(
           title: 'Filtres',
           message: 'Aucun filtre actif.',
         ),
+      ),
+      GoRoute(
+        path: '/discover/watches',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Veilles',
+              message: 'Les veilles ne sont pas disponibles sur cet appareil.',
+            );
+          }
+          return DiscoveryWatchesScreen(
+            repository: discovery,
+            onOpenWatch: (id) => context.push('/discover/watches/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/discover/watches/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Veille',
+              message: 'Cette veille n’est pas disponible sur cet appareil.',
+            );
+          }
+          return DiscoveryWatchResultsScreen(
+            watchId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenActivity: (id) => context.push('/activities/$id'),
+            onOpenItem: (family, id) =>
+                context.push('/discover/items/$family/$id'),
+          );
+        },
       ),
       GoRoute(
         path: '/discover/items/:family/:id',
