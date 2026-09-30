@@ -151,136 +151,142 @@ void main() {
     },
   );
 
-  test('keyed acquisition parses and applies through a source definition', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        profileId: 'profile-a',
-      ),
-    );
-    final client = MockClient((request) async {
-      expect(request.url.path, '/api/v1/activities/activity-42/');
-      return MockResponse(
-        jsonEncode({
-          'meta': {
-            'projection': 'activity.detail',
-            'schema_version': 1,
-            'generated_at': '2026-09-30T06:00:00Z',
-          },
-          'data': {'id': 'activity-42', 'title': 'Formation'},
-        }),
-        200,
+  test(
+    'keyed acquisition parses and applies through a source definition',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
       );
-    });
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    final sync = SyncEngine(
-      api: MakoloApiClient(
-        baseUri: Uri.parse('https://makolo.invalid/'),
-        dio: client.dio,
-        tokenStore: tokens,
-      ),
-      store: store,
-      database: database,
-      profileId: 'profile-a',
-    );
-    final source = SyncSourceDefinition.projectionEnvelope(
-      sourceKey: 'activity:activity-42',
-      owner: 'Activity',
-      path: 'api/v1/activities/activity-42/',
-      projectionKind: 'activity.detail',
-      resourceKey: 'activity-42',
-      category: SyncSourceCategory.keyedDetail,
-      freshnessPolicy: const FreshnessPolicy(id: 'contextual'),
-    );
-
-    await sync.pullSource(source);
-
-    final projection = await store.readProjection(
-      'activity.detail',
-      resourceKey: 'activity-42',
-    );
-    expect(projection?.payload['title'], 'Formation');
-    expect(projection?.freshnessPolicyId, 'contextual');
-    final persistedSource = await (database.select(
-      database.syncSources,
-    )..where((row) => row.sourceKey.equals(source.sourceKey))).getSingle();
-    expect(persistedSource.route, source.path);
-    expect(persistedSource.invalidated, isFalse);
-  });
-
-  test('403/404 removes only the source-scoped snapshot, not resource identity', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        profileId: 'profile-a',
-      ),
-    );
-    final client = MockClient((_) async {
-      return MockResponse(
-        jsonEncode({
-          'error': {'code': 'not_found', 'message': 'Gone from this scope'},
-        }),
-        404,
-      );
-    });
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    await store.putProjection(
-      kind: 'activity.detail',
-      resourceKey: 'activity-42',
-      schemaVersion: 1,
-      payload: {'id': 'activity-42'},
-    );
-    await database
-        .into(database.resourceIndex)
-        .insert(
-          ResourceIndexCompanion.insert(
-            profileId: 'profile-a',
-            resourceKind: 'Activity',
-            resourceId: 'activity-42',
-            projectionKind: 'activity.detail',
-            updatedAt: DateTime.utc(2026, 9, 30),
-          ),
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/activities/activity-42/');
+        return MockResponse(
+          jsonEncode({
+            'meta': {
+              'projection': 'activity.detail',
+              'schema_version': 1,
+              'generated_at': '2026-09-30T06:00:00Z',
+            },
+            'data': {'id': 'activity-42', 'title': 'Formation'},
+          }),
+          200,
         );
+      });
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final sync = SyncEngine(
+        api: MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          dio: client.dio,
+          tokenStore: tokens,
+        ),
+        store: store,
+        database: database,
+        profileId: 'profile-a',
+      );
+      final source = SyncSourceDefinition.projectionEnvelope(
+        sourceKey: 'activity:activity-42',
+        owner: 'Activity',
+        path: 'api/v1/activities/activity-42/',
+        projectionKind: 'activity.detail',
+        resourceKey: 'activity-42',
+        category: SyncSourceCategory.keyedDetail,
+        freshnessPolicy: const FreshnessPolicy(id: 'contextual'),
+      );
 
-    final sync = SyncEngine(
-      api: MakoloApiClient(
-        baseUri: Uri.parse('https://makolo.invalid/'),
-        dio: client.dio,
-        tokenStore: tokens,
-      ),
-      store: store,
-      database: database,
-      profileId: 'profile-a',
-    );
-    final source = SyncSourceDefinition.projectionEnvelope(
-      sourceKey: 'activity:activity-42',
-      owner: 'Activity',
-      path: 'api/v1/activities/activity-42/',
-      projectionKind: 'activity.detail',
-      resourceKey: 'activity-42',
-      category: SyncSourceCategory.keyedDetail,
-    );
+      await sync.pullSource(source);
 
-    await expectLater(sync.pullSource(source), throwsA(isA<Exception>()));
-
-    expect(
-      await store.readProjection(
+      final projection = await store.readProjection(
         'activity.detail',
         resourceKey: 'activity-42',
-      ),
-      isNull,
-    );
-    expect(await database.select(database.resourceIndex).get(), hasLength(1));
-    final persistedSource = await (database.select(
-      database.syncSources,
-    )..where((row) => row.sourceKey.equals(source.sourceKey))).getSingle();
-    expect(persistedSource.invalidated, isTrue);
-    expect(persistedSource.lastErrorCode, 'not_found');
-  });
+      );
+      expect(projection?.payload['title'], 'Formation');
+      expect(projection?.freshnessPolicyId, 'contextual');
+      final persistedSource = await (database.select(
+        database.syncSources,
+      )..where((row) => row.sourceKey.equals(source.sourceKey))).getSingle();
+      expect(persistedSource.route, source.path);
+      expect(persistedSource.invalidated, isFalse);
+    },
+  );
+
+  test(
+    '403/404 removes only the source-scoped snapshot, not resource identity',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      );
+      final client = MockClient((_) async {
+        return MockResponse(
+          jsonEncode({
+            'error': {'code': 'not_found', 'message': 'Gone from this scope'},
+          }),
+          404,
+        );
+      });
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      await store.putProjection(
+        kind: 'activity.detail',
+        resourceKey: 'activity-42',
+        schemaVersion: 1,
+        payload: {'id': 'activity-42'},
+      );
+      await database
+          .into(database.resourceIndex)
+          .insert(
+            ResourceIndexCompanion.insert(
+              profileId: 'profile-a',
+              resourceKind: 'Activity',
+              resourceId: 'activity-42',
+              projectionKind: 'activity.detail',
+              updatedAt: DateTime.utc(2026, 9, 30),
+            ),
+          );
+
+      final sync = SyncEngine(
+        api: MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          dio: client.dio,
+          tokenStore: tokens,
+        ),
+        store: store,
+        database: database,
+        profileId: 'profile-a',
+      );
+      final source = SyncSourceDefinition.projectionEnvelope(
+        sourceKey: 'activity:activity-42',
+        owner: 'Activity',
+        path: 'api/v1/activities/activity-42/',
+        projectionKind: 'activity.detail',
+        resourceKey: 'activity-42',
+        category: SyncSourceCategory.keyedDetail,
+      );
+
+      await expectLater(sync.pullSource(source), throwsA(isA<Exception>()));
+
+      expect(
+        await store.readProjection(
+          'activity.detail',
+          resourceKey: 'activity-42',
+        ),
+        isNull,
+      );
+      expect(await database.select(database.resourceIndex).get(), hasLength(1));
+      final persistedSource = await (database.select(
+        database.syncSources,
+      )..where((row) => row.sourceKey.equals(source.sourceKey))).getSingle();
+      expect(persistedSource.invalidated, isTrue);
+      expect(persistedSource.lastErrorCode, 'not_found');
+    },
+  );
 }

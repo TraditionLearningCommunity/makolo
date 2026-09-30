@@ -29,55 +29,49 @@ void main() {
       (await alice.readProjection('personal.now'))?.payload['items'],
       isNotEmpty,
     );
-    expect(
-      (await alice.readProjection('personal.now'))?.resourceKey,
-      isEmpty,
-    );
+    expect((await alice.readProjection('personal.now'))?.resourceKey, isEmpty);
     expect(await bob.readProjection('personal.now'), isNull);
   });
 
-  test('keyed projection read write and watch preserve Profile isolation', () async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
+  test(
+    'keyed projection read write and watch preserve Profile isolation',
+    () async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
 
-    final alice = ProfileStore(database, 'alice');
-    final bob = ProfileStore(database, 'bob');
+      final alice = ProfileStore(database, 'alice');
+      final bob = ProfileStore(database, 'bob');
 
-    await alice.putProjection(
-      kind: 'activity.detail',
-      resourceKey: 'activity-42',
-      schemaVersion: 1,
-      payload: {'title': 'Formation'},
-    );
+      await alice.putProjection(
+        kind: 'activity.detail',
+        resourceKey: 'activity-42',
+        schemaVersion: 1,
+        payload: {'title': 'Formation'},
+      );
 
-    final stored = await alice.readProjection(
-      'activity.detail',
-      resourceKey: 'activity-42',
-    );
-    expect(stored?.resourceKey, 'activity-42');
-    expect(stored?.payload['title'], 'Formation');
-    expect(
-      await bob.readProjection(
+      final stored = await alice.readProjection(
         'activity.detail',
         resourceKey: 'activity-42',
-      ),
-      isNull,
-    );
+      );
+      expect(stored?.resourceKey, 'activity-42');
+      expect(stored?.payload['title'], 'Formation');
+      expect(
+        await bob.readProjection('activity.detail', resourceKey: 'activity-42'),
+        isNull,
+      );
 
-    final watched = await alice
-        .watchProjection(
-          'activity.detail',
-          resourceKey: 'activity-42',
-        )
-        .first;
-    expect(watched?.payload['title'], 'Formation');
+      final watched = await alice
+          .watchProjection('activity.detail', resourceKey: 'activity-42')
+          .first;
+      expect(watched?.payload['title'], 'Formation');
 
-    expect(
-      await alice.readProjection('activity.detail'),
-      isNull,
-      reason: 'Root compatibility must not alias keyed projections.',
-    );
-  });
+      expect(
+        await alice.readProjection('activity.detail'),
+        isNull,
+        reason: 'Root compatibility must not alias keyed projections.',
+      );
+    },
+  );
 
   test('draft and outbox are committed atomically', () async {
     final database = MakoloDatabase.memory();

@@ -5,10 +5,7 @@ import 'package:makolo_mobile/sync/freshness.dart';
 void main() {
   final observedAt = DateTime.utc(2026, 9, 30, 6);
 
-  StoredProjection projection({
-    DateTime? freshUntil,
-    DateTime? expiresAt,
-  }) {
+  StoredProjection projection({DateTime? freshUntil, DateTime? expiresAt}) {
     return StoredProjection(
       kind: 'test.detail',
       resourceKey: '42',
@@ -85,10 +82,7 @@ void main() {
       ReachabilityState.unknown,
     );
     expect(
-      reachabilityFromSource(
-        lastSuccessAt: observedAt,
-        lastErrorCode: null,
-      ),
+      reachabilityFromSource(lastSuccessAt: observedAt, lastErrorCode: null),
       ReachabilityState.reachable,
     );
     expect(
