@@ -1,0 +1,41 @@
+name: EF Temporary Dart Format
+
+on:
+  push:
+    branches:
+      - mobile/core-experience-foundation
+    paths:
+      - "mobile/lib/design/makolo_components.dart"
+      - "mobile/lib/design/makolo_patterns.dart"
+      - "mobile/lib/design/surface_states.dart"
+      - "mobile/test/behavior_primitives_test.dart"
+      - ".github/workflows/ef-temp-format.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: "3.47.3"
+          channel: stable
+          cache: true
+      - name: Format EF files
+        working-directory: mobile
+        run: |
+          dart format             lib/design/makolo_components.dart             lib/design/makolo_patterns.dart             lib/design/surface_states.dart             test/behavior_primitives_test.dart
+      - name: Pack formatted files
+        run: |
+          tar -czf /tmp/ef-formatted.tar.gz             mobile/lib/design/makolo_components.dart             mobile/lib/design/makolo_patterns.dart             mobile/lib/design/surface_states.dart             mobile/test/behavior_primitives_test.dart
+      - name: Upload formatted files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ef-formatted
+          path: /tmp/ef-formatted.tar.gz
+          if-no-files-found: error
+          retention-days: 1
