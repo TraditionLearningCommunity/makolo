@@ -108,9 +108,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
           return initialLoading ?? const MakoloSkeleton(lines: 5);
         case MakoloAvailabilityCue.empty:
           return empty ??
-              const MakoloEmptyState(
-                title: 'Rien à afficher pour le moment',
-              );
+              const MakoloEmptyState(title: 'Rien à afficher pour le moment');
         case MakoloAvailabilityCue.content:
           break;
       }
@@ -120,8 +118,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
       if (state.refreshing) const MakoloRefreshIndicator(),
       if (state.failure == MakoloFailureCue.recoverable)
         MakoloNotice(
-          message: recoverableErrorMessage ??
-              'La mise à jour n’a pas abouti. Le contenu disponible est conservé.',
+          message: recoverableErrorMessage ?? 'La mise à jour n’a pas abouti. Le contenu disponible est conservé.',
           kind: MakoloNoticeKind.error,
           behavior: MakoloNoticeBehavior.persistent,
           liveRegion: true,
@@ -130,8 +127,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
         MakoloFreshnessNotice(freshness: state.freshness),
       if (state.reachability == MakoloReachabilityCue.temporarilyUnavailable)
         const MakoloNotice(
-          message:
-              'La source distante est momentanément indisponible. Le contenu déjà disponible reste utilisable.',
+          message: 'La source distante est momentanément indisponible. Le contenu déjà disponible reste utilisable.',
           kind: MakoloNoticeKind.warning,
         ),
       if (state.commit != MakoloCommitCue.none)
