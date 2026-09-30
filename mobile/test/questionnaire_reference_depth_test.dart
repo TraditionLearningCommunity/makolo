@@ -252,7 +252,7 @@ void main() {
               200,
             );
           default:
-            throw StateError('unexpected route ' + request.url.path);
+            throw StateError('unexpected route ${request.url.path}');
         }
       });
       final database = MakoloDatabase.memory();
