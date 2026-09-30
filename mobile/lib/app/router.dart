@@ -140,8 +140,7 @@ GoRouter createMakoloRouter(
                       return const MakoloRefreshBoundary(
                         child: PlaceholderScreen(
                           title: 'Découvrir',
-                          message:
-                              'Découvrir n’est pas disponible sur cet appareil.',
+                          message: 'Découvrir n’est pas disponible sur cet appareil.',
                           showTitle: false,
                         ),
                       );
