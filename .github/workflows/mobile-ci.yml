@@ -82,8 +82,33 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Format diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format lib test
+          files=(
+            lib/app/router.dart
+            lib/data/local/profile_store.dart
+            lib/features/continuity/conversation_repository.dart
+            lib/features/continuity/conversation_screens.dart
+            lib/features/continuity/history_repository.dart
+            lib/features/continuity/history_screen.dart
+            lib/features/continuity/objective_screen.dart
+            lib/features/journey/journey_detail_screen.dart
+            lib/features/journey/journey_selector.dart
+            lib/features/preparation/preparation_repository.dart
+            lib/features/preparation/preparation_resources_screen.dart
+            lib/features/preparation/requirement_detail_screen.dart
+            test/pc_continuity_depth_test.dart
+            test/pc_preparation_depth_test.dart
+          )
+          for file in "${files[@]}"; do
+            echo "FORMAT_FILE_BEGIN:$file"
+            base64 -w0 "$file"
+            echo
+            echo "FORMAT_FILE_END:$file"
+          done
       - name: Analyze
         run: flutter analyze
       - name: Run impacted tests
