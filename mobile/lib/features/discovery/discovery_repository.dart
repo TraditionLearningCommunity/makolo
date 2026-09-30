@@ -75,13 +75,20 @@ class DiscoveryQuery {
       ? 'api/v1/discovery/items/'
       : 'api/v1/discovery/items/?$canonicalQuery';
 
-  String get mapPath {
+  String get mapCanonicalQuery {
     final entries = Map<String, String>.from(parameters)
       ..remove('page')
       ..remove('page_size');
     final sorted = entries.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-    final query = Uri(queryParameters: Map.fromEntries(sorted)).query;
+    return Uri(queryParameters: Map.fromEntries(sorted)).query;
+  }
+
+  String get mapFingerprint =>
+      base64Url.encode(utf8.encode(mapCanonicalQuery)).replaceAll('=', '');
+
+  String get mapPath {
+    final query = mapCanonicalQuery;
     return query.isEmpty
         ? 'api/v1/discovery/map/'
         : 'api/v1/discovery/map/?$query';
@@ -156,11 +163,11 @@ class DiscoveryRepository {
 
   SyncSourceDefinition mapSource(DiscoveryQuery query) {
     return SyncSourceDefinition(
-      sourceKey: 'discovery-map:${query.fingerprint}',
+      sourceKey: 'discovery-map:${query.mapFingerprint}',
       owner: 'Discovery',
       path: query.mapPath,
       projectionKind: mapProjectionKind,
-      resourceKey: query.fingerprint,
+      resourceKey: query.mapFingerprint,
       category: SyncSourceCategory.collection,
       freshnessPolicy: discoveryFreshness,
       parser: (response) {
@@ -238,10 +245,10 @@ class DiscoveryRepository {
       store.readProjection(itemsProjectionKind, resourceKey: query.fingerprint);
 
   Stream<StoredProjection?> watchMap(DiscoveryQuery query) =>
-      store.watchProjection(mapProjectionKind, resourceKey: query.fingerprint);
+      store.watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
 
   Future<StoredProjection?> readMap(DiscoveryQuery query) =>
-      store.readProjection(mapProjectionKind, resourceKey: query.fingerprint);
+      store.readProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
 
   Stream<StoredProjection?> watchItem(String family, String id) =>
       store.watchProjection(itemProjectionKind, resourceKey: '$family:$id');
