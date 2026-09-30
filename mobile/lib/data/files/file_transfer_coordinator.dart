@@ -63,10 +63,14 @@ class FileTransferCoordinator {
       onProgress: onProgress,
     );
     final receipt = result.receipt;
-    if (receipt == null) {
+    if (result.state != FileTransferState.transferred ||
+        receipt == null ||
+        !receipt.confirmed) {
       throw FileTransferFailure(
         recoverable: result.state == FileTransferState.failedRecoverable,
-        code: result.errorCode,
+        code: result.state == FileTransferState.ownerConfirmationRequired
+            ? 'owner_confirmation_required'
+            : result.errorCode,
       );
     }
     return receipt;
