@@ -19,6 +19,7 @@ class WorkmanagerBackgroundScheduler implements BackgroundScheduler {
         'task_id': task.id,
         'kind': task.kind.name,
         'profile_id': task.profileId,
+        'requires_network': task.requiresNetwork,
         if (task.operationId != null) 'operation_id': task.operationId,
       },
       constraints: Constraints(
@@ -58,10 +59,16 @@ BackgroundTask? decodeWorkmanagerTask(
   }
   if (kind == null) return null;
 
+  final requiresNetworkValue = inputData['requires_network'];
+  final requiresNetwork = requiresNetworkValue is bool
+      ? requiresNetworkValue
+      : true;
+
   return BackgroundTask(
     id: id,
     kind: kind,
     profileId: profileId,
     operationId: inputData['operation_id']?.toString(),
+    requiresNetwork: requiresNetwork,
   );
 }
