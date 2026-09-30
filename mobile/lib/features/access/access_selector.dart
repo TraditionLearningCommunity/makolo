@@ -4,10 +4,7 @@ import '../../sync/freshness.dart';
 import 'access_repository.dart';
 
 class DayOfHandoff {
-  const DayOfHandoff({
-    required this.occurrenceId,
-    required this.path,
-  });
+  const DayOfHandoff({required this.occurrenceId, required this.path});
 
   final String occurrenceId;
   final String path;
@@ -45,9 +42,7 @@ class AccessDetailPresentation {
   bool get isBeneficiary => relationship == 'beneficiary';
 
   bool get canOpenDayOf =>
-      isBeneficiary &&
-      capabilities.contains('open_day_of') &&
-      dayOf != null;
+      isBeneficiary && capabilities.contains('open_day_of') && dayOf != null;
 }
 
 class AccessDetailSelector {
@@ -91,10 +86,7 @@ class AccessDetailSelector {
     if (capabilities.contains('open_day_of') &&
         occurrenceId != null &&
         dayOfPath != null) {
-      dayOf = DayOfHandoff(
-        occurrenceId: occurrenceId,
-        path: dayOfPath,
-      );
+      dayOf = DayOfHandoff(occurrenceId: occurrenceId, path: dayOfPath);
     }
 
     return AccessDetailPresentation(

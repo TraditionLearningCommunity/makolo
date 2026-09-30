@@ -121,10 +121,8 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de l’accès…',
                 ),
-                blockingErrorMessage:
-                    'Cet accès n’est pas disponible dans votre contexte actuel.',
-                preservedMessage:
-                    'Aucune copie locale utilisable n’est disponible sur cet appareil.',
+                blockingErrorMessage: 'Cet accès n’est pas disponible dans votre contexte actuel.',
+                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: _AccessContent(
                   presentation: presentation,
@@ -192,8 +190,7 @@ class _AccessContent extends StatelessWidget {
             ),
             child: MakoloAttentionBlock(
               title: 'Action réelle',
-              body:
-                  'Les informations utiles pour le moment venu sont disponibles.',
+              body: 'Les informations utiles pour le moment venu sont disponibles.',
               action: FilledButton.icon(
                 onPressed: () => onOpenDayOf(presentation.dayOf!),
                 icon: const Icon(Icons.directions_walk_rounded),

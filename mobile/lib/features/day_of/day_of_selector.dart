@@ -37,12 +37,10 @@ class DayOfAccessPresentation {
   final Set<String> capabilities;
 
   bool get canOpenAccess =>
-      capabilities.contains('open_access') &&
-      detailPath != null;
+      capabilities.contains('open_access') && detailPath != null;
 
   bool get canPresentCredential =>
-      capabilities.contains('present_credential') &&
-      credentialPath != null;
+      capabilities.contains('present_credential') && credentialPath != null;
 }
 
 class DayOfQueuePresentation {
@@ -60,11 +58,7 @@ class DayOfQueuePresentation {
 }
 
 class DayOfPlacementPresentation {
-  const DayOfPlacementPresentation({
-    this.plan,
-    this.unit,
-    this.parentUnit,
-  });
+  const DayOfPlacementPresentation({this.plan, this.unit, this.parentUnit});
 
   final String? plan;
   final String? unit;
@@ -127,8 +121,7 @@ class DayOfPresentation {
   final bool sourceInvalidated;
 
   bool get canOpenLive =>
-      capabilities.contains('open_live') &&
-      livePath != null;
+      capabilities.contains('open_live') && livePath != null;
 }
 
 class DayOfSelector {
@@ -206,9 +199,7 @@ class DayOfSelector {
           .map((row) => _string(row['summary']))
           .whereType<String>()
           .toList(growable: false),
-      actorInterventions: _readinessSummaries(
-        readiness['actor_interventions'],
-      ),
+      actorInterventions: _readinessSummaries(readiness['actor_interventions']),
       blockers: _readinessSummaries(readiness['blockers']),
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,

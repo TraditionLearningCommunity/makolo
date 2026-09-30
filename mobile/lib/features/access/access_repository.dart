@@ -86,8 +86,7 @@ class AccessRepository {
     final query = database.select(database.syncSources)
       ..where(
         (row) =>
-            row.profileId.equals(profileId) &
-            row.sourceKey.equals(sourceKey),
+            row.profileId.equals(profileId) & row.sourceKey.equals(sourceKey),
       );
     return query.watchSingleOrNull().map(
       (row) => row == null
@@ -105,8 +104,7 @@ class AccessRepository {
     final query = database.select(database.syncSources)
       ..where(
         (row) =>
-            row.profileId.equals(profileId) &
-            row.sourceKey.equals(sourceKey),
+            row.profileId.equals(profileId) & row.sourceKey.equals(sourceKey),
       );
     final row = await query.getSingleOrNull();
     return row == null

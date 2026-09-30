@@ -33,8 +33,7 @@ class DayOfScreen extends StatefulWidget {
   State<DayOfScreen> createState() => _DayOfScreenState();
 }
 
-class _DayOfScreenState extends State<DayOfScreen>
-    with WidgetsBindingObserver {
+class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
   static const _selector = DayOfSelector();
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
 
@@ -139,10 +138,8 @@ class _DayOfScreenState extends State<DayOfScreen>
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de l’action en cours…',
                 ),
-                blockingErrorMessage:
-                    'Cette action n’est pas disponible dans votre contexte actuel.',
-                preservedMessage:
-                    'Aucune copie locale utilisable n’est disponible sur cet appareil.',
+                blockingErrorMessage: 'Cette action n’est pas disponible dans votre contexte actuel.',
+                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: _DayOfContent(
                   presentation: presentation,
@@ -266,9 +263,7 @@ class _DayOfContent extends StatelessWidget {
                       children: [
                         const Icon(Icons.people_outline_rounded),
                         const SizedBox(width: MakoloSpacing.compact),
-                        Expanded(
-                          child: Text(entry.label ?? 'File d’attente'),
-                        ),
+                        Expanded(child: Text(entry.label ?? 'File d’attente')),
                         if (entry.position != null)
                           Text('Position ${entry.position}'),
                       ],
@@ -302,9 +297,7 @@ class _DayOfContent extends StatelessWidget {
         if (presentation.nextCheckpoint?.label != null) ...[
           MakoloSection(
             title: 'Étape sur place',
-            child: MakoloCard(
-              child: Text(presentation.nextCheckpoint!.label!),
-            ),
+            child: MakoloCard(child: Text(presentation.nextCheckpoint!.label!)),
           ),
           const SizedBox(height: MakoloSpacing.xl),
         ],
@@ -365,9 +358,7 @@ class _DestinationCard extends StatelessWidget {
         children: [
           const Icon(Icons.place_outlined),
           const SizedBox(width: MakoloSpacing.compact),
-          Expanded(
-            child: Text(lines.join('\n')),
-          ),
+          Expanded(child: Text(lines.join('\n'))),
         ],
       ),
     );
@@ -400,10 +391,8 @@ class _AccessCard extends StatelessWidget {
           if (access.canPresentCredential) ...[
             const SizedBox(height: MakoloSpacing.md),
             FilledButton.icon(
-              onPressed: () => onPresentCredential(
-                access.id,
-                access.credentialPath!,
-              ),
+              onPressed: () =>
+                  onPresentCredential(access.id, access.credentialPath!),
               icon: const Icon(Icons.qr_code_2_rounded),
               label: const Text('Afficher le QR'),
             ),

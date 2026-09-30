@@ -14,10 +14,7 @@ import 'package:makolo_mobile/sync/sync_engine.dart';
 import 'dio_testing.dart';
 import 'fakes.dart';
 
-Map<String, dynamic> envelope(
-  String projection,
-  Map<String, dynamic> data,
-) {
+Map<String, dynamic> envelope(String projection, Map<String, dynamic> data) {
   return {
     'meta': {
       'projection': projection,
@@ -62,20 +59,14 @@ Map<String, dynamic> accessPayload({
     'capabilities': openDayOf ? ['open_day_of'] : <String>[],
     'links': {
       'self': '/api/v1/me/accesses/access-1/',
-      if (openDayOf)
-        'day_of': '/api/v1/me/occurrences/occurrence-1/day-of/',
+      if (openDayOf) 'day_of': '/api/v1/me/occurrences/occurrence-1/day-of/',
     },
   };
 }
 
-Map<String, dynamic> dayOfPayload({
-  bool presentCredentialCapability = true,
-}) {
+Map<String, dynamic> dayOfPayload({bool presentCredentialCapability = true}) {
   return {
-    'identity': {
-      'kind': 'occurrence_day_of',
-      'occurrence_id': 'occurrence-1',
-    },
+    'identity': {'kind': 'occurrence_day_of', 'occurrence_id': 'occurrence-1'},
     'activity': {
       'kind': 'activity',
       'id': 'activity-1',
@@ -102,10 +93,7 @@ Map<String, dynamic> dayOfPayload({
         'source': 'access',
         'truth': 'observed',
       },
-      'representation': {
-        'kind': 'access',
-        'reason': 'access_required',
-      },
+      'representation': {'kind': 'access', 'reason': 'access_required'},
     },
     'timing': {
       'truth': 'planned',
@@ -155,11 +143,7 @@ Map<String, dynamic> dayOfPayload({
           'from': '2026-09-30T14:00:00Z',
           'until': '2026-10-01T14:00:00Z',
         },
-        'credential': {
-          'available': true,
-          'type': 'qr',
-          'presentable': true,
-        },
+        'credential': {'available': true, 'type': 'qr', 'presentable': true},
         'capabilities': [
           'open_access',
           if (presentCredentialCapability) 'present_credential',
@@ -248,107 +232,110 @@ Map<String, dynamic> dayOfPayload({
 }
 
 void main() {
-  test('Access detail is stored as a Profile-scoped keyed owner snapshot', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        profileId: 'profile-a',
-      ),
-    );
-    final client = MockClient((request) async {
-      expect(request.url.path, '/api/v1/me/accesses/access-1/');
-      return MockResponse(
-        jsonEncode(
-          envelope(AccessRepository.projectionKind, accessPayload()),
+  test(
+    'Access detail is stored as a Profile-scoped keyed owner snapshot',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
         ),
-        200,
       );
-    });
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final storeA = ProfileStore(database, 'profile-a');
-    final storeB = ProfileStore(database, 'profile-b');
-    final sync = SyncEngine(
-      api: MakoloApiClient(
-        baseUri: Uri.parse('https://makolo.invalid/'),
-        dio: client.dio,
-        tokenStore: tokens,
-      ),
-      store: storeA,
-      database: database,
-      profileId: 'profile-a',
-    );
-    final repository = AccessRepository(
-      database: database,
-      store: storeA,
-      profileId: 'profile-a',
-      sync: sync,
-    );
-
-    await repository.refreshDetail('access-1');
-
-    final local = await repository.readDetail('access-1');
-    final otherProfile = await storeB.readProjection(
-      AccessRepository.projectionKind,
-      resourceKey: 'access-1',
-    );
-    final presentation = const AccessDetailSelector().select(
-      projection: local,
-      source: await repository.readSource('access-1'),
-      now: DateTime.utc(2026, 9, 30, 15, 5),
-    );
-
-    expect(local?.payload.toString(), isNot(contains('credential')));
-    expect(local?.payload.toString(), isNot(contains('qr')));
-    expect(otherProfile, isNull);
-    expect(presentation.activityTitle, 'Départ Lubumbashi — Kolwezi');
-    expect(presentation.canOpenDayOf, isTrue);
-    expect(presentation.dayOf?.occurrenceId, 'occurrence-1');
-  });
-
-  test('buyer visibility never becomes beneficiary action authority locally', () {
-    final projection = StoredProjection(
-      kind: AccessRepository.projectionKind,
-      resourceKey: 'access-1',
-      schemaVersion: 1,
-      payload: accessPayload(
-        relationship: 'purchased_for_other',
-        openDayOf: true,
-      ),
-      receivedAt: DateTime.utc(2026, 9, 30, 15),
-    );
-
-    final presentation = const AccessDetailSelector().select(
-      projection: projection,
-      source: AccessSourceState.unknown,
-      now: DateTime.utc(2026, 9, 30, 15, 5),
-    );
-
-    expect(presentation.isBeneficiary, isFalse);
-    expect(presentation.canOpenDayOf, isFalse);
-    expect(presentation.journeyId, isNull);
-  });
-
-  test('credential is fetched directly and never persisted in the general store', () async {
-    const secretPayload = 'signed-credential-secret';
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access',
-        refreshToken: 'refresh',
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/me/accesses/access-1/');
+        return MockResponse(
+          jsonEncode(
+            envelope(AccessRepository.projectionKind, accessPayload()),
+          ),
+          200,
+        );
+      });
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final storeA = ProfileStore(database, 'profile-a');
+      final storeB = ProfileStore(database, 'profile-b');
+      final sync = SyncEngine(
+        api: MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          dio: client.dio,
+          tokenStore: tokens,
+        ),
+        store: storeA,
+        database: database,
         profileId: 'profile-a',
-      ),
-    );
-    final client = MockClient((request) async {
-      expect(
-        request.url.path,
-        '/api/v1/me/accesses/access-1/credential/',
       );
-      return MockResponse(
-        jsonEncode(
-          envelope(
-            AccessRepository.credentialProjectionKind,
-            {
+      final repository = AccessRepository(
+        database: database,
+        store: storeA,
+        profileId: 'profile-a',
+        sync: sync,
+      );
+
+      await repository.refreshDetail('access-1');
+
+      final local = await repository.readDetail('access-1');
+      final otherProfile = await storeB.readProjection(
+        AccessRepository.projectionKind,
+        resourceKey: 'access-1',
+      );
+      final presentation = const AccessDetailSelector().select(
+        projection: local,
+        source: await repository.readSource('access-1'),
+        now: DateTime.utc(2026, 9, 30, 15, 5),
+      );
+
+      expect(local?.payload.toString(), isNot(contains('credential')));
+      expect(local?.payload.toString(), isNot(contains('qr')));
+      expect(otherProfile, isNull);
+      expect(presentation.activityTitle, 'Départ Lubumbashi — Kolwezi');
+      expect(presentation.canOpenDayOf, isTrue);
+      expect(presentation.dayOf?.occurrenceId, 'occurrence-1');
+    },
+  );
+
+  test(
+    'buyer visibility never becomes beneficiary action authority locally',
+    () {
+      final projection = StoredProjection(
+        kind: AccessRepository.projectionKind,
+        resourceKey: 'access-1',
+        schemaVersion: 1,
+        payload: accessPayload(
+          relationship: 'purchased_for_other',
+          openDayOf: true,
+        ),
+        receivedAt: DateTime.utc(2026, 9, 30, 15),
+      );
+
+      final presentation = const AccessDetailSelector().select(
+        projection: projection,
+        source: AccessSourceState.unknown,
+        now: DateTime.utc(2026, 9, 30, 15, 5),
+      );
+
+      expect(presentation.isBeneficiary, isFalse);
+      expect(presentation.canOpenDayOf, isFalse);
+      expect(presentation.journeyId, isNull);
+    },
+  );
+
+  test(
+    'credential is fetched directly and never persisted in the general store',
+    () async {
+      const secretPayload = 'signed-credential-secret';
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      );
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/me/accesses/access-1/credential/');
+        return MockResponse(
+          jsonEncode(
+            envelope(AccessRepository.credentialProjectionKind, {
               'access': {'kind': 'access', 'id': 'access-1'},
               'relationship': 'beneficiary',
               'holder': null,
@@ -357,101 +344,99 @@ void main() {
                 'payload': secretPayload,
                 'issued_at': '2026-09-30T15:00:00Z',
               },
-            },
+            }),
           ),
-        ),
-        200,
-        headers: const {
-          'content-type': 'application/json',
-          'cache-control': 'private, no-store',
-        },
-      );
-    });
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    final repository = AccessRepository(
-      database: database,
-      store: store,
-      profileId: 'profile-a',
-      api: MakoloApiClient(
-        baseUri: Uri.parse('https://makolo.invalid/'),
-        dio: client.dio,
-        tokenStore: tokens,
-      ),
-    );
-
-    final credential = await repository.fetchCredential(
-      accessId: 'access-1',
-      path: '/api/v1/me/accesses/access-1/credential/',
-    );
-
-    expect(credential.payload, secretPayload);
-    expect(credential.credentialType, 'qr');
-    expect(
-      await store.readProjection(
-        AccessRepository.credentialProjectionKind,
-        resourceKey: 'access-1',
-      ),
-      isNull,
-    );
-  });
-
-  test('Day-of keeps owner-provided operational facts without local inference', () async {
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        accessToken: 'access',
-        refreshToken: 'refresh',
+          200,
+          headers: const {
+            'content-type': 'application/json',
+            'cache-control': 'private, no-store',
+          },
+        );
+      });
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final repository = AccessRepository(
+        database: database,
+        store: store,
         profileId: 'profile-a',
-      ),
-    );
-    final client = MockClient((request) async {
-      expect(
-        request.url.path,
-        '/api/v1/me/occurrences/occurrence-1/day-of/',
-      );
-      return MockResponse(
-        jsonEncode(
-          envelope(DayOfRepository.projectionKind, dayOfPayload()),
+        api: MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          dio: client.dio,
+          tokenStore: tokens,
         ),
-        200,
       );
-    });
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    final sync = SyncEngine(
-      api: MakoloApiClient(
-        baseUri: Uri.parse('https://makolo.invalid/'),
-        dio: client.dio,
-        tokenStore: tokens,
-      ),
-      store: store,
-      database: database,
-      profileId: 'profile-a',
-    );
-    final repository = DayOfRepository(
-      database: database,
-      store: store,
-      profileId: 'profile-a',
-      sync: sync,
-    );
 
-    await repository.refreshDetail('occurrence-1');
+      final credential = await repository.fetchCredential(
+        accessId: 'access-1',
+        path: '/api/v1/me/accesses/access-1/credential/',
+      );
 
-    final presentation = const DayOfSelector().select(
-      projection: await repository.readDetail('occurrence-1'),
-      source: await repository.readSource('occurrence-1'),
-      now: DateTime.utc(2026, 9, 30, 15, 5),
-    );
+      expect(credential.payload, secretPayload);
+      expect(credential.credentialType, 'qr');
+      expect(
+        await store.readProjection(
+          AccessRepository.credentialProjectionKind,
+          resourceKey: 'access-1',
+        ),
+        isNull,
+      );
+    },
+  );
 
-    expect(presentation.nextLabel, 'Présentez votre billet');
-    expect(presentation.queue.single.position, 4);
-    expect(presentation.placements.single.unit, 'Siège 12');
-    expect(presentation.nextCheckpoint?.label, 'Contrôle billet');
-    expect(presentation.accesses.single.canPresentCredential, isTrue);
-    expect(presentation.canOpenLive, isTrue);
-  });
+  test(
+    'Day-of keeps owner-provided operational facts without local inference',
+    () async {
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      );
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v1/me/occurrences/occurrence-1/day-of/');
+        return MockResponse(
+          jsonEncode(envelope(DayOfRepository.projectionKind, dayOfPayload())),
+          200,
+        );
+      });
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final sync = SyncEngine(
+        api: MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          dio: client.dio,
+          tokenStore: tokens,
+        ),
+        store: store,
+        database: database,
+        profileId: 'profile-a',
+      );
+      final repository = DayOfRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+        sync: sync,
+      );
+
+      await repository.refreshDetail('occurrence-1');
+
+      final presentation = const DayOfSelector().select(
+        projection: await repository.readDetail('occurrence-1'),
+        source: await repository.readSource('occurrence-1'),
+        now: DateTime.utc(2026, 9, 30, 15, 5),
+      );
+
+      expect(presentation.nextLabel, 'Présentez votre billet');
+      expect(presentation.queue.single.position, 4);
+      expect(presentation.placements.single.unit, 'Siège 12');
+      expect(presentation.nextCheckpoint?.label, 'Contrôle billet');
+      expect(presentation.accesses.single.canPresentCredential, isTrue);
+      expect(presentation.canOpenLive, isTrue);
+    },
+  );
 
   test('credential presentation requires the owner capability even when summary says presentable', () {
     final projection = StoredProjection(
@@ -499,10 +484,7 @@ void main() {
       api: MakoloApiClient(
         baseUri: Uri.parse('https://makolo.invalid/'),
         dio: MockClient(
-          (_) async => const MockResponse(
-            '{"detail":"Not found."}',
-            404,
-          ),
+          (_) async => const MockResponse('{"detail":"Not found."}', 404),
         ).dio,
         tokenStore: tokens,
       ),

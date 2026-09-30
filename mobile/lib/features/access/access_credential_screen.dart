@@ -22,8 +22,7 @@ class AccessCredentialScreen extends StatefulWidget {
   final String title;
 
   @override
-  State<AccessCredentialScreen> createState() =>
-      _AccessCredentialScreenState();
+  State<AccessCredentialScreen> createState() => _AccessCredentialScreenState();
 }
 
 class _AccessCredentialScreenState extends State<AccessCredentialScreen>
@@ -123,8 +122,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
           (final value?, _, _) when value.credentialType != 'qr' =>
             const MakoloEmptyState(
               title: 'Représentation non prise en charge',
-              body:
-                  'Cette représentation d’accès ne peut pas encore être affichée ici.',
+              body: 'Cette représentation d’accès ne peut pas encore être affichée ici.',
               icon: Icons.lock_outline_rounded,
             ),
           (final value?, _, _) => _CredentialQr(credential: value),
