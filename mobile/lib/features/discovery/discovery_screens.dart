@@ -784,11 +784,13 @@ class OccurrenceDetailScreen extends StatefulWidget {
     required this.occurrenceId,
     required this.repository,
     required this.onOpenActivity,
+    this.onOpenDayOf,
   });
 
   final String occurrenceId;
   final DiscoveryRepository repository;
   final ValueChanged<String> onOpenActivity;
+  final VoidCallback? onOpenDayOf;
 
   @override
   State<OccurrenceDetailScreen> createState() => _OccurrenceDetailScreenState();
@@ -884,8 +886,8 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                       ),
                     ),
                     if (occurrence.canOpenDayOf)
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
                           MakoloSpacing.inner,
                           MakoloSpacing.md,
                           MakoloSpacing.inner,
@@ -893,8 +895,18 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                         ),
                         child: MakoloAttentionBlock(
                           title: 'Jour J disponible',
-                          body: 'Le serveur indique qu’une profondeur Jour J existe. Son expérience appartient au train AR.',
+                          body:
+                              'Le serveur indique qu’une profondeur Jour J est disponible pour cette occurrence.',
                           icon: Icons.directions_walk_rounded,
+                          action: widget.onOpenDayOf == null
+                              ? null
+                              : FilledButton.icon(
+                                  onPressed: widget.onOpenDayOf,
+                                  icon: const Icon(
+                                    Icons.directions_walk_rounded,
+                                  ),
+                                  label: const Text('Ouvrir le Jour J'),
+                                ),
                         ),
                       ),
                   ],
