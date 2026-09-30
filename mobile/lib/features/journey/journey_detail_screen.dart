@@ -198,7 +198,7 @@ class _JourneyContent extends StatelessWidget {
           title: 'Préparation',
           description: presentation.readinessState.isEmpty
               ? null
-              : 'État fourni par le serveur : ' + presentation.readinessState,
+              : 'État fourni par le serveur : ${presentation.readinessState}',
           child: _ReadinessGroups(presentation: presentation),
         ),
         if (presentation.forms.isNotEmpty) ...[
@@ -313,7 +313,7 @@ class _ReadinessGroups extends StatelessWidget {
                 for (final item in visible[index].$2)
                   Padding(
                     padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-                    child: Text('• ' + item.summary),
+                    child: Text('• ${item.summary}'),
                   ),
               ],
             ),
@@ -338,14 +338,12 @@ class _FormCard extends StatelessWidget {
       if (form.required) const MakoloMetadataItem('Obligatoire'),
       if (form.dueAt != null)
         MakoloMetadataItem(
-          'Échéance ' +
-              MaterialLocalizations.of(context)
-                  .formatCompactDate(form.dueAt!.toLocal()),
+          'Échéance ${MaterialLocalizations.of(context).formatCompactDate(form.dueAt!.toLocal())}',
           icon: Icons.event_outlined,
         ),
     ];
     return MakoloCard(
-      semanticLabel: 'Formulaire. Statut ' + form.state,
+      semanticLabel: 'Formulaire. Statut ${form.state}',
       onTap: form.canComplete && form.detailLink.isNotEmpty
           ? () => onOpen(form)
           : null,
