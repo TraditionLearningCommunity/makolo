@@ -99,7 +99,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   Future<void> _aroundMe() async {
     final capability = widget.location;
     if (capability == null) {
-      setState(() => _locationMessage = 'La localisation n’est pas disponible sur cet appareil.');
+      setState(
+        () => _locationMessage =
+            'La localisation n’est pas disponible sur cet appareil.',
+      );
       return;
     }
     setState(() => _locationMessage = null);
@@ -107,8 +110,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     if (!mounted) return;
     if (!result.available || result.fix == null) {
       setState(
-        () => _locationMessage =
-            'La position n’a pas été utilisée. Vous pouvez continuer sans elle.',
+        () => _locationMessage = 'La position n’a pas été utilisée. Vous pouvez continuer sans elle.',
       );
       return;
     }
@@ -193,7 +195,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           ),
           if (_locationMessage != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -238,7 +242,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                 children: const [
                                   SizedBox(height: 120),
                                   Padding(
-                                    padding: EdgeInsets.all(MakoloSpacing.inner),
+                                    padding: EdgeInsets.all(
+                                      MakoloSpacing.inner,
+                                    ),
                                     child: Center(
                                       child: Text(
                                         'Aucune possibilité ne correspond actuellement à cette recherche.',
@@ -253,7 +259,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                           return RefreshIndicator(
                             onRefresh: _refreshItems,
                             child: ListView(
-                              key: ValueKey('discovery-page-${presentation.page}'),
+                              key: ValueKey(
+                                'discovery-page-${presentation.page}',
+                              ),
                               padding: const EdgeInsets.only(
                                 bottom: MakoloSpacing.xl,
                               ),
@@ -274,7 +282,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                             item.family == 'funding_activity') {
                                           widget.onOpenActivity(item.id);
                                         } else {
-                                          widget.onOpenItem(item.family, item.id);
+                                          widget.onOpenItem(
+                                            item.family,
+                                            item.id,
+                                          );
                                         }
                                       },
                                     ),
@@ -299,9 +310,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                       const Spacer(),
                                       Text(
                                         'Page ${presentation.page}',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
                                       ),
                                       const Spacer(),
                                       FilledButton.icon(
@@ -439,8 +450,7 @@ class _DiscoveryMapPaneState extends State<_DiscoveryMapPane> {
           children: [
             const MakoloAttentionBlock(
               title: 'Carte',
-              body:
-                  'Les données géographiques owner sont disponibles localement. Le runtime Mobile ne fournit pas encore de style MapLibre configuré ; aucun fournisseur n’est inventé ici.',
+              body: 'Les données géographiques owner sont disponibles localement. Le runtime Mobile ne fournit pas encore de style MapLibre configuré ; aucun fournisseur n’est inventé ici.',
               icon: Icons.map_outlined,
             ),
             const SizedBox(height: MakoloSpacing.md),
@@ -616,7 +626,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                 : Icons.bookmark_border_rounded,
                           ),
                           label: Text(
-                            item.canUnsave ? 'Retirer des favoris' : 'Enregistrer',
+                            item.canUnsave
+                                ? 'Retirer des favoris'
+                                : 'Enregistrer',
                           ),
                         ),
                       ),
@@ -704,8 +716,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                     MakoloDetailHeader(
                       eyebrow: activity.vertical,
                       title: activity.title,
-                      subtitle:
-                          activity.summary.isEmpty ? null : activity.summary,
+                      subtitle: activity.summary.isEmpty
+                          ? null
+                          : activity.summary,
                       status: MakoloStatus(label: activity.state),
                       metadata: [
                         if (activity.owner != null)
@@ -724,9 +737,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                         title: 'Dates et réalisations',
                         child: Column(
                           children: [
-                            for (var index = 0;
-                                index < activity.occurrences.length;
-                                index++) ...[
+                            for (
+                              var index = 0;
+                              index < activity.occurrences.length;
+                              index++
+                            ) ...[
                               MakoloCard(
                                 onTap: () => widget.onOpenOccurrence(
                                   activity.occurrences[index].id,
@@ -737,7 +752,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                     label: activity.occurrences[index].state,
                                   ),
                                   metadata: [
-                                    if (activity.occurrences[index].timing != null)
+                                    if (activity.occurrences[index].timing !=
+                                        null)
                                       MakoloMetadataItem(
                                         activity.occurrences[index].timing!,
                                         icon: Icons.schedule_outlined,
@@ -877,8 +893,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                         ),
                         child: MakoloAttentionBlock(
                           title: 'Jour J disponible',
-                          body:
-                              'Le serveur indique qu’une profondeur Jour J existe. Son expérience appartient au train AR.',
+                          body: 'Le serveur indique qu’une profondeur Jour J existe. Son expérience appartient au train AR.',
                           icon: Icons.directions_walk_rounded,
                         ),
                       ),
