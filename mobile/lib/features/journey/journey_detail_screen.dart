@@ -146,10 +146,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de la démarche…',
                 ),
-                blockingErrorMessage:
-                    'Cette démarche n’est pas disponible dans votre contexte actuel.',
-                preservedMessage:
-                    'Aucune copie locale utilisable n’est disponible sur cet appareil.',
+                blockingErrorMessage: 'Cette démarche n’est pas disponible dans votre contexte actuel.',
+                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: _JourneyContent(
                   presentation: presentation,
@@ -165,10 +163,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 }
 
 class _JourneyContent extends StatelessWidget {
-  const _JourneyContent({
-    required this.presentation,
-    required this.onOpenForm,
-  });
+  const _JourneyContent({required this.presentation, required this.onOpenForm});
 
   final JourneyDetailPresentation presentation;
   final void Function(JourneyFormSummary form) onOpenForm;
@@ -189,7 +184,9 @@ class _JourneyContent extends StatelessWidget {
         ),
         if (presentation.nextActionLabel != null) ...[
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
             child: MakoloAttentionBlock(
               title: 'À faire maintenant',
               body: presentation.nextActionLabel!,
@@ -210,7 +207,11 @@ class _JourneyContent extends StatelessWidget {
             title: 'Formulaires',
             child: Column(
               children: [
-                for (var index = 0; index < presentation.forms.length; index++) ...[
+                for (
+                  var index = 0;
+                  index < presentation.forms.length;
+                  index++
+                ) ...[
                   _FormCard(
                     form: presentation.forms[index],
                     onOpen: onOpenForm,
@@ -228,9 +229,11 @@ class _JourneyContent extends StatelessWidget {
             title: 'Éléments nécessaires',
             child: Column(
               children: [
-                for (var index = 0;
-                    index < presentation.requirements.length;
-                    index++) ...[
+                for (
+                  var index = 0;
+                  index < presentation.requirements.length;
+                  index++
+                ) ...[
                   _ReferenceCard(reference: presentation.requirements[index]),
                   if (index < presentation.requirements.length - 1)
                     const SizedBox(height: MakoloSpacing.sm),
@@ -239,7 +242,8 @@ class _JourneyContent extends StatelessWidget {
             ),
           ),
         ],
-        if (presentation.activity != null || presentation.occurrence != null) ...[
+        if (presentation.activity != null ||
+            presentation.occurrence != null) ...[
           const SizedBox(height: MakoloSpacing.xl),
           MakoloSection(
             title: 'Contexte',
@@ -335,9 +339,8 @@ class _FormCard extends StatelessWidget {
       if (form.dueAt != null)
         MakoloMetadataItem(
           'Échéance ' +
-              MaterialLocalizations.of(
-                context,
-              ).formatCompactDate(form.dueAt!.toLocal()),
+              MaterialLocalizations.of(context)
+                  .formatCompactDate(form.dueAt!.toLocal()),
           icon: Icons.event_outlined,
         ),
     ];
