@@ -6,6 +6,7 @@ import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
 import '../features/journey/journey_repository.dart';
+import '../features/preparation/preparation_repository.dart';
 import '../features/questionnaires/questionnaire_repository.dart';
 import '../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../network/makolo_api_client.dart';
@@ -33,6 +34,8 @@ class AppRuntime {
     this.personal,
     this.interoperability,
     this.journeys,
+    this.requirements,
+    this.preparationResources,
     this.questionnaires,
     this.drafts,
     this.questionnaireSubmit,
@@ -52,6 +55,8 @@ class AppRuntime {
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
   final JourneyRepository? journeys;
+  final RequirementRepository? requirements;
+  final PreparationResourcesRepository? preparationResources;
   final QuestionnaireRepository? questionnaires;
   final DraftRepository? drafts;
   final QuestionnaireSubmitCoordinator? questionnaireSubmit;
@@ -127,6 +132,18 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     profileId: profileId,
     sync: sync,
   );
+  final requirements = RequirementRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final preparationResources = PreparationResourcesRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
   final questionnaires = QuestionnaireRepository(
     database: database,
     store: store,
@@ -169,6 +186,8 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     personal: personal,
     interoperability: interoperability,
     journeys: journeys,
+    requirements: requirements,
+    preparationResources: preparationResources,
     questionnaires: questionnaires,
     drafts: drafts,
     questionnaireSubmit: questionnaireSubmit,

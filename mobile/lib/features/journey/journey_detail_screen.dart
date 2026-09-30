@@ -19,11 +19,15 @@ class JourneyDetailScreen extends StatefulWidget {
     required this.journeyId,
     required this.repository,
     required this.onOpenForm,
+    required this.onOpenRequirement,
+    required this.onOpenResources,
   });
 
   final String journeyId;
   final JourneyRepository repository;
   final void Function(JourneyFormSummary form) onOpenForm;
+  final void Function(JourneyReference requirement) onOpenRequirement;
+  final void Function(String resourcesLink) onOpenResources;
 
   @override
   State<JourneyDetailScreen> createState() => _JourneyDetailScreenState();
@@ -152,6 +156,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                 content: _JourneyContent(
                   presentation: presentation,
                   onOpenForm: widget.onOpenForm,
+                  onOpenRequirement: widget.onOpenRequirement,
+                  onOpenResources: widget.onOpenResources,
                 ),
               ),
             );
@@ -163,10 +169,17 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 }
 
 class _JourneyContent extends StatelessWidget {
-  const _JourneyContent({required this.presentation, required this.onOpenForm});
+  const _JourneyContent({
+    required this.presentation,
+    required this.onOpenForm,
+    required this.onOpenRequirement,
+    required this.onOpenResources,
+  });
 
   final JourneyDetailPresentation presentation;
   final void Function(JourneyFormSummary form) onOpenForm;
+  final void Function(JourneyReference requirement) onOpenRequirement;
+  final void Function(String resourcesLink) onOpenResources;
 
   @override
   Widget build(BuildContext context) {
@@ -201,6 +214,22 @@ class _JourneyContent extends StatelessWidget {
               : 'État fourni par le serveur : ${presentation.readinessState}',
           child: _ReadinessGroups(presentation: presentation),
         ),
+        if (presentation.resourcesLink != null) ...[
+          const SizedBox(height: MakoloSpacing.xl),
+          MakoloSection(
+            title: 'Documents et instructions',
+            child: MakoloCard(
+              semanticLabel: 'Ouvrir les documents et instructions',
+              onTap: () => onOpenResources(presentation.resourcesLink!),
+              child: const MakoloStatusMetadataAction(
+                title: 'Ressources de préparation',
+                subtitle:
+                    'Consultez ce que le propriétaire de la démarche a rendu disponible.',
+                action: Icon(Icons.chevron_right_rounded),
+              ),
+            ),
+          ),
+        ],
         if (presentation.forms.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.xl),
           MakoloSection(
@@ -234,7 +263,11 @@ class _JourneyContent extends StatelessWidget {
                   index < presentation.requirements.length;
                   index++
                 ) ...[
-                  _ReferenceCard(reference: presentation.requirements[index]),
+                  _ReferenceCard(
+                    reference: presentation.requirements[index],
+                    onTap: () =>
+                        onOpenRequirement(presentation.requirements[index]),
+                  ),
                   if (index < presentation.requirements.length - 1)
                     const SizedBox(height: MakoloSpacing.sm),
                 ],
@@ -363,18 +396,21 @@ class _FormCard extends StatelessWidget {
 }
 
 class _ReferenceCard extends StatelessWidget {
-  const _ReferenceCard({required this.reference});
+  const _ReferenceCard({required this.reference, this.onTap});
 
   final JourneyReference reference;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return MakoloCard(
+      onTap: onTap,
       child: MakoloStatusMetadataAction(
         title: reference.label,
         status: reference.state == null
             ? null
             : MakoloStatus(label: reference.state!),
+        action: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }

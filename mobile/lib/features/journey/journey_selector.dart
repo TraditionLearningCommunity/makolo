@@ -42,11 +42,17 @@ class JourneyFormSummary {
 }
 
 class JourneyReference {
-  const JourneyReference({required this.id, required this.label, this.state});
+  const JourneyReference({
+    required this.id,
+    required this.label,
+    this.state,
+    this.link,
+  });
 
   final String id;
   final String label;
   final String? state;
+  final String? link;
 }
 
 class JourneyDetailPresentation {
@@ -68,6 +74,7 @@ class JourneyDetailPresentation {
     this.summary,
     this.nextActionLabel,
     this.nextActionLink,
+    this.resourcesLink,
     this.activity,
     this.occurrence,
   });
@@ -84,6 +91,7 @@ class JourneyDetailPresentation {
   final List<JourneyReadinessItem> blockers;
   final String? nextActionLabel;
   final String? nextActionLink;
+  final String? resourcesLink;
   final List<JourneyFormSummary> forms;
   final List<JourneyReference> requirements;
   final JourneyReference? activity;
@@ -134,6 +142,8 @@ class JourneyDetailSelector {
     final readiness = _map(payload['readiness']);
     final activity = _map(payload['activity']);
     final occurrence = _map(payload['occurrence']);
+    final resources = _map(payload['resources']);
+    final links = _map(payload['links']);
 
     return JourneyDetailPresentation(
       available: true,
@@ -148,6 +158,8 @@ class JourneyDetailSelector {
       blockers: _readinessItems(readiness['blockers']),
       nextActionLabel: _string(_map(readiness['next'])['label']),
       nextActionLink: _string(_map(readiness['next'])['link']),
+      resourcesLink:
+          _string(resources['link']) ?? _string(links['resources']),
       forms: _forms(payload['forms']),
       requirements: _requirements(payload['requirements']),
       activity: activity.isEmpty
@@ -211,6 +223,7 @@ class JourneyDetailSelector {
             id: _string(row['id']) ?? '',
             label: _string(row['label']) ?? 'Requirement',
             state: _string(row['state']),
+            link: _string(row['link']),
           );
         })
         .where((row) => row.id.isNotEmpty)

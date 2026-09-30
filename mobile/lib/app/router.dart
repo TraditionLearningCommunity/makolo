@@ -11,6 +11,8 @@ import '../features/interoperability/connections_screen.dart';
 import '../features/journey/journey_detail_screen.dart';
 import '../features/journey/journey_selector.dart';
 import '../features/mark/mark_screen.dart';
+import '../features/preparation/preparation_resources_screen.dart';
+import '../features/preparation/requirement_detail_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
 import '../features/questionnaires/questionnaire_form_screen.dart';
@@ -266,6 +268,58 @@ GoRouter createMakoloRouter(
                 extra: form,
               );
             },
+            onOpenRequirement: (requirement) {
+              context.push(
+                '/journeys/${state.pathParameters['id']!}/requirements/${requirement.id}',
+                extra: requirement,
+              );
+            },
+            onOpenResources: (resourcesLink) {
+              context.push(
+                '/journeys/${state.pathParameters['id']!}/resources',
+                extra: resourcesLink,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/journeys/:journeyId/requirements/:assessmentId',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final requirements = runtime.requirements;
+          if (requirements == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Élément nécessaire',
+              message: 'Ce détail n’est pas disponible sur cet appareil.',
+            );
+          }
+          final reference = state.extra is JourneyReference
+              ? state.extra! as JourneyReference
+              : null;
+          return RequirementDetailScreen(
+            journeyId: state.pathParameters['journeyId']!,
+            assessmentId: state.pathParameters['assessmentId']!,
+            detailPath: reference?.link,
+            repository: requirements,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/journeys/:journeyId/resources',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final resources = runtime.preparationResources;
+          if (resources == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Documents et instructions',
+              message: 'Ces ressources ne sont pas disponibles sur cet appareil.',
+            );
+          }
+          return PreparationResourcesScreen(
+            journeyId: state.pathParameters['journeyId']!,
+            resourcesPath: state.extra is String ? state.extra! as String : null,
+            repository: resources,
           );
         },
       ),
