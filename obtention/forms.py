@@ -8,6 +8,7 @@ from authorization.constants import PermissionCode
 from authorization.services import space_ids_with_permission
 from organizations.models import Organization
 from journeys.models import JourneyPlanStepActor, JourneyStepKind
+from requirements.contracts import RequirementMode
 
 from .models import (
     FulfillmentTargetRule,
@@ -15,6 +16,27 @@ from .models import (
     ObtentionModeCode,
 )
 from .selectors import published_configuration
+
+
+def _serialize_requirements(configuration):
+    if configuration is None:
+        return ""
+    rows = []
+    for link in configuration.requirement_links.select_related("requirement").all():
+        requirement = link.requirement
+        rows.append(
+            " | ".join(
+                [
+                    requirement.key,
+                    requirement.mode,
+                    "yes" if requirement.is_mandatory else "no",
+                    requirement.title,
+                    link.step_key,
+                    requirement.description,
+                ]
+            ).rstrip(" |")
+        )
+    return "\n".join(rows)
 
 
 def _serialize_plan_steps(configuration):
@@ -101,6 +123,15 @@ class ObtentionConfigurationForm(forms.Form):
             "Optionnel. Une étape par ligne : clé | beneficiary/operator | type | yes/no | délai jours | titre | dépendances (clés séparées par virgule) | description."
         ),
     )
+    requirements = forms.CharField(
+        label="Conditions / Requirements",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 6}),
+        help_text=(
+            "Optionnel. Une condition par ligne : clé | mode | yes/no | titre | step_key | description. "
+            "Modes : automatic, action, verification, external_check, payment, review."
+        ),
+    )
     result_label = forms.CharField(
         label="Quand peut-on dire « obtenu » ?",
         max_length=220,
@@ -159,6 +190,7 @@ class ObtentionConfigurationForm(forms.Form):
                     "modes": [mode.code for mode in configuration.modes.all()] if configuration else [],
                     "targets": _serialize_targets(configuration),
                     "plan_steps": _serialize_plan_steps(configuration),
+                    "requirements": _serialize_requirements(configuration),
                     "result_label": configuration.result_label if configuration else "",
                     "target_rule": configuration.target_rule if configuration else FulfillmentTargetRule.ALL,
                     "minimum_targets": configuration.minimum_targets if configuration else None,
@@ -273,6 +305,53 @@ class ObtentionConfigurationForm(forms.Form):
         if not targets:
             raise forms.ValidationError("Ajoutez au moins une cible.")
         return targets
+
+    def clean_requirements(self):
+        raw = self.cleaned_data.get("requirements") or ""
+        rows = []
+        seen = set()
+        valid_modes = set(RequirementMode.values)
+        plan_steps = self.cleaned_data.get("plan_steps") or []
+        known_steps = {step["key"] for step in plan_steps}
+        for line_number, raw_line in enumerate(raw.splitlines(), start=1):
+            line = raw_line.strip()
+            if not line:
+                continue
+            parts = [part.strip() for part in line.split("|", 5)]
+            if len(parts) < 4:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : utilisez clé | mode | yes/no | titre."
+                )
+            key, mode, mandatory_raw, title = parts[:4]
+            if not key or key in seen:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : clé Requirement absente ou dupliquée."
+                )
+            seen.add(key)
+            if mode not in valid_modes:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : mode Requirement inconnu."
+                )
+            step_key = parts[4] if len(parts) > 4 else ""
+            if step_key and step_key not in known_steps:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : step_key « {step_key} » introuvable."
+                )
+            if mode == RequirementMode.ACTION and not step_key:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : un Requirement action doit référencer une Step."
+                )
+            rows.append(
+                {
+                    "key": key,
+                    "mode": mode,
+                    "is_mandatory": mandatory_raw.lower() not in {"no", "non", "false", "0"},
+                    "title": title,
+                    "step_key": step_key,
+                    "description": parts[5] if len(parts) > 5 else "",
+                }
+            )
+        return rows
 
     def clean(self):
         cleaned = super().clean()
