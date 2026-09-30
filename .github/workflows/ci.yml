@@ -319,8 +319,8 @@ jobs:
   postgresql-ops-product:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    # M9-A: every test step passed before the 18-minute runner cap cancelled cleanup.
-    timeout-minutes: 20
+    # Comprehensive PostgreSQL product gates can exceed 20 minutes on cold runners.
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
@@ -449,7 +449,8 @@ jobs:
   e2e:
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Environment preparation plus the full browser suite can exceed 20 minutes.
+    timeout-minutes: 30
     env:
       DJANGO_ENV: e2e
       DJANGO_DEBUG: "False"

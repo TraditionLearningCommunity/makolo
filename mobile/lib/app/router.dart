@@ -6,11 +6,19 @@ import '../features/auth/account_actions.dart';
 import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
+import '../features/continuity/conversation_screens.dart';
+import '../features/continuity/history_screen.dart';
+import '../features/continuity/objective_repository.dart';
+import '../features/continuity/objective_screen.dart';
+import '../features/discovery/discovery_screens.dart';
+import '../features/discovery/discovery_watch_screens.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/connections_screen.dart';
 import '../features/journey/journey_detail_screen.dart';
 import '../features/journey/journey_selector.dart';
 import '../features/mark/mark_screen.dart';
+import '../features/preparation/preparation_resources_screen.dart';
+import '../features/preparation/requirement_detail_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
 import '../features/questionnaires/questionnaire_form_screen.dart';
@@ -48,6 +56,7 @@ GoRouter createMakoloRouter(
       '/mark',
       '/connections',
       '/conversations',
+      '/history',
       '/notifications',
       '/ongoing/calendar',
     }.contains(path)) {
@@ -55,9 +64,11 @@ GoRouter createMakoloRouter(
     }
     return const [
       '/journeys/',
+      '/discover/items/',
       '/activities/',
       '/occurrences/',
       '/accesses/',
+      '/conversations/',
       '/dossiers/',
       '/projects/',
       '/groups/',
@@ -123,13 +134,30 @@ GoRouter createMakoloRouter(
               routes: [
                 GoRoute(
                   path: '/discover',
-                  builder: (context, state) => const MakoloRefreshBoundary(
-                    child: PlaceholderScreen(
-                      title: 'Découvrir',
-                      message: 'Aucune possibilité à afficher pour le moment.',
-                      showTitle: false,
-                    ),
-                  ),
+                  builder: (context, state) {
+                    final discovery = runtime.discovery;
+                    if (discovery == null) {
+                      return const MakoloRefreshBoundary(
+                        child: PlaceholderScreen(
+                          title: 'Découvrir',
+                          message: 'Découvrir n’est pas disponible sur cet appareil.',
+                          showTitle: false,
+                        ),
+                      );
+                    }
+                    return MakoloRefreshBoundary(
+                      child: DiscoveryScreen(
+                        repository: discovery,
+                        location: runtime.location,
+                        onOpenActivity: (id) => context.push('/activities/$id'),
+                        onOpenOccurrence: (id) =>
+                            context.push('/occurrences/$id'),
+                        onOpenItem: (family, id) =>
+                            context.push('/discover/items/$family/$id'),
+                        onOpenWatches: () => context.push('/discover/watches'),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -213,10 +241,59 @@ GoRouter createMakoloRouter(
       ),
       GoRoute(
         path: '/conversations',
-        builder: (context, state) => const MakoloSecondaryScreen(
-          title: 'Conversations',
-          message: 'Aucune conversation à afficher pour le moment.',
-        ),
+        builder: (context, state) {
+          final conversations = runtime.conversations;
+          if (conversations == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Conversations',
+              message: 'Aucune conversation à afficher pour le moment.',
+            );
+          }
+          return ConversationListScreen(
+            repository: conversations,
+            onOpen: (id) => context.push('/conversations/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/conversations/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final conversations = runtime.conversations;
+          if (conversations == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Conversation',
+              message:
+                  'Cette conversation n’est pas disponible sur cet appareil.',
+            );
+          }
+          return ConversationDetailScreen(
+            id: state.pathParameters['id']!,
+            repository: conversations,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/history',
+        builder: (context, state) {
+          final history = runtime.history;
+          if (history == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Historique',
+              message: 'Aucun historique à afficher pour le moment.',
+            );
+          }
+          return HistoryScreen(
+            repository: history,
+            onOpenResource: (kind, id) {
+              if (kind == 'journey') {
+                context.push('/journeys/$id');
+              } else if (kind == 'access') {
+                context.push('/accesses/$id');
+              }
+            },
+          );
+        },
       ),
       GoRoute(
         path: '/notifications',
@@ -238,6 +315,98 @@ GoRouter createMakoloRouter(
           title: 'Filtres',
           message: 'Aucun filtre actif.',
         ),
+      ),
+      GoRoute(
+        path: '/discover/watches',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Veilles',
+              message: 'Les veilles ne sont pas disponibles sur cet appareil.',
+            );
+          }
+          return DiscoveryWatchesScreen(
+            repository: discovery,
+            onOpenWatch: (id) => context.push('/discover/watches/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/discover/watches/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Veille',
+              message: 'Cette veille n’est pas disponible sur cet appareil.',
+            );
+          }
+          return DiscoveryWatchResultsScreen(
+            watchId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenActivity: (id) => context.push('/activities/$id'),
+            onOpenItem: (family, id) =>
+                context.push('/discover/items/$family/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/discover/items/:family/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Possibilité',
+              message: 'Ce détail n’est pas disponible sur cet appareil.',
+            );
+          }
+          return DiscoveryItemDetailScreen(
+            family: state.pathParameters['family']!,
+            id: state.pathParameters['id']!,
+            repository: discovery,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/activities/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Activité',
+              message: 'Cette activité n’est pas disponible sur cet appareil.',
+            );
+          }
+          return ActivityDetailScreen(
+            activityId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/occurrences/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Occurrence',
+              message:
+                  'Cette occurrence n’est pas disponible sur cet appareil.',
+            );
+          }
+          return OccurrenceDetailScreen(
+            occurrenceId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenActivity: (id) => context.push('/activities/$id'),
+          );
+        },
       ),
       GoRoute(
         path: '/ongoing/calendar',
@@ -266,6 +435,61 @@ GoRouter createMakoloRouter(
                 extra: form,
               );
             },
+            onOpenRequirement: (requirement) {
+              context.push(
+                '/journeys/${state.pathParameters['id']!}/requirements/${requirement.id}',
+                extra: requirement,
+              );
+            },
+            onOpenResources: (resourcesLink) {
+              context.push(
+                '/journeys/${state.pathParameters['id']!}/resources',
+                extra: resourcesLink,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/journeys/:journeyId/requirements/:assessmentId',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final requirements = runtime.requirements;
+          if (requirements == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Élément nécessaire',
+              message: 'Ce détail n’est pas disponible sur cet appareil.',
+            );
+          }
+          final reference = state.extra is JourneyReference
+              ? state.extra! as JourneyReference
+              : null;
+          return RequirementDetailScreen(
+            journeyId: state.pathParameters['journeyId']!,
+            assessmentId: state.pathParameters['assessmentId']!,
+            detailPath: reference?.link,
+            repository: requirements,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/journeys/:journeyId/resources',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final resources = runtime.preparationResources;
+          if (resources == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Documents et instructions',
+              message:
+                  'Ces ressources ne sont pas disponibles sur cet appareil.',
+            );
+          }
+          return PreparationResourcesScreen(
+            journeyId: state.pathParameters['journeyId']!,
+            resourcesPath: state.extra is String
+                ? state.extra! as String
+                : null,
+            repository: resources,
           );
         },
       ),
@@ -307,14 +531,47 @@ GoRouter createMakoloRouter(
           );
         },
       ),
-      for (final prefix in const [
-        'activities',
-        'occurrences',
-        'accesses',
-        'dossiers',
-        'projects',
-        'groups',
-      ])
+      GoRoute(
+        path: '/dossiers/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final objectives = runtime.objectives;
+          if (objectives == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Dossier',
+              message: 'Ce dossier n’est pas disponible sur cet appareil.',
+            );
+          }
+          return ObjectiveDetailScreen(
+            kind: ObjectiveDepth.dossier,
+            id: state.pathParameters['id']!,
+            repository: objectives,
+            onOpenDossier: (id) => context.push('/dossiers/$id'),
+            onOpenJourney: (id) => context.push('/journeys/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/projects/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final objectives = runtime.objectives;
+          if (objectives == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Projet',
+              message: 'Ce projet n’est pas disponible sur cet appareil.',
+            );
+          }
+          return ObjectiveDetailScreen(
+            kind: ObjectiveDepth.project,
+            id: state.pathParameters['id']!,
+            repository: objectives,
+            onOpenDossier: (id) => context.push('/dossiers/$id'),
+            onOpenJourney: (id) => context.push('/journeys/$id'),
+          );
+        },
+      ),
+      for (final prefix in const ['accesses', 'groups'])
         GoRoute(
           path: '/$prefix/:id',
           builder: (context, state) {

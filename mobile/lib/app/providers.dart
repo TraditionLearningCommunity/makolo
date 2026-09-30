@@ -5,10 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
+import '../features/continuity/conversation_repository.dart';
+import '../features/continuity/history_repository.dart';
+import '../features/continuity/objective_repository.dart';
+import '../features/discovery/discovery_repository.dart';
 import '../features/journey/journey_repository.dart';
+import '../features/preparation/preparation_repository.dart';
 import '../features/questionnaires/questionnaire_repository.dart';
 import '../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../network/makolo_api_client.dart';
+import '../platform/location/location_capability.dart';
+import '../platform/location/location_service.dart';
+import '../platform/permissions/permission_gateway.dart';
 import '../repositories/draft_repository.dart';
 import '../repositories/interoperability_repository.dart';
 import '../repositories/personal_repository.dart';
@@ -32,7 +40,14 @@ class AppRuntime {
     this.store,
     this.personal,
     this.interoperability,
+    this.discovery,
+    this.location,
     this.journeys,
+    this.objectives,
+    this.history,
+    this.conversations,
+    this.requirements,
+    this.preparationResources,
     this.questionnaires,
     this.drafts,
     this.questionnaireSubmit,
@@ -51,7 +66,14 @@ class AppRuntime {
   final ProfileStore? store;
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
+  final DiscoveryRepository? discovery;
+  final LocationCapability? location;
   final JourneyRepository? journeys;
+  final ObjectiveRepository? objectives;
+  final HistoryRepository? history;
+  final ConversationRepository? conversations;
+  final RequirementRepository? requirements;
+  final PreparationResourcesRepository? preparationResources;
   final QuestionnaireRepository? questionnaires;
   final DraftRepository? drafts;
   final QuestionnaireSubmitCoordinator? questionnaireSubmit;
@@ -121,7 +143,50 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
           database: database,
           profileId: profileId,
         );
+  final location = const LocationCapability(
+    permissions: PermissionHandlerGateway(),
+    service: GeolocatorLocationService(),
+  );
+  final discovery = api == null
+      ? null
+      : DiscoveryRepository(
+          database: database,
+          store: store,
+          profileId: profileId,
+          api: api,
+          sync: sync,
+        );
   final journeys = JourneyRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final objectives = ObjectiveRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final history = HistoryRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final conversations = ConversationRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final requirements = RequirementRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final preparationResources = PreparationResourcesRepository(
     database: database,
     store: store,
     profileId: profileId,
@@ -168,7 +233,14 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     store: store,
     personal: personal,
     interoperability: interoperability,
+    discovery: discovery,
+    location: location,
     journeys: journeys,
+    objectives: objectives,
+    history: history,
+    conversations: conversations,
+    requirements: requirements,
+    preparationResources: preparationResources,
     questionnaires: questionnaires,
     drafts: drafts,
     questionnaireSubmit: questionnaireSubmit,
