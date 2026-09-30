@@ -5,10 +5,17 @@ import 'package:makolo_mobile/app/launch_preferences.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/router.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/splash/brand_moment.dart';
 import 'package:makolo_mobile/features/splash/splash_screen.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/repositories/personal_repository.dart';
+import 'package:makolo_mobile/sync/sync_engine.dart';
 
+import 'dio_testing.dart';
 import 'fakes.dart';
 
 class _MemoryLaunchPreferences implements LaunchPreferencesStore {
@@ -141,4 +148,81 @@ void main() {
       expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'authenticated launch opens local runtime before failed acquisition',
+    (tester) async {
+      final preferences = _MemoryLaunchPreferences(
+        LaunchPreferencesSnapshot(
+          hasCompletedOnboarding: true,
+          lastBrandMomentAt: DateTime.now(),
+        ),
+      );
+      final database = MakoloDatabase.memory();
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      );
+      final store = ProfileStore(database, 'profile-a');
+      var requests = 0;
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: tokens,
+        dio: MockClient((_) async {
+          requests += 1;
+          return const MockResponse(
+            '{"error":{"code":"unavailable","message":"down"}}',
+            503,
+          );
+        }).dio,
+      );
+      final sync = SyncEngine(
+        api: api,
+        store: store,
+        database: database,
+        profileId: 'profile-a',
+      );
+      final runtime = AppRuntime(
+        tokens: tokens,
+        session: tokens.session,
+        recovery: SessionRecoveryController(),
+        launchPreferences: preferences,
+        api: api,
+        database: database,
+        store: store,
+        personal: PersonalRepository(store),
+        sync: sync,
+      );
+      addTearDown(runtime.close);
+
+      await tester.pumpWidget(
+        _app(
+          runtime,
+          launchStartedAt: DateTime.now().subtract(const Duration(seconds: 1)),
+          minimumVisible: Duration.zero,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SplashScreen), findsNothing);
+      expect(
+        find.text('Pas encore disponible sur cet appareil'),
+        findsOneWidget,
+      );
+      expect(requests, 0);
+
+      await expectLater(sync.pull(SyncEngine.roots.first), throwsA(isA<Exception>()));
+      await tester.pump();
+
+      expect(requests, 1);
+      expect(
+        find.text('Pas encore disponible sur cet appareil'),
+        findsOneWidget,
+      );
+    },
+  );
+
 }
