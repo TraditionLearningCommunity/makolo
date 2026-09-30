@@ -64,7 +64,7 @@ void main() {
           kind: SharedPayloadKind.text,
           text: 'Préparer ce document',
         ),
-        fileIdFor: (_, __) => 'unused',
+        fileIdFor: (_, _) => 'unused',
       );
 
       expect(capture.text, 'Préparer ce document');
