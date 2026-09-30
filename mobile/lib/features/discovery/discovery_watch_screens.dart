@@ -60,8 +60,7 @@ class DiscoveryWatchesScreen extends StatefulWidget {
   final ValueChanged<String> onOpenWatch;
 
   @override
-  State<DiscoveryWatchesScreen> createState() =>
-      _DiscoveryWatchesScreenState();
+  State<DiscoveryWatchesScreen> createState() => _DiscoveryWatchesScreenState();
 }
 
 class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
@@ -203,10 +202,7 @@ class _DiscoveryWatchResultsScreenState
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshWatchResults(
-        widget.watchId,
-        page: _page,
-      );
+      await widget.repository.refreshWatchResults(widget.watchId, page: _page);
     } on Object {
       // Preserve any cached replay page.
     } finally {
@@ -301,9 +297,7 @@ class _DiscoveryWatchResultsScreenState
                 Row(
                   children: [
                     OutlinedButton(
-                      onPressed: _page > 1
-                          ? () => _movePage(_page - 1)
-                          : null,
+                      onPressed: _page > 1 ? () => _movePage(_page - 1) : null,
                       child: const Text('Précédent'),
                     ),
                     const Spacer(),
