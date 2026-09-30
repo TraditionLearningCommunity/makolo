@@ -9,6 +9,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from activities.models import Occurrence
+from journeys.collaboration_services import (
+    complete_participant_step,
+    complete_step,
+    start_participant_step,
+    start_step,
+)
+from journeys.models import JourneyStep
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission, can
 from organizations.models import Organization
@@ -222,6 +229,22 @@ def _journey_payload(journey, actor):
             ),
         },
         "fulfillment": _fulfillment_payload(journey),
+        "steps": [
+            {
+                "id": str(step.pk),
+                "title": step.title,
+                "description": step.description,
+                "kind": step.kind,
+                "status": step.status,
+                "is_required": step.is_required,
+                "due_at": step.due_at,
+                "links": {
+                    "start": f"/api/v1/obtention/journeys/{journey.pk}/steps/{step.pk}/start/",
+                    "complete": f"/api/v1/obtention/journeys/{journey.pk}/steps/{step.pk}/complete/",
+                },
+            }
+            for step in journey.steps.all()
+        ],
         "links": {
             "self": f"/api/v1/obtention/journeys/{journey.pk}/",
             "fulfill": f"/api/v1/obtention/journeys/{journey.pk}/fulfill/",
@@ -445,6 +468,44 @@ class ObtentionFulfillAPIView(APIView):
         journey = _journey_for_actor(request.user, pk)
         try:
             fulfill_obtention_journey(journey=journey, actor=request.user)
+        except (DjangoPermissionDenied, DjangoValidationError) as exc:
+            _raise_service(exc)
+        journey = _journey_for_actor(request.user, pk)
+        response = Response(_journey_payload(journey, request.user))
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class ObtentionStepStartAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, step_id):
+        journey = _journey_for_actor(request.user, pk)
+        step = get_object_or_404(JourneyStep, pk=step_id, journey=journey)
+        try:
+            if journey.beneficiary_id == request.user.pk:
+                start_participant_step(step=step, actor=request.user)
+            else:
+                start_step(step=step, actor=request.user)
+        except (DjangoPermissionDenied, DjangoValidationError) as exc:
+            _raise_service(exc)
+        journey = _journey_for_actor(request.user, pk)
+        response = Response(_journey_payload(journey, request.user))
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class ObtentionStepCompleteAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, step_id):
+        journey = _journey_for_actor(request.user, pk)
+        step = get_object_or_404(JourneyStep, pk=step_id, journey=journey)
+        try:
+            if journey.beneficiary_id == request.user.pk:
+                complete_participant_step(step=step, actor=request.user)
+            else:
+                complete_step(step=step, actor=request.user)
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _raise_service(exc)
         journey = _journey_for_actor(request.user, pk)
