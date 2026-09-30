@@ -29,3 +29,13 @@ class SpaceWorkspaceUpdateSerializer(serializers.Serializer):
 class SpaceOwnershipTransferSerializer(serializers.Serializer):
     target_membership_id = serializers.UUIDField()
     relinquish_current_owner = serializers.BooleanField(default=True)
+
+
+
+class SpaceTeamMemberCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.CharField(max_length=120)
+
+
+class SpaceTeamMemberUpdateSerializer(serializers.Serializer):
+    role = serializers.CharField(max_length=120)

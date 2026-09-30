@@ -6,14 +6,24 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import TeamMembership
+from authorization.constants import PermissionCode
+from authorization.models import AuthorityScope
+from authorization.selectors import current_mandates
+from authorization.services import can
+from organizations.models import TeamMembership, TeamMembershipStatus
 from organizations.services import (
+    add_or_update_member,
     archive_space,
     create_organization,
+    find_user_for_team,
     restore_space,
     update_organization,
 )
-from organizations.team_responsibilities import transfer_space_ownership
+from organizations.team_responsibilities import (
+    remove_member_from_space,
+    transfer_space_ownership,
+    update_member_space_responsibility,
+)
 
 from .workspace_projection import (
     build_space_workspace,
@@ -22,6 +32,8 @@ from .workspace_projection import (
 )
 from .workspace_serializers import (
     SpaceOwnershipTransferSerializer,
+    SpaceTeamMemberCreateSerializer,
+    SpaceTeamMemberUpdateSerializer,
     SpaceWorkspaceCreateSerializer,
     SpaceWorkspaceUpdateSerializer,
 )
@@ -154,3 +166,118 @@ class SpaceOwnershipTransferAPIView(APIView):
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _raise_domain_error(exc)
         return Response(build_space_workspace(request.user, space))
+
+
+
+def _require_team_manage(user, space):
+    if not can(user, PermissionCode.SPACE_TEAM_MANAGE, space):
+        raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
+
+
+def _team_membership_row(membership, space):
+    standard = (
+        current_mandates()
+        .filter(
+            profile=membership.user,
+            scope_type=AuthorityScope.SPACE,
+            space=space,
+            role__is_system=True,
+        )
+        .order_by("pk")
+        .first()
+    )
+    return {
+        "id": str(membership.pk),
+        "profile": {
+            "id": str(membership.user_id),
+            "name": membership.user.full_name or membership.user.username,
+            "email": membership.user.email,
+        },
+        "status": membership.status,
+        "responsibility": standard.role.code if standard else None,
+    }
+
+
+class SpaceTeamAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _space(self, request, slug):
+        space = workspace_spaces(request.user).filter(slug=slug).first()
+        if space is None:
+            raise NotFound()
+        _require_team_manage(request.user, space)
+        return space
+
+    def get(self, request, slug):
+        space = self._space(request, slug)
+        memberships = (
+            TeamMembership.objects.filter(
+                team__organization=space,
+                team__is_default=True,
+                status=TeamMembershipStatus.ACTIVE,
+            )
+            .select_related("user")
+            .order_by("user__first_name", "user__last_name", "user__email", "pk")
+        )
+        response = Response([_team_membership_row(row, space) for row in memberships])
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def post(self, request, slug):
+        space = self._space(request, slug)
+        serializer = SpaceTeamMemberCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user = find_user_for_team(email=serializer.validated_data["email"])
+            membership = add_or_update_member(
+                organization=space,
+                actor=request.user,
+                user=user,
+                role=serializer.validated_data["role"],
+            )
+        except (DjangoPermissionDenied, DjangoValidationError) as exc:
+            _raise_domain_error(exc)
+        return Response(
+            _team_membership_row(membership, space),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SpaceTeamMemberAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _objects(self, request, slug, membership_id):
+        space = workspace_spaces(request.user).filter(slug=slug).first()
+        if space is None:
+            raise NotFound()
+        _require_team_manage(request.user, space)
+        membership = get_object_or_404(
+            TeamMembership.objects.select_related("team__organization", "user"),
+            pk=membership_id,
+            team__organization=space,
+            team__is_default=True,
+        )
+        return space, membership
+
+    def patch(self, request, slug, membership_id):
+        space, membership = self._objects(request, slug, membership_id)
+        serializer = SpaceTeamMemberUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            update_member_space_responsibility(
+                membership=membership,
+                actor=request.user,
+                role_code=serializer.validated_data["role"],
+            )
+        except (DjangoPermissionDenied, DjangoValidationError) as exc:
+            _raise_domain_error(exc)
+        membership.refresh_from_db()
+        return Response(_team_membership_row(membership, space))
+
+    def delete(self, request, slug, membership_id):
+        _space, membership = self._objects(request, slug, membership_id)
+        try:
+            remove_member_from_space(membership=membership, actor=request.user)
+        except (DjangoPermissionDenied, DjangoValidationError) as exc:
+            _raise_domain_error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)

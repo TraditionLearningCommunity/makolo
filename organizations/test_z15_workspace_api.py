@@ -3,7 +3,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from activities.models import Activity
-from authorization.constants import SystemRoleCode
+from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import can, grant_space_role
 from core.capabilities import get_web_capabilities
@@ -232,4 +232,34 @@ class Z15WorkspaceContractTests(TestCase):
         created = Organization.objects.get(pk=response.data["space"]["id"])
         self.assertEqual(created.lifecycle, SpaceLifecycle.ACTIVE)
         self.assertEqual(created.archetype, SpaceArchetype.COMMERCE)
-        self.assertTrue(can(user, "space_ownership_manage", created))
+        self.assertTrue(can(user, PermissionCode.SPACE_OWNERSHIP_MANAGE, created))
+
+
+    def test_team_api_requires_team_permission_and_updates_canonical_responsibility(self):
+        target = User.objects.create_user(
+            username="z15-team-target",
+            email="z15-team-target@test.local",
+            password="x",
+        )
+        self.client.force_authenticate(self.owner)
+        created = self.client.post(
+            "/api/v1/organizations/workspaces/z15-space/team/",
+            {"email": target.email, "role": SystemRoleCode.FINANCE},
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        membership_id = created.data["id"]
+        updated = self.client.patch(
+            f"/api/v1/organizations/workspaces/z15-space/team/{membership_id}/",
+            {"role": SystemRoleCode.MARKETING},
+            format="json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertTrue(can(target, PermissionCode.MARKETING_MANAGE, self.space))
+        self.assertFalse(can(target, PermissionCode.FINANCE_VIEW, self.space))
+
+        self.client.force_authenticate(self.member)
+        self.assertEqual(
+            self.client.get("/api/v1/organizations/workspaces/z15-space/team/").status_code,
+            404,
+        )

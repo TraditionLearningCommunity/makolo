@@ -20,6 +20,7 @@ from .services import (
     follow_organization,
     unfollow_organization,
     update_follow_preferences,
+    update_organization,
 )
 
 
@@ -171,6 +172,18 @@ class OrganizationUpdateView(LoginRequiredMixin, UpdateView):
         if not user_can_manage_organization(request.user, self.object):
             raise PermissionDenied("Vous ne pouvez pas modifier cet Espace.")
         return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        try:
+            self.object = update_organization(
+                organization=self.object,
+                actor=self.request.user,
+                **{name: form.cleaned_data[name] for name in form.Meta.fields},
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
+            return self.form_invalid(form)
+        return redirect(self.get_success_url())
 
     def get_success_url(self):
         messages.success(self.request, "Espace mis à jour.")

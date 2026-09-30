@@ -259,6 +259,8 @@ def transfer_space_ownership(*, membership, actor, relinquish_current_owner=True
     space = _lock_space(membership.team.organization)
     target = _lock_membership(membership=membership, space=space)
     _require_active_member(target)
+    if not target.user.is_active:
+        raise ValidationError("Le destinataire doit être un Profile actif.")
     _require_ownership_management(actor=actor, space=space)
 
     if not _is_current_owner(profile=actor, space=space):

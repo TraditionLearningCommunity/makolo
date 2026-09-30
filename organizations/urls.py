@@ -45,6 +45,8 @@ from .console_views import (
     SpaceConsolePlacesView,
     SpaceConsolePromotionsView,
     SpaceConsoleRequestsView,
+    SpaceConsoleArchiveView,
+    SpaceConsoleRestoreView,
     SpaceConsoleSettingsView,
     SpaceRequestApproveView,
     SpaceRequestRejectView,
@@ -168,6 +170,8 @@ urlpatterns = [
     path("<slug:slug>/team/<uuid:membership_id>/responsibilities/", SpaceConsoleMemberResponsibilitiesView.as_view(), name="member-responsibilities"),
     path("<slug:slug>/team/<uuid:pk>/deactivate/", OrganizationMemberDeactivateView.as_view(), name="member-deactivate"),
     path("<slug:slug>/settings/", SpaceConsoleSettingsView.as_view(), name="console-settings"),
+    path("<slug:slug>/settings/archive/", SpaceConsoleArchiveView.as_view(), name="console-archive"),
+    path("<slug:slug>/settings/restore/", SpaceConsoleRestoreView.as_view(), name="console-restore"),
     path("<slug:slug>/settings/edit/", OrganizationUpdateView.as_view(), name="edit"),
     path("", include("geography.urls")),
 ]
