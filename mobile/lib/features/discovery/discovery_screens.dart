@@ -895,8 +895,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                         ),
                         child: MakoloAttentionBlock(
                           title: 'Jour J disponible',
-                          body:
-                              'Le serveur indique qu’une profondeur Jour J est disponible pour cette occurrence.',
+                          body: 'Le serveur indique qu’une profondeur Jour J est disponible pour cette occurrence.',
                           icon: Icons.directions_walk_rounded,
                           action: widget.onOpenDayOf == null
                               ? null
