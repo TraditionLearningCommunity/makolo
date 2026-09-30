@@ -15,6 +15,9 @@ from .collaboration_models import (
     JourneyPlanTemplateStep,
     JourneyPlanTemplateStepDependency,
     JourneyStep,
+    JourneyStepAssignment,
+    JourneyAssignmentResponsibility,
+    JourneyAssignmentStatus,
     JourneyStepOrigin,
     JourneyStepStatus,
 )
@@ -195,6 +198,17 @@ def materialize_journey_plan(*, journey, template, actor):
             template_step=template_step,
             journey_step=step,
         )
+        if (
+            template_step.actor_kind == JourneyPlanStepActor.OPERATOR
+            and template.created_by_id
+        ):
+            JourneyStepAssignment.objects.create(
+                step=step,
+                profile=template.created_by,
+                responsibility=JourneyAssignmentResponsibility.LEAD,
+                status=JourneyAssignmentStatus.ACTIVE,
+                assigned_by=template.created_by,
+            )
 
     for template_step in template_steps:
         for dependency in template_step.dependencies.all():
