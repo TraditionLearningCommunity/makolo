@@ -75,6 +75,13 @@ class ObtentionConfiguration(models.Model):
     minimum_targets = models.PositiveSmallIntegerField(null=True, blank=True)
     beneficiary_confirmation_required = models.BooleanField(default=True)
     operator_confirmation_required = models.BooleanField(default=False)
+    journey_plan_template = models.ForeignKey(
+        "journeys.JourneyPlanTemplate",
+        on_delete=models.PROTECT,
+        related_name="obtention_configurations",
+        null=True,
+        blank=True,
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -120,6 +127,11 @@ class ObtentionConfiguration(models.Model):
                 errors["minimum_targets"] = "La règle « au moins N » exige une valeur strictement positive."
         elif self.minimum_targets is not None:
             errors["minimum_targets"] = "Le nombre minimal ne s'applique qu'à la règle « au moins N »."
+        if self.journey_plan_template_id and self.obtention_id:
+            if self.journey_plan_template.activity_id != self.obtention.activity_id:
+                errors["journey_plan_template"] = "Le plan Journey doit appartenir à l'Activity Obtention."
+            if self.journey_plan_template.status != "published":
+                errors["journey_plan_template"] = "Le plan Journey pinné doit être publié."
         if errors:
             raise ValidationError(errors)
 
@@ -135,6 +147,7 @@ class ObtentionConfiguration(models.Model):
                 "minimum_targets",
                 "beneficiary_confirmation_required",
                 "operator_confirmation_required",
+                "journey_plan_template_id",
             ).first()
             if previous and previous["status"] in {
                 ObtentionConfigurationStatus.PUBLISHED,
@@ -148,6 +161,7 @@ class ObtentionConfiguration(models.Model):
                     "minimum_targets": self.minimum_targets,
                     "beneficiary_confirmation_required": self.beneficiary_confirmation_required,
                     "operator_confirmation_required": self.operator_confirmation_required,
+                    "journey_plan_template_id": self.journey_plan_template_id,
                 }
                 if any(previous[name] != value for name, value in structural.items()):
                     raise ValidationError("Une configuration Obtention publiée est structurellement immuable.")
