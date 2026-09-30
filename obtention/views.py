@@ -8,7 +8,13 @@ from django.views.generic import TemplateView
 from activities.models import ActivityStatus, ActivityVisibility
 from authorization.constants import PermissionCode
 from authorization.services import can
-from journeys.models import Journey
+from journeys.models import Journey, JourneyAssignmentStatus, JourneyStep
+from journeys.collaboration_services import (
+    complete_participant_step,
+    complete_step,
+    start_participant_step,
+    start_step,
+)
 from readiness import resolve_journey_readiness
 
 from .forms import ObtentionConfigurationForm, ReceiptForm
@@ -198,6 +204,39 @@ class ObtentionJourneyView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         journey = _visible_journey(self.request.user, kwargs["pk"])
         fulfillment = fulfillment_for_journey(journey)
+        steps = list(
+            journey.steps.prefetch_related("assignments").order_by("position", "created_at", "id")
+        )
+        has_case_assignment = journey.assignments.filter(
+            profile=self.request.user,
+            status=JourneyAssignmentStatus.ACTIVE,
+        ).exists()
+        step_rows = [
+            {
+                "step": step,
+                "can_act": (
+                    (
+                        journey.beneficiary_id == self.request.user.pk
+                        and (
+                            step.created_by_id == self.request.user.pk
+                            or step.assignments.filter(
+                                profile=self.request.user,
+                                status=JourneyAssignmentStatus.ACTIVE,
+                            ).exists()
+                        )
+                    )
+                    or (
+                        has_case_assignment
+                        and can(
+                            self.request.user,
+                            PermissionCode.ACTIVITY_MANAGE,
+                            activity=journey.activity,
+                        )
+                    )
+                ),
+            }
+            for step in steps
+        ]
         context.update(
             {
                 "journey": journey,
@@ -212,6 +251,7 @@ class ObtentionJourneyView(LoginRequiredMixin, TemplateView):
                     else None,
                 ),
                 "is_beneficiary": journey.beneficiary_id == self.request.user.pk,
+                "step_rows": step_rows,
                 "can_manage": can(
                     self.request.user,
                     PermissionCode.ACTIVITY_MANAGE,
@@ -293,4 +333,36 @@ class ObtentionFulfillView(LoginRequiredMixin, View):
             messages.error(request, _message(exc))
         else:
             messages.success(request, "Obtention accomplie.")
+        return redirect("obtention:journey", pk=journey.pk)
+
+
+class ObtentionStepStartView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk, step_id):
+        journey = _visible_journey(request.user, pk)
+        step = get_object_or_404(JourneyStep, pk=step_id, journey=journey)
+        try:
+            if journey.beneficiary_id == request.user.pk:
+                start_participant_step(step=step, actor=request.user)
+            else:
+                start_step(step=step, actor=request.user)
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, _message(exc))
+        return redirect("obtention:journey", pk=journey.pk)
+
+
+class ObtentionStepCompleteView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk, step_id):
+        journey = _visible_journey(request.user, pk)
+        step = get_object_or_404(JourneyStep, pk=step_id, journey=journey)
+        try:
+            if journey.beneficiary_id == request.user.pk:
+                complete_participant_step(step=step, actor=request.user)
+            else:
+                complete_step(step=step, actor=request.user)
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, _message(exc))
         return redirect("obtention:journey", pk=journey.pk)
