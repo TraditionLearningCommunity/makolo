@@ -72,7 +72,6 @@ def create_transport_route(*, space, name, stops, code="", active=True):
 
 @transaction.atomic
 def create_transport_service(*, space, created_by, route, title=None, description="", mode="road"):
-    _validate_transport_space(space)
     _validate_route(route)
     _validate_space_object(space=space, obj=route, label="La Route")
     activity = create_activity(
@@ -98,7 +97,6 @@ def create_transport_vehicle(
     vehicle_type="bus",
     active=True,
 ):
-    _validate_transport_space(space)
     vehicle = Vehicle(
         space=space,
         label=label.strip(),
