@@ -188,3 +188,15 @@ Le Scanner reste générique `Activity/Occurrence` et conserve la vérité `Acce
 Transport, Vehicle, Seat, Route, Stop, découverte spatio-temporelle globale, PostGIS, Product Language global, nouveau CRM, nouveau moteur Analytics, nouveau provider Payment et workflow builder avancé restent hors Tâche 11.
 
 Pour T28 spécifiquement, restent hors scope : Team Activity dédiée, hiérarchie récursive de Teams, invitation externe d’identité non existante, scanner offline/PWA, refonte des moteurs T23/T25/T26/T27 et hub personnel T29.
+
+## Lifecycle et ownership
+
+La Console Space présente désormais le lifecycle opérationnel séparément de la
+confiance Trust. Un Owner autorisé peut archiver un Space actif et restaurer un
+Space archivé. Une suspension Platform ne peut pas être levée depuis la Console
+ordinaire du Space.
+
+La gestion des responsabilités conserve TeamMembership comme collaboration et
+Mandate comme autorité. Le transfert d'ownership utilise le service atomique
+canonique et attribue le nouvel ownership avant la renonciation de l'Owner
+courant.

@@ -1275,3 +1275,61 @@ La suite doit être réalisée dans cet ordre :
 6. **Consumers** — seulement ensuite faire consommer ces contrats par Console, API et futures expériences.
 
 Aucun autre modèle Space n'est autorisé par défaut dans ce cycle sans démonstration d'un besoin que les domaines existants ne peuvent pas porter.
+
+
+## 36.17 État runtime livré par le chantier #252
+
+Le runtime correspondant à cette spécification utilise désormais :
+
+~~~text
+Organization.archetype
+Organization.lifecycle = ACTIVE | SUSPENDED | ARCHIVED
+~~~
+
+La migration Organizations `0006_organization_lifecycle` initialise les anciens
+Espaces `verification_status=SUSPENDED` en `lifecycle=SUSPENDED` sans supprimer
+la valeur legacy de vérification. Les autres anciens Espaces restent `ACTIVE`.
+
+La séparation est désormais explicite :
+
+~~~text
+Trust VerificationClaim
+= vérité de vérification
+
+Organization.lifecycle
+= état opérationnel du Space
+~~~
+
+Une révocation Trust ne suspend plus automatiquement le Space. La suspension
+opérationnelle relève de la gouvernance Platform et passe par les services
+lifecycle canoniques.
+
+Le transfert d'ownership est assuré par `transfer_space_ownership(...)` :
+
+- verrouillage du Space et du Membership cible ;
+- vérification de `SPACE_OWNERSHIP_MANAGE` ;
+- attribution de `SPACE_OWNER` au destinataire avant toute renonciation ;
+- maintien de l'ancien Owner comme `SPACE_ADMIN` lorsqu'il renonce ;
+- conservation de l'invariant du dernier Owner ;
+- audit Operations ;
+- aucune modification implicite des Groups, autres Spaces ou Mandates Activity.
+
+`SpaceOperatingPreset` reste dérivé dans le code. `SpaceOperationalFootprint`
+est un read model dérivé de faits appartenant aux domaines propriétaires ; aucune
+table `SpaceCapability` ou copie persistante des modules utilisés n'est créée.
+
+Le contrat Workspace API expose, sous autorité serveur :
+
+- identité utile, archetype, lifecycle et visibilité publique ;
+- projection Trust publique minimale ;
+- capabilities calculées ;
+- preset et footprint lorsque l'autorité Space le permet ;
+- résumés Team/ownership minimaux ;
+- création/mise à jour ;
+- archive/restore ;
+- opérations Team/member ;
+- transfert d'ownership.
+
+Les mutations sensibles restent online et sont confirmées par le serveur. Le
+client mobile peut conserver un snapshot local de ces projections, mais ne
+devient jamais autorité pour lifecycle, ownership, Permission, Mandate ou Trust.
