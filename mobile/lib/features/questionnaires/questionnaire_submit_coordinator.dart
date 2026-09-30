@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import '../../auth/token_store.dart';
-import '../../data/local/makolo_database.dart';
 import '../../features/journey/journey_repository.dart';
 import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
