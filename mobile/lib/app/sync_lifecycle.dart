@@ -112,12 +112,13 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     }
     try {
       await sync.refreshRoots();
-      final failedSources = await (database.select(
-        database.syncSources,
-      )..where(
-        (row) =>
-            row.profileId.equals(profileId) & row.lastErrorCode.isNotNull(),
-      )).get();
+      final failedSources =
+          await (database.select(database.syncSources)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.lastErrorCode.isNotNull(),
+              ))
+              .get();
       if (mounted) {
         setState(() {
           _syncFailed = failedSources.isNotEmpty;
