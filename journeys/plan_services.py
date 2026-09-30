@@ -138,7 +138,7 @@ def _can_materialize(actor, journey):
 @transaction.atomic
 def materialize_journey_plan(*, journey, template, actor):
     journey = (
-        journey.__class__.objects.select_for_update()
+        journey.__class__.objects.select_for_update(of=("self",))
         .select_related("activity", "beneficiary")
         .get(pk=journey.pk)
     )
