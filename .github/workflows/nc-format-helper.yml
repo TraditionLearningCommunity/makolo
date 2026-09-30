@@ -41,4 +41,8 @@ jobs:
             test/workmanager_scheduler_test.dart
           )
           dart format "${files[@]}"
-          git diff --no-ext-diff --no-color -- "${files[@]}"
+          for file in "${files[@]}"; do
+            echo "@@NC_FILE:$file@@"
+            base64 -w0 "$file"
+            echo
+          done
