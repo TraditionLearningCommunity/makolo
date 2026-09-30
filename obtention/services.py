@@ -472,7 +472,7 @@ def create_obtention_journey(
 
 @transaction.atomic
 def activate_obtention_journey(*, journey, actor):
-    journey = Journey.objects.select_for_update().select_related(
+    journey = Journey.objects.select_for_update(of=("self",)).select_related(
         "obtention_context", "activity"
     ).get(pk=journey.pk)
     if journey.beneficiary_id != getattr(actor, "pk", None):
@@ -513,7 +513,7 @@ def _validate_receipt_target(journey, target):
 
 @transaction.atomic
 def record_beneficiary_receipt(*, journey, target, actor, received_quantity):
-    journey = Journey.objects.select_for_update().select_related(
+    journey = Journey.objects.select_for_update(of=("self",)).select_related(
         "obtention_context__configuration"
     ).get(pk=journey.pk)
     if journey.beneficiary_id != getattr(actor, "pk", None):
@@ -534,7 +534,7 @@ def record_beneficiary_receipt(*, journey, target, actor, received_quantity):
 
 @transaction.atomic
 def record_operator_receipt(*, journey, target, actor, received_quantity=None):
-    journey = Journey.objects.select_for_update().select_related(
+    journey = Journey.objects.select_for_update(of=("self",)).select_related(
         "activity", "activity__obtention_details", "obtention_context__configuration"
     ).get(pk=journey.pk)
     obtention = journey.activity.obtention_details
@@ -567,7 +567,7 @@ def validate_obtention_fulfillment(journey):
 
 @transaction.atomic
 def fulfill_obtention_journey(*, journey, actor):
-    journey = Journey.objects.select_for_update().select_related(
+    journey = Journey.objects.select_for_update(of=("self",)).select_related(
         "activity",
         "obtention_context__configuration",
         "obtention_context__mode",
