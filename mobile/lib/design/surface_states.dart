@@ -4,6 +4,7 @@ import 'behavior_primitives.dart';
 import 'behavior_states.dart';
 import 'makolo_theme.dart';
 
+/// Presentation-only contract consumed after KA selection/adaptation.
 /// Presentation-only availability. The owner/KA layers decide which value is
 /// true; EF only renders it.
 enum MakoloAvailabilityCue { initial, loading, content, empty }
