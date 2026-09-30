@@ -124,10 +124,7 @@ class QuestionnaireSubmitCoordinator {
         // The owner response already confirms submission. A later sync can
         // retry this verification without rolling back the confirmed intent.
       }
-      await _finalizeConfirmed(
-        requestId: requestId,
-        journeyId: journeyId,
-      );
+      await _finalizeConfirmed(requestId: requestId, journeyId: journeyId);
       return OutboxResolution.confirmed;
     } on MakoloApiError catch (error) {
       if (error.statusCode == 400) {
@@ -164,10 +161,7 @@ class QuestionnaireSubmitCoordinator {
         response.jsonObject(),
       );
       if (parsed.isSubmitted) {
-        await _finalizeConfirmed(
-          requestId: requestId,
-          journeyId: journeyId,
-        );
+        await _finalizeConfirmed(requestId: requestId, journeyId: journeyId);
         return OutboxResolution.confirmed;
       }
       if (parsed.status == 'cancelled') {
@@ -232,7 +226,9 @@ class QuestionnaireSubmitCoordinator {
   Map<String, dynamic> _payload(OutboxOperation operation) {
     final value = jsonDecode(operation.payloadJson);
     if (value is! Map) {
-      throw const FormatException('Questionnaire outbox payload must be an object.');
+      throw const FormatException(
+        'Questionnaire outbox payload must be an object.',
+      );
     }
     return value.map((key, item) => MapEntry(key.toString(), item));
   }
@@ -247,13 +243,11 @@ class QuestionnaireSubmitCoordinator {
     final save = values['save']?.toString().trim();
     final submit = values['submit']?.toString().trim();
     if (save == null || save.isEmpty || submit == null || submit.isEmpty) {
-      throw const FormatException('Questionnaire save/submit owner links are required.');
+      throw const FormatException(
+        'Questionnaire save/submit owner links are required.',
+      );
     }
-    return QuestionnaireOwnerLinks(
-      detail: detail,
-      save: save,
-      submit: submit,
-    );
+    return QuestionnaireOwnerLinks(detail: detail, save: save, submit: submit);
   }
 
   Map<String, dynamic> _answers(Object? value) {
