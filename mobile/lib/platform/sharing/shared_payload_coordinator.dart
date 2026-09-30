@@ -28,16 +28,10 @@ class SharedPayloadCoordinator {
     String sensitivity = 'private',
   }) async {
     if (payload.kind == SharedPayloadKind.text) {
-      return InboundSharedCapture(
-        kind: payload.kind,
-        text: payload.text,
-      );
+      return InboundSharedCapture(kind: payload.kind, text: payload.text);
     }
     if (payload.kind == SharedPayloadKind.url) {
-      return InboundSharedCapture(
-        kind: payload.kind,
-        url: payload.url,
-      );
+      return InboundSharedCapture(kind: payload.kind, url: payload.url);
     }
 
     final staged = <StoredLocalFile>[];
