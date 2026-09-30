@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
+import '../features/journey/journey_repository.dart';
 import '../network/makolo_api_client.dart';
 import '../repositories/interoperability_repository.dart';
 import '../repositories/personal_repository.dart';
@@ -27,6 +28,7 @@ class AppRuntime {
     this.store,
     this.personal,
     this.interoperability,
+    this.journeys,
     this.outbox,
     this.sync,
   });
@@ -41,6 +43,7 @@ class AppRuntime {
   final ProfileStore? store;
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
+  final JourneyRepository? journeys;
   final OutboxRepository? outbox;
   final SyncEngine? sync;
 
@@ -101,6 +104,12 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
           database: database,
           profileId: profileId,
         );
+  final journeys = JourneyRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
 
   return AppRuntime(
     tokens: tokens,
@@ -113,6 +122,7 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     store: store,
     personal: personal,
     interoperability: interoperability,
+    journeys: journeys,
     outbox: outbox,
     sync: sync,
   );
