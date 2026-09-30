@@ -10,7 +10,7 @@ from events.models import Event, EventStatus, EventVisibility
 
 from .console_context import authorized_spaces
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
-from .models import Organization, OrganizationFollow, OrganizationVerificationStatus, TeamMembership
+from .models import Organization, OrganizationFollow, OrganizationVerificationStatus, SpaceLifecycle, TeamMembership
 from .permissions import user_can_manage_organization, user_can_manage_organization_team
 from .services import (
     add_or_update_member,
@@ -71,8 +71,9 @@ class PublicOrganizationDetailView(DetailView):
     slug_url_kwarg = "slug"
 
     def get_queryset(self):
-        return Organization.objects.filter(public_profile=True).exclude(
-            verification_status=OrganizationVerificationStatus.SUSPENDED
+        return Organization.objects.filter(
+            public_profile=True,
+            lifecycle=SpaceLifecycle.ACTIVE,
         )
 
     def get_context_data(self, **kwargs):
@@ -101,8 +102,9 @@ class PublicOrganizationDetailView(DetailView):
 class OrganizationFollowToggleView(LoginRequiredMixin, View):
     def post(self, request, slug):
         organization = get_object_or_404(
-            Organization.objects.filter(public_profile=True).exclude(
-                verification_status=OrganizationVerificationStatus.SUSPENDED
+            Organization.objects.filter(
+                public_profile=True,
+                lifecycle=SpaceLifecycle.ACTIVE,
             ),
             slug=slug,
         )

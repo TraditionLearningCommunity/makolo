@@ -9,6 +9,7 @@ from organizations.models import (
     OrganizationMembership,
     OrganizationRole,
     OrganizationVerificationStatus,
+    SpaceLifecycle,
 )
 
 from .common import SeedContext, backdate, choose, dt, upsert
@@ -118,6 +119,11 @@ def seed_accounts_and_organizations(ctx: SeedContext) -> None:
             "city": city,
             "public_profile": True,
             "verification_status": verification_status,
+            "lifecycle": (
+                SpaceLifecycle.SUSPENDED
+                if verification_status == OrganizationVerificationStatus.SUSPENDED
+                else SpaceLifecycle.ACTIVE
+            ),
             "created_by": owner,
         })
         backdate(org, created_at=created, updated_at=min(ctx.as_of, created + timedelta(days=140)))
@@ -136,7 +142,7 @@ def seed_accounts_and_organizations(ctx: SeedContext) -> None:
 
     for i, user in enumerate(ctx.users):
         org = ctx.organizations[i % len(ctx.organizations)]
-        if org.verification_status != OrganizationVerificationStatus.SUSPENDED:
+        if org.lifecycle == SpaceLifecycle.ACTIVE:
             follow = upsert(OrganizationFollow, f"user-{i}-org-{org.slug}", defaults={
                 "organization": org,
                 "user": user,

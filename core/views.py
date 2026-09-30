@@ -7,7 +7,7 @@ from django.views.generic import TemplateView
 
 from accounts.device_accounts import remember_account_on_device
 from events.selectors import get_public_discoverable_events
-from organizations.models import Organization, OrganizationVerificationStatus
+from organizations.models import Organization, SpaceLifecycle
 
 from .web_throttling import (
     RATE_LIMIT_MESSAGE,
@@ -68,8 +68,10 @@ class PublicHomeView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["featured_events"] = get_public_discoverable_events().order_by("start_at")[:6]
         context["public_organizations"] = (
-            Organization.objects.filter(public_profile=True)
-            .exclude(verification_status=OrganizationVerificationStatus.SUSPENDED)
+            Organization.objects.filter(
+                public_profile=True,
+                lifecycle=SpaceLifecycle.ACTIVE,
+            )
             .order_by("name")[:6]
         )
         return context

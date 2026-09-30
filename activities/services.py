@@ -8,6 +8,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
+from organizations.services import require_space_operational
 
 from .models import (
     Activity,
@@ -75,6 +76,8 @@ def create_activity(*, created_by, title, space=None, owner_profile=None, **fiel
         raise ValidationError(
             "Toute nouvelle Activity doit appartenir soit à un Profil, soit à un Espace."
         )
+    if space is not None:
+        require_space_operational(space)
     if owner_profile is not None and owner_profile.pk != getattr(created_by, "pk", None):
         raise ValidationError(
             {"owner_profile": "Une Activity personnelle doit être créée par son propriétaire."}
@@ -138,6 +141,8 @@ def update_activity_common(*, activity: Activity, **fields) -> Activity:
 
 @transaction.atomic
 def reopen_completed_activity(*, activity: Activity) -> Activity:
+    if activity.space_id:
+        require_space_operational(activity.space)
     if activity.status != ActivityStatus.COMPLETED:
         raise ValidationError("Seule une activité terminée peut être réouverte.")
     previous_status = activity.status
@@ -174,6 +179,8 @@ def create_occurrence(
     schedule=None,
     schedule_local_date=None,
 ) -> Occurrence:
+    if activity.space_id:
+        require_space_operational(activity.space)
     occurrence = Occurrence(
         activity=activity,
         label=label,
@@ -292,6 +299,8 @@ def create_occurrence_schedule(
     label="",
     occurrence_status=OccurrenceStatus.SCHEDULED,
 ) -> OccurrenceSchedule:
+    if activity.space_id:
+        require_space_operational(activity.space)
     schedule = OccurrenceSchedule(
         activity=activity,
         created_by=created_by,
@@ -354,6 +363,8 @@ def materialize_occurrence_schedule(*, schedule: OccurrenceSchedule, through_dat
         .prefetch_related("weekdays")
         .get(pk=schedule.pk)
     )
+    if schedule.activity.space_id:
+        require_space_operational(schedule.activity.space)
     if schedule.status != OccurrenceScheduleStatus.ACTIVE:
         return []
     last_day = min(through_date, schedule.ends_on) if schedule.ends_on else through_date

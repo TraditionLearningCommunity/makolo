@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from events.models import Event, EventStatus, EventVisibility
 
-from .models import OrganizationVerificationStatus
+from .models import SpaceLifecycle
 from .services import create_organization
 
 
@@ -35,8 +35,8 @@ class PublicOrganizerModerationTests(TestCase):
             end_at=start + timedelta(hours=2),
             published_at=timezone.now(),
         )
-        organization.verification_status = OrganizationVerificationStatus.SUSPENDED
-        organization.save(update_fields=["verification_status", "updated_at"])
+        organization.lifecycle = SpaceLifecycle.SUSPENDED
+        organization.save(update_fields=["lifecycle", "updated_at"])
 
         profile_response = self.client.get(f"/o/{organization.slug}/")
         events_response = self.client.get("/events/")

@@ -25,6 +25,7 @@ from notifications.models import Notification
 from organizations.models import (
     Organization,
     OrganizationVerificationStatus,
+    SpaceLifecycle,
 )
 from payments.models import Payment
 from promotions.models import DiscountType, Promotion, PromotionCode
@@ -366,6 +367,7 @@ class MobileMVPAPIContractTests(TestCase):
             name="Organisation suspendue",
             created_by=self.organizer,
             verification_status=OrganizationVerificationStatus.SUSPENDED,
+            lifecycle=SpaceLifecycle.SUSPENDED,
         )
         suspended_event = Event.objects.create(
             organizer=self.organizer,

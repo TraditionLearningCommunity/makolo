@@ -4,7 +4,7 @@ from django.utils import timezone
 from activities.models import Occurrence, OccurrencePlace
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission
-from organizations.models import OrganizationVerificationStatus
+from organizations.models import SpaceLifecycle
 
 from .models import Event, EventStatus, EventVisibility
 
@@ -23,9 +23,9 @@ def get_events():
     ).prefetch_related(Prefetch("activity__occurrences", queryset=occurrences))
 
 
-def _space_is_not_suspended_filter() -> Q:
-    return Q(activity__space__isnull=True) | ~Q(
-        activity__space__verification_status=OrganizationVerificationStatus.SUSPENDED
+def _space_is_operational_filter() -> Q:
+    return Q(activity__space__isnull=True) | Q(
+        activity__space__lifecycle=SpaceLifecycle.ACTIVE
     )
 
 
@@ -41,7 +41,7 @@ def get_public_discoverable_events(*, upcoming_only: bool = True):
     queryset = get_events().filter(
         activity__status=EventStatus.PUBLISHED,
         activity__visibility=EventVisibility.PUBLIC,
-    ).filter(_space_is_not_suspended_filter())
+    ).filter(_space_is_operational_filter())
     if upcoming_only:
         queryset = queryset.filter(activity__occurrences__end_at__gt=timezone.now())
     return queryset.prefetch_related(
@@ -54,7 +54,7 @@ def get_events_available_for_ticket_purchase():
     return get_events().filter(
         activity__status=EventStatus.PUBLISHED,
         activity__visibility__in=[EventVisibility.PUBLIC, EventVisibility.UNLISTED],
-    ).filter(_space_is_not_suspended_filter()).distinct()
+    ).filter(_space_is_operational_filter()).distinct()
 
 
 def get_events_visible_to(user, *, for_detail: bool = False):
@@ -65,7 +65,7 @@ def get_events_visible_to(user, *, for_detail: bool = False):
     public_filter = Q(
         activity__status=EventStatus.PUBLISHED,
         activity__visibility__in=public_visibilities,
-    ) & _space_is_not_suspended_filter()
+    ) & _space_is_operational_filter()
     if not getattr(user, "is_authenticated", False):
         return queryset.filter(public_filter).distinct()
 

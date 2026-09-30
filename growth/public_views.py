@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 
 from events.models import EventStatus, EventVisibility
-from organizations.models import OrganizationVerificationStatus
+from organizations.models import SpaceLifecycle
 
 from .models import MarketingLink
 from .services import capture_marketing_link
@@ -17,7 +17,7 @@ class MarketingLinkRedirectView(View):
             event__status=EventStatus.PUBLISHED,
             event__visibility=EventVisibility.PUBLIC,
         )
-        if link.organization.verification_status == OrganizationVerificationStatus.SUSPENDED:
+        if link.organization.lifecycle != SpaceLifecycle.ACTIVE:
             from django.http import Http404
 
             raise Http404
