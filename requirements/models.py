@@ -7,6 +7,229 @@ from django.db.models import Q
 
 from trust.models import ProofType
 
+from .contracts import RequirementAssessmentState, RequirementMode
+from .registry import RequirementConfigurationError, RequirementRegistryError, registry
+
+
+
+
+class RequirementDefinitionStatus(models.TextChoices):
+    DRAFT = "draft", "Brouillon"
+    PUBLISHED = "published", "Publié"
+    RETIRED = "retired", "Retiré"
+
+
+class RequirementDefinition(models.Model):
+    """Versioned Activity-owned Requirement definition for generic Journeys.
+
+    Existing Service/Opportunity and Subscription Requirement aggregates remain
+    valid. This model is the horizontal persistence for new Activity/Journey
+    compositions that do not own a more specific versioned aggregate.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    activity = models.ForeignKey(
+        "activities.Activity",
+        on_delete=models.CASCADE,
+        related_name="requirement_definitions",
+    )
+    key = models.SlugField(max_length=120)
+    version = models.PositiveIntegerField(default=1)
+    title = models.CharField(max_length=220)
+    description = models.TextField(blank=True)
+    mode = models.CharField(
+        max_length=24,
+        choices=RequirementMode.choices,
+        default=RequirementMode.VERIFICATION,
+    )
+    evaluator_key = models.CharField(max_length=120, blank=True)
+    evaluator_config = models.JSONField(default=dict, blank=True)
+    is_mandatory = models.BooleanField(default=True)
+    position = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=16,
+        choices=RequirementDefinitionStatus.choices,
+        default=RequirementDefinitionStatus.DRAFT,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_requirement_definitions",
+        null=True,
+        blank=True,
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    retired_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["activity", "key", "version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["activity", "key", "version"],
+                name="req_definition_version_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(version__gt=0),
+                name="req_definition_version_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["activity", "key"],
+                condition=Q(status=RequirementDefinitionStatus.PUBLISHED),
+                name="req_definition_one_published",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["activity", "status", "position"],
+                name="req_def_activity_state_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        self.key = (self.key or "").strip()
+        self.title = (self.title or "").strip()
+        self.description = (self.description or "").strip()
+        self.evaluator_key = (self.evaluator_key or "").strip()
+        errors = {}
+        if not self.key:
+            errors["key"] = "La clé du Requirement est obligatoire."
+        if not self.title:
+            errors["title"] = "Le titre du Requirement est obligatoire."
+        if self.evaluator_key:
+            try:
+                registry.validate_config(self.evaluator_key, self.evaluator_config or {})
+            except (RequirementRegistryError, RequirementConfigurationError) as exc:
+                errors["evaluator_config"] = str(exc)
+        elif self.mode == RequirementMode.AUTOMATIC:
+            errors["evaluator_key"] = "Un Requirement automatique doit déclarer un evaluator enregistré."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            previous = RequirementDefinition.objects.filter(pk=self.pk).values(
+                "activity_id",
+                "key",
+                "version",
+                "title",
+                "description",
+                "mode",
+                "evaluator_key",
+                "evaluator_config",
+                "is_mandatory",
+                "position",
+                "status",
+            ).first()
+            if previous and previous["status"] in {
+                RequirementDefinitionStatus.PUBLISHED,
+                RequirementDefinitionStatus.RETIRED,
+            }:
+                structural = {
+                    "activity_id": self.activity_id,
+                    "key": self.key,
+                    "version": self.version,
+                    "title": self.title,
+                    "description": self.description,
+                    "mode": self.mode,
+                    "evaluator_key": self.evaluator_key,
+                    "evaluator_config": self.evaluator_config,
+                    "is_mandatory": self.is_mandatory,
+                    "position": self.position,
+                }
+                if any(previous[name] != value for name, value in structural.items()):
+                    raise ValidationError("Un Requirement publié est structurellement immuable.")
+                if self.status not in {
+                    RequirementDefinitionStatus.PUBLISHED,
+                    RequirementDefinitionStatus.RETIRED,
+                }:
+                    raise ValidationError("Un Requirement publié peut seulement rester publié ou être retiré.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status != RequirementDefinitionStatus.DRAFT:
+            raise ValidationError("Un Requirement publié ou retiré ne peut pas être supprimé.")
+        return super().delete(*args, **kwargs)
+
+
+class JourneyRequirementAssessment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey = models.ForeignKey(
+        "journeys.Journey",
+        on_delete=models.CASCADE,
+        related_name="requirement_assessments",
+    )
+    requirement = models.ForeignKey(
+        RequirementDefinition,
+        on_delete=models.PROTECT,
+        related_name="journey_assessments",
+    )
+    journey_step = models.ForeignKey(
+        "journeys.JourneyStep",
+        on_delete=models.PROTECT,
+        related_name="requirement_assessments",
+        null=True,
+        blank=True,
+    )
+    state = models.CharField(
+        max_length=24,
+        choices=RequirementAssessmentState.choices,
+        default=RequirementAssessmentState.UNASSESSED,
+    )
+    reason_code = models.CharField(max_length=160, blank=True)
+    note = models.TextField(blank=True)
+    assessed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="journey_requirement_assessments",
+        null=True,
+        blank=True,
+    )
+    observed_at = models.DateTimeField(null=True, blank=True)
+    assessed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["journey", "requirement__position", "requirement_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["journey", "requirement"],
+                name="req_journey_assessment_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["journey", "state"],
+                name="req_journey_state_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.journey_id and self.requirement_id:
+            if self.journey.activity_id != self.requirement.activity_id:
+                errors["requirement"] = "Le Requirement doit appartenir à l'Activity de la Journey."
+        if self.journey_step_id and self.journey_id:
+            if self.journey_step.journey_id != self.journey_id:
+                errors["journey_step"] = "La Step liée doit appartenir à la même Journey."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding and not getattr(self, "_allow_state_transition", False):
+            previous = JourneyRequirementAssessment.objects.filter(pk=self.pk).values_list(
+                "state", flat=True
+            ).first()
+            if previous is not None and previous != self.state:
+                raise ValidationError({"state": "Utilisez les services Requirements pour changer l'Assessment."})
+        result = super().save(*args, **kwargs)
+        self._allow_state_transition = False
+        return result
 
 class RequirementReuseSource(models.TextChoices):
     LIBRARY = "library", "Ma Bibliothèque"
