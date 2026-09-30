@@ -164,6 +164,7 @@ def _with_projection_relations(queryset, *, include_credentials):
             "activity__transport_service",
             "activity__service_details",
             "activity__funding_details",
+            "activity__obtention_details",
             "occurrence",
             "journey",
             "journey__beneficiary",
