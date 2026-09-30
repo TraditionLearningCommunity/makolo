@@ -163,22 +163,18 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
     for (final question in detail.questions) {
       final value = _answers[question.key];
       final missing =
-          value == null ||
-          value == '' ||
-          (value is List && value.isEmpty);
+          value == null || value == '' || (value is List && value.isEmpty);
       if (question.required && missing) {
         errors[question.key] = 'Ce champ est obligatoire.';
         continue;
       }
       if (missing) continue;
       if (value is String) {
-        if (question.minLength != null &&
-            value.length < question.minLength!) {
+        if (question.minLength != null && value.length < question.minLength!) {
           errors[question.key] =
               'Minimum ' + question.minLength.toString() + ' caractères.';
         }
-        if (question.maxLength != null &&
-            value.length > question.maxLength!) {
+        if (question.maxLength != null && value.length > question.maxLength!) {
           errors[question.key] =
               'Maximum ' + question.maxLength.toString() + ' caractères.';
         }
@@ -205,9 +201,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
         QuestionnaireRequestDetail? detail;
         if (projection != null) {
           try {
-            detail = QuestionnaireRequestDetail.fromPayload(
-              projection.payload,
-            );
+            detail = QuestionnaireRequestDetail.fromPayload(projection.payload);
           } on FormatException {
             detail = null;
           }
@@ -248,10 +242,8 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                             label: 'Chargement du formulaire…',
                           )
                         : MakoloErrorState(
-                            message:
-                                'Ce formulaire n’est pas disponible sur cet appareil.',
-                            preservedMessage:
-                                'Votre brouillon local, s’il existe, est conservé.',
+                            message: 'Ce formulaire n’est pas disponible sur cet appareil.',
+                            preservedMessage: 'Votre brouillon local, s’il existe, est conservé.',
                             onRetry: _refresh,
                           ))
                   : _FormContent(
@@ -260,8 +252,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                       errors: _serverErrors,
                       commit: commit,
                       refreshing: _refreshing,
-                      savedOnDevice:
-                          _initializedAnswers && operation == null,
+                      savedOnDevice: _initializedAnswers && operation == null,
                       canSubmit:
                           widget.links.canSubmit &&
                           !detail.isSubmitted &&
@@ -358,9 +349,7 @@ class _FormContent extends StatelessWidget {
         FilledButton.icon(
           onPressed: canSubmit ? onSubmit : null,
           icon: const Icon(Icons.check_rounded),
-          label: Text(
-            detail.isSubmitted ? 'Déjà soumis' : 'Soumettre',
-          ),
+          label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
         ),
         if (!canSubmit && !detail.isSubmitted) ...[
           const SizedBox(height: MakoloSpacing.sm),
@@ -388,8 +377,7 @@ class _QuestionField extends StatelessWidget {
   final ValueChanged<Object?> onChanged;
   final String? error;
 
-  String get _label =>
-      question.label + (question.required ? ' *' : '');
+  String get _label => question.label + (question.required ? ' *' : '');
 
   @override
   Widget build(BuildContext context) {
@@ -402,8 +390,7 @@ class _QuestionField extends StatelessWidget {
           minLines: question.type == QuestionnaireQuestionType.longText ? 4 : 1,
           maxLines: question.type == QuestionnaireQuestionType.longText ? 8 : 1,
           maxLength: question.maxLength,
-          textInputAction:
-              question.type == QuestionnaireQuestionType.longText
+          textInputAction: question.type == QuestionnaireQuestionType.longText
               ? TextInputAction.newline
               : TextInputAction.next,
           decoration: InputDecoration(
@@ -433,8 +420,9 @@ class _QuestionField extends StatelessWidget {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(_label),
-              subtitle:
-                  question.helpText == null ? null : Text(question.helpText!),
+              subtitle: question.helpText == null
+                  ? null
+                  : Text(question.helpText!),
               value: value == true,
               onChanged: onChanged,
             ),
