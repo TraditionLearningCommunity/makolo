@@ -2,7 +2,12 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from activities.models import ActivityStatus, ActivityVisibility
+from activities.models import (
+    ActivityStatus,
+    ActivityVisibility,
+    OccurrenceStatus,
+    OccurrenceTimingKind,
+)
 from journeys.models import JourneyPlanStepActor, JourneyStepKind, WorkflowKind
 from requirements.contracts import RequirementAssessmentState, RequirementMode
 
@@ -199,3 +204,32 @@ class OperatorReceiptSerializer(serializers.Serializer):
         min_value=Decimal("0"),
         required=False,
     )
+
+
+
+class ObtentionOccurrenceInputSerializer(serializers.Serializer):
+    label = serializers.CharField(max_length=180, required=False, allow_blank=True)
+    start_date = serializers.DateField()
+    timing_kind = serializers.ChoiceField(
+        choices=OccurrenceTimingKind.choices,
+        default=OccurrenceTimingKind.EXACT,
+    )
+    start_time = serializers.TimeField(required=False, allow_null=True)
+    end_date = serializers.DateField(required=False, allow_null=True)
+    end_time = serializers.TimeField(required=False, allow_null=True)
+    timezone = serializers.CharField(max_length=100, default="Africa/Lubumbashi")
+    status = serializers.ChoiceField(
+        choices=OccurrenceStatus.choices,
+        default=OccurrenceStatus.SCHEDULED,
+    )
+
+    def validate(self, attrs):
+        if (
+            attrs.get("timing_kind", OccurrenceTimingKind.EXACT)
+            == OccurrenceTimingKind.EXACT
+            and attrs.get("start_time") is None
+        ):
+            raise serializers.ValidationError(
+                {"start_time": "Une heure de début est requise pour une Occurrence exacte."}
+            )
+        return attrs
