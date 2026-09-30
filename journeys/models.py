@@ -57,6 +57,7 @@ class WorkflowKind(models.TextChoices):
     REGISTRATION = "registration", "Inscription"
     INVITATION = "invitation", "Invitation"
     SERVICE = "service", "Service"
+    FULFILLMENT = "fulfillment", "Accomplissement"
 
 
 class JourneyStatus(models.TextChoices):
