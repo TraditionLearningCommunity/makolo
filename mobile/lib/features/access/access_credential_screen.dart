@@ -115,7 +115,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
           (null, true, _) => const MakoloLoadingState(
             label: 'Chargement du QR…',
           ),
-          (null, false, final error?) => MakoloErrorState(
+          (null, false, _) when _error != null => MakoloErrorState(
             message: 'Le QR ne peut pas être affiché pour le moment.',
             onRetry: _load,
           ),
