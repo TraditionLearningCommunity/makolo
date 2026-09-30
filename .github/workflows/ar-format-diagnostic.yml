@@ -1,0 +1,25 @@
+name: AR format diagnostic
+
+on:
+  push:
+    branches:
+      - mobile/ar-access-real-world-action
+
+permissions:
+  contents: read
+
+jobs:
+  format-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: "3.47.3"
+          channel: stable
+      - name: Print canonical Dart format diff
+        shell: bash
+        run: |
+          cd mobile
+          dart format lib/features/access lib/features/day_of test/ar_access_real_world_action_test.dart
+          git diff --color=never -- lib/features/access lib/features/day_of test/ar_access_real_world_action_test.dart
