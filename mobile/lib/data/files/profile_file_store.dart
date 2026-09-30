@@ -100,7 +100,7 @@ class ProfileFileStore {
           target.path,
         );
       }
-      return _record(
+      return await _record(
         fileId: fileId,
         owner: owner,
         localPath: target.path,
