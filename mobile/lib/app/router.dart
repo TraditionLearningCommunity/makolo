@@ -6,6 +6,7 @@ import '../features/auth/account_actions.dart';
 import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
+import '../features/discovery/discovery_screens.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/connections_screen.dart';
 import '../features/journey/journey_detail_screen.dart';
@@ -55,6 +56,7 @@ GoRouter createMakoloRouter(
     }
     return const [
       '/journeys/',
+      '/discover/items/',
       '/activities/',
       '/occurrences/',
       '/accesses/',
@@ -123,13 +125,32 @@ GoRouter createMakoloRouter(
               routes: [
                 GoRoute(
                   path: '/discover',
-                  builder: (context, state) => const MakoloRefreshBoundary(
-                    child: PlaceholderScreen(
-                      title: 'Découvrir',
-                      message: 'Aucune possibilité à afficher pour le moment.',
-                      showTitle: false,
-                    ),
-                  ),
+                  builder: (context, state) {
+                    final discovery = runtime.discovery;
+                    if (discovery == null) {
+                      return const MakoloRefreshBoundary(
+                        child: PlaceholderScreen(
+                          title: 'Découvrir',
+                          message:
+                              'Découvrir n’est pas disponible sur cet appareil.',
+                          showTitle: false,
+                        ),
+                      );
+                    }
+                    return MakoloRefreshBoundary(
+                      child: DiscoveryScreen(
+                        repository: discovery,
+                        location: runtime.location,
+                        onOpenActivity: (id) =>
+                            context.push('/activities/$id'),
+                        onOpenOccurrence: (id) =>
+                            context.push('/occurrences/$id'),
+                        onOpenItem: (family, id) => context.push(
+                          '/discover/items/$family/$id',
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -240,6 +261,61 @@ GoRouter createMakoloRouter(
         ),
       ),
       GoRoute(
+        path: '/discover/items/:family/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Possibilité',
+              message: 'Ce détail n’est pas disponible sur cet appareil.',
+            );
+          }
+          return DiscoveryItemDetailScreen(
+            family: state.pathParameters['family']!,
+            id: state.pathParameters['id']!,
+            repository: discovery,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/activities/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Activité',
+              message: 'Cette activité n’est pas disponible sur cet appareil.',
+            );
+          }
+          return ActivityDetailScreen(
+            activityId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/occurrences/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final discovery = runtime.discovery;
+          if (discovery == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Occurrence',
+              message:
+                  'Cette occurrence n’est pas disponible sur cet appareil.',
+            );
+          }
+          return OccurrenceDetailScreen(
+            occurrenceId: state.pathParameters['id']!,
+            repository: discovery,
+            onOpenActivity: (id) => context.push('/activities/$id'),
+          );
+        },
+      ),
+      GoRoute(
         path: '/ongoing/calendar',
         builder: (context, state) => const MakoloSecondaryScreen(
           title: 'Calendrier',
@@ -308,8 +384,6 @@ GoRouter createMakoloRouter(
         },
       ),
       for (final prefix in const [
-        'activities',
-        'occurrences',
         'accesses',
         'dossiers',
         'projects',
