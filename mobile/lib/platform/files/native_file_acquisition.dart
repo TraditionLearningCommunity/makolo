@@ -154,8 +154,9 @@ class NativeFileAcquisitionCoordinator {
           sensitivity: sensitivity,
           media: media,
         );
-        if (!result.acquired)
+        if (!result.acquired) {
           throw StateError('Recovered media was not staged.');
+        }
         staged.add(result.files.single);
       }
       return FileAcquisitionResult(
