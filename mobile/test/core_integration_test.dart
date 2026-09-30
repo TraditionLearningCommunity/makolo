@@ -68,38 +68,38 @@ void main() {
     );
   });
 
-  test('availability remains caller-owned and can distinguish not acquired', () {
-    final notAcquired = ProjectionPresentationModel(
-      available: false,
-      payload: null,
-      freshness: null,
-      resources: const [],
-      drafts: const [],
-      pendingOperations: const [],
-    );
+  test(
+    'availability remains caller-owned and can distinguish not acquired',
+    () {
+      final notAcquired = ProjectionPresentationModel(
+        available: false,
+        payload: null,
+        freshness: null,
+        resources: const [],
+        drafts: const [],
+        pendingOperations: const [],
+      );
 
-    final initial = adapter.adapt(
-      projection: notAcquired,
-      availability: MakoloAvailabilityCue.initial,
-      reachability: ReachabilityState.unknown,
-    );
-    final confirmedEmpty = adapter.adapt(
-      projection: notAcquired,
-      availability: MakoloAvailabilityCue.empty,
-      reachability: ReachabilityState.reachable,
-    );
+      final initial = adapter.adapt(
+        projection: notAcquired,
+        availability: MakoloAvailabilityCue.initial,
+        reachability: ReachabilityState.unknown,
+      );
+      final confirmedEmpty = adapter.adapt(
+        projection: notAcquired,
+        availability: MakoloAvailabilityCue.empty,
+        reachability: ReachabilityState.reachable,
+      );
 
-    expect(initial.availability, MakoloAvailabilityCue.initial);
-    expect(initial.freshness, MakoloFreshnessCue.unknown);
-    expect(confirmedEmpty.availability, MakoloAvailabilityCue.empty);
-  });
+      expect(initial.availability, MakoloAvailabilityCue.initial);
+      expect(initial.freshness, MakoloFreshnessCue.unknown);
+      expect(confirmedEmpty.availability, MakoloAvailabilityCue.empty);
+    },
+  );
 
   test('pending content is never adapted as confirmed', () {
     final state = adapter.adapt(
-      projection: model(
-        freshness: FreshnessState.fresh,
-        pending: true,
-      ),
+      projection: model(freshness: FreshnessState.fresh, pending: true),
       availability: MakoloAvailabilityCue.content,
       reachability: ReachabilityState.reachable,
     );
@@ -118,10 +118,7 @@ void main() {
 
     expect(state.availability, MakoloAvailabilityCue.content);
     expect(state.freshness, MakoloFreshnessCue.oldObservation);
-    expect(
-      state.reachability,
-      MakoloReachabilityCue.temporarilyUnavailable,
-    );
+    expect(state.reachability, MakoloReachabilityCue.temporarilyUnavailable);
     expect(state.refreshing, isTrue);
   });
 

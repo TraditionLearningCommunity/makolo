@@ -39,7 +39,8 @@ class ProjectionSurfaceAdapter {
       null => MakoloFreshnessCue.unknown,
       FreshnessState.fresh => MakoloFreshnessCue.current,
       FreshnessState.usableButOld => MakoloFreshnessCue.oldObservation,
-      FreshnessState.refreshRecommended => MakoloFreshnessCue.refreshRecommended,
+      FreshnessState.refreshRecommended =>
+        MakoloFreshnessCue.refreshRecommended,
       FreshnessState.revalidationRequired =>
         MakoloFreshnessCue.revalidationRequired,
       FreshnessState.expired => MakoloFreshnessCue.expired,

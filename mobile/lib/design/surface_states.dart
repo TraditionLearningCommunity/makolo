@@ -218,8 +218,7 @@ class MakoloFreshnessNotice extends StatelessWidget {
         'Une mise à jour est recommandée lorsque la source est joignable.',
       MakoloFreshnessCue.revalidationRequired =>
         'Une vérification distante est nécessaire avant l’action.',
-      MakoloFreshnessCue.expired =>
-        'Cette observation a expiré. Une revalidation distante est nécessaire avant de continuer.',
+      MakoloFreshnessCue.expired => 'Cette observation a expiré. Une revalidation distante est nécessaire avant de continuer.',
     };
   }
 

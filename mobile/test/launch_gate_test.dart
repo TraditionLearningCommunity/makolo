@@ -214,7 +214,10 @@ void main() {
       );
       expect(requests, 0);
 
-      await expectLater(sync.pull(SyncEngine.roots.first), throwsA(isA<Exception>()));
+      await expectLater(
+        sync.pull(SyncEngine.roots.first),
+        throwsA(isA<Exception>()),
+      );
       await tester.pump();
 
       expect(requests, 1);
@@ -224,5 +227,4 @@ void main() {
       );
     },
   );
-
 }
