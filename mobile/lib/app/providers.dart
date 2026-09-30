@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
+import '../features/continuity/conversation_repository.dart';
+import '../features/continuity/history_repository.dart';
+import '../features/continuity/objective_repository.dart';
 import '../features/journey/journey_repository.dart';
 import '../features/preparation/preparation_repository.dart';
 import '../features/questionnaires/questionnaire_repository.dart';
@@ -34,6 +37,9 @@ class AppRuntime {
     this.personal,
     this.interoperability,
     this.journeys,
+    this.objectives,
+    this.history,
+    this.conversations,
     this.requirements,
     this.preparationResources,
     this.questionnaires,
@@ -55,6 +61,9 @@ class AppRuntime {
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
   final JourneyRepository? journeys;
+  final ObjectiveRepository? objectives;
+  final HistoryRepository? history;
+  final ConversationRepository? conversations;
   final RequirementRepository? requirements;
   final PreparationResourcesRepository? preparationResources;
   final QuestionnaireRepository? questionnaires;
@@ -132,6 +141,24 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     profileId: profileId,
     sync: sync,
   );
+  final objectives = ObjectiveRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final history = HistoryRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+  final conversations = ConversationRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
   final requirements = RequirementRepository(
     database: database,
     store: store,
@@ -186,6 +213,9 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     personal: personal,
     interoperability: interoperability,
     journeys: journeys,
+    objectives: objectives,
+    history: history,
+    conversations: conversations,
     requirements: requirements,
     preparationResources: preparationResources,
     questionnaires: questionnaires,

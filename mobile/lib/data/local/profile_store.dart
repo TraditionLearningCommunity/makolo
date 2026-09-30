@@ -54,6 +54,29 @@ class ProfileStore {
     );
   }
 
+  Stream<List<StoredProjection>> watchProjections(String kind) {
+    final query = database.select(database.projectionSnapshots)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) &
+            row.projectionKind.equals(kind),
+      );
+    return query.watch().map(
+      (rows) => rows.map(_storedProjection).toList(growable: false),
+    );
+  }
+
+  Future<List<StoredProjection>> readProjections(String kind) async {
+    final query = database.select(database.projectionSnapshots)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) &
+            row.projectionKind.equals(kind),
+      );
+    final rows = await query.get();
+    return rows.map(_storedProjection).toList(growable: false);
+  }
+
   Future<StoredProjection?> readProjection(
     String kind, {
     String resourceKey = '',
