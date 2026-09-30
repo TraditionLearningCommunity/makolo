@@ -17,8 +17,7 @@ extension PermissionDecisionSemantics on PermissionDecision {
       this == PermissionDecision.limited ||
       this == PermissionDecision.provisional;
 
-  bool get requiresSettings =>
-      this == PermissionDecision.permanentlyDenied;
+  bool get requiresSettings => this == PermissionDecision.permanentlyDenied;
 
   bool get isRestricted => this == PermissionDecision.restricted;
 }
