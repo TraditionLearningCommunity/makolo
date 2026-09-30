@@ -143,7 +143,7 @@ def materialize_journey_plan(*, journey, template, actor):
         .get(pk=journey.pk)
     )
     template = (
-        JourneyPlanTemplate.objects.select_for_update()
+        JourneyPlanTemplate.objects.select_for_update(of=("self",))
         .select_related("activity", "created_by")
         .prefetch_related("steps__dependencies__depends_on")
         .get(pk=template.pk)
