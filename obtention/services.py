@@ -108,6 +108,7 @@ def _create_configuration(
             configuration=configuration,
             title=item["title"],
             description=item.get("description", ""),
+            characteristics=item.get("characteristics", {}),
             quantity=item.get("quantity", Decimal("1")),
             unit=item.get("unit", ""),
             position=item.get("position", position),
