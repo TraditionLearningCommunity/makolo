@@ -1,4 +1,3 @@
-from journeys.collaboration_models import JourneyStepStatus
 from readiness.registry import registry
 from readiness.types import ReadinessCheck, ReadinessCheckState
 
@@ -21,7 +20,7 @@ def generic_requirements_contributor(journey, viewer, now):
             state == RequirementAssessmentState.UNASSESSED
             and requirement.mode == RequirementMode.ACTION
             and assessment.journey_step_id
-            and assessment.journey_step.status == JourneyStepStatus.COMPLETED
+            and assessment.journey_step.status == "completed"
         ):
             state = RequirementAssessmentState.SATISFIED
 
