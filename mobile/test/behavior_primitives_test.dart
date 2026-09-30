@@ -255,9 +255,7 @@ void main() {
     expect(find.bySemanticsLabel('Chargement du contenu'), findsOneWidget);
   });
 
-  testWidgets('refresh preserves usable content', (
-    tester,
-  ) async {
+  testWidgets('refresh preserves usable content', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
@@ -282,9 +280,7 @@ void main() {
     expect(find.byType(MakoloSkeleton), findsNothing);
   });
 
-  testWidgets('pending differs from confirmed', (
-    tester,
-  ) async {
+  testWidgets('pending differs from confirmed', (tester) async {
     Future<void> pump(MakoloCommitCue commit) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -311,9 +307,7 @@ void main() {
     expect(find.text('En attente de synchronisation'), findsNothing);
   });
 
-  testWidgets('blocking error stays recoverable', (
-    tester,
-  ) async {
+  testWidgets('blocking error stays recoverable', (tester) async {
     var retries = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -340,9 +334,7 @@ void main() {
     expect(retries, 1);
   });
 
-  testWidgets('components support large text', (
-    tester,
-  ) async {
+  testWidgets('components support large text', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
@@ -383,9 +375,7 @@ void main() {
     expect(find.bySemanticsLabel('Statut : À vérifier'), findsOneWidget);
   });
 
-  testWidgets('patterns expose semantics', (
-    tester,
-  ) async {
+  testWidgets('patterns expose semantics', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
@@ -401,10 +391,7 @@ void main() {
                 SizedBox(height: MakoloSpacing.lg),
                 MakoloTimeline(
                   items: [
-                    MakoloTimelineItem(
-                      title: 'Préparé',
-                      completed: true,
-                    ),
+                    MakoloTimelineItem(title: 'Préparé', completed: true),
                     MakoloTimelineItem(
                       title: 'Confirmation distante',
                       current: true,
@@ -431,9 +418,7 @@ void main() {
     );
   });
 
-  testWidgets('state transition respects Reduce Motion', (
-    tester,
-  ) async {
+  testWidgets('state transition respects Reduce Motion', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
