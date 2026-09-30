@@ -77,50 +77,54 @@ void main() {
     expect((await store.read('file-1'))?.path, contains('/staging/'));
   });
 
-  test('recoverable transfer failure preserves staged bytes for retry', () async {
-    final (root, database, store) = await fixture();
-    addTearDown(() async {
-      await database.close();
-      await root.delete(recursive: true);
-    });
-    final source = File('${root.path}/source.pdf');
-    await source.writeAsBytes([1, 2]);
-    await store.stage(
-      fileId: 'file-2',
-      owner: 'JourneyArtifact',
-      sourcePath: source.path,
-      purpose: 'submission',
-      sensitivity: 'private',
-    );
+  test(
+    'recoverable transfer failure preserves staged bytes for retry',
+    () async {
+      final (root, database, store) = await fixture();
+      addTearDown(() async {
+        await database.close();
+        await root.delete(recursive: true);
+      });
+      final source = File('${root.path}/source.pdf');
+      await source.writeAsBytes([1, 2]);
+      await store.stage(
+        fileId: 'file-2',
+        owner: 'JourneyArtifact',
+        sourcePath: source.path,
+        purpose: 'submission',
+        sensitivity: 'private',
+      );
 
-    final result = await FileTransferCoordinator(store).transferToOwner(
-      fileId: 'file-2',
-      owner: RecoverableOwner(),
-    );
+      final result = await FileTransferCoordinator(store)
+          .transferToOwner(fileId: 'file-2', owner: RecoverableOwner());
 
-    expect(result.state, FileTransferState.failedRecoverable);
-    expect(result.errorCode, 'network_unreachable');
-    expect(File((await store.read('file-2'))!.path).existsSync(), isTrue);
-  });
+      expect(result.state, FileTransferState.failedRecoverable);
+      expect(result.errorCode, 'network_unreachable');
+      expect(File((await store.read('file-2'))!.path).existsSync(), isTrue);
+    },
+  );
 
-  test('private download becomes durable only after the writer succeeds', () async {
-    final (root, database, store) = await fixture();
-    addTearDown(() async {
-      await database.close();
-      await root.delete(recursive: true);
-    });
+  test(
+    'private download becomes durable only after the writer succeeds',
+    () async {
+      final (root, database, store) = await fixture();
+      addTearDown(() async {
+        await database.close();
+        await root.delete(recursive: true);
+      });
 
-    final file = await FileDownloadCoordinator(store).download(
-      fileId: 'download-1',
-      owner: 'Resource',
-      sourceFilename: 'resource.pdf',
-      purpose: 'offline-use',
-      sensitivity: 'private',
-      downloadTo: (destinationPath) =>
-          File(destinationPath).writeAsBytes([4, 5, 6]),
-    );
+      final file = await FileDownloadCoordinator(store).download(
+        fileId: 'download-1',
+        owner: 'Resource',
+        sourceFilename: 'resource.pdf',
+        purpose: 'offline-use',
+        sensitivity: 'private',
+        downloadTo: (destinationPath) =>
+            File(destinationPath).writeAsBytes([4, 5, 6]),
+      );
 
-    expect(file.path, contains('/private/'));
-    expect(await File(file.path).readAsBytes(), [4, 5, 6]);
-  });
+      expect(file.path, contains('/private/'));
+      expect(await File(file.path).readAsBytes(), [4, 5, 6]);
+    },
+  );
 }
