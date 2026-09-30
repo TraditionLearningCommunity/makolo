@@ -116,7 +116,7 @@ void main() {
     final result = await coordinator.pickFiles(
       owner: 'InboundCapture',
       purpose: 'share',
-      fileIdFor: (_, __) => 'opaque-file-1',
+      fileIdFor: (_, _) => 'opaque-file-1',
     );
 
     expect(result.acquired, isTrue);
