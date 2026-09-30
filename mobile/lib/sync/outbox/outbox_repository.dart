@@ -105,6 +105,7 @@ class OutboxRepository {
                       OutboxState.queued.wireValue,
                       OutboxState.inFlight.wireValue,
                       OutboxState.failed.wireValue,
+                      OutboxState.awaitingConfirmation.wireValue,
                     ]),
               )
               ..orderBy([(row) => OrderingTerm.asc(row.observedAt)]))
@@ -116,6 +117,42 @@ class OutboxRepository {
               row.nextRetryAt == null || !row.nextRetryAt!.toUtc().isAfter(now),
         )
         .toList(growable: false);
+  }
+
+  Stream<List<OutboxOperation>> watchResource({
+    required String operationKind,
+    required String resourceId,
+  }) {
+    final query = database.select(database.outboxOperations)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) &
+            row.operationKind.equals(operationKind) &
+            row.resourceId.equals(resourceId),
+      )
+      ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]);
+    return query.watch();
+  }
+
+  Future<OutboxOperation?> activeForResource({
+    required String operationKind,
+    required String resourceId,
+  }) async {
+    final query = database.select(database.outboxOperations)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) &
+            row.operationKind.equals(operationKind) &
+            row.resourceId.equals(resourceId) &
+            row.state.isIn([
+              OutboxState.queued.wireValue,
+              OutboxState.inFlight.wireValue,
+              OutboxState.awaitingConfirmation.wireValue,
+            ]),
+      )
+      ..orderBy([(row) => OrderingTerm.desc(row.observedAt)])
+      ..limit(1);
+    return query.getSingleOrNull();
   }
 
   Stream<OutboxSummary> watchSummary() {
