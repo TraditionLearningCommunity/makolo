@@ -199,6 +199,7 @@ def sync_legacy_membership_to_authority(membership: OrganizationMembership):
 
 
 @transaction.atomic
+@transaction.atomic
 def create_organization(*, creator, name: str, **fields) -> Organization:
     if not getattr(creator, "is_authenticated", False):
         raise PermissionDenied("Vous devez être connecté pour créer un Espace.")
