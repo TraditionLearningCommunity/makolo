@@ -16,11 +16,17 @@ from journeys.plan_services import (
 )
 from journeys.services import confirm_journey, create_journey, fulfill_journey, submit_journey
 from readiness import ReadinessStatus, resolve_journey_readiness
+from requirements.domain_services import (
+    create_journey_requirement_assessment,
+    create_requirement_definition,
+    publish_requirement_definition,
+)
 
 from .models import (
     FulfillmentTargetRule,
     ObtentionConfiguration,
     ObtentionConfigurationStatus,
+    ObtentionConfigurationRequirementLink,
     ObtentionDetails,
     ObtentionJourneyContext,
     ObtentionMode,
@@ -82,15 +88,30 @@ def _create_configuration(
     beneficiary_confirmation_required=True,
     operator_confirmation_required=False,
     plan_steps=None,
+    requirements=None,
 ):
     targets = list(targets)
     modes = list(modes)
+    plan_steps = list(plan_steps or [])
+    requirements = list(requirements or [])
     _validate_targets_and_modes(
         targets=targets,
         modes=modes,
         target_rule=target_rule,
         minimum_targets=minimum_targets,
     )
+    known_step_keys = {step["key"] for step in plan_steps}
+    requirement_keys = set()
+    for item in requirements:
+        key = item["key"]
+        if key in requirement_keys:
+            raise ValidationError({"requirements": f"Requirement dupliqué : {key}."})
+        requirement_keys.add(key)
+        step_key = (item.get("step_key") or "").strip()
+        if step_key and step_key not in known_step_keys:
+            raise ValidationError(
+                {"requirements": f"La Step de satisfaction « {step_key} » n'existe pas dans le plan."}
+            )
     latest = (
         ObtentionConfiguration.objects.select_for_update()
         .filter(obtention=obtention)
@@ -134,6 +155,39 @@ def _create_configuration(
             position=item.get("position", position),
         )
         target.save()
+
+    requirement_rows = []
+    for position, item in enumerate(requirements):
+        requirement = create_requirement_definition(
+            activity=obtention.activity,
+            key=item["key"],
+            title=item["title"],
+            actor=actor,
+            description=item.get("description", ""),
+            mode=item.get("mode", "verification"),
+            evaluator_key=item.get("evaluator_key", ""),
+            evaluator_config=item.get("evaluator_config", {}),
+            is_mandatory=item.get("is_mandatory", True),
+            position=item.get("position", position),
+        )
+        requirement = publish_requirement_definition(
+            requirement=requirement,
+            actor=actor,
+        )
+        requirement_rows.append(
+            (
+                requirement,
+                (item.get("step_key") or "").strip(),
+                item.get("position", position),
+            )
+        )
+    for requirement, step_key, position in requirement_rows:
+        ObtentionConfigurationRequirementLink.objects.create(
+            configuration=configuration,
+            requirement=requirement,
+            step_key=step_key,
+            position=position,
+        )
 
     seen_modes = set()
     for position, item in enumerate(modes):
@@ -217,6 +271,7 @@ def create_obtention(
     beneficiary_confirmation_required=True,
     operator_confirmation_required=False,
     plan_steps=None,
+    requirements=None,
 ):
     _require_authenticated(actor)
     if space is not None and not can(
@@ -245,6 +300,7 @@ def create_obtention(
         beneficiary_confirmation_required=beneficiary_confirmation_required,
         operator_confirmation_required=operator_confirmation_required,
         plan_steps=plan_steps,
+        requirements=requirements,
     )
     publish_configuration(configuration=configuration, actor=actor)
     return obtention
@@ -268,6 +324,7 @@ def revise_obtention(
     beneficiary_confirmation_required=True,
     operator_confirmation_required=False,
     plan_steps=None,
+    requirements=None,
 ):
     obtention = (
         ObtentionDetails.objects.select_for_update()
@@ -296,6 +353,7 @@ def revise_obtention(
         beneficiary_confirmation_required=beneficiary_confirmation_required,
         operator_confirmation_required=operator_confirmation_required,
         plan_steps=plan_steps,
+        requirements=requirements,
     )
     publish_configuration(configuration=configuration, actor=actor)
     return obtention
@@ -337,7 +395,11 @@ def create_obtention_journey(
             status=ObtentionConfigurationStatus.PUBLISHED,
         )
         .select_related("journey_plan_template")
-        .prefetch_related("targets", "modes")
+        .prefetch_related(
+            "targets",
+            "modes",
+            "requirement_links__requirement",
+        )
         .first()
     )
     if configuration is None:
@@ -378,6 +440,27 @@ def create_obtention_journey(
         )
         context.plan_materialized_at = timezone.now()
         context.save(update_fields=["plan_materialized_at"])
+    for link in configuration.requirement_links.all():
+        journey_step = None
+        if link.step_key:
+            materialization = (
+                journey.plan_materializations.select_related(
+                    "template_step",
+                    "journey_step",
+                )
+                .filter(template_step__key=link.step_key)
+                .first()
+            )
+            if materialization is None:
+                raise ValidationError(
+                    {"requirements": f"La Step matérialisée « {link.step_key} » est introuvable."}
+                )
+            journey_step = materialization.journey_step
+        create_journey_requirement_assessment(
+            journey=journey,
+            requirement=link.requirement,
+            journey_step=journey_step,
+        )
     return journey
 
 
