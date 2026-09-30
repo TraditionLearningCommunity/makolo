@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../auth/token_store.dart';
+import '../../data/local/makolo_database.dart';
 import '../../features/journey/journey_repository.dart';
 import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
@@ -50,9 +51,9 @@ class QuestionnaireSubmitCoordinator {
 
     final deviceId = await tokens.deviceInstanceId();
     final stamp = DateTime.now().toUtc().microsecondsSinceEpoch.toString();
-    final intentId = 'questionnaire-submit:' + requestId + ':' + stamp;
-    final operationId = deviceId + ':' + intentId;
-    final draftId = 'questionnaire:' + requestId;
+    final intentId = 'questionnaire-submit:$requestId:$stamp';
+    final operationId = '$deviceId:$intentId';
+    final draftId = 'questionnaire:$requestId';
 
     await drafts.saveLocal(
       draftId: draftId,
@@ -211,7 +212,7 @@ class QuestionnaireSubmitCoordinator {
         ? raw.map((key, value) => MapEntry(key.toString(), value))
         : <String, dynamic>{'_form': error.message};
     return drafts.saveLocal(
-      draftId: 'questionnaire:' + requestId,
+      draftId: 'questionnaire:$requestId',
       owner: owner,
       resourceKind: resourceKind,
       resourceId: requestId,
@@ -260,7 +261,7 @@ class QuestionnaireSubmitCoordinator {
   String _requiredString(Map<String, dynamic> value, String key) {
     final text = value[key]?.toString().trim();
     if (text == null || text.isEmpty) {
-      throw FormatException('Missing questionnaire outbox field: ' + key);
+      throw FormatException('Missing questionnaire outbox field: $key');
     }
     return text;
   }
