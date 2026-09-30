@@ -19,6 +19,7 @@ class DiscoveryScreen extends StatefulWidget {
     required this.onOpenActivity,
     required this.onOpenOccurrence,
     required this.onOpenItem,
+    required this.onOpenWatches,
     this.location,
   });
 
@@ -27,6 +28,7 @@ class DiscoveryScreen extends StatefulWidget {
   final ValueChanged<String> onOpenActivity;
   final ValueChanged<String> onOpenOccurrence;
   final void Function(String family, String id) onOpenItem;
+  final VoidCallback onOpenWatches;
 
   @override
   State<DiscoveryScreen> createState() => _DiscoveryScreenState();
@@ -143,6 +145,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       appBar: AppBar(
         title: const Text('Découvrir'),
         actions: [
+          IconButton(
+            tooltip: 'Veilles',
+            onPressed: widget.onOpenWatches,
+            icon: const Icon(Icons.notifications_active_outlined),
+          ),
           IconButton(
             tooltip: _mapMode ? 'Voir la liste' : 'Voir la carte',
             onPressed: () {
