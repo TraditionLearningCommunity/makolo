@@ -38,6 +38,10 @@ def _serialize_requirements(configuration):
                     requirement.title,
                     link.step_key,
                     requirement.description,
+                    requirement.evaluator_key,
+                    json.dumps(requirement.evaluator_config, ensure_ascii=False, separators=(",", ":"))
+                    if requirement.evaluator_config
+                    else "",
                 ]
             ).rstrip(" |")
         )
@@ -133,7 +137,7 @@ class ObtentionConfigurationForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"rows": 6}),
         help_text=(
-            "Optionnel. Une condition par ligne : clé | mode | yes/no | titre | step_key | description. "
+            "Optionnel. Une condition par ligne : clé | mode | yes/no | titre | step_key | description | evaluator_key | evaluator_config JSON. "
             "Modes : automatic, action, verification, external_check, payment, review."
         ),
     )
@@ -322,7 +326,7 @@ class ObtentionConfigurationForm(forms.Form):
             line = raw_line.strip()
             if not line:
                 continue
-            parts = [part.strip() for part in line.split("|", 5)]
+            parts = [part.strip() for part in line.split("|", 7)]
             if len(parts) < 4:
                 raise forms.ValidationError(
                     f"Ligne {line_number} : utilisez clé | mode | yes/no | titre."
@@ -346,6 +350,23 @@ class ObtentionConfigurationForm(forms.Form):
                 raise forms.ValidationError(
                     f"Ligne {line_number} : un Requirement action doit référencer une Step."
                 )
+            evaluator_key = parts[6] if len(parts) > 6 else ""
+            evaluator_config = {}
+            if len(parts) > 7 and parts[7]:
+                try:
+                    evaluator_config = json.loads(parts[7])
+                except json.JSONDecodeError as exc:
+                    raise forms.ValidationError(
+                        f"Ligne {line_number} : JSON evaluator_config invalide."
+                    ) from exc
+                if not isinstance(evaluator_config, dict):
+                    raise forms.ValidationError(
+                        f"Ligne {line_number} : evaluator_config doit être un objet JSON."
+                    )
+            if mode == RequirementMode.AUTOMATIC and not evaluator_key:
+                raise forms.ValidationError(
+                    f"Ligne {line_number} : un Requirement automatique exige evaluator_key."
+                )
             rows.append(
                 {
                     "key": key,
@@ -354,6 +375,8 @@ class ObtentionConfigurationForm(forms.Form):
                     "title": title,
                     "step_key": step_key,
                     "description": parts[5] if len(parts) > 5 else "",
+                    "evaluator_key": evaluator_key,
+                    "evaluator_config": evaluator_config,
                 }
             )
         return rows
