@@ -132,8 +132,7 @@ GoRouter createMakoloRouter(
                       return const MakoloRefreshBoundary(
                         child: PlaceholderScreen(
                           title: 'Découvrir',
-                          message:
-                              'Découvrir n’est pas disponible sur cet appareil.',
+                          message: 'Découvrir n’est pas disponible sur cet appareil.',
                           showTitle: false,
                         ),
                       );
@@ -142,15 +141,12 @@ GoRouter createMakoloRouter(
                       child: DiscoveryScreen(
                         repository: discovery,
                         location: runtime.location,
-                        onOpenActivity: (id) =>
-                            context.push('/activities/$id'),
+                        onOpenActivity: (id) => context.push('/activities/$id'),
                         onOpenOccurrence: (id) =>
                             context.push('/occurrences/$id'),
-                        onOpenItem: (family, id) => context.push(
-                          '/discover/items/$family/$id',
-                        ),
-                        onOpenWatches: () =>
-                            context.push('/discover/watches'),
+                        onOpenItem: (family, id) =>
+                            context.push('/discover/items/$family/$id'),
+                        onOpenWatches: () => context.push('/discover/watches'),
                       ),
                     );
                   },
@@ -423,12 +419,7 @@ GoRouter createMakoloRouter(
           );
         },
       ),
-      for (final prefix in const [
-        'accesses',
-        'dossiers',
-        'projects',
-        'groups',
-      ])
+      for (final prefix in const ['accesses', 'dossiers', 'projects', 'groups'])
         GoRoute(
           path: '/$prefix/:id',
           builder: (context, state) {
