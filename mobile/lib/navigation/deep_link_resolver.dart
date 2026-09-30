@@ -4,20 +4,20 @@ class DeepLinkResolver {
   const DeepLinkResolver();
 
   String? resolve(StructuredDestination target) {
-    switch (target.kind) {
-      case 'Journey':
+    switch (target.kind.toLowerCase()) {
+      case 'journey':
         return '/journeys/${target.id}';
-      case 'Activity':
+      case 'activity':
         return '/activities/${target.id}';
-      case 'Occurrence':
+      case 'occurrence':
         return '/occurrences/${target.id}';
-      case 'Access':
+      case 'access':
         return '/accesses/${target.id}';
-      case 'Dossier':
+      case 'dossier':
         return '/dossiers/${target.id}';
-      case 'Project':
+      case 'project':
         return '/projects/${target.id}';
-      case 'Group':
+      case 'group':
         return '/groups/${target.id}';
       default:
         return null;
