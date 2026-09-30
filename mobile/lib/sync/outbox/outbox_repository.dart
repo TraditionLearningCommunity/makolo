@@ -25,6 +25,16 @@ enum ReplayPolicy {
 
   const ReplayPolicy(this.wireValue);
   final String wireValue;
+
+  bool get allowsAutomaticReplay =>
+      this == ReplayPolicy.safe || this == ReplayPolicy.idempotent;
+
+  bool get requiresOwnerIdempotency => this == ReplayPolicy.idempotent;
+
+  bool get requiresReconciliationBeforeReplay =>
+      this == ReplayPolicy.refetchBeforeRetry;
+
+  bool get stopsOnAmbiguousResult => this == ReplayPolicy.noBlindRetry;
 }
 
 class OutboxSummary {
@@ -85,19 +95,27 @@ class OutboxRepository {
         );
   }
 
-  Future<List<OutboxOperation>> pending() {
-    return (database.select(database.outboxOperations)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                row.state.isIn([
-                  OutboxState.queued.wireValue,
-                  OutboxState.inFlight.wireValue,
-                  OutboxState.failed.wireValue,
-                ]),
-          )
-          ..orderBy([(row) => OrderingTerm.asc(row.observedAt)]))
-        .get();
+  Future<List<OutboxOperation>> pending() async {
+    final rows =
+        await (database.select(database.outboxOperations)
+              ..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.state.isIn([
+                      OutboxState.queued.wireValue,
+                      OutboxState.inFlight.wireValue,
+                      OutboxState.failed.wireValue,
+                    ]),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.observedAt)]))
+            .get();
+    final now = DateTime.now().toUtc();
+    return rows
+        .where(
+          (row) =>
+              row.nextRetryAt == null || !row.nextRetryAt!.toUtc().isAfter(now),
+        )
+        .toList(growable: false);
   }
 
   Stream<OutboxSummary> watchSummary() {
@@ -126,6 +144,29 @@ class OutboxRepository {
     });
   }
 
+  Future<void> beginAttempt(String operationId) async {
+    final row = await (database.select(database.outboxOperations)
+          ..where(
+            (candidate) =>
+                candidate.profileId.equals(profileId) &
+                candidate.operationId.equals(operationId),
+          ))
+        .getSingle();
+    await (database.update(database.outboxOperations)
+          ..where(
+            (candidate) =>
+                candidate.profileId.equals(profileId) &
+                candidate.operationId.equals(operationId),
+          ))
+        .write(
+          OutboxOperationsCompanion(
+            state: Value(OutboxState.inFlight.wireValue),
+            attempts: Value(row.attempts + 1),
+            lastErrorCode: const Value(null),
+          ),
+        );
+  }
+
   Future<void> setState(
     String operationId,
     OutboxState state, {
@@ -133,7 +174,11 @@ class OutboxRepository {
   }) async {
     await (database.update(
       database.outboxOperations,
-    )..where((row) => row.operationId.equals(operationId))).write(
+    )..where(
+      (row) =>
+          row.profileId.equals(profileId) &
+          row.operationId.equals(operationId),
+    )).write(
       OutboxOperationsCompanion(
         state: Value(state.wireValue),
         lastErrorCode: Value(errorCode),

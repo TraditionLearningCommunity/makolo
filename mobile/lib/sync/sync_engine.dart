@@ -197,8 +197,8 @@ class SyncEngine {
         .write(SyncSourcesCompanion(lastErrorCode: Value(code)));
   }
 
-  Future<void> _ensureSource(SyncSourceDefinition source) {
-    return database
+  Future<void> _ensureSource(SyncSourceDefinition source) async {
+    await database
         .into(database.syncSources)
         .insert(
           SyncSourcesCompanion.insert(

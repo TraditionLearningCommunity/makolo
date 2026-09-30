@@ -41,6 +41,7 @@ void main() {
     expect(calls, 1);
     final row = (await database.select(database.outboxOperations).get()).single;
     expect(row.state, OutboxState.confirmed.wireValue);
+    expect(row.attempts, 1);
   });
 
   test(
@@ -68,9 +69,79 @@ void main() {
       );
 
       await processor.run();
+      await processor.run();
       final row =
           (await database.select(database.outboxOperations).get()).single;
       expect(row.state, OutboxState.awaitingConfirmation.wireValue);
+      expect(row.attempts, 1);
     },
   );
+
+  test('refetch-before-retry reconciles an ambiguous result with owner', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final repository = OutboxRepository(database, 'profile-a');
+
+    await repository.enqueue(
+      operationId: 'op-reconcile',
+      deviceInstanceId: 'device-a',
+      operationKind: 'booking.request',
+      owner: 'Capacity',
+      payload: {'occurrence_id': 'occ-1'},
+      intentId: 'intent-reconcile',
+      replayPolicy: ReplayPolicy.refetchBeforeRetry,
+    );
+
+    var ownerReads = 0;
+    final processor = OutboxProcessor(
+      repository: repository,
+      handlers: {
+        'booking.request': (_) async => throw TimeoutException('lost response'),
+      },
+      reconcilers: {
+        'booking.request': (_) async {
+          ownerReads += 1;
+          return OutboxResolution.confirmed;
+        },
+      },
+    );
+
+    await processor.run();
+
+    final row = (await database.select(database.outboxOperations).get()).single;
+    expect(ownerReads, 1);
+    expect(row.state, OutboxState.confirmed.wireValue);
+    expect(row.lastErrorCode, 'ambiguous_result');
+  });
+
+  test('unknown replay policy fails closed instead of blind retry', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final repository = OutboxRepository(database, 'profile-a');
+
+    await repository.enqueue(
+      operationId: 'op-unknown',
+      deviceInstanceId: 'device-a',
+      operationKind: 'terminal.action',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'intent-unknown',
+      replayPolicy: ReplayPolicy.noBlindRetry,
+    );
+    await database.customStatement(
+      "UPDATE outbox_operations SET replay_policy = 'future-policy' "
+      "WHERE operation_id = 'op-unknown'",
+    );
+
+    final processor = OutboxProcessor(
+      repository: repository,
+      handlers: {
+        'terminal.action': (_) async => throw TimeoutException('ambiguous'),
+      },
+    );
+    await processor.run();
+
+    final row = (await database.select(database.outboxOperations).get()).single;
+    expect(row.state, OutboxState.awaitingConfirmation.wireValue);
+  });
 }
