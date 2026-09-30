@@ -94,8 +94,6 @@ def _requirements_payload(configuration):
             "is_mandatory": link.requirement.is_mandatory,
             "position": link.position,
             "step_key": link.step_key,
-            "evaluator_key": link.requirement.evaluator_key,
-            "evaluator_config": link.requirement.evaluator_config,
         }
         for link in configuration.requirement_links.select_related("requirement").all()
     ]
