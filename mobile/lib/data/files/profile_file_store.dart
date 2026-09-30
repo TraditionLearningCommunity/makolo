@@ -159,9 +159,9 @@ class ProfileFileStore {
   }
 
   Future<List<StoredLocalFile>> stagedFiles() async {
-    final rows = await (database.select(database.fileRecords)
-          ..where((row) => row.profileId.equals(profileId)))
-        .get();
+    final rows = await (database.select(
+      database.fileRecords,
+    )..where((row) => row.profileId.equals(profileId))).get();
     final root = _normalizedDirectory(stagingDirectory);
     return rows
         .map(_stored)
