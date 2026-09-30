@@ -52,6 +52,7 @@ class Migration(migrations.Migration):
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("title", models.CharField(max_length=220)),
                 ("description", models.TextField(blank=True)),
+                ("characteristics", models.JSONField(blank=True, default=dict)),
                 ("quantity", models.DecimalField(decimal_places=3, default=Decimal("1"), max_digits=14, validators=[django.core.validators.MinValueValidator(Decimal("0.001"))])),
                 ("unit", models.CharField(blank=True, max_length=40)),
                 ("position", models.PositiveSmallIntegerField(default=0)),
