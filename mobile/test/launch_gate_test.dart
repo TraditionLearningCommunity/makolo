@@ -196,8 +196,6 @@ void main() {
         personal: PersonalRepository(store),
         sync: sync,
       );
-      addTearDown(runtime.close);
-
       await tester.pumpWidget(
         _app(
           runtime,
@@ -229,6 +227,13 @@ void main() {
         find.text('Pas encore disponible sur cet appareil'),
         findsOneWidget,
       );
+
+      // Unmount SyncLifecycle before the widget test fake clock stops. Its
+      // Drift-backed subscriptions are live by design; closing the database
+      // from addTearDown can deadlock after the clock is no longer advancing.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 1));
+      api.close();
     },
   );
 }
