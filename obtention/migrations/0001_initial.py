@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("activities", "0004_occurrence_temporal_schedule"),
-        ("journeys", "0004_fulfillment_workflow"),
+        ("journeys", "0005_journey_plan_templates"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -42,6 +42,7 @@ class Migration(migrations.Migration):
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("created_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="created_obtention_configurations", to=settings.AUTH_USER_MODEL)),
+                ("journey_plan_template", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name="obtention_configurations", to="journeys.journeyplantemplate")),
                 ("obtention", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="configurations", to="obtention.obtentiondetails")),
             ],
             options={"ordering": ["obtention", "-version", "id"]},
