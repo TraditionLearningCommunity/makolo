@@ -1,13 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
 
 from activities.models import ActivityStatus, ActivityVisibility
 from authorization.constants import PermissionCode
-from authorization.services import can
+from authorization.services import activity_ids_with_permission, can
 from journeys.models import Journey, JourneyAssignmentStatus, JourneyStep
 from journeys.collaboration_services import (
     complete_participant_step,
@@ -16,6 +17,8 @@ from journeys.collaboration_services import (
     start_step,
 )
 from readiness import resolve_journey_readiness
+from requirements.contracts import RequirementAssessmentState
+from requirements.domain_services import assess_journey_requirement
 
 from .forms import ObtentionConfigurationForm, ReceiptForm
 from .models import ObtentionDetails, ObtentionTarget
@@ -58,15 +61,15 @@ def _managed_obtention(actor, pk):
 
 
 def _visible_journey(actor, pk):
-    journey = get_object_or_404(
-        obtention_journey_queryset(),
+    queryset = obtention_journey_queryset()
+    allowed = activity_ids_with_permission(actor, PermissionCode.ACTIVITY_MANAGE)
+    if allowed is None:
+        return get_object_or_404(queryset, pk=pk)
+    permission_q = Q(activity_id__in=allowed) if allowed else Q(pk__isnull=True)
+    return get_object_or_404(
+        queryset.filter(Q(beneficiary=actor) | permission_q).distinct(),
         pk=pk,
     )
-    if journey.beneficiary_id == getattr(actor, "pk", None):
-        return journey
-    if can(actor, PermissionCode.ACTIVITY_MANAGE, activity=journey.activity):
-        return journey
-    raise PermissionDenied("Cette démarche ne vous est pas accessible.")
 
 
 class ObtentionDetailView(TemplateView):
@@ -252,6 +255,11 @@ class ObtentionJourneyView(LoginRequiredMixin, TemplateView):
                 ),
                 "is_beneficiary": journey.beneficiary_id == self.request.user.pk,
                 "step_rows": step_rows,
+                "requirement_assessments": list(
+                    journey.requirement_assessments.select_related(
+                        "requirement", "journey_step"
+                    ).all()
+                ),
                 "can_manage": can(
                     self.request.user,
                     PermissionCode.ACTIVITY_MANAGE,
@@ -365,4 +373,43 @@ class ObtentionStepCompleteView(LoginRequiredMixin, View):
                 complete_step(step=step, actor=request.user)
         except (PermissionDenied, ValidationError) as exc:
             messages.error(request, _message(exc))
+        return redirect("obtention:journey", pk=journey.pk)
+
+
+class ObtentionRequirementAssessmentView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, pk, assessment_id):
+        journey = _visible_journey(request.user, pk)
+        if not can(
+            request.user,
+            PermissionCode.ACTIVITY_MANAGE,
+            activity=journey.activity,
+        ):
+            from django.http import Http404
+
+            raise Http404
+        assessment = get_object_or_404(
+            journey.requirement_assessments.select_related(
+                "journey__activity",
+                "requirement",
+            ),
+            pk=assessment_id,
+        )
+        state = (request.POST.get("state") or "").strip()
+        if state not in RequirementAssessmentState.values:
+            messages.error(request, "État Requirement invalide.")
+            return redirect("obtention:journey", pk=journey.pk)
+        try:
+            assess_journey_requirement(
+                assessment=assessment,
+                actor=request.user,
+                state=state,
+                reason_code="obtention_operator_assessment",
+                note=(request.POST.get("note") or "").strip(),
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, _message(exc))
+        else:
+            messages.success(request, "Condition mise à jour.")
         return redirect("obtention:journey", pk=journey.pk)
