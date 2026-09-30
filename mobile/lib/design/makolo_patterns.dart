@@ -167,14 +167,18 @@ class MakoloTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (var index = 0; index < items.length; index++)
-          _TimelineRow(
-            item: items[index],
-            showConnector: index < items.length - 1,
-          ),
-      ],
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      child: Column(
+        children: [
+          for (var index = 0; index < items.length; index++)
+            _TimelineRow(
+              item: items[index],
+              showConnector: index < items.length - 1,
+            ),
+        ],
+      ),
     );
   }
 }
