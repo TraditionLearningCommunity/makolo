@@ -183,6 +183,59 @@ class ObtentionConfiguration(models.Model):
         return f"{self.obtention.activity} — v{self.version}"
 
 
+class ObtentionConfigurationRequirementLink(models.Model):
+    """Composition link; the Requirement truth remains owned by requirements."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    configuration = models.ForeignKey(
+        ObtentionConfiguration,
+        on_delete=models.CASCADE,
+        related_name="requirement_links",
+    )
+    requirement = models.ForeignKey(
+        "requirements.RequirementDefinition",
+        on_delete=models.PROTECT,
+        related_name="obtention_configuration_links",
+    )
+    step_key = models.SlugField(
+        max_length=120,
+        blank=True,
+        help_text="Clé optionnelle d'une JourneyPlanTemplateStep qui matérialise l'action de satisfaction.",
+    )
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["configuration", "position", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["configuration", "requirement"],
+                name="obtention_requirement_link_unique",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.configuration_id:
+            if self.configuration.status != ObtentionConfigurationStatus.DRAFT:
+                errors["configuration"] = "Les Requirements d'une configuration publiée sont immuables."
+            if self.requirement_id:
+                if self.requirement.activity_id != self.configuration.obtention.activity_id:
+                    errors["requirement"] = "Le Requirement doit appartenir à la même Activity."
+                if self.requirement.status != "published":
+                    errors["requirement"] = "Le Requirement lié doit être publié."
+        if self.step_key and self.configuration_id:
+            template = self.configuration.journey_plan_template
+            if template is None or not template.steps.filter(key=self.step_key).exists():
+                errors["step_key"] = "La Step de satisfaction n'existe pas dans le plan pinné."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 def _configuration_is_editable(configuration_id):
     if not configuration_id:
         return True
