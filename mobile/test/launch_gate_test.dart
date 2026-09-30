@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/launch_gate.dart';
@@ -150,7 +152,7 @@ void main() {
   );
 
   testWidgets(
-    'authenticated launch opens local runtime before failed acquisition',
+    'authenticated launch stays local-first while acquisition fails',
     (tester) async {
       final preferences = _MemoryLaunchPreferences(
         LaunchPreferencesSnapshot(
@@ -167,16 +169,14 @@ void main() {
         ),
       );
       final store = ProfileStore(database, 'profile-a');
+      final remoteResponse = Completer<MockResponse>();
       var requests = 0;
       final api = MakoloApiClient(
         baseUri: Uri.parse('https://makolo.invalid/'),
         tokenStore: tokens,
-        dio: MockClient((_) async {
+        dio: MockClient((_) {
           requests += 1;
-          return const MockResponse(
-            '{"error":{"code":"unavailable","message":"down"}}',
-            503,
-          );
+          return remoteResponse.future;
         }).dio,
       );
       final sync = SyncEngine(
@@ -205,22 +205,26 @@ void main() {
           minimumVisible: Duration.zero,
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
 
       expect(find.byType(SplashScreen), findsNothing);
       expect(
         find.text('Pas encore disponible sur cet appareil'),
         findsOneWidget,
       );
-      expect(requests, 0);
-
-      await expectLater(
-        sync.pull(SyncEngine.roots.first),
-        throwsA(isA<Exception>()),
-      );
-      await tester.pump();
-
       expect(requests, 1);
+
+      remoteResponse.complete(
+        const MockResponse(
+          '{"error":{"code":"unavailable","message":"down"}}',
+          503,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(requests, greaterThanOrEqualTo(1));
       expect(
         find.text('Pas encore disponible sur cet appareil'),
         findsOneWidget,
