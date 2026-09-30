@@ -9,7 +9,14 @@ def readiness_queryset(queryset=None):
     queryset = queryset if queryset is not None else Journey.objects.all()
     obligations = PaymentObligation.objects.order_by("created_at", "id")
     return (
-        queryset.select_related("activity", "occurrence", "beneficiary", "service_context")
+        queryset.select_related(
+            "activity",
+            "occurrence",
+            "beneficiary",
+            "service_context",
+            "obtention_context",
+            "obtention_context__configuration",
+        )
         .prefetch_related(
             "requests",
             "steps__assignments",
@@ -23,6 +30,8 @@ def readiness_queryset(queryset=None):
             "service_context__requirement_assessments__payment_obligation_links__obligation",
             "requirement_assessments__requirement",
             "requirement_assessments__journey_step",
+            "obtention_context__configuration__targets",
+            "obtention_target_receipts",
             "form_requests__form_version__form",
             "form_requests__response",
         )
