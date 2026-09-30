@@ -16,9 +16,11 @@ from journeys.plan_services import (
 )
 from journeys.services import confirm_journey, create_journey, fulfill_journey, submit_journey
 from readiness import ReadinessStatus, resolve_journey_readiness
+from requirements.contracts import RequirementMode
 from requirements.domain_services import (
     create_journey_requirement_assessment,
     create_requirement_definition,
+    evaluate_journey_requirement,
     publish_requirement_definition,
 )
 
@@ -456,11 +458,16 @@ def create_obtention_journey(
                     {"requirements": f"La Step matérialisée « {link.step_key} » est introuvable."}
                 )
             journey_step = materialization.journey_step
-        create_journey_requirement_assessment(
+        assessment = create_journey_requirement_assessment(
             journey=journey,
             requirement=link.requirement,
             journey_step=journey_step,
         )
+        if (
+            link.requirement.mode == RequirementMode.AUTOMATIC
+            and link.requirement.evaluator_key
+        ):
+            evaluate_journey_requirement(assessment=assessment)
     return journey
 
 
