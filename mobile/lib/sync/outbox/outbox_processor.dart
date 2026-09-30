@@ -113,17 +113,12 @@ class OutboxProcessor {
     OutboxResolution resolution, {
     String? errorCode,
   }) {
-    return repository.setState(
-      operationId,
-      switch (resolution) {
-        OutboxResolution.confirmed => OutboxState.confirmed,
-        OutboxResolution.retryable => OutboxState.queued,
-        OutboxResolution.awaitingConfirmation =>
-          OutboxState.awaitingConfirmation,
-        OutboxResolution.conflict => OutboxState.conflict,
-        OutboxResolution.failed => OutboxState.failed,
-      },
-      errorCode: errorCode,
-    );
+    return repository.setState(operationId, switch (resolution) {
+      OutboxResolution.confirmed => OutboxState.confirmed,
+      OutboxResolution.retryable => OutboxState.queued,
+      OutboxResolution.awaitingConfirmation => OutboxState.awaitingConfirmation,
+      OutboxResolution.conflict => OutboxState.conflict,
+      OutboxResolution.failed => OutboxState.failed,
+    }, errorCode: errorCode);
   }
 }

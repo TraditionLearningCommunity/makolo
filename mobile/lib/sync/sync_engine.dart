@@ -149,12 +149,11 @@ class SyncEngine {
 
   Future<void> invalidate(SyncSourceDefinition source) async {
     await _ensureSource(source);
-    await (database.update(database.syncSources)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                row.sourceKey.equals(source.sourceKey),
-          ))
+    await (database.update(database.syncSources)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals(source.sourceKey),
+        ))
         .write(const SyncSourcesCompanion(invalidated: Value(true)));
   }
 
@@ -168,12 +167,11 @@ class SyncEngine {
         resourceKey: source.resourceKey,
       );
       await _ensureSource(source);
-      await (database.update(database.syncSources)
-            ..where(
-              (row) =>
-                  row.profileId.equals(profileId) &
-                  row.sourceKey.equals(source.sourceKey),
-            ))
+      await (database.update(database.syncSources)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.sourceKey.equals(source.sourceKey),
+          ))
           .write(
             SyncSourcesCompanion(
               invalidated: const Value(true),
@@ -183,17 +181,13 @@ class SyncEngine {
     });
   }
 
-  Future<void> _recordFailure(
-    SyncSourceDefinition source,
-    String code,
-  ) async {
+  Future<void> _recordFailure(SyncSourceDefinition source, String code) async {
     await _ensureSource(source);
-    await (database.update(database.syncSources)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                row.sourceKey.equals(source.sourceKey),
-          ))
+    await (database.update(database.syncSources)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals(source.sourceKey),
+        ))
         .write(SyncSourcesCompanion(lastErrorCode: Value(code)));
   }
 

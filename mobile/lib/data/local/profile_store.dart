@@ -105,17 +105,13 @@ class ProfileStore {
         );
   }
 
-  Future<int> deleteProjection(
-    String kind, {
-    String resourceKey = '',
-  }) {
-    return (database.delete(database.projectionSnapshots)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                row.projectionKind.equals(kind) &
-                row.resourceKey.equals(resourceKey),
-          ))
+  Future<int> deleteProjection(String kind, {String resourceKey = ''}) {
+    return (database.delete(database.projectionSnapshots)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.projectionKind.equals(kind) &
+              row.resourceKey.equals(resourceKey),
+        ))
         .go();
   }
 

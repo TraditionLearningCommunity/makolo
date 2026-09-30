@@ -145,19 +145,18 @@ class OutboxRepository {
   }
 
   Future<void> beginAttempt(String operationId) async {
-    final row = await (database.select(database.outboxOperations)
-          ..where(
-            (candidate) =>
-                candidate.profileId.equals(profileId) &
-                candidate.operationId.equals(operationId),
-          ))
-        .getSingle();
-    await (database.update(database.outboxOperations)
-          ..where(
-            (candidate) =>
-                candidate.profileId.equals(profileId) &
-                candidate.operationId.equals(operationId),
-          ))
+    final row =
+        await (database.select(database.outboxOperations)..where(
+              (candidate) =>
+                  candidate.profileId.equals(profileId) &
+                  candidate.operationId.equals(operationId),
+            ))
+            .getSingle();
+    await (database.update(database.outboxOperations)..where(
+          (candidate) =>
+              candidate.profileId.equals(profileId) &
+              candidate.operationId.equals(operationId),
+        ))
         .write(
           OutboxOperationsCompanion(
             state: Value(OutboxState.inFlight.wireValue),
@@ -172,17 +171,16 @@ class OutboxRepository {
     OutboxState state, {
     String? errorCode,
   }) async {
-    await (database.update(
-      database.outboxOperations,
-    )..where(
-      (row) =>
-          row.profileId.equals(profileId) &
-          row.operationId.equals(operationId),
-    )).write(
-      OutboxOperationsCompanion(
-        state: Value(state.wireValue),
-        lastErrorCode: Value(errorCode),
-      ),
-    );
+    await (database.update(database.outboxOperations)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.operationId.equals(operationId),
+        ))
+        .write(
+          OutboxOperationsCompanion(
+            state: Value(state.wireValue),
+            lastErrorCode: Value(errorCode),
+          ),
+        );
   }
 }

@@ -51,11 +51,10 @@ class SyncApplyContext {
 }
 
 typedef SyncSourceParser = AcquiredProjection Function(ApiResponse response);
-typedef SyncSourceApplier =
-    Future<void> Function(
-      SyncApplyContext context,
-      AcquiredProjection projection,
-    );
+typedef SyncSourceApplier = Future<void> Function(
+  SyncApplyContext context,
+  AcquiredProjection projection,
+);
 
 class SyncSourceDefinition {
   const SyncSourceDefinition({
