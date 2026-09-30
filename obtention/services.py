@@ -216,6 +216,7 @@ def create_obtention(
     minimum_targets=None,
     beneficiary_confirmation_required=True,
     operator_confirmation_required=False,
+    plan_steps=None,
 ):
     _require_authenticated(actor)
     if space is not None and not can(
@@ -266,6 +267,7 @@ def revise_obtention(
     minimum_targets=None,
     beneficiary_confirmation_required=True,
     operator_confirmation_required=False,
+    plan_steps=None,
 ):
     obtention = (
         ObtentionDetails.objects.select_for_update()
@@ -334,6 +336,7 @@ def create_obtention_journey(
             obtention=obtention,
             status=ObtentionConfigurationStatus.PUBLISHED,
         )
+        .select_related("journey_plan_template")
         .prefetch_related("targets", "modes")
         .first()
     )
