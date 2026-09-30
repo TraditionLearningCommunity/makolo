@@ -1,4 +1,5 @@
 name: NC Format Helper
+# one-shot formatter for NC branch; remove before final review
 
 on:
   push:
