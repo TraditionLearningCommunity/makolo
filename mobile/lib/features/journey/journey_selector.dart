@@ -42,11 +42,7 @@ class JourneyFormSummary {
 }
 
 class JourneyReference {
-  const JourneyReference({
-    required this.id,
-    required this.label,
-    this.state,
-  });
+  const JourneyReference({required this.id, required this.label, this.state});
 
   final String id;
   final String label;
@@ -174,43 +170,51 @@ class JourneyDetailSelector {
   }
 
   static List<JourneyReadinessItem> _readinessItems(Object? value) {
-    return _maps(value).map((row) {
-      final next = _map(row['next']);
-      return JourneyReadinessItem(
-        key: _string(row['key']) ?? '',
-        summary: _string(row['summary']) ?? _string(row['reason']) ?? '',
-        reason: _string(row['reason']),
-        nextLabel: _string(next['label']),
-        nextLink: _string(next['link']),
-      );
-    }).toList(growable: false);
+    return _maps(value)
+        .map((row) {
+          final next = _map(row['next']);
+          return JourneyReadinessItem(
+            key: _string(row['key']) ?? '',
+            summary: _string(row['summary']) ?? _string(row['reason']) ?? '',
+            reason: _string(row['reason']),
+            nextLabel: _string(next['label']),
+            nextLink: _string(next['link']),
+          );
+        })
+        .toList(growable: false);
   }
 
   static List<JourneyFormSummary> _forms(Object? value) {
-    return _maps(value).map((row) {
-      final links = _map(row['links']);
-      final capabilities = _strings(row['capabilities']);
-      return JourneyFormSummary(
-        id: _string(row['id']) ?? '',
-        required: row['required'] == true,
-        state: _string(row['state']) ?? '',
-        dueAt: _dateTime(row['due_at']),
-        canComplete: capabilities.contains('complete_form'),
-        detailLink: _string(links['detail']) ?? '',
-        saveLink: _string(links['save']),
-        submitLink: _string(links['submit']),
-      );
-    }).where((row) => row.id.isNotEmpty).toList(growable: false);
+    return _maps(value)
+        .map((row) {
+          final links = _map(row['links']);
+          final capabilities = _strings(row['capabilities']);
+          return JourneyFormSummary(
+            id: _string(row['id']) ?? '',
+            required: row['required'] == true,
+            state: _string(row['state']) ?? '',
+            dueAt: _dateTime(row['due_at']),
+            canComplete: capabilities.contains('complete_form'),
+            detailLink: _string(links['detail']) ?? '',
+            saveLink: _string(links['save']),
+            submitLink: _string(links['submit']),
+          );
+        })
+        .where((row) => row.id.isNotEmpty)
+        .toList(growable: false);
   }
 
   static List<JourneyReference> _requirements(Object? value) {
-    return _maps(value).map((row) {
-      return JourneyReference(
-        id: _string(row['id']) ?? '',
-        label: _string(row['label']) ?? 'Requirement',
-        state: _string(row['state']),
-      );
-    }).where((row) => row.id.isNotEmpty).toList(growable: false);
+    return _maps(value)
+        .map((row) {
+          return JourneyReference(
+            id: _string(row['id']) ?? '',
+            label: _string(row['label']) ?? 'Requirement',
+            state: _string(row['state']),
+          );
+        })
+        .where((row) => row.id.isNotEmpty)
+        .toList(growable: false);
   }
 
   static Map<String, dynamic> _map(Object? value) {
@@ -223,7 +227,10 @@ class JourneyDetailSelector {
 
   static List<Map<String, dynamic>> _maps(Object? value) {
     if (value is! List) return const [];
-    return value.map(_map).where((row) => row.isNotEmpty).toList(growable: false);
+    return value
+        .map(_map)
+        .where((row) => row.isNotEmpty)
+        .toList(growable: false);
   }
 
   static List<String> _strings(Object? value) {
