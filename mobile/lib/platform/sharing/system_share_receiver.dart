@@ -59,7 +59,7 @@ class AndroidSystemShareReceiver implements SystemShareReceiver {
 
   @override
   Future<void> dispose() async {
-    await _channel.setMethodCallHandler(null);
+    _channel.setMethodCallHandler(null);
     await _incoming.close();
   }
 
