@@ -177,10 +177,11 @@ class DiscoverySelector {
       }
     }
 
-    final placeParts = <String>[
-      if (_text(place?['name']) case final value?) value,
-      if (_text(place?['locality']) case final value?) value,
-    ];
+    final placeParts = <String>[];
+    final placeName = _text(place?['name']);
+    final locality = _text(place?['locality']);
+    if (placeName != null) placeParts.add(placeName);
+    if (locality != null) placeParts.add(locality);
     final timingText =
         _text(timing?['start_at']) ??
         [
