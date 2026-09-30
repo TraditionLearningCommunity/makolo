@@ -13,6 +13,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("activities", "0004_occurrence_temporal_schedule"),
         ("journeys", "0005_journey_plan_templates"),
+        ("requirements", "0003_generic_activity_journey_requirements"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -87,6 +88,17 @@ class Migration(migrations.Migration):
             options={"ordering": ["-created_at", "id"]},
         ),
         migrations.CreateModel(
+            name="ObtentionConfigurationRequirementLink",
+            fields=[
+                ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ("step_key", models.SlugField(blank=True, help_text="Clé optionnelle d'une JourneyPlanTemplateStep qui matérialise l'action de satisfaction.", max_length=120)),
+                ("position", models.PositiveIntegerField(default=0)),
+                ("configuration", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="requirement_links", to="obtention.obtentionconfiguration")),
+                ("requirement", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="obtention_configuration_links", to="requirements.requirementdefinition")),
+            ],
+            options={"ordering": ["configuration", "position", "id"]},
+        ),
+        migrations.CreateModel(
             name="ObtentionTargetReceipt",
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
@@ -129,6 +141,10 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="obtentionmode",
             constraint=models.UniqueConstraint(fields=("configuration", "code"), name="obtention_mode_unique"),
+        ),
+        migrations.AddConstraint(
+            model_name="obtentionconfigurationrequirementlink",
+            constraint=models.UniqueConstraint(fields=("configuration", "requirement"), name="obtention_requirement_link_unique"),
         ),
         migrations.AddConstraint(
             model_name="obtentiontargetreceipt",
