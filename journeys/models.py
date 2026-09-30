@@ -57,6 +57,7 @@ class WorkflowKind(models.TextChoices):
     REGISTRATION = "registration", "Inscription"
     INVITATION = "invitation", "Invitation"
     SERVICE = "service", "Service"
+    FULFILLMENT = "fulfillment", "Accomplissement"
 
 
 class JourneyStatus(models.TextChoices):
@@ -324,6 +325,12 @@ from .collaboration_models import (  # noqa: E402,F401
     JourneyBlockerStatus,
     JourneyNote,
     JourneyNoteVisibility,
+    JourneyPlanMaterialization,
+    JourneyPlanStepActor,
+    JourneyPlanTemplate,
+    JourneyPlanTemplateStatus,
+    JourneyPlanTemplateStep,
+    JourneyPlanTemplateStepDependency,
     JourneyStep,
     JourneyStepAssignment,
     JourneyStepDependency,

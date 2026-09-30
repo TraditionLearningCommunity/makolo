@@ -8,3 +8,4 @@ class RequirementsConfig(AppConfig):
 
     def ready(self):
         from . import signals  # noqa: F401
+        from . import readiness  # noqa: F401

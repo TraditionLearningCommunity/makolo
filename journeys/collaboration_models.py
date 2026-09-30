@@ -545,3 +545,248 @@ class JourneyNote(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Les JourneyNotes sont append-only dans T31.")
+
+
+class JourneyPlanTemplateStatus(models.TextChoices):
+    DRAFT = "draft", "Brouillon"
+    PUBLISHED = "published", "Publié"
+    RETIRED = "retired", "Retiré"
+
+
+class JourneyPlanStepActor(models.TextChoices):
+    BENEFICIARY = "beneficiary", "Bénéficiaire"
+    OPERATOR = "operator", "Porteur / opérateur"
+
+
+class JourneyPlanTemplate(models.Model):
+    """Versioned, Activity-owned reusable Journey plan.
+
+    This is the generic owner for new reusable Journey step plans. Vertical
+    domains may reference a published version but do not copy its steps.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    activity = models.ForeignKey(
+        "activities.Activity",
+        on_delete=models.CASCADE,
+        related_name="journey_plan_templates",
+    )
+    key = models.SlugField(max_length=120)
+    version = models.PositiveIntegerField(default=1)
+    name = models.CharField(max_length=220)
+    status = models.CharField(
+        max_length=16,
+        choices=JourneyPlanTemplateStatus.choices,
+        default=JourneyPlanTemplateStatus.DRAFT,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_journey_plan_templates",
+        null=True,
+        blank=True,
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    retired_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["activity", "key", "version"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["activity", "key", "version"],
+                name="jour_plan_version_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(version__gt=0),
+                name="jour_plan_version_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["activity", "key"],
+                condition=Q(status=JourneyPlanTemplateStatus.PUBLISHED),
+                name="jour_plan_one_published",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.key = (self.key or "").strip()
+        self.name = (self.name or "").strip()
+        if self.pk and not self._state.adding:
+            previous = JourneyPlanTemplate.objects.filter(pk=self.pk).values(
+                "activity_id", "key", "version", "name", "status"
+            ).first()
+            if previous and previous["status"] in {
+                JourneyPlanTemplateStatus.PUBLISHED,
+                JourneyPlanTemplateStatus.RETIRED,
+            }:
+                structural = {
+                    "activity_id": self.activity_id,
+                    "key": self.key,
+                    "version": self.version,
+                    "name": self.name,
+                }
+                if any(previous[name] != value for name, value in structural.items()):
+                    raise ValidationError("Un JourneyPlanTemplate publié est structurellement immuable.")
+                if self.status not in {
+                    JourneyPlanTemplateStatus.PUBLISHED,
+                    JourneyPlanTemplateStatus.RETIRED,
+                }:
+                    raise ValidationError("Un plan publié peut seulement rester publié ou être retiré.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status != JourneyPlanTemplateStatus.DRAFT:
+            raise ValidationError("Un plan Journey publié ou retiré ne peut pas être supprimé.")
+        return super().delete(*args, **kwargs)
+
+
+def _journey_plan_is_editable(template_id):
+    if not template_id:
+        return True
+    status = JourneyPlanTemplate.objects.filter(pk=template_id).values_list(
+        "status", flat=True
+    ).first()
+    return status in {None, JourneyPlanTemplateStatus.DRAFT}
+
+
+class JourneyPlanTemplateStep(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    template = models.ForeignKey(
+        JourneyPlanTemplate,
+        on_delete=models.CASCADE,
+        related_name="steps",
+    )
+    key = models.SlugField(max_length=120)
+    kind = models.CharField(
+        max_length=24,
+        choices=JourneyStepKind.choices,
+        default=JourneyStepKind.ACTION,
+    )
+    actor_kind = models.CharField(
+        max_length=16,
+        choices=JourneyPlanStepActor.choices,
+        default=JourneyPlanStepActor.BENEFICIARY,
+    )
+    title = models.CharField(max_length=220)
+    description = models.TextField(blank=True)
+    position = models.PositiveIntegerField(default=0)
+    is_required = models.BooleanField(default=True)
+    relative_due_days = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["template", "position", "created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["template", "key"],
+                name="jour_plan_step_key_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["template", "position"],
+                name="jour_plan_step_pos_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        self.key = (self.key or "").strip()
+        self.title = (self.title or "").strip()
+        errors = {}
+        if not self.key:
+            errors["key"] = "La clé de l'étape est obligatoire."
+        if not self.title:
+            errors["title"] = "Le titre de l'étape est obligatoire."
+        if self.template_id and not _journey_plan_is_editable(self.template_id):
+            errors["template"] = "Les étapes d'un plan publié ou retiré sont immuables."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not _journey_plan_is_editable(self.template_id):
+            raise ValidationError("Les étapes d'un plan publié ou retiré sont immuables.")
+        return super().delete(*args, **kwargs)
+
+
+class JourneyPlanTemplateStepDependency(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    step = models.ForeignKey(
+        JourneyPlanTemplateStep,
+        on_delete=models.CASCADE,
+        related_name="dependencies",
+    )
+    depends_on = models.ForeignKey(
+        JourneyPlanTemplateStep,
+        on_delete=models.CASCADE,
+        related_name="dependants",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["step", "depends_on"],
+                name="jour_plan_dependency_unique",
+            ),
+            models.CheckConstraint(
+                condition=~Q(step=models.F("depends_on")),
+                name="jour_plan_dependency_not_self",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.step_id and self.depends_on_id:
+            if self.step_id == self.depends_on_id:
+                errors["depends_on"] = "Une étape ne peut pas dépendre d'elle-même."
+            elif self.step.template_id != self.depends_on.template_id:
+                errors["depends_on"] = "Les dépendances doivent rester dans le même plan."
+            if not _journey_plan_is_editable(self.step.template_id):
+                errors["step"] = "Les dépendances d'un plan publié ou retiré sont immuables."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class JourneyPlanMaterialization(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey = models.ForeignKey(
+        "journeys.Journey",
+        on_delete=models.CASCADE,
+        related_name="plan_materializations",
+    )
+    template_step = models.ForeignKey(
+        JourneyPlanTemplateStep,
+        on_delete=models.PROTECT,
+        related_name="materializations",
+    )
+    journey_step = models.OneToOneField(
+        JourneyStep,
+        on_delete=models.CASCADE,
+        related_name="plan_materialization",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["journey", "template_step"],
+                name="jour_plan_materialization_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["journey", "created_at"],
+                name="jour_plan_mat_journey_idx",
+            ),
+        ]

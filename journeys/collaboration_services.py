@@ -199,6 +199,72 @@ def complete_step(*, step, actor, reason="completed"):
     return step
 
 
+
+
+def _participant_step_authorized(actor, step):
+    actor_id = _actor_id(actor)
+    if not actor_id or step.journey.beneficiary_id != actor_id:
+        return False
+    if step.created_by_id == actor_id:
+        return True
+    return step.assignments.filter(
+        profile_id=actor_id,
+        status=JourneyAssignmentStatus.ACTIVE,
+    ).exists()
+
+
+@transaction.atomic
+def start_participant_step(*, step, actor, reason="participant_started"):
+    step = _lock_step(step)
+    if not _participant_step_authorized(actor, step):
+        raise PermissionDenied("Cette étape n'appartient pas au bénéficiaire.")
+    if step.status == JourneyStepStatus.IN_PROGRESS:
+        return step
+    if step.status != JourneyStepStatus.READY:
+        raise ValidationError("Seule une étape prête peut démarrer.")
+    if _has_active_blockers(step) or not _dependencies_satisfied(step):
+        raise ValidationError("Cette étape ne peut pas démarrer maintenant.")
+    return _save_step_status(
+        step,
+        status=JourneyStepStatus.IN_PROGRESS,
+        actor=actor,
+        reason=reason,
+        event_type=DomainEventType.JOURNEY_STEP_STARTED,
+    )
+
+
+@transaction.atomic
+def complete_participant_step(*, step, actor, reason="participant_completed"):
+    step = _lock_step(step)
+    if not _participant_step_authorized(actor, step):
+        raise PermissionDenied("Cette étape n'appartient pas au bénéficiaire.")
+    if step.status == JourneyStepStatus.COMPLETED:
+        return step
+    if step.status != JourneyStepStatus.IN_PROGRESS:
+        raise ValidationError("Seule une étape en cours peut être terminée.")
+    _assert_step_completion_preconditions(step)
+    step = _save_step_status(
+        step,
+        status=JourneyStepStatus.COMPLETED,
+        actor=actor,
+        reason=reason,
+        event_type=DomainEventType.JOURNEY_STEP_COMPLETED,
+    )
+    for dependant in JourneyStep.objects.select_for_update().filter(
+        dependencies__depends_on=step,
+        status=JourneyStepStatus.PENDING,
+    ).order_by("position", "id"):
+        if not _has_active_blockers(dependant) and _dependencies_satisfied(dependant):
+            _save_step_status(
+                dependant,
+                status=JourneyStepStatus.READY,
+                actor=actor,
+                reason="dependencies_satisfied",
+                event_type=DomainEventType.JOURNEY_STEP_READY,
+            )
+    return step
+
+
 @transaction.atomic
 def recalculate_after_unblock(*, step, actor=None):
     step = _lock_step(step)
