@@ -8,6 +8,8 @@ from .api_views import (
     ObtentionListCreateAPIView,
     ObtentionOperatorReceiptAPIView,
     ObtentionReceiptAPIView,
+    ObtentionStepCompleteAPIView,
+    ObtentionStepStartAPIView,
 )
 
 
@@ -21,4 +23,6 @@ urlpatterns = [
     path("journeys/<uuid:pk>/targets/<uuid:target_id>/receipt/", ObtentionReceiptAPIView.as_view(), name="receipt"),
     path("journeys/<uuid:pk>/targets/<uuid:target_id>/operator-confirm/", ObtentionOperatorReceiptAPIView.as_view(), name="operator-confirm"),
     path("journeys/<uuid:pk>/fulfill/", ObtentionFulfillAPIView.as_view(), name="fulfill"),
+    path("journeys/<uuid:pk>/steps/<uuid:step_id>/start/", ObtentionStepStartAPIView.as_view(), name="step-start"),
+    path("journeys/<uuid:pk>/steps/<uuid:step_id>/complete/", ObtentionStepCompleteAPIView.as_view(), name="step-complete"),
 ]
