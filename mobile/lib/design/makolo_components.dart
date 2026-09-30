@@ -32,6 +32,7 @@ class MakoloStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = _accent(context);
     return Semantics(
+      container: true,
       label: 'Statut : $label',
       child: ExcludeSemantics(
         child: DecoratedBox(
@@ -207,6 +208,7 @@ class MakoloCard extends StatelessWidget {
     if (semanticLabel == null) return card;
     return Semantics(
       container: true,
+      explicitChildNodes: true,
       button: onTap != null,
       label: semanticLabel,
       child: card,
