@@ -146,6 +146,7 @@ class MakoloAttentionBlock extends StatelessWidget {
           ),
         ),
       );
+}
 
 class MakoloTimelineItem {
   const MakoloTimelineItem({
