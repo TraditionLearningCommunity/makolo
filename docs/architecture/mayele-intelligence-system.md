@@ -1,1387 +1,1533 @@
 # Mayele — système autonome d’intelligence de Makolo
-## Acquisition, connaissance, orchestration et alimentation continue de Molongo
+## Cadre architectural consolidé V2 — connaissance, autonomie et frontière avec Molongo
 
-**Statut :** cadre conceptuel et architectural de référence — avant architecture détaillée des communications et de la propriété des données  
-**Date :** 29 septembre 2026  
-**Dépôt :** TraditionLearningCommunity/makolo  
-**Base Git vérifiée :** main@5e4d3a62a1ae4009c7c2591a4c11acf19db61c3e  
-**Portée :** nommer et cadrer Mayele, sa relation avec Molongo et l’application Makolo, et consolider les briques techniques retenues sans prétendre qu’elles sont toutes déjà implémentées.  
-**Hors périmètre :** propriété détaillée de chaque donnée, protocoles exacts entre composants, schéma final de persistance de Molongo, API finales de serving et topologie de production.
-
----
-
-# 0. Décision de vocabulaire
-
-Le projet distingue désormais trois ensembles de nature différente :
-
-| Nom | Sens retenu dans le projet | Fonction principale |
-| --- | --- | --- |
-| **Makolo** | les pieds | application utilisée par les personnes pour avancer dans l’action réelle |
-| **Molongo** | l’univers | univers formel autonome dans lequel les réalités, états, relations, conditions, événements, trajectoires et calculs peuvent être représentés |
-| **Mayele** | l’intelligence / la sagesse | système autonome qui observe, cherche, acquiert, lit, vérifie, rapproche, historise, orchestre et prépare la matière de connaissance qui alimente Molongo |
-
-La relation générale est :
-
-~~~text
-MONDE RÉEL / MONDE NUMÉRIQUE
-            │
-            ▼
-         MAYELE
-  acquisition + connaissance
-  + cognition + orchestration
-            │
-            ▼
-         MOLONGO
- univers formel + calculs
-            │
-            ▼
- projections / résultats précalculés
-            │
-            ▼
-         MAKOLO
- application d'action
-            │
-            ▼
-       UTILISATEUR
-~~~
-
-Formulation synthétique :
-
-> **Mayele cherche et établit ce que le système peut raisonnablement connaître.**  
-> **Molongo représente ce monde connu et permet de le calculer.**  
-> **Makolo exploite les résultats pertinents pour accompagner l’action réelle.**
-
-Une formule plus courte peut servir de mémo :
-
-~~~text
-Mayele connaît.
-Molongo représente et calcule.
-Makolo accompagne l'action.
-~~~
-
-Le verbe « connaître » ne signifie jamais que Mayele possède une vérité absolue. Mayele doit distinguer observation, preuve, interprétation, contradiction, incertitude, fraîcheur et vérité canonique admise.
+**Statut :** proposition de cadre architectural consolidé — étape 1 de la refondation Mayele  
+**Date :** 30 septembre 2026  
+**Dépôt de référence :** `TraditionLearningCommunity/makolo`  
+**Base Git vérifiée pour l’audit runtime :** `main@0b2f626b5c93c03e74c5ff5afc7bf6bd4a9bf1d6`  
+**Portée :** corriger et consolider l’architecture conceptuelle de Mayele à partir du cadre sémantique `MAYELE KNOWLEDGE RESEARCH V2` et de l’audit du runtime actuel, sans déplacer de modules, sans créer de tables, sans fixer prématurément le stockage ni les moteurs techniques.  
+**Hors périmètre :** schémas Django finaux, migrations, structure physique définitive de `mayele/`, choix définitif PostgreSQL/Neo4j/R2, contrats réseau, API finales, déploiement de production, implémentation des agents et migration de l’ancien pipeline.
 
 ---
 
-# 1. Pourquoi Mayele existe
+# 0. Pourquoi cette V2 existe
 
-La promesse de Makolo reste :
+Le premier cadre Mayele a correctement posé trois idées majeures :
 
-> **« Makolo marche pour vous. »**
+1. Mayele est autonome et travaille indépendamment d’une session utilisateur ;
+2. Molongo est distinct de Mayele et de l’application Makolo ;
+3. l’écosystème doit effectuer en amont un maximum de travail de recherche, compréhension, calcul et préparation.
 
-Dans l’expérience visée, cette promesse doit pouvoir devenir :
+Mais il est allé trop vite sur un point essentiel : il a assimilé une partie importante du pipeline technique existant — ResearchMission, Prospecteur, Observer, Interpreter, Resolver, Orchestration, Projector — à l’architecture canonique de Mayele.
 
-> **« Avance. Ce qui pouvait être préparé l’est déjà ; voici ce qui reste réellement à faire. »**
+L’audit du runtime actuel montre que cette assimilation n’est pas défendable telle quelle.
 
-Cette expérience est impossible si l’application doit commencer tout le travail au moment précis où l’utilisateur ouvre un écran.
+Les modules existants contiennent de nombreuses capacités utiles, mais ils n’ont pas tous la même nature :
 
-Une grande partie du travail doit pouvoir avoir eu lieu auparavant :
+- certains sont des mécanismes d’acquisition réutilisables ;
+- certains appartiennent effectivement au futur Mayele ;
+- certains mélangent plusieurs responsabilités qui doivent être séparées ;
+- certains sont de l’infrastructure partagée ;
+- certains constituent une frontière vers les domaines canoniques Makolo ;
+- certains appartiennent plutôt à l’entrée de Molongo qu’au cœur de Mayele.
 
-- découvrir ce qui existe ;
-- lire et comprendre des sources ;
-- retrouver des sources officielles ;
-- observer un site ou un document ;
-- détecter qu’une information a changé ;
-- conserver les preuves ;
-- comparer plusieurs versions ;
-- résoudre des identités ;
-- maintenir des relations ;
-- recalculer des graphes ;
-- approfondir des inconnues ;
-- préparer des structures exploitables par Molongo ;
-- recalculer les résultats affectés par un changement.
+Cette V2 repart donc des responsabilités conceptuelles et du modèle de connaissance, puis repositionne l’existant comme matériau de migration.
 
-Mayele est le nom de cet ensemble autonome.
+Principe directeur :
 
-Invariant :
-
-~~~text
-utilisateur connecté
-        !=
-Mayele actif
-~~~
-
-Mayele peut travailler lorsqu’aucun utilisateur n’utilise Makolo.
-
----
-
-# 2. Le parallèle avec Google : inspiration d’architecture, pas copie de produit
-
-L’intuition de départ peut être illustrée par Google.
-
-Un utilisateur qui lance une recherche Google n’attend pas que Google découvre le Web entier après la saisie de sa requête. Une infrastructure travaille en amont : crawl, indexation, analyse de liens, calculs, fraîcheur, signaux et structures préparées.
-
-Schématiquement :
-
-~~~text
-Web
-  ↓
-Crawlers / Googlebot
-  ↓
-contenus observés
-  ↓
-index
-  ↓
-graphe du Web
-  ↓
-PageRank + autres calculs
-  ↓
-structures préparées
-  ↓
-Google Search
-  ↓
-requête utilisateur
-~~~
-
-Makolo ne copie ni Google Search ni PageRank. Le parallèle concerne la séparation entre :
-
-1. le travail de fond, effectué avant la demande interactive ;
-2. la représentation calculable du monde ;
-3. le produit interactif, qui exploite des résultats déjà préparés.
-
-L’architecture cible devient :
-
-~~~text
-Web + APIs + documents + systèmes connectés + événements
-                         │
-                         ▼
-                       MAYELE
-                         │
-        acquisition / validation / connaissance
-                         │
-                         ▼
-                       MOLONGO
-                         │
-       graphes / géométrie / dynamique / calculs
-                         │
-                         ▼
-              résultats précalculés
-                         │
-                         ▼
-                       MAKOLO
-                         │
-                         ▼
-                    action réelle
-~~~
-
-Le parallèle s’arrête là où les problèmes divergent : Google Search cherche principalement des documents pertinents pour une requête ; Makolo doit comprendre ce qui compte pour rendre une action réelle possible, préparée ou exécutable.
-
----
-
-# 3. Les niveaux à ne jamais confondre
-
-Le projet doit conserver les distinctions déjà acquises :
-
-~~~text
-Monde réel
-    !=
-Vue métier Makolo
-    !=
-Backend / domaines canoniques
-    !=
-Molongo
-~~~
-
-Mayele traverse plusieurs frontières comme système d’acquisition, de connaissance et d’orchestration, mais il ne remplace aucun domaine propriétaire.
-
-## 3.1 Monde réel / monde numérique externe
-
-C’est ce qui existe indépendamment de Makolo : personnes, institutions, services, événements, routes, règles, documents, sites Web, messages, systèmes informatiques et phénomènes réels.
-
-Le monde ne devient pas faux ou vrai selon ce que Mayele sait de lui.
-
-## 3.2 Mayele
-
-Mayele construit et entretient l’état de connaissance de Makolo sur ce monde.
-
-~~~text
-réalité
+```text
+LE RUNTIME EXISTANT
 !=
-observation
-!=
-interprétation
-!=
-résolution
-!=
-fait admis
-~~~
+LA DÉFINITION DE MAYELE
+```
 
-## 3.3 Molongo
-
-Molongo est un univers formel autonome.
-
-Il ne doit pas être réduit à Neo4j, pgvector, PostgreSQL, au schéma Django, à un moteur de recommandation ou à la mémoire d’un LLM.
-
-## 3.4 Makolo
-
-Makolo est l’application et l’expérience d’action.
-
-L’application peut composer :
-
-- les vérités opérationnelles de ses domaines propriétaires ;
-- les projections autorisées ;
-- les résultats et projections d’intelligence précalculés issus de Molongo.
-
-Molongo ne remplace donc pas les décisions autoritatives de Permission, Mandate, Access, Capacity, Payment ou d’autres domaines.
+Le runtime est audité à partir de Mayele ; Mayele n’est plus déduit automatiquement du runtime.
 
 ---
 
-# 4. Définition canonique de Mayele
+# 1. Vocabulaire de référence
 
-> **Mayele est le système autonome d’intelligence de l’écosystème Makolo.**
->
-> Il découvre, acquiert, observe, lit, interprète, vérifie, rapproche, historise, retrouve et maintient des connaissances provenant du Web, de sources connectées et de systèmes autorisés.
->
-> Il orchestre des traitements courts ou durables, exploite des agents et modèles IA lorsque cela est utile, utilise la connaissance existante avant de refaire un travail coûteux et conserve la provenance nécessaire pour expliquer ce qui est connu, pourquoi, depuis quand et avec quelles limites.
->
-> Sa finalité principale n’est pas de produire une réponse jetable à chaque requête utilisateur. Sa finalité est d’agrandir et d’entretenir le capital de connaissance exploitable, puis d’alimenter Molongo de manière contrôlée afin que les calculs et projections nécessaires à Makolo puissent être préparés avant leur consommation interactive.
+Le projet distingue trois systèmes de nature différente.
 
----
+| Nom | Sens retenu dans le projet | Responsabilité principale |
+|---|---|---|
+| **Makolo** | les pieds | application et système d’action qui accompagne la personne dans le réel |
+| **Molongo** | l’univers | représentation formelle autonome et calculable des réalités pertinentes du monde |
+| **Mayele** | l’intelligence / la sagesse | système autonome qui construit, entretient et qualifie la connaissance exploitable sur le monde |
 
-# 5. Ce que Mayele n’est pas
+La chaîne générale est :
 
-Mayele n’est pas :
-
-- l’application Makolo ;
-- Molongo ;
-- un chatbot ;
-- un unique agent IA ;
-- un simple wrapper autour de Tavily ou Exa ;
-- un crawler unique ;
-- un RAG ;
-- une base de données universelle ;
-- un second backend métier ;
-- une seconde source de vérité pour Activity, Occurrence, Journey, Requirement, Proof, Access, Capacity, Payment ou les autres domaines canoniques ;
-- un système qui transforme toute donnée trouvée en vérité ;
-- un moteur de ranking humain universel ;
-- une raison de copier toutes les données privées dans un graphe global ;
-- un fournisseur IA particulier.
-
-Invariant :
-
-~~~text
-Mayele = système
-
-Tavily / Exa / LLM / LangGraph / Temporal /
-Neo4j / n8n / MCP = composants remplaçables
-~~~
-
----
-
-# 6. Architecture fonctionnelle de Mayele
-
-~~~text
-MAYELE
-│
-├── Acquisition
-│   ├── Tavily
-│   ├── Exa
-│   ├── Web Search provider-neutral
-│   ├── Crawlers
-│   ├── Common Crawl / index externes
-│   └── Connecteurs autorisés
-│
-├── Observation & contenu
-│   ├── HTTP
-│   ├── Browser lorsque nécessaire
-│   ├── PDF
-│   ├── images
-│   ├── documents bureautiques
-│   └── pièces jointes
-│
-├── Cognition
-│   ├── Agents IA
-│   ├── LangGraph
-│   ├── RAG
-│   ├── interprétation structurée
-│   ├── résolution d'identité
-│   ├── validation
-│   ├── contradiction
-│   └── revalidation
-│
-├── Orchestration
-│   ├── Temporal
-│   ├── n8n
-│   ├── MCP
-│   ├── workers
-│   └── budgets / politiques d'arrêt
-│
-├── Connaissance
-│   ├── PostgreSQL
-│   ├── pgvector
-│   ├── Cloudflare R2
-│   ├── Neo4j Community
-│   └── Neo4j GDS Community
-│
-├── Observabilité
-│   ├── OpenTelemetry
-│   ├── Prometheus
-│   ├── Loki
-│   ├── Tempo
-│   └── Grafana
-│
-└── Alimentation de Molongo
-    ├── admission contrôlée
-    ├── faits canoniques propriétaires
-    ├── Projecteur
-    ├── snapshots / deltas
-    └── déclenchement des recalculs utiles
-~~~
-
-Cette arborescence exprime des responsabilités. Elle ne signifie pas qu’un microservice distinct doit être créé pour chaque ligne.
-
----
-
-# 7. Acquisition : Search, Crawl et connecteurs
-
-Mayele doit pouvoir acquérir de la matière par plusieurs voies.
-
-## 7.1 Search
-
-Tavily et Exa sont retenus comme moteurs externes cibles, derrière un contrat interne stable.
-
-~~~text
-Mayele Search Port
-    ├── Tavily adapter
-    ├── Exa adapter
-    ├── provider Web Search existant
-    └── fournisseurs futurs
-~~~
-
-Le fournisseur ne possède jamais le modèle de connaissance.
-
-## 7.2 Crawl
-
-Search et Crawl ne sont pas synonymes :
-
-~~~text
-SEARCH
-= découvrir et élargir le territoire connu
-
-CRAWL
-= explorer méthodiquement un territoire connu
-
-WATCH
-= vérifier ce qui a changé
-~~~
-
-## 7.3 Connecteurs
-
-Mayele doit pouvoir lire, sous autorisation explicite :
-
-- Gmail ;
-- Google Drive ;
-- Dropbox ;
-- GitHub ;
-- OneDrive / SharePoint ;
-- Notion ;
-- Slack ;
-- APIs ;
-- bases externes ;
-- systèmes partenaires futurs.
-
-Le fait qu’une source soit connectée ne signifie jamais que tout son contenu devient connaissance globale ou publique.
-
----
-
-# 8. Cognition et rôles spécialisés
-
-Mayele peut utiliser plusieurs rôles logiques :
-
-| Rôle | Responsabilité |
-| --- | --- |
-| Planificateur | décomposer une mission et identifier les inconnues |
-| Chercheur Web | rechercher sources et candidats |
-| Chercheur de sources | remonter vers les sources primaires ou officielles |
-| Lecteur documentaire | lire HTML, PDF, images, DOCX, XLSX et pièces jointes |
-| Interpréteur | transformer le contenu en candidats structurés |
-| Résolveur | rapprocher les candidats des réalités connues |
-| Validateur | recouper, chercher contradictions et preuves |
-| Historien | comparer les états successifs |
-| Agent de connaissance | retrouver ce que Mayele sait déjà |
-| Agent de revalidation | revérifier une connaissance sensible au temps |
-| Agent connecteur | utiliser des outils externes autorisés |
-| Analyste | produire une synthèse interne ou un résultat structuré |
-
-Ces rôles peuvent être implémentés par du code déterministe, un LLM, plusieurs modèles, LangGraph, Temporal ou une combinaison.
-
-Un rôle logique n’implique pas automatiquement un agent autonome séparé.
-
----
-
-# 9. Multi-agent, LangGraph et A2A
-
-Le multi-agent est une capacité de Mayele, mais il doit rester contrôlé.
-
-~~~text
-orchestrateur
-    │
-    ├── délègue une mission bornée
-    ├── fournit uniquement les outils autorisés
-    ├── attend une sortie structurée
-    ├── mesure coût / durée / résultat
-    └── décide du prochain pas
-~~~
-
-Chaque tâche agentique devrait définir :
-
-~~~text
-entrée
-objectif
-outils autorisés
-contexte autorisé
-format de sortie
-budget
-timeout
-critère d'arrêt
-politique de retry
-niveau de preuve attendu
-~~~
-
-**LangGraph** est retenu pour les graphes cognitifs et transitions agentiques complexes.
-
-**A2A** reste une capacité future utile si des agents ou systèmes réellement autonomes doivent se découvrir et se déléguer des tâches. A2A n’est pas requis pour appeler Mayele « multi-agent ».
-
----
-
-# 10. RAG : récupérer avant de rechercher à nouveau
-
-Le RAG appartient à Mayele comme mécanisme de récupération, pas comme source de vérité.
-
-Il doit répondre d’abord à :
-
-> « Qu’est-ce que nous savons déjà qui peut éviter une nouvelle recherche coûteuse ? »
-
-Il pourra combiner :
-
-- requêtes structurées PostgreSQL ;
-- recherche plein texte ;
-- pgvector ;
-- métadonnées ;
-- filtres temporels ;
-- provenance ;
-- graphe ;
-- historique de versions.
-
-~~~text
-nouvelle mission
-     ↓
-connaissance existante
-     ↓
-inconnues réelles
-     ↓
-recherche complémentaire seulement si nécessaire
-~~~
-
-Invariant :
-
-~~~text
-RAG != vérité
-RAG != Molongo
-RAG != mémoire opaque du modèle
-~~~
-
----
-
-# 11. Connaissance, preuve et historique
-
-Une recherche utile ne produit pas seulement un texte final.
-
-Mayele doit pouvoir préserver séparément :
-
-- source ;
-- document ;
-- artefact ;
-- observation ;
-- extrait probant ;
-- affirmation candidate ;
-- entité candidate ;
-- relation candidate ;
-- contradiction ;
-- résolution d’identité ;
-- état de validation ;
-- version ;
-- fraîcheur ;
-- historique ;
-- provenance ;
-- calcul dérivé.
-
-Cycle conceptuel :
-
-~~~text
-Source
-  ↓
-Document / page
-  ↓
-Evidence
-  ↓
-Claim candidat
-  ↓
-Validation / contradiction
-  ↓
-Résolution
-  ↓
-Admission éventuelle dans le domaine propriétaire
-~~~
-
-L’absence d’information ne doit jamais devenir silencieusement une information négative :
-
-~~~text
-UNKNOWN != FALSE
-UNKNOWN != CLOSED
-UNKNOWN != NOT_APPLICABLE
-~~~
-
----
-
-# 12. Temps et fraîcheur
-
-Mayele doit être temporel par construction.
-
-Selon la donnée, il peut être nécessaire de distinguer :
-
-~~~text
-published_at
-phenomenon_at
-observed_at
-received_at
-recorded_at
-valid_from
-valid_to
-last_verified_at
-superseded_at
-next_review_at
-~~~
-
-Une nouvelle valeur ne détruit pas automatiquement l’ancienne.
-
-Le système doit pouvoir déterminer si une différence correspond à :
-
-- un changement réel ;
-- une correction ;
-- une contradiction ;
-- deux contextes différents ;
-- ou une information non résolue.
-
-L’historique est une donnée, pas un déchet à écraser.
-
----
-
-# 13. Validation et provenance
-
-La finalité de Mayele n’est pas « produire beaucoup de données ». Elle est de produire de la connaissance traçable et raisonnablement défendable.
-
-Une donnée importante doit pouvoir répondre à :
-
-- d’où vient-elle ?
-- qui l’a publiée ?
-- quand ?
-- quel document ou passage la soutient ?
-- a-t-elle été observée directement ?
-- a-t-elle été interprétée par un modèle ?
-- existe-t-il une source primaire ?
-- existe-t-il une contradiction ?
-- quand a-t-elle été vérifiée pour la dernière fois ?
-- quelle partie est un fait et quelle partie est une inférence ?
-
-Principe :
-
-~~~text
-source de découverte
-!=
-source suffisante pour établir un fait critique
-~~~
-
-Une source secondaire peut découvrir une réalité ; Mayele peut ensuite rechercher le propriétaire, la source officielle ou des confirmations indépendantes.
-
----
-
-# 14. PostgreSQL, pgvector, R2 et Neo4j
-
-La stack de connaissance retenue est :
-
-~~~text
-PostgreSQL
-+ pgvector
-+ Cloudflare R2
-+ Neo4j Community / GDS Community
-~~~
-
-## PostgreSQL
-
-Données structurées, versionnées, transactionnelles, auditables et référentielles.
-
-## pgvector
-
-Embeddings et récupération sémantique.
-
-## Cloudflare R2
-
-Fichiers et objets binaires : PDF, images, captures, documents, pièces jointes et artefacts autorisés.
-
-## Neo4j
-
-Structures de graphe et calculs graphiques.
-
-Invariant :
-
-~~~text
-Neo4j != Molongo
-~~~
-
-Neo4j est un moteur et un support de calcul. Molongo est le modèle formel.
-
-La frontière exacte entre graphe de connaissance de Mayele, graphe/projection de Molongo, structures reconstruisibles et résultats persistés reste à définir dans le chantier suivant.
-
----
-
-# 15. Pourquoi le graphe est central
-
-Le graphe n’est pas ajouté pour produire une belle visualisation.
-
-Il sert à faire émerger des propriétés structurelles impossibles à voir dans une simple liste d’objets.
-
-Algorithmes envisagés :
-
-- PageRank ;
-- centralités ;
-- connected components ;
-- Louvain ;
-- Leiden ;
-- label propagation ;
-- K-Core ;
-- shortest paths ;
-- similarité de nœuds ;
-- link prediction ;
-- embeddings graphiques ;
-- algorithmes spécifiques futurs.
-
-Boucle possible :
-
-~~~text
-connaissance accumulée
-        ↓
-graphe
-        ↓
-algorithme
-        ↓
-signal / hypothèse
-        ↓
-mission Mayele
-        ↓
-recherche / vérification
-        ↓
-nouvelle connaissance
-        ↓
-graphe mis à jour
-~~~
-
-Une hypothèse produite par un algorithme reste une hypothèse tant qu’elle n’a pas acquis le niveau de preuve requis.
-
----
-
-# 16. Orchestration durable : Temporal
-
-Mayele doit exécuter des travaux qui dépassent une requête HTTP :
-
-- deep research ;
-- ingestion massive ;
-- revalidation ;
-- surveillance ;
-- recalculs ;
-- reprise après panne ;
-- attente de fenêtre temporelle ;
-- synchronisation de connecteurs ;
-- workflows sur plusieurs heures ou jours.
-
-Temporal est retenu comme moteur cible de workflows durables.
-
-~~~text
-Temporal
-= durée + reprise + timers + orchestration durable
-~~~
-
-Temporal ne remplace ni Django, ni LangGraph, ni les domaines métier, ni Molongo.
-
----
-
-# 17. n8n et MCP
-
-## n8n
-
-n8n est retenu pour les intégrations événementielles, webhooks et automatisations périphériques.
-
-~~~text
-nouveau document Drive
-      ↓
-n8n
-      ↓
-entrée Mayele
-      ↓
-workflow durable
-~~~
-
-n8n ne doit pas devenir le propriétaire de la logique métier ni du modèle de connaissance.
-
-## MCP
-
-MCP est retenu comme protocole utile pour exposer certains outils et ressources aux agents.
-
-Exemples :
-
-~~~text
-search_email()
-read_email()
-search_drive()
-read_drive_file()
-search_dropbox()
-search_web()
-open_url()
-search_knowledge()
-~~~
-
-Tout ne doit pas obligatoirement passer par MCP. Une API directe reste acceptable lorsqu’elle apporte plus de contrôle, de sécurité, de performance ou une sémantique plus claire.
-
----
-
-# 18. Modèles IA : flexibilité obligatoire
-
-Mayele ne doit pas être lié à un fournisseur unique.
-
-Fournisseurs possibles :
-
-- OpenAI ;
-- Gemini ;
-- Claude ;
-- modèles locaux ;
-- fournisseurs futurs.
-
-Le choix doit être fait par capacité et contraintes :
-
-~~~text
-tâche simple          → modèle économique
-extraction structurée → modèle fiable et rapide
-vision                 → modèle multimodal approprié
-validation complexe    → modèle plus puissant
-~~~
-
-Invariant :
-
-~~~text
-LLM_PROVIDER != Mayele
-~~~
-
----
-
-# 19. Mayele travaille même sans session Makolo
-
-Mayele possède plusieurs modes de fonctionnement autonomes :
-
-~~~text
-DISCOVER
-→ découvrir ce que le système ne connaît pas encore
-
-DEEPEN
-→ approfondir une réalité partiellement connue
-
-OBSERVE
-→ acquérir le matériau réel d'une source
-
-VERIFY
-→ chercher une preuve, une source primaire ou une contradiction
-
-WATCH
-→ vérifier ce qui a changé
-
-CRAWL
-→ entretenir méthodiquement un territoire connu
-
-REVALIDATE
-→ vérifier une connaissance sensible au temps
-
-COMPUTE
-→ recalculer index, graphes et résultats dérivés
-
-PROJECT
-→ préparer les entrées et projections destinées à Molongo
-~~~
-
-Ces travaux peuvent être déclenchés :
-
-- périodiquement ;
-- par événement ;
-- par changement détecté ;
-- par expiration ;
-- par mission interne ;
-- par action utilisateur ;
-- par un calcul Molongo révélant une inconnue utile.
-
-Les budgets et critères d’arrêt restent obligatoires.
-
----
-
-# 20. Alimentation de Molongo
-
-La sortie principale de Mayele n’est pas un paragraphe de réponse.
-
-Elle est un ensemble de connaissances et structures suffisamment contrôlées pour contribuer à Molongo.
-
-~~~text
-information trouvée
-!=
-fait canonique
-!=
-entrée Molongo admise
-~~~
-
-Lorsqu’une information correspond à une vérité métier possédée par un domaine Makolo, le chemin normal respecte le propriétaire canonique :
-
-~~~text
-source externe
-   ↓
-Mayele acquisition
-   ↓
-observation
-   ↓
-interprétation
-   ↓
-résolution / vérification
-   ↓
-admission contrôlée
-   ↓
-domaine canonique propriétaire
-   ↓
-Projecteur
-   ↓
-Molongo
-~~~
-
-Mayele peut conserver des observations, contradictions ou candidats non encore admis. Leur existence épistémique ne leur donne pas automatiquement un statut ontologique dans Molongo.
-
----
-
-# 21. Compatibilité avec le pipeline Actor existant
-
-Le nom **Mayele** ne remplace pas ce qui existe déjà ; il devient l’ombrelle conceptuelle sous laquelle les capacités actuelles trouvent leur place.
-
-À la base Git vérifiée, le dépôt possède notamment :
-
-~~~text
-ResearchMission
-      ↓
-Actor 1 — Prospecteur
-      ↓
-Actor 2 — Observateur
-      ↓
-Actor 3 — Interpréteur
-      ↓
-Actor 4 — Résolveur
-      ↓
-Actor 5 — Orchestrateur
-      ↓
-Actor 6 — Persistateur / owners métier
-      ↓
-Actor 7 — Projecteur
-      ↓
-Actor 8 — Univers (runtime non encore livré)
-~~~
-
-Interprétation avec le nouveau vocabulaire :
-
-~~~text
-MAYELE
-├── ResearchMission
-├── Web Research
-├── Prospecteur
-├── Observateur
-├── Interpréteur
-├── Résolveur
-├── orchestration et connaissance
-├── admission vers les owners
-└── Projecteur / frontière d'alimentation
-
-MOLONGO
-└── nom conceptuel retenu pour l'Univers formel autonome
-~~~
-
-Le Projecteur actuel reste important : il construit des UniverseSnapshot / UniverseDelta déterministes à partir de faits canoniques. Cette frontière doit être préservée.
-
----
-
-# 22. État réel du dépôt au moment de ce cadrage
-
-Ce document distingue explicitement le runtime courant de la cible Mayele.
-
-## Déjà présent ou démontré sur main
-
-- Django / Python comme cœur serveur ;
-- ResearchMission ;
-- pipeline Prospecteur / Observateur / Interpréteur / Résolveur / Orchestrateur ;
-- Actor 6 et propriétaires métier ;
-- Actor 7 Projecteur intégré ;
-- Common Crawl / capacités Prospecteur existantes ;
-- Crawlee dans la frontière Prospecteur / Observateur ;
-- infrastructure intelligence provider-neutral ;
-- génération, structured generation, embeddings, reranking ;
-- capacité runtime Web Research ;
-- premier adapter Web Search concret via OpenAI Responses ;
-- DiscoveryOutput, DeepenOutput, WatchOutput et CyclePlan des phases Web Search 1–6 ;
-- workers et garde-fous d’observation HTTP / Browser documentés.
-
-La PR #360 « Web Search Phases 1–6 » a été fusionnée et ses workflows visibles de CI, Security supply chain, Beta seed validation, Funding PostgreSQL et Conversation PostgreSQL ont réussi.
-
-## Cible retenue mais non déclarée déjà livrée
-
-- Tavily ;
-- Exa ;
-- LangGraph ;
-- Temporal ;
-- MCP comme couche structurée de Mayele ;
-- n8n ;
-- pgvector comme couche vectorielle généralisée ;
-- Cloudflare R2 comme stockage objet cible ;
-- Neo4j Community + GDS Community ;
-- OpenTelemetry + Grafana / Prometheus / Loki / Tempo comme stack complète ;
-- runtime Molongo ;
-- serving final des résultats précalculés de Molongo.
-
-Ce document n’invente donc pas l’existence runtime de ces briques.
-
----
-
-# 23. Molongo : univers autonome, pas cache de Mayele
-
-Molongo existe indépendamment d’une question personnelle.
-
-~~~text
-Molongo global
-     ↓
-système pertinent pour une question
-     ↓
-projection contextuelle
-~~~
-
-Mayele entretient ce que le système connaît du monde ; Molongo transforme les entrées admissibles en un univers calculable.
-
-Selon les cadres scientifiques consolidés, Molongo peut porter ou calculer :
-
-- Corps ;
-- relations ;
-- conditions ;
-- événements ;
-- positions ;
-- temps ;
-- états ;
-- histoires ;
-- trajectoires ;
-- systèmes pertinents ;
-- structures de graphe ;
-- grandeurs et interactions lorsqu’elles sont scientifiquement consolidées ;
-- résultats analytiques dérivés.
-
-La géométrie et la dynamique de Molongo ne doivent pas être créées à partir de la convenance d’un schéma de base de données.
-
----
-
-# 24. Calculs hors ligne et précalcul
-
-Une partie fondamentale du modèle est que les calculs lourds ne doivent pas tous être exécutés dans la requête utilisateur.
-
-Exemples :
-
-- index de recherche ;
-- embeddings ;
-- relations résolues ;
-- composantes connexes ;
-- centralités ;
-- PageRank ;
-- communautés ;
-- structures réutilisables ;
-- détection de changements ;
-- fraîcheur ;
-- projections Molongo ;
-- résultats dérivés dont les dépendances n’ont pas changé.
-
-~~~text
-nouvelle connaissance / changement
-          ↓
-identification des calculs invalidés
-          ↓
-recalcul borné
-          ↓
-nouvelle version du résultat
-          ↓
-projection précalculée disponible
-~~~
-
-Le système doit éviter de recalculer tout Molongo lorsqu’un changement local ne touche qu’une partie du monde représenté.
-
----
-
-# 25. Serving : ce que Makolo doit recevoir rapidement
-
-La couche de serving finale reste à définir techniquement, mais sa responsabilité est claire.
-
-~~~text
-Mayele travaille en arrière-plan
-          ↓
-Molongo est mis à jour
-          ↓
-calculs dérivés mis à jour
-          ↓
-projections précalculées
-          ↓
-utilisateur ouvre Makolo
-          ↓
-composition contextuelle rapide
-          ↓
-« Qu'est-ce qui compte maintenant ? »
-~~~
-
-Cela ne signifie pas que chaque réponse est figée à l’avance.
-
-La requête utilisateur peut encore déclencher :
-
-- une sélection contextuelle ;
-- un calcul léger ;
-- une vérification de fraîcheur ;
-- une nouvelle mission Mayele si une information critique manque ;
-- un arbitrage serveur autoritatif.
-
-Mais le système ne doit pas repartir du Web brut à chaque écran.
-
----
-
-# 26. Sources privées et confidentialité
-
-Le fait que Mayele puisse se connecter à Gmail, Drive ou Dropbox impose un invariant fort :
-
-~~~text
-donnée privée accessible à Mayele
-!=
-donnée autorisée à entrer dans Molongo global
-!=
-donnée autorisée à être montrée à un autre utilisateur
-~~~
-
-Chaque donnée doit conserver son contexte d’autorisation.
-
-Mayele doit respecter :
-
-- consentement ;
-- portée du connecteur ;
-- least privilege ;
-- séparation lecture / écriture ;
-- provenance ;
-- sensibilité ;
-- durée de conservation ;
-- révocation ;
-- minimisation ;
-- divulgation minimale.
-
-Une composition ne transfère jamais implicitement Permission, Mandate, Access, Payment ou accès à des données privées.
-
----
-
-# 27. Observabilité
-
-Mayele doit être observable comme un système de production.
-
-~~~text
-OpenTelemetry
-     │
-     ├── traces  → Tempo
-     ├── metrics → Prometheus
-     └── logs    → Loki
-                    │
-                    ▼
-                 Grafana
-~~~
-
-Les corrélations doivent pouvoir suivre :
-
-~~~text
-ResearchMission
-→ recherche provider
-→ source
-→ observation
-→ interprétation
-→ résolution
-→ validation
-→ admission
-→ projection Molongo
-→ calcul
-→ projection servie
-~~~
-
-L’objectif est aussi de pouvoir répondre à :
-
-> « Pourquoi le système croit-il cela et quelle chaîne de traitement l’a produit ? »
-
----
-
-# 28. Infrastructure
-
-La cible reste compatible avec :
-
-~~~text
-Django + Python
-Flutter
-Next.js si une interface Web séparée le justifie
-Docker
-VPS
-~~~
-
-Mayele peut être réparti progressivement en plusieurs processus ou machines sans modifier ses contrats conceptuels.
-
-La topologie exacte reste une décision d’exploitation future.
-
----
-
-# 29. Architecture complète, implémentation progressive
-
-Le choix reste :
-
-> **architecture complète dès le départ, implémentation progressive de cette même architecture.**
-
-« Progressif » ne signifie pas « prototype jetable ».
-
-Chaque tranche doit :
-
-- respecter les frontières finales ;
-- utiliser des contrats versionnés ;
-- conserver la provenance ;
-- être reconstruisible lorsque cela est prévu ;
-- éviter les dépendances fournisseur dans le métier ;
-- éviter les vérités parallèles ;
-- être testable ;
-- être observable ;
-- pouvoir être remplacée sans réécrire l’ensemble.
-
----
-
-# 30. Invariants Mayele
-
-1. **Mayele travaille indépendamment de la présence d’un utilisateur.**
-2. **Mayele ne devient pas une seconde source de vérité métier.**
-3. **Une donnée trouvée n’est pas automatiquement une vérité admise.**
-4. **Observation, interprétation, résolution, admission et projection restent distinctes.**
-5. **Mayele peut conserver l’incertitude et la contradiction.**
-6. **La provenance et le temps de connaissance font partie du résultat.**
-7. **RAG est une méthode de récupération, pas une vérité.**
-8. **Neo4j est un moteur de graphe, pas Molongo lui-même.**
-9. **Les fournisseurs IA et Search restent remplaçables.**
-10. **Les sources privées conservent leur portée d’autorisation.**
-11. **Molongo existe indépendamment d’un Profile particulier.**
-12. **Makolo consomme des résultats préparés sans être obligé de refaire l’acquisition.**
-13. **Les calculs lourds doivent pouvoir être exécutés hors du chemin critique utilisateur.**
-14. **Un changement doit invalider uniquement les calculs réellement dépendants lorsque cette dépendance est connue.**
-15. **Le runtime courant gagne toujours sur les roadmaps et documents historiques.**
-
----
-
-# 31. Anti-features
-
-Mayele ne doit pas dériver vers :
-
-- un crawler Internet sans bornes ;
-- un système de scraping sans provenance ;
-- une boucle d’agents qui conversent sans objectif ni budget ;
-- un data lake où tout est stocké « au cas où » ;
-- un graphe qui mélange données publiques et privées sans portée ;
-- un LLM qui écrit directement dans les tables métier ;
-- un score universel de valeur humaine ;
-- une ontologie créée uniquement pour satisfaire une bibliothèque ;
-- un système qui cache ses incertitudes ;
-- un mécanisme qui confond « non trouvé » et « n’existe pas » ;
-- une infrastructure qui recalcule tout à chaque requête ;
-- un deuxième Makolo caché derrière Makolo.
-
----
-
-# 32. Nomenclature de transition : Univers Makolo → Molongo
-
-Le dépôt courant utilise encore le terme **Univers Makolo**, notamment dans les documents Actor 7 / Actor 8 et les contrats UniverseSnapshot, UniverseDelta et UniverseProjectionPort.
-
-Ce document introduit **Molongo** comme nom conceptuel retenu pour cet Univers.
-
-~~~text
-« Univers Makolo » dans le runtime/docs existants
-≈
-Molongo dans le nouveau vocabulaire conceptuel
-~~~
-
-Cette équivalence de nom ne signifie pas qu’il faut renommer immédiatement modules Python, types de contrats, migrations, routes, variables ou documents scientifiques historiques.
-
-Une éventuelle migration terminologique sera un chantier séparé, audité sur le main courant.
-
----
-
-# 33. Schéma général consolidé
-
-~~~mermaid
-flowchart TD
-    W[Monde réel / Web / systèmes externes]
-
-    subgraph MAYELE[Mayele — intelligence autonome]
-        A[Acquisition]
-        O[Observation et contenu]
-        C[Cognition]
-        K[Connaissance]
-        T[Orchestration]
-        P[Admission / Projecteur]
-
-        A --> O
-        O --> C
-        C <--> K
-        T --> A
-        T --> C
-        T --> K
-        C --> P
-        K --> P
-    end
-
-    subgraph MOLONGO[Molongo — univers formel autonome]
-        U[Corps / Relations / Conditions / Événements]
-        D[États / Temps / Positions / Trajectoires]
-        G[Graphes / géométrie / dynamique]
-        X[Calculs et projections dérivées]
-        U --> D --> G --> X
-    end
-
-    subgraph MAKOLO[Makolo — application d'action]
-        S[Serving / projections précalculées]
-        APP[Web / Mobile / Desktop]
-        S --> APP
-    end
-
-    W --> A
-    P --> U
-    X --> S
-~~~
-
-Ce diagramme est conceptuel. Il ne fixe pas encore les transports réseau ni les propriétaires physiques des bases.
-
----
-
-# 34. Cycle de vie complet d’une connaissance
-
-~~~mermaid
-flowchart LR
-    A[Source] --> B[Découverte]
-    B --> C[Observation]
-    C --> D[Interprétation]
-    D --> E[Résolution]
-    E --> F[Validation]
-    F --> G[Admission canonique]
-    G --> H[Projection Molongo]
-    H --> I[Calcul]
-    I --> J[Résultat précalculé]
-    J --> K[Makolo]
-
-    L[Watch / Revalidation] --> C
-    I -->|inconnue détectée| M[Nouvelle ResearchMission]
-    M --> B
-~~~
-
-Le cycle peut repartir lorsqu’une contradiction apparaît, une source change, une preuve expire, un algorithme révèle une inconnue ou une nouvelle dépendance devient pertinente.
-
----
-
-# 35. Relation avec les documents existants
-
-Ce document ne remplace pas :
-
-- [makolo-domain-blueprint.md](makolo-domain-blueprint.md) pour les frontières métier ;
-- [makolo-web-search.md](makolo-web-search.md) pour le cycle générique de recherche Web ;
-- [research-missions.md](research-missions.md) pour les missions ;
-- [interpreter.md](interpreter.md) ;
-- [resolver.md](resolver.md) ;
-- [orchestrator.md](orchestrator.md) ;
-- [persistator.md](persistator.md) ;
-- [projector.md](projector.md) ;
-- [../operations-runbook.md](../operations-runbook.md) pour l’exploitation actuelle ;
-- les documents scientifiques de l’Univers / Molongo.
-
-Il ajoute une couche de langage et d’architecture supérieure :
-
-~~~text
-capacités existantes et futures
-        ↓
-système autonome d'intelligence
-        ↓
-MAYELE
-~~~
-
----
-
-# 36. Ce qui reste volontairement ouvert
-
-Le prochain chantier devra répondre précisément à :
-
-- quel composant possède chaque donnée ?
-- quelle donnée est canonique, dérivée, cache, index ou projection ?
-- PostgreSQL et Neo4j stockent-ils les mêmes relations ou des projections différentes ?
-- quel graphe appartient à Mayele et quel graphe appartient à Molongo ?
-- Molongo possède-t-il une persistance propre ou est-il reconstruisible ?
-- où sont stockés les résultats précalculés consommés par Makolo ?
-- comment invalider les calculs lorsqu’une source change ?
-- quel rôle exact joue Actor 7 dans le vocabulaire Mayele → Molongo ?
-- quels flux utilisent appels synchrones, événements, Temporal, webhooks ou MCP ?
-- comment Molongo peut-il demander à Mayele de rechercher une inconnue sans créer une boucle incontrôlée ?
-- comment protéger les données privées nécessaires à un calcul personnel ?
-- quels résultats sont globaux, collectifs, personnels ou strictement privés ?
-- où placer les algorithmes Neo4j/GDS : Mayele, Molongo ou couche de calcul commune ?
-- comment versionner les modèles, règles, graphes et calculs ?
-- quelle stratégie de reconstruction appliquer après perte d’un index ou d’une projection ?
-
-Ces décisions doivent découler des propriétaires conceptuels et des invariants, pas seulement des outils disponibles.
-
----
-
-# 37. Conclusion
-
-Le projet possède désormais trois noms pour trois responsabilités différentes :
-
-~~~text
-MAKOLO
-les pieds
-→ l'application qui accompagne l'action
-
-MOLONGO
-l'univers
-→ le monde formel autonome que le système représente et calcule
-
-MAYELE
-l'intelligence / la sagesse
-→ le système autonome qui cherche, observe, comprend, vérifie,
-  entretient la connaissance et alimente Molongo
-~~~
-
-La chaîne directrice devient :
-
-~~~text
+```text
 MONDE
   ↓
 MAYELE
   ↓
+CONNAISSANCE QUALIFIÉE
+  ↓
 MOLONGO
   ↓
-RÉSULTATS PRÉCALCULÉS
+CALCULS / PROJECTIONS
   ↓
 MAKOLO
   ↓
 ACTION RÉELLE
-~~~
+```
 
-La valeur de cette architecture est précisément que **Makolo n’attend pas l’utilisateur pour commencer à travailler**.
+Cette chaîne n’implique pas que chaque information doit être copiée dans chaque couche.
 
-Mayele entretient continuellement la connaissance.
+Elle exprime des responsabilités.
 
-Molongo conserve et calcule une représentation du monde indépendamment d’une session utilisateur.
+Formulation de travail :
 
-Makolo arrive ensuite au moment de l’action avec le maximum de travail déjà effectué, tout en revalidant ce qui doit l’être et en respectant les vérités, permissions et autorités de ses domaines propriétaires.
+> **Mayele cherche, observe et établit ce que le système peut raisonnablement connaître.**  
+> **Molongo représente et calcule un monde formel à partir d’entrées admissibles.**  
+> **Makolo exploite les vérités métier et les résultats pertinents pour accompagner l’action réelle.**
 
-Le prochain document devra fixer :
+---
 
-> **les communications entre les briques, la propriété des données, les projections reconstruisibles et la frontière exacte Mayele → Molongo → Makolo.**
+# 2. Mayele : définition consolidée
+
+> **Mayele est le système autonome d’intelligence et de construction de connaissance de l’écosystème Makolo.**
+>
+> Il découvre, acquiert, observe, lit, interprète, structure, rapproche, vérifie, historise, revalide et entretient une connaissance sourcée et réutilisable du monde nécessaire à l’action Makolo.
+>
+> Mayele ne cherche pas tout ce qui existe. Il travaille dans un espace de connaissance cadré par le monde d’action Makolo, ses verticales, ses relations structurantes et ses inconnues structurantes.
+>
+> Sa production principale n’est pas une réponse textuelle mais un **état de connaissance explicite**, capable de conserver ce qui est connu, inconnu, contradictoire, provisoire, daté, soutenu, révisé ou encore non résolu.
+>
+> Mayele peut ensuite proposer des entrées admissibles à Molongo sans devenir lui-même Molongo et sans devenir une seconde source de vérité pour les domaines métier Makolo.
+
+Mayele est un système, pas un outil.
+
+```text
+MAYELE
+!= Tavily
+!= Exa
+!= LLM
+!= RAG
+!= LangGraph
+!= Temporal
+!= Neo4j
+!= PostgreSQL
+!= R2
+!= n8n
+```
+
+Ces briques pourront être employées pour implémenter certaines responsabilités, mais aucune d’elles ne définit l’architecture.
+
+---
+
+# 3. Autonomie
+
+Mayele n’attend pas que quelqu’un ouvre Makolo pour commencer à travailler.
+
+Invariant :
+
+```text
+UTILISATEUR CONNECTÉ
+!=
+MAYELE ACTIF
+```
+
+Mayele doit pouvoir travailler en arrière-plan sur des besoins connus, des connaissances incomplètes, des sources surveillées, des échéances de revalidation ou des changements détectés.
+
+Ses modes fonctionnels peuvent inclure conceptuellement :
+
+```text
+DISCOVER
+→ découvrir des réalités ou sources pertinentes encore inconnues
+
+DEEPEN
+→ approfondir une réalité déjà retenue mais incomplète
+
+OBSERVE
+→ acquérir effectivement le matériau d'une source
+
+VERIFY
+→ chercher soutien, contradiction, source primaire ou confirmation
+
+WATCH
+→ vérifier ce qui a changé depuis une observation antérieure
+
+REVALIDATE
+→ réévaluer une proposition sensible au temps
+
+RESOLVE
+→ rapprocher ou distinguer les identités
+
+RESEARCH-GAP
+→ rechercher une inconnue structurante identifiée par la connaissance ou par Molongo
+```
+
+Ces termes décrivent des modes de travail. Ils ne constituent pas encore des classes, tables, workers ou agents obligatoires.
+
+---
+
+# 4. Frontière sémantique : ce que Mayele cherche à connaître
+
+Le cadre `MAYELE KNOWLEDGE RESEARCH V2` devient la référence sémantique de cette architecture.
+
+Mayele ne construit pas une encyclopédie générale.
+
+Il connaît explicitement six formes principales d’action :
+
+```text
+EVENT
+TRANSPORT
+SERVICE
+OPPORTUNITY
+FUNDING
+OBTENTION
+```
+
+Il utilise une matrice commune pour comprendre ce qui compte autour de ces réalités :
+
+```text
+POSSIBILITY
+OUTCOME
+REQUIREMENT
+EVIDENCE
+ACTOR
+AUTHORITY
+SPATIOTEMPORAL
+PROCEDURE
+ACCESS
+CAPACITY
+ECONOMIC
+OPERATIONAL
+REFERENCE
+```
+
+Ces dimensions ne sont pas automatiquement des modèles ni des nœuds de graphe.
+
+Mayele retient une réalité lorsqu’elle entre par au moins l’une des portes suivantes :
+
+```text
+1. instance candidate d'une verticale
+2. réalité participant à une relation structurante
+3. réalité nécessaire pour résoudre une inconnue structurante
+```
+
+La géographie et la pertinence personnelle ne constituent pas des frontières générales de connaissance.
+
+```text
+CONNAISSANCE COMMUNE
+!=
+PERTINENCE PERSONNELLE
+```
+
+Makolo contextualise ensuite ce qui compte pour une personne, un Espace, une démarche ou une situation.
+
+---
+
+# 5. Modèle sémantique de la connaissance
+
+La correction structurante de cette V2 est de séparer le monde décrit de ce que Mayele affirme à propos de ce monde.
+
+## 5.1 Structure décrite du monde
+
+```text
+Reality
+Property
+Relation
+Condition
+```
+
+### Reality
+
+Quelque chose qui mérite une identité propre et peut devenir le sujet d’autres connaissances.
+
+### Property
+
+Une caractéristique d’une réalité : attribut + valeur, éventuellement contextualisée dans le temps.
+
+Exemples :
+
+```text
+deadline(Opportunity X) = 15 janvier
+capacity(Event Y) = 120
+price(Offer A) = 50 USD
+```
+
+### Relation
+
+Un lien sémantiquement utile entre plusieurs réalités autonomes.
+
+Exemples :
+
+```text
+Université X OFFERS Opportunity Y
+Organisation A ISSUES Certificat B
+Transport X ORIGIN Lubumbashi
+```
+
+### Condition
+
+Une expression évaluable relativement à une situation.
+
+Exemples :
+
+```text
+âge >= 18
+TOEFL.score >= 90
+posséder un passeport valide
+paiement reçu avant la deadline
+```
+
+Une condition ne dit pas encore où elle s’applique.
+
+---
+
+## 5.2 Structure épistémique Mayele
+
+```text
+Proposition / Assertion
+Knowledge Support
+Proposition Assessment
+Identity Resolution
+Knowledge Completeness
+```
+
+### Proposition
+
+Ce que Mayele affirme ou examine à propos du monde.
+
+Elle peut porter sur :
+
+```text
+- l'existence d'une Reality
+- une valeur de Property
+- la tenue d'une Relation
+- l'applicabilité d'une Condition
+```
+
+### Fact
+
+`Fact` n’est plus une catégorie parallèle à Property, Relation ou Condition.
+
+```text
+FACT
+=
+PROPOSITION SUFFISAMMENT ÉTABLIE
+DANS UN CONTEXTE ET UNE PÉRIODE DONNÉS
+AVEC DES SUPPORTS CONSERVÉS
+```
+
+### Knowledge Support
+
+Le support explique pourquoi une proposition est soutenue, contredite ou non résolue.
+
+Il peut inclure :
+
+```text
+source
+document
+artefact
+observation
+page
+passage
+cellule
+image
+horodatage
+provenance
+version
+contradiction
+```
+
+Invariant :
+
+```text
+CE QUE LA SOURCE DIT
+!=
+CE QUE MAYELE INTERPRÈTE
+!=
+CE QUE MAYELE CONSIDÈRE SUFFISAMMENT ÉTABLI
+```
+
+---
+
+# 6. Trois dimensions à ne jamais confondre
+
+Une erreur importante du futur modèle serait de réduire toute incertitude à un seul statut.
+
+Mayele doit distinguer au moins :
+
+```text
+IDENTITY RESOLUTION
+!=
+KNOWLEDGE COMPLETENESS
+!=
+PROPOSITION ASSESSMENT
+```
+
+## Identity Resolution
+
+Exemples conceptuels :
+
+```text
+RESOLVED
+PROVISIONAL
+UNRESOLVED
+```
+
+Une réalité peut exister dans la connaissance avant que son identité soit totalement résolue.
+
+## Knowledge Completeness
+
+Une réalité ou une facette peut être :
+
+```text
+KNOWN
+PARTIALLY_KNOWN
+UNKNOWN
+CONTRADICTORY
+NOT_APPLICABLE
+```
+
+## Proposition Assessment
+
+Une proposition peut être :
+
+```text
+suffisamment établie
+partiellement soutenue
+contredite
+non résolue
+superseded / historiquement remplacée
+```
+
+Les statuts techniques exacts restent à définir dans une étape ultérieure.
+
+Invariant :
+
+```text
+UNKNOWN
+!= FALSE
+!= NONE
+!= CLOSED
+!= NOT_APPLICABLE
+```
+
+---
+
+# 7. Ce que Mayele reçoit du monde
+
+Mayele ne reçoit jamais directement « la vérité du monde ».
+
+Il reçoit des **manifestations observables** à travers des sources et systèmes.
+
+Exemples :
+
+```text
+page Web
+réponse API
+PDF
+DOCX
+XLSX
+email
+message
+image
+fichier connecté
+flux
+base autorisée
+système partenaire
+```
+
+Il faut donc distinguer :
+
+```text
+RÉALITÉ
+!=
+SOURCE
+!=
+DOCUMENT
+!=
+OBSERVATION
+```
+
+Une page peut disparaître sans que la réalité décrite disparaisse.
+
+Une page peut être obsolète.
+
+Deux sources peuvent décrire la même réalité.
+
+Deux sources peuvent se contredire.
+
+Une source peut être secondaire et simplement conduire Mayele vers une source plus autoritative.
+
+---
+
+# 8. Cycle conceptuel corrigé de construction de connaissance
+
+L’ancien cycle imposait trop tôt :
+
+```text
+Validation
+→ Admission canonique
+→ Projection Molongo
+```
+
+Ce passage n’est plus universel.
+
+Le cycle général de Mayele devient :
+
+```text
+SOURCE / SYSTÈME
+      ↓
+DÉCOUVERTE
+      ↓
+OBSERVATION
+      ↓
+ARTEFACT / CONTENU OBSERVÉ
+      ↓
+PASSAGE / ÉNONCÉ OBSERVÉ
+      ↓
+INTERPRÉTATION
+      ↓
+Reality / Property / Relation / Condition candidates
+      ↓
+PROPOSITION(S)
+      ↓
+KNOWLEDGE SUPPORT
+      ↓
+RÉSOLUTION D'IDENTITÉ
+      ↓
+ÉVALUATION ÉPISTÉMIQUE
+      ↓
+CONNAISSANCE MAYELE
+```
+
+À partir de là, plusieurs suites sont possibles.
+
+### Boucle d’approfondissement
+
+```text
+CONNAISSANCE MAYELE
+      ↓
+UNKNOWN / CONTRADICTION / GAP
+      ↓
+NOUVELLE MISSION DE RECHERCHE
+      ↓
+NOUVELLE OBSERVATION
+```
+
+### Boucle temporelle
+
+```text
+CONNAISSANCE SENSIBLE AU TEMPS
+      ↓
+WATCH / REVALIDATION
+      ↓
+NOUVELLE OBSERVATION
+      ↓
+NOUVELLE VERSION / CONTRADICTION / CONFIRMATION
+```
+
+### Sortie vers Molongo
+
+```text
+CONNAISSANCE MAYELE
+      ↓
+CANDIDAT D'ENTRÉE MOLONGO
+      ↓
+CONTRAT D'ADMISSION MOLONGO
+      ↓
+REPRÉSENTATION MOLONGO
+```
+
+La forme précise du `MolongoInputCandidate` reste volontairement ouverte pour l’étape suivante.
+
+---
+
+# 9. Mayele n’est pas une seconde source de vérité métier
+
+Les domaines Makolo restent propriétaires de leurs vérités.
+
+Exemples :
+
+```text
+Activity
+Occurrence
+Journey
+Requirement
+Proof
+Access
+Capacity
+Payment
+Mandate
+Permission
+```
+
+Mayele peut connaître des informations qui concernent ces concepts, mais il ne devient pas automatiquement leur owner.
+
+Une information externe observée ne doit jamais produire silencieusement une mutation métier.
+
+```text
+OBSERVATION / PROPOSITION MAYELE
+!=
+VÉRITÉ CANONIQUE MAKOLO
+```
+
+Toute mutation d’un domaine propriétaire doit respecter son contrat, son autorité, ses permissions et ses règles d’admission.
+
+Cette frontière est distincte de la construction générale de connaissance.
+
+---
+
+# 10. Correction majeure : deux voies vers Molongo
+
+L’ancien cadre suggérait implicitement un chemin dominant :
+
+```text
+Mayele
+→ admission canonique Makolo
+→ Projector
+→ Molongo
+```
+
+Ce chemin reste valable **pour les vérités métier appartenant effectivement aux domaines Makolo**.
+
+Mais il ne peut pas être la seule voie.
+
+Molongo doit aussi pouvoir représenter des réalités du monde que Makolo connaît sans avoir à fabriquer artificiellement une `Activity`, une `Organization`, une `Journey` ou un autre objet métier.
+
+La cible conceptuelle devient donc :
+
+```text
+                 ┌──────────────────────────────┐
+                 │ MONDE EXTERNE                │
+                 └──────────────┬───────────────┘
+                                ↓
+                              MAYELE
+                                ↓
+                  connaissance externe qualifiée
+                                ↓
+                  MAYELE → MOLONGO INGRESS
+                                ↓
+                              MOLONGO
+```
+
+et parallèlement :
+
+```text
+DOMAINES CANONIQUES MAKOLO
+          ↓
+       PROJECTOR
+          ↓
+        MOLONGO
+```
+
+Ces deux chemins doivent converger dans Molongo sans fusionner leurs propriétaires.
+
+### Conséquence
+
+Mayele peut connaître une université, une réglementation, une route, une source institutionnelle, une qualification ou une réalité externe sans être obligé de créer une vérité métier Makolo fictive.
+
+### Invariant
+
+```text
+CONNAISSANCE EXTERNE MAYELE
+!=
+VÉRITÉ MÉTIER CANONIQUE MAKOLO
+```
+
+Les deux peuvent être représentées dans Molongo avec une provenance différente et selon des règles d’admission différentes.
+
+---
+
+# 11. Rôle de Molongo dans cette architecture
+
+Molongo reste un univers formel autonome.
+
+Il ne doit pas être réduit :
+
+```text
+à Neo4j
+à PostgreSQL
+à un index
+à un graphe de connaissance Mayele
+au schéma Django
+à une projection personnalisée
+à un moteur de recommandation
+```
+
+Molongo représente des réalités, états, relations, conditions, événements, temps, trajectoires, systèmes et calculs selon ses propres cadres formels.
+
+Mayele répond principalement à :
+
+> **Qu’est-ce que nous savons, pourquoi le savons-nous, depuis quand et avec quelles limites ?**
+
+Molongo répond principalement à :
+
+> **Comment les réalités admises sont-elles représentées, reliées, situées et calculées dans l’Univers ?**
+
+Makolo répond ensuite à :
+
+> **Qu’est-ce qui compte maintenant pour cette action, ce Profile, cet Espace ou cette autorité ?**
+
+---
+
+# 12. Projections personnelles et connaissance commune
+
+Mayele construit une connaissance réutilisable.
+
+Il ne personnalise pas son univers de connaissance autour d’un seul Profile.
+
+```text
+UNIVERS DE CONNAISSANCE MAYELE
+!=
+PROJECTION PERSONNELLE
+```
+
+La personnalisation et la divulgation interviennent plus tard selon :
+
+- le Profile ;
+- le contexte ;
+- la géographie ;
+- les Interests ;
+- les Veilles ;
+- la Journey ;
+- l’autorité ;
+- les permissions ;
+- la sensibilité ;
+- la pertinence calculée.
+
+Une donnée privée accessible à Mayele ne devient jamais automatiquement globale.
+
+```text
+ACCESSIBLE À MAYELE
+!=
+GLOBAL
+!=
+PUBLIC
+!=
+PARTAGEABLE
+```
+
+---
+
+# 13. Responsabilités fonctionnelles de Mayele
+
+La V2 conserve des blocs de responsabilité, mais retire toute équivalence automatique avec les anciens modules.
+
+```text
+MAYELE
+│
+├── Research & Planning
+├── Acquisition
+├── Observation & Content
+├── Cognition
+├── Knowledge
+├── Identity Resolution
+├── Verification & Revalidation
+├── Orchestration
+├── Connectivity
+├── Observability
+└── Molongo Ingress
+```
+
+## 13.1 Research & Planning
+
+Responsabilité :
+
+- formuler un besoin de connaissance borné ;
+- exploiter la connaissance existante ;
+- identifier une inconnue structurante ;
+- construire une mission ;
+- choisir les recherches pertinentes ;
+- fixer critères d’arrêt, budgets et portée.
+
+## 13.2 Acquisition
+
+Responsabilité :
+
+- Search ;
+- Crawl ;
+- découverte de sources ;
+- connecteurs ;
+- APIs ;
+- index externes ;
+- récupération de candidats.
+
+## 13.3 Observation & Content
+
+Responsabilité :
+
+- acquérir le contenu réel ;
+- préserver les artefacts ;
+- tracer l’instant d’observation ;
+- conserver transformations, empreintes et versions ;
+- supporter HTML, API, PDF, images, documents, emails et autres contenus autorisés.
+
+## 13.4 Cognition
+
+Responsabilité :
+
+- segmenter ;
+- identifier passages et énoncés ;
+- extraire mentions ;
+- interpréter Reality / Property / Relation / Condition ;
+- construire des propositions ;
+- préserver modalité, négation, contexte, portée et temps ;
+- distinguer extraction explicite et inférence.
+
+## 13.5 Knowledge
+
+Responsabilité :
+
+- conserver les réalités connues ;
+- propositions ;
+- supports ;
+- états épistémiques ;
+- historique ;
+- contradictions ;
+- versions ;
+- provenance ;
+- lacunes de connaissance.
+
+## 13.6 Identity Resolution
+
+Responsabilité :
+
+- déduplication ;
+- aliases ;
+- rapprochements ;
+- distinction entre réalités homonymes ;
+- conservation de l’incertitude ;
+- identités provisoires ou non résolues.
+
+## 13.7 Verification & Revalidation
+
+Responsabilité :
+
+- chercher les sources primaires ;
+- croiser les sources ;
+- conserver les contradictions ;
+- vérifier la fraîcheur ;
+- distinguer changement réel, correction, contexte différent et conflit ;
+- planifier la prochaine revalidation lorsqu’elle est justifiée.
+
+## 13.8 Orchestration
+
+Responsabilité :
+
+- exécuter des missions courtes ou durables ;
+- coordonner workers et agents ;
+- respecter budgets ;
+- gérer retries ;
+- timeouts ;
+- idempotence ;
+- reprises ;
+- politiques d’arrêt ;
+- priorités.
+
+Cette orchestration est distincte de l’actuel module `orchestration/` qui traite surtout l’admission vers des owners métier.
+
+## 13.9 Connectivity
+
+Responsabilité :
+
+- APIs directes ;
+- connecteurs ;
+- MCP lorsque pertinent ;
+- OAuth ;
+- permissions ;
+- lecture / écriture séparées ;
+- événements entrants.
+
+## 13.10 Observability
+
+Responsabilité :
+
+- tracer la chaîne de connaissance ;
+- coûts ;
+- latence ;
+- modèles utilisés ;
+- outils ;
+- erreurs ;
+- décisions ;
+- provenance technique ;
+- qualité de l’extraction et des citations.
+
+## 13.11 Molongo Ingress
+
+Responsabilité :
+
+- transformer la connaissance Mayele qualifiée en candidats d’entrée ;
+- préserver temporalité et provenance nécessaires ;
+- respecter les politiques d’admission Molongo ;
+- déclencher les invalidations ou recalculs nécessaires après admission.
+
+Cette responsabilité ne doit plus être confondue avec le Projector des domaines canoniques Makolo.
+
+---
+
+# 14. Positionnement du runtime actuel après audit
+
+Le runtime existant reste précieux, mais devient une implémentation historique à réconcilier.
+
+## 14.1 `intelligence/`
+
+**Position : infrastructure partagée, pas cœur Mayele.**
+
+Responsabilités actuelles utiles :
+
+```text
+provider registry
+gateway
+routage de modèles
+capabilities
+credentials
+health
+telemetry
+```
+
+Mayele peut l’utiliser, mais ne le possède pas conceptuellement.
+
+---
+
+## 14.2 `research_missions/`
+
+**Position : concept Mayele à conserver et à refactoriser.**
+
+À garder :
+
+- mission bornée ;
+- questions ;
+- contexte connu ;
+- unknowns ;
+- origins ;
+- raisons ;
+- priorité ;
+- scope ;
+- limits.
+
+À revoir : la taxonomie actuelle de familles de recherche, qui ne correspond plus entièrement à la matrice de connaissance V2.
+
+---
+
+## 14.3 `prospector/`
+
+**Position : mécanismes d’acquisition largement réutilisables.**
+
+À garder :
+
+- frontier ;
+- leases ;
+- budgets ;
+- checkpointing ;
+- canonicalisation ;
+- sécurité ;
+- adapters de découverte ;
+- feedback d’acquisition.
+
+À corriger : la terminologie qui confond parfois evidence de découverte et support de connaissance.
+
+Le nom Actor 1 ne doit plus structurer l’architecture cible.
+
+---
+
+## 14.4 `observer/`
+
+**Position : très proche de la future couche Observation & Content.**
+
+À garder largement :
+
+- Observation ;
+- ObservationAttempt ;
+- ObservedArtifact ;
+- ObservationMaterial ;
+- content digest ;
+- timestamps ;
+- transformations ;
+- revalidation.
+
+Le futur travail portera surtout sur la liaison propre vers passage / énoncé observé / proposition.
+
+---
+
+## 14.5 `interpreter/`
+
+**Position : capacité importante mais sémantique à refactoriser fortement.**
+
+Le contrat actuel :
+
+```text
+ENTITY
+FACT
+RELATION
+CONSTRAINT
+```
+
+n’est plus compatible avec la V2.
+
+La cible conceptuelle est :
+
+```text
+Reality
+Property
+Relation
+Condition
+Proposition
+Knowledge Support
+```
+
+Les mécanismes à sauver :
+
+- parsing ;
+- lecteurs ;
+- CandidateValue ;
+- spans ;
+- pages ;
+- grounding vers artefacts ;
+- négation ;
+- modalité ;
+- conditions logiques ;
+- enrichissement IA.
+
+---
+
+## 14.6 `resolver/`
+
+**Position : à scinder conceptuellement.**
+
+Le Resolver actuel mélange :
+
+```text
+A. résolution d'identité
+B. matching vers objets Django canoniques
+```
+La cible devient :
+
+```text
+MAYELE IDENTITY RESOLUTION
+→ appartient au cœur de la connaissance
+
+CANONICAL DOMAIN MATCHING / ADMISSION
+→ appartient à une frontière Mayele ↔ domaines Makolo
+```
+
+Une université peut être parfaitement résolue dans Mayele même si aucune `Organization` Django ne la représente.
+
+---
+
+## 14.7 `web_research/`
+
+**Position : capacité de recherche à réutiliser, pas ontologie de Mayele.**
+
+À garder :
+
+```text
+Discover
+Deepen
+Watch
+provider-neutral search
+budgets
+freshness
+stop reasons
+```
+
+À revoir :
+
+- anciennes Research Families ;
+- `DiscoveryKnownRef(domain, object_ref)` trop lié aux objets backend ;
+- représentation de `fact-level evidence` à réconcilier avec Proposition / Knowledge Support.
+
+---
+
+## 14.8 `orchestration/`
+
+**Position : frontière d’admission vers les owners métier, pas orchestration cognitive Mayele.**
+
+Ce code protège utilement :
+
+- source authority ;
+- permissions ;
+- represented Space ;
+- transaction ;
+- owner métier ;
+- concurrence.
+
+Il doit rester conceptuellement séparé de la future orchestration de recherche Mayele.
+
+---
+
+## 14.9 `projector/`
+
+**Position : frontière Makolo canonique → Molongo.**
+
+Il ne doit plus être présenté comme une sous-partie naturelle de Mayele.
+
+```text
+DOMAINE CANONIQUE MAKOLO
+        ↓
+    PROJECTOR
+        ↓
+     MOLONGO
+```
+
+Ce chemin coexiste avec le futur :
+
+```text
+CONNAISSANCE MAYELE
+        ↓
+MAYELE → MOLONGO INGRESS
+        ↓
+      MOLONGO
+```
+
+---
+
+# 15. PR #366 : position de transition
+
+La PR `#366 — Web Search Phase 7 — fact-level sourced evidence` reste ouverte au moment de cette consolidation.
+
+Son branchement est aujourd’hui divergent par rapport à `main` et son vocabulaire `fact-level sourced evidence` précède la correction sémantique V2.
+
+Elle ne doit donc pas être absorbée telle quelle comme définition de la connaissance Mayele.
+
+Ce qu’il faut préserver conceptuellement :
+
+- provenance au niveau de l’affirmation ;
+- `source_refs` ;
+- `observed_at` ;
+- conservation des contradictions ;
+- refus de sélectionner arbitrairement une source divergente ;
+- validation des URLs réellement rapportées ;
+- neutralité provider.
+
+Ces mécanismes devront être réconciliés avec :
+
+```text
+Proposition
+Knowledge Support
+Proposition Assessment
+Observation
+```
+
+avant intégration finale.
+
+---
+
+# 16. Technologies cibles : rôle, pas architecture
+
+Les choix ou candidats technologiques déjà étudiés restent valables comme outils possibles :
+
+```text
+Tavily / Exa
+LLM multi-provider
+RAG
+PostgreSQL
+pgvector
+R2
+Neo4j / GDS
+LangGraph
+Temporal
+n8n
+MCP
+OpenTelemetry
+Prometheus
+Loki
+Tempo
+Grafana
+```
+
+Mais le sens est désormais :
+
+```text
+RESPONSABILITÉ MAYELE
+       ↓
+CHOIX D'OUTIL
+```
+
+et jamais :
+
+```text
+OUTIL DISPONIBLE
+       ↓
+ONTOLOGIE MAYELE
+```
+
+### Exemples
+
+```text
+Tavily / Exa
+→ acquisition / découverte
+
+RAG
+→ récupération de connaissance existante
+
+LangGraph
+→ certains graphes cognitifs
+
+Temporal
+→ workflows durables, timers, retries et reprises
+
+Neo4j
+→ projection graphe / analyse structurelle si utile
+
+PostgreSQL
+→ structures transactionnelles et historiques si retenu
+```
+
+Aucun de ces choix n’est encore la définition du modèle de données final.
+
+---
+
+# 17. Graphe Mayele et graphe Molongo
+
+Le premier cadre laissait cette frontière ouverte ; elle doit le rester jusqu’au chantier de propriété des données.
+
+Une distinction conceptuelle est néanmoins désormais nécessaire.
+
+## Graphe de connaissance Mayele
+
+Question principale :
+
+> qui ou quoi Mayele connaît-il, quelle proposition est soutenue par quelle source, quelle identité est rapprochée, quelle contradiction existe, quelle version a remplacé quelle autre ?
+
+Il peut contenir des structures telles que :
+
+```text
+Reality
+Source
+Observation
+Proposition
+Knowledge Support
+Identity link
+Contradiction
+Version relation
+```
+
+## Graphe Molongo
+
+Question principale :
+
+> quelles réalités, états, relations, événements, systèmes, dépendances ou trajectoires appartiennent à l’Univers représenté et que peut-on calculer à partir d’eux ?
+
+Ainsi :
+
+```text
+GRAPHE MAYELE
+!=
+GRAPHE MOLONGO
+```
+
+Même si, à terme, un même moteur physique pouvait éventuellement héberger plusieurs projections, cette proximité technique ne supprimerait pas la distinction conceptuelle.
+
+---
+
+# 18. Calculs, invalidation et précalcul
+
+Le principe initial reste valable : Makolo ne doit pas attendre l’utilisateur pour tout recalculer.
+
+Après une nouvelle connaissance admise dans Molongo :
+
+```text
+CHANGEMENT
+  ↓
+DÉPENDANCES AFFECTÉES
+  ↓
+INVALIDATION BORNÉE
+  ↓
+RECALCUL
+  ↓
+NOUVELLE VERSION DES RÉSULTATS
+  ↓
+SERVING
+```
+
+Mayele peut aussi recevoir des demandes de connaissance issues de Molongo :
+
+```text
+CALCUL MOLONGO
+      ↓
+INCONNUE / DONNÉE MANQUANTE
+      ↓
+MISSION MAYELE BORNÉE
+      ↓
+RECHERCHE / OBSERVATION / ÉVALUATION
+```
+
+Cette boucle doit être contrôlée par budgets, priorités et critères d’arrêt afin d’éviter des cycles auto-entretenus sans valeur.
+
+---
+
+# 19. Sécurité et confidentialité
+
+Mayele peut accéder à des sources publiques et privées.
+
+Invariant :
+
+```text
+DÉCOUVERT
+!=
+AUTORISÉ À ÊTRE STOCKÉ GLOBALEMENT
+!=
+AUTORISÉ À ENTRER DANS MOLONGO GLOBAL
+!=
+AUTORISÉ À ÊTRE SERVI À AUTRUI
+```
+
+Toute donnée doit conserver :
+
+- provenance ;
+- portée d’autorisation ;
+- sensibilité ;
+- finalité ;
+- règles de rétention ;
+- possibilité de révocation lorsque nécessaire.
+
+Les agents n’héritent jamais implicitement des permissions d’un utilisateur ou d’un Espace.
+
+Les domaines Makolo restent propriétaires des décisions d’autorité : Permission, Mandate, Access, Payment, Capacity et autres droits ne sont pas inférés par Mayele.
+
+---
+
+# 20. Invariants consolidés
+
+1. **Mayele fonctionne indépendamment de la présence d’un utilisateur.**
+2. **Mayele construit une connaissance du monde cadrée par l’action Makolo ; il ne cherche pas tout Internet.**
+3. **Reality, Property, Relation et Condition sont distinctes.**
+4. **Proposition appartient au niveau de connaissance ; Fact qualifie une proposition suffisamment établie.**
+5. **Source, observation, interprétation et proposition établie restent distinctes.**
+6. **Knowledge Support n’est pas Evidence métier.**
+7. **Identity Resolution, Knowledge Completeness et Proposition Assessment ne sont pas le même axe.**
+8. **UNKNOWN n’est jamais transformé silencieusement en FALSE.**
+9. **Une réalité peut être retenue avant d’être complètement comprise ou résolue.**
+10. **Objet et rôle contextuel restent distincts.**
+11. **Mayele n’est pas une seconde source de vérité métier.**
+12. **Les domaines Makolo gardent la propriété de leurs vérités canoniques.**
+13. **Molongo n’est ni Mayele, ni Neo4j, ni PostgreSQL, ni Django.**
+14. **La connaissance Mayele peut alimenter Molongo sans obligatoirement devenir d’abord une row métier Makolo.**
+15. **Les vérités canoniques Makolo peuvent alimenter Molongo via Projector.**
+16. **Ces deux voies d’entrée dans Molongo doivent conserver leur provenance et leur autorité d’origine.**
+17. **La pertinence personnelle vient après la construction de connaissance commune.**
+18. **Les données privées gardent leur portée et ne deviennent pas globales par composition.**
+19. **Les outils et providers sont remplaçables ; ils ne définissent pas l’architecture.**
+20. **Les calculs lourds doivent pouvoir être préparés hors du chemin critique utilisateur.**
+
+---
+
+# 21. Anti-features
+
+Mayele ne doit pas devenir :
+
+- un crawler généraliste sans bornes ;
+- un clone de Google Search ;
+- un data lake « au cas où » ;
+- une encyclopédie universelle ;
+- un graphe où chaque mot devient un nœud ;
+- un graphe où chaque verbe devient une relation ;
+- un système qui confond Property et Fact ;
+- un système qui confond Observation et vérité ;
+- un LLM qui écrit directement dans les domaines métier ;
+- un moteur qui traite `UNKNOWN` comme `FALSE` ;
+- une source d’autorité parallèle pour Permission, Mandate, Access, Capacity ou Payment ;
+- une copie du backend Makolo ;
+- un Molongo bis ;
+- une architecture définie par Neo4j, Temporal, LangGraph ou un provider particulier ;
+- une boucle multi-agent sans budget ni critère de sortie ;
+- un système qui fait passer toute connaissance externe par une fausse entité métier pour atteindre Molongo.
+
+---
+
+# 22. Diagramme consolidé
+
+```mermaid
+flowchart TD
+    W[Monde / Web / APIs / documents / systèmes autorisés]
+
+    subgraph MY[Mayele — connaissance autonome]
+        RP[Research & Planning]
+        ACQ[Acquisition]
+        OBS[Observation & Content]
+        COG[Cognition]
+        RES[Identity Resolution]
+        KN[Knowledge State]
+        VER[Verification / Revalidation]
+        ORC[Orchestration]
+        MI[Mayele → Molongo Ingress]
+
+        RP --> ACQ
+        ACQ --> OBS
+        OBS --> COG
+        COG --> RES
+        RES --> KN
+        KN --> VER
+        VER --> KN
+        KN --> RP
+        ORC --> RP
+        ORC --> ACQ
+        ORC --> COG
+        ORC --> VER
+        KN --> MI
+    end
+
+    subgraph MK[Makolo — domaines canoniques]
+        DOM[Activity / Occurrence / Journey / Requirement / Access / Capacity / Payment / ...]
+        PROJ[Projector]
+        DOM --> PROJ
+    end
+
+    subgraph MO[Molongo — univers formel]
+        ING[Admission / ingestion Molongo]
+        UNI[États / relations / événements / systèmes]
+        CALC[Calculs / trajectoires / graphes / projections]
+        SERV[Résultats préparés]
+        ING --> UNI --> CALC --> SERV
+    end
+
+    W --> ACQ
+    MI --> ING
+    PROJ --> ING
+    SERV --> APP[Makolo Web / Mobile]
+```
+
+Le diagramme est conceptuel. Il ne fixe ni les protocoles réseau, ni les bases physiques, ni le nombre de services.
+
+---
+
+# 23. Doctrine de migration
+
+Cette V2 ne déclenche aucun déplacement automatique de code.
+
+La migration suivra la règle :
+
+```text
+CONCEPT CORRIGÉ
+      ↓
+CONTRAT CIBLE
+      ↓
+AUDIT DU MODULE EXISTANT
+      ↓
+KEEP / REFACTOR / SPLIT / MOVE / RETIRE / OUTSIDE MAYELE
+      ↓
+MIGRATION PROGRESSIVE
+```
+
+Il est interdit d’appliquer simplement :
+
+```text
+mv prospector mayele/acquisition
+mv interpreter mayele/cognition
+mv resolver mayele/resolution
+```
+
+avant d’avoir corrigé les contrats et assuré la compatibilité des migrations, données et consommateurs.
+
+Les anciennes tables, app labels et migrations doivent rester stables tant qu’une stratégie de transition n’est pas explicitement définie et testée.
+
+---
+
+# 24. Ce que cette étape fixe définitivement
+
+À la fin de cette étape 1, nous considérons comme défendables :
+
+```text
+Makolo != Mayele != Molongo
+
+Mayele = système autonome de construction et d'entretien de connaissance
+
+Mayele Knowledge Research V2 = sémantique de référence
+
+Reality / Property / Relation / Condition
+!=
+Proposition / Assessment / Support
+
+Fact = proposition suffisamment établie
+
+Mayele ne devient pas owner des vérités métier Makolo
+
+Projector = chemin domaines canoniques Makolo → Molongo
+
+Mayele aura sa propre frontière d'entrée vers Molongo
+
+les anciens Actors/modules = implémentations à réconcilier, pas ontologie canonique
+```
+
+---
+
+# 25. Ce qui reste ouvert pour l’étape 2
+
+Le prochain chantier ne doit pas repartir dans un nouvel audit général.
+
+Il doit répondre précisément à :
+
+> **quels artefacts existent entre le monde observé et la connaissance Mayele, et quelles transformations permettent de passer de l’un à l’autre ?**
+
+Il faudra fixer le contrat conceptuel de :
+
+```text
+Source
+Discovery Result
+Observation
+Observed Artifact
+Passage
+Observed Statement
+Mention
+Reality Candidate
+Property Candidate
+Relation Candidate
+Condition Candidate
+Proposition
+Knowledge Support
+Identity Resolution
+Proposition Assessment
+Knowledge State
+Research Gap
+Molongo Input Candidate
+```
+
+Sans décider prématurément :
+
+- table ou non ;
+- PostgreSQL ou Neo4j ;
+- LLM ou code déterministe ;
+- agent ou worker ;
+- sync ou async.
+
+Une fois cette chaîne fixée, nous pourrons passer à l’étape 3 : propriété des données et persistance.
+
+---
+
+# 26. Formulation normative V2
+
+> **Mayele est le système autonome d’intelligence et de construction de connaissance de l’écosystème Makolo. Il construit progressivement une connaissance structurée, sourcée, temporelle et réutilisable du monde nécessaire à l’action Makolo, indépendamment de la présence interactive d’un utilisateur. Cette connaissance distingue les réalités du monde, leurs propriétés, relations et conditions, des propositions épistémiques qui les décrivent et des supports qui permettent de les évaluer. Une proposition n’est qualifiée de fait que lorsqu’elle est suffisamment établie dans un contexte et une période donnés. Mayele conserve explicitement l’incertitude, la contradiction, l’identité provisoire, la fraîcheur et l’historique. Il ne devient jamais une seconde source de vérité pour les domaines métier Makolo. Les vérités canoniques restent possédées par leurs domaines et peuvent alimenter Molongo via Projector ; la connaissance externe qualifiée de Mayele peut, séparément, alimenter Molongo au travers d’une frontière d’admission dédiée. Molongo conserve sa propre responsabilité de représentation et de calcul, tandis que Makolo compose ensuite les vérités opérationnelles et les résultats préparés pour accompagner l’action réelle. Les providers, modèles IA, moteurs de recherche, bases de données, graphes et orchestrateurs sont des moyens remplaçables et ne définissent pas l’architecture.**
+
+---
+
+# 27. Formule synthétique
+
+```text
+MONDE
+  ↓
+MAYELE
+  ├── cherche
+  ├── observe
+  ├── interprète
+  ├── résout
+  ├── vérifie
+  ├── historise
+  └── entretient la connaissance
+        ↓
+        ├──────────────→ MAYELE → MOLONGO INGRESS
+        │                         ↓
+        │                       MOLONGO
+        │                         ↓
+        │                      CALCULS
+        │                         ↓
+        │                      SERVING
+        │                         ↓
+        └──────────────────────→ MAKOLO
+
+DOMAINES CANONIQUES MAKOLO
+        ↓
+     PROJECTOR
+        ↓
+      MOLONGO
+```
+
+Le principe ultime reste :
+
+> **Mayele ne cherche pas tout ce qui existe. Il entretient ce qu’il faut raisonnablement connaître du monde pour que Molongo puisse le représenter et le calculer, et pour que Makolo puisse accompagner l’action réelle avec le maximum de travail déjà préparé.**
