@@ -22,7 +22,7 @@ enum QuestionnaireQuestionType {
     return values.firstWhere(
       (type) => type.wireValue == wire,
       orElse: () => throw FormatException(
-        'Unsupported questionnaire question type: ' + (wire ?? 'null'),
+        'Unsupported questionnaire question type: ${wire ?? 'null'}',
       ),
     );
   }
@@ -110,7 +110,7 @@ class QuestionnaireRequestDetail {
     String requiredString(Object? value, String field) {
       final text = value?.toString().trim();
       if (text == null || text.isEmpty) {
-        throw FormatException('Missing questionnaire field: ' + field);
+        throw FormatException('Missing questionnaire field: $field');
       }
       return text;
     }
@@ -120,7 +120,7 @@ class QuestionnaireRequestDetail {
       if (value is Map) {
         return value.map((key, item) => MapEntry(key.toString(), item));
       }
-      throw FormatException('Expected questionnaire object: ' + field);
+      throw FormatException('Expected questionnaire object: $field');
     }
 
     final formVersion = map(payload['form_version'], 'form_version');
@@ -240,7 +240,7 @@ class QuestionnaireRepository {
       );
     }
     return SyncSourceDefinition(
-      sourceKey: 'questionnaire-request:' + requestId,
+      sourceKey: 'questionnaire-request:$requestId',
       owner: 'Questionnaires',
       path: _relativeApiPath(detailPath),
       projectionKind: projectionKind,
@@ -252,10 +252,7 @@ class QuestionnaireRepository {
         final parsed = QuestionnaireRequestDetail.fromPayload(payload);
         if (parsed.id != requestId) {
           throw FormatException(
-            'Expected questionnaire request ' +
-                requestId +
-                ', got ' +
-                parsed.id,
+            'Expected questionnaire request $requestId, got ${parsed.id}',
           );
         }
         return AcquiredProjection(schemaVersion: 1, payload: payload);
