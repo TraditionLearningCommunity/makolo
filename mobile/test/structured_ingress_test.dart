@@ -8,19 +8,22 @@ import 'package:makolo_mobile/platform/scanner/code_scanner.dart';
 void main() {
   const codec = StructuredDestinationCodec();
 
-  test('canonical notification navigation v1 becomes a structured destination', () {
-    final destination = codec.fromNavigation({
-      'schema_version': 1,
-      'target': 'journey',
-      'resource': {'kind': 'journey', 'id': 'j-1'},
-      'links': {'api': '/api/v1/me/journeys/j-1/'},
-    });
+  test(
+    'canonical notification navigation v1 becomes a structured destination',
+    () {
+      final destination = codec.fromNavigation({
+        'schema_version': 1,
+        'target': 'journey',
+        'resource': {'kind': 'journey', 'id': 'j-1'},
+        'links': {'api': '/api/v1/me/journeys/j-1/'},
+      });
 
-    expect(destination?.kind, 'journey');
-    expect(destination?.id, 'j-1');
-    expect(destination?.link, '/api/v1/me/journeys/j-1/');
-    expect(const DeepLinkResolver().resolve(destination!), '/journeys/j-1');
-  });
+      expect(destination?.kind, 'journey');
+      expect(destination?.id, 'j-1');
+      expect(destination?.link, '/api/v1/me/journeys/j-1/');
+      expect(const DeepLinkResolver().resolve(destination!), '/journeys/j-1');
+    },
+  );
 
   test('unknown schema and arbitrary QR text do not become navigation', () {
     expect(
@@ -41,8 +44,7 @@ void main() {
   test('QR navigation still goes through auth recovery', () {
     final intent = const ScannedCodeIngress().navigationIntent(
       const ScannedCode(
-        value:
-            '{"schema_version":1,"resource":{"kind":"access","id":"a-1"}}',
+        value: '{"schema_version":1,"resource":{"kind":"access","id":"a-1"}}',
       ),
     );
     final recovery = SessionRecoveryController();
