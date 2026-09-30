@@ -40,11 +40,7 @@ void main() {
   test('legacy workmanager payload remains conservatively network-bound', () {
     final task = decodeWorkmanagerTask(
       WorkmanagerBackgroundScheduler.taskName,
-      {
-        'task_id': 'legacy-1',
-        'kind': 'refresh',
-        'profile_id': 'profile-a',
-      },
+      {'task_id': 'legacy-1', 'kind': 'refresh', 'profile_id': 'profile-a'},
     );
 
     expect(task?.requiresNetwork, isTrue);
