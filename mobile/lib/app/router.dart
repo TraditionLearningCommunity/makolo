@@ -8,9 +8,13 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/connections_screen.dart';
+import '../features/journey/journey_detail_screen.dart';
+import '../features/journey/journey_selector.dart';
 import '../features/mark/mark_screen.dart';
 import '../features/personal/placeholder_screen.dart';
 import '../features/personal/projection_screen.dart';
+import '../features/questionnaires/questionnaire_form_screen.dart';
+import '../features/questionnaires/questionnaire_repository.dart';
 import '../navigation/refresh_boundary.dart';
 import '../navigation/secondary_screen.dart';
 import 'app_shell.dart';
@@ -182,7 +186,7 @@ GoRouter createMakoloRouter(
           onBackToLogin: (email) => context.go(
             email.isEmpty
                 ? '/login'
-                : '/login?email=${Uri.encodeQueryComponent(email)}',
+                : '/login?email=' + Uri.encodeQueryComponent(email),
           ),
           onAuthenticated: onAuthenticationChanged,
         ),
@@ -192,7 +196,7 @@ GoRouter createMakoloRouter(
         builder: (context, state) => DeviceAccountsScreen(
           runtime: runtime,
           onUsePassword: (email) => context.push(
-            '/login?switch=1&email=${Uri.encodeQueryComponent(email)}',
+            '/login?switch=1&email=' + Uri.encodeQueryComponent(email),
           ),
           onAddAccount: () => context.push('/login?add=1'),
         ),
@@ -242,8 +246,72 @@ GoRouter createMakoloRouter(
           message: 'Aucune date à afficher pour le moment.',
         ),
       ),
+      GoRoute(
+        path: '/journeys/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final journeys = runtime.journeys;
+          if (journeys == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Démarche',
+              message: 'Cette démarche n’est pas disponible sur cet appareil.',
+            );
+          }
+          return JourneyDetailScreen(
+            journeyId: state.pathParameters['id']!,
+            repository: journeys,
+            onOpenForm: (form) {
+              context.push(
+                '/journeys/' +
+                    state.pathParameters['id']! +
+                    '/forms/' +
+                    form.id,
+                extra: form,
+              );
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/journeys/:journeyId/forms/:requestId',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final form = state.extra is JourneyFormSummary
+              ? state.extra! as JourneyFormSummary
+              : null;
+          final questionnaires = runtime.questionnaires;
+          final drafts = runtime.drafts;
+          final outbox = runtime.outbox;
+          final submit = runtime.questionnaireSubmit;
+          if (form == null ||
+              questionnaires == null ||
+              drafts == null ||
+              outbox == null ||
+              submit == null ||
+              form.detailLink.isEmpty) {
+            return const MakoloSecondaryScreen(
+              title: 'Formulaire',
+              message:
+                  'Rouvrez ce formulaire depuis la démarche pour reprendre avec les liens du propriétaire.',
+            );
+          }
+          return QuestionnaireFormScreen(
+            requestId: state.pathParameters['requestId']!,
+            journeyId: state.pathParameters['journeyId']!,
+            links: QuestionnaireOwnerLinks(
+              detail: form.detailLink,
+              save: form.saveLink,
+              submit: form.submitLink,
+            ),
+            repository: questionnaires,
+            drafts: drafts,
+            outbox: outbox,
+            submitCoordinator: submit,
+            outboxProcessor: runtime.outboxProcessor,
+          );
+        },
+      ),
       for (final prefix in const [
-        'journeys',
         'activities',
         'occurrences',
         'accesses',
@@ -252,7 +320,7 @@ GoRouter createMakoloRouter(
         'groups',
       ])
         GoRoute(
-          path: '/$prefix/:id',
+          path: '/' + prefix + '/:id',
           builder: (context, state) {
             runtime.recovery.rememberLocation(state.uri.toString());
             return const MakoloSecondaryScreen(
