@@ -18,8 +18,9 @@ class MakoloStatus extends StatelessWidget {
 
   Color _accent(BuildContext context) {
     return switch (tone) {
-      MakoloStatusTone.neutral =>
-        Theme.of(context).colorScheme.onSurfaceVariant,
+      MakoloStatusTone.neutral => Theme.of(
+        context,
+      ).colorScheme.onSurfaceVariant,
       MakoloStatusTone.info => context.makoloSurfaces.info,
       MakoloStatusTone.success => context.makoloSurfaces.success,
       MakoloStatusTone.warning => context.makoloSurfaces.warning,
@@ -54,10 +55,8 @@ class MakoloStatus extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: accent, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -130,9 +129,7 @@ class MakoloSection extends StatelessWidget {
     required this.child,
     this.description,
     this.action,
-    this.padding = const EdgeInsets.symmetric(
-      horizontal: MakoloSpacing.inner,
-    ),
+    this.padding = const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
   });
 
   final String title;
