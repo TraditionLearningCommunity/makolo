@@ -122,6 +122,7 @@ class DiscoveryRepository {
   static const activityProjectionKind = 'activity.detail';
   static const occurrenceProjectionKind = 'occurrence.detail';
   static const watchesProjectionKind = 'discovery.watches';
+  static const watchResultsProjectionKind = 'discovery.watch-results';
 
   static const discoveryFreshness = FreshnessPolicy(
     id: 'discovery-pack',
@@ -206,6 +207,19 @@ class DiscoveryRepository {
     );
   }
 
+  SyncSourceDefinition watchResultsSource(String watchId, {int page = 1}) {
+    final resourceKey = '$watchId:$page';
+    return SyncSourceDefinition.projectionEnvelope(
+      sourceKey: 'discovery-watch-results:$resourceKey',
+      owner: 'Discovery',
+      path: 'api/v1/discovery/watches/$watchId/results/?page=$page&page_size=24',
+      projectionKind: watchResultsProjectionKind,
+      resourceKey: resourceKey,
+      category: SyncSourceCategory.collection,
+      freshnessPolicy: discoveryFreshness,
+    );
+  }
+
   SyncSourceDefinition watchesSource() {
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: 'discovery-watches',
@@ -249,6 +263,18 @@ class DiscoveryRepository {
 
   Stream<StoredProjection?> watchWatches() =>
       store.watchProjection(watchesProjectionKind);
+
+  Stream<StoredProjection?> watchWatchResults(String watchId, {int page = 1}) =>
+      store.watchProjection(
+        watchResultsProjectionKind,
+        resourceKey: '$watchId:$page',
+      );
+
+  Future<StoredProjection?> readWatchResults(String watchId, {int page = 1}) =>
+      store.readProjection(
+        watchResultsProjectionKind,
+        resourceKey: '$watchId:$page',
+      );
 
   Future<DiscoverySourceState> readSource(SyncSourceDefinition source) async {
     final query = database.select(database.syncSources)
@@ -297,6 +323,9 @@ class DiscoveryRepository {
   Future<void> refreshOccurrence(String id) => _refresh(occurrenceSource(id));
 
   Future<void> refreshWatches() => _refresh(watchesSource());
+
+  Future<void> refreshWatchResults(String watchId, {int page = 1}) =>
+      _refresh(watchResultsSource(watchId, page: page));
 
   Future<void> setSaved({
     required String family,
