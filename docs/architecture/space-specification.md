@@ -929,3 +929,349 @@ Ce document ne décide volontairement pas :
 - matérialisation éventuelle des projections dérivées.
 
 La suite doit utiliser cette spécification pour déterminer ce qui relève du domaine persistant, des projections dérivées ou de la configuration produit, sans rouvrir les principes fondamentaux de Space sauf contradiction démontrée avec le runtime ou le Domain Blueprint.
+
+
+---
+
+# 36. Décisions de traduction architecture/runtime
+
+Cette section décide ce qui doit réellement être persistant, dérivé ou configuré à partir de la spécification ci-dessus. Elle ne fixe pas encore les écrans ni l'UX.
+
+## 36.1 État persistant propre à Space
+
+Le noyau Space ne nécessite, à ce stade, que deux nouvelles vérités persistantes au-delà de l'identité déjà présente :
+
+~~~text
+Organization.archetype
+Organization.lifecycle
+~~~
+
+### archetype
+
+- valeur explicite choisie pour le Space ;
+- huit valeurs initiales définies dans ce document ;
+- fallback sûr : generic ;
+- modifiable explicitement ;
+- aucun changement implicite depuis Topics, Activities ou historique ;
+- aucun effet d'autorité ni d'Entitlement.
+
+### lifecycle
+
+Valeurs :
+
+~~~text
+ACTIVE
+SUSPENDED
+ARCHIVED
+~~~
+
+Default pour les Espaces existants qui ne sont pas historiquement suspendus : ACTIVE.
+
+Aucun autre état persistant générique de préparation n'est ajouté.
+
+## 36.2 Aucun nouveau modèle Space de configuration
+
+Ne pas créer :
+
+~~~text
+SpaceSettings
+SpaceCapability
+SpaceModule
+SpaceFeature
+SpaceOperatingProfile
+SpaceOwner
+SpaceArchetypeHistory
+SpaceLifecycleHistory
+~~~
+
+à ce stade.
+
+Justification :
+
+- les presets sont dérivables de l'archetype ;
+- l'Operational Footprint est dérivable des faits métier ;
+- l'ownership est déjà exprimé par Mandate ;
+- les Entitlements existent déjà ;
+- Operations/Domain Events possèdent déjà les mécanismes nécessaires pour tracer les décisions importantes ;
+- créer ces modèles ajouterait des vérités parallèles.
+
+Si un besoin futur irréductible apparaît, il devra être démontré domaine par domaine avant ajout d'un nouvel état.
+
+## 36.3 Presets d'archetype = configuration Python dérivée
+
+Le preset opérationnel reste une configuration de code immutable/versionnée avec le produit, du type conceptuel :
+
+~~~text
+SpaceOperatingPreset
+├── archetype
+├── labels conceptuels
+├── domains prioritaires
+├── domains transversaux
+├── suggested_verticals
+└── configuration hints
+~~~
+
+Il n'est pas stocké par Space.
+
+Le fichier actuellement utilisé sur la branche peut rester dans organizations comme couche d'orchestration produit tant qu'il :
+
+- ne possède aucune vérité métier ;
+- ne crée aucun fait ;
+- ne décide aucune Permission ;
+- ne décide aucun Entitlement.
+
+Il n'est pas nécessaire de créer un bounded context Presentation uniquement pour stocker cette table de correspondance.
+
+## 36.4 Operational Footprint = read model dérivé
+
+L'Operational Footprint devient un read model reconstructible.
+
+Cible conceptuelle :
+
+~~~text
+SpaceOperationalFootprint
+= ensemble des domaines/verticales réellement présents pour un Space
+~~~
+
+Il doit être calculé depuis les owners canoniques, par exemple :
+
+~~~text
+Activity / verticales
+Transport facts
+Service facts
+Obtention facts
+Funding facts
+CRM
+Groups
+Partners
+Commerce
+Payments
+Access
+Automation
+Loyalty
+Trust
+...
+~~~
+
+Aucune table source de vérité n'est créée.
+
+Une matérialisation/cache pourra être ajoutée uniquement pour performance, à condition d'être explicitement reconstructible et invalidable depuis les faits canoniques.
+
+## 36.5 Lifecycle : séparation progressive de l'ancien verification_status
+
+Le runtime actuel surcharge encore Organization.verification_status avec une valeur suspended utilisée par de nombreux consommateurs publics et Operations.
+
+Cette ambiguïté doit être corrigée sans migration destructive.
+
+Décision de transition :
+
+1. ajouter Organization.lifecycle avec ACTIVE par défaut ;
+2. lors de la migration initiale, tout Space dont verification_status vaut suspended reçoit lifecycle=SUSPENDED ;
+3. conserver temporairement OrganizationVerificationStatus.SUSPENDED comme valeur de compatibilité ;
+4. migrer progressivement les décisions d'exploitation et les selectors de visibilité vers lifecycle ;
+5. Trust continue à posséder les VerificationClaim ;
+6. une décision de vérification rejetée/révoquée ne doit plus, à terme, signifier automatiquement suspension opérationnelle ;
+7. seule une décision explicite de gouvernance/modération peut faire passer le lifecycle à SUSPENDED ;
+8. supprimer la valeur legacy suspended de verification_status seulement après disparition de tous ses consommateurs.
+
+Ainsi :
+
+~~~text
+Trust decision
+!=
+lifecycle decision
+~~~
+
+même si le runtime historique les a parfois couplées.
+
+## 36.6 Historique de lifecycle : réutiliser Operations et Domain Events
+
+Aucun modèle SpaceLifecycleHistory n'est nécessaire.
+
+Les transitions sensibles doivent passer par des services transactionnels et produire les traces déjà prévues par Makolo :
+
+- audit Operations lorsque la transition relève de modération/gouvernance ;
+- Domain Event lorsque nécessaire pour informer les autres domaines/projections ;
+- actor humain conservé pour toute mutation autorisée.
+
+Le champ Organization.lifecycle porte l'état courant ; les mécanismes d'audit portent l'histoire.
+
+## 36.7 Ownership : aucun nouveau modèle
+
+Le runtime possède déjà la structure correcte :
+
+~~~text
+created_by
+= provenance historique
+
+TeamMembership
+= collaboration
+
+Mandate SPACE_OWNER
+= ownership actuel
+~~~
+
+Décision :
+
+- ne pas créer primary_owner ;
+- ne pas créer SpaceOwner ;
+- conserver plusieurs Owners possibles ;
+- conserver l'invariant du dernier Owner.
+
+Une opération de transfert mérite en revanche un **service d'orchestration atomique** dédié, pas un modèle :
+
+~~~text
+transfer_space_ownership(...)
+~~~
+
+Son contrat devra :
+
+1. verrouiller le Space et les Mandates d'ownership concernés ;
+2. vérifier SPACE_OWNERSHIP_MANAGE ;
+3. accorder d'abord l'ownership au destinataire ;
+4. révoquer l'ancien Owner uniquement si demandé ;
+5. préserver l'invariant d'au moins un Owner ;
+6. tracer actor, source et résultat.
+
+Les primitives d'autorisation existantes restent propriétaires des Mandates.
+
+## 36.8 CRM : garder l'ownership actuel
+
+Le runtime actuel est déjà correct :
+
+~~~text
+CRMContact.organization
+Audience.organization
+CRMInteraction.activity (optionnel)
+~~~
+
+Décision :
+
+- le CRM appartient au Space ;
+- une Activity peut contextualiser une interaction CRM ;
+- ne pas créer de CRMContact appartenant simultanément à une Activity ;
+- ne pas dupliquer un contact par archetype ;
+- Team, Group, Partner et Mandate restent distincts du CRM.
+
+Aucun nouveau modèle Space n'est requis ici.
+
+## 36.9 Geography : SpacePlace est la relation métier
+
+Le runtime possède déjà SpacePlace avec des rôles comme siège, bureau, agence/succursale et point de service.
+
+Décision :
+
+~~~text
+Organization.country / city
+= identité générale / compatibilité / présentation grossière
+
+SpacePlace + Place
+= géographie structurée réelle du Space
+~~~
+
+Les lieux des Activities/Occurrences restent leurs propres faits.
+
+Ne pas enrichir Organization avec des listes d'adresses, zones, agences ou stops.
+
+## 36.10 Trust : VerificationClaim est canonique
+
+Le runtime possède déjà VerificationClaim.subject_space.
+
+Décision :
+
+- Trust possède les assertions de vérification ;
+- Organization.verification_status reste une projection legacy de compatibilité pendant la transition ;
+- ne pas créer SpaceVerification ou champs de confiance supplémentaires dans Organization ;
+- lifecycle reste séparé de Trust.
+
+## 36.11 Subscriptions / Entitlements : réutiliser l'existant
+
+FeatureDefinition sait déjà cibler un Space et les Entitlements définissent la disponibilité produit.
+
+Décision :
+
+- aucun Entitlement n'est dérivé automatiquement de l'archetype ;
+- aucun archetype ne contourne un FeatureDefinition ;
+- ne pas créer SpacePlan, ArchetypeCapability ou FeatureSet parallèle dans organizations.
+
+## 36.12 Activity : conserver l'ownership XOR existant
+
+Le runtime possède déjà :
+
+~~~text
+Activity.space
+XOR
+Activity.owner_profile
+~~~
+
+Décision :
+
+- aucune table intermédiaire SpaceActivity n'est nécessaire ;
+- Space reste opérateur logique direct lorsqu'une Activity appartient à l'organisation ;
+- l'archetype n'intervient pas dans l'ownership Activity ;
+- ne pas durcir immédiatement les anciennes données legacy sans audit préalable des lignes historiques qui pourraient encore n'avoir aucun owner logique.
+
+## 36.13 Relations entre Spaces : pas de relation universelle
+
+Ne pas créer SpaceRelation ou SpaceComposition générique.
+
+Réutiliser les relations propriétaires :
+
+- Partners pour partenariat ;
+- Funding pour financement ;
+- Sharing pour partage ;
+- Activity lorsque plusieurs acteurs ont des rôles dans une action selon les contrats du domaine ;
+- Trust pour attestations ;
+- Commerce pour relations économiques lorsque pertinent.
+
+Un besoin de nouvelle relation doit d'abord trouver son owner métier.
+
+## 36.14 Services lifecycle centralisés
+
+Pour éviter des vérifications dispersées, le runtime devra disposer de services/selectors Space explicites, conceptuellement :
+
+~~~text
+space_is_operational(space)
+require_space_operational(space)
+suspend_space(...)
+archive_space(...)
+restore_space(...)
+~~~
+
+Les domaines consommateurs ne doivent pas réinventer chacun la signification de ACTIVE/SUSPENDED/ARCHIVED.
+
+Les décisions d'autorité de ces services doivent utiliser les Permissions/Mandates existants ou la gouvernance Platform selon la cause de transition.
+
+## 36.15 Résumé de classification
+
+| Besoin | Décision |
+| --- | --- |
+| Archetype courant | Persistant sur Space |
+| Lifecycle courant | Persistant sur Space |
+| Preset d'archetype | Configuration Python dérivée |
+| Operational Footprint | Read model dérivé |
+| Capability métier du Space | Dérivée des faits / Entitlements / Permissions selon le sens |
+| Ownership | Mandates existants |
+| Historique ownership | Mandates/audit existants |
+| Historique lifecycle | Operations audit + Domain Events |
+| Vérification | Trust VerificationClaim |
+| Géographie structurée | Geography SpacePlace |
+| CRM | CRM existant, owner Space |
+| Subscription | Subscriptions/Entitlements existants |
+| Verticales Activity | Domaines Activity existants |
+| Relations Space ↔ Space | Domaines métier existants |
+| Readiness | Projection dérivée si un jour nécessaire |
+| Configuration UX | Hors de cette spécification |
+
+## 36.16 Ordre d'implémentation retenu
+
+La suite doit être réalisée dans cet ordre :
+
+1. **Foundation** — Organization.archetype + Organization.lifecycle + migration de compatibilité ;
+2. **Lifecycle cutover** — services/selectors centralisés et migration progressive des usages legacy de verification_status=SUSPENDED ;
+3. **Ownership orchestration** — service atomique de transfert, en réutilisant Mandates ;
+4. **Operating preset** — finaliser la configuration dérivée sans nouveau modèle ;
+5. **Operational Footprint** — selector/read model dérivé des domaines existants ;
+6. **Consumers** — seulement ensuite faire consommer ces contrats par Console, API et futures expériences.
+
+Aucun autre modèle Space n'est autorisé par défaut dans ce cycle sans démonstration d'un besoin que les domaines existants ne peuvent pas porter.
