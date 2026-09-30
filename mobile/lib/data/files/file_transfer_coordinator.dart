@@ -2,11 +2,40 @@ import 'profile_file_store.dart';
 
 typedef FileTransferProgress = void Function(int transferred, int total);
 
+enum FileTransferState {
+  localOnly,
+  queued,
+  transferring,
+  transferred,
+  failedRecoverable,
+  failedTerminal,
+  ownerConfirmationRequired,
+}
+
 class FileTransferReceipt {
   const FileTransferReceipt({required this.confirmed, this.remoteVersion});
 
   final bool confirmed;
   final String? remoteVersion;
+}
+
+class FileTransferFailure implements Exception {
+  const FileTransferFailure({required this.recoverable, this.code});
+
+  final bool recoverable;
+  final String? code;
+}
+
+class FileTransferResult {
+  const FileTransferResult({
+    required this.state,
+    this.receipt,
+    this.errorCode,
+  });
+
+  final FileTransferState state;
+  final FileTransferReceipt? receipt;
+  final String? errorCode;
 }
 
 abstract interface class FileOwnerTransfer {
@@ -28,13 +57,62 @@ class FileTransferCoordinator {
     required FileOwnerTransfer owner,
     FileTransferProgress? onProgress,
   }) async {
+    final result = await transferToOwner(
+      fileId: fileId,
+      owner: owner,
+      onProgress: onProgress,
+    );
+    final receipt = result.receipt;
+    if (receipt == null) {
+      throw FileTransferFailure(
+        recoverable: result.state == FileTransferState.failedRecoverable,
+        code: result.errorCode,
+      );
+    }
+    return receipt;
+  }
+
+  Future<FileTransferResult> transferToOwner({
+    required String fileId,
+    required FileOwnerTransfer owner,
+    FileTransferProgress? onProgress,
+    void Function(FileTransferState state)? onState,
+  }) async {
     final file = await store.read(fileId);
     if (file == null) {
       throw StateError('Cannot transfer an unknown file record.');
     }
 
-    final receipt = await owner.upload(file: file, onProgress: onProgress);
-    if (receipt.confirmed) await store.promoteToPrivate(fileId);
-    return receipt;
+    onState?.call(FileTransferState.transferring);
+    try {
+      final receipt = await owner.upload(file: file, onProgress: onProgress);
+      if (!receipt.confirmed) {
+        onState?.call(FileTransferState.ownerConfirmationRequired);
+        return FileTransferResult(
+          state: FileTransferState.ownerConfirmationRequired,
+          receipt: receipt,
+        );
+      }
+
+      await store.promoteToPrivate(fileId);
+      onState?.call(FileTransferState.transferred);
+      return FileTransferResult(
+        state: FileTransferState.transferred,
+        receipt: receipt,
+      );
+    } on FileTransferFailure catch (error) {
+      final state = error.recoverable
+          ? FileTransferState.failedRecoverable
+          : FileTransferState.failedTerminal;
+      onState?.call(state);
+      return FileTransferResult(state: state, errorCode: error.code);
+    }
+  }
+
+  Future<void> cancel({
+    required String fileId,
+    required FileOwnerTransfer owner,
+  }) {
+    return owner.cancel(fileId);
   }
 }
