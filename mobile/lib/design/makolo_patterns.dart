@@ -19,10 +19,8 @@ class MakoloStateTransition extends StatelessWidget {
       duration: MakoloMotion.effective(context, duration),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
       child: child,
     );
   }
@@ -315,9 +313,8 @@ class MakoloDetailHeader extends StatelessWidget {
           if (eyebrow != null) ...[
             Text(
               eyebrow!,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              style: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: MakoloSpacing.xs),
           ],
