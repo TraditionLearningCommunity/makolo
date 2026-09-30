@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "conversations.apps.ConversationsConfig",
     "recognition.apps.RecognitionConfig",
     "funding.apps.FundingConfig",
+    "obtention.apps.ObtentionConfig",
     "prospector.django_app.apps.ProspectorStorageConfig",
     "observer.django_app.apps.ObserverStorageConfig",
     "interpreter.django_app.apps.InterpreterStorageConfig",
