@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
+import '../features/access/access_repository.dart';
 import '../features/continuity/conversation_repository.dart';
 import '../features/continuity/history_repository.dart';
 import '../features/continuity/objective_repository.dart';
 import '../features/discovery/discovery_repository.dart';
+import '../features/day_of/day_of_repository.dart';
 import '../features/journey/journey_repository.dart';
 import '../features/preparation/preparation_repository.dart';
 import '../features/questionnaires/questionnaire_repository.dart';
@@ -42,6 +44,8 @@ class AppRuntime {
     this.interoperability,
     this.discovery,
     this.location,
+    this.accesses,
+    this.dayOf,
     this.journeys,
     this.objectives,
     this.history,
@@ -68,6 +72,8 @@ class AppRuntime {
   final ProfileInteroperabilityRepository? interoperability;
   final DiscoveryRepository? discovery;
   final LocationCapability? location;
+  final AccessRepository? accesses;
+  final DayOfRepository? dayOf;
   final JourneyRepository? journeys;
   final ObjectiveRepository? objectives;
   final HistoryRepository? history;
@@ -156,6 +162,19 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
           api: api,
           sync: sync,
         );
+  final accesses = AccessRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+    api: api,
+  );
+  final dayOf = DayOfRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
   final journeys = JourneyRepository(
     database: database,
     store: store,
@@ -235,6 +254,8 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     interoperability: interoperability,
     discovery: discovery,
     location: location,
+    accesses: accesses,
+    dayOf: dayOf,
     journeys: journeys,
     objectives: objectives,
     history: history,
