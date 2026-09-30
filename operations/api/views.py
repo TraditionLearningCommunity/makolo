@@ -49,7 +49,7 @@ class OperationsOrganizationsAPIView(OperationsAPIView):
         status = (request.query_params.get("status") or "").strip()
         query = (request.query_params.get("q") or "").strip()
         if status:
-            queryset = queryset.filter(verification_status=status)
+            queryset = queryset.filter(lifecycle=status)
         if query:
             queryset = queryset.filter(Q(name__icontains=query) | Q(slug__icontains=query))
         data = [
