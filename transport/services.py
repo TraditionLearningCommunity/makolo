@@ -28,19 +28,11 @@ from commerce.services import OrderSelection, confirm_order, create_offer, creat
 from journeys.beneficiary_services import create_journey_for_holder
 from journeys.models import WorkflowKind
 from journeys.services import submit_journey
-from organizations.models import SpaceArchetype
 
 from .models import TransportDeparture, TransportRoute, TransportRouteStop, TransportService, Vehicle
 
 
 TRANSPORT_PAYMENT_MODES = {PaymentMode.UPFRONT, PaymentMode.ON_SITE, PaymentMode.NONE}
-
-
-def _validate_transport_space(space):
-    if space.archetype != SpaceArchetype.TRANSPORT_OPERATOR:
-        raise ValidationError(
-            "Cet Espace n’est pas configuré comme opérateur de transport."
-        )
 
 
 def _validate_route(route):
@@ -55,7 +47,6 @@ def _validate_space_object(*, space, obj, label):
 
 @transaction.atomic
 def create_transport_route(*, space, name, stops, code="", active=True):
-    _validate_transport_space(space)
     if len(stops) < 2:
         raise ValidationError("Une Route Transport doit contenir au moins deux arrêts.")
     route = TransportRoute.objects.create(
@@ -133,7 +124,6 @@ def create_transport_departure(
     boarding_instructions="",
     operational_reference="",
 ):
-    _validate_transport_space(service.activity.space)
     _validate_route(service.route)
     if not service.route.active:
         raise ValidationError("Impossible de créer un départ sur une Route inactive.")
