@@ -8,7 +8,7 @@ from activities.models import ActivityStatus, ActivityVisibility
 from activities.services import create_activity, update_activity_common
 from authorization.constants import PermissionCode
 from authorization.services import can
-from journeys.models import JourneyStatus, WorkflowKind
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from journeys.services import confirm_journey, create_journey, fulfill_journey, submit_journey
 from readiness import ReadinessStatus, resolve_journey_readiness
 
@@ -345,7 +345,7 @@ def create_obtention_journey(
 
 @transaction.atomic
 def activate_obtention_journey(*, journey, actor):
-    journey = JourneyStatus and journey.__class__.objects.select_for_update().select_related(
+    journey = Journey.objects.select_for_update().select_related(
         "obtention_context", "activity"
     ).get(pk=journey.pk)
     if journey.beneficiary_id != getattr(actor, "pk", None):
@@ -386,7 +386,7 @@ def _validate_receipt_target(journey, target):
 
 @transaction.atomic
 def record_beneficiary_receipt(*, journey, target, actor, received_quantity):
-    journey = journey.__class__.objects.select_for_update().select_related(
+    journey = Journey.objects.select_for_update().select_related(
         "obtention_context__configuration"
     ).get(pk=journey.pk)
     if journey.beneficiary_id != getattr(actor, "pk", None):
@@ -407,8 +407,8 @@ def record_beneficiary_receipt(*, journey, target, actor, received_quantity):
 
 @transaction.atomic
 def record_operator_receipt(*, journey, target, actor, received_quantity=None):
-    journey = journey.__class__.objects.select_for_update().select_related(
-        "activity", "obtention_context__configuration"
+    journey = Journey.objects.select_for_update().select_related(
+        "activity", "activity__obtention_details", "obtention_context__configuration"
     ).get(pk=journey.pk)
     obtention = journey.activity.obtention_details
     _require_manage(actor, obtention)
@@ -440,7 +440,7 @@ def validate_obtention_fulfillment(journey):
 
 @transaction.atomic
 def fulfill_obtention_journey(*, journey, actor):
-    journey = journey.__class__.objects.select_for_update().select_related(
+    journey = Journey.objects.select_for_update().select_related(
         "activity",
         "obtention_context__configuration",
         "obtention_context__mode",
