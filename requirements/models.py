@@ -227,9 +227,11 @@ class JourneyRequirementAssessment(models.Model):
             ).first()
             if previous is not None and previous != self.state:
                 raise ValidationError({"state": "Utilisez les services Requirements pour changer l'Assessment."})
+        self.full_clean()
         result = super().save(*args, **kwargs)
         self._allow_state_transition = False
         return result
+
 
 class RequirementReuseSource(models.TextChoices):
     LIBRARY = "library", "Ma Bibliothèque"
