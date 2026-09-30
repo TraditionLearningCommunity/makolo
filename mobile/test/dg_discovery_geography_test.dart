@@ -32,20 +32,23 @@ void main() {
     await database.close();
   });
 
-  test('Discovery source fingerprints query and keeps server pages separate', () {
-    const first = DiscoveryQuery(text: 'concert', page: 1, pageSize: 24);
-    const second = DiscoveryQuery(text: 'concert', page: 2, pageSize: 24);
+  test(
+    'Discovery source fingerprints query and keeps server pages separate',
+    () {
+      const first = DiscoveryQuery(text: 'concert', page: 1, pageSize: 24);
+      const second = DiscoveryQuery(text: 'concert', page: 2, pageSize: 24);
 
-    final firstSource = repository.itemsSource(first);
-    final secondSource = repository.itemsSource(second);
+      final firstSource = repository.itemsSource(first);
+      final secondSource = repository.itemsSource(second);
 
-    expect(firstSource.owner, 'Discovery');
-    expect(firstSource.projectionKind, 'discovery.items');
-    expect(firstSource.path, contains('q=concert'));
-    expect(firstSource.path, contains('page=1'));
-    expect(secondSource.path, contains('page=2'));
-    expect(firstSource.resourceKey, isNot(secondSource.resourceKey));
-  });
+      expect(firstSource.owner, 'Discovery');
+      expect(firstSource.projectionKind, 'discovery.items');
+      expect(firstSource.path, contains('q=concert'));
+      expect(firstSource.path, contains('page=1'));
+      expect(secondSource.path, contains('page=2'));
+      expect(firstSource.resourceKey, isNot(secondSource.resourceKey));
+    },
+  );
 
   test('Map corpus identity ignores collection page', () {
     const first = DiscoveryQuery(text: 'concert', page: 1);
@@ -59,58 +62,65 @@ void main() {
     expect(firstSource.path, isNot(contains('page=')));
   });
 
-  test('Discovery selector preserves server order and does not invent save', () {
-    final projection = StoredProjection(
-      kind: DiscoveryRepository.itemsProjectionKind,
-      schemaVersion: 1,
-      receivedAt: DateTime.utc(2026, 9, 30),
-      payload: const {
-        'count': 2,
-        'page': 1,
-        'page_size': 24,
-        'has_next': false,
-        'results': [
-          {
-            'identity': {
-              'family': 'activity',
-              'resource': {'kind': 'activity', 'id': 'activity-b'},
-              'occurrence': {'kind': 'occurrence', 'id': 'occurrence-b'},
+  test(
+    'Discovery selector preserves server order and does not invent save',
+    () {
+      final projection = StoredProjection(
+        kind: DiscoveryRepository.itemsProjectionKind,
+        schemaVersion: 1,
+        receivedAt: DateTime.utc(2026, 9, 30),
+        payload: const {
+          'count': 2,
+          'page': 1,
+          'page_size': 24,
+          'has_next': false,
+          'results': [
+            {
+              'identity': {
+                'family': 'activity',
+                'resource': {'kind': 'activity', 'id': 'activity-b'},
+                'occurrence': {'kind': 'occurrence', 'id': 'occurrence-b'},
+              },
+              'representation': {
+                'title': 'Second selon le serveur',
+                'summary': '',
+              },
+              'saved': {'state': 'not_saved'},
+              'capabilities': ['view'],
+              'links': {
+                'detail': '/api/v1/discovery/items/activity/activity-b/',
+              },
             },
-            'representation': {
-              'title': 'Second selon le serveur',
-              'summary': '',
+            {
+              'identity': {
+                'family': 'activity',
+                'resource': {'kind': 'activity', 'id': 'activity-a'},
+                'occurrence': {'kind': 'occurrence', 'id': 'occurrence-a'},
+              },
+              'representation': {
+                'title': 'Premier alphabétiquement',
+                'summary': '',
+              },
+              'saved': {'state': 'not_saved'},
+              'capabilities': ['view', 'save'],
+              'links': {
+                'detail': '/api/v1/discovery/items/activity/activity-a/',
+              },
             },
-            'saved': {'state': 'not_saved'},
-            'capabilities': ['view'],
-            'links': {'detail': '/api/v1/discovery/items/activity/activity-b/'},
-          },
-          {
-            'identity': {
-              'family': 'activity',
-              'resource': {'kind': 'activity', 'id': 'activity-a'},
-              'occurrence': {'kind': 'occurrence', 'id': 'occurrence-a'},
-            },
-            'representation': {
-              'title': 'Premier alphabétiquement',
-              'summary': '',
-            },
-            'saved': {'state': 'not_saved'},
-            'capabilities': ['view', 'save'],
-            'links': {'detail': '/api/v1/discovery/items/activity/activity-a/'},
-          },
-        ],
-      },
-    );
+          ],
+        },
+      );
 
-    final selected = const DiscoverySelector().collection(projection);
+      final selected = const DiscoverySelector().collection(projection);
 
-    expect(
-      selected.items.map((item) => item.id),
-      ['activity-b', 'activity-a'],
-    );
-    expect(selected.items.first.canSave, isFalse);
-    expect(selected.items.last.canSave, isTrue);
-  });
+      expect(selected.items.map((item) => item.id), [
+        'activity-b',
+        'activity-a',
+      ]);
+      expect(selected.items.first.canSave, isFalse);
+      expect(selected.items.last.canSave, isTrue);
+    },
+  );
 
   test('Real empty Discovery remains empty', () {
     final projection = StoredProjection(
