@@ -17,9 +17,24 @@ jobs:
         with:
           flutter-version: "3.47.3"
           channel: stable
-      - name: Print canonical Dart format diff
+      - name: Print canonical Dart formatted files
         shell: bash
         run: |
           cd mobile
-          dart format lib/features/access lib/features/day_of test/ar_access_real_world_action_test.dart
-          git diff --color=never -- lib/features/access lib/features/day_of test/ar_access_real_world_action_test.dart
+          files=(
+            lib/features/access/access_repository.dart
+            lib/features/access/access_selector.dart
+            lib/features/access/access_detail_screen.dart
+            lib/features/access/access_credential_screen.dart
+            lib/features/day_of/day_of_repository.dart
+            lib/features/day_of/day_of_selector.dart
+            lib/features/day_of/day_of_screen.dart
+            test/ar_access_real_world_action_test.dart
+          )
+          dart format "${files[@]}"
+          for file in "${files[@]}"; do
+            echo "AR_FORMAT_BEGIN:$file"
+            base64 -w0 "$file"
+            echo
+            echo "AR_FORMAT_END:$file"
+          done
