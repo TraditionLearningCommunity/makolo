@@ -113,7 +113,7 @@ SpaceArchetype preset
 → expérience effective
 ```
 
-Le cadre détaillé est documenté dans `space-operating-archetypes.md`.
+Le cadre détaillé est documenté dans `space-specification.md`.
 
 ## Event comme verticale
 
