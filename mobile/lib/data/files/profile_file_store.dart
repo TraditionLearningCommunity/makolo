@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -64,12 +65,61 @@ class ProfileFileStore {
       throw FileSystemException('Source file does not exist.', sourcePath);
     }
 
-    await stagingDirectory.create(recursive: true);
-    final suffix = _safeSuffix(source.uri.pathSegments.last);
-    final target = File('${stagingDirectory.path}/${_safeName(fileId)}$suffix');
-    if (await target.exists()) await target.delete();
-    await source.copy(target.path);
+    return stageCopy(
+      fileId: fileId,
+      owner: owner,
+      sourceFilename: source.uri.pathSegments.last,
+      purpose: purpose,
+      sensitivity: sensitivity,
+      writeTo: (destinationPath) async {
+        await source.copy(destinationPath);
+      },
+    );
+  }
 
+  Future<StoredLocalFile> stageCopy({
+    required String fileId,
+    required String owner,
+    required String sourceFilename,
+    required String purpose,
+    required String sensitivity,
+    required Future<void> Function(String destinationPath) writeTo,
+  }) async {
+    await stagingDirectory.create(recursive: true);
+    final target = File(
+      '${stagingDirectory.path}/${_safeName(fileId)}'
+      '${_safeSuffix(sourceFilename)}',
+    );
+    if (await target.exists()) await target.delete();
+
+    try {
+      await writeTo(target.path);
+      if (!await target.exists()) {
+        throw FileSystemException(
+          'Staging writer did not create the expected file.',
+          target.path,
+        );
+      }
+      return await _record(
+        fileId: fileId,
+        owner: owner,
+        localPath: target.path,
+        purpose: purpose,
+        sensitivity: sensitivity,
+      );
+    } on Object {
+      if (await target.exists()) await target.delete();
+      rethrow;
+    }
+  }
+
+  Future<StoredLocalFile> _record({
+    required String fileId,
+    required String owner,
+    required String localPath,
+    required String purpose,
+    required String sensitivity,
+  }) async {
     final now = DateTime.now().toUtc();
     await database
         .into(database.fileRecords)
@@ -78,7 +128,7 @@ class ProfileFileStore {
             fileId: fileId,
             profileId: profileId,
             owner: owner,
-            localPath: target.path,
+            localPath: localPath,
             purpose: purpose,
             sensitivity: sensitivity,
             reconstructible: const Value(false),
@@ -90,7 +140,7 @@ class ProfileFileStore {
       fileId: fileId,
       profileId: profileId,
       owner: owner,
-      path: target.path,
+      path: localPath,
       purpose: purpose,
       sensitivity: sensitivity,
       reconstructible: false,
@@ -105,16 +155,30 @@ class ProfileFileStore {
       );
     final row = await query.getSingleOrNull();
     if (row == null) return null;
-    return StoredLocalFile(
-      fileId: row.fileId,
-      profileId: row.profileId,
-      owner: row.owner,
-      path: row.localPath,
-      purpose: row.purpose,
-      sensitivity: row.sensitivity,
-      reconstructible: row.reconstructible,
-      createdAt: row.createdAt,
-    );
+    return _stored(row);
+  }
+
+  Future<List<StoredLocalFile>> stagedFiles() async {
+    final rows = await (database.select(
+      database.fileRecords,
+    )..where((row) => row.profileId.equals(profileId))).get();
+    final root = _normalizedDirectory(stagingDirectory);
+    return rows
+        .map(_stored)
+        .where((record) => _isInside(record.path, root))
+        .toList(growable: false);
+  }
+
+  Future<int> cleanupStaging({
+    required FutureOr<bool> Function(StoredLocalFile file) canRemove,
+  }) async {
+    var removed = 0;
+    for (final file in await stagedFiles()) {
+      if (!await canRemove(file)) continue;
+      await remove(file.fileId);
+      removed += 1;
+    }
+    return removed;
   }
 
   Future<StoredLocalFile> promoteToPrivate(String fileId) async {
@@ -169,6 +233,30 @@ class ProfileFileStore {
           (row) => row.profileId.equals(profileId) & row.fileId.equals(fileId),
         ))
         .go();
+  }
+
+  StoredLocalFile _stored(FileRecord row) {
+    return StoredLocalFile(
+      fileId: row.fileId,
+      profileId: row.profileId,
+      owner: row.owner,
+      path: row.localPath,
+      purpose: row.purpose,
+      sensitivity: row.sensitivity,
+      reconstructible: row.reconstructible,
+      createdAt: row.createdAt,
+    );
+  }
+
+  static String _normalizedDirectory(Directory directory) {
+    final path = directory.absolute.path;
+    return path.endsWith(Platform.pathSeparator)
+        ? path
+        : '$path${Platform.pathSeparator}';
+  }
+
+  static bool _isInside(String path, String normalizedRoot) {
+    return File(path).absolute.path.startsWith(normalizedRoot);
   }
 
   static String _safeName(String value) =>

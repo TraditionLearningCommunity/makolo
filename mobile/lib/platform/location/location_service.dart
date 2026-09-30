@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 
+enum MakoloLocationAccuracy { low, balanced, high }
+
 class LocationFix {
   const LocationFix({
     required this.latitude,
@@ -22,8 +24,15 @@ class LocationFix {
 
 abstract interface class LocationService {
   Future<bool> isServiceEnabled();
-  Future<LocationFix> current();
-  Stream<LocationFix> watch({int distanceFilterMeters = 10});
+
+  Future<LocationFix> current({
+    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+  });
+
+  Stream<LocationFix> watch({
+    int distanceFilterMeters = 25,
+    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+  });
 }
 
 class GeolocatorLocationService implements LocationService {
@@ -33,21 +42,34 @@ class GeolocatorLocationService implements LocationService {
   Future<bool> isServiceEnabled() => Geolocator.isLocationServiceEnabled();
 
   @override
-  Future<LocationFix> current() async {
+  Future<LocationFix> current({
+    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+  }) async {
     final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      locationSettings: LocationSettings(accuracy: _accuracy(accuracy)),
     );
     return _fix(position);
   }
 
   @override
-  Stream<LocationFix> watch({int distanceFilterMeters = 10}) {
+  Stream<LocationFix> watch({
+    int distanceFilterMeters = 25,
+    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+  }) {
     return Geolocator.getPositionStream(
       locationSettings: LocationSettings(
-        accuracy: LocationAccuracy.high,
+        accuracy: _accuracy(accuracy),
         distanceFilter: distanceFilterMeters,
       ),
     ).map(_fix);
+  }
+
+  LocationAccuracy _accuracy(MakoloLocationAccuracy accuracy) {
+    return switch (accuracy) {
+      MakoloLocationAccuracy.low => LocationAccuracy.low,
+      MakoloLocationAccuracy.balanced => LocationAccuracy.medium,
+      MakoloLocationAccuracy.high => LocationAccuracy.high,
+    };
   }
 
   LocationFix _fix(Position position) {

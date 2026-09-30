@@ -1,7 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../navigation/incoming_intent.dart';
+import '../../navigation/structured_destination_codec.dart';
 import '../../navigation/destination.dart';
 
 class LocalNotificationRequest {
@@ -24,7 +24,7 @@ class LocalNotificationRequest {
 
 abstract interface class LocalNotificationScheduler {
   Future<void> initialize({
-    required void Function(StructuredDestination destination) onDestination,
+    required void Function(IncomingIntent intent) onIntent,
   });
   Future<void> show(LocalNotificationRequest request);
   Future<void> cancel(int id);
@@ -34,14 +34,16 @@ class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
   FlutterLocalNotificationScheduler({
     FlutterLocalNotificationsPlugin? plugin,
     this.androidDefaultIcon = 'ic_launcher',
+    this.codec = const StructuredDestinationCodec(),
   }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
   final String androidDefaultIcon;
+  final StructuredDestinationCodec codec;
 
   @override
   Future<void> initialize({
-    required void Function(StructuredDestination destination) onDestination,
+    required void Function(IncomingIntent intent) onIntent,
   }) async {
     await _plugin.initialize(
       settings: InitializationSettings(
@@ -54,7 +56,13 @@ class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
       ),
       onDidReceiveNotificationResponse: (response) {
         final destination = _decodeDestination(response.payload);
-        if (destination != null) onDestination(destination);
+        if (destination == null) return;
+        onIntent(
+          IncomingIntent(
+            source: IncomingIntentSource.notification,
+            destination: destination,
+          ),
+        );
       },
     );
   }
@@ -74,10 +82,7 @@ class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
       ),
       payload: request.destination == null
           ? null
-          : jsonEncode({
-              'kind': request.destination!.kind,
-              'id': request.destination!.id,
-            }),
+          : codec.toJson(request.destination!),
     );
   }
 
@@ -86,17 +91,6 @@ class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
 
   StructuredDestination? _decodeDestination(String? payload) {
     if (payload == null || payload.isEmpty) return null;
-    try {
-      final value = jsonDecode(payload);
-      if (value is! Map<String, dynamic>) return null;
-      final kind = value['kind']?.toString();
-      final id = value['id']?.toString();
-      if (kind == null || id == null || kind.isEmpty || id.isEmpty) {
-        return null;
-      }
-      return StructuredDestination(kind: kind, id: id);
-    } on FormatException {
-      return null;
-    }
+    return codec.fromJson(payload);
   }
 }
