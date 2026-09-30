@@ -82,6 +82,11 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
+      - name: Capture canonical formatting diff
+        run: |
+          dart format lib/app/router.dart lib/features/discovery/discovery_screens.dart
+          git diff -- lib/app/router.dart lib/features/discovery/discovery_screens.dart
+          git checkout -- lib/app/router.dart lib/features/discovery/discovery_screens.dart
       - name: Format check
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Analyze
