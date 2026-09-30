@@ -86,6 +86,23 @@ def _plan_steps_payload(configuration):
     ]
 
 
+def _requirements_input_payload(configuration):
+    return [
+        {
+            "key": link.requirement.key,
+            "title": link.requirement.title,
+            "description": link.requirement.description,
+            "mode": link.requirement.mode,
+            "evaluator_key": link.requirement.evaluator_key,
+            "evaluator_config": link.requirement.evaluator_config,
+            "is_mandatory": link.requirement.is_mandatory,
+            "position": link.position,
+            "step_key": link.step_key,
+        }
+        for link in configuration.requirement_links.select_related("requirement").all()
+    ]
+
+
 def _requirements_payload(configuration):
     return [
         {
@@ -377,7 +394,7 @@ class ObtentionDetailAPIView(APIView):
             "beneficiary_confirmation_required": configuration.beneficiary_confirmation_required,
             "operator_confirmation_required": configuration.operator_confirmation_required,
             "plan_steps": _plan_steps_payload(configuration),
-            "requirements": _requirements_payload(configuration),
+            "requirements": _requirements_input_payload(configuration),
             "status": obtention.activity.status,
             "visibility": obtention.activity.visibility,
         }
