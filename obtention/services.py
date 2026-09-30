@@ -396,7 +396,6 @@ def create_obtention_journey(
             obtention=obtention,
             status=ObtentionConfigurationStatus.PUBLISHED,
         )
-        .select_related("journey_plan_template")
         .prefetch_related(
             "targets",
             "modes",
