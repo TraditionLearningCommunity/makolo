@@ -186,7 +186,7 @@ GoRouter createMakoloRouter(
           onBackToLogin: (email) => context.go(
             email.isEmpty
                 ? '/login'
-                : '/login?email=' + Uri.encodeQueryComponent(email),
+                : '/login?email=${Uri.encodeQueryComponent(email)}',
           ),
           onAuthenticated: onAuthenticationChanged,
         ),
@@ -196,7 +196,7 @@ GoRouter createMakoloRouter(
         builder: (context, state) => DeviceAccountsScreen(
           runtime: runtime,
           onUsePassword: (email) => context.push(
-            '/login?switch=1&email=' + Uri.encodeQueryComponent(email),
+            '/login?switch=1&email=${Uri.encodeQueryComponent(email)}',
           ),
           onAddAccount: () => context.push('/login?add=1'),
         ),
@@ -262,10 +262,7 @@ GoRouter createMakoloRouter(
             repository: journeys,
             onOpenForm: (form) {
               context.push(
-                '/journeys/' +
-                    state.pathParameters['id']! +
-                    '/forms/' +
-                    form.id,
+                '/journeys/${state.pathParameters['id']!}/forms/${form.id}',
                 extra: form,
               );
             },
@@ -319,7 +316,7 @@ GoRouter createMakoloRouter(
         'groups',
       ])
         GoRoute(
-          path: '/' + prefix + '/:id',
+          path: '/$prefix/:id',
           builder: (context, state) {
             runtime.recovery.rememberLocation(state.uri.toString());
             return const MakoloSecondaryScreen(
