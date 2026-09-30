@@ -27,9 +27,7 @@ class FakePermissionGateway implements PermissionGateway {
 
 void main() {
   test('granted permission is not requested again', () async {
-    final gateway = FakePermissionGateway(
-      current: PermissionDecision.granted,
-    );
+    final gateway = FakePermissionGateway(current: PermissionDecision.granted);
 
     expect(
       await gateway.requestWhenNeeded(MakoloPermission.camera),
