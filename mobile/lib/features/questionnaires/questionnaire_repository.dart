@@ -29,11 +29,7 @@ enum QuestionnaireQuestionType {
 }
 
 class QuestionnaireOwnerLinks {
-  const QuestionnaireOwnerLinks({
-    required this.detail,
-    this.save,
-    this.submit,
-  });
+  const QuestionnaireOwnerLinks({required this.detail, this.save, this.submit});
 
   final String detail;
   final String? save;
@@ -133,34 +129,37 @@ class QuestionnaireRequestDetail {
       throw const FormatException('Expected questionnaire questions list.');
     }
 
-    final questions = rawQuestions.map((raw) {
-      final question = map(raw, 'question');
-      final rawChoices = question['choices'];
-      final choices = rawChoices is List
-          ? rawChoices.map((item) => item.toString()).toList(growable: false)
-          : const <String>[];
-      return QuestionnaireQuestion(
-        key: requiredString(question['key'], 'question.key'),
-        label: requiredString(question['label'], 'question.label'),
-        type: QuestionnaireQuestionType.parse(question['type']),
-        position: question['position'] is int
-            ? question['position'] as int
-            : int.tryParse(question['position']?.toString() ?? '') ?? 0,
-        required: question['required'] == true,
-        helpText: _optionalString(question['help_text']),
-        minLength: _optionalInt(question['min_length']),
-        maxLength: _optionalInt(question['max_length']),
-        minValue: _optionalNum(question['min_value']),
-        maxValue: _optionalNum(question['max_value']),
-        choices: choices,
-      );
-    }).toList(growable: false)
-      ..sort((a, b) => a.position.compareTo(b.position));
+    final questions =
+        rawQuestions
+            .map((raw) {
+              final question = map(raw, 'question');
+              final rawChoices = question['choices'];
+              final choices = rawChoices is List
+                  ? rawChoices
+                        .map((item) => item.toString())
+                        .toList(growable: false)
+                  : const <String>[];
+              return QuestionnaireQuestion(
+                key: requiredString(question['key'], 'question.key'),
+                label: requiredString(question['label'], 'question.label'),
+                type: QuestionnaireQuestionType.parse(question['type']),
+                position: question['position'] is int
+                    ? question['position'] as int
+                    : int.tryParse(question['position']?.toString() ?? '') ?? 0,
+                required: question['required'] == true,
+                helpText: _optionalString(question['help_text']),
+                minLength: _optionalInt(question['min_length']),
+                maxLength: _optionalInt(question['max_length']),
+                minValue: _optionalNum(question['min_value']),
+                maxValue: _optionalNum(question['max_value']),
+                choices: choices,
+              );
+            })
+            .toList(growable: false)
+          ..sort((a, b) => a.position.compareTo(b.position));
 
     final rawResponse = payload['response'];
-    final response = rawResponse == null
-        ? null
-        : map(rawResponse, 'response');
+    final response = rawResponse == null ? null : map(rawResponse, 'response');
     final rawAnswers = response?['answers'];
     final answers = rawAnswers is Map
         ? rawAnswers.map((key, value) => MapEntry(key.toString(), value))
@@ -234,7 +233,11 @@ class QuestionnaireRepository {
     required String detailPath,
   }) {
     if (detailPath.trim().isEmpty) {
-      throw ArgumentError.value(detailPath, 'detailPath', 'Owner link required');
+      throw ArgumentError.value(
+        detailPath,
+        'detailPath',
+        'Owner link required',
+      );
     }
     return SyncSourceDefinition(
       sourceKey: 'questionnaire-request:' + requestId,
@@ -296,10 +299,7 @@ class QuestionnaireRepository {
     final parsed = QuestionnaireRequestDetail.fromPayload(payload);
     if (parsed.id != requestId) {
       throw FormatException(
-        'Expected questionnaire request ' +
-            requestId +
-            ', got ' +
-            parsed.id,
+        'Expected questionnaire request ' + requestId + ', got ' + parsed.id,
       );
     }
     await store.putProjection(
