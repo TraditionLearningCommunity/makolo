@@ -5,10 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
+import '../features/discovery/discovery_repository.dart';
 import '../features/journey/journey_repository.dart';
 import '../features/questionnaires/questionnaire_repository.dart';
 import '../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../network/makolo_api_client.dart';
+import '../platform/location/location_capability.dart';
+import '../platform/location/location_service.dart';
+import '../platform/permissions/permission_gateway.dart';
 import '../repositories/draft_repository.dart';
 import '../repositories/interoperability_repository.dart';
 import '../repositories/personal_repository.dart';
@@ -32,6 +36,8 @@ class AppRuntime {
     this.store,
     this.personal,
     this.interoperability,
+    this.discovery,
+    this.location,
     this.journeys,
     this.questionnaires,
     this.drafts,
@@ -51,6 +57,8 @@ class AppRuntime {
   final ProfileStore? store;
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
+  final DiscoveryRepository? discovery;
+  final LocationCapability? location;
   final JourneyRepository? journeys;
   final QuestionnaireRepository? questionnaires;
   final DraftRepository? drafts;
@@ -121,6 +129,19 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
           database: database,
           profileId: profileId,
         );
+  final location = const LocationCapability(
+    permissions: PermissionHandlerGateway(),
+    service: GeolocatorLocationService(),
+  );
+  final discovery = api == null
+      ? null
+      : DiscoveryRepository(
+          database: database,
+          store: store,
+          profileId: profileId,
+          api: api,
+          sync: sync,
+        );
   final journeys = JourneyRepository(
     database: database,
     store: store,
@@ -168,6 +189,8 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
     store: store,
     personal: personal,
     interoperability: interoperability,
+    discovery: discovery,
+    location: location,
     journeys: journeys,
     questionnaires: questionnaires,
     drafts: drafts,
