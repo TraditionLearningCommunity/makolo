@@ -14,17 +14,21 @@ class OrganizationVerificationStatus(models.TextChoices):
 
 
 class SpaceArchetype(models.TextChoices):
-    """Primary operational configuration for one Space.
+    """Primary operating profile for one Space.
 
-    This is not a Topic, legal form, Permission or Mandate. It tells Makolo
-    which product capabilities and vocabulary are native to the Space.
+    An archetype describes how Makolo should organize the Space experience by
+    default. It is not a Topic, legal form, Permission, Mandate, Entitlement,
+    or whitelist of Activity verticals.
     """
 
     GENERIC = "generic", "Espace générique"
     CREATIVE = "creative", "Artiste / création"
     MEDIA = "media", "Média / journalisme"
     EDUCATION = "education", "Enseignement / formation"
+    COMMERCE = "commerce", "Commerce / distribution"
+    SERVICE_PROVIDER = "service_provider", "Prestataire de services"
     TRANSPORT_OPERATOR = "transport_operator", "Opérateur de transport"
+    COMMUNITY = "community", "Association / communauté"
 
 
 class OrganizationRole(models.TextChoices):
@@ -57,7 +61,7 @@ class Organization(models.Model):
         choices=SpaceArchetype.choices,
         default=SpaceArchetype.GENERIC,
         db_default=SpaceArchetype.GENERIC,
-        help_text="Contexte opérationnel principal de cet Espace. Distinct des Topics et des autorisations.",
+        help_text="Manière principale de fonctionner de cet Espace. Distincte des Topics, verticales, autorisations et Entitlements.",
     )
     description = models.TextField(blank=True)
     website = models.URLField(blank=True)
