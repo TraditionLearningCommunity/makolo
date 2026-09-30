@@ -85,20 +85,35 @@ Aucun compteur Console ne doit additionner simultanément Ticket + Access, Ticke
 
 ## Archétype d’Espace
 
-Un Espace possède un `SpaceArchetype` explicite qui décrit sa **configuration opérationnelle principale**. Cet archétype répond à « quel genre d’acteur est cet Espace et quelles capacités Makolo doit-il lui proposer nativement ? ».
+Un Espace possède un `SpaceArchetype` explicite qui décrit sa **manière principale de fonctionner**. Il pilote un preset de présentation et d’organisation du produit ; il ne définit pas une whitelist de verticales d’Activity.
 
 Il reste strictement distinct :
 
-- d’un `Topic`, qui répond à « de quoi parle cette Activity ou ce Profile ? » ;
+- d’un `Topic`, qui décrit un sujet ;
 - d’une forme juridique ;
+- d’une verticale d’Activity comme Event, Service, Transport, Funding ou Obtention ;
 - de `TeamMembership`, `Role`, `Permission` et `Mandate` ;
+- des Entitlements de Subscription ;
 - de `Open to`, qui exprime un consentement à être sollicité.
 
-L’archétype adapte la Presentation et peut activer des modules métier spécialisés de la Console. Il **n’accorde jamais d’autorité**. Une capacité visible exige toujours les Permissions/Mandates canoniques correspondants.
+Les archétypes initiaux restent volontairement courts : générique, artiste/création, média/journalisme, enseignement/formation, commerce/distribution, prestataire de services, opérateur de transport et association/communauté.
 
-Les archétypes initiaux sont : générique, artiste/création, média/journalisme, enseignement/formation et opérateur de transport. Cette liste est volontairement courte : elle ne doit pas devenir une taxonomie parallèle aux Topics.
+L’archétype adapte notamment le vocabulaire, la priorité des modules et les parcours suggérés. Il **n’accorde jamais d’autorité**, ne crée aucun Entitlement et n’invalide aucun fait métier existant.
 
-Transport est le premier module spécialisé réellement fermé par cet archétype : seules les Espaces `transport_operator` peuvent créer de nouvelles Routes, Services, Véhicules ou Départs Transport via les services canoniques, et la Console Transport n’est pas exposée aux autres archétypes. Les Espaces historiques possédant déjà des faits Transport canoniques sont classifiés lors de la migration afin de préserver leur état valide.
+Un `transport_operator` voit naturellement Transport comme centre de gravité. Cela n’interdit pas à un Espace `education`, `commerce`, `service_provider` ou autre d’opérer une verticale Transport. Réciproquement, un opérateur de transport peut opérer Event, Service ou Obtention.
+
+La Console effective compose donc :
+
+```text
+SpaceArchetype preset
++ faits métier existants
++ Subscription Entitlements
++ Mandate / Permissions
++ runtime disponible
+→ expérience effective
+```
+
+Le cadre détaillé est documenté dans `space-operating-archetypes.md`.
 
 ## Event comme verticale
 
