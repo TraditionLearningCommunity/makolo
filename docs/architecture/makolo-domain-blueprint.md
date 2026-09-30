@@ -159,6 +159,18 @@ Ces responsabilités ne doivent pas être fusionnées sous un unique concept de 
 
 Les données événementielles ou transport sont ajoutées par **composition** dans les verticales spécialisées.
 
+### Verticale Obtention
+
+**Obtention** spécialise une `Activity` lorsque le résultat métier consiste à obtenir effectivement une chose, une ressource ou son usage.
+
+Elle possède seulement ses faits irréductibles : cibles d’obtention, modes admissibles, sémantique d’accomplissement et version de configuration. Elle compose `Occurrence`, `Journey`, `JourneyStep`, `Requirement`, Forms, Resources, Commerce, Payment, Capacity, Access, Transport et Trust dans leurs domaines propriétaires.
+
+Une Journey Obtention pinne la version exacte de configuration et le mode choisi. Un paiement, une commande ou un clic ne constitue jamais à lui seul le fulfillment. Le résultat vertical exige les faits de réception configurés puis une `Readiness` canonique permettant la clôture.
+
+Le vocabulaire produit varie selon mode et perspective sans multiplier les verticales : achat/vente, location/mise en location, emprunt/prêt, réception/distribution ou échange restent des projections d’une même verticale.
+
+Le contrat détaillé est fixé par [`obtention.md`](obtention.md).
+
 ### Occurrence
 
 **Responsabilité** : matérialiser l'exécution temporelle d'une Activité.
