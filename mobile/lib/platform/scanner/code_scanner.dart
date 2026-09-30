@@ -12,9 +12,7 @@ class ScannedCode {
 }
 
 class ScannedCodeIngress {
-  const ScannedCodeIngress({
-    this.codec = const StructuredDestinationCodec(),
-  });
+  const ScannedCodeIngress({this.codec = const StructuredDestinationCodec()});
 
   final StructuredDestinationCodec codec;
 
