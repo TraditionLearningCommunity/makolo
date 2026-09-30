@@ -136,7 +136,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                   key: const Key('conversation-list-content'),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const SizedBox(height: MakoloSpacing.sm),
                   itemBuilder: (context, index) => MakoloCard(
                     onTap: () => widget.onOpen(items[index].id),
@@ -147,8 +147,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                       metadata: [
                         if (items[index].attentionCount > 0)
                           MakoloMetadataItem(
-                            items[index].attentionCount.toString() +
-                                ' élément(s) à voir',
+                            '\${items[index].attentionCount} élément(s) à voir',
                             icon: Icons.notifications_active_outlined,
                           ),
                         if (items[index].allClear)

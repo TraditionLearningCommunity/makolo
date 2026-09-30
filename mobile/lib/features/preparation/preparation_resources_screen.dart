@@ -148,7 +148,7 @@ class _PreparationResourcesScreenState
                   key: const Key('preparation-resources-content'),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const SizedBox(height: MakoloSpacing.sm),
                   itemBuilder: (context, index) =>
                       _PreparationResourceCard(resource: items[index]),
