@@ -9,6 +9,8 @@ from .views import (
     ObtentionOperatorReceiptView,
     ObtentionReceiptView,
     ObtentionStartView,
+    ObtentionStepCompleteView,
+    ObtentionStepStartView,
 )
 
 
@@ -23,4 +25,6 @@ urlpatterns = [
     path("journeys/<uuid:pk>/targets/<uuid:target_id>/receive/", ObtentionReceiptView.as_view(), name="receipt"),
     path("journeys/<uuid:pk>/targets/<uuid:target_id>/confirm/", ObtentionOperatorReceiptView.as_view(), name="operator-confirm"),
     path("journeys/<uuid:pk>/fulfill/", ObtentionFulfillView.as_view(), name="fulfill"),
+    path("journeys/<uuid:pk>/steps/<uuid:step_id>/start/", ObtentionStepStartView.as_view(), name="step-start"),
+    path("journeys/<uuid:pk>/steps/<uuid:step_id>/complete/", ObtentionStepCompleteView.as_view(), name="step-complete"),
 ]
