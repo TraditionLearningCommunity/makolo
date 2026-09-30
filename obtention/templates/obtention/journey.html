@@ -18,6 +18,32 @@
       {% if readiness.next_action %}<p class="mt-2 text-sm">{{ readiness.next_action.label }}</p>{% endif %}
     </div>
 
+    {% if requirement_assessments %}
+    <div class="mt-7">
+      <h2 class="text-lg font-extrabold">Conditions à satisfaire</h2>
+      <div class="mt-3 space-y-3">
+        {% for assessment in requirement_assessments %}
+        <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="font-bold">{{ assessment.requirement.title }}</p>
+              {% if assessment.requirement.description %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ assessment.requirement.description }}</p>{% endif %}
+            </div>
+            <span class="mk-badge">{{ assessment.get_state_display }}</span>
+          </div>
+          {% if can_manage and assessment.requirement.mode != 'action' %}
+          <form method="post" action="{% url 'obtention:requirement-assess' journey.pk assessment.pk %}" class="mt-3 flex flex-wrap gap-2">
+            {% csrf_token %}
+            <button type="submit" name="state" value="satisfied" class="mk-btn mk-btn-secondary">Condition satisfaite</button>
+            <button type="submit" name="state" value="unsatisfied" class="mk-btn mk-btn-ghost">Condition non satisfaite</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     {% if step_rows %}
     <div class="mt-7">
       <h2 class="text-lg font-extrabold">Étapes</h2>
