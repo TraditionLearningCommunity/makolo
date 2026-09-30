@@ -27,7 +27,7 @@
       <form method="post" class="mt-4" data-confirm-message="Transférer votre ownership à cette personne ? Vous resterez administrateur de l’Espace.">
         {% csrf_token %}
         <input type="hidden" name="action" value="ownership-transfer">
-        <button class="rounded-2xl border border-indigo-500 px-5 py-3 font-bold text-indigo-600 dark:text-indigo-300">Transférer mon ownership</button>
+        <button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Transférer mon ownership</button>
       </form>
     {% endif %}
   </section>
