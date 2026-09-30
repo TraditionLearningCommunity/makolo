@@ -1,5 +1,3 @@
-import 'package:drift/drift.dart';
-
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
