@@ -87,16 +87,19 @@ void main() {
     expect(camera.opens, 0);
   });
 
-  test('granted camera capability returns a disposable native session', () async {
-    final camera = FakeCamera();
-    final result = await CameraCapability(
-      permissions: FakePermissions(PermissionDecision.granted),
-      camera: camera,
-    ).open();
+  test(
+    'granted camera capability returns a disposable native session',
+    () async {
+      final camera = FakeCamera();
+      final result = await CameraCapability(
+        permissions: FakePermissions(PermissionDecision.granted),
+        camera: camera,
+      ).open();
 
-    expect(result.ready, isTrue);
-    expect(camera.opens, 1);
-    await result.session!.dispose();
-    expect(camera.session.disposed, isTrue);
-  });
+      expect(result.ready, isTrue);
+      expect(camera.opens, 1);
+      await result.session!.dispose();
+      expect(camera.session.disposed, isTrue);
+    },
+  );
 }
