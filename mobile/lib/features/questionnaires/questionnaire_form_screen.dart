@@ -7,6 +7,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
+import '../../data/local/makolo_database.dart';
 import '../../repositories/draft_repository.dart';
 import '../../sync/outbox/outbox_processor.dart';
 import '../../sync/outbox/outbox_repository.dart';
@@ -48,7 +49,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
   bool _refreshing = false;
   bool _savingDraft = false;
 
-  String get _draftId => 'questionnaire:' + widget.requestId;
+  String get _draftId => 'questionnaire:${widget.requestId}';
 
   @override
   void initState() {
@@ -172,11 +173,11 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
       if (value is String) {
         if (question.minLength != null && value.length < question.minLength!) {
           errors[question.key] =
-              'Minimum ' + question.minLength.toString() + ' caractères.';
+              'Minimum ${question.minLength} caractères.';
         }
         if (question.maxLength != null && value.length > question.maxLength!) {
           errors[question.key] =
-              'Maximum ' + question.maxLength.toString() + ' caractères.';
+              'Maximum ${question.maxLength} caractères.';
         }
       }
     }
@@ -252,7 +253,6 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                       errors: _serverErrors,
                       commit: commit,
                       refreshing: _refreshing,
-                      savedOnDevice: _initializedAnswers && operation == null,
                       canSubmit:
                           widget.links.canSubmit &&
                           !detail.isSubmitted &&
@@ -298,7 +298,6 @@ class _FormContent extends StatelessWidget {
     required this.errors,
     required this.commit,
     required this.refreshing,
-    required this.savedOnDevice,
     required this.canSubmit,
     required this.onChanged,
     required this.onSubmit,
@@ -309,7 +308,6 @@ class _FormContent extends StatelessWidget {
   final Map<String, dynamic> errors;
   final MakoloCommitCue commit;
   final bool refreshing;
-  final bool savedOnDevice;
   final bool canSubmit;
   final void Function(String key, Object? value) onChanged;
   final VoidCallback onSubmit;
@@ -444,7 +442,7 @@ class _QuestionField extends StatelessWidget {
         );
       case QuestionnaireQuestionType.multipleChoice:
         final selected = value is List
-            ? value.map((item) => item.toString()).toSet()
+            ? (value as List).map((item) => item.toString()).toSet()
             : <String>{};
         return _ChoiceField(
           question: question,
@@ -510,14 +508,16 @@ class _ChoiceField extends StatelessWidget {
                 },
               )
             else
-              RadioListTile<String>(
+              ListTile(
                 contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  selected.contains(choice)
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                ),
                 title: Text(choice),
-                value: choice,
-                groupValue: selected.isEmpty ? null : selected.first,
-                onChanged: (next) {
-                  onChanged(next == null ? <String>{} : <String>{next});
-                },
+                selected: selected.contains(choice),
+                onTap: () => onChanged(<String>{choice}),
               ),
           if (error != null)
             Text(
