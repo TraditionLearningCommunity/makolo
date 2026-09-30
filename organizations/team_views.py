@@ -37,6 +37,7 @@ from .team_responsibilities import (
     grant_member_activity_responsibility,
     remove_member_from_space,
     revoke_member_activity_responsibility,
+    transfer_space_ownership,
     update_member_space_responsibility,
 )
 
@@ -306,6 +307,22 @@ class SpaceConsoleMemberResponsibilitiesView(SpaceConsoleMixin, TemplateView):
                     messages.success(request, "Responsabilité dans l'Espace mise à jour.")
                     return redirect("organizations:member-responsibilities", slug=self.space.slug, membership_id=membership.pk)
             return self.render_to_response(self._context(space_form=form), status=400)
+
+        if action == "ownership-transfer":
+            try:
+                transfer_space_ownership(
+                    membership=membership,
+                    actor=request.user,
+                    relinquish_current_owner=True,
+                )
+            except (PermissionDenied, ValidationError) as exc:
+                messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+            else:
+                messages.success(
+                    request,
+                    "Ownership transféré atomiquement. Vous restez administrateur de l’Espace.",
+                )
+            return redirect("organizations:console-team", slug=self.space.slug)
 
         if action == "activity-add":
             form = MemberActivityResponsibilityForm(

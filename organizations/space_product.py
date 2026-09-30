@@ -87,3 +87,52 @@ def operating_preset_for_space(space) -> SpaceOperatingPreset:
     except (ValueError, AttributeError):
         archetype = SpaceArchetype.GENERIC
     return SPACE_OPERATING_PRESETS[archetype]
+
+
+
+@dataclass(frozen=True)
+class SpaceOperationalFootprint:
+    """Derived use signals. This is a read model, never a source of truth."""
+
+    signals: tuple[str, ...]
+
+
+def operational_footprint_for_space(space) -> SpaceOperationalFootprint:
+    signals = []
+    activities = space.activities.all()
+    if activities.exists():
+        signals.append("activities")
+
+    vertical_checks = (
+        ("event", "event_vertical"),
+        ("service", "service_details"),
+        ("transport", "transport_service"),
+        ("funding", "funding_details"),
+        ("obtention", "obtention_details"),
+    )
+    for key, relation in vertical_checks:
+        if activities.filter(**{f"{relation}__isnull": False}).exists():
+            signals.append(key)
+
+    if space.transport_routes.exists() or space.transport_vehicles.exists():
+        signals.append("transport")
+    if space.crm_contacts.exists():
+        signals.append("crm")
+    if space.collective_groups.exists():
+        signals.append("groups")
+    if space.partners.exists():
+        signals.append("partners")
+    if activities.filter(offers__isnull=False).exists() or space.commerce_orders.exists():
+        signals.append("commerce")
+    if space.payment_obligations.exists() or space.payer_payment_obligations.exists():
+        signals.append("payments")
+    if activities.filter(access_rights__isnull=False).exists():
+        signals.append("access")
+    if space.domain_automation_rules.exists() or space.crm_workflows.exists():
+        signals.append("automation")
+    if hasattr(space, "loyalty_program"):
+        signals.append("loyalty")
+    if space.trust_verification_claims.exists():
+        signals.append("trust")
+
+    return SpaceOperationalFootprint(signals=tuple(dict.fromkeys(signals)))

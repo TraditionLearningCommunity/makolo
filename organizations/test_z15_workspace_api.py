@@ -5,10 +5,10 @@ from accounts.models import User
 from activities.models import Activity
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
-from authorization.services import grant_space_role
+from authorization.services import can, grant_space_role
 from core.capabilities import get_web_capabilities
 from organizations.console_context import authorized_spaces
-from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
+from organizations.models import Organization, SpaceArchetype, SpaceLifecycle, Team, TeamMembership, TeamMembershipStatus
 from scanner.models import ScannerAssignment
 
 
@@ -158,3 +158,78 @@ class Z15WorkspaceContractTests(TestCase):
         owner_caps = get_web_capabilities(self.owner)
         self.assertTrue(owner_caps["has_organizer_tools"])
         self.assertTrue(owner_caps["has_organization"])
+
+
+    def test_workspace_projection_exposes_mobile_space_contract_without_private_mandates(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.get("/api/v1/organizations/workspaces/z15-space/")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["space"]["archetype"], SpaceArchetype.GENERIC)
+        self.assertEqual(response.data["space"]["lifecycle"], SpaceLifecycle.ACTIVE)
+        self.assertIn("operating_preset", response.data)
+        self.assertIn("operational_footprint", response.data)
+        self.assertIn("team_summary", response.data)
+        self.assertIn("ownership_summary", response.data)
+        self.assertNotIn("mandates", response.data)
+
+    def test_workspace_patch_changes_archetype_without_destroying_activity(self):
+        activity = Activity.objects.create(
+            title="Verticale conservée",
+            slug="verticale-conservee",
+            created_by=self.owner,
+            space=self.space,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.patch(
+            "/api/v1/organizations/workspaces/z15-space/",
+            {"archetype": SpaceArchetype.EDUCATION},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.space.refresh_from_db()
+        self.assertEqual(self.space.archetype, SpaceArchetype.EDUCATION)
+        self.assertTrue(self.space.activities.filter(pk=activity.pk).exists())
+
+    def test_membership_only_cannot_patch_workspace(self):
+        self.client.force_authenticate(self.member)
+        response = self.client.patch(
+            "/api/v1/organizations/workspaces/z15-space/",
+            {"archetype": SpaceArchetype.COMMERCE},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_can_archive_and_restore_through_online_api(self):
+        self.client.force_authenticate(self.owner)
+        archived = self.client.post(
+            "/api/v1/organizations/workspaces/z15-space/archive/",
+            {},
+            format="json",
+        )
+        self.assertEqual(archived.status_code, 200, archived.data)
+        self.assertEqual(archived.data["space"]["lifecycle"], SpaceLifecycle.ARCHIVED)
+        restored = self.client.post(
+            "/api/v1/organizations/workspaces/z15-space/restore/",
+            {},
+            format="json",
+        )
+        self.assertEqual(restored.status_code, 200, restored.data)
+        self.assertEqual(restored.data["space"]["lifecycle"], SpaceLifecycle.ACTIVE)
+
+    def test_workspace_create_grants_owner_and_active_lifecycle(self):
+        user = User.objects.create_user(
+            username="z15-create",
+            email="z15-create@test.local",
+            password="x",
+        )
+        self.client.force_authenticate(user)
+        response = self.client.post(
+            "/api/v1/organizations/workspaces/",
+            {"name": "Created Mobile Space", "archetype": SpaceArchetype.COMMERCE},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        created = Organization.objects.get(pk=response.data["space"]["id"])
+        self.assertEqual(created.lifecycle, SpaceLifecycle.ACTIVE)
+        self.assertEqual(created.archetype, SpaceArchetype.COMMERCE)
+        self.assertTrue(can(user, "space_ownership_manage", created))

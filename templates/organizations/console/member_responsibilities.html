@@ -23,6 +23,13 @@
       <div><label for="{{ space_form.role.id_for_label }}" class="mb-2 block font-bold">{{ space_form.role.label }}</label>{{ space_form.role }}{% if space_form.role.help_text %}<p class="mt-1 text-sm text-zinc-500">{{ space_form.role.help_text }}</p>{% endif %}{% if space_form.role.errors %}<p class="mt-1 text-sm text-red-500">{{ space_form.role.errors|striptags }}</p>{% endif %}</div>
       {% if can_edit_space_role %}<button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Enregistrer</button>{% else %}<p class="rounded-2xl bg-zinc-50 p-4 text-sm font-bold text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">La propriété ne peut être modifiée que par une personne disposant de l’autorité de propriété.</p>{% endif %}
     </form>
+    {% if can_manage_ownership and not current_is_owner %}
+      <form method="post" class="mt-4" data-confirm-message="Transférer votre ownership à cette personne ? Vous resterez administrateur de l’Espace.">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="ownership-transfer">
+        <button class="rounded-2xl border border-indigo-500 px-5 py-3 font-bold text-indigo-600 dark:text-indigo-300">Transférer mon ownership</button>
+      </form>
+    {% endif %}
   </section>
 
   <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">

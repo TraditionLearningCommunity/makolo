@@ -525,3 +525,32 @@ def unfollow_organization(*, follow: OrganizationFollow, user) -> None:
         revoke_follower_consent(organization_id=organization_id, user_id=user_id)
 
     transaction.on_commit(revoke)
+
+
+@transaction.atomic
+def update_organization(*, organization, actor, **fields) -> Organization:
+    """Update Space identity/configuration without changing domain facts."""
+    if not can(actor, PermissionCode.SPACE_MANAGE, organization):
+        raise PermissionDenied("Vous ne pouvez pas modifier cet Espace.")
+    allowed = {
+        "name",
+        "archetype",
+        "description",
+        "website",
+        "contact_email",
+        "contact_phone",
+        "country",
+        "city",
+        "public_profile",
+    }
+    unexpected = set(fields) - allowed
+    if unexpected:
+        raise ValidationError(
+            f"Champs Space non pris en charge: {', '.join(sorted(unexpected))}."
+        )
+    locked = Organization.objects.select_for_update().get(pk=organization.pk)
+    for name, value in fields.items():
+        setattr(locked, name, value)
+    locked.full_clean()
+    locked.save(update_fields=[*fields.keys(), "updated_at"])
+    return locked

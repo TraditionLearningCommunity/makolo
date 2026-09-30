@@ -18,6 +18,7 @@ from .team_responsibilities import (
     grant_member_activity_responsibility,
     remove_member_from_space,
     revoke_member_activity_responsibility,
+    transfer_space_ownership,
     update_member_space_responsibility,
 )
 
@@ -115,6 +116,30 @@ class TeamResponsibilityTests(TestCase):
         with self.assertRaises(ValidationError):
             update_member_space_responsibility(membership=second_membership, actor=second_owner, role_code=SystemRoleCode.SPACE_ADMIN)
         self.assertTrue(can(second_owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
+
+    def test_transfer_ownership_grants_target_before_relinquishing_actor(self):
+        transfer_space_ownership(
+            membership=self.membership,
+            actor=self.owner,
+            relinquish_current_owner=True,
+        )
+        self.assertTrue(can(self.member, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
+        self.assertFalse(can(self.owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
+        self.assertTrue(can(self.owner, PermissionCode.SPACE_MANAGE, self.space))
+        legacy_target = OrganizationMembership.objects.get(
+            organization=self.space,
+            user=self.member,
+        )
+        self.assertEqual(legacy_target.role, OrganizationRole.OWNER)
+
+    def test_non_owner_cannot_transfer_ownership(self):
+        with self.assertRaises(PermissionDenied):
+            transfer_space_ownership(
+                membership=self.membership,
+                actor=self.admin,
+            )
+        self.assertFalse(can(self.member, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
+        self.assertTrue(can(self.owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
 
     def test_activity_roles_are_local_multiple_and_idempotent(self):
         manager = grant_member_activity_responsibility(
