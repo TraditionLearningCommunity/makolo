@@ -23,15 +23,11 @@ class CameraCapabilityResult {
   final IntegratedCameraSession? session;
   final PermissionDecision? permission;
 
-  bool get ready =>
-      status == CameraCapabilityStatus.ready && session != null;
+  bool get ready => status == CameraCapabilityStatus.ready && session != null;
 }
 
 class CameraCapability {
-  const CameraCapability({
-    required this.permissions,
-    required this.camera,
-  });
+  const CameraCapability({required this.permissions, required this.camera});
 
   final PermissionGateway permissions;
   final IntegratedCamera camera;
