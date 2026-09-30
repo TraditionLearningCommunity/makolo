@@ -11,14 +11,24 @@ enum MakoloAvailabilityCue { initial, loading, content, empty }
 
 /// Presentation-only freshness. This must never be inferred from reachability.
 enum MakoloFreshnessCue {
+  unknown,
   current,
   oldObservation,
   refreshRecommended,
   revalidationRequired,
+  expired,
 }
 
 /// Presentation-only reachability of the remote owner/source.
-enum MakoloReachabilityCue { reachable, temporarilyUnavailable }
+enum MakoloReachabilityCue { unknown, reachable, temporarilyUnavailable }
+
+/// Presentation-only authority already decided by the relevant owner/capability.
+enum MakoloAuthorityCue {
+  unknown,
+  allowed,
+  remoteConfirmationRequired,
+  notAllowed,
+}
 
 /// Presentation-only lifecycle of a user intention/result.
 enum MakoloCommitCue {
@@ -38,8 +48,9 @@ enum MakoloFailureCue { none, recoverable, blocking, permissionDenied }
 class MakoloSurfacePresentation {
   const MakoloSurfacePresentation({
     required this.availability,
-    this.freshness = MakoloFreshnessCue.current,
-    this.reachability = MakoloReachabilityCue.reachable,
+    this.freshness = MakoloFreshnessCue.unknown,
+    this.reachability = MakoloReachabilityCue.unknown,
+    this.authority = MakoloAuthorityCue.unknown,
     this.commit = MakoloCommitCue.none,
     this.failure = MakoloFailureCue.none,
     this.refreshing = false,
@@ -48,6 +59,7 @@ class MakoloSurfacePresentation {
   final MakoloAvailabilityCue availability;
   final MakoloFreshnessCue freshness;
   final MakoloReachabilityCue reachability;
+  final MakoloAuthorityCue authority;
   final MakoloCommitCue commit;
   final MakoloFailureCue failure;
   final bool refreshing;
@@ -124,7 +136,8 @@ class MakoloSurfaceStateView extends StatelessWidget {
           behavior: MakoloNoticeBehavior.persistent,
           liveRegion: true,
         ),
-      if (state.freshness != MakoloFreshnessCue.current)
+      if (state.freshness != MakoloFreshnessCue.unknown &&
+          state.freshness != MakoloFreshnessCue.current)
         MakoloFreshnessNotice(freshness: state.freshness),
       if (state.reachability == MakoloReachabilityCue.temporarilyUnavailable)
         const MakoloNotice(
@@ -197,6 +210,7 @@ class MakoloFreshnessNotice extends StatelessWidget {
 
   String get _message {
     return switch (freshness) {
+      MakoloFreshnessCue.unknown => '',
       MakoloFreshnessCue.current => '',
       MakoloFreshnessCue.oldObservation =>
         'Données plus anciennes, encore disponibles pour consultation.',
@@ -204,20 +218,25 @@ class MakoloFreshnessNotice extends StatelessWidget {
         'Une mise à jour est recommandée lorsque la source est joignable.',
       MakoloFreshnessCue.revalidationRequired =>
         'Une vérification distante est nécessaire avant l’action.',
+      MakoloFreshnessCue.expired => 'Cette observation a expiré. Une revalidation distante est nécessaire avant de continuer.',
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    if (freshness == MakoloFreshnessCue.current) {
+    if (freshness == MakoloFreshnessCue.unknown ||
+        freshness == MakoloFreshnessCue.current) {
       return const SizedBox.shrink();
     }
+    final requiresRevalidation =
+        freshness == MakoloFreshnessCue.revalidationRequired ||
+        freshness == MakoloFreshnessCue.expired;
     return MakoloNotice(
       message: _message,
-      kind: freshness == MakoloFreshnessCue.revalidationRequired
+      kind: requiresRevalidation
           ? MakoloNoticeKind.warning
           : MakoloNoticeKind.info,
-      behavior: freshness == MakoloFreshnessCue.revalidationRequired
+      behavior: requiresRevalidation
           ? MakoloNoticeBehavior.persistent
           : MakoloNoticeBehavior.transient,
     );
