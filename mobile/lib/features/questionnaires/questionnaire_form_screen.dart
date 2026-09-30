@@ -172,12 +172,10 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
       if (missing) continue;
       if (value is String) {
         if (question.minLength != null && value.length < question.minLength!) {
-          errors[question.key] =
-              'Minimum ${question.minLength} caractères.';
+          errors[question.key] = 'Minimum ${question.minLength} caractères.';
         }
         if (question.maxLength != null && value.length > question.maxLength!) {
-          errors[question.key] =
-              'Maximum ${question.maxLength} caractères.';
+          errors[question.key] = 'Maximum ${question.maxLength} caractères.';
         }
       }
     }
