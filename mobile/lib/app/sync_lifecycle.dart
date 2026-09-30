@@ -113,6 +113,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     }
     try {
       await sync.refreshRoots();
+      await widget.runtime.outboxProcessor?.run();
       final failedSources =
           await (database.select(database.syncSources)..where(
                 (row) =>
