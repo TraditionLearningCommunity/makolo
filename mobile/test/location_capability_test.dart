@@ -64,7 +64,9 @@ class FakeLocationService implements LocationService {
 
 void main() {
   test('denied location does not touch the native service', () async {
-    final permissions = FakePermissionGateway(PermissionDecision.permanentlyDenied);
+    final permissions = FakePermissionGateway(
+      PermissionDecision.permanentlyDenied,
+    );
     final service = FakeLocationService();
 
     final result = await LocationCapability(
