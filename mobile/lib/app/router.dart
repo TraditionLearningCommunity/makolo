@@ -574,11 +574,9 @@ GoRouter createMakoloRouter(
           return AccessDetailScreen(
             accessId: state.pathParameters['id']!,
             repository: accesses,
-            onOpenDayOf: (handoff) => context.push(
-              '/occurrences/${handoff.occurrenceId}/day-of',
-            ),
-            onOpenJourney: (journeyId) =>
-                context.push('/journeys/$journeyId'),
+            onOpenDayOf: (handoff) =>
+                context.push('/occurrences/${handoff.occurrenceId}/day-of'),
+            onOpenJourney: (journeyId) => context.push('/journeys/$journeyId'),
           );
         },
       ),
@@ -593,8 +591,7 @@ GoRouter createMakoloRouter(
           if (accesses == null || credentialPath == null) {
             return const MakoloSecondaryScreen(
               title: 'QR d’accès',
-              message:
-                  'Rouvrez ce QR depuis le Jour J afin de revalider son lien propriétaire.',
+              message: 'Rouvrez ce QR depuis le Jour J afin de revalider son lien propriétaire.',
             );
           }
           return AccessCredentialScreen(
