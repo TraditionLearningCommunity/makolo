@@ -52,6 +52,29 @@ def _raise_service(exc):
     raise exc
 
 
+def _plan_steps_payload(configuration):
+    template = configuration.journey_plan_template
+    if template is None:
+        return []
+    return [
+        {
+            "key": step.key,
+            "actor_kind": step.actor_kind,
+            "kind": step.kind,
+            "title": step.title,
+            "description": step.description,
+            "position": step.position,
+            "is_required": step.is_required,
+            "relative_due_days": step.relative_due_days,
+            "depends_on": [
+                dependency.depends_on.key
+                for dependency in step.dependencies.all()
+            ],
+        }
+        for step in template.steps.prefetch_related("dependencies__depends_on").all()
+    ]
+
+
 def _configuration_payload(configuration):
     return {
         "version": configuration.version,
@@ -60,6 +83,7 @@ def _configuration_payload(configuration):
         "minimum_targets": configuration.minimum_targets,
         "beneficiary_confirmation_required": configuration.beneficiary_confirmation_required,
         "operator_confirmation_required": configuration.operator_confirmation_required,
+        "plan_steps": _plan_steps_payload(configuration),
         "targets": [
             {
                 "id": str(target.pk),
@@ -288,6 +312,7 @@ class ObtentionDetailAPIView(APIView):
             "minimum_targets": configuration.minimum_targets,
             "beneficiary_confirmation_required": configuration.beneficiary_confirmation_required,
             "operator_confirmation_required": configuration.operator_confirmation_required,
+            "plan_steps": _plan_steps_payload(configuration),
             "status": obtention.activity.status,
             "visibility": obtention.activity.visibility,
         }
