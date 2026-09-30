@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -329,7 +328,7 @@ void main() {
     expect(operation.state, OutboxState.confirmed.wireValue);
     expect(saves, 1);
     expect(submits, 1);
-    expect(detailReads, greaterThanOrEqualTo(0));
+    expect(detailReads, 1);
     expect(journeyReads, 1);
     expect(
       await drafts.read(
