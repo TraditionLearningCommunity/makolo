@@ -163,9 +163,7 @@ class DiscoverySelector {
     final price = _map(item['price']);
     final saved = _map(item['saved']);
     final capabilities = item['capabilities'] is List
-        ? (item['capabilities'] as List)
-              .whereType<String>()
-              .toSet()
+        ? (item['capabilities'] as List).whereType<String>().toSet()
         : <String>{};
     final links = <String, String>{};
     final rawLinks = _map(item['links']);
@@ -211,7 +209,7 @@ class DiscoverySelector {
       eyebrow: _text(representation?['eyebrow']),
       owner: _text(owner?['display_name']),
       place: placeParts.isEmpty ? null : placeParts.join(' · '),
-      timing: timingText?.trim().isEmpty == true ? null : timingText,
+      timing: timingText.trim().isEmpty ? null : timingText,
       availability: _text(availability?['state']),
       price: priceText,
       savedState: _text(saved?['state']) ?? 'unknown',
