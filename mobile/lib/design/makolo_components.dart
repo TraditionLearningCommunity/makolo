@@ -16,14 +16,16 @@ class MakoloStatus extends StatelessWidget {
   final MakoloStatusTone tone;
   final IconData? icon;
 
-  Color _accent(BuildContext context) => switch (tone) {
-        MakoloStatusTone.neutral =>
-          Theme.of(context).colorScheme.onSurfaceVariant,
-        MakoloStatusTone.info => context.makoloSurfaces.info,
-        MakoloStatusTone.success => context.makoloSurfaces.success,
-        MakoloStatusTone.warning => context.makoloSurfaces.warning,
-        MakoloStatusTone.error => Theme.of(context).colorScheme.error,
-      };
+  Color _accent(BuildContext context) {
+    return switch (tone) {
+      MakoloStatusTone.neutral =>
+        Theme.of(context).colorScheme.onSurfaceVariant,
+      MakoloStatusTone.info => context.makoloSurfaces.info,
+      MakoloStatusTone.success => context.makoloSurfaces.success,
+      MakoloStatusTone.warning => context.makoloSurfaces.warning,
+      MakoloStatusTone.error => Theme.of(context).colorScheme.error,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,9 +55,9 @@ class MakoloStatus extends StatelessWidget {
                   child: Text(
                     label,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: accent,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: accent,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -86,38 +88,39 @@ class MakoloMetadata extends StatelessWidget {
   final double spacing;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-        spacing: spacing,
-        runSpacing: MakoloSpacing.sm,
-        children: [
-          for (final item in items)
-            Semantics(
-              label: item.label,
-              child: ExcludeSemantics(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (item.icon != null) ...[
-                      Icon(
-                        item.icon,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: MakoloSpacing.xs),
-                    ],
-                    Text(
-                      item.label,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: spacing,
+      runSpacing: MakoloSpacing.sm,
+      children: [
+        for (final item in items)
+          Semantics(
+            label: item.label,
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (item.icon != null) ...[
+                    Icon(
+                      item.icon,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
+                    const SizedBox(width: MakoloSpacing.xs),
                   ],
-                ),
+                  Text(
+                    item.label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
-      );
+          ),
+      ],
+    );
+  }
 }
 
 class MakoloSection extends StatelessWidget {
@@ -127,8 +130,9 @@ class MakoloSection extends StatelessWidget {
     required this.child,
     this.description,
     this.action,
-    this.padding =
-        const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: MakoloSpacing.inner,
+    ),
   });
 
   final String title;
@@ -138,48 +142,44 @@ class MakoloSection extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleLarge),
+                    if (description != null) ...[
+                      const SizedBox(height: MakoloSpacing.xs),
                       Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      if (description != null) ...[
-                        const SizedBox(height: MakoloSpacing.xs),
-                        Text(
-                          description!,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
+                        description!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                      ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-                if (action != null) ...[
-                  const SizedBox(width: MakoloSpacing.sm),
-                  action!,
-                ],
+              ),
+              if (action != null) ...[
+                const SizedBox(width: MakoloSpacing.sm),
+                action!,
               ],
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            child,
-          ],
-        ),
-      );
+            ],
+          ),
+          const SizedBox(height: MakoloSpacing.md),
+          child,
+        ],
+      ),
+    );
+  }
 }
 
 class MakoloCard extends StatelessWidget {
