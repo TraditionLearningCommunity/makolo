@@ -57,10 +57,7 @@ class LocationWatchResult {
 }
 
 class LocationCapability {
-  const LocationCapability({
-    required this.permissions,
-    required this.service,
-  });
+  const LocationCapability({required this.permissions, required this.service});
 
   final PermissionGateway permissions;
   final LocationService service;
@@ -119,10 +116,7 @@ class LocationCapability {
 
     try {
       final subscription = service
-          .watch(
-            distanceFilterMeters: distanceFilterMeters,
-            accuracy: accuracy,
-          )
+          .watch(distanceFilterMeters: distanceFilterMeters, accuracy: accuracy)
           .listen(
             onFix,
             onError: onError == null
