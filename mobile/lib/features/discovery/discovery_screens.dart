@@ -374,19 +374,19 @@ class _DiscoveryUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final message = source?.reachability == ReachabilityState.unreachable
+        ? 'Le réseau est indisponible et aucune copie locale de ce corpus n’existe encore.'
+        : 'Impossible de charger de nouvelles possibilités pour le moment.';
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(MakoloSpacing.inner),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Impossible de charger de nouvelles possibilités pour le moment.',
-              textAlign: TextAlign.center,
-            ),
+            Text(message, textAlign: TextAlign.center),
             const SizedBox(height: MakoloSpacing.md),
             OutlinedButton(
-              onPressed: onRetry,
+              onPressed: () => unawaited(onRetry()),
               child: const Text('Réessayer'),
             ),
           ],
