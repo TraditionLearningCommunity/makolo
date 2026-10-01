@@ -17,7 +17,7 @@
       <a href="{{ space_root_url }}" {% if space_nav_key == 'now' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="clock-3"></i><span>Maintenant</span></a>
       <a href="{{ space_discover_url }}" {% if space_nav_key == 'discover' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="compass"></i><span>Découvrir</span></a>
       <a href="{{ space_mark_url }}" class="mk-rail-mark{% if space_nav_key == 'mark' %} is-active{% endif %}" aria-label="Makolo Mark" {% if space_nav_key == 'mark' %}aria-current="page"{% endif %}><span class="mk-rail-mark__symbol">{% include 'partials/makolo_mark_inline.html' %}</span><span>Makolo</span></a>
-      <a href="{{ space_work_url }}" {% if space_nav_key == 'work' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="briefcase-business"></i><span>{{ space_business_label }}</span></a>
+      <a href="{{ space_work_url }}" {% if space_nav_key == 'work' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="activity"></i><span>{{ space_business_label }}</span></a>
       <a href="{{ space_us_url }}" {% if space_nav_key == 'us' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="users-round"></i><span>Nous</span></a>
     </nav>
   {% elif request.user.is_authenticated %}
