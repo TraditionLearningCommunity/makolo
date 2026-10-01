@@ -1,4 +1,6 @@
 (() => {
+  const boundRoots = new WeakSet();
+
   const copyText = async (value) => {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(value);
@@ -17,6 +19,7 @@
   };
 
   const bindShare = (root) => {
+    if (boundRoots.has(root)) return;
     const createUrl = root.dataset.createUrl;
     const searchUrl = root.dataset.profileSearchUrl;
     const form = root.querySelector('form');
@@ -37,6 +40,7 @@
     let sendingRecipient = null;
 
     if (!createUrl || !form) return;
+    boundRoots.add(root);
     if (!navigator.share && nativeButton) nativeButton.hidden = true;
 
     const setFeedback = (message) => {
@@ -175,7 +179,16 @@
     });
   };
 
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('[data-makolo-share]').forEach(bindShare);
-  });
+  const bindAll = (scope = document) => {
+    if (scope?.matches?.('[data-makolo-share]')) bindShare(scope);
+    scope?.querySelectorAll?.('[data-makolo-share]').forEach(bindShare);
+  };
+
+  window.MakoloShare = { bind: bindAll };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => bindAll(document), { once: true });
+  } else {
+    bindAll(document);
+  }
 })();
