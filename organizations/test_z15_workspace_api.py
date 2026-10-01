@@ -290,6 +290,7 @@ class Z15WorkspaceContractTests(TestCase):
         response = self.client.get("/api/v1/organizations/workspaces/z15-space/")
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["authority"]["scope"], "activity_limited")
+        self.assertEqual(response.data["responsibilities"][0]["scope"], "activity_limited")
         self.assertTrue(response.data["authority"]["limited_to_activities"])
         scoped = [row for row in response.data["responsibilities"] if row["scope"] == "activity"]
         self.assertEqual(len(scoped), 1)
