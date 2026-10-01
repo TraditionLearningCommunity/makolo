@@ -6,6 +6,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from core.mark_orchestration import MARK_TEXT_MAX_LENGTH, mark_web_url, orchestrate_mark
+from core.web.fragments import FragmentTemplateMixin
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -169,8 +170,9 @@ def _ongoing_funding_item(funding):
     }
 
 
-class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
+class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, TemplateView):
     template_name = "core/participant_ongoing.html"
+    fragment_template_name = "core/participant_ongoing_fragment.html"
     login_url = "core:login"
 
     def get_context_data(self, **kwargs):
