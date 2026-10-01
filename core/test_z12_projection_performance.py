@@ -57,13 +57,13 @@ class Z12ProjectionPerformanceTests(TestCase):
     def test_ongoing_stops_after_the_first_family_fills_response_budget(self):
         self._journeys(ONGOING_LIMIT + 12)
         with patch(
-            "core.api.personal_projections.participant_active_accesses",
+            "core.read_models.personal_ongoing.participant_active_accesses",
             side_effect=AssertionError("Access must not be queried after the response is full."),
         ), patch(
-            "core.api.personal_projections.owned_dossiers_for_profile",
+            "core.read_models.personal_ongoing.owned_dossiers_for_profile",
             side_effect=AssertionError("Dossier must not be queried after the response is full."),
         ), patch(
-            "core.api.personal_projections.owned_projects_for_profile",
+            "core.read_models.personal_ongoing.owned_projects_for_profile",
             side_effect=AssertionError("Project must not be queried after the response is full."),
         ):
             data = build_personal_ongoing_projection(self.user)
