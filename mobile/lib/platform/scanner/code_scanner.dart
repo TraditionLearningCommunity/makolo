@@ -27,15 +27,13 @@ class ScannedCodeIngress {
 }
 
 class MakoloCodeScanner extends StatelessWidget {
-  const MakoloCodeScanner({required this.onCode, this.controller, super.key});
+  const MakoloCodeScanner({required this.onCode, super.key});
 
   final ValueChanged<ScannedCode> onCode;
-  final MobileScannerController? controller;
 
   @override
   Widget build(BuildContext context) {
     return MobileScanner(
-      controller: controller,
       onDetect: (capture) {
         for (final barcode in capture.barcodes) {
           final value = barcode.rawValue;
