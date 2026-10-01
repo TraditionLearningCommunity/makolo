@@ -21,10 +21,11 @@ Future<void> _pumpRoute(
   String location,
 ) async {
   final router = createMakoloRouter(runtime, onAuthenticationChanged: () {});
+  addTearDown(router.dispose);
+  router.go(location);
   await tester.pumpWidget(
     MaterialApp.router(theme: buildMakoloTheme(), routerConfig: router),
   );
-  router.go(location);
   await tester.pumpAndSettle();
 }
 
