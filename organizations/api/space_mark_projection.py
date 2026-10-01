@@ -7,6 +7,7 @@ from uuid import UUID
 from authorization.constants import PermissionCode
 from authorization.services import can
 from operations.space_day_of import build_space_operator_day_of
+from organizations.services import add_or_update_member, find_user_for_team
 from scanner.space_context import build_scanner_context
 
 
@@ -144,22 +145,78 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
 
     if any(term in folded for term in ("equipe", "team", "ajoute paul", "ajoute marie", "ajoute un membre")):
         team_link = f"/api/v1/organizations/workspaces/{space.slug}/team/"
+        if not can(profile, PermissionCode.SPACE_TEAM_MANAGE, space):
+            return _response(
+                state="forbidden",
+                intent="add_team_member" if "ajoute" in folded else "open_team",
+                message="Cette surface exige une autorité Team réelle.",
+                result={"reason": "team_manage_authority_required"},
+            )
+
         if "ajoute" in folded:
+            team_member = _mapping(context.get("team_member"))
+            email = str(team_member.get("email") or "").strip().lower()
+            role = str(team_member.get("role") or "").strip()
+            if not email or not role:
+                return _response(
+                    state="needs_clarification",
+                    intent="add_team_member",
+                    message="Il faut identifier précisément le Profil et la responsabilité à lui attribuer.",
+                    question={"code": "team_member_identity_and_responsibility", "options": []},
+                    handoff={"owner": "organizations", "surface": "team"},
+                    links={"owner": team_link},
+                )
+
+            action = {
+                "code": "add_team_member",
+                "consequence": f"Ajouter {email} à l’équipe de {space.name} avec la responsabilité {role}.",
+                "target": {"email": email, "role": role},
+            }
+            confirmation = _mapping(context.get("confirmation"))
+            confirmed = (
+                confirmation.get("code") == action["code"]
+                and str(confirmation.get("email") or "").strip().lower() == email
+                and str(confirmation.get("role") or "").strip() == role
+            )
+            if not confirmed:
+                return _response(
+                    state="needs_confirmation",
+                    intent="add_team_member",
+                    message="Cette action modifiera réellement l’équipe du Space.",
+                    action=action,
+                    handoff={"owner": "organizations", "surface": "team"},
+                    links={"owner": team_link},
+                )
+
+            # Revalidate authority immediately before the owner mutation.
             if not can(profile, PermissionCode.SPACE_TEAM_MANAGE, space):
                 return _response(
                     state="forbidden",
                     intent="add_team_member",
-                    message="Cette action exige une autorité Team réelle.",
+                    message="L’autorité nécessaire n’est plus disponible.",
                     result={"reason": "team_manage_authority_required"},
                 )
+            target = find_user_for_team(email=email)
+            membership = add_or_update_member(
+                organization=space,
+                actor=profile,
+                user=target,
+                role=role,
+            )
             return _response(
-                state="needs_clarification",
+                state="completed",
                 intent="add_team_member",
-                message="Il faut identifier précisément le Profil et la responsabilité à lui attribuer.",
-                question={"code": "team_member_identity_and_responsibility", "options": []},
+                message="Le domaine Organizations a mis à jour l’équipe.",
+                result={
+                    "kind": "team_membership",
+                    "id": str(membership.pk),
+                    "profile_id": str(membership.user_id),
+                    "responsibility": role,
+                },
                 handoff={"owner": "organizations", "surface": "team"},
                 links={"owner": team_link},
             )
+
         return _response(
             state="resolved",
             intent="open_team",
