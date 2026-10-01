@@ -78,8 +78,11 @@ class MakoloAvatarSheet extends StatelessWidget {
           final activationPercentage = activation is Map
               ? activation['percentage']
               : null;
+          final activationPercent = activationPercentage is num
+              ? activationPercentage.round()
+              : null;
           final showActivation =
-              activationPercentage is num && activationPercentage < 100;
+              activationPercent != null && activationPercent < 100;
           final firstLetter =
               displayName != null && displayName.trim().isNotEmpty
               ? displayName.trim().substring(0, 1).toUpperCase()
@@ -124,7 +127,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                           if (showActivation) ...[
                             const SizedBox(height: MakoloSpacing.xs),
                             Text(
-                              'Profil Makolo · ${(activationPercentage as num).round()} % activé',
+                              'Profil Makolo · $activationPercent % activé',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w600,
