@@ -10,6 +10,10 @@ const _sensitiveKeyFragments = {
   'payload',
   'document',
   'file_path',
+  'filepath',
+  'accesscredential',
+  'refresh_token',
+  'jwt',
 };
 
 Map<String, String> safeDiagnosticTags(Map<String, Object?> tags) {
