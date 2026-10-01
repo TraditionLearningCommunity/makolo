@@ -215,6 +215,9 @@ class ZS5SpaceMarkTests(TestCase):
         self.admin = User.objects.create_user(
             username="zs5-mark-admin", email="zs5-mark-admin@test.local", password="x"
         )
+        self.limited = User.objects.create_user(
+            username="zs5-mark-limited", email="zs5-mark-limited@test.local", password="x"
+        )
         self.space = Organization.objects.create(
             name="ZS5 Mark Space", slug="zs5-mark-space", created_by=self.owner
         )
@@ -228,6 +231,28 @@ class ZS5SpaceMarkTests(TestCase):
             profile=self.admin,
             space=self.space,
             role=SystemRoleCode.SPACE_ADMIN,
+            granted_by=self.owner,
+        )
+        self.allowed_activity = Activity.objects.create(
+            title="ZS5 Mark Activity",
+            space=self.space,
+            created_by=self.owner,
+        )
+        self.foreign_activity = Activity.objects.create(
+            title="ZS5 Mark Foreign Activity",
+            space=self.space,
+            created_by=self.owner,
+        )
+        self.foreign_occurrence = Occurrence.objects.create(
+            activity=self.foreign_activity,
+            start_at=timezone.now() - timedelta(minutes=10),
+            end_at=timezone.now() + timedelta(hours=1),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        grant_activity_role(
+            profile=self.limited,
+            activity=self.allowed_activity,
+            role=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
             granted_by=self.owner,
         )
         team = Team.objects.create(
@@ -280,6 +305,16 @@ class ZS5SpaceMarkTests(TestCase):
             context={"permission": "space.team.manage"},
         )
         self.assertEqual(spoof.status_code, 400)
+
+    def test_activity_limited_mark_does_not_disclose_other_activity_occurrence(self):
+        response = self._post(
+            self.limited,
+            "Ouvre le Jour J",
+            context={"occurrence_id": str(self.foreign_occurrence.pk)},
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["data"]["state"], "unknown")
+        self.assertNotIn(str(self.foreign_occurrence.pk), response.content.decode())
 
     def test_mark_uses_bounded_clarification_and_honest_unsupported_state(self):
         clarification = self._post(self.owner, "Ouvre le scanner")
