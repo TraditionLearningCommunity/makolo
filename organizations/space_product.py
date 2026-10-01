@@ -145,3 +145,23 @@ def operational_footprint_for_space(space) -> SpaceOperationalFootprint:
         signals.append("trust")
 
     return SpaceOperationalFootprint(signals=tuple(dict.fromkeys(signals)))
+
+
+SPACE_RELATIONSHIP_LABELS = {
+    SpaceArchetype.GENERIC: "Personnes & relations",
+    SpaceArchetype.CREATIVE: "Publics & partenaires",
+    SpaceArchetype.MEDIA: "Publics & partenaires",
+    SpaceArchetype.EDUCATION: "Groupes, personnes & partenaires",
+    SpaceArchetype.COMMERCE: "Clients & relations",
+    SpaceArchetype.SERVICE_PROVIDER: "Clients & partenaires",
+    SpaceArchetype.TRANSPORT_OPERATOR: "Relations",
+    SpaceArchetype.COMMUNITY: "Communauté & partenaires",
+}
+
+
+def relationships_label_for_space(space) -> str:
+    try:
+        archetype = SpaceArchetype(space.archetype)
+    except (ValueError, AttributeError):
+        archetype = SpaceArchetype.GENERIC
+    return SPACE_RELATIONSHIP_LABELS[archetype]
