@@ -8,12 +8,12 @@
   {% if projection.items %}
     <div class="mk-panel p-5">
       <p class="font-bold">Le serveur expose {{ projection.items|length }} possibilité{{ projection.items|length|pluralize }}.</p>
-      <p class="mt-2 text-sm" style="color:var(--mk-muted)">WS2 prendra en charge l’exploration complète sans reranking côté navigateur.</p>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">La sélection reste celle fournie par le serveur ; le navigateur ne la reclasse pas.</p>
     </div>
   {% else %}
     <div class="mk-panel p-6" role="status">
       <p class="text-xl font-extrabold">Aucune sélection collective n’est disponible pour l’instant.</p>
-      <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Le Web respecte le contrat ZS : aucune recommandation ou heuristique locale n’est fabriquée.</p>
+      <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Aucune recommandation locale n’est fabriquée lorsque le serveur ne dispose pas d’une sélection sûre.</p>
     </div>
   {% endif %}
 </section>
