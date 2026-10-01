@@ -91,10 +91,15 @@ def _responsibility_projection(profile, space, mandates=None):
         )
     perspectives = []
     if mandates:
+        combined_scope = (
+            "space"
+            if any(mandate.scope_type == AuthorityScope.SPACE for mandate in mandates)
+            else "activity_limited"
+        )
         perspectives.append({
             "key": "all",
             "label": "Toutes mes responsabilités",
-            "scope": "space",
+            "scope": combined_scope,
             "combined": True,
         })
     for mandate in mandates:
