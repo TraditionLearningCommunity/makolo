@@ -680,28 +680,34 @@ def _payment_ongoing_item(payment):
 
 
 def build_personal_ongoing_projection(profile, *, observed_at=None):
-    """Serialize the shared personal En cours read model for API/mobile."""
+    """Serialize the shared bounded En cours read model for API/mobile."""
+
     entries = build_personal_ongoing_read_model(
         profile,
         observed_at=observed_at,
         limit=ONGOING_LIMIT,
     )
-    serializers = {
-        "journey": lambda entry: _journey_ongoing_item(entry.value, entry.readiness),
-        "access": lambda entry: _access_ongoing_item(entry.value),
-        "dossier": lambda entry: _dossier_ongoing_item(
-            entry.value,
-            readiness=entry.readiness,
-        ),
-        "project": lambda entry: _project_ongoing_item(entry.value),
-        "waitlist": lambda entry: _waitlist_ongoing_item(entry.value),
-        "transfer": lambda entry: _transfer_ongoing_item(
-            entry.value,
-            profile=profile,
-        ),
-        "payment": lambda entry: _payment_ongoing_item(entry.value),
-    }
-    items = [serializers[entry.kind](entry) for entry in entries]
+    items = []
+    for entry in entries:
+        if entry.kind == "journey":
+            items.append(_journey_ongoing_item(entry.value, entry.readiness))
+        elif entry.kind == "access":
+            items.append(_access_ongoing_item(entry.value))
+        elif entry.kind == "dossier":
+            items.append(
+                _dossier_ongoing_item(
+                    entry.value,
+                    readiness=entry.readiness,
+                )
+            )
+        elif entry.kind == "project":
+            items.append(_project_ongoing_item(entry.value))
+        elif entry.kind == "waitlist":
+            items.append(_waitlist_ongoing_item(entry.value))
+        elif entry.kind == "transfer":
+            items.append(_transfer_ongoing_item(entry.value, profile=profile))
+        elif entry.kind == "payment":
+            items.append(_payment_ongoing_item(entry.value))
 
     if not items:
         return {"items": []}
