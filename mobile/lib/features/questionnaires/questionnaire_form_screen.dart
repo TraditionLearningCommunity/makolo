@@ -209,7 +209,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
           });
         }
 
-        return StreamBuilder<List<OutboxOperation>>(
+        return StreamBuilder<List<OutboxResourceOperation>>(
           stream: widget.outbox.watchResource(
             operationKind: QuestionnaireSubmitCoordinator.operationKind,
             resourceId: widget.requestId,
@@ -262,14 +262,14 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
     );
   }
 
-  bool _operationActive(OutboxOperation? operation) {
+  bool _operationActive(OutboxResourceOperation? operation) {
     if (operation == null) return false;
     return operation.state == OutboxState.queued.wireValue ||
         operation.state == OutboxState.inFlight.wireValue ||
         operation.state == OutboxState.awaitingConfirmation.wireValue;
   }
 
-  MakoloCommitCue _commitCue(OutboxOperation? operation) {
+  MakoloCommitCue _commitCue(OutboxResourceOperation? operation) {
     if (operation == null) {
       return _initializedAnswers
           ? MakoloCommitCue.savedOnDevice
