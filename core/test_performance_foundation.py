@@ -7,7 +7,7 @@ from django.test import RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import resolve
 
-from accounts.models import UserProfile
+from accounts.models import NotificationPreference, UserProfile
 from accounts.profile_activation import build_profile_activation_summary
 from accounts.templatetags.profile_activation_tags import profile_activation_summary
 from activities.models import Activity
@@ -213,6 +213,22 @@ class WebReadPathRegressionTests(TestCase):
         response = self.client.get("/me/moi/")
         self.assertEqual(response.status_code, 200)
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+
+    def test_account_settings_get_does_not_bootstrap_profile_or_preferences(self):
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
+        response = self.client.get("/account/profile/")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
+
+    def test_notification_preferences_gets_are_read_only_web_and_api(self):
+        self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
+        web_response = self.client.get("/notifications/preferences/")
+        api_response = self.client.get("/api/v1/accounts/notification-preferences/")
+        self.assertEqual(web_response.status_code, 200)
+        self.assertEqual(api_response.status_code, 200)
+        self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
 
 
 class PerformanceEnvelopeTests(TestCase):
