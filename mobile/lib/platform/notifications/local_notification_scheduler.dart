@@ -40,11 +40,13 @@ class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
   final FlutterLocalNotificationsPlugin _plugin;
   final String androidDefaultIcon;
   final StructuredDestinationCodec codec;
+  bool _initialized = false;
 
   @override
   Future<void> initialize({
     required void Function(IncomingIntent intent) onIntent,
   }) async {
+    if (_initialized) return;
     await _plugin.initialize(
       settings: InitializationSettings(
         android: AndroidInitializationSettings(androidDefaultIcon),
@@ -65,6 +67,7 @@ class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
         );
       },
     );
+    _initialized = true;
   }
 
   @override
