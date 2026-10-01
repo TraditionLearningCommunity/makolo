@@ -81,6 +81,38 @@ class MakoloRuntimeConfig {
     required this.location,
   });
 
+  static const _environment = String.fromEnvironment(
+    'MAKOLO_ENVIRONMENT',
+    defaultValue: 'dev',
+  );
+  static const _apiBaseUrl = String.fromEnvironment('MAKOLO_API_BASE_URL');
+  static const _mapsEnabled = String.fromEnvironment(
+    'MAKOLO_MAPS_ENABLED',
+    defaultValue: 'false',
+  );
+  static const _mapStyle = String.fromEnvironment('MAKOLO_MAP_STYLE');
+  static const _firebaseEnabled = String.fromEnvironment(
+    'MAKOLO_FIREBASE_ENABLED',
+    defaultValue: 'false',
+  );
+  static const _sentryEnabled = String.fromEnvironment(
+    'MAKOLO_SENTRY_ENABLED',
+    defaultValue: 'false',
+  );
+  static const _sentryDsn = String.fromEnvironment('MAKOLO_SENTRY_DSN');
+  static const _appLinksEnabled = String.fromEnvironment(
+    'MAKOLO_APP_LINKS_ENABLED',
+    defaultValue: 'false',
+  );
+  static const _appLinksScheme = String.fromEnvironment(
+    'MAKOLO_APP_LINKS_SCHEME',
+  );
+  static const _appLinksHost = String.fromEnvironment('MAKOLO_APP_LINKS_HOST');
+  static const _backgroundLocationEnabled = String.fromEnvironment(
+    'MAKOLO_BACKGROUND_LOCATION_ENABLED',
+    defaultValue: 'false',
+  );
+
   final MakoloRuntimeEnvironment environment;
   final MakoloApiConfig api;
   final MakoloMapsConfig maps;
@@ -91,31 +123,17 @@ class MakoloRuntimeConfig {
 
   static MakoloRuntimeConfig fromEnvironment() {
     return fromValues(const {
-      'MAKOLO_ENVIRONMENT':
-          String.fromEnvironment('MAKOLO_ENVIRONMENT', defaultValue: 'dev'),
-      'MAKOLO_API_BASE_URL': String.fromEnvironment('MAKOLO_API_BASE_URL'),
-      'MAKOLO_MAPS_ENABLED':
-          String.fromEnvironment('MAKOLO_MAPS_ENABLED', defaultValue: 'false'),
-      'MAKOLO_MAP_STYLE': String.fromEnvironment('MAKOLO_MAP_STYLE'),
-      'MAKOLO_FIREBASE_ENABLED': String.fromEnvironment(
-        'MAKOLO_FIREBASE_ENABLED',
-        defaultValue: 'false',
-      ),
-      'MAKOLO_SENTRY_ENABLED':
-          String.fromEnvironment('MAKOLO_SENTRY_ENABLED', defaultValue: 'false'),
-      'MAKOLO_SENTRY_DSN': String.fromEnvironment('MAKOLO_SENTRY_DSN'),
-      'MAKOLO_APP_LINKS_ENABLED': String.fromEnvironment(
-        'MAKOLO_APP_LINKS_ENABLED',
-        defaultValue: 'false',
-      ),
-      'MAKOLO_APP_LINKS_SCHEME':
-          String.fromEnvironment('MAKOLO_APP_LINKS_SCHEME'),
-      'MAKOLO_APP_LINKS_HOST':
-          String.fromEnvironment('MAKOLO_APP_LINKS_HOST'),
-      'MAKOLO_BACKGROUND_LOCATION_ENABLED': String.fromEnvironment(
-        'MAKOLO_BACKGROUND_LOCATION_ENABLED',
-        defaultValue: 'false',
-      ),
+      'MAKOLO_ENVIRONMENT': _environment,
+      'MAKOLO_API_BASE_URL': _apiBaseUrl,
+      'MAKOLO_MAPS_ENABLED': _mapsEnabled,
+      'MAKOLO_MAP_STYLE': _mapStyle,
+      'MAKOLO_FIREBASE_ENABLED': _firebaseEnabled,
+      'MAKOLO_SENTRY_ENABLED': _sentryEnabled,
+      'MAKOLO_SENTRY_DSN': _sentryDsn,
+      'MAKOLO_APP_LINKS_ENABLED': _appLinksEnabled,
+      'MAKOLO_APP_LINKS_SCHEME': _appLinksScheme,
+      'MAKOLO_APP_LINKS_HOST': _appLinksHost,
+      'MAKOLO_BACKGROUND_LOCATION_ENABLED': _backgroundLocationEnabled,
     });
   }
 
@@ -249,8 +267,9 @@ class MakoloRuntimeConfig {
 class MakoloEnvironment {
   const MakoloEnvironment._();
 
-  static MakoloRuntimeConfig get current =>
-      MakoloRuntimeConfig.fromEnvironment();
+  static MakoloRuntimeConfig get current {
+    return MakoloRuntimeConfig.fromEnvironment();
+  }
 
   static Uri? get apiBaseUri => current.api.baseUri;
 }
