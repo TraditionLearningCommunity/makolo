@@ -138,6 +138,8 @@ L'acteur Space est résolu par le serveur via `workspace_spaces(request.user)`. 
 
 `context.responsibility` peut être conservé comme information d'interprétation, mais n'accorde aucun droit.
 
+L'ajout d'un membre à l'équipe fournit un exemple fermé de mutation Mark owner-backed : le Mark collecte une identité et une responsabilité, demande une confirmation décrivant la conséquence humaine, revalide `SPACE_TEAM_MANAGE`, puis appelle `find_user_for_team()` et `add_or_update_member()`. Un replay converge sur la même `TeamMembership`; aucune écriture ORM n'est effectuée par l'orchestrateur.
+
 Sur la base auditée, le Mark Space ferme seulement les handoffs dont les owners sont déjà stables sur `main` :
 
 - Jour J / Live → Operations ;
@@ -218,7 +220,8 @@ Le module `operations/test_zs5_space_action_api.py` couvre notamment :
 - spoof d'autorité client rejeté ;
 - clarification bornée ;
 - unsupported honnête ;
-- input non-text non annoncé comme supporté.
+- input non-text non annoncé comme supporté ;
+- mutation Team owner-backed, confirmation et replay idempotent.
 
 Les suites Scanner existantes restent propriétaires des tests détaillés d'Access invalide/révoqué/wrong occurrence et de replay/idempotence.
 
