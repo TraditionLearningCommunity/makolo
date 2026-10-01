@@ -18,6 +18,7 @@ on:
       - "mobile/pubspec.yaml"
       - "mobile/pubspec.lock"
       - "mobile/.flutter-version"
+      - "mobile/config/dev.json"
       - ".github/workflows/mobile-android-build.yml"
   workflow_dispatch:
 

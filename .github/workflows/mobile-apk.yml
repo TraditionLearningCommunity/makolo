@@ -1,24 +1,35 @@
 name: Mobile APK
 
-# A2 reconciled checkpoint: package the exact integration HEAD for device smoke tests.
+# Package an installable Android DEV artifact.
+# PR quality remains owned by Mobile CI / Mobile Android Build.
+# Automatic main packaging stays fast; a manual full mode is available for checkpoints.
 
 on:
   workflow_dispatch:
     inputs:
-      api_base_url:
-        description: "Makolo API base URL for this test APK"
+      validation_mode:
+        description: "Validation before packaging"
         required: true
-        default: "https://makolo.pythonanywhere.com"
+        default: "quick"
+        type: choice
+        options:
+          - quick
+          - full
+      api_base_url:
+        description: "Optional Makolo API override; empty keeps config/dev.json"
+        required: false
+        default: ""
         type: string
   push:
-    branches:
-      - main
-      - mobile/a1-native-identity-closure
-      - mobile/a1-installed-makolo-core
-      - mobile/a1-shell-behavior-closure
-      - mobile/a2-integration
+    branches: [main]
     paths:
-      - "mobile/**"
+      - "mobile/lib/**"
+      - "mobile/android/**"
+      - "mobile/assets/**"
+      - "mobile/pubspec.yaml"
+      - "mobile/pubspec.lock"
+      - "mobile/.flutter-version"
+      - "mobile/config/dev.json"
       - ".github/workflows/mobile-apk.yml"
 
 concurrency:
@@ -29,7 +40,7 @@ permissions:
   contents: read
 
 jobs:
-  package-debug-apk:
+  package-dev-debug-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -52,23 +63,33 @@ jobs:
           java -version
           flutter --version
       - name: Resolve dependencies
-        run: flutter pub get
-      - name: Generate Drift code
-        run: dart run build_runner build
-      - name: Analyze
-        run: flutter analyze
-      - name: Test
-        run: flutter test --exclude-tags golden
-      - name: Build Android debug APK
-        env:
-          MAKOLO_APK_API_BASE_URL: ${{ inputs.api_base_url || 'https://makolo.pythonanywhere.com' }}
         run: |
-          jq --arg api "$MAKOLO_APK_API_BASE_URL" '.MAKOLO_API_BASE_URL = $api' config/beta.json > /tmp/makolo-beta-runtime.json
-          flutter build apk --debug --flavor beta --dart-define-from-file=/tmp/makolo-beta-runtime.json
-      - name: Publish Android debug APK
+          flutter pub get
+          git diff --exit-code -- pubspec.lock
+      - name: Generate Dart sources
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Full checkpoint validation
+        if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'full'
+        run: |
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test --exclude-tags golden
+      - name: Prepare DEV runtime configuration
+        env:
+          MAKOLO_APK_API_BASE_URL: ${{ inputs.api_base_url || '' }}
+        run: |
+          set -euo pipefail
+          cp config/dev.json /tmp/makolo-dev-runtime.json
+          if [[ -n "$MAKOLO_APK_API_BASE_URL" ]]; then
+            jq --arg api "$MAKOLO_APK_API_BASE_URL"               '.MAKOLO_API_BASE_URL = $api'               /tmp/makolo-dev-runtime.json > /tmp/makolo-dev-runtime.override.json
+            mv /tmp/makolo-dev-runtime.override.json /tmp/makolo-dev-runtime.json
+          fi
+      - name: Build Android DEV debug APK
+        run: flutter build apk --debug --flavor dev --dart-define-from-file=/tmp/makolo-dev-runtime.json
+      - name: Publish Android DEV debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: makolo-android-debug-apk-${{ github.sha }}
-          path: mobile/build/app/outputs/flutter-apk/app-beta-debug.apk
+          name: makolo-android-dev-debug-apk-${{ github.sha }}
+          path: mobile/build/app/outputs/flutter-apk/app-dev-debug.apk
           if-no-files-found: error
           retention-days: 14
