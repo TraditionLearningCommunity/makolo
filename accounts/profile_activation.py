@@ -50,7 +50,11 @@ def build_profile_activation_summary(user, *, profile=None):
         raise ValueError("Profile activation requires an authenticated user.")
 
     if profile is None:
-        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile = UserProfile.objects.filter(user=user).first()
+        if profile is None:
+            # Missing legacy rows are represented in-memory on read. Creation belongs
+            # to account/profile creation flows, never to a presentation GET.
+            profile = UserProfile(user=user)
 
     has_interests = ProfileInterest.objects.filter(profile=user, topic__is_active=True).exists()
     has_open_to = ProfileOpenTo.objects.filter(profile=user, is_active=True).exists()
