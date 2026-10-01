@@ -1,6 +1,6 @@
 # Makolo — Current Program Status
 
-> **Statut : snapshot opérationnel.** Ce document décrit l'état observé du dépôt au **28 septembre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps. En cas de divergence, le code, les migrations, les tests et l'état GitHub courant gagnent.
+> **Statut : snapshot opérationnel.** Ce document décrit l'état observé du dépôt au **2 octobre 2026**. Il ne remplace pas les blueprints de domaine ni les roadmaps. En cas de divergence, le code, les migrations, les tests et l'état GitHub courant gagnent.
 
 ## Référence auditée
 
@@ -19,6 +19,7 @@
 - PR #352 — Bloc D mobile natif : mergée ; conception Permissions/Push/Ingress/Ambient figée avant implémentation
 - PR #355 — Z16 : exposition consommable M7 Profile/Space/Platform ; intégrée après CI verte
 - PR #361 — W8 : consommation Web Profil de Z16 via Avatar → Connexions ; intégrée par ce changement après CI verte
+- PR #419 — ZS6 : réconciliation finale du programme Space UX Projection ; mergée après CI complète verte sur `main@be289f4c0e1c044d297228505b73d0bab789e99c`
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -97,6 +98,23 @@ Le closeout détaillé et les gaps classifiés sont dans [`z14-program-closeout.
 Z15 est un chantier post-closeout borné de réconciliation des capacités backend devenues totalement ou partiellement orphelines. Il ne rouvre pas les surfaces personnelles et ne construit pas W. Son inventaire canonique est [`z15-orphan-capabilities-reconciliation.md`](z15-orphan-capabilities-reconciliation.md).
 
 Z16 ferme l’écart entre le kernel M7 et sa consommation client. Il expose un read contract scoped Profile/Space/Platform, projette les `intelligence.ProviderConnection` sans secrets et conserve des listes vides lorsque les registries M7 n’ont aucune installation runtime. Son contrat canonique est [`z16-interoperability-consumable-contracts.md`](z16-interoperability-consumable-contracts.md).
+
+## 3 bis. Programme ZS — Space UX Projection
+
+État réel après PR #419 :
+
+```text
+ZS1   socle Space UX Projection                         ✅ intégré
+ZS2   Maintenant + Découvrir Space                     ✅ contrat minimal intégré dans ZS6
+ZS3   Métier & Archetype Projections                   ✅ intégré
+ZS4   Nous, Relations & Pilotage                       ✅ intégré
+ZS5   Jour J, Live, Scanner & Makolo Mark              ✅ intégré
+ZS6   réconciliation / sécurité / performance / handoff ✅ intégré via PR #419
+```
+
+ZS2 n'a jamais existé comme branche/PR indépendante. Le runtime final expose désormais `GET /api/v1/organizations/workspaces/<slug>/now/` et `GET /api/v1/organizations/workspaces/<slug>/discover/` avec une collection vide et `selection.state=unavailable` lorsqu'aucun sélecteur sûr n'existe. Aucun ranking, score ou heuristique Molongo n'est introduit.
+
+Le contrat final et les matrices de convergence/autorité/handoff sont dans [`zs6-space-projection-final-handoff.md`](zs6-space-projection-final-handoff.md).
 
 ## 4. Contrat personnel prêt pour client natif
 
