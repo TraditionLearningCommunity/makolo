@@ -9,6 +9,8 @@ import 'launch_gate.dart';
 import 'providers.dart';
 import 'router.dart';
 import 'sync_lifecycle.dart';
+import '../runtime/runtime_ingress_listener.dart';
+import '../runtime/runtime_providers.dart';
 
 final DateTime _makoloLaunchStartedAt = DateTime.now();
 
@@ -45,6 +47,7 @@ class MakoloApp extends ConsumerWidget {
         ),
       ),
       data: (runtime) {
+        final ingress = ref.watch(runtimeIngressProvider);
         final router = createMakoloRouter(
           runtime,
           onAuthenticationChanged: () => ref.invalidate(appRuntimeProvider),
@@ -71,13 +74,20 @@ class MakoloApp extends ConsumerWidget {
               );
             }
 
-            return MakoloSystemUi(
+            final launched = MakoloSystemUi(
               child: LaunchGate(
                 runtime: runtime,
                 router: router,
                 launchStartedAt: _makoloLaunchStartedAt,
                 child: routedChild,
               ),
+            );
+            if (ingress == null) return launched;
+            return RuntimeIngressListener(
+              ingress: ingress,
+              runtime: runtime,
+              router: router,
+              child: launched,
             );
           },
         );
