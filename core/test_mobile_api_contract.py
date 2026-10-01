@@ -25,6 +25,7 @@ from notifications.models import Notification
 from organizations.models import (
     Organization,
     OrganizationVerificationStatus,
+    SpaceLifecycle,
 )
 from payments.models import Payment
 from promotions.models import DiscountType, Promotion, PromotionCode
@@ -366,6 +367,7 @@ class MobileMVPAPIContractTests(TestCase):
             name="Organisation suspendue",
             created_by=self.organizer,
             verification_status=OrganizationVerificationStatus.SUSPENDED,
+            lifecycle=SpaceLifecycle.ACTIVE,
         )
         suspended_event = Event.objects.create(
             organizer=self.organizer,
@@ -376,6 +378,8 @@ class MobileMVPAPIContractTests(TestCase):
             start_at=now + timedelta(days=5),
             end_at=now + timedelta(days=5, hours=2),
         )
+        suspended_org.lifecycle = SpaceLifecycle.SUSPENDED
+        suspended_org.save(update_fields=["lifecycle", "updated_at"])
 
         organizer_client, _ = self._login_existing(self.organizer.email)
         discover = organizer_client.get("/api/v1/events/discover/")

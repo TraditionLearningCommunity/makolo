@@ -22,7 +22,7 @@ from .selectors import (
     get_operations_incidents,
     get_operations_organizations,
 )
-from .services import change_organization_verification, moderate_event
+from .services import change_organization_lifecycle, moderate_event
 
 
 class StaffOperationsMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -56,7 +56,7 @@ class OperationsOrganizationsView(StaffOperationsMixin, TemplateView):
         status = (self.request.GET.get("status") or "").strip()
         query = (self.request.GET.get("q") or "").strip()
         if status:
-            queryset = queryset.filter(verification_status=status)
+            queryset = queryset.filter(lifecycle=status)
         if query:
             queryset = queryset.filter(Q(name__icontains=query) | Q(slug__icontains=query))
         context["organizations"] = queryset[:100]
@@ -71,7 +71,7 @@ class OrganizationReviewView(StaffOperationsMixin, View):
         organization = get_object_or_404(get_operations_organizations(request.user), pk=pk)
         form = OrganizationReviewForm(request.POST)
         if form.is_valid():
-            change_organization_verification(
+            change_organization_lifecycle(
                 organization=organization,
                 status=form.cleaned_data["status"],
                 actor=request.user,

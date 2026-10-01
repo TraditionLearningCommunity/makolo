@@ -29,7 +29,7 @@ from core.participant_presentation import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
 from core.product_language import vocabulary_for
 from operations.participant_occurrence_live import participant_occurrence_live_available
-from organizations.models import OrganizationVerificationStatus
+from organizations.models import SpaceLifecycle
 
 
 PUBLIC_ACTIVITY_STATUSES = {
@@ -62,7 +62,7 @@ def _public_activity_detail_filter():
         )
         & (
             Q(space__isnull=True)
-            | ~Q(space__verification_status=OrganizationVerificationStatus.SUSPENDED)
+            | Q(space__lifecycle=SpaceLifecycle.ACTIVE)
         )
     )
 
@@ -117,9 +117,7 @@ def _visible_occurrence_queryset(user):
         activity__status__in=PUBLIC_ACTIVITY_STATUSES,
     ) & (
         Q(activity__space__isnull=True)
-        | ~Q(
-            activity__space__verification_status=OrganizationVerificationStatus.SUSPENDED
-        )
+        | Q(activity__space__lifecycle=SpaceLifecycle.ACTIVE)
     )
     if not _authenticated(user):
         return queryset.filter(public).distinct()
@@ -292,8 +290,7 @@ class ActivityDetailAPIView(APIView):
             and activity.status in PUBLIC_ACTIVITY_STATUSES
             and (
                 activity.space_id is None
-                or activity.space.verification_status
-                != OrganizationVerificationStatus.SUSPENDED
+                or activity.space.lifecycle == SpaceLifecycle.ACTIVE
             )
         )
         structural_visibility = _has_structural_activity_visibility(
@@ -399,8 +396,7 @@ class OccurrenceDetailAPIView(APIView):
             and occurrence.status in PUBLIC_OCCURRENCE_STATUSES
             and (
                 activity.space_id is None
-                or activity.space.verification_status
-                != OrganizationVerificationStatus.SUSPENDED
+                or activity.space.lifecycle == SpaceLifecycle.ACTIVE
             )
         )
         structural_visibility = _has_structural_activity_visibility(

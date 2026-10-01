@@ -246,3 +246,82 @@ def remove_member_from_space(*, membership, actor):
     ).update(is_active=False)
     membership.refresh_from_db()
     return membership
+
+
+@transaction.atomic
+def transfer_space_ownership(*, membership, actor, relinquish_current_owner=True):
+    """Atomically transfer the acting Owner's ownership to one active collaborator.
+
+    The Space row serializes concurrent ownership changes. The target receives
+    SPACE_OWNER before the acting Owner is optionally demoted, so the last-owner
+    invariant is preserved throughout the transaction.
+    """
+    space = _lock_space(membership.team.organization)
+    target = _lock_membership(membership=membership, space=space)
+    _require_active_member(target)
+    if not target.user.is_active:
+        raise ValidationError("Le destinataire doit être un Profile actif.")
+    _require_ownership_management(actor=actor, space=space)
+
+    if not _is_current_owner(profile=actor, space=space):
+        raise PermissionDenied("Le transfert doit être initié par un Owner actuel.")
+
+    target_owner = replace_standard_space_role(
+        profile=target.user,
+        space=space,
+        role_code=SystemRoleCode.SPACE_OWNER,
+        granted_by=actor,
+        source="space-ownership-transfer",
+    )
+    _sync_legacy_space_role(
+        membership=target,
+        space=space,
+        role_code=SystemRoleCode.SPACE_OWNER,
+        actor=actor,
+    )
+
+    relinquished = False
+    if relinquish_current_owner and target.user_id != actor.pk:
+        actor_membership = (
+            TeamMembership.objects.select_for_update()
+            .filter(
+                team__organization=space,
+                team__is_default=True,
+                user=actor,
+                status=TeamMembershipStatus.ACTIVE,
+            )
+            .order_by("pk")
+            .first()
+        )
+        if actor_membership is None:
+            raise ValidationError("L'Owner courant doit rester un collaborateur actif pendant le transfert.")
+        replace_standard_space_role(
+            profile=actor,
+            space=space,
+            role_code=SystemRoleCode.SPACE_ADMIN,
+            granted_by=actor,
+            source="space-ownership-transfer",
+        )
+        _sync_legacy_space_role(
+            membership=actor_membership,
+            space=space,
+            role_code=SystemRoleCode.SPACE_ADMIN,
+            actor=actor,
+        )
+        relinquished = True
+
+    from operations.services import audit_action
+
+    audit_action(
+        actor=actor,
+        action="organization.ownership_transferred",
+        target_type="organization",
+        target_id=space.pk,
+        summary=f"Ownership transféré pour {space.name}.",
+        after={
+            "new_owner_profile_id": str(target.user_id),
+            "previous_owner_relinquished": relinquished,
+        },
+        metadata={"source": "space-ownership-transfer"},
+    )
+    return target_owner

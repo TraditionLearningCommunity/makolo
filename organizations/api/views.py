@@ -6,7 +6,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import Organization, OrganizationFollow, OrganizationVerificationStatus
+from organizations.models import Organization, OrganizationFollow, SpaceLifecycle
 from organizations.services import follow_organization, unfollow_organization, update_follow_preferences
 
 from .serializers import (
@@ -38,8 +38,9 @@ class FollowListCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         organization = get_object_or_404(
-            Organization.objects.filter(public_profile=True).exclude(
-                verification_status=OrganizationVerificationStatus.SUSPENDED
+            Organization.objects.filter(
+                public_profile=True,
+                lifecycle=SpaceLifecycle.ACTIVE,
             ),
             pk=data.pop("organization_id"),
         )

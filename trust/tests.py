@@ -12,7 +12,14 @@ from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceSt
 from authorization.constants import SystemRoleCode
 from authorization.services import ensure_platform_admin_mandate, grant_space_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
-from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
+from organizations.models import (
+    Organization,
+    OrganizationVerificationStatus,
+    SpaceLifecycle,
+    Team,
+    TeamMembership,
+    TeamMembershipStatus,
+)
 
 from .models import (
     Feedback,
@@ -103,6 +110,9 @@ class VerificationWorkflowTests(TrustFixtureMixin, TestCase):
         claim = request_verification(actor=self.owner, subject_space=self.space, claim_type=VerificationClaimType.CONTACT)
         claim = decide_verification(claim=claim, actor=self.staff, verified=True)
         revoke_verification(claim=claim, actor=self.staff, reason_code="withdrawn")
+        self.space.refresh_from_db()
+        self.assertEqual(self.space.verification_status, OrganizationVerificationStatus.NEW)
+        self.assertEqual(self.space.lifecycle, SpaceLifecycle.ACTIVE)
         self.assertEqual(get_public_trust_summary(self.space)["verification"], [])
 
     @override_settings(MEDIA_ROOT=tempfile.gettempdir())

@@ -17,7 +17,7 @@ from events.models import Event
 from geography.models import Place
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from notifications.models import Notification
-from organizations.models import Organization
+from organizations.models import Organization, SpaceArchetype
 from services.models import ServiceDetails, ServiceKind
 from transport.models import TransportMode, TransportRoute, TransportService
 
@@ -45,6 +45,7 @@ class M6HardeningTests(TestCase):
         )
         self.space = Organization.objects.create(
             name="M6 hardening space",
+            archetype=SpaceArchetype.TRANSPORT_OPERATOR,
             created_by=self.operator,
             public_profile=True,
         )

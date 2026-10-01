@@ -11,7 +11,7 @@ from authorization.services import can, has_platform_authority
 from .models import (
     OrganizationMembership,
     OrganizationRole,
-    OrganizationVerificationStatus,
+    SpaceLifecycle,
 )
 
 
@@ -91,7 +91,7 @@ def user_has_org_role(user, organization, roles) -> bool:
 def organization_has_public_profile(organization) -> bool:
     return bool(
         organization.public_profile
-        and organization.verification_status != OrganizationVerificationStatus.SUSPENDED
+        and organization.lifecycle == SpaceLifecycle.ACTIVE
     )
 
 

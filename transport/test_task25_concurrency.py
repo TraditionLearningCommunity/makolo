@@ -13,7 +13,7 @@ from access.models import Access
 from commerce.models import CommerceOrder, PaymentMode
 from geography.models import Place
 from journeys.models import Journey
-from organizations.models import Organization
+from organizations.models import Organization, SpaceArchetype
 
 from .models import TransportDeparture, Vehicle
 from .services import (
@@ -42,6 +42,7 @@ class Task25TransportRetryConcurrencyTests(TransactionTestCase):
         space = Organization.objects.create(
             name="T25 Transport Retry Race",
             slug="t25-transport-retry-race",
+            archetype=SpaceArchetype.TRANSPORT_OPERATOR,
             created_by=self.buyer,
         )
         origin = Place.objects.create(

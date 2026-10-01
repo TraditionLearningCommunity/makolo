@@ -10,7 +10,7 @@ from events.models import Event, EventStatus, EventVisibility
 
 from .console_context import authorized_spaces
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
-from .models import Organization, OrganizationFollow, OrganizationVerificationStatus, TeamMembership
+from .models import Organization, OrganizationFollow, OrganizationVerificationStatus, SpaceLifecycle, TeamMembership
 from .permissions import user_can_manage_organization, user_can_manage_organization_team
 from .services import (
     add_or_update_member,
@@ -20,6 +20,7 @@ from .services import (
     follow_organization,
     unfollow_organization,
     update_follow_preferences,
+    update_organization,
 )
 
 
@@ -50,6 +51,7 @@ class OrganizationCreateView(LoginRequiredMixin, CreateView):
         self.object = create_organization(
             creator=self.request.user,
             name=form.cleaned_data["name"],
+            archetype=form.cleaned_data["archetype"],
             description=form.cleaned_data.get("description", ""),
             website=form.cleaned_data.get("website", ""),
             contact_email=form.cleaned_data.get("contact_email", ""),
@@ -70,8 +72,9 @@ class PublicOrganizationDetailView(DetailView):
     slug_url_kwarg = "slug"
 
     def get_queryset(self):
-        return Organization.objects.filter(public_profile=True).exclude(
-            verification_status=OrganizationVerificationStatus.SUSPENDED
+        return Organization.objects.filter(
+            public_profile=True,
+            lifecycle=SpaceLifecycle.ACTIVE,
         )
 
     def get_context_data(self, **kwargs):
@@ -100,8 +103,9 @@ class PublicOrganizationDetailView(DetailView):
 class OrganizationFollowToggleView(LoginRequiredMixin, View):
     def post(self, request, slug):
         organization = get_object_or_404(
-            Organization.objects.filter(public_profile=True).exclude(
-                verification_status=OrganizationVerificationStatus.SUSPENDED
+            Organization.objects.filter(
+                public_profile=True,
+                lifecycle=SpaceLifecycle.ACTIVE,
             ),
             slug=slug,
         )
@@ -168,6 +172,18 @@ class OrganizationUpdateView(LoginRequiredMixin, UpdateView):
         if not user_can_manage_organization(request.user, self.object):
             raise PermissionDenied("Vous ne pouvez pas modifier cet Espace.")
         return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        try:
+            self.object = update_organization(
+                organization=self.object,
+                actor=self.request.user,
+                **{name: form.cleaned_data[name] for name in form.Meta.fields},
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
+            return self.form_invalid(form)
+        return redirect(self.get_success_url())
 
     def get_success_url(self):
         messages.success(self.request, "Espace mis à jour.")

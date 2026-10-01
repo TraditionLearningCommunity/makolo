@@ -13,6 +13,30 @@ class OrganizationVerificationStatus(models.TextChoices):
     SUSPENDED = "suspended", "Suspendu"
 
 
+class SpaceLifecycle(models.TextChoices):
+    ACTIVE = "active", "Actif"
+    SUSPENDED = "suspended", "Suspendu"
+    ARCHIVED = "archived", "Archivé"
+
+
+class SpaceArchetype(models.TextChoices):
+    """Primary operating profile for one Space.
+
+    An archetype describes how Makolo should organize the Space experience by
+    default. It is not a Topic, legal form, Permission, Mandate, Entitlement,
+    or whitelist of Activity verticals.
+    """
+
+    GENERIC = "generic", "Espace générique"
+    CREATIVE = "creative", "Artiste / création"
+    MEDIA = "media", "Média / journalisme"
+    EDUCATION = "education", "Enseignement / formation"
+    COMMERCE = "commerce", "Commerce / distribution"
+    SERVICE_PROVIDER = "service_provider", "Prestataire de services"
+    TRANSPORT_OPERATOR = "transport_operator", "Opérateur de transport"
+    COMMUNITY = "community", "Association / communauté"
+
+
 class OrganizationRole(models.TextChoices):
     """Legacy compatibility roles.
 
@@ -38,6 +62,13 @@ class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=180)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
+    archetype = models.CharField(
+        max_length=32,
+        choices=SpaceArchetype.choices,
+        default=SpaceArchetype.GENERIC,
+        db_default=SpaceArchetype.GENERIC,
+        help_text="Manière principale de fonctionner de cet Espace. Distincte des Topics, verticales, autorisations et Entitlements.",
+    )
     description = models.TextField(blank=True)
     website = models.URLField(blank=True)
     contact_email = models.EmailField(blank=True)
@@ -45,6 +76,13 @@ class Organization(models.Model):
     country = models.CharField(max_length=120, blank=True)
     city = models.CharField(max_length=120, blank=True)
     public_profile = models.BooleanField(default=True)
+    lifecycle = models.CharField(
+        max_length=16,
+        choices=SpaceLifecycle.choices,
+        default=SpaceLifecycle.ACTIVE,
+        db_default=SpaceLifecycle.ACTIVE,
+        help_text="État opérationnel de l'Espace, distinct de sa vérification Trust.",
+    )
     verification_status = models.CharField(max_length=20, choices=OrganizationVerificationStatus.choices, default=OrganizationVerificationStatus.NEW)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_organizations")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -54,6 +92,7 @@ class Organization(models.Model):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["verification_status", "public_profile"], name="organizatio_verific_68b188_idx"),
+            models.Index(fields=["lifecycle", "public_profile"], name="org_lifecycle_public_idx"),
             models.Index(fields=["created_at"], name="organizatio_created_dde2e1_idx"),
         ]
 

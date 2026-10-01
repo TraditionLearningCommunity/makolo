@@ -83,6 +83,38 @@ La Console lit directement :
 
 Aucun compteur Console ne doit additionner simultanément Ticket + Access, TicketOrder + CommerceOrder ou ScanLog + AccessUse.
 
+## Archétype d’Espace
+
+Un Espace possède un `SpaceArchetype` explicite qui décrit sa **manière principale de fonctionner**. Il pilote un preset de présentation et d’organisation du produit ; il ne définit pas une whitelist de verticales d’Activity.
+
+Il reste strictement distinct :
+
+- d’un `Topic`, qui décrit un sujet ;
+- d’une forme juridique ;
+- d’une verticale d’Activity comme Event, Service, Transport, Funding ou Obtention ;
+- de `TeamMembership`, `Role`, `Permission` et `Mandate` ;
+- des Entitlements de Subscription ;
+- de `Open to`, qui exprime un consentement à être sollicité.
+
+Les archétypes initiaux restent volontairement courts : générique, artiste/création, média/journalisme, enseignement/formation, commerce/distribution, prestataire de services, opérateur de transport et association/communauté.
+
+L’archétype adapte notamment le vocabulaire, la priorité des modules et les parcours suggérés. Il **n’accorde jamais d’autorité**, ne crée aucun Entitlement et n’invalide aucun fait métier existant.
+
+Un `transport_operator` voit naturellement Transport comme centre de gravité. Cela n’interdit pas à un Espace `education`, `commerce`, `service_provider` ou autre d’opérer une verticale Transport. Réciproquement, un opérateur de transport peut opérer Event, Service ou Obtention.
+
+La Console effective compose donc :
+
+```text
+SpaceArchetype preset
++ faits métier existants
++ Subscription Entitlements
++ Mandate / Permissions
++ runtime disponible
+→ expérience effective
+```
+
+Le cadre détaillé est documenté dans `space-specification.md`.
+
 ## Event comme verticale
 
 Event reste une verticale concrète d’Activity. La Console générique peut ouvrir une Activity sans Event associé. Pour une Activity Event, le vocabulaire métier peut parler d’événement, billet ou participant lorsque cette contextualisation est utile.
@@ -156,3 +188,15 @@ Le Scanner reste générique `Activity/Occurrence` et conserve la vérité `Acce
 Transport, Vehicle, Seat, Route, Stop, découverte spatio-temporelle globale, PostGIS, Product Language global, nouveau CRM, nouveau moteur Analytics, nouveau provider Payment et workflow builder avancé restent hors Tâche 11.
 
 Pour T28 spécifiquement, restent hors scope : Team Activity dédiée, hiérarchie récursive de Teams, invitation externe d’identité non existante, scanner offline/PWA, refonte des moteurs T23/T25/T26/T27 et hub personnel T29.
+
+## Lifecycle et ownership
+
+La Console Space présente désormais le lifecycle opérationnel séparément de la
+confiance Trust. Un Owner autorisé peut archiver un Space actif et restaurer un
+Space archivé. Une suspension Platform ne peut pas être levée depuis la Console
+ordinaire du Space.
+
+La gestion des responsabilités conserve TeamMembership comme collaboration et
+Mandate comme autorité. Le transfert d'ownership utilise le service atomique
+canonique et attribue le nouvel ownership avant la renonciation de l'Owner
+courant.

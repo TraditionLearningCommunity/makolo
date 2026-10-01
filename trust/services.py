@@ -187,7 +187,7 @@ def revoke_verification(*, claim, actor, reason_code, private_note="") -> Verifi
     locked.decision_note_private = (private_note or "").strip()
     locked.save()
     if locked.subject_space_id and locked.claim_type == VerificationClaimType.ORGANIZATION_IDENTITY:
-        locked.subject_space.verification_status = OrganizationVerificationStatus.SUSPENDED
+        locked.subject_space.verification_status = OrganizationVerificationStatus.NEW
         locked.subject_space.save(update_fields=["verification_status", "updated_at"])
     return locked
 

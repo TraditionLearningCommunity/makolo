@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from organizations.models import OrganizationVerificationStatus
+from organizations.models import SpaceLifecycle
 from operations.models import ModerationCase, OperationsIncident, WorkerHeartbeat
 from operations.services import create_incident, update_incident
 
@@ -81,7 +81,7 @@ class OperationsIncidentSerializer(serializers.ModelSerializer):
 
 
 class OrganizationDecisionSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=OrganizationVerificationStatus.choices)
+    status = serializers.ChoiceField(choices=SpaceLifecycle.choices)
     reason = serializers.CharField(max_length=2000, allow_blank=False, trim_whitespace=True)
 
 

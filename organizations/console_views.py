@@ -21,6 +21,7 @@ from events.selectors import get_manageable_events
 from journeys.services import approve_request, reject_request
 
 from .console_context import SpaceConsoleContext
+from .services import archive_space, restore_space
 from .console_selectors import (
     accesses_for_console,
     activities_for_console,
@@ -41,7 +42,7 @@ from .console_selectors import (
     requests_for_console,
     team_for_console,
 )
-from .models import Organization
+from .models import Organization, SpaceLifecycle
 
 
 class SpaceConsoleMixin(LoginRequiredMixin):
@@ -116,6 +117,7 @@ class SpaceConsoleActivitiesView(SpaceConsoleMixin, TemplateView):
         context["query"] = q
         context["status_filter"] = status
         context["can_create_activity"] = self.space_console.can_manage_activities
+        context["can_use_transport"] = self.space_console.can_manage_activities
         return context
 
 
@@ -496,3 +498,30 @@ class SpaceConsoleSettingsView(SpaceConsoleMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context["can_manage"] = self.space_console.can_manage_space
         return context
+
+
+
+class SpaceConsoleArchiveView(SpaceConsoleMixin, View):
+    module_key = "settings"
+
+    def post(self, request, *args, **kwargs):
+        try:
+            archive_space(space=self.space, actor=request.user, source="space-web")
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Espace archivé. Son historique est conservé.")
+        return redirect("organizations:console-settings", slug=self.space.slug)
+
+
+class SpaceConsoleRestoreView(SpaceConsoleMixin, View):
+    module_key = "settings"
+
+    def post(self, request, *args, **kwargs):
+        try:
+            restore_space(space=self.space, actor=request.user, source="space-web")
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Espace restauré.")
+        return redirect("organizations:console-settings", slug=self.space.slug)

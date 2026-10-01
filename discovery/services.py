@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_date
 
 from commerce.models import OfferStatus
 from events.models import Event, EventStatus, EventVisibility
-from organizations.models import OrganizationFollow, OrganizationVerificationStatus
+from organizations.models import OrganizationFollow, SpaceLifecycle
 from tickets.models import TicketOrder, TicketOrderStatus, TicketType
 
 from .models import ActivityBookmark
@@ -83,8 +83,9 @@ def public_discovery_events():
             activity__visibility=EventVisibility.PUBLIC,
             activity__occurrences__end_at__gte=now,
         )
-        .exclude(
-            activity__space__verification_status=OrganizationVerificationStatus.SUSPENDED
+        .filter(
+            Q(activity__space__isnull=True)
+            | Q(activity__space__lifecycle=SpaceLifecycle.ACTIVE)
         )
         .annotate(**_public_event_annotations())
     )

@@ -35,6 +35,10 @@ class TransportRoute(models.Model):
         indexes = [models.Index(fields=["space", "active"], name="transport_route_space_idx")]
         constraints = [models.UniqueConstraint(fields=["space", "code"], condition=~Q(code=""), name="transport_route_code_unique")]
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
     @property
     def origin(self):
         links = list(self.stops.all())
@@ -100,6 +104,10 @@ class Vehicle(models.Model):
         ordering = ["label", "id"]
         indexes = [models.Index(fields=["space", "active"], name="transport_vehicle_space_idx")]
         constraints = [models.CheckConstraint(condition=Q(passenger_capacity__gt=0), name="transport_vehicle_capacity_positive")]
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return self.label

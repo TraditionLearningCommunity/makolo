@@ -15,7 +15,7 @@ from notifications.services import create_notification
 from .models import (
     OrganizationFollow,
     OrganizationMembership,
-    OrganizationVerificationStatus,
+    SpaceLifecycle,
     ProfileFollow,
     TeamMembership,
 )
@@ -26,7 +26,7 @@ def _notify_event_followers(event_id):
     if not event or not event.activity.space_id or event.status != EventStatus.PUBLISHED:
         return
     organization = event.activity.space
-    if organization.verification_status == OrganizationVerificationStatus.SUSPENDED:
+    if organization.lifecycle != SpaceLifecycle.ACTIVE:
         return
     follows = OrganizationFollow.objects.filter(
         organization=organization,

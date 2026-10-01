@@ -23,11 +23,77 @@ from .models import (
     Team,
     TeamMembership,
     TeamMembershipStatus,
+    SpaceLifecycle,
 )
 from .permissions import user_can_manage_organization_team
 
 
 User = get_user_model()
+
+
+def space_is_operational(space: Organization) -> bool:
+    return bool(space and space.lifecycle == SpaceLifecycle.ACTIVE)
+
+
+def require_space_operational(space: Organization) -> None:
+    if not space_is_operational(space):
+        raise ValidationError("Cet Espace n'est pas opérationnel actuellement.")
+
+
+def _audit_lifecycle_change(*, actor, space, before, after, source):
+    from operations.services import audit_action
+    return audit_action(
+        actor=actor,
+        action="organization.lifecycle_changed",
+        target_type="organization",
+        target_id=space.pk,
+        summary=f"Cycle de vie de {space.name} : {before} → {after}",
+        before={"lifecycle": before},
+        after={"lifecycle": after},
+        metadata={"source": source},
+    )
+
+
+def _set_space_lifecycle(*, space, actor, lifecycle, source):
+    locked = Organization.objects.select_for_update().get(pk=space.pk)
+    if locked.lifecycle == lifecycle:
+        return locked
+    before = locked.lifecycle
+    locked.lifecycle = lifecycle
+    locked.save(update_fields=["lifecycle", "updated_at"])
+    _audit_lifecycle_change(actor=actor, space=locked, before=before, after=lifecycle, source=source)
+    return locked
+
+
+@transaction.atomic
+def suspend_space(*, space, actor, source="operations") -> Organization:
+    if not can(actor, PermissionCode.PLATFORM_MANAGE):
+        raise PermissionDenied("Autorité plateforme requise pour suspendre un Espace.")
+    return _set_space_lifecycle(space=space, actor=actor, lifecycle=SpaceLifecycle.SUSPENDED, source=source)
+
+
+@transaction.atomic
+def archive_space(*, space, actor, source="space-settings") -> Organization:
+    if not (can(actor, PermissionCode.PLATFORM_MANAGE) or can(actor, PermissionCode.SPACE_MANAGE, space)):
+        raise PermissionDenied("Vous ne pouvez pas archiver cet Espace.")
+    locked = Organization.objects.select_for_update().get(pk=space.pk)
+    if locked.lifecycle == SpaceLifecycle.SUSPENDED:
+        raise ValidationError("Un Espace suspendu doit d'abord être restauré par la gouvernance.")
+    return _set_space_lifecycle(space=locked, actor=actor, lifecycle=SpaceLifecycle.ARCHIVED, source=source)
+
+
+@transaction.atomic
+def restore_space(*, space, actor, source="space-settings") -> Organization:
+    locked = Organization.objects.select_for_update().get(pk=space.pk)
+    if locked.lifecycle == SpaceLifecycle.ACTIVE:
+        return locked
+    platform_authority = can(actor, PermissionCode.PLATFORM_MANAGE)
+    if locked.lifecycle == SpaceLifecycle.SUSPENDED:
+        if not platform_authority:
+            raise PermissionDenied("Autorité plateforme requise pour restaurer un Espace suspendu.")
+    elif not (platform_authority or can(actor, PermissionCode.SPACE_MANAGE, locked)):
+        raise PermissionDenied("Vous ne pouvez pas restaurer cet Espace.")
+    return _set_space_lifecycle(space=locked, actor=actor, lifecycle=SpaceLifecycle.ACTIVE, source=source)
 
 
 def _normalize_follow_preferences(values):
@@ -132,6 +198,7 @@ def sync_legacy_membership_to_authority(membership: OrganizationMembership):
     return team_membership
 
 
+@transaction.atomic
 @transaction.atomic
 def create_organization(*, creator, name: str, **fields) -> Organization:
     if not getattr(creator, "is_authenticated", False):
@@ -459,3 +526,32 @@ def unfollow_organization(*, follow: OrganizationFollow, user) -> None:
         revoke_follower_consent(organization_id=organization_id, user_id=user_id)
 
     transaction.on_commit(revoke)
+
+
+@transaction.atomic
+def update_organization(*, organization, actor, **fields) -> Organization:
+    """Update Space identity/configuration without changing domain facts."""
+    if not can(actor, PermissionCode.SPACE_MANAGE, organization):
+        raise PermissionDenied("Vous ne pouvez pas modifier cet Espace.")
+    allowed = {
+        "name",
+        "archetype",
+        "description",
+        "website",
+        "contact_email",
+        "contact_phone",
+        "country",
+        "city",
+        "public_profile",
+    }
+    unexpected = set(fields) - allowed
+    if unexpected:
+        raise ValidationError(
+            f"Champs Space non pris en charge: {', '.join(sorted(unexpected))}."
+        )
+    locked = Organization.objects.select_for_update().get(pk=organization.pk)
+    for name, value in fields.items():
+        setattr(locked, name, value)
+    locked.full_clean()
+    locked.save(update_fields=[*fields.keys(), "updated_at"])
+    return locked

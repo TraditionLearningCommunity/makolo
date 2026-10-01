@@ -7,7 +7,12 @@ from authorization.selectors import (
     current_mandates,
     has_direct_space_permission,
 )
-from organizations.models import Organization
+from organizations.models import Organization, TeamMembershipStatus
+from organizations.space_product import (
+    operating_preset_for_space,
+    operational_footprint_for_space,
+)
+from trust.selectors import active_public_verifications_for_space
 
 
 def _space_mandates(profile, space):
@@ -273,12 +278,68 @@ def build_space_workspace(profile, space):
             notes=("Space Operations uses Activity/Occurrence endpoints; Platform Operations is separate.",),
         ))
 
-    return {
-        "space": {"id": str(space.pk), "slug": space.slug, "name": space.name},
+    direct_space_authority = has_direct_space_authority(profile, space)
+    preset = operating_preset_for_space(space)
+    verification = [
+        {
+            "claim_type": claim.claim_type,
+            "status": claim.status,
+            "valid_until": claim.valid_until,
+        }
+        for claim in active_public_verifications_for_space(space)
+    ]
+    payload = {
+        "space": {
+            "id": str(space.pk),
+            "slug": space.slug,
+            "name": space.name,
+            "description": space.description or None,
+            "archetype": space.archetype,
+            "lifecycle": space.lifecycle,
+            "public_profile": space.public_profile,
+        },
+        "verification": {
+            "verified": bool(verification),
+            "claims": verification,
+        },
         "authority": {
-            "scope": "space" if has_direct_space_authority(profile, space) else "activity_limited",
-            "limited_to_activities": not has_direct_space_authority(profile, space),
+            "scope": "space" if direct_space_authority else "activity_limited",
+            "limited_to_activities": not direct_space_authority,
+        },
+        "capabilities": {
+            "update_space": _has_space_permission(profile, space, PermissionCode.SPACE_MANAGE),
+            "manage_team": _has_space_permission(profile, space, PermissionCode.SPACE_TEAM_MANAGE),
+            "manage_ownership": _has_space_permission(profile, space, PermissionCode.SPACE_OWNERSHIP_MANAGE),
+        },
+        "operating_preset": {
+            "label": preset.label,
+            "navigation_section_label": preset.navigation_section_label,
+            "activities_label": preset.activities_label,
+            "featured_modules": list(preset.featured_modules),
+            "suggested_verticals": list(preset.suggested_verticals),
         },
         "modules": modules,
         "platform_modules_included": False,
     }
+    if direct_space_authority:
+        payload["operational_footprint"] = {
+            "signals": list(operational_footprint_for_space(space).signals)
+        }
+        payload["team_summary"] = {
+            "active_members": space.teams.filter(
+                memberships__status=TeamMembershipStatus.ACTIVE,
+                is_default=True,
+            ).values("memberships__user_id").distinct().count()
+        }
+        payload["ownership_summary"] = {
+            "owner_count": current_mandates().filter(
+                scope_type=AuthorityScope.SPACE,
+                space=space,
+                role__is_system=True,
+                role__code="space_owner",
+            ).count(),
+            "viewer_is_owner": _has_space_permission(
+                profile, space, PermissionCode.SPACE_OWNERSHIP_MANAGE
+            ),
+        }
+    return payload

@@ -13,7 +13,7 @@ from automation.models import (
 )
 from events.models import Event, EventStatus, EventVisibility
 from notifications.models import DeliveryStatus, NotificationDelivery
-from organizations.models import Organization, OrganizationVerificationStatus
+from organizations.models import Organization, OrganizationVerificationStatus, SpaceLifecycle
 from payments.models import Payment, PaymentEvent, PaymentStatus, Refund, RefundStatus
 from scanner.models import ScanLog, ScanResult
 
@@ -44,6 +44,7 @@ def _snapshot_organization(organization):
     return {
         "id": str(organization.pk),
         "verification_status": organization.verification_status,
+        "lifecycle": organization.lifecycle,
         "public_profile": organization.public_profile,
     }
 
@@ -106,6 +107,38 @@ def change_organization_verification(*, organization, status, actor, reason):
         before=before,
         after=after,
         metadata={"reason": reason},
+    )
+    return organization
+
+
+@transaction.atomic
+def change_organization_lifecycle(*, organization, status, actor, reason):
+    _require_staff(actor)
+    reason = (reason or "").strip()
+    if status not in SpaceLifecycle.values:
+        raise ValidationError({"status": "Cycle de vie d'Espace invalide."})
+    if not reason:
+        raise ValidationError({"reason": "Une justification Operations est obligatoire."})
+
+    from organizations.services import archive_space, restore_space, suspend_space
+
+    if status == SpaceLifecycle.SUSPENDED:
+        organization = suspend_space(space=organization, actor=actor, source="operations")
+    elif status == SpaceLifecycle.ARCHIVED:
+        organization = archive_space(space=organization, actor=actor, source="operations")
+    else:
+        organization = restore_space(space=organization, actor=actor, source="operations")
+
+    ModerationCase.objects.create(
+        target_type=ModerationTarget.ORGANIZATION,
+        organization=organization,
+        severity=IncidentSeverity.HIGH if status == SpaceLifecycle.SUSPENDED else IncidentSeverity.MEDIUM,
+        status=ModerationStatus.ACTIONED,
+        reason=reason,
+        outcome=f"Cycle de vie défini sur {organization.get_lifecycle_display()}.",
+        opened_by=actor,
+        assigned_to=actor,
+        closed_at=timezone.now(),
     )
     return organization
 
@@ -302,7 +335,7 @@ def build_operations_overview(user):
         verification_status__in=[OrganizationVerificationStatus.NEW, OrganizationVerificationStatus.PENDING]
     )
     suspended_orgs = Organization.objects.filter(
-        verification_status=OrganizationVerificationStatus.SUSPENDED
+        lifecycle=SpaceLifecycle.SUSPENDED
     ).count()
 
     recent_payments = Payment.objects.filter(created_at__gte=since_24h)
@@ -406,7 +439,7 @@ def build_operations_overview(user):
             member_count=Count("memberships", distinct=True),
         )
         .order_by("created_at")
-        .values("id", "slug", "name", "verification_status", "created_at", "event_count", "member_count")[:12]
+        .values("id", "slug", "name", "lifecycle", "verification_status", "created_at", "event_count", "member_count")[:12]
     )
 
     incident_rows = list(

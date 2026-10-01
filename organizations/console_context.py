@@ -11,6 +11,7 @@ from authorization.models import AuthorityScope, Mandate, MandateStatus
 from authorization.selectors import activity_ids_with_direct_permission
 from .api.workspace_projection import build_space_workspace
 from .models import Organization
+from .space_product import operating_preset_for_space
 
 
 SPACE_NAVIGATION = (
@@ -202,9 +203,13 @@ class SpaceConsoleContext:
         if activity_ids is not None:
             activity_ids = frozenset(activity_ids)
         navigation = []
+        operating_preset = operating_preset_for_space(space)
         for label, items in SPACE_NAVIGATION:
+            group_label = operating_preset.navigation_section_label if label == "Activité" else label
             visible = []
             for key, item_label, icon in items:
+                if key == "activities":
+                    item_label = operating_preset.activities_label
                 if _module_allowed(
                     profile,
                     space,
@@ -216,7 +221,26 @@ class SpaceConsoleContext:
                 ):
                     visible.append({"key": key, "label": item_label, "icon": icon, "url": reverse(f"organizations:console-{key}", kwargs={"slug": space.slug})})
             if visible:
-                navigation.append({"label": label, "items": visible})
+                navigation.append({"label": group_label, "items": visible})
+
+        module_priority = {
+            key: index for index, key in enumerate(operating_preset.featured_modules)
+        }
+        fallback_priority = len(module_priority) + len(SPACE_NAVIGATION)
+        for group in navigation:
+            group["items"].sort(
+                key=lambda item: module_priority.get(item["key"], fallback_priority)
+            )
+        navigation.sort(
+            key=lambda group: min(
+                (
+                    module_priority.get(item["key"], fallback_priority)
+                    for item in group["items"]
+                ),
+                default=fallback_priority,
+            )
+        )
+
         switcher = tuple(
             {
                 "name": candidate.name,

@@ -12,7 +12,7 @@ from automation.models import (
 )
 from events.models import Event, EventStatus
 from notifications.models import DeliveryStatus, NotificationDelivery
-from organizations.models import Organization, OrganizationVerificationStatus
+from organizations.models import Organization, OrganizationVerificationStatus, SpaceLifecycle
 from payments.models import Payment, PaymentEvent, PaymentStatus, Refund, RefundStatus
 from scanner.models import ScanLog, ScanResult
 
@@ -85,7 +85,7 @@ def build_product_operations_overview(user):
         ]
     )
     suspended_orgs = organizations.filter(
-        verification_status=OrganizationVerificationStatus.SUSPENDED
+        lifecycle=SpaceLifecycle.SUSPENDED
     ).count()
 
     payments = _without_demo_seed(Payment.objects.all())

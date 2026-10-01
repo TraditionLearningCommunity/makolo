@@ -1,6 +1,6 @@
 from django.views.generic import ListView
 
-from .models import Organization, OrganizationVerificationStatus
+from .models import Organization, SpaceLifecycle
 
 
 class PublicOrganizationListView(ListView):
@@ -10,8 +10,9 @@ class PublicOrganizationListView(ListView):
     paginate_by = 30
 
     def get_queryset(self):
-        queryset = Organization.objects.filter(public_profile=True).exclude(
-            verification_status=OrganizationVerificationStatus.SUSPENDED
+        queryset = Organization.objects.filter(
+            public_profile=True,
+            lifecycle=SpaceLifecycle.ACTIVE,
         )
         query = (self.request.GET.get("q") or "").strip()
         if query:

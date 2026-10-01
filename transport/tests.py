@@ -21,7 +21,7 @@ from payments.models import PaymentMethod, PaymentProvider, PaymentStatus
 from payments.services import complete_payment, initiate_commerce_payment
 from scanner.canonical_services import scan_access_credential
 from scanner.models import ScannerAssignment
-from organizations.models import Organization
+from organizations.models import Organization, SpaceArchetype
 
 from .models import TransportService, Vehicle
 from .selectors import departure_capacity_snapshot, departure_manifest, search_departures
@@ -50,6 +50,7 @@ class TransportCompositionTests(TestCase):
         self.space = Organization.objects.create(
             name="Mulykap",
             slug="mulykap",
+            archetype=SpaceArchetype.TRANSPORT_OPERATOR,
             created_by=self.user,
         )
         self.origin = Place.objects.create(
@@ -129,7 +130,7 @@ class TransportCompositionTests(TestCase):
             create_transport_route(space=self.space, name="Invalide", stops=[self.origin])
 
     def test_transport_service_rejects_cross_space_route(self):
-        other = Organization.objects.create(name="Autre opérateur", slug="autre", created_by=self.user)
+        other = Organization.objects.create(name="Autre opérateur", slug="autre", archetype=SpaceArchetype.TRANSPORT_OPERATOR, created_by=self.user)
         route = create_transport_route(space=other, name="Autre route", stops=[self.origin, self.destination])
         with self.assertRaises(ValidationError):
             create_transport_service(space=self.space, created_by=self.user, route=route)
