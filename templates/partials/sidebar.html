@@ -2,14 +2,24 @@
 {% personal_navigation request as personal_nav %}
 <aside id="desktop-sidebar" class="mk-sidebar fixed inset-y-0 left-0 z-50 hidden md:flex md:flex-col">
   <div class="mk-sidebar__header flex h-[64px] items-center gap-3 border-b px-5" style="border-color:var(--mk-border)">
+    {% if space_context %}<a href="{{ space_root_url }}" class="flex min-w-0 items-center gap-3" aria-label="Accueil de {{ space.name }}">{% endif %}
     <span class="mk-brand-symbol-wrap" aria-hidden="true"><img src="{% static 'brand/makolo-mark-violet.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-light" width="42" height="29"><img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-dark" width="42" height="29"></span>
-    <div class="mk-sidebar__identity min-w-0"><p class="mk-brand-wordmark text-[15px]">Makolo</p>{% if space_console %}<p class="truncate text-[10px]" style="color:var(--mk-subtle)">{{ space.name }}</p>{% endif %}</div>
+    <div class="mk-sidebar__identity min-w-0"><p class="mk-brand-wordmark text-[15px]">Makolo</p>{% if space_context or space_console %}<p class="truncate text-[10px]" style="color:var(--mk-subtle)">{{ space.name }}</p>{% endif %}</div>
+    {% if space_context %}</a>{% endif %}
     <button type="button" class="mk-sidebar-toggle mk-icon-btn" @click="navCompact = !navCompact" :aria-pressed="navCompact ? 'true' : 'false'" aria-label="Réduire ou développer la navigation" title="Réduire ou développer la navigation">
       <i data-lucide="menu"></i>
     </button>
   </div>
   {% if space_console %}
     <div class="flex-1 overflow-y-auto py-2">{% include 'partials/navigation_links.html' %}</div>
+  {% elif space_context %}
+    <nav class="mk-mature-rail" aria-label="Navigation principale de {{ space.name }}" hx-boost="true" hx-target="#main-content" hx-select="#main-content" hx-select-oob="#app-topbar:outerHTML,#desktop-sidebar:outerHTML,#mobile-primary-nav:outerHTML" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-indicator="#main-content">
+      <a href="{{ space_root_url }}" {% if space_nav_key == 'now' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="clock-3"></i><span>Maintenant</span></a>
+      <a href="{{ space_discover_url }}" {% if space_nav_key == 'discover' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="compass"></i><span>Découvrir</span></a>
+      <a href="{{ space_mark_url }}" class="mk-rail-mark{% if space_nav_key == 'mark' %} is-active{% endif %}" aria-label="Makolo Mark" {% if space_nav_key == 'mark' %}aria-current="page"{% endif %}><span class="mk-rail-mark__symbol">{% include 'partials/makolo_mark_inline.html' %}</span><span>Makolo</span></a>
+      <a href="{{ space_work_url }}" {% if space_nav_key == 'work' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="briefcase-business"></i><span>{{ space_business_label }}</span></a>
+      <a href="{{ space_us_url }}" {% if space_nav_key == 'us' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="users-round"></i><span>Nous</span></a>
+    </nav>
   {% elif request.user.is_authenticated %}
     <nav class="mk-mature-rail" aria-label="Navigation principale" hx-boost="true" hx-target="#main-content" hx-select="#main-content" hx-select-oob="#app-topbar:outerHTML,#desktop-sidebar:outerHTML,#mobile-primary-nav:outerHTML" hx-swap="outerHTML show:window:top" hx-push-url="true" hx-indicator="#main-content">
       <a href="{% url 'core:participant-home' %}" {% if personal_nav.owner == 'now' %}aria-current="page" class="is-active"{% endif %}><i data-lucide="clock-3"></i><span>Maintenant</span></a>
