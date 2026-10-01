@@ -230,6 +230,26 @@ class WebReadPathRegressionTests(TestCase):
         self.assertEqual(api_response.status_code, 200)
         self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
 
+    def test_missing_account_extensions_are_created_only_by_valid_mutations(self):
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        appearance = self.client.post(
+            "/account/profile/",
+            {"section": "appearance", "appearance": "dark"},
+        )
+        self.assertEqual(appearance.status_code, 302)
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertEqual(profile.theme, "dark")
+
+        self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
+        preferences = self.client.patch(
+            "/api/v1/accounts/notification-preferences/",
+            data={"email_notifications": False},
+            content_type="application/json",
+        )
+        self.assertEqual(preferences.status_code, 200)
+        stored = NotificationPreference.objects.get(user=self.user)
+        self.assertFalse(stored.email_notifications)
+
 
 class PerformanceEnvelopeTests(TestCase):
     @override_settings(
