@@ -25,6 +25,7 @@ from demo_seed.common import SCALE, SeedContext
 from demo_seed.engagement import seed_engagement
 from demo_seed.events_commerce import seed_events_and_commerce
 from demo_seed.operations import seed_operations_and_edge_cases
+from demo_seed.obtention import seed_obtention
 from demo_seed.partners_loyalty import seed_partners_loyalty_and_analytics
 from demo_seed.task22_extension import T22_PERSONAS, seed_task22_extension
 from demo_seed.task32_extension import seed_task32_extension
@@ -58,6 +59,7 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
     with transaction.atomic():
         if scale == "beta":
             seed_beta(ctx)
+            seed_obtention(ctx)
             seed_beta_observability(ctx)
             seed_task22_extension(ctx)
             beta_users = {key: User.objects.get(email=email) for key, email in BETA_PERSONAS.items()}

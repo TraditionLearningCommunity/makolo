@@ -71,6 +71,15 @@ Le parcours de preuve T22 réutilise directement le noyau canonique : `Activity 
 
 Le paiement sur place reste une `CommerceOrder` en mode `on_site`; aucun faux `Payment` encaissé n'est créé pour la remplir. Le scénario Transport ne crée pas de `JourneyRequest` artificielle lorsque le workflow de réservation n'en a pas besoin.
 
+## Scénarios Obtention
+
+Obtention possède désormais ses propres scénarios bêta, sans remplacer Event, Transport ni Financement. Un Espace fictif `Makolo Beta Obtention` expose deux Activities publiques :
+
+- `Kit scolaire à retirer` : mode `receive`, deux cibles réelles, Occurrence de retrait à +7 jours, plan Journey, Requirement d’action et Requirement de vérification, avec confirmation opérateur requise ;
+- `Projecteur 4K` : modes `buy` et `rent`, avec une démarche de location laissée en brouillon.
+
+Le participant bêta possède ainsi une démarche Obtention confirmée à poursuivre et une démarche de location à continuer. Le seed ne fabrique aucun Payment pour déclarer l’obtention accomplie : la réception réelle et la Readiness restent propriétaires de la clôture.
+
 ## Participant
 
 `beta.participant@makolo.test` contient un mélange de scénarios multi-verticaux : démarche à continuer, démarche confirmée, Event, Transport, billet valide, historique d'accès utilisé et notifications. Cela permet de tester `/me/`, Mes démarches, À venir, Mes accès et Notifications sans connaître les noms des modèles internes.
