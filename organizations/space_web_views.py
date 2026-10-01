@@ -22,6 +22,9 @@ class SpaceWebMixin(LoginRequiredMixin, TemplateView):
     space_page_title = "Maintenant"
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         self.space = workspace_spaces(request.user).filter(slug=kwargs["slug"]).first()
         if self.space is None:
             raise Http404
