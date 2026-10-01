@@ -135,7 +135,7 @@ class FileLaunchPreferencesStore implements LaunchPreferencesStore {
 
 class AppPreferencesController extends ChangeNotifier {
   AppPreferencesController({
-    required FileLaunchPreferencesStore this._store,
+    required this._store,
     required LaunchPreferencesSnapshot initial,
   }) : _value = initial;
 
