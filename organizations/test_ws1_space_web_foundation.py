@@ -138,7 +138,7 @@ class WS1SpaceWebFoundationTests(TestCase):
             role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
             granted_by=self.owner,
         )
-        revoke_mandate(revoked, revoked_by=self.owner)
+        revoke_mandate(mandate=revoked, actor=self.owner)
 
         self.client.force_login(self.owner)
         self.assertEqual(
