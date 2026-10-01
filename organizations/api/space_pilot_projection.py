@@ -11,7 +11,7 @@ def _metric(key, value, *, unit="count", period=None):
     return {
         "key": key,
         "state": "known",
-        "value": str(value) if value is not None else None,
+        "value": value,
         "unit": unit,
         "period": period,
     }
