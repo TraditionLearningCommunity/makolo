@@ -33,6 +33,7 @@ from trust.credential_selectors import credentials_for_profile
 from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
+from .read_models import build_personal_ongoing_read_model
 from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _journey_card
 
 
@@ -175,95 +176,34 @@ class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
-        now = timezone.now()
-
-        journeys = list(
-            readiness_queryset(
-                participant_active_journeys(profile).order_by("-updated_at", "-created_at", "id")
-            )[:HOME_READINESS_CANDIDATE_LIMIT]
+        entries = build_personal_ongoing_read_model(
+            profile,
+            observed_at=timezone.now(),
+            limit=ONGOING_LIMIT,
+            include_personal_funding=True,
         )
-        readiness_by_id = resolve_many(journeys, viewer=profile, observed_at=now)
-        journey_items = [
-            _ongoing_journey_item(_journey_card(journey, readiness=readiness_by_id[journey.pk]))
-            for journey in journeys[:ONGOING_LIMIT]
-        ]
 
-        active_accesses = list(
-            participant_active_accesses(profile, at=now)
-            .order_by("occurrence__start_date", "occurrence__start_time", "id")[:ONGOING_LIMIT]
-        )
-        access_items = [_ongoing_access_item(_access_card(access)) for access in active_accesses]
+        presenters = {
+            "journey": lambda entry: _ongoing_journey_item(
+                _journey_card(entry.value, readiness=entry.readiness)
+            ),
+            "access": lambda entry: _ongoing_access_item(_access_card(entry.value)),
+            "dossier": lambda entry: _ongoing_dossier_item(entry.value),
+            "project": lambda entry: _ongoing_project_item(entry.value),
+            "waitlist": lambda entry: _ongoing_waitlist_item(entry.value),
+            "transfer": lambda entry: _ongoing_transfer_item(entry.value, profile),
+            "payment": lambda entry: _ongoing_payment_item(entry.value),
+            "funding": lambda entry: _ongoing_funding_item(entry.value),
+        }
+        ongoing_items = [presenters[entry.kind](entry) for entry in entries]
+        kinds = {entry.kind for entry in entries}
 
-        personal_dossiers = list(
-            dossiers_for_profile(profile)
-            .filter(owner_profile=profile, lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE})
-            .order_by("-updated_at", "id")[:ONGOING_LIMIT]
-        )
-        dossier_items = [_ongoing_dossier_item(dossier) for dossier in personal_dossiers]
-
-        personal_projects = list(
-            projects_for_profile(profile)
-            .filter(owner_profile=profile, lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE})
-            .order_by("-updated_at", "id")[:ONGOING_LIMIT]
-        )
-        project_items = [_ongoing_project_item(project) for project in personal_projects]
-
-        waitlist_entries = list(
-            get_waitlist_entries_visible_to(profile)
-            .filter(user=profile, status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED})
-            .order_by("created_at", "id")[:ONGOING_LIMIT]
-        )
-        waitlist_items = [_ongoing_waitlist_item(entry) for entry in waitlist_entries]
-
-        transfers = list(
-            get_ticket_transfers_visible_to(profile)
-            .filter(status=TransferStatus.PENDING)
-            .filter(models.Q(sender=profile) | models.Q(recipient=profile))
-            .order_by("-created_at", "id")[:ONGOING_LIMIT]
-        )
-        transfer_items = [_ongoing_transfer_item(transfer, profile) for transfer in transfers if transfer.is_pending_active]
-
-        standalone_payments = list(
-            get_payments_visible_to(profile)
-            .filter(
-                initiated_by=profile,
-                status__in={PaymentStatus.PENDING, PaymentStatus.PROCESSING},
-                commerce_order__journey__isnull=True,
-                obligation__journey__isnull=True,
-                order__journey__isnull=True,
-            )
-            .order_by("-created_at", "id")[:ONGOING_LIMIT]
-        )
-        payment_items = [_ongoing_payment_item(payment) for payment in standalone_payments]
-
-        personal_fundings = [
-            funding
-            for funding in FundingDetails.objects.select_related("activity")
-            .filter(
-                activity__owner_profile=profile,
-                activity__space__isnull=True,
-                activity__status__in={ActivityStatus.DRAFT, ActivityStatus.PUBLISHED},
-            )
-            .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
-            if can_manage_funding(profile, funding)
-        ]
-        funding_items = [_ongoing_funding_item(funding) for funding in personal_fundings]
-
-        context["ongoing_items"] = (
-            journey_items
-            + access_items
-            + dossier_items
-            + project_items
-            + waitlist_items
-            + transfer_items
-            + payment_items
-            + funding_items
-        )[:ONGOING_LIMIT]
-        context["has_personal_dossiers"] = bool(personal_dossiers)
-        context["has_personal_projects"] = bool(personal_projects)
-        context["has_waitlist"] = bool(waitlist_entries)
-        context["has_transfers"] = bool(transfers)
-        context["has_personal_fundings"] = bool(personal_fundings)
+        context["ongoing_items"] = ongoing_items
+        context["has_personal_dossiers"] = "dossier" in kinds
+        context["has_personal_projects"] = "project" in kinds
+        context["has_waitlist"] = "waitlist" in kinds
+        context["has_transfers"] = "transfer" in kinds
+        context["has_personal_fundings"] = "funding" in kinds
         return context
 
 
