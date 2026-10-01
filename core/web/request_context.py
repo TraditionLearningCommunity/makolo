@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Any, Callable, Hashable
 from uuid import uuid4
 
@@ -19,8 +20,11 @@ class MakoloRequestContext:
 
     def __post_init__(self):
         if not self.request_id:
-            incoming = getattr(self.request, "headers", {}).get("X-Request-ID", "")
-            self.request_id = incoming.strip()[:128] if incoming else uuid4().hex
+            incoming = getattr(self.request, "headers", {}).get("X-Request-ID", "").strip()
+            if re.fullmatch(r"[A-Za-z0-9._:-]{1,64}", incoming):
+                self.request_id = incoming
+            else:
+                self.request_id = uuid4().hex
 
     @property
     def surface(self):
