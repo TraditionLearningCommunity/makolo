@@ -11,7 +11,12 @@ from authorization.selectors import (
     current_mandates,
     has_direct_space_permission,
 )
+from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
+from journeys.collaboration_models import JourneyBlockerStatus
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.space_product import operating_preset_for_space, operational_footprint_for_space
+from services.selectors import service_journeys_visible_to
+from transport.models import TransportRoute, Vehicle
 
 
 SECTION_KEYS = ("preparation", "upcoming", "active", "blocked", "completed")
@@ -44,11 +49,12 @@ def _visible_activity_ids(profile, space):
     return _mandated_activity_ids(profile, space)
 
 
-def _activity_capability_sets(profile, space):
+def _activity_capability_sets(profile):
     return {
         "manage": set(activity_ids_with_direct_permission(profile, PermissionCode.ACTIVITY_MANAGE)),
         "operations": set(activity_ids_with_direct_permission(profile, PermissionCode.ACTIVITY_OPERATIONS_VIEW)),
         "commerce": set(activity_ids_with_direct_permission(profile, PermissionCode.ACTIVITY_COMMERCE_VIEW)),
+        "requests": set(activity_ids_with_direct_permission(profile, PermissionCode.ACTIVITY_REQUESTS_VIEW)),
         "service_cases": set(
             activity_ids_with_direct_permission(
                 profile, PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL
@@ -70,6 +76,8 @@ def _capabilities_for_activity(activity_id, caps):
         result.append("open_operations")
     if activity_id in caps["commerce"]:
         result.append("open_commerce")
+    if activity_id in caps["requests"]:
+        result.append("open_requests")
     if activity_id in caps["service_cases"]:
         result.append("open_service_cases")
     return result
@@ -91,10 +99,11 @@ def _activity_item(activity, caps):
 
 
 def _occurrence_item(occurrence, caps):
+    is_departure = hasattr(occurrence, "transport_departure")
     return {
         "key": f"occurrence:{occurrence.pk}",
         "source": {"kind": "occurrence", "id": str(occurrence.pk)},
-        "kind": "occurrence",
+        "kind": "departure" if is_departure else "occurrence",
         "title": occurrence.label or occurrence.activity.title,
         "summary": occurrence.activity.short_description or None,
         "timing": {
@@ -120,17 +129,119 @@ def _occurrence_item(occurrence, caps):
     }
 
 
-def _bounded(queryset, serializer):
-    rows = list(queryset[: PREVIEW_LIMIT + 1])
+def _offer_item(offer, caps):
     return {
-        "items": [serializer(row) for row in rows[:PREVIEW_LIMIT]],
-        "has_more": len(rows) > PREVIEW_LIMIT,
-        "links": {},
+        "key": f"offer:{offer.pk}",
+        "source": {"kind": "offer", "id": str(offer.pk)},
+        "kind": "offer",
+        "title": offer.name,
+        "summary": offer.description or None,
+        "timing": {
+            "available_from": offer.available_from,
+            "available_until": offer.available_until,
+        },
+        "state": offer.status,
+        "context": {
+            "activity": {
+                "id": str(offer.activity_id),
+                "title": offer.activity.title,
+            }
+        },
+        "links": {"activity": f"/api/v1/activities/{offer.activity_id}/"},
+        "capabilities": _capabilities_for_activity(offer.activity_id, caps),
     }
 
 
-def _empty_section():
-    return {"items": [], "has_more": False, "links": {}}
+def _journey_item(journey, caps):
+    return {
+        "key": f"journey:{journey.pk}",
+        "source": {"kind": "journey", "id": str(journey.pk)},
+        "kind": "service_case" if journey.workflow == WorkflowKind.SERVICE else "journey",
+        "title": journey.activity.title,
+        "summary": None,
+        "timing": {
+            "expires_at": journey.expires_at,
+            "started_at": journey.started_at,
+            "fulfilled_at": journey.fulfilled_at,
+        },
+        "state": journey.status,
+        "context": {
+            "activity": {
+                "id": str(journey.activity_id),
+                "title": journey.activity.title,
+            },
+            "workflow": journey.workflow,
+        },
+        "links": {"activity": f"/api/v1/activities/{journey.activity_id}/"},
+        "capabilities": _capabilities_for_activity(journey.activity_id, caps),
+    }
+
+
+def _order_item(order, caps):
+    return {
+        "key": f"commerce_order:{order.pk}",
+        "source": {"kind": "commerce_order", "id": str(order.pk)},
+        "kind": "order",
+        "title": order.reference,
+        "summary": None,
+        "timing": {
+            "expires_at": order.expires_at,
+            "confirmed_at": order.confirmed_at,
+        },
+        "state": order.status,
+        "context": {
+            "activity": {
+                "id": str(order.journey.activity_id),
+                "title": order.journey.activity.title,
+            }
+        },
+        "links": {"activity": f"/api/v1/activities/{order.journey.activity_id}/"},
+        "capabilities": _capabilities_for_activity(order.journey.activity_id, caps),
+    }
+
+
+def _route_item(route):
+    return {
+        "key": f"transport_route:{route.pk}",
+        "source": {"kind": "transport_route", "id": str(route.pk)},
+        "kind": "route",
+        "title": route.name,
+        "summary": None,
+        "timing": {},
+        "state": "active" if route.active else "inactive",
+        "context": {},
+        "links": {},
+        "capabilities": ["view"],
+    }
+
+
+def _vehicle_item(vehicle):
+    return {
+        "key": f"vehicle:{vehicle.pk}",
+        "source": {"kind": "vehicle", "id": str(vehicle.pk)},
+        "kind": "vehicle",
+        "title": vehicle.label,
+        "summary": None,
+        "timing": {},
+        "state": "active" if vehicle.active else "inactive",
+        "context": {"passenger_capacity": vehicle.passenger_capacity},
+        "links": {},
+        "capabilities": ["view"],
+    }
+
+
+def _empty_sections():
+    return {
+        key: {"items": [], "has_more": False, "links": {}}
+        for key in SECTION_KEYS
+    }
+
+
+def _append(section, item):
+    if len(section["items"]) < PREVIEW_LIMIT:
+        section["items"].append(item)
+    else:
+        section["has_more"] = True
 
 
 def _activity_scope_from_responsibility(profile, space, responsibility_key):
@@ -156,6 +267,32 @@ def _activity_scope_from_responsibility(profile, space, responsibility_key):
     return None
 
 
+def _journey_section(journey):
+    if journey.blockers.filter(status=JourneyBlockerStatus.ACTIVE).exists():
+        return "blocked"
+    if journey.status in {
+        JourneyStatus.DRAFT,
+        JourneyStatus.SUBMITTED,
+        JourneyStatus.PENDING_APPROVAL,
+        JourneyStatus.PENDING_PAYMENT,
+    }:
+        return "preparation"
+    if journey.status in {
+        JourneyStatus.APPROVED,
+        JourneyStatus.CONFIRMED,
+        JourneyStatus.IN_PROGRESS,
+    }:
+        return "active"
+    if journey.status in {
+        JourneyStatus.FULFILLED,
+        JourneyStatus.REJECTED,
+        JourneyStatus.CANCELLED,
+        JourneyStatus.EXPIRED,
+    }:
+        return "completed"
+    return None
+
+
 def build_space_work_projection(*, profile, space, responsibility_key=None):
     visible_ids = _visible_activity_ids(profile, space)
     lens_ids = _activity_scope_from_responsibility(
@@ -167,98 +304,125 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         visible_ids &= lens_ids
 
     preset = operating_preset_for_space(space)
-    caps = _activity_capability_sets(profile, space)
-    activities = Activity.objects.filter(space=space, pk__in=visible_ids)
-    occurrences = Occurrence.objects.filter(
-        activity__space=space,
-        activity_id__in=visible_ids,
-    ).select_related("activity")
+    caps = _activity_capability_sets(profile)
+    sections = _empty_sections()
     now = timezone.now()
     today = timezone.localdate()
 
-    sections = {key: _empty_section() for key in SECTION_KEYS}
+    activities = Activity.objects.filter(space=space, pk__in=visible_ids).order_by("title", "pk")
+    for activity in activities:
+        if activity.status == ActivityStatus.DRAFT:
+            target = "preparation"
+        elif activity.status == ActivityStatus.PUBLISHED:
+            target = "active"
+        elif activity.status in {ActivityStatus.COMPLETED, ActivityStatus.CANCELLED, ActivityStatus.ARCHIVED}:
+            target = "completed"
+        else:
+            continue
+        _append(sections[target], _activity_item(activity, caps))
 
-    preparation_activities = activities.filter(status=ActivityStatus.DRAFT).order_by(
-        "title", "pk"
+    occurrences = (
+        Occurrence.objects.filter(activity__space=space, activity_id__in=visible_ids)
+        .select_related("activity", "transport_departure")
+        .order_by("start_date", "start_time", "pk")
     )
-    preparation_occurrences = occurrences.filter(
-        status=OccurrenceStatus.DRAFT
-    ).order_by("start_date", "start_time", "pk")
-    preparation_rows = [
-        *_bounded(preparation_activities, lambda row: _activity_item(row, caps))["items"],
-        *_bounded(preparation_occurrences, lambda row: _occurrence_item(row, caps))["items"],
-    ][:PREVIEW_LIMIT]
-    sections["preparation"] = {
-        "items": preparation_rows,
-        "has_more": (
-            preparation_activities.count() + preparation_occurrences.count()
-            > PREVIEW_LIMIT
-        ),
-        "links": {},
-    }
+    for occurrence in occurrences:
+        if occurrence.status == OccurrenceStatus.DRAFT:
+            target = "preparation"
+        elif occurrence.status == OccurrenceStatus.COMPLETED:
+            target = "completed"
+        elif occurrence.status == OccurrenceStatus.CANCELLED:
+            target = "completed"
+        elif occurrence.status == OccurrenceStatus.SCHEDULED and occurrence.is_ongoing:
+            target = "active"
+        elif occurrence.status == OccurrenceStatus.SCHEDULED and (
+            (occurrence.start_at is not None and occurrence.start_at > now)
+            or (occurrence.start_at is None and occurrence.start_date and occurrence.start_date > today)
+        ):
+            target = "upcoming"
+        else:
+            continue
+        _append(sections[target], _occurrence_item(occurrence, caps))
 
-    sections["upcoming"] = _bounded(
-        occurrences.filter(
-            status=OccurrenceStatus.SCHEDULED,
-        ).filter(
-            Q(start_at__gt=now)
-            | Q(start_at__isnull=True, start_date__gt=today)
-        ).order_by("start_date", "start_time", "pk"),
-        lambda row: _occurrence_item(row, caps),
-    )
+    commerce_activity_ids = visible_ids & caps["commerce"]
+    for offer in (
+        Offer.objects.filter(activity_id__in=commerce_activity_ids)
+        .select_related("activity")
+        .order_by("activity_id", "name", "pk")
+    ):
+        if offer.status == OfferStatus.DRAFT:
+            target = "preparation"
+        elif offer.status == OfferStatus.ACTIVE:
+            target = "active"
+        elif offer.status == OfferStatus.ARCHIVED:
+            target = "completed"
+        else:
+            continue
+        _append(sections[target], _offer_item(offer, caps))
 
-    active_occurrences = occurrences.filter(status=OccurrenceStatus.SCHEDULED).filter(
-        Q(start_at__lte=now, end_at__gt=now)
-        | Q(start_at__lte=now, end_at__isnull=True)
-        | Q(
-            start_at__isnull=True,
-            timing_kind="all_day",
-            start_date__lte=today,
-            end_date__gte=today,
+    if has_direct_space_permission(profile, space, PermissionCode.ORDERS_VIEW):
+        orders = (
+            CommerceOrder.objects.filter(
+                payee_space=space,
+                journey__activity_id__in=visible_ids,
+            )
+            .select_related("journey__activity")
+            .order_by("-created_at", "pk")
         )
-        | Q(
-            start_at__isnull=True,
-            timing_kind="all_day",
-            start_date=today,
-            end_date__isnull=True,
-        )
-    )
-    active_activities = activities.filter(status=ActivityStatus.PUBLISHED).order_by(
-        "title", "pk"
-    )
-    active_rows = [
-        *_bounded(active_occurrences.order_by("start_date", "start_time", "pk"), lambda row: _occurrence_item(row, caps))["items"],
-        *_bounded(active_activities, lambda row: _activity_item(row, caps))["items"],
-    ][:PREVIEW_LIMIT]
-    sections["active"] = {
-        "items": active_rows,
-        "has_more": active_occurrences.count() + active_activities.count() > PREVIEW_LIMIT,
-        "links": {},
-    }
+        for order in orders:
+            if order.status == CommerceOrderStatus.DRAFT:
+                target = "preparation"
+            elif order.status in {CommerceOrderStatus.PENDING, CommerceOrderStatus.CONFIRMED}:
+                target = "active"
+            elif order.status in {
+                CommerceOrderStatus.CANCELLED,
+                CommerceOrderStatus.EXPIRED,
+                CommerceOrderStatus.REFUNDED,
+            }:
+                target = "completed"
+            else:
+                continue
+            _append(sections[target], _order_item(order, caps))
 
-    completed_occurrences = occurrences.filter(
-        status=OccurrenceStatus.COMPLETED
-    ).order_by("-start_date", "-start_time", "pk")
-    completed_activities = activities.filter(
-        status=ActivityStatus.COMPLETED
-    ).order_by("-updated_at", "pk")
-    completed_rows = [
-        *_bounded(completed_occurrences, lambda row: _occurrence_item(row, caps))["items"],
-        *_bounded(completed_activities, lambda row: _activity_item(row, caps))["items"],
-    ][:PREVIEW_LIMIT]
-    sections["completed"] = {
-        "items": completed_rows,
-        "has_more": completed_occurrences.count() + completed_activities.count() > PREVIEW_LIMIT,
-        "links": {},
-    }
+    education_ids = visible_ids & caps["requests"]
+    if education_ids:
+        for journey in (
+            Journey.objects.filter(
+                activity_id__in=education_ids,
+                workflow=WorkflowKind.REGISTRATION,
+            )
+            .select_related("activity")
+            .prefetch_related("blockers")
+            .order_by("-created_at", "pk")
+        ):
+            target = _journey_section(journey)
+            if target:
+                _append(sections[target], _journey_item(journey, caps))
+
+    service_ids = visible_ids & caps["service_cases"]
+    if service_ids:
+        for journey in (
+            service_journeys_visible_to(profile)
+            .filter(activity_id__in=service_ids)
+            .select_related("activity")
+            .prefetch_related("blockers")
+        ):
+            target = _journey_section(journey)
+            if target:
+                _append(sections[target], _journey_item(journey, caps))
 
     direct_portfolio = _space_has_activity_portfolio_access(profile, space)
+    if direct_portfolio and "transport" in operational_footprint_for_space(space).signals:
+        for route in TransportRoute.objects.filter(space=space).order_by("name", "pk"):
+            _append(sections["active" if route.active else "completed"], _route_item(route))
+        for vehicle in Vehicle.objects.filter(space=space).order_by("label", "pk"):
+            _append(sections["active" if vehicle.active else "completed"], _vehicle_item(vehicle))
+
     footprint = (
         list(operational_footprint_for_space(space).signals)
         if direct_portfolio
         else []
     )
-
     return {
         "space": {
             "id": str(space.pk),
