@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "378220698577",
+    "project_id": "makolo-dev",
+    "storage_bucket": "makolo-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:378220698577:android:a56a6e5838cec975d2def0",
+        "android_client_info": {
+          "package_name": "com.makolo.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8yl97lZ0uSuaQPlEPKd07HDALIM3cVdA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
