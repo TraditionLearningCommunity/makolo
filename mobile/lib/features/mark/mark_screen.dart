@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/providers.dart';
+import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
 import '../../navigation/avatar_sheet.dart';
