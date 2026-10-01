@@ -202,57 +202,68 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
         ongoing_items = [presenters[entry.kind](entry) for entry in entries]
         kinds = {entry.kind for entry in entries}
 
-        context["ongoing_items"] = ongoing_items
-        context["has_personal_dossiers"] = (
-            "dossier" in kinds
-            or dossiers_for_profile(profile)
-            .filter(
-                owner_profile=profile,
-                lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
-            )
-            .exists()
-        )
-        context["has_personal_projects"] = (
-            "project" in kinds
-            or projects_for_profile(profile)
-            .filter(
-                owner_profile=profile,
-                lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE},
-            )
-            .exists()
-        )
-        context["has_waitlist"] = (
-            "waitlist" in kinds
-            or get_waitlist_entries_visible_to(profile)
-            .filter(
-                user=profile,
-                status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED},
-            )
-            .exists()
-        )
-        context["has_transfers"] = (
-            "transfer" in kinds
-            or get_ticket_transfers_visible_to(profile)
-            .filter(status=TransferStatus.PENDING)
-            .filter(models.Q(sender=profile) | models.Q(recipient=profile))
-            .exists()
-        )
-        if "funding" in kinds:
-            context["has_personal_fundings"] = True
-        else:
-            personal_funding_candidates = list(
-                FundingDetails.objects.select_related("activity")
+        budget_full = len(entries) >= ONGOING_LIMIT
+        has_personal_dossiers = "dossier" in kinds
+        has_personal_projects = "project" in kinds
+        has_waitlist = "waitlist" in kinds
+        has_transfers = "transfer" in kinds
+        has_personal_fundings = "funding" in kinds
+
+        if budget_full:
+            has_personal_dossiers = has_personal_dossiers or (
+                dossiers_for_profile(profile)
                 .filter(
-                    activity__owner_profile=profile,
-                    activity__space__isnull=True,
-                    activity__status__in={ActivityStatus.DRAFT, ActivityStatus.PUBLISHED},
+                    owner_profile=profile,
+                    lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
                 )
-                .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
+                .exists()
             )
-            context["has_personal_fundings"] = any(
-                can_manage_funding(profile, funding)
-                for funding in personal_funding_candidates
+            has_personal_projects = has_personal_projects or (
+                projects_for_profile(profile)
+                .filter(
+                    owner_profile=profile,
+                    lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE},
+                )
+                .exists()
             )
+            has_waitlist = has_waitlist or (
+                get_waitlist_entries_visible_to(profile)
+                .filter(
+                    user=profile,
+                    status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED},
+                )
+                .exists()
+            )
+            has_transfers = has_transfers or (
+                get_ticket_transfers_visible_to(profile)
+                .filter(status=TransferStatus.PENDING)
+                .filter(models.Q(sender=profile) | models.Q(recipient=profile))
+                .exists()
+            )
+            if not has_personal_fundings:
+                personal_funding_candidates = list(
+                    FundingDetails.objects.select_related("activity")
+                    .filter(
+                        activity__owner_profile=profile,
+                        activity__space__isnull=True,
+                        activity__status__in={
+                            ActivityStatus.DRAFT,
+                            ActivityStatus.PUBLISHED,
+                        },
+                    )
+                    .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
+                )
+                has_personal_fundings = any(
+                    can_manage_funding(profile, funding)
+                    for funding in personal_funding_candidates
+                )
+
+        context["ongoing_items"] = ongoing_items
+        context["has_personal_dossiers"] = has_personal_dossiers
+        context["has_personal_projects"] = has_personal_projects
+        context["has_waitlist"] = has_waitlist
+        context["has_transfers"] = has_transfers
+        context["has_personal_fundings"] = has_personal_fundings
         return context
 
 
