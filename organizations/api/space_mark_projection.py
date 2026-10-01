@@ -1,0 +1,185 @@
+from __future__ import annotations
+
+import unicodedata
+from collections.abc import Mapping
+from uuid import UUID
+
+from authorization.constants import PermissionCode
+from authorization.services import can
+from operations.space_day_of import build_space_operator_day_of
+from scanner.space_context import build_scanner_context
+
+
+def _fold(value):
+    value = " ".join(str(value or "").casefold().split())
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", value)
+        if not unicodedata.combining(char)
+    )
+
+
+def _mapping(value):
+    return value if isinstance(value, Mapping) else {}
+
+
+def _uuid(value):
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def _response(*, state, intent, message, result=None, question=None, action=None, handoff=None, links=None):
+    return {
+        "state": state,
+        "understanding": {"intent": intent},
+        "result": result,
+        "question": question,
+        "action": action,
+        "handoff": handoff,
+        "links": links or {},
+        "message": message,
+    }
+
+
+def _occurrence_from_context(*, space, context):
+    from activities.models import Occurrence
+
+    selected = _mapping(context.get("selected"))
+    raw = selected.get("id") if selected.get("kind") == "occurrence" else context.get("occurrence_id")
+    occurrence_id = _uuid(raw)
+    if occurrence_id is None:
+        return None
+    return (
+        Occurrence.objects.select_related("activity", "activity__space")
+        .filter(pk=occurrence_id, activity__space=space)
+        .first()
+    )
+
+
+def orchestrate_space_mark(*, profile, space, input_kind, value, context, observed_at=None):
+    responsibility = str(_mapping(context).get("responsibility") or "").strip() or None
+    if input_kind != "text":
+        return _response(
+            state="unsupported",
+            intent="unsupported_input",
+            message="Ce contexte Space accepte actuellement uniquement du texte.",
+            result={"reason": "input_kind_not_supported"},
+        )
+
+    folded = _fold(value)
+
+    if any(term in folded for term in ("jour j", "live", "maintenant sur place", "ce qui se passe")):
+        occurrence = _occurrence_from_context(space=space, context=context)
+        if occurrence is None:
+            return _response(
+                state="needs_clarification",
+                intent="inspect_day_of",
+                message="Makolo a besoin de l’Occurrence concernée.",
+                question={"code": "which_occurrence", "options": []},
+            )
+        day_of = build_space_operator_day_of(
+            occurrence=occurrence,
+            actor=profile,
+            observed_at=observed_at,
+        )
+        if day_of is None:
+            return _response(
+                state="unknown",
+                intent="inspect_day_of",
+                message="Aucune surface Jour J opérateur accessible n’est disponible pour ce contexte.",
+                result={"reason": "day_of_not_available"},
+            )
+        return _response(
+            state="resolved",
+            intent="inspect_day_of",
+            message="Makolo a retrouvé le Jour J de cette Occurrence.",
+            result={
+                "identity": day_of["identity"],
+                "responsibility": responsibility,
+            },
+            handoff={"owner": "operations", "surface": "day_of"},
+            links={
+                "day_of": f"/api/v1/operations/occurrences/{occurrence.pk}/day-of/",
+                "live": f"/api/v1/operations/occurrences/{occurrence.pk}/live/",
+            },
+        )
+
+    if any(term in folded for term in ("scanner", "scan", "controle", "controler", "verifier un acces")):
+        occurrence = _occurrence_from_context(space=space, context=context)
+        if occurrence is None:
+            return _response(
+                state="needs_clarification",
+                intent="open_scanner",
+                message="Makolo a besoin de l’Occurrence à contrôler.",
+                question={"code": "which_occurrence", "options": []},
+            )
+        scanner = build_scanner_context(
+            occurrence=occurrence,
+            actor=profile,
+            observed_at=observed_at,
+        )
+        if scanner is None:
+            return _response(
+                state="forbidden",
+                intent="open_scanner",
+                message="Le contrôle n’est pas autorisé dans ce scope.",
+                result={"reason": "scanner_authority_required"},
+            )
+        return _response(
+            state="resolved",
+            intent="open_scanner",
+            message="Makolo a préparé le contexte de contrôle.",
+            result={
+                "identity": scanner["identity"],
+                "responsibility": responsibility,
+            },
+            handoff={"owner": "scanner", "surface": "occurrence_context"},
+            links={
+                "context": f"/api/v1/scanner/occurrences/{occurrence.pk}/context/",
+                **({"scan": scanner["links"]["scan"]} if "scan" in scanner["links"] else {}),
+            },
+        )
+
+    if any(term in folded for term in ("equipe", "team", "ajoute paul", "ajoute marie", "ajoute un membre")):
+        team_link = f"/api/v1/organizations/workspaces/{space.slug}/team/"
+        if "ajoute" in folded:
+            if not can(profile, PermissionCode.SPACE_TEAM_MANAGE, space):
+                return _response(
+                    state="forbidden",
+                    intent="add_team_member",
+                    message="Cette action exige une autorité Team réelle.",
+                    result={"reason": "team_manage_authority_required"},
+                )
+            return _response(
+                state="needs_clarification",
+                intent="add_team_member",
+                message="Il faut identifier précisément le Profil et la responsabilité à lui attribuer.",
+                question={"code": "team_member_identity_and_responsibility", "options": []},
+                handoff={"owner": "organizations", "surface": "team"},
+                links={"owner": team_link},
+            )
+        return _response(
+            state="resolved",
+            intent="open_team",
+            message="Makolo a retrouvé la surface Équipe de ce Space.",
+            result={"responsibility": responsibility},
+            handoff={"owner": "organizations", "surface": "team"},
+            links={"owner": team_link},
+        )
+
+    if any(term in folded for term in ("depart", "commande", "partenaire", "finance", "paiement")):
+        return _response(
+            state="unsupported",
+            intent="owner_handoff",
+            message="Le handoff owner demandé n’est pas encore stable sur cette base ZS5.",
+            result={"reason": "owner_handoff_not_available_on_base"},
+        )
+
+    return _response(
+        state="unknown",
+        intent="unknown",
+        message="Makolo n’a pas assez d’éléments pour déterminer un handoff Space sûr.",
+        result={"reason": "intent_not_resolved"},
+    )
