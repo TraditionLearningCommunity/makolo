@@ -20,8 +20,10 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
       return JourneyDetailScreen(
         journeyId: journeyId,
         repository: repository,
-        onOpenForm: (form) =>
-            context.push('/journeys/' + journeyId + '/forms/' + form.id, extra: form),
+        onOpenForm: (form) => context.push(
+          '/journeys/' + journeyId + '/forms/' + form.id,
+          extra: form,
+        ),
         onOpenRequirement: (requirement) => context.push(
           '/journeys/' + journeyId + '/requirements/' + requirement.id,
           extra: requirement,
