@@ -55,11 +55,10 @@ Alpine.data('themeManager', () => ({
   },
 }));
 
-// Alpine starts from this deferred bundle before DOMContentLoaded. One initial
-// scan plus one post-settle scan is sufficient; afterSwap/afterSettle and
-// alpine:initialized previously rescanned the same document repeatedly.
 document.addEventListener('DOMContentLoaded', refreshIcons);
+document.addEventListener('htmx:afterSwap', refreshIcons);
 document.addEventListener('htmx:afterSettle', refreshIcons);
+document.addEventListener('alpine:initialized', refreshIcons);
 bindFirstPartyInteractions();
 
 Alpine.start();
