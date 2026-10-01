@@ -126,4 +126,92 @@ void main() {
     expect(result.files.single.path, isNot(contains('private-note')));
     expect(await File(result.files.single.path).readAsBytes(), [1, 2, 3, 4]);
   });
+
+  test('multiple selected files are staged independently', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-nc-multi-');
+    final database = MakoloDatabase.memory();
+    addTearDown(() async {
+      await database.close();
+      await root.delete(recursive: true);
+    });
+    final coordinator = NativeFileAcquisitionCoordinator(
+      store: ProfileFileStore(
+        database: database,
+        profileId: 'profile-a',
+        privateDirectory: Directory('${root.path}/private'),
+        stagingDirectory: Directory('${root.path}/staging'),
+      ),
+      permissions: FakePermissions(PermissionDecision.granted),
+      mediaPicker: FakeMediaPicker(),
+      filePicker: FakeFilePicker([
+        PickedSystemFile(
+          name: 'first.pdf',
+          byteLength: 2,
+          copyTo: (path) => File(path).writeAsBytes([1, 2]),
+        ),
+        PickedSystemFile(
+          name: 'second.jpg',
+          byteLength: 3,
+          copyTo: (path) => File(path).writeAsBytes([3, 4, 5]),
+        ),
+      ]),
+    );
+
+    final result = await coordinator.pickFiles(
+      owner: 'InboundCapture',
+      purpose: 'documents',
+      fileIdFor: (index, _) => 'opaque-$index',
+    );
+
+    expect(result.status, FileAcquisitionStatus.acquired);
+    expect(result.files, hasLength(2));
+    expect(await File(result.files[0].path).readAsBytes(), [1, 2]);
+    expect(await File(result.files[1].path).readAsBytes(), [3, 4, 5]);
+  });
+
+  test('partial staging failure removes files already acquired', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-nc-cleanup-');
+    final database = MakoloDatabase.memory();
+    addTearDown(() async {
+      await database.close();
+      await root.delete(recursive: true);
+    });
+    final staging = Directory('${root.path}/staging');
+    final store = ProfileFileStore(
+      database: database,
+      profileId: 'profile-a',
+      privateDirectory: Directory('${root.path}/private'),
+      stagingDirectory: staging,
+    );
+    final coordinator = NativeFileAcquisitionCoordinator(
+      store: store,
+      permissions: FakePermissions(PermissionDecision.granted),
+      mediaPicker: FakeMediaPicker(),
+      filePicker: FakeFilePicker([
+        PickedSystemFile(
+          name: 'first.pdf',
+          byteLength: 1,
+          copyTo: (path) => File(path).writeAsBytes([1]),
+        ),
+        PickedSystemFile(
+          name: 'second.pdf',
+          byteLength: 1,
+          copyTo: (_) async => throw StateError('copy failed'),
+        ),
+      ]),
+    );
+
+    final result = await coordinator.pickFiles(
+      owner: 'InboundCapture',
+      purpose: 'documents',
+      fileIdFor: (index, _) => 'partial-$index',
+    );
+
+    expect(result.status, FileAcquisitionStatus.failed);
+    expect(await store.read('partial-0'), isNull);
+    expect(
+      await staging.exists() ? await staging.list().toList() : const [],
+      isEmpty,
+    );
+  });
 }

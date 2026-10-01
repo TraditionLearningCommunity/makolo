@@ -1,6 +1,12 @@
 import 'package:permission_handler/permission_handler.dart';
 
-enum MakoloPermission { camera, microphone, locationWhenInUse, notifications }
+enum MakoloPermission {
+  camera,
+  microphone,
+  locationWhenInUse,
+  locationAlways,
+  notifications,
+}
 
 enum PermissionDecision {
   granted,
@@ -59,6 +65,7 @@ class PermissionHandlerGateway implements PermissionGateway {
       MakoloPermission.camera => Permission.camera,
       MakoloPermission.microphone => Permission.microphone,
       MakoloPermission.locationWhenInUse => Permission.locationWhenInUse,
+      MakoloPermission.locationAlways => Permission.locationAlways,
       MakoloPermission.notifications => Permission.notification,
     };
   }

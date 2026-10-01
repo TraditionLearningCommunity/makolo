@@ -1,6 +1,47 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum MakoloLocationAccuracy { low, balanced, high }
+
+enum LocationTrackingProfile { ambient, balanced, active }
+
+class LocationTrackingPolicy {
+  const LocationTrackingPolicy({
+    required this.accuracy,
+    required this.distanceFilterMeters,
+    required this.intervalDuration,
+  });
+
+  final MakoloLocationAccuracy accuracy;
+  final int distanceFilterMeters;
+  final Duration intervalDuration;
+
+  static const ambient = LocationTrackingPolicy(
+    accuracy: MakoloLocationAccuracy.low,
+    distanceFilterMeters: 250,
+    intervalDuration: Duration(minutes: 2),
+  );
+
+  static const balanced = LocationTrackingPolicy(
+    accuracy: MakoloLocationAccuracy.balanced,
+    distanceFilterMeters: 50,
+    intervalDuration: Duration(seconds: 30),
+  );
+
+  static const active = LocationTrackingPolicy(
+    accuracy: MakoloLocationAccuracy.high,
+    distanceFilterMeters: 10,
+    intervalDuration: Duration(seconds: 5),
+  );
+
+  static LocationTrackingPolicy forProfile(LocationTrackingProfile profile) {
+    return switch (profile) {
+      LocationTrackingProfile.ambient => ambient,
+      LocationTrackingProfile.balanced => balanced,
+      LocationTrackingProfile.active => active,
+    };
+  }
+}
 
 class LocationFix {
   const LocationFix({
@@ -30,13 +71,25 @@ abstract interface class LocationService {
   });
 
   Stream<LocationFix> watch({
-    int distanceFilterMeters = 25,
-    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+    LocationTrackingProfile profile = LocationTrackingProfile.balanced,
+    bool background = false,
+    int? distanceFilterMeters,
+    MakoloLocationAccuracy? accuracy,
+    Duration? intervalDuration,
   });
 }
 
 class GeolocatorLocationService implements LocationService {
   const GeolocatorLocationService();
+
+  static const _backgroundNotification = ForegroundNotificationConfig(
+    notificationTitle: 'Makolo — action en cours',
+    notificationText: 'Localisation active pour poursuivre cette action.',
+    notificationChannelName: 'Localisation Makolo',
+    enableWakeLock: false,
+    enableWifiLock: false,
+    setOngoing: true,
+  );
 
   @override
   Future<bool> isServiceEnabled() => Geolocator.isLocationServiceEnabled();
@@ -53,15 +106,36 @@ class GeolocatorLocationService implements LocationService {
 
   @override
   Stream<LocationFix> watch({
-    int distanceFilterMeters = 25,
-    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+    LocationTrackingProfile profile = LocationTrackingProfile.balanced,
+    bool background = false,
+    int? distanceFilterMeters,
+    MakoloLocationAccuracy? accuracy,
+    Duration? intervalDuration,
   }) {
-    return Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
-        accuracy: _accuracy(accuracy),
-        distanceFilter: distanceFilterMeters,
-      ),
-    ).map(_fix);
+    final policy = LocationTrackingPolicy.forProfile(profile);
+    final effectiveAccuracy = accuracy ?? policy.accuracy;
+    final effectiveDistance =
+        distanceFilterMeters ?? policy.distanceFilterMeters;
+    final effectiveInterval = intervalDuration ?? policy.intervalDuration;
+
+    final LocationSettings settings;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      settings = AndroidSettings(
+        accuracy: _accuracy(effectiveAccuracy),
+        distanceFilter: effectiveDistance,
+        intervalDuration: effectiveInterval,
+        foregroundNotificationConfig: background
+            ? _backgroundNotification
+            : null,
+      );
+    } else {
+      settings = LocationSettings(
+        accuracy: _accuracy(effectiveAccuracy),
+        distanceFilter: effectiveDistance,
+      );
+    }
+
+    return Geolocator.getPositionStream(locationSettings: settings).map(_fix);
   }
 
   LocationAccuracy _accuracy(MakoloLocationAccuracy accuracy) {
