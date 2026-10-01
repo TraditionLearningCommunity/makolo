@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/onboarding/onboarding_flow.dart';
+import '../features/splash/brand_moment.dart';
 import '../features/splash/splash_screen.dart';
 import 'launch_policy.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
 
-enum _LaunchStage { preparing, onboarding, content }
+enum _LaunchStage { preparing, brandMoment, onboarding, content }
 
 class LaunchGate extends StatefulWidget {
   const LaunchGate({
@@ -16,7 +17,7 @@ class LaunchGate extends StatefulWidget {
     required this.router,
     required this.child,
     this.launchStartedAt,
-    this.minimumVisible = const Duration(seconds: 1),
+    this.minimumVisible = Duration.zero,
   });
 
   final AppRuntime runtime;
@@ -33,42 +34,56 @@ class _LaunchGateState extends State<LaunchGate> {
   _LaunchStage _stage = _LaunchStage.preparing;
   LaunchPreferencesSnapshot _preferences = const LaunchPreferencesSnapshot();
   bool _priorityNavigation = false;
-  late final Future<void> _minimumVisibleFuture;
 
   @override
   void initState() {
     super.initState();
-    final startedAt = widget.launchStartedAt ?? DateTime.now();
-    final elapsed = DateTime.now().difference(startedAt);
-    final remaining = widget.minimumVisible - elapsed;
-    _minimumVisibleFuture = remaining > Duration.zero
-        ? Future<void>.delayed(remaining)
-        : Future<void>.value();
     _prepare();
+  }
+
+  _LaunchStage _destinationStage(LaunchPreferencesSnapshot preferences) {
+    return preferences.hasCompletedOnboarding
+        ? _LaunchStage.content
+        : _LaunchStage.onboarding;
   }
 
   Future<void> _prepare() async {
     final store = widget.runtime.launchPreferences;
-    if (store == null) {
-      await _minimumVisibleFuture;
-      if (mounted) setState(() => _stage = _LaunchStage.content);
-      return;
+    final preferences =
+        await store?.read() ?? const LaunchPreferencesSnapshot();
+    if (widget.minimumVisible > Duration.zero) {
+      await Future<void>.delayed(widget.minimumVisible);
     }
-    final preferences = await store.read();
-    final path = widget.router.routeInformationProvider.value.uri.path;
-    await _minimumVisibleFuture;
     if (!mounted) return;
 
+    final path = widget.router.routeInformationProvider.value.uri.path;
     final priorityNavigation = hasPriorityLaunchPath(
       path,
       authenticated: widget.runtime.isAuthenticated,
     );
+    final showBrandMoment = const BrandMomentPolicy().isEligible(
+      preferences: preferences,
+      now: DateTime.now(),
+      hasPriorityNavigation: priorityNavigation,
+    );
+
     setState(() {
       _preferences = preferences;
       _priorityNavigation = priorityNavigation;
-      _stage = preferences.hasCompletedOnboarding
-          ? _LaunchStage.content
-          : _LaunchStage.onboarding;
+      _stage = showBrandMoment
+          ? _LaunchStage.brandMoment
+          : _destinationStage(preferences);
+    });
+  }
+
+  Future<void> _finishBrandMoment() async {
+    final shownAt = DateTime.now().toUtc();
+    await widget.runtime.launchPreferences?.setLastBrandMomentAt(shownAt);
+    if (!mounted) return;
+    final updated = _preferences.copyWith(lastBrandMomentAt: shownAt);
+    setState(() {
+      _preferences = updated;
+      _stage = _destinationStage(updated);
     });
   }
 
@@ -98,6 +113,7 @@ class _LaunchGateState extends State<LaunchGate> {
   Widget build(BuildContext context) {
     return switch (_stage) {
       _LaunchStage.preparing => const SplashScreen(),
+      _LaunchStage.brandMoment => BrandMoment(onFinished: _finishBrandMoment),
       _LaunchStage.onboarding => OnboardingFlow(
         isAuthenticated: widget.runtime.isAuthenticated,
         onComplete: _finishOnboarding,

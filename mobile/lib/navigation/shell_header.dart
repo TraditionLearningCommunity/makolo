@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 
 enum MakoloHeaderKind { now, discover, mark, ongoing, me }
@@ -15,7 +16,7 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.onConversations,
     this.onNotifications,
     this.onSearch,
-    this.onFilters,
+    this.onMap,
     this.onCalendar,
     this.unreadNotifications = 0,
     this.avatarLetter,
@@ -26,7 +27,7 @@ class MakoloPrimaryHeader extends StatelessWidget
   final VoidCallback? onConversations;
   final VoidCallback? onNotifications;
   final VoidCallback? onSearch;
-  final VoidCallback? onFilters;
+  final VoidCallback? onMap;
   final VoidCallback? onCalendar;
   final int unreadNotifications;
   final String? avatarLetter;
@@ -34,15 +35,12 @@ class MakoloPrimaryHeader extends StatelessWidget
   @override
   Size get preferredSize => const Size.fromHeight(64);
 
-  bool get _usesBrand =>
-      kind == MakoloHeaderKind.now ||
-      kind == MakoloHeaderKind.discover ||
-      kind == MakoloHeaderKind.mark;
+  bool get _usesFullBrand =>
+      kind == MakoloHeaderKind.now || kind == MakoloHeaderKind.mark;
 
   String get _title => switch (kind) {
-    MakoloHeaderKind.now ||
-    MakoloHeaderKind.discover ||
-    MakoloHeaderKind.mark => 'Makolo',
+    MakoloHeaderKind.now || MakoloHeaderKind.mark => 'Makolo',
+    MakoloHeaderKind.discover => 'Découvrir',
     MakoloHeaderKind.ongoing => 'En cours',
     MakoloHeaderKind.me => 'Moi',
   };
@@ -69,7 +67,11 @@ class MakoloPrimaryHeader extends StatelessWidget
         icon: Icons.search,
         onPressed: onSearch,
       ),
-      _HeaderAction(tooltip: 'Filtres', icon: Icons.tune, onPressed: onFilters),
+      _HeaderAction(
+        tooltip: 'Carte',
+        icon: Icons.map_outlined,
+        onPressed: onMap,
+      ),
     ],
     MakoloHeaderKind.ongoing => [
       _HeaderAction(
@@ -81,6 +83,48 @@ class MakoloPrimaryHeader extends StatelessWidget
     MakoloHeaderKind.mark || MakoloHeaderKind.me => const [],
   };
 
+  Widget _titleWidget(BuildContext context) {
+    if (_usesFullBrand) {
+      return SvgPicture.asset(
+        Theme.of(context).brightness == Brightness.dark
+            ? 'assets/brand/makolo-logo-white.svg'
+            : 'assets/brand/makolo-logo-violet.svg',
+        height: 34,
+        fit: BoxFit.contain,
+        semanticsLabel: 'Makolo',
+      );
+    }
+
+    return Semantics(
+      container: true,
+      label: _title,
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MakoloMark(
+              size: 25,
+              semantics: MakoloMarkSemantics.decorative,
+            ),
+            const SizedBox(width: MakoloSpacing.sm),
+            Flexible(
+              child: Text(
+                _title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppBar(
@@ -91,21 +135,7 @@ class MakoloPrimaryHeader extends StatelessWidget
       surfaceTintColor: Colors.transparent,
       backgroundColor: Theme.of(context).colorScheme.surface,
       titleSpacing: MakoloSpacing.md,
-      title: _usesBrand
-          ? SvgPicture.asset(
-              Theme.of(context).brightness == Brightness.dark
-                  ? 'assets/brand/makolo-logo-white.svg'
-                  : 'assets/brand/makolo-logo-violet.svg',
-              height: 34,
-              fit: BoxFit.contain,
-              semanticsLabel: 'Makolo',
-            )
-          : Text(
-              _title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+      title: _titleWidget(context),
       actions: [
         ..._contextActions(),
         Semantics(

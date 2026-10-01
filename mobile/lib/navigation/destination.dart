@@ -1,5 +1,5 @@
 enum MakoloDestination {
-  now('/now', 'Now'),
+  now('/now', 'Maintenant'),
   discover('/discover', 'Découvrir'),
   ongoing('/ongoing', 'En cours'),
   me('/me', 'Moi');
