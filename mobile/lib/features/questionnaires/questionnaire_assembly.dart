@@ -59,9 +59,7 @@ QuestionnaireAssembly buildQuestionnaireAssembly({
     submit: submit,
     outboxProcessor: OutboxProcessor(
       repository: outbox,
-      handlers: {
-        QuestionnaireSubmitCoordinator.operationKind: submit.handler,
-      },
+      handlers: {QuestionnaireSubmitCoordinator.operationKind: submit.handler},
       reconcilers: {
         QuestionnaireSubmitCoordinator.operationKind: submit.reconciler,
       },
