@@ -97,21 +97,7 @@ class AppSettingsScreen extends StatelessWidget {
                 'À propos',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              FutureBuilder<PackageInfo>(
-                future: PackageInfo.fromPlatform(),
-                builder: (context, snapshot) {
-                  final info = snapshot.data;
-                  final version = info == null
-                      ? null
-                      : '${info.version} (${info.buildNumber})';
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.apps_outlined),
-                    title: const Text('Makolo'),
-                    subtitle: version == null ? null : Text('Version $version'),
-                  );
-                },
-              ),
+              const _AppVersionTile(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.description_outlined),
@@ -131,6 +117,37 @@ class AppSettingsScreen extends StatelessWidget {
                 ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+
+class _AppVersionTile extends StatefulWidget {
+  const _AppVersionTile();
+
+  @override
+  State<_AppVersionTile> createState() => _AppVersionTileState();
+}
+
+class _AppVersionTileState extends State<_AppVersionTile> {
+  late final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: _packageInfo,
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        final version = info == null
+            ? null
+            : '${info.version} (${info.buildNumber})';
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.apps_outlined),
+          title: const Text('Makolo'),
+          subtitle: version == null ? null : Text('Version $version'),
         );
       },
     );

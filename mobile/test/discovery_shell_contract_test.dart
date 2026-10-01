@@ -28,7 +28,7 @@ void main() {
     ).readAsStringSync();
 
     expect(source, contains('ConfiguredMakoloMapView('));
-    expect(routes, contains('runtime.config?.maps'));
+    expect(routes, contains('mapConfig: runtime.mapConfig'));
     expect(routes, contains("path: '/discover/map'"));
   });
 }

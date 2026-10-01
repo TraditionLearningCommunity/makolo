@@ -102,5 +102,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('activé'), findsNothing);
+
+    Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
+    await tester.pump();
+    await tester.pump();
   });
 }
