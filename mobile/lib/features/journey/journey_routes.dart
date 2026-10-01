@@ -21,15 +21,15 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         journeyId: journeyId,
         repository: repository,
         onOpenForm: (form) => context.push(
-          '/journeys/' + journeyId + '/forms/' + form.id,
+          '/journeys/$journeyId/forms/${form.id}',
           extra: form,
         ),
         onOpenRequirement: (requirement) => context.push(
-          '/journeys/' + journeyId + '/requirements/' + requirement.id,
+          '/journeys/$journeyId/requirements/${requirement.id}',
           extra: requirement,
         ),
         onOpenResources: (resourcesLink) => context.push(
-          '/journeys/' + journeyId + '/resources',
+          '/journeys/$journeyId/resources',
           extra: resourcesLink,
         ),
       );
