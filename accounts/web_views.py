@@ -180,8 +180,14 @@ class AccountProfileView(LoginRequiredMixin, View):
     template_name = "accounts/profile.html"
 
     def _objects(self, request):
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        preferences, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        try:
+            profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            profile = UserProfile(user=request.user)
+        try:
+            preferences = request.user.notification_preferences
+        except NotificationPreference.DoesNotExist:
+            preferences = NotificationPreference(user=request.user)
         return profile, preferences
 
     def _profile_forms(self, request, profile, *, bound_section=None):
