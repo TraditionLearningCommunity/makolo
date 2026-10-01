@@ -11,8 +11,9 @@ List<RouteBase> questionnaireRoutes(AppRuntime runtime) => [
     path: '/journeys/:journeyId/forms/:requestId',
     builder: (context, state) {
       runtime.recovery.rememberLocation(state.uri.toString());
-      final form =
-          state.extra is JourneyFormSummary ? state.extra! as JourneyFormSummary : null;
+      final form = state.extra is JourneyFormSummary
+          ? state.extra! as JourneyFormSummary
+          : null;
       final repository = runtime.questionnaires;
       final drafts = runtime.drafts;
       final outbox = runtime.outbox;
