@@ -32,9 +32,9 @@ Les features ne lisent jamais directement une URL, un fournisseur ou une variabl
 
 Le `namespace` Kotlin reste `com.makolo`. Changer l'`applicationId` n'exige donc pas de déplacer `MainActivity`.
 
-Les trois fichiers versionnés ne contiennent aucun secret ni URL inventée. Les capacités externes sont désactivées par défaut. `prod.json` est intentionnellement incomplet : le runtime refuse PROD sans `MAKOLO_API_BASE_URL`.
+`config/dev.json` porte désormais les valeurs client réelles de l'environnement DEV approuvé : backend de test PythonAnywhere, style MapLibre/MapTiler DEV, Firebase/FCM, Sentry Flutter et capability de localisation background. App Links reste désactivé. `beta.json` et `prod.json` restent volontairement incomplets tant que leurs valeurs canoniques n'existent pas ; le runtime refuse PROD sans `MAKOLO_API_BASE_URL`.
 
-Pour une configuration locale ou CI enrichie, copier le fichier de base vers `config/<env>.local.json`. Ces fichiers sont ignorés par Git.
+Pour une surcharge locale ou CI non canonique, copier le fichier de base vers `config/<env>.local.json`. Ces fichiers sont ignorés par Git. Une valeur DEV versionnée doit rester une configuration client distribuable dans l'application ; aucun secret serveur ne doit y entrer.
 
 ## Clés runtime
 
@@ -78,7 +78,7 @@ Ce dernier build n'implique pas qu'une release store soit prête : le signing pr
 
 ## Firebase Android
 
-Aucun projet Firebase fictif n'est créé. Le futur wiring Android utilisera les source sets de flavor standards :
+Le projet Firebase DEV réel est maintenant raccordé via les source sets de flavor standards :
 
 ```text
 mobile/android/app/src/dev/google-services.json
@@ -86,11 +86,11 @@ mobile/android/app/src/beta/google-services.json
 mobile/android/app/src/prod/google-services.json
 ```
 
-Le fichier correspondant doit provenir du vrai projet Firebase associé à l'`applicationId` du flavor. PAR-1A n'applique pas encore le plugin Google Services et ne fait aucun bootstrap Firebase ; PAR-1C possède cette étape.
+`mobile/android/app/src/dev/google-services.json` provient du projet Firebase réel associé à `com.makolo.dev` et est versionné comme configuration client Android. BETA et PROD restent absents tant que leurs projets réels ne sont pas créés. Le plugin Google Services et le bootstrap conditionnel sont fournis par PAR-1C.
 
-`google-services.json` est une configuration client Firebase, pas une clé privée serveur. Sa politique de versionnement doit néanmoins être décidée explicitement pour les vrais projets. Ne jamais committer : service-account JSON, clé privée, secret signing, keystore, token serveur ou credential administratif Firebase.
+`google-services.json` est une configuration client Firebase, pas une clé privée serveur. Ne jamais committer : service-account JSON, clé privée, secret signing, keystore, token serveur ou credential administratif Firebase.
 
-Lorsque Firebase reste désactivé, l'absence de ces fichiers ne bloque pas le build DEV.
+Pour un flavor où Firebase reste désactivé, l'absence du fichier client ne bloque pas le build.
 
 ## Maps
 
@@ -104,7 +104,7 @@ Aucune URL OpenFreeMap, MapLibre, OSM ou autre provider n'est ajoutée dans `mob
 
 L'architecture existante `CrashReporter / NoopCrashReporter / SentryCrashReporter` est conservée. PAR-1A fournit seulement `enabled + dsn`.
 
-Un DSN Sentry est une valeur client et n'est pas assimilé à une clé privée serveur, mais Makolo le garde externe au dépôt tant qu'une politique explicite n'en décide pas autrement. Aucun DSN réel n'est commité ici.
+Un DSN Sentry est une valeur client et n'est pas assimilé à une clé privée serveur, mais Makolo le garde externe au dépôt tant qu'une politique explicite n'en décide pas autrement. Le DSN client du projet Sentry Flutter DEV est versionné dans `config/dev.json`; il ne confère aucune autorité serveur. Les credentials Sentry administratifs restent interdits.
 
 ## App Links
 
