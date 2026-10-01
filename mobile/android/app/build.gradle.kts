@@ -22,6 +22,25 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationId = "com.makolo.dev"
+            resValue("string", "app_name", "Makolo Dev")
+        }
+        create("beta") {
+            dimension = "environment"
+            applicationId = "com.makolo.beta"
+            resValue("string", "app_name", "Makolo Beta")
+        }
+        create("prod") {
+            dimension = "environment"
+            applicationId = "com.makolo"
+            resValue("string", "app_name", "Makolo")
+        }
+    }
+
     buildTypes {
         release {
             // No production signing is defined here. Debug signing only keeps
