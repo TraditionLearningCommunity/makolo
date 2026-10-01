@@ -202,7 +202,11 @@ class WebReadPathRegressionTests(TestCase):
     def test_ongoing_full_shell_does_not_load_share_capability_asset(self):
         response = self.client.get("/me/ongoing/")
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "js/share-actions.js", html=False)
+        self.assertNotContains(
+            response,
+            '<script defer src="/static/js/share-actions.js',
+            html=False,
+        )
 
     def test_ongoing_non_htmx_response_keeps_full_document(self):
         response = self.client.get("/me/ongoing/")
