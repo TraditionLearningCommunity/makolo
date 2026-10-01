@@ -32,6 +32,12 @@ class ZS5SpaceActionProjectionTests(TestCase):
             role=SystemRoleCode.SPACE_OWNER,
             granted_by=self.owner,
         )
+        self.admin_mandate = grant_space_role(
+            profile=self.admin,
+            space=self.space,
+            role=SystemRoleCode.SPACE_ADMIN,
+            granted_by=self.owner,
+        )
         self.activity = Activity.objects.create(
             title="Départ ZS5",
             space=self.space,
@@ -212,6 +218,9 @@ class ZS5SpaceMarkTests(TestCase):
         self.target = User.objects.create_user(
             username="zs5-mark-target", email="zs5-mark-target@test.local", password="x"
         )
+        self.admin = User.objects.create_user(
+            username="zs5-mark-admin", email="zs5-mark-admin@test.local", password="x"
+        )
         self.space = Organization.objects.create(
             name="ZS5 Mark Space", slug="zs5-mark-space", created_by=self.owner
         )
@@ -329,6 +338,35 @@ class ZS5SpaceMarkTests(TestCase):
                 user=self.target,
             ).count(),
             1,
+        )
+
+    def test_mark_confirmation_revalidates_authority_after_revocation(self):
+        context = {
+            "team_member": {
+                "email": self.target.email,
+                "role": "finance",
+            }
+        }
+        pending = self._post(self.admin, "Ajoute Paul dans l'équipe", context=context)
+        self.assertEqual(pending.status_code, 200, pending.data)
+        self.assertEqual(pending.data["data"]["state"], "needs_confirmation")
+
+        revoke_mandate(mandate=self.admin_mandate, actor=self.owner)
+        confirmed = {
+            **context,
+            "confirmation": {
+                "code": "add_team_member",
+                "email": self.target.email,
+                "role": "finance",
+            },
+        }
+        denied = self._post(self.admin, "Ajoute Paul dans l'équipe", context=confirmed)
+        self.assertEqual(denied.status_code, 404)
+        self.assertFalse(
+            TeamMembership.objects.filter(
+                team__organization=self.space,
+                user=self.target,
+            ).exists()
         )
 
     def test_non_text_input_is_unsupported_without_persistence(self):
