@@ -4,16 +4,29 @@ from conversations.attention import attention_points_for_profile, conversation_a
 from conversations.form_services import form_request_for_profile
 from conversations.point_models import ConversationPoint
 from conversations.presentation import conversation_context_label
+from core.web.request_context import get_request_context
 
 
 register = template.Library()
 
 
-@register.simple_tag
-def conversation_attention_badge(profile):
+@register.simple_tag(takes_context=True)
+def conversation_attention_badge(context, profile):
     if not getattr(profile, "is_authenticated", False):
         return 0
-    return conversation_attention_count(profile)
+    request = context.get("request")
+    if request is None:
+        return conversation_attention_count(profile)
+    request_context = get_request_context(request)
+    if not request_context.surface.needs_capability("conversation_attention"):
+        return 0
+    return request_context.memoize(
+        ("conversation_attention", profile.pk),
+        lambda: conversation_attention_count(
+            profile,
+            at=request_context.observed_at,
+        ),
+    )
 
 
 @register.simple_tag
