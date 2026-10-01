@@ -14,8 +14,7 @@ from .point_models import (
     ConversationPointResponseStatus,
     ConversationPointUserState,
 )
-from .point_services import point_expected_from, point_visible_to
-from .services import can_manage_conversation
+from .services import can_manage_conversation, can_view_conversation
 
 
 ATTENTION_LIFECYCLES = {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}
@@ -48,21 +47,81 @@ def _profile_state(point, profile):
     return point.user_states.filter(profile=profile).first()
 
 
-def point_attention_reason(profile, point, *, at=None):
+def _cached(cache, key, resolver):
+    if cache is None:
+        return resolver()
+    if key not in cache:
+        cache[key] = resolver()
+    return cache[key]
+
+
+def _profile_in_audience(
+    profile,
+    audience,
+    *,
+    at,
+    cache=None,
+):
+    if audience is None:
+        return False
+    return _cached(
+        cache,
+        audience.pk,
+        lambda: profile_in_audience(profile, audience, at=at),
+    )
+
+
+def _conversation_visible(profile, conversation, *, cache=None):
+    return _cached(
+        cache,
+        conversation.pk,
+        lambda: can_view_conversation(profile, conversation),
+    )
+
+
+def _conversation_manageable(profile, conversation, *, cache=None):
+    return _cached(
+        cache,
+        conversation.pk,
+        lambda: can_manage_conversation(profile, conversation),
+    )
+
+
+def point_attention_reason(
+    profile,
+    point,
+    *,
+    at=None,
+    audience_membership_cache=None,
+    conversation_visibility_cache=None,
+    conversation_manage_cache=None,
+):
     at = at or timezone.now()
     if point.lifecycle not in ATTENTION_LIFECYCLES:
         return None
-    if not point_visible_to(profile, point, at=at):
+    if not _conversation_visible(
+        profile,
+        point.conversation,
+        cache=conversation_visibility_cache,
+    ):
+        return None
+    if point.visibility_audience_id and not _profile_in_audience(
+        profile,
+        point.visibility_audience,
+        at=at,
+        cache=audience_membership_cache,
+    ):
         return None
     if point.valid_until and at >= point.valid_until:
         return None
 
     expected = bool(
         point.expected_action_audience_id
-        and profile_in_audience(
+        and _profile_in_audience(
             profile,
             point.expected_action_audience,
             at=at,
+            cache=audience_membership_cache,
         )
     )
     state = _profile_state(point, profile)
@@ -81,18 +140,22 @@ def point_attention_reason(profile, point, *, at=None):
             if not point.deadline_at or at < point.deadline_at:
                 return "respond"
 
-    if point.resolution_audience_id and profile_in_audience(
+    if point.resolution_audience_id and _profile_in_audience(
         profile,
         point.resolution_audience,
         at=at,
+        cache=audience_membership_cache,
     ):
-        if can_manage_conversation(profile, point.conversation):
+        if _conversation_manageable(
+            profile,
+            point.conversation,
+            cache=conversation_manage_cache,
+        ):
             return "resolve"
 
     if state is not None and state.revisit_at is not None:
         return "revisit"
     return None
-
 
 def attention_points_for_profile(profile, *, at=None, limit=100):
     if not getattr(profile, "is_authenticated", False):
@@ -129,8 +192,18 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
         ]
     )
     items = []
+    audience_membership_cache = {}
+    conversation_visibility_cache = {}
+    conversation_manage_cache = {}
     for point in candidates:
-        reason = point_attention_reason(profile, point, at=at)
+        reason = point_attention_reason(
+            profile,
+            point,
+            at=at,
+            audience_membership_cache=audience_membership_cache,
+            conversation_visibility_cache=conversation_visibility_cache,
+            conversation_manage_cache=conversation_manage_cache,
+        )
         if reason:
             items.append(
                 ConversationAttentionItem(
