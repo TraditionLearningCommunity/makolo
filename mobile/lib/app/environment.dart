@@ -232,9 +232,7 @@ class MakoloRuntimeConfig {
     return switch (value) {
       '' || 'false' => false,
       'true' => true,
-      _ => throw MakoloConfigurationException(
-        '$name must be true or false.',
-      ),
+      _ => throw MakoloConfigurationException('$name must be true or false.'),
     };
   }
 
