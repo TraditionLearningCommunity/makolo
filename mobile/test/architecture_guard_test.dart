@@ -50,6 +50,10 @@ bool _isUiBoundary(String path) =>
     path.contains('/presentation/') ||
     path.contains('/widgets/');
 
+bool _isRepositoryStorageImport(String path, String package) =>
+    path.endsWith('_repository.dart') &&
+    (package == 'drift' || package == 'drift_flutter');
+
 void main() {
   test('features respect Makolo infrastructure and app boundaries', () {
     final violations = <String>[];
@@ -60,7 +64,8 @@ void main() {
 
       for (final match in _packageImport.allMatches(source)) {
         final package = match.group(1)!;
-        if (_forbiddenInfrastructurePackages.contains(package)) {
+        if (_forbiddenInfrastructurePackages.contains(package) &&
+            !_isRepositoryStorageImport(path, package)) {
           violations.add(
             '$path imports package:$package directly; use the Makolo '
             'repository/platform/runtime boundary instead.',
