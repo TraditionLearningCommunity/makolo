@@ -4,6 +4,11 @@ import unicodedata
 from collections.abc import Mapping
 from uuid import UUID
 
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+from activities.models import Occurrence
+from activities.selectors import occurrence_with_places
 from authorization.constants import PermissionCode
 from authorization.services import can
 from operations.space_day_of import build_space_operator_day_of
@@ -51,17 +56,17 @@ def _occurrence_reference(context):
 
 
 def _occurrence_from_context(*, space, context):
-    from activities.models import Occurrence
-
     raw = _occurrence_reference(context)
     occurrence_id = _uuid(raw)
     if occurrence_id is None:
         return None
-    return (
-        Occurrence.objects.select_related("activity", "activity__space")
-        .filter(pk=occurrence_id, activity__space=space)
-        .first()
-    )
+    try:
+        occurrence = occurrence_with_places(occurrence_id)
+    except Occurrence.DoesNotExist:
+        return None
+    if occurrence.activity.space_id != space.pk:
+        return None
+    return occurrence
 
 
 def orchestrate_space_mark(*, profile, space, input_kind, value, context, observed_at=None):
@@ -189,7 +194,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="needs_clarification",
                     intent="add_team_member",
-                    message="Il faut identifier précisément le Profil et la responsabilité à lui attribuer.",
+                    message="Il faut identifier précisément le Profil et le rôle d’autorité à lui attribuer.",
                     question={"code": "team_member_identity_and_responsibility", "options": []},
                     handoff={"owner": "organizations", "surface": "team"},
                     links={"owner": team_link},
@@ -197,7 +202,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
 
             action = {
                 "code": "add_team_member",
-                "consequence": f"Ajouter {email} à l’équipe de {space.name} avec la responsabilité {role}.",
+                "consequence": f"Ajouter {email} à l’équipe de {space.name} avec le rôle d’autorité {role}.",
                 "target": {"email": email, "role": role},
             }
             confirmation = _mapping(context.get("confirmation"))
@@ -224,13 +229,30 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                     message="L’autorité nécessaire n’est plus disponible.",
                     result={"reason": "team_manage_authority_required"},
                 )
-            target = find_user_for_team(email=email)
-            membership = add_or_update_member(
-                organization=space,
-                actor=profile,
-                user=target,
-                role=role,
-            )
+            try:
+                target = find_user_for_team(email=email)
+                membership = add_or_update_member(
+                    organization=space,
+                    actor=profile,
+                    user=target,
+                    role=role,
+                )
+            except DjangoPermissionDenied:
+                return _response(
+                    state="forbidden",
+                    intent="add_team_member",
+                    message="L’autorité nécessaire n’est plus disponible.",
+                    result={"reason": "team_manage_authority_required"},
+                )
+            except DjangoValidationError:
+                return _response(
+                    state="needs_clarification",
+                    intent="add_team_member",
+                    message="Le domaine Organizations ne peut pas appliquer cette demande telle quelle.",
+                    question={"code": "team_member_details_invalid", "options": []},
+                    handoff={"owner": "organizations", "surface": "team"},
+                    links={"owner": team_link},
+                )
             return _response(
                 state="completed",
                 intent="add_team_member",
