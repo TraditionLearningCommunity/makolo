@@ -1,6 +1,6 @@
 from django import template
 
-from conversations.attention import attention_points_for_profile, conversation_attention_count
+from conversations.attention import attention_points_for_profile, conversation_attention_badge_count
 from conversations.form_services import form_request_for_profile
 from conversations.point_models import ConversationPoint
 from conversations.presentation import conversation_context_label
@@ -16,13 +16,13 @@ def conversation_attention_badge(context, profile):
         return 0
     request = context.get("request")
     if request is None:
-        return conversation_attention_count(profile)
+        return conversation_attention_badge_count(profile)
     request_context = get_request_context(request)
     if not request_context.surface.needs_capability("conversation_attention"):
         return 0
     return request_context.memoize(
         ("conversation_attention", profile.pk),
-        lambda: conversation_attention_count(
+        lambda: conversation_attention_badge_count(
             profile,
             at=request_context.observed_at,
         ),
