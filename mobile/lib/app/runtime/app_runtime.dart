@@ -63,6 +63,12 @@ class AppRuntime {
   final AppPreferencesController? preferences;
   final MakoloRuntimeConfig? config;
   final ResumableInteractionStore? interactions;
+
+  MakoloMapsConfig get mapConfig =>
+      config?.maps ?? const MakoloMapsConfig(enabled: false, style: null);
+
+  bool get isDevelopment =>
+      config?.environment == MakoloRuntimeEnvironment.dev;
   final MakoloApiClient? api;
   final MakoloDatabase? database;
   final ProfileStore? store;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../app/environment.dart';
 import '../../app/launch_preferences.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
@@ -123,7 +122,7 @@ class AppSettingsScreen extends StatelessWidget {
                   applicationName: 'Makolo',
                 ),
               ),
-              if (runtime.config?.environment == MakoloRuntimeEnvironment.dev)
+              if (runtime.isDevelopment)
                 const ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.science_outlined),

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../app/environment.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -10,6 +9,7 @@ import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/maps/makolo_map_view.dart';
+import '../../platform/maps/map_runtime_config.dart';
 import '../../sync/freshness.dart';
 import 'detail_selector.dart';
 import 'discovery_repository.dart';

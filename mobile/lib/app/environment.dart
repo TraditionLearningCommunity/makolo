@@ -1,3 +1,7 @@
+import '../platform/maps/map_runtime_config.dart';
+
+export '../platform/maps/map_runtime_config.dart';
+
 enum MakoloRuntimeEnvironment {
   dev,
   beta,
@@ -28,13 +32,6 @@ class MakoloApiConfig {
   const MakoloApiConfig({required this.baseUri});
 
   final Uri? baseUri;
-}
-
-class MakoloMapsConfig {
-  const MakoloMapsConfig({required this.enabled, required this.style});
-
-  final bool enabled;
-  final String? style;
 }
 
 class MakoloFirebaseConfig {

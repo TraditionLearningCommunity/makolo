@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 
-import '../../app/environment.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../navigation/secondary_screen.dart';
@@ -66,12 +65,9 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'La carte n’est pas disponible pour le moment.',
         );
       }
-      final maps =
-          runtime.config?.maps ??
-          const MakoloMapsConfig(enabled: false, style: null);
       return DiscoveryMapScreen(
         repository: discovery,
-        mapConfig: maps,
+        mapConfig: runtime.mapConfig,
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
       );
     },
