@@ -1,0 +1,20 @@
+{% extends 'organizations/space/base.html' %}
+{% block space_content %}
+<section class="space-y-4" aria-labelledby="space-discover-heading">
+  <div>
+    <span class="mk-kicker">Découvrir</span>
+    <h2 id="space-discover-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">Qu’est-ce qui pourrait nous aider à avancer ?</h2>
+  </div>
+  {% if projection.items %}
+    <div class="mk-panel p-5">
+      <p class="font-bold">Le serveur expose {{ projection.items|length }} possibilité{{ projection.items|length|pluralize }}.</p>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">WS2 prendra en charge l’exploration complète sans reranking côté navigateur.</p>
+    </div>
+  {% else %}
+    <div class="mk-panel p-6" role="status">
+      <p class="text-xl font-extrabold">Aucune sélection collective n’est disponible pour l’instant.</p>
+      <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Le Web respecte le contrat ZS : aucune recommandation ou heuristique locale n’est fabriquée.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
