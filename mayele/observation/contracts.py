@@ -38,6 +38,14 @@ def _optional_text(name: str, value: Optional[str]) -> Optional[str]:
     return _required_text(name, value)
 
 
+def _verbatim_text(name: str, value: str) -> str:
+    if not isinstance(value, str):
+        raise MayeleContractError(f"{name} must be a string")
+    if not value.strip():
+        raise MayeleContractError(f"{name} must not be empty")
+    return value
+
+
 def _aware_datetime(name: str, value: datetime) -> datetime:
     if not isinstance(value, datetime):
         raise MayeleContractError(f"{name} must be a datetime")
@@ -375,7 +383,7 @@ class ObservedStatement:
         )
         if not isinstance(self.passage, Passage):
             raise MayeleContractError("passage must be Passage")
-        object.__setattr__(self, "text", _required_text("text", self.text))
+        object.__setattr__(self, "text", _verbatim_text("text", self.text))
         object.__setattr__(self, "scope", _derived_scope(self.passage.scope, self.scope))
         object.__setattr__(self, "language", _optional_text("language", self.language))
 
@@ -407,7 +415,7 @@ class Mention:
         )
         if not isinstance(self.statement, ObservedStatement):
             raise MayeleContractError("statement must be ObservedStatement")
-        object.__setattr__(self, "surface", _required_text("surface", self.surface))
+        object.__setattr__(self, "surface", _verbatim_text("surface", self.surface))
         object.__setattr__(
             self, "scope", _derived_scope(self.statement.scope, self.scope)
         )
