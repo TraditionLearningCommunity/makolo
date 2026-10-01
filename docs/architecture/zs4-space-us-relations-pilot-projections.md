@@ -131,6 +131,7 @@ Avec `analytics.view`, la section `analytics` expose :
 - waitlist ;
 - totaux financiers uniquement lorsque l'owner Analytics les rend visibles ;
 - `generated_at` ;
+- couverture explicite `latest_visible_events`, bornée aux 40 événements visibles déjà utilisés par l'owner Analytics ;
 - deep link vers l'API Analytics propriétaire.
 
 Aucun signal interprétatif n'est fabriqué :
@@ -240,6 +241,8 @@ vert.
 - mêmes Profile avec relations Team + CRM + Partner ;
 - absence de PII CRM ;
 - Group et Partner sans transfert d'autorité ;
+- `created_by` comme provenance, jamais ownership ;
+- Analytics Marketing sans Permission financière et sans fuite de montants ;
 - huit labels d'archétype ;
 - zéro réel vs `insufficient_data` ;
 - absence de score global ;
