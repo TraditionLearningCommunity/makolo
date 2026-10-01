@@ -5,3 +5,6 @@
 build/
 coverage/
 *.g.dart
+
+# Developer/CI runtime overrides. Canonical defaults stay in config/*.json.
+config/*.local.json
