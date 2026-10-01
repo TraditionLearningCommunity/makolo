@@ -20,7 +20,7 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
       }
       return ConversationListScreen(
         repository: repository,
-        onOpen: (id) => context.push('/conversations/' + id),
+        onOpen: (id) => context.push('/conversations/$id'),
       );
     },
   ),
@@ -55,9 +55,9 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         repository: repository,
         onOpenResource: (kind, id) {
           if (kind == 'journey') {
-            context.push('/journeys/' + id);
+            context.push('/journeys/$id');
           } else if (kind == 'access') {
-            context.push('/accesses/' + id);
+            context.push('/accesses/$id');
           }
         },
       );
@@ -78,8 +78,8 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         kind: ObjectiveDepth.dossier,
         id: state.pathParameters['id']!,
         repository: repository,
-        onOpenDossier: (id) => context.push('/dossiers/' + id),
-        onOpenJourney: (id) => context.push('/journeys/' + id),
+        onOpenDossier: (id) => context.push('/dossiers/$id'),
+        onOpenJourney: (id) => context.push('/journeys/$id'),
       );
     },
   ),
@@ -98,8 +98,8 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         kind: ObjectiveDepth.project,
         id: state.pathParameters['id']!,
         repository: repository,
-        onOpenDossier: (id) => context.push('/dossiers/' + id),
-        onOpenJourney: (id) => context.push('/journeys/' + id),
+        onOpenDossier: (id) => context.push('/dossiers/$id'),
+        onOpenJourney: (id) => context.push('/journeys/$id'),
       );
     },
   ),
