@@ -369,7 +369,10 @@ class AppearancePreferencesForm(forms.Form):
 
     def save(self):
         self.profile.theme = self.cleaned_data["appearance"]
-        self.profile.save(update_fields=["theme", "updated_at"])
+        if self.profile.pk is None:
+            self.profile.save()
+        else:
+            self.profile.save(update_fields=["theme", "updated_at"])
         return self.profile
 
 

@@ -24,6 +24,7 @@ from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entr
 
 from core.home_presentation import resolve_mature_home_contextual_actions
 from core.participant_selectors import participant_active_accesses, participant_active_journeys
+from core.read_models import build_personal_ongoing_read_model
 
 
 ONGOING_LIMIT = 18
@@ -679,118 +680,34 @@ def _payment_ongoing_item(payment):
 
 
 def build_personal_ongoing_projection(profile, *, observed_at=None):
-    """Build En cours without evaluating families that cannot reach the response.
+    """Serialize the shared bounded En cours read model for API/mobile."""
 
-    Family order is part of the existing Z2 contract. The response is capped at
-    ONGOING_LIMIT, so each following owner is queried only for the remaining
-    slots instead of loading a full candidate window and discarding it.
-    """
-    observed_at = observed_at or timezone.now()
+    entries = build_personal_ongoing_read_model(
+        profile,
+        observed_at=observed_at,
+        limit=ONGOING_LIMIT,
+    )
     items = []
-    remaining = ONGOING_LIMIT
-
-    journeys = list(
-        readiness_queryset(
-            participant_active_journeys(profile)
-            .select_related(None)
-            .prefetch_related(None)
-            .order_by("-updated_at", "-created_at", "id")
-        )[:remaining]
-    )
-    readiness_by_id = resolve_many(journeys, viewer=profile, observed_at=observed_at)
-    items.extend(
-        _journey_ongoing_item(journey, readiness_by_id[journey.pk])
-        for journey in journeys
-    )
-    remaining = ONGOING_LIMIT - len(items)
-
-    if remaining:
-        accesses = list(
-            participant_active_accesses(profile, at=observed_at)
-            .select_related(None)
-            .prefetch_related(None)
-            .select_related("activity", "occurrence")
-            .prefetch_related("occurrence__place_links__place")
-            .order_by("occurrence__start_date", "occurrence__start_time", "id")[:remaining]
-        )
-        items.extend(_access_ongoing_item(access) for access in accesses)
-        remaining = ONGOING_LIMIT - len(items)
-
-    if remaining:
-        dossiers = list(
-            owned_dossiers_for_profile(profile)
-            .filter(
-                lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
+    for entry in entries:
+        if entry.kind == "journey":
+            items.append(_journey_ongoing_item(entry.value, entry.readiness))
+        elif entry.kind == "access":
+            items.append(_access_ongoing_item(entry.value))
+        elif entry.kind == "dossier":
+            items.append(
+                _dossier_ongoing_item(
+                    entry.value,
+                    readiness=entry.readiness,
+                )
             )
-            .order_by("-updated_at", "id")[:remaining]
-        )
-        dossier_readiness = resolve_owned_dossiers_readiness(
-            dossiers,
-            viewer=profile,
-        )
-        items.extend(
-            _dossier_ongoing_item(
-                dossier,
-                readiness=dossier_readiness[dossier.pk],
-            )
-            for dossier in dossiers
-        )
-        remaining = ONGOING_LIMIT - len(items)
-
-    if remaining:
-        projects = list(
-            owned_projects_for_profile(profile)
-            .filter(
-                lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE},
-            )
-            .order_by("-updated_at", "id")[:remaining]
-        )
-        items.extend(_project_ongoing_item(project) for project in projects)
-        remaining = ONGOING_LIMIT - len(items)
-
-    if remaining:
-        waitlist_entries = list(
-            get_waitlist_entries_visible_to(profile)
-            .filter(
-                user=profile,
-                status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED},
-            )
-            .order_by("created_at", "id")[:remaining]
-        )
-        items.extend(
-            _waitlist_ongoing_item(entry)
-            for entry in waitlist_entries
-        )
-        remaining = ONGOING_LIMIT - len(items)
-
-    if remaining:
-        transfers = list(
-            get_ticket_transfers_visible_to(profile)
-            .filter(status=TransferStatus.PENDING)
-            .filter(models.Q(sender=profile) | models.Q(recipient=profile))
-            .order_by("-created_at", "id")[:remaining]
-        )
-        transfer_items = [
-            _transfer_ongoing_item(transfer, profile=profile)
-            for transfer in transfers
-            if transfer.is_pending_active
-        ]
-        items.extend(transfer_items)
-        remaining = ONGOING_LIMIT - len(items)
-
-    if remaining:
-        payments = list(
-            get_payments_visible_to(profile)
-            .filter(
-                initiated_by=profile,
-                status__in={PaymentStatus.PENDING, PaymentStatus.PROCESSING},
-                commerce_order__journey__isnull=True,
-                obligation__journey__isnull=True,
-                order__journey__isnull=True,
-            )
-            .order_by("-created_at", "id")[:remaining]
-        )
-        items.extend(_payment_ongoing_item(payment) for payment in payments)
+        elif entry.kind == "project":
+            items.append(_project_ongoing_item(entry.value))
+        elif entry.kind == "waitlist":
+            items.append(_waitlist_ongoing_item(entry.value))
+        elif entry.kind == "transfer":
+            items.append(_transfer_ongoing_item(entry.value, profile=profile))
+        elif entry.kind == "payment":
+            items.append(_payment_ongoing_item(entry.value))
 
     if not items:
         return {"items": []}

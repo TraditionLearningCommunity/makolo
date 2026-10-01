@@ -110,8 +110,10 @@ class NotificationPreferenceView(LoginRequiredMixin, View):
     login_url = "core:login"
 
     def get_object(self, request):
-        preference, _ = NotificationPreference.objects.get_or_create(user=request.user)
-        return preference
+        try:
+            return request.user.notification_preferences
+        except NotificationPreference.DoesNotExist:
+            return NotificationPreference(user=request.user)
 
     def get(self, request):
         form = NotificationPreferenceForm(instance=self.get_object(request))

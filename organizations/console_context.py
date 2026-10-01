@@ -56,10 +56,25 @@ def authorized_spaces(profile):
     return queryset if ids is None else queryset.filter(pk__in=ids)
 
 
+def _space_authority_ids(profile):
+    """Space-level authority only; activity mandates never become Space authority."""
+    if getattr(profile, "is_superuser", False):
+        return None
+    return set(
+        _current_mandates(profile)
+        .filter(scope_type=AuthorityScope.SPACE)
+        .exclude(space_id=None)
+        .values_list("space_id", flat=True)
+    )
+
+
 def has_space_authority(profile, space):
     if getattr(profile, "is_superuser", False):
         return True
-    return _current_mandates(profile).filter(scope_type=AuthorityScope.SPACE, space=space).exists()
+    return _current_mandates(profile).filter(
+        scope_type=AuthorityScope.SPACE,
+        space=space,
+    ).exists()
 
 
 def activity_ids_for_space(profile, space):
@@ -193,7 +208,11 @@ class SpaceConsoleContext:
         allowed_ids = authorized_space_ids(profile)
         if allowed_ids is not None and space.pk not in allowed_ids:
             return None
-        limited = not has_space_authority(profile, space)
+        space_authority_ids = _space_authority_ids(profile)
+        limited = (
+            space_authority_ids is not None
+            and space.pk not in space_authority_ids
+        )
         permissions = frozenset(_space_permission_codes(profile, space))
         role_codes = frozenset(_space_role_codes(profile, space))
         workspace = build_space_workspace(profile, space) or {"modules": []}
@@ -245,7 +264,10 @@ class SpaceConsoleContext:
             {
                 "name": candidate.name,
                 "slug": candidate.slug,
-                "limited": not has_space_authority(profile, candidate),
+                "limited": (
+                    space_authority_ids is not None
+                    and candidate.pk not in space_authority_ids
+                ),
                 "url": reverse("organizations:console-entry", kwargs={"slug": candidate.slug}),
             }
             for candidate in authorized_spaces(profile)
