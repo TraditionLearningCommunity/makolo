@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}{{ revision.title }} | Makolo{% endblock %}
 {% block content %}
 <div class="space-y-6">
@@ -10,3 +11,5 @@
 <aside class="space-y-5"><section class="mk-panel p-5"><h2 class="font-extrabold">Localisation</h2><div class="mt-3 space-y-2 text-sm">{% for relation in revision.zones.all %}<p>{{ relation.zone.name }} <span style="color:var(--mk-muted)">· {{ relation.get_role_display }}</span></p>{% empty %}<p style="color:var(--mk-muted)">Non précisée</p>{% endfor %}</div></section><section class="mk-panel p-5"><h2 class="font-extrabold">Source et confiance</h2>{% if primary_source %}<p class="mt-3 text-sm font-semibold">{{ primary_source.source_name }}</p><p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ primary_source.get_source_type_display }}</p>{% if primary_source.verified_at %}<p class="mt-3 text-xs">Vérifiée le {{ primary_source.verified_at|date:'d/m/Y' }}</p>{% elif primary_source.last_checked_at %}<p class="mt-3 text-xs">Contrôlée le {{ primary_source.last_checked_at|date:'d/m/Y' }}</p>{% endif %}<a class="mk-btn mk-btn-secondary mt-4" href="{{ primary_source.url }}" rel="noopener noreferrer">Consulter la source</a>{% else %}<p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucune source principale active n’est affichée.</p>{% endif %}</section></aside></div>
 </div>
 {% endblock %}
+
+{% block extra_js %}<script defer src="{% static 'js/share-actions.js' %}"></script>{% endblock %}
