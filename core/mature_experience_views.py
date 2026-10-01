@@ -29,6 +29,7 @@ from tickets.models import TransferStatus, WaitlistStatus
 from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
 from personal_assets.selectors import personal_assets_for_controller
 from readiness import ReadinessStatus, resolve_many
+from readiness.presentation import readiness_next_action_label
 from readiness.selectors import readiness_queryset
 from topics.models import ProfileInterest, ProfileOpenTo
 from trust.credential_selectors import credentials_for_profile
@@ -36,7 +37,8 @@ from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
 from .read_models import build_personal_ongoing_read_model
-from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _journey_card
+from .participant_presentation import occurrence_timing
+from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _primary_place
 
 
 ONGOING_LIMIT = 18
