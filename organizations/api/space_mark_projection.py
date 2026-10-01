@@ -44,11 +44,16 @@ def _response(*, state, intent, message, result=None, question=None, action=None
     }
 
 
+def _occurrence_reference(context):
+    selected = _mapping(context.get("selected"))
+    raw = selected.get("id") if selected.get("kind") == "occurrence" else context.get("occurrence_id")
+    return str(raw or "").strip()
+
+
 def _occurrence_from_context(*, space, context):
     from activities.models import Occurrence
 
-    selected = _mapping(context.get("selected"))
-    raw = selected.get("id") if selected.get("kind") == "occurrence" else context.get("occurrence_id")
+    raw = _occurrence_reference(context)
     occurrence_id = _uuid(raw)
     if occurrence_id is None:
         return None
@@ -72,8 +77,16 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
     folded = _fold(value)
 
     if any(term in folded for term in ("jour j", "live", "maintenant sur place", "ce qui se passe")):
+        raw_occurrence = _occurrence_reference(context)
         occurrence = _occurrence_from_context(space=space, context=context)
         if occurrence is None:
+            if raw_occurrence:
+                return _response(
+                    state="unknown",
+                    intent="inspect_day_of",
+                    message="Cette cible n’est pas disponible dans ce contexte.",
+                    result={"reason": "target_not_available"},
+                )
             return _response(
                 state="needs_clarification",
                 intent="inspect_day_of",
@@ -108,8 +121,16 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
         )
 
     if any(term in folded for term in ("scanner", "scan", "controle", "controler", "verifier un acces")):
+        raw_occurrence = _occurrence_reference(context)
         occurrence = _occurrence_from_context(space=space, context=context)
         if occurrence is None:
+            if raw_occurrence:
+                return _response(
+                    state="unknown",
+                    intent="open_scanner",
+                    message="Cette cible n’est pas disponible dans ce contexte.",
+                    result={"reason": "target_not_available"},
+                )
             return _response(
                 state="needs_clarification",
                 intent="open_scanner",
@@ -122,6 +143,13 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
             observed_at=observed_at,
         )
         if scanner is None:
+            if not can(profile, PermissionCode.ACTIVITY_VIEW, activity=occurrence.activity):
+                return _response(
+                    state="unknown",
+                    intent="open_scanner",
+                    message="Cette cible n’est pas disponible dans ce contexte.",
+                    result={"reason": "target_not_available"},
+                )
             return _response(
                 state="forbidden",
                 intent="open_scanner",
