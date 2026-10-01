@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.db.models import Q
+
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope
 from authorization.selectors import (
@@ -75,6 +77,47 @@ def workspace_spaces(profile):
     return Organization.objects.filter(pk__in=ids).order_by("name")
 
 
+def _responsibility_projection(profile, space, mandates=None):
+    if mandates is None:
+        mandates = list(
+            current_mandates()
+            .filter(profile=profile)
+            .filter(
+                Q(scope_type=AuthorityScope.SPACE, space=space)
+                | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
+            )
+            .select_related("role", "activity")
+            .order_by("scope_type", "role__name", "activity__title", "pk")
+        )
+    perspectives = []
+    if mandates:
+        combined_scope = (
+            "space"
+            if any(mandate.scope_type == AuthorityScope.SPACE for mandate in mandates)
+            else "activity_limited"
+        )
+        perspectives.append({
+            "key": "all",
+            "label": "Toutes mes responsabilités",
+            "scope": combined_scope,
+            "combined": True,
+        })
+    for mandate in mandates:
+        row = {
+            "key": f"mandate:{mandate.pk}",
+            "label": mandate.role.name,
+            "scope": mandate.scope_type,
+            "combined": False,
+        }
+        if mandate.scope_type == AuthorityScope.ACTIVITY:
+            row["activity"] = {
+                "id": str(mandate.activity_id),
+                "title": mandate.activity.title,
+            }
+        perspectives.append(row)
+    return perspectives
+
+
 def _module(key, *, status="active", capabilities=(), links=None, notes=()):
     return {
         "key": key,
@@ -87,7 +130,17 @@ def _module(key, *, status="active", capabilities=(), links=None, notes=()):
 
 
 def build_space_workspace(profile, space):
-    if not workspace_spaces(profile).filter(pk=space.pk).exists():
+    mandates = list(
+        current_mandates()
+        .filter(profile=profile)
+        .filter(
+            Q(scope_type=AuthorityScope.SPACE, space=space)
+            | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
+        )
+        .select_related("role", "activity")
+        .order_by("scope_type", "role__name", "activity__title", "pk")
+    )
+    if not mandates:
         return None
 
     modules = []
@@ -278,7 +331,9 @@ def build_space_workspace(profile, space):
             notes=("Space Operations uses Activity/Occurrence endpoints; Platform Operations is separate.",),
         ))
 
-    direct_space_authority = has_direct_space_authority(profile, space)
+    direct_space_authority = any(
+        mandate.scope_type == AuthorityScope.SPACE for mandate in mandates
+    )
     preset = operating_preset_for_space(space)
     verification = [
         {
@@ -315,8 +370,13 @@ def build_space_workspace(profile, space):
             "label": preset.label,
             "navigation_section_label": preset.navigation_section_label,
             "activities_label": preset.activities_label,
+            "primary_business_label": preset.primary_business_label,
             "featured_modules": list(preset.featured_modules),
             "suggested_verticals": list(preset.suggested_verticals),
+        },
+        "responsibilities": _responsibility_projection(profile, space, mandates),
+        "links": {
+            "workspace": f"/api/v1/organizations/workspaces/{space.slug}/",
         },
         "modules": modules,
         "platform_modules_included": False,
