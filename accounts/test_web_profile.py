@@ -22,16 +22,20 @@ class AccountProfileWebTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("core:login"), response.url)
 
-    def test_profile_page_creates_related_preferences_and_profile(self):
+    def test_profile_page_is_read_only_when_related_rows_are_missing(self):
         self.client.force_login(self.user)
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
+
         response = self.client.get(reverse("account:profile"))
+
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mon profil")
         self.assertContains(response, "Apparence")
         self.assertContains(response, self.user.email)
         self.assertContains(response, "js/theme-preference.js")
-        self.assertTrue(UserProfile.objects.filter(user=self.user).exists())
-        self.assertTrue(NotificationPreference.objects.filter(user=self.user).exists())
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
 
     def test_profile_update_updates_user_and_user_profile(self):
         self.client.force_login(self.user)

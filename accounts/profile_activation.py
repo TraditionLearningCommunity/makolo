@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from django.db.models import Count, Q
+
 from accounts.models import UserProfile
 from topics.models import ProfileInterest, ProfileOpenTo
 
@@ -50,15 +52,26 @@ def build_profile_activation_summary(user, *, profile=None):
         raise ValueError("Profile activation requires an authenticated user.")
 
     if profile is None:
-        profile, _ = UserProfile.objects.get_or_create(user=user)
+        try:
+            profile = user.profile
+        except UserProfile.DoesNotExist:
+            # Missing legacy rows are represented in-memory on read. Creation belongs
+            # to account/profile creation flows, never to a presentation GET.
+            profile = UserProfile(user=user)
 
-    has_interests = ProfileInterest.objects.filter(profile=user, topic__is_active=True).exists()
-    has_open_to = ProfileOpenTo.objects.filter(profile=user, is_active=True).exists()
-    has_searchable_open_to = ProfileOpenTo.objects.filter(
+    has_interests = ProfileInterest.objects.filter(
+        profile=user,
+        topic__is_active=True,
+    ).exists()
+    open_to_counts = ProfileOpenTo.objects.filter(
         profile=user,
         is_active=True,
-        is_searchable=True,
-    ).exists()
+    ).aggregate(
+        total=Count("pk"),
+        searchable=Count("pk", filter=Q(is_searchable=True)),
+    )
+    has_open_to = bool(open_to_counts["total"])
+    has_searchable_open_to = bool(open_to_counts["searchable"])
 
     presentation_complete = _has_presentation_context(user, profile)
     public_applicable = bool(profile.public_profile)

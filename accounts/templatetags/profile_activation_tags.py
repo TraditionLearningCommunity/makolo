@@ -2,6 +2,7 @@ from django import template
 
 from accounts.activation_views import DISCOVER_PROMPT_SESSION_KEY
 from accounts.profile_activation import build_profile_activation_summary
+from core.web.request_context import get_request_context
 from topics.models import ProfileInterest, Topic
 
 
@@ -14,7 +15,13 @@ def profile_activation_summary(context):
     user = getattr(request, "user", None)
     if not getattr(user, "is_authenticated", False):
         return None
-    return build_profile_activation_summary(user)
+    request_context = get_request_context(request)
+    if not request_context.surface.needs_capability("profile_activation"):
+        return None
+    return request_context.memoize(
+        ("profile_activation", user.pk),
+        lambda: build_profile_activation_summary(user),
+    )
 
 
 @register.inclusion_tag("accounts/_discover_interest_prompt.html", takes_context=True)
