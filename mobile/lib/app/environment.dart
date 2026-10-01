@@ -9,8 +9,8 @@ enum MakoloRuntimeEnvironment {
       'beta' => MakoloRuntimeEnvironment.beta,
       'prod' => MakoloRuntimeEnvironment.prod,
       _ => throw MakoloConfigurationException(
-          'MAKOLO_ENVIRONMENT must be one of: dev, beta, prod.',
-        ),
+        'MAKOLO_ENVIRONMENT must be one of: dev, beta, prod.',
+      ),
     };
   }
 }
@@ -215,8 +215,8 @@ class MakoloRuntimeConfig {
       '' || 'false' => false,
       'true' => true,
       _ => throw MakoloConfigurationException(
-          '$name must be true or false.',
-        ),
+        '$name must be true or false.',
+      ),
     };
   }
 
@@ -249,7 +249,8 @@ class MakoloRuntimeConfig {
 class MakoloEnvironment {
   const MakoloEnvironment._();
 
-  static MakoloRuntimeConfig get current => MakoloRuntimeConfig.fromEnvironment();
+  static MakoloRuntimeConfig get current =>
+      MakoloRuntimeConfig.fromEnvironment();
 
   static Uri? get apiBaseUri => current.api.baseUri;
 }
