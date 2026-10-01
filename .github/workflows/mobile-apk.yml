@@ -62,11 +62,13 @@ jobs:
       - name: Build Android debug APK
         env:
           MAKOLO_APK_API_BASE_URL: ${{ inputs.api_base_url || 'https://makolo.pythonanywhere.com' }}
-        run: flutter build apk --debug --dart-define=MAKOLO_API_BASE_URL="$MAKOLO_APK_API_BASE_URL"
+        run: |
+          jq --arg api "$MAKOLO_APK_API_BASE_URL" '.MAKOLO_API_BASE_URL = $api' config/beta.json > /tmp/makolo-beta-runtime.json
+          flutter build apk --debug --flavor beta --dart-define-from-file=/tmp/makolo-beta-runtime.json
       - name: Publish Android debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: makolo-android-debug-apk-${{ github.sha }}
-          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          path: mobile/build/app/outputs/flutter-apk/app-beta-debug.apk
           if-no-files-found: error
           retention-days: 14
