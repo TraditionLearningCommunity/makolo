@@ -261,8 +261,10 @@ class NotificationPreferencesAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _preference(self, request):
-        preference, _ = NotificationPreference.objects.get_or_create(user=request.user)
-        return preference
+        try:
+            return request.user.notification_preferences
+        except NotificationPreference.DoesNotExist:
+            return NotificationPreference(user=request.user)
 
     def get(self, request):
         return Response(NotificationPreferenceSerializer(self._preference(request)).data)
