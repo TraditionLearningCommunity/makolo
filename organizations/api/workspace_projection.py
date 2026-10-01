@@ -77,23 +77,18 @@ def workspace_spaces(profile):
     return Organization.objects.filter(pk__in=ids).order_by("name")
 
 
-def _responsibility_projection(profile, space):
-    mandates = list(
-        current_mandates()
-        .filter(profile=profile)
-        .filter(
-            Q(
-                scope_type=AuthorityScope.SPACE,
-                space=space,
+def _responsibility_projection(profile, space, mandates=None):
+    if mandates is None:
+        mandates = list(
+            current_mandates()
+            .filter(profile=profile)
+            .filter(
+                Q(scope_type=AuthorityScope.SPACE, space=space)
+                | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
             )
-            | Q(
-                scope_type=AuthorityScope.ACTIVITY,
-                activity__space=space,
-            )
+            .select_related("role", "activity")
+            .order_by("scope_type", "role__name", "activity__title", "pk")
         )
-        .select_related("role", "activity")
-        .order_by("scope_type", "role__name", "activity__title", "pk")
-    )
     perspectives = []
     if mandates:
         perspectives.append({
@@ -130,7 +125,17 @@ def _module(key, *, status="active", capabilities=(), links=None, notes=()):
 
 
 def build_space_workspace(profile, space):
-    if not workspace_spaces(profile).filter(pk=space.pk).exists():
+    mandates = list(
+        current_mandates()
+        .filter(profile=profile)
+        .filter(
+            Q(scope_type=AuthorityScope.SPACE, space=space)
+            | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
+        )
+        .select_related("role", "activity")
+        .order_by("scope_type", "role__name", "activity__title", "pk")
+    )
+    if not mandates:
         return None
 
     modules = []
@@ -321,7 +326,9 @@ def build_space_workspace(profile, space):
             notes=("Space Operations uses Activity/Occurrence endpoints; Platform Operations is separate.",),
         ))
 
-    direct_space_authority = has_direct_space_authority(profile, space)
+    direct_space_authority = any(
+        mandate.scope_type == AuthorityScope.SPACE for mandate in mandates
+    )
     preset = operating_preset_for_space(space)
     verification = [
         {
@@ -362,7 +369,7 @@ def build_space_workspace(profile, space):
             "featured_modules": list(preset.featured_modules),
             "suggested_verticals": list(preset.suggested_verticals),
         },
-        "responsibilities": _responsibility_projection(profile, space),
+        "responsibilities": _responsibility_projection(profile, space, mandates),
         "links": {
             "workspace": f"/api/v1/organizations/workspaces/{space.slug}/",
         },
