@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -55,6 +56,17 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
+// Firebase client configuration is flavor-scoped and external. Keep ordinary
+// DEV builds viable while Firebase is disabled and no google-services.json exists.
+tasks.configureEach {
+    if (name.contains("GoogleServices", ignoreCase = true)) {
+        val variant = name.removePrefix("process").removeSuffix("GoogleServices").lowercase()
+        val flavor = listOf("dev", "beta", "prod").firstOrNull { variant.startsWith(it) }
+        val config = flavor?.let { file("src/$it/google-services.json") }
+        onlyIf { config?.exists() == true }
+    }
 }
 
 flutter {
