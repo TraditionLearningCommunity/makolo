@@ -20,9 +20,9 @@ List<RouteBase> dayOfRoutes(AppRuntime runtime) => [
         occurrenceId: state.pathParameters['id']!,
         repository: repository,
         onOpenAccess: (accessId, detailPath) =>
-            context.push('/accesses/' + accessId),
+            context.push('/accesses/$accessId'),
         onPresentCredential: (accessId, credentialPath) => context.push(
-          '/accesses/' + accessId + '/credential',
+          '/accesses/$accessId/credential',
           extra: credentialPath,
         ),
       );
