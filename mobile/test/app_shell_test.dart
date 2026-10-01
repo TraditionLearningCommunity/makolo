@@ -127,7 +127,7 @@ void main() {
   ) async {
     await _pumpRouter(tester);
 
-    expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Maintenant'), findsOneWidget);
     expect(find.text('Découvrir'), findsOneWidget);
     expect(find.text('En cours'), findsOneWidget);
     expect(find.text('Moi'), findsOneWidget);
@@ -146,7 +146,7 @@ void main() {
       matching: find.byType(MakoloMark),
     );
     final mark = tester.widget<MakoloMark>(markFinder);
-    expect(mark.size, 38);
+    expect(mark.size, 32);
   });
 
   testWidgets('Avatar exposes the personal Connexions entry', (tester) async {
@@ -172,7 +172,7 @@ void main() {
 
     await tester.tap(find.text('En cours'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Now'));
+    await tester.tap(find.text('Maintenant'));
     await tester.pumpAndSettle();
 
     expect(refreshes, 0);
@@ -215,7 +215,7 @@ void main() {
 
     await tester.tap(find.text('En cours'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Now'));
+    await tester.tap(find.text('Maintenant'));
     await tester.pumpAndSettle();
 
     expect(find.text('Compteur 1'), findsOneWidget);
@@ -242,7 +242,7 @@ void main() {
 
     await tester.tap(find.text('En cours'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Now'));
+    await tester.tap(find.text('Maintenant'));
     await tester.pumpAndSettle();
 
     final after = tester
@@ -286,7 +286,8 @@ void main() {
     await tester.tap(find.text('Découvrir'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Rechercher'), findsOneWidget);
-    expect(find.byTooltip('Filtres'), findsOneWidget);
+    expect(find.byTooltip('Carte'), findsOneWidget);
+    expect(find.byTooltip('Filtres'), findsNothing);
     expect(find.byTooltip('Conversations'), findsNothing);
 
     await tester.tap(find.text('En cours'));
@@ -317,6 +318,18 @@ void main() {
     expect(find.byTooltip('Rechercher'), findsNothing);
   });
 
+  testWidgets('background syncing stays silent when content is available', (
+    tester,
+  ) async {
+    await _pumpRouter(
+      tester,
+      status: const SyncStatus(state: SyncVisualState.syncing),
+    );
+
+    expect(find.text('Now content'), findsOneWidget);
+    expect(find.text('Mise à jour'), findsNothing);
+  });
+
   testWidgets('offline and failed sync never replace existing content', (
     tester,
   ) async {
@@ -342,7 +355,7 @@ void main() {
     await _pumpRouter(tester, textScale: 2);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Maintenant'), findsOneWidget);
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 }

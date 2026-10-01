@@ -9,11 +9,18 @@ void main() {
     final launch = File(
       'android/app/src/main/res/drawable/launch_background.xml',
     ).readAsStringSync();
+    final launchNight = File(
+      'android/app/src/main/res/drawable-night/launch_background.xml',
+    ).readAsStringSync();
     final launch31 = File('android/app/src/main/res/values-v31/styles.xml')
         .readAsStringSync();
+    final launch31Night = File(
+      'android/app/src/main/res/values-night-v31/styles.xml',
+    ).readAsStringSync();
 
     expect(colors, contains('#5232DB'));
     expect(launch, contains('@drawable/ic_makolo_mark_white'));
+    expect(launchNight, contains('@drawable/ic_makolo_mark_white'));
     expect(
       launch31,
       contains(
@@ -21,6 +28,7 @@ void main() {
         '@drawable/ic_makolo_mark_white</item>',
       ),
     );
+    expect(launch31Night, contains('@drawable/ic_makolo_mark_white'));
     expect(File('assets/brand/makolo-mark-white.svg').existsSync(), isTrue);
   });
 
