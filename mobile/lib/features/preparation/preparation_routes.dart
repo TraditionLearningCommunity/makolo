@@ -18,8 +18,9 @@ List<RouteBase> preparationRoutes(AppRuntime runtime) => [
           message: 'Ce détail n’est pas disponible sur cet appareil.',
         );
       }
-      final reference =
-          state.extra is JourneyReference ? state.extra! as JourneyReference : null;
+      final reference = state.extra is JourneyReference
+          ? state.extra! as JourneyReference
+          : null;
       return RequirementDetailScreen(
         journeyId: state.pathParameters['journeyId']!,
         assessmentId: state.pathParameters['assessmentId']!,
