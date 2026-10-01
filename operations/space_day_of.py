@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from django.utils import timezone
 
+from scanner.permissions import user_can_scan_activity
+
 from .occurrence_live import resolve_occurrence_live
 
 
@@ -31,8 +33,9 @@ def build_space_operator_day_of(*, occurrence, actor, observed_at=None):
     space = occurrence.activity.space
     capabilities = ["open_live"]
     scanner = live.get("scanner") or {}
-    if scanner.get("authorized", 0) > 0:
-        capabilities.append("scan")
+    can_scan = user_can_scan_activity(actor, occurrence.activity, occurrence=occurrence)
+    if can_scan:
+        capabilities.append("open_scanner")
 
     return {
         "identity": {"kind": "occurrence", "id": occurrence_id},
@@ -60,7 +63,7 @@ def build_space_operator_day_of(*, occurrence, actor, observed_at=None):
         "queues": live.get("queue") or [],
         "placement": live.get("placement") or [],
         "checkpoints": live.get("checkpoints") or [],
-        "incidents": [],
+        "incidents": {"truth": "unavailable", "items": []},
         "live": {
             "available": True,
             "phase": phase,
@@ -75,5 +78,10 @@ def build_space_operator_day_of(*, occurrence, actor, observed_at=None):
             "queues": f"/api/v1/operations/occurrences/{occurrence_id}/queues/",
             "checkpoints": f"/api/v1/operations/occurrences/{occurrence_id}/checkpoints/",
             "placement_plans": f"/api/v1/operations/occurrences/{occurrence_id}/placement-plans/",
+            **(
+                {"scanner": f"/api/v1/scanner/occurrences/{occurrence_id}/context/"}
+                if can_scan
+                else {}
+            ),
         },
     }
