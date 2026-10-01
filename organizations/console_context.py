@@ -69,8 +69,12 @@ def _space_authority_ids(profile):
 
 
 def has_space_authority(profile, space):
-    authority_ids = _space_authority_ids(profile)
-    return authority_ids is None or space.pk in authority_ids
+    if getattr(profile, "is_superuser", False):
+        return True
+    return _current_mandates(profile).filter(
+        scope_type=AuthorityScope.SPACE,
+        space=space,
+    ).exists()
 
 
 def activity_ids_for_space(profile, space):
