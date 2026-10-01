@@ -248,7 +248,7 @@ class ZS4SpaceProjectionTests(TestCase):
             row for row in analytics["metrics"] if row["key"] == "events_count"
         )
         self.assertEqual(events["state"], "known")
-        self.assertEqual(events["value"], "0")
+        self.assertEqual(events["value"], 0)
         attendance = next(
             row for row in analytics["metrics"] if row["key"] == "attendance_percent"
         )
