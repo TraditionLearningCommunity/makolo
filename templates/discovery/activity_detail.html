@@ -1,5 +1,4 @@
 {% extends 'base/app.html' %}
-{% load static %}
 {% load tz spatiotemporal_ui %}
 {% block title %}{{ item.title }} | Makolo{% endblock %}
 {% block content %}
@@ -18,5 +17,3 @@
     {% if request.user.is_authenticated %}{% url 'sharing:create-occurrence' occurrence.pk as share_create_url %}{% include 'sharing/_share_controls.html' with create_url=share_create_url share_title=item.title share_text=item.summary share_intent='view' internal_label='Proposer à…' %}{% endif %}
 </div>
 {% endblock %}
-
-{% block extra_js %}<script defer src="{% static 'js/share-actions.js' %}"></script>{% endblock %}
