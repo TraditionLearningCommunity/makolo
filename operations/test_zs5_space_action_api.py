@@ -306,6 +306,18 @@ class ZS5SpaceMarkTests(TestCase):
         )
         self.assertEqual(spoof.status_code, 400)
 
+        self.client.force_authenticate(self.owner)
+        top_level = self.client.post(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/mark/",
+            {
+                "input": {"kind": "text", "value": "Ouvre l'équipe"},
+                "context": {},
+                "space_id": str(self.space.pk),
+            },
+            format="json",
+        )
+        self.assertEqual(top_level.status_code, 400)
+
     def test_activity_limited_mark_does_not_disclose_other_activity_occurrence(self):
         response = self._post(
             self.limited,
