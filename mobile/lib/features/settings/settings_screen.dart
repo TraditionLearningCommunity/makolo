@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/environment.dart';
 import '../../app/launch_preferences.dart';
@@ -95,10 +96,20 @@ class AppSettingsScreen extends StatelessWidget {
                 'À propos',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.apps_outlined),
-                title: Text('Makolo'),
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snapshot) {
+                  final info = snapshot.data;
+                  final version = info == null
+                      ? null
+                      : '${info.version} (${info.buildNumber})';
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.apps_outlined),
+                    title: const Text('Makolo'),
+                    subtitle: version == null ? null : Text('Version $version'),
+                  );
+                },
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,

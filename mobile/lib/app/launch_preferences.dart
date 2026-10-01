@@ -82,6 +82,11 @@ class FileLaunchPreferencesStore implements LaunchPreferencesStore {
     );
   }
 
+  @visibleForTesting
+  static FileLaunchPreferencesStore forFile(File file) {
+    return FileLaunchPreferencesStore._(file);
+  }
+
   @override
   Future<LaunchPreferencesSnapshot> read() async {
     if (!await _file.exists()) {

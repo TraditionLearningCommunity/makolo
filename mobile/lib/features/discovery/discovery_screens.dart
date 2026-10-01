@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../app/environment.dart';
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/maps/makolo_map_view.dart';
 import '../../sync/freshness.dart';
 import 'detail_selector.dart';
 import 'discovery_repository.dart';
@@ -17,18 +20,12 @@ class DiscoveryScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.onOpenActivity,
-    required this.onOpenOccurrence,
     required this.onOpenItem,
-    required this.onOpenWatches,
-    this.location,
   });
 
   final DiscoveryRepository repository;
-  final LocationCapability? location;
   final ValueChanged<String> onOpenActivity;
-  final ValueChanged<String> onOpenOccurrence;
   final void Function(String family, String id) onOpenItem;
-  final VoidCallback onOpenWatches;
 
   @override
   State<DiscoveryScreen> createState() => _DiscoveryScreenState();
@@ -36,23 +33,13 @@ class DiscoveryScreen extends StatefulWidget {
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
   static const _selector = DiscoverySelector();
-
-  final _search = TextEditingController();
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
-  bool _mapMode = false;
-  String? _locationMessage;
 
   @override
   void initState() {
     super.initState();
     unawaited(_acquire());
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
   }
 
   Future<void> _acquire() async {
@@ -76,62 +63,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     setState(() => _refreshing = true);
     try {
       await widget.repository.refreshItems(_query);
-      if (_mapMode) await widget.repository.refreshMap(_query);
     } on Object {
-      // SyncSource keeps the old local pack and records reachability.
+      // The existing local snapshot remains usable.
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
-  }
-
-  Future<void> _showMap() async {
-    setState(() => _mapMode = true);
-    final local = await widget.repository.readMap(_query);
-    if (local == null) {
-      try {
-        await widget.repository.refreshMap(_query);
-      } on Object {
-        // The list remains usable even when the map acquisition fails.
-      }
-    }
-  }
-
-  Future<void> _aroundMe() async {
-    final capability = widget.location;
-    if (capability == null) {
-      setState(
-        () => _locationMessage =
-            'La localisation n’est pas disponible sur cet appareil.',
-      );
-      return;
-    }
-    setState(() => _locationMessage = null);
-    final result = await capability.current();
-    if (!mounted) return;
-    if (!result.available || result.fix == null) {
-      setState(
-        () => _locationMessage = 'La position n’a pas été utilisée. Vous pouvez continuer sans elle.',
-      );
-      return;
-    }
-    setState(() {
-      _query = _query.copyWith(
-        latitude: result.fix!.latitude,
-        longitude: result.fix!.longitude,
-        radiusKm: 25,
-        page: 1,
-      );
-      _locationMessage = 'Recherche autour de votre position actuelle.';
-    });
-    await _refreshItems();
-  }
-
-  void _submitSearch(String value) {
-    setState(() {
-      _query = _query.copyWith(text: value, page: 1);
-      _mapMode = false;
-    });
-    unawaited(_refreshItems());
   }
 
   void _movePage(int page) {
@@ -143,33 +79,139 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   @override
   Widget build(BuildContext context) {
     final source = widget.repository.itemsSource(_query);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Découvrir'),
-        actions: [
-          IconButton(
-            tooltip: 'Veilles',
-            onPressed: widget.onOpenWatches,
-            icon: const Icon(Icons.notifications_active_outlined),
-          ),
-          IconButton(
-            tooltip: _mapMode ? 'Voir la liste' : 'Voir la carte',
-            onPressed: () {
-              if (_mapMode) {
-                setState(() => _mapMode = false);
-              } else {
-                unawaited(_showMap());
+    return StreamBuilder<StoredProjection?>(
+      stream: widget.repository.watchItems(_query),
+      builder: (context, snapshot) {
+        return StreamBuilder<DiscoverySourceState>(
+          stream: widget.repository.watchSource(source),
+          initialData: DiscoverySourceState.unknown,
+          builder: (context, sourceSnapshot) {
+            final projection = snapshot.data;
+            if (projection == null) {
+              if (_refreshing) {
+                return const Center(child: CircularProgressIndicator());
               }
-            },
-            icon: Icon(_mapMode ? Icons.view_list_rounded : Icons.map_outlined),
-          ),
-          IconButton(
-            tooltip: 'Actualiser',
-            onPressed: _refreshing ? null : _refreshItems,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
+              return _DiscoveryUnavailable(
+                source: sourceSnapshot.data,
+                onRetry: _refreshItems,
+              );
+            }
+            final presentation = _selector.collection(projection);
+            return RefreshIndicator(
+              onRefresh: _refreshItems,
+              child: _DiscoveryResultsList(
+                presentation: presentation,
+                onOpenActivity: widget.onOpenActivity,
+                onOpenItem: widget.onOpenItem,
+                onPage: _movePage,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class DiscoverySearchScreen extends StatefulWidget {
+  const DiscoverySearchScreen({
+    super.key,
+    required this.repository,
+    required this.onOpenActivity,
+    required this.onOpenItem,
+    this.location,
+  });
+
+  final DiscoveryRepository repository;
+  final ValueChanged<String> onOpenActivity;
+  final void Function(String family, String id) onOpenItem;
+  final LocationCapability? location;
+
+  @override
+  State<DiscoverySearchScreen> createState() => _DiscoverySearchScreenState();
+}
+
+class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
+  static const _selector = DiscoverySelector();
+  final _search = TextEditingController();
+  DiscoveryQuery _query = const DiscoveryQuery();
+  bool _refreshing = false;
+  String? _locationMessage;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(String value) async {
+    final query = _query.copyWith(text: value, page: 1);
+    setState(() {
+      _query = query;
+      _refreshing = true;
+    });
+    try {
+      await widget.repository.refreshItems(query);
+    } on Object {
+      // Existing results remain visible when refresh fails.
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _aroundMe() async {
+    final location = widget.location;
+    if (location == null) {
+      setState(
+        () => _locationMessage =
+            'La localisation n’est pas disponible sur cet appareil.',
+      );
+      return;
+    }
+    final result = await location.current();
+    if (!mounted) return;
+    if (!result.available || result.fix == null) {
+      setState(
+        () => _locationMessage =
+            'Votre position n’a pas pu être utilisée. Vous pouvez continuer sans elle.',
+      );
+      return;
+    }
+    final query = _query.copyWith(
+      latitude: result.fix!.latitude,
+      longitude: result.fix!.longitude,
+      radiusKm: 25,
+      page: 1,
+    );
+    setState(() {
+      _query = query;
+      _locationMessage = 'Recherche autour de votre position.';
+    });
+    await _submit(_search.text);
+  }
+
+  void _movePage(int page) {
+    if (page < 1) return;
+    final query = _query.copyWith(page: page);
+    setState(() => _query = query);
+    unawaited(_refreshPage(query));
+  }
+
+  Future<void> _refreshPage(DiscoveryQuery query) async {
+    setState(() => _refreshing = true);
+    try {
+      await widget.repository.refreshItems(query);
+    } on Object {
+      // Existing results remain visible.
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Rechercher')),
       body: Column(
         children: [
           Padding(
@@ -180,10 +222,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               MakoloSpacing.sm,
             ),
             child: SearchBar(
+              key: const Key('discover-search-field'),
               controller: _search,
+              autoFocus: true,
               hintText: 'Rechercher une possibilité',
               leading: const Icon(Icons.search_rounded),
-              onSubmitted: _submitSearch,
+              onSubmitted: _submit,
               trailing: [
                 IconButton(
                   tooltip: 'Autour de moi',
@@ -206,139 +250,280 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 ),
               ),
             ),
-          if (_refreshing) const LinearProgressIndicator(minHeight: 2),
           Expanded(
-            child: _mapMode
-                ? _DiscoveryMapPane(
-                    repository: widget.repository,
-                    query: _query,
-                    onOpenOccurrence: widget.onOpenOccurrence,
-                  )
-                : StreamBuilder<StoredProjection?>(
-                    stream: widget.repository.watchItems(_query),
-                    builder: (context, snapshot) {
-                      return StreamBuilder<DiscoverySourceState>(
-                        stream: widget.repository.watchSource(source),
-                        initialData: DiscoverySourceState.unknown,
-                        builder: (context, sourceSnapshot) {
-                          final projection = snapshot.data;
-                          if (projection == null) {
-                            if (_refreshing) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
-                            return _DiscoveryUnavailable(
-                              source: sourceSnapshot.data,
-                              onRetry: _refreshItems,
-                            );
-                          }
-                          final presentation = _selector.collection(projection);
-                          if (presentation.items.isEmpty) {
-                            return RefreshIndicator(
-                              onRefresh: _refreshItems,
-                              child: ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: const [
-                                  SizedBox(height: 120),
-                                  Padding(
-                                    padding: EdgeInsets.all(
-                                      MakoloSpacing.inner,
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        'Aucune possibilité ne correspond actuellement à cette recherche.',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          return RefreshIndicator(
-                            onRefresh: _refreshItems,
-                            child: ListView(
-                              key: ValueKey(
-                                'discovery-page-${presentation.page}',
-                              ),
-                              padding: const EdgeInsets.only(
-                                bottom: MakoloSpacing.xl,
-                              ),
-                              children: [
-                                for (final item in presentation.items)
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      MakoloSpacing.inner,
-                                      MakoloSpacing.sm,
-                                      MakoloSpacing.inner,
-                                      0,
-                                    ),
-                                    child: _DiscoveryCard(
-                                      item: item,
-                                      onTap: () {
-                                        if (item.family == 'activity' ||
-                                            item.family == 'service_activity' ||
-                                            item.family == 'funding_activity') {
-                                          widget.onOpenActivity(item.id);
-                                        } else {
-                                          widget.onOpenItem(
-                                            item.family,
-                                            item.id,
-                                          );
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                Padding(
-                                  padding: const EdgeInsets.all(
-                                    MakoloSpacing.inner,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      OutlinedButton.icon(
-                                        onPressed: presentation.page > 1
-                                            ? () => _movePage(
-                                                presentation.page - 1,
-                                              )
-                                            : null,
-                                        icon: const Icon(
-                                          Icons.chevron_left_rounded,
-                                        ),
-                                        label: const Text('Précédent'),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        'Page ${presentation.page}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                      const Spacer(),
-                                      FilledButton.icon(
-                                        onPressed: presentation.hasNext
-                                            ? () => _movePage(
-                                                presentation.page + 1,
-                                              )
-                                            : null,
-                                        icon: const Icon(
-                                          Icons.chevron_right_rounded,
-                                        ),
-                                        label: const Text('Suivant'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      );
-                    },
+            child: StreamBuilder<StoredProjection?>(
+              stream: widget.repository.watchItems(_query),
+              builder: (context, snapshot) {
+                if (_refreshing && snapshot.data == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (_query.text.trim().isEmpty &&
+                    _query.latitude == null &&
+                    snapshot.data == null) {
+                  return const Center(
+                    child: Text('Saisissez ce que vous recherchez.'),
+                  );
+                }
+                final presentation = _selector.collection(snapshot.data);
+                return RefreshIndicator(
+                  onRefresh: () => _refreshPage(_query),
+                  child: _DiscoveryResultsList(
+                    presentation: presentation,
+                    onOpenActivity: widget.onOpenActivity,
+                    onOpenItem: widget.onOpenItem,
+                    onPage: _movePage,
                   ),
+                );
+              },
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class DiscoveryMapScreen extends StatefulWidget {
+  const DiscoveryMapScreen({
+    super.key,
+    required this.repository,
+    required this.mapConfig,
+    required this.onOpenOccurrence,
+  });
+
+  final DiscoveryRepository repository;
+  final MakoloMapsConfig mapConfig;
+  final ValueChanged<String> onOpenOccurrence;
+
+  @override
+  State<DiscoveryMapScreen> createState() => _DiscoveryMapScreenState();
+}
+
+class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
+  static const _selector = DiscoverySelector();
+  static const _query = DiscoveryQuery();
+  bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_acquire());
+  }
+
+  Future<void> _acquire() async {
+    final local = await widget.repository.readMap(_query);
+    if (local == null) await _refresh();
+  }
+
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      await widget.repository.refreshMap(_query);
+    } on Object {
+      // Existing map data remains available.
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Carte'),
+        actions: [
+          IconButton(
+            tooltip: 'Actualiser',
+            onPressed: _refreshing ? null : _refresh,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: StreamBuilder<StoredProjection?>(
+        stream: widget.repository.watchMap(_query),
+        builder: (context, snapshot) {
+          if (snapshot.data == null) {
+            if (_refreshing) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return MakoloErrorState(
+              message: 'Impossible de charger la carte pour le moment.',
+              onRetry: _refresh,
+            );
+          }
+
+          final points = _selector.mapPoints(snapshot.data);
+          if (points.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(MakoloSpacing.inner),
+                child: Text(
+                  'Aucun lieu à afficher sur la carte pour le moment.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          final first = points.first;
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: ConfiguredMakoloMapView(
+                  config: widget.mapConfig,
+                  initialViewport: MapViewport(
+                    center: MapCoordinate(first.latitude, first.longitude),
+                    zoom: 11,
+                  ),
+                  fallbackBuilder: (context, state, retry) {
+                    final retryable = state == MakoloMapRuntimeState.error;
+                    return MakoloErrorState(
+                      message: 'Impossible d’afficher la carte pour le moment.',
+                      preservedMessage:
+                          'Les possibilités restent accessibles dans la liste.',
+                      onRetry: retryable ? retry : null,
+                    );
+                  },
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: SafeArea(
+                  minimum: const EdgeInsets.all(MakoloSpacing.md),
+                  child: SizedBox(
+                    height: 118,
+                    child: PageView.builder(
+                      controller: PageController(viewportFraction: 0.88),
+                      itemCount: points.length,
+                      itemBuilder: (context, index) {
+                        final point = points[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: MakoloSpacing.xs,
+                          ),
+                          child: MakoloCard(
+                            onTap: () =>
+                                widget.onOpenOccurrence(point.occurrenceId),
+                            semanticLabel:
+                                'Lieu sur la carte. ${point.title}',
+                            child: MakoloStatusMetadataAction(
+                              title: point.title,
+                              subtitle: [
+                                point.placeName,
+                                point.locality,
+                              ].whereType<String>().join(' · '),
+                              metadata: [
+                                MakoloMetadataItem(
+                                  '${point.latitude.toStringAsFixed(4)}, '
+                                  '${point.longitude.toStringAsFixed(4)}',
+                                  icon: Icons.location_on_outlined,
+                                ),
+                              ],
+                              action:
+                                  const Icon(Icons.chevron_right_rounded),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DiscoveryResultsList extends StatelessWidget {
+  const _DiscoveryResultsList({
+    required this.presentation,
+    required this.onOpenActivity,
+    required this.onOpenItem,
+    required this.onPage,
+  });
+
+  final DiscoveryCollectionPresentation presentation;
+  final ValueChanged<String> onOpenActivity;
+  final void Function(String family, String id) onOpenItem;
+  final ValueChanged<int> onPage;
+
+  void _open(DiscoveryItemPresentation item) {
+    if (item.family == 'activity' ||
+        item.family == 'service_activity' ||
+        item.family == 'funding_activity') {
+      onOpenActivity(item.id);
+      return;
+    }
+    onOpenItem(item.family, item.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (presentation.items.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 120),
+          Padding(
+            padding: EdgeInsets.all(MakoloSpacing.inner),
+            child: Center(
+              child: Text(
+                'Aucune possibilité ne correspond actuellement.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      key: ValueKey('discovery-page-${presentation.page}'),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
+      children: [
+        for (final item in presentation.items)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              MakoloSpacing.inner,
+              MakoloSpacing.sm,
+              MakoloSpacing.inner,
+              0,
+            ),
+            child: _DiscoveryCard(item: item, onTap: () => _open(item)),
+          ),
+        Padding(
+          padding: const EdgeInsets.all(MakoloSpacing.inner),
+          child: Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: presentation.page > 1
+                    ? () => onPage(presentation.page - 1)
+                    : null,
+                icon: const Icon(Icons.chevron_left_rounded),
+                label: const Text('Précédent'),
+              ),
+              const Spacer(),
+              Text(
+                'Page ${presentation.page}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: presentation.hasNext
+                    ? () => onPage(presentation.page + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right_rounded),
+                label: const Text('Suivant'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -386,7 +571,7 @@ class _DiscoveryUnavailable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final message = source?.reachability == ReachabilityState.unreachable
-        ? 'Le réseau est indisponible et aucune copie locale de ce corpus n’existe encore.'
+        ? 'Aucune donnée n’est encore disponible hors connexion.'
         : 'Impossible de charger de nouvelles possibilités pour le moment.';
     return Center(
       child: Padding(
@@ -403,81 +588,6 @@ class _DiscoveryUnavailable extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _DiscoveryMapPane extends StatefulWidget {
-  const _DiscoveryMapPane({
-    required this.repository,
-    required this.query,
-    required this.onOpenOccurrence,
-  });
-
-  final DiscoveryRepository repository;
-  final DiscoveryQuery query;
-  final ValueChanged<String> onOpenOccurrence;
-
-  @override
-  State<_DiscoveryMapPane> createState() => _DiscoveryMapPaneState();
-}
-
-class _DiscoveryMapPaneState extends State<_DiscoveryMapPane> {
-  static const _selector = DiscoverySelector();
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchMap(widget.query),
-      builder: (context, snapshot) {
-        final points = _selector.mapPoints(snapshot.data);
-        if (snapshot.data == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (points.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(MakoloSpacing.inner),
-              child: Text(
-                'Aucun point cartographiable dans ce corpus. La liste reste disponible.',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-        return ListView(
-          padding: const EdgeInsets.all(MakoloSpacing.inner),
-          children: [
-            const MakoloAttentionBlock(
-              title: 'Carte',
-              body: 'Les données géographiques owner sont disponibles localement. Le runtime Mobile ne fournit pas encore de style MapLibre configuré ; aucun fournisseur n’est inventé ici.',
-              icon: Icons.map_outlined,
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            for (final point in points) ...[
-              MakoloCard(
-                onTap: () => widget.onOpenOccurrence(point.occurrenceId),
-                semanticLabel: 'Point cartographique. ${point.title}',
-                child: MakoloStatusMetadataAction(
-                  title: point.title,
-                  subtitle: [
-                    point.placeName,
-                    point.locality,
-                  ].whereType<String>().join(' · '),
-                  metadata: [
-                    MakoloMetadataItem(
-                      '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}',
-                      icon: Icons.location_on_outlined,
-                    ),
-                  ],
-                  action: const Icon(Icons.chevron_right_rounded),
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.sm),
-            ],
-          ],
-        );
-      },
     );
   }
 }

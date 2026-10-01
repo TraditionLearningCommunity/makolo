@@ -91,7 +91,7 @@ GoRouter createMakoloRouter(
       }
 
       if (!runtime.isAuthenticated &&
-          (path == '/discover/search' || path == '/discover/filters')) {
+          (path == '/discover/search' || path == '/discover/map')) {
         return '/discover';
       }
 
