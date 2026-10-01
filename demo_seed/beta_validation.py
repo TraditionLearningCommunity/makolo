@@ -15,6 +15,7 @@ from funding.models import FundingContribution, FundingDetails
 from journeys.models import Journey, JourneyRequest, JourneyStatus, WorkflowKind
 from notifications.models import DeliveryStatus, NotificationDelivery
 from organizations.models import Organization, OrganizationMembership, TeamMembership
+from obtention.models import ObtentionDetails, ObtentionModeCode
 from payments.models import Payment, PaymentObligationStatus
 from scanner.models import ScannerAssignment
 from tickets.models import Ticket, TicketOrder
@@ -91,6 +92,37 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
         errors,
     )
 
+    obtention_activity_ids = list(ObtentionDetails.objects.values_list("activity_id", flat=True))
+    obtention_modes = set(
+        ObtentionDetails.objects.filter(activity__status=ActivityStatus.PUBLISHED)
+        .values_list("configurations__modes__code", flat=True)
+    )
+    _require(len(obtention_activity_ids) >= 2, "pas assez de scénarios Obtention", errors)
+    _require(
+        Activity.objects.filter(
+            pk__in=obtention_activity_ids,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        ).count() >= 2,
+        "Activities Obtention publiques absentes",
+        errors,
+    )
+    _require(
+        {ObtentionModeCode.BUY, ObtentionModeCode.RENT, ObtentionModeCode.RECEIVE}.issubset(obtention_modes),
+        "modes Obtention buy/rent/receive incomplets",
+        errors,
+    )
+    _require(
+        not Event.objects.filter(activity_id__in=obtention_activity_ids).exists(),
+        "Obtention dépend artificiellement d’Event",
+        errors,
+    )
+    _require(
+        not TransportService.objects.filter(activity_id__in=obtention_activity_ids).exists(),
+        "Obtention dépend artificiellement de Transport",
+        errors,
+    )
+
     funding_activity_ids = list(FundingDetails.objects.values_list("activity_id", flat=True))
     _require(bool(funding_activity_ids), "verticale Financement absente", errors)
     _require(not Event.objects.filter(activity_id__in=funding_activity_ids).exists(), "Financement dépend artificiellement d’Event", errors)
@@ -126,6 +158,14 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
         journeys = Journey.objects.filter(beneficiary=participant)
         _require(journeys.filter(activity__event_vertical__isnull=False).exists(), "Participant sans parcours Event", errors)
         _require(journeys.filter(activity__transport_service__isnull=False).exists(), "Participant sans parcours Transport", errors)
+        _require(
+            journeys.filter(
+                activity__obtention_details__isnull=False,
+                workflow=WorkflowKind.FULFILLMENT,
+            ).exists(),
+            "Participant sans parcours Obtention",
+            errors,
+        )
         _require(journeys.filter(status=JourneyStatus.DRAFT).exists(), "Participant sans démarche à continuer", errors)
         _require(journeys.filter(status=JourneyStatus.CONFIRMED).exists(), "Participant sans démarche confirmée", errors)
         _require(Access.objects.filter(beneficiary=participant, status=AccessStatus.VALID).exists(), "Participant sans billet valide", errors)
@@ -250,6 +290,8 @@ def assert_beta_scenario_coverage(*, as_of) -> dict[str, int]:
         "personas": len(personas),
         "future_event_occurrences": event_occurrences.count(),
         "future_transport_occurrences": transport_occurrences.count(),
+        "obtention_activities": Activity.objects.filter(pk__in=obtention_activity_ids).count(),
+        "obtention_journeys": Journey.objects.filter(activity_id__in=obtention_activity_ids).count(),
         "funding_activities": Activity.objects.filter(pk__in=funding_activity_ids).count(),
         "funding_contributions": FundingContribution.objects.filter(funding__activity_id__in=funding_activity_ids).count(),
         "activity_conversations": ConversationContext.objects.filter(kind=ConversationContextKind.ACTIVITY).count(),
