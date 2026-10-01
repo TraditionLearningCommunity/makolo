@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
+from events.models import Event
 from scanner.permissions import get_active_assignment, user_can_scan_activity
 
 
@@ -21,7 +22,7 @@ def build_scanner_context(*, occurrence, actor, observed_at=None):
     if not can_scan:
         return None
 
-    event = getattr(activity, "event_vertical", None)
+    event = Event.objects.filter(activity=activity).first()
     capabilities = []
     links = {}
     if event is not None:
