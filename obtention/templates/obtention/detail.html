@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}{{ activity.title }} | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6 pb-10">
@@ -51,3 +52,5 @@
   {% endif %}
 </div>
 {% endblock %}
+
+{% block extra_js %}<script defer src="{% static 'js/share-actions.js' %}"></script>{% endblock %}
