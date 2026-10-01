@@ -73,11 +73,25 @@ class ZS5SpaceActionProjectionTests(TestCase):
         self.assertEqual(data["context"]["authority"] if "authority" in data["context"] else data["context"]["perspective"], "operator")
         self.assertNotIn("space_live", data)
         self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertIsInstance(data["capacity"], list)
+        self.assertIsInstance(data["placement"], list)
+        self.assertIsInstance(data["queues"], list)
+        self.assertIsInstance(data["checkpoints"], list)
+        self.assertEqual(data["incidents"]["truth"], "unavailable")
+        self.assertEqual(data["incidents"]["items"], [])
 
         denied = self.client.get(
             f"/api/v1/operations/occurrences/{self.other_occurrence.pk}/day-of/"
         )
         self.assertEqual(denied.status_code, 404)
+
+    def test_direct_space_authority_can_open_occurrence_day_of(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/operations/occurrences/{self.occurrence.pk}/day-of/"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["data"]["context"]["perspective"], "space")
 
     def test_day_of_rejects_unauthenticated_outsider_and_non_current_occurrence(self):
         self.assertEqual(
