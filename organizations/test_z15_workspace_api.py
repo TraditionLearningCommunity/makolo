@@ -352,18 +352,19 @@ class Z15WorkspaceContractTests(TestCase):
             )
 
     def test_workspace_capability_does_not_survive_revoked_mandate(self):
-        finance = User.objects.create_user(
-            username="zs1-finance", email="zs1-finance@test.local", password="x"
+        admin = User.objects.create_user(
+            username="zs1-admin", email="zs1-admin@test.local", password="x"
         )
         mandate = grant_space_role(
-            profile=finance,
+            profile=admin,
             space=self.space,
-            role=SystemRoleCode.FINANCE,
+            role=SystemRoleCode.SPACE_ADMIN,
             granted_by=self.owner,
         )
-        self.client.force_authenticate(finance)
+        self.client.force_authenticate(admin)
         before = self.client.get("/api/v1/organizations/workspaces/z15-space/")
         self.assertEqual(before.status_code, 200, before.data)
+        self.assertTrue(before.data["capabilities"]["update_space"])
         revoke_mandate(mandate=mandate, actor=self.owner)
         after = self.client.patch(
             "/api/v1/organizations/workspaces/z15-space/",
