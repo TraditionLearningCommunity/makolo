@@ -1,0 +1,45 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ space_page_title }} · {{ space.name }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-6">
+  <section class="mk-panel p-4 sm:p-5" aria-label="Contexte Space">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="min-w-0">
+        <span class="mk-kicker">Agir au nom de</span>
+        <div class="mt-2 flex min-w-0 items-center gap-3">
+          <div class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)" aria-hidden="true"><i data-lucide="building-2"></i></div>
+          <div class="min-w-0">
+            <h1 class="truncate text-2xl font-extrabold tracking-[-.035em]">{{ space.name }}</h1>
+            <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ space_page_title }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {% if space_switcher_items|length > 1 %}
+        <details class="relative">
+          <summary class="mk-btn mk-btn-secondary cursor-pointer">Changer d’Espace</summary>
+          <div class="absolute right-0 z-30 mt-2 w-64 rounded-2xl border p-2 shadow-2xl" style="border-color:var(--mk-border);background:var(--mk-surface-solid)">
+            {% for item in space_switcher_items %}
+            <a href="{{ item.url }}" class="block min-h-11 rounded-xl px-3 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/5"><strong>{{ item.name }}</strong></a>
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
+
+        <form method="get" class="flex items-center gap-2">
+          <label for="space-responsibility" class="sr-only">Responsabilité de lecture</label>
+          <select id="space-responsibility" name="responsibility" class="min-h-11 rounded-xl border px-3 text-sm font-semibold" style="border-color:var(--mk-border);background:var(--mk-surface-solid);color:var(--mk-text)">
+            {% for responsibility in space_responsibilities %}
+            <option value="{{ responsibility.key }}"{% if responsibility.key == selected_responsibility.key %} selected{% endif %}>{{ responsibility.label }}{% if responsibility.activity %} · {{ responsibility.activity.title }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="mk-btn mk-btn-secondary">Appliquer</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  {% block space_content %}{% endblock %}
+</div>
+{% endblock %}
