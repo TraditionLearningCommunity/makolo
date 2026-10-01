@@ -4,7 +4,9 @@
 >
 > **Dépôt de référence :** `TraditionLearningCommunity/makolo`
 >
-> **Base vérifiée avant ajout :** `main@b4ea00b1a7cf8981d105140464d9751338a510ef`
+> **Base vérifiée avant cette révision :** main@3b348dfa3a881a1f9d1e929e1e81c5a39983ffb1
+>
+> **Contrat mobile Space associé :** [Makolo_Space_Architecture_Experience_Mobile_Consolidee.md](Makolo_Space_Architecture_Experience_Mobile_Consolidee.md)
 >
 > **Portée :** définir l’architecture d’expérience d’un Space, ses préoccupations humaines, sa priorisation, ses grandes portes UX, ses contrats de comportement, ses variantes par archétype et son articulation avec Jour J / Makolo Live.
 >
@@ -582,31 +584,259 @@ et non :
 
 ---
 
-# 12. Architecture des six portes
+# 12. Architecture sémantique et shell visible
 
-La charpente conceptuelle est :
+Les six préoccupations restent l’architecture sémantique de l’expérience Space :
 
 ~~~text
-┌──────────────────────────────────────────────┐
-│ SPACE                                        │
-│ Agir comme : Tout ce que je peux faire ici ▾│
-└──────────────────────────────────────────────┘
-
-1. MAINTENANT
-2. MONDE OPÉRATIONNEL CONTEXTUALISÉ
-3. PERSONNES & RELATIONS
-4. POSSIBILITÉS
-5. PILOTER
-6. L’ESPACE
+MAINTENANT
+MONDE OPÉRATIONNEL CONTEXTUALISÉ
+PERSONNES & RELATIONS
+POSSIBILITÉS
+PILOTER
+GOUVERNER
 ~~~
 
-Ces six portes ne signifient pas six onglets obligatoirement visibles pour tous.
+Elles répondent à six questions différentes et restent utiles pour concevoir les projections, les profondeurs et les responsabilités.
 
-Une porte peut être absente si elle n’a aucun sens pour la responsabilité et l’autorité courantes.
+Elles ne doivent toutefois pas être copiées mécaniquement dans la navigation primaire.
 
-La structure reste néanmoins stable conceptuellement.
+## 12.1. Un seul Makolo, plusieurs contextes d’acteur
 
----
+Entrer dans un Space ne signifie jamais quitter Makolo pour une autre application.
+
+Le shell de marque et d’identité reste celui de Makolo :
+
+~~~text
+Makolo                                             Avatar humain
+~~~
+
+Le logo / Makolo Mark à gauche et l’Avatar à droite appartiennent à l’application globale.
+
+L’Avatar reste toujours la personne authentifiée, même lorsqu’elle agit au nom d’un Space.
+
+~~~text
+Avatar = personne connectée
+Space = acteur collectif courant
+~~~
+
+Un Space ne possède ni session humaine propre ni Avatar de compte collectif.
+
+La sélection du Space change le contexte d’action, pas l’identité de l’application.
+
+## 12.2. Changement d’acteur
+
+Le menu global peut exposer :
+
+~~~text
+Agir comme
+
+Moi
+Mulykap
+Fondation Upendo
+Studio K
+...
+~~~
+
+Sélectionner un Space ouvre directement son expérience, normalement sur Maintenant.
+
+Le logo Makolo ramène au Maintenant de l’acteur courant. Il ne force pas un retour au contexte personnel.
+
+Pour revenir au contexte personnel, la personne choisit explicitement :
+
+> Agir comme → Moi
+
+## 12.3. Contexte Space persistant
+
+Une fois dans un Space, le shell doit rendre visibles sans lourdeur :
+
+~~~text
+Mulykap ▾
+Toutes mes responsabilités ▾
+~~~
+
+Le premier contrôle permet de changer de Space.
+
+Le second réduit la lecture cognitive aux responsabilités de la personne dans ce Space précis.
+
+Il peut proposer, selon les autorités réelles :
+
+~~~text
+Toutes mes responsabilités
+Exploitation
+Finance
+Administration
+Contrôle · Départ 14 h
+~~~
+
+Il n’affiche jamais les responsabilités détenues dans d’autres Spaces.
+
+Cette sélection ne crée aucune Permission ni aucun Mandate.
+
+## 12.4. Navigation primaire visible
+
+La navigation mobile Space reprend la grammaire Makolo personnelle sans copier son contenu métier :
+
+~~~text
+PROFIL
+Maintenant | Découvrir | [Makolo Mark] | En cours | Moi
+
+SPACE
+Maintenant | Découvrir | [Makolo Mark] | Métier | Nous
+~~~
+
+La navigation Space comporte donc quatre destinations et la même action centrale Makolo Mark.
+
+### Maintenant
+
+Question visible :
+
+> Qu’est-ce qui mérite notre attention maintenant ?
+
+### Découvrir
+
+Découvrir est le libellé utilisateur du territoire conceptuel Possibilités.
+
+Question visible :
+
+> Qu’est-ce qui pourrait nous aider à avancer ?
+
+Le terme Possibilités reste utile dans l’architecture et les algorithmes ; il n’est pas imposé comme jargon de navigation.
+
+### Makolo Mark
+
+Le même Makolo Mark est utilisé dans tous les contextes.
+
+Son sens reste :
+
+> J’ai quelque chose à donner à Makolo.
+
+Lorsque l’acteur courant est un Space, l’intention est interprétée dans le contexte de ce Space et de l’autorité réelle de la personne.
+
+Le Mark ne crée ni capacité ni privilège.
+
+### Métier
+
+Le quatrième repère représente le monde opérationnel principal du Space.
+
+Il porte un vocabulaire naturel déterminé par l’archétype et la réalité opérationnelle.
+
+### Nous
+
+Nous est le libellé visible de la préoccupation institutionnelle / gouvernance.
+
+Question visible :
+
+> Qui sommes-nous, avec qui fonctionnons-nous et comment sommes-nous organisés ?
+
+Nous est le miroir collectif de Moi.
+
+~~~text
+Moi ↔ Nous
+~~~
+
+Nous ne signifie pas Settings et ne transforme pas le Space en fiche administrative.
+
+## 12.5. Vocabulaire métier primaire par archétype
+
+| Archétype | Libellé primaire recommandé | Icône sémantique candidate |
+|---|---|---|
+| generic | Activités | calendar-range |
+| creative | Créations | palette |
+| media | Productions | newspaper |
+| education | Programmes | graduation-cap |
+| commerce | Commerce | shopping-bag |
+| service_provider | Prestations | handshake |
+| transport_operator | Transport | bus-front |
+| community | Initiatives | heart-handshake |
+
+Ces icônes sont des repères sémantiques, pas encore un pixel contract définitif.
+
+Le contenu interne peut employer un vocabulaire plus spécialisé :
+
+- Transport peut contenir Exploitation, Routes, Départs, Véhicules et Contrôle ;
+- Commerce peut contenir Offres, Commandes, Disponibilité et Remise ;
+- Programmes peut contenir Sessions, Inscriptions, Conditions, Ressources et Groupes ;
+- Initiatives peut contenir Activities, événements, programmes et actions terrain.
+
+## 12.6. Icônes stables du shell
+
+Les repères dont le sens reste identique conservent leur identité entre Profil et Space :
+
+| Destination | Icône sémantique |
+|---|---|
+| Maintenant | clock-3 |
+| Découvrir | compass |
+| Makolo | Makolo Mark officiel |
+| Nous | users-round |
+
+Moi conserve une représentation personnelle telle que user-round.
+
+Cette répétition est volontaire : elle renforce l’impression d’être toujours dans Makolo.
+
+## 12.7. Personnes & relations et Piloter
+
+Personnes & relations et Piloter restent des surfaces majeures.
+
+Elles ne sont plus obligées d’occuper la navigation basse permanente.
+
+Elles peuvent être atteintes depuis :
+
+- Maintenant lorsqu’une situation le justifie ;
+- le monde métier ;
+- Nous ;
+- Découvrir ;
+- la recherche ;
+- une profondeur déjà déterminée ;
+- un deep link légitime.
+
+Cette accessibilité ne transfère jamais leur propriété métier à Nous ou à une autre surface.
+
+## 12.8. Nous n’est pas un écran Paramètres
+
+La racine Nous doit d’abord être humaine et collective.
+
+Elle peut donner une lecture compacte de :
+
+~~~text
+notre identité
+notre équipe
+nos responsabilités
+nos relations
+notre confiance / vérification
+notre fonctionnement collectif
+~~~
+
+Les réglages, l’abonnement, les connexions, l’archivage et les détails d’autorité sont des profondeurs.
+
+## 12.9. Mobile et desktop
+
+Sur mobile, la navigation primaire est normalement une bottom navigation :
+
+~~~text
+Maintenant | Découvrir | [Mark] | Métier | Nous
+~~~
+
+Sur desktop, les mêmes repères peuvent être présentés dans un rail permanent avec davantage d’espace.
+
+Le desktop peut également rendre Piloter plus directement accessible lorsque la responsabilité courante le justifie.
+
+Il ne réintroduit jamais une navigation primaire organisée par modules backend.
+
+## 12.10. Surfaces contextuelles majeures
+
+Jour J et Live restent hors de la navigation primaire.
+
+Une Occurrence actuelle peut ouvrir Jour J et, lorsque de la vérité réellement live existe, Makolo Live.
+
+Une surface immersive peut réduire temporairement le chrome global, mais elle reste identifiable comme :
+
+~~~text
+Makolo
++ Space courant
++ contexte métier / Occurrence
+~~~
+
 
 # 13. Contrat transversal des portes
 
@@ -1308,7 +1538,7 @@ Ce n’est pas le même état que `Tout est en ordre`, qui appartient à l’att
 
 ---
 
-# 20. Porte 6 — L’Espace
+# 20. Porte 6 conceptuelle — Gouverner / surface visible Nous
 
 ## Mission
 
@@ -1402,7 +1632,7 @@ Permission-gated :
 
 ## 20.9. État vide
 
-L’Espace n’est normalement jamais vide puisqu’une identité existe.
+Nous n’est normalement jamais vide puisqu’une identité collective existe.
 
 Les sous-sections peuvent être vides.
 
@@ -1848,7 +2078,7 @@ Tendance conceptuelle :
 | Personnes & relations | moyenne |
 | Possibilités | moyenne / exploratoire |
 | Piloter | élevée mais structurée |
-| L’Espace | moyenne / institutionnelle |
+| Nous | moyenne / institutionnelle |
 
 Makolo ne doit pas être dense partout simplement parce qu’il s’agit d’un outil professionnel.
 
@@ -1878,19 +2108,25 @@ Les deux restent projections des mêmes vérités et des mêmes contrats d’exp
 
 # 34. Hiérarchie finale de l’expérience Space
 
-Le système UX se structure ainsi :
+Le système UX distingue désormais clairement architecture sémantique et navigation visible.
 
 ~~~text
 NIVEAU 0 — CONTEXTE COLLECTIF
-Space + Agir comme
+Space courant
++ responsabilités dans ce Space
 
-NIVEAU 1 — QUESTIONS HUMAINES
+NIVEAU 1 — NAVIGATION PRIMAIRE VISIBLE
 Maintenant
-Monde opérationnel contextualisé
+Découvrir
+Makolo Mark
+Métier contextualisé
+Nous
+
+NIVEAU 1B — SURFACES MAJEURES SECONDAIRES
 Personnes & relations
-Possibilités
 Piloter
-L’Espace
+Recherche
+autres profondeurs légitimes
 
 NIVEAU 2 — CONTEXTES MÉTIER
 Programme
@@ -1917,7 +2153,16 @@ Occurrence
 → Live
 ~~~
 
----
+Correspondance conceptuelle :
+
+~~~text
+Possibilités → Découvrir
+Gouverner / identité collective → Nous
+Produire / délivrer → métier contextualisé
+Coordonner → Relations et projections contextuelles
+Piloter → surface majeure secondaire
+~~~
+
 
 # 35. Anti-features UX Space
 
@@ -1948,11 +2193,16 @@ L’expérience Space ne doit pas devenir :
 
 ## Universel
 
-- Space avant rôle ;
-- `Agir comme` Space-scoped ;
-- `Tout ce que je peux faire ici` ;
+- un seul shell Makolo pour Profil et Space ;
+- logo / Makolo Mark global et Avatar humain stables ;
+- Space choisi avant le filtre de responsabilité ;
+- responsabilités limitées au Space courant ;
+- Toutes mes responsabilités comme lecture par défaut lorsqu’elle est légitime ;
+- navigation primaire Space : Maintenant / Découvrir / Mark / métier / Nous ;
 - Maintenant comme sélection de l’attention ;
-- six préoccupations ;
+- Découvrir comme langage visible du champ collectif des possibilités ;
+- Mark comme action centrale commune ;
+- Nous comme identité collective visible ;
 - priorité authority-first ;
 - Jour J attaché à Occurrence ;
 - Live attaché à Jour J ;
@@ -1964,90 +2214,90 @@ L’expérience Space ne doit pas devenir :
 
 ## Contextuel
 
-- libellé du monde opérationnel ;
-- vocabulaire des personnes et relations ;
+- libellé et icône de la porte métier ;
+- vocabulaire interne du monde opérationnel ;
+- poids des relations ;
 - types de faits dominants ;
 - actions de création ;
 - densité ;
 - sections visibles ;
-- poids des possibilités ;
-- dimensions de pilotage ;
+- contenu de Découvrir ;
+- dimensions de Pilotage ;
+- profondeurs accessibles depuis Nous ;
 - profondeur Jour J ;
 - surface Live.
 
----
 
 # 37. Résumé par archétype
 
-| Archétype | Monde opérationnel | Relations dominantes | Possibilités dominantes | Pilotage dominant |
+| Archétype | Porte métier visible | Relations dominantes | Découvrir met l’accent sur | Pilotage dominant |
 |---|---|---|---|---|
-| generic | Activités | Personnes, groupes, contacts | opportunités multidomaines | activité, demandes, blocages |
-| creative | Créations & activités | publics, partenaires | lieux, collaborations, événements | activités, prestations, offres |
-| media | Productions & activités | publics, audiences, partenaires | collaborations, événements, contexte éditorial | productions, audiences utiles, partenaires |
-| education | Programmes & sessions | groupes, personnes, partenaires | ressources, programmes, lieux, partenaires | inscriptions, progression, Requirements, Capacity |
-| commerce | Offres & commandes | clients, partenaires | publics, canaux, lieux, partenaires | commandes, délivrance, Capacity, Payments |
+| generic | Activités | personnes, groupes, contacts | opportunités multidomaines | activité, demandes, blocages |
+| creative | Créations | publics, partenaires | lieux, collaborations, événements | activités, prestations, offres |
+| media | Productions | publics, audiences, partenaires | collaborations, événements, contexte éditorial | productions, audiences utiles, partenaires |
+| education | Programmes | groupes, personnes, partenaires | ressources, programmes, lieux, partenaires | inscriptions, progression, Requirements, Capacity |
+| commerce | Commerce | clients, partenaires | publics, canaux, lieux, partenaires | commandes, délivrance, Capacity, Payments |
 | service_provider | Prestations | clients, partenaires | zones, clients/contextes, partenaires | charge, délais, blocages, résultats |
-| transport_operator | Exploitation | équipe, partenaires, CRM réel | dessertes, lieux, réseau, besoins | départs, Capacity, incidents, Access, finance |
-| community | Initiatives & activités | communauté, publics, partenaires | Funding, appels, partenaires, mobilisation | initiatives, participation, Funding, mission |
+| transport_operator | Transport | équipe, partenaires, CRM réel | dessertes, lieux, réseau, besoins | départs, Capacity, incidents, Access, finance |
+| community | Initiatives | communauté, publics, partenaires | Funding, appels, partenaires, mobilisation | initiatives, participation, Funding, mission |
 
----
 
 # 38. Critères de sortie UX Space conceptuelle
 
 Avant rapprochement runtime, la spécification est considérée suffisamment fermée si :
 
-1. la personne sait toujours dans quel Space elle agit ;
-2. `Agir comme` n’expose que les responsabilités de ce Space ;
-3. une personne multi-rôle peut travailler en `Tout ce que je peux faire ici` sans concaténation de dashboards ;
-4. Maintenant peut représenter les situations sans connaître l’algorithme final de ranking ;
-5. une action réelle peut ouvrir sa profondeur canonique sans perdre le contexte ;
-6. plusieurs Jour J peuvent coexister dans un Space ;
-7. Live reste attaché à un Jour J déterminé ;
-8. les huit archétypes partagent la même architecture cognitive sans devenir huit applications indépendantes ;
-9. le monde opérationnel change réellement de langage et de composition selon l’archétype ;
-10. les relations sont composées sans fusionner leurs vérités ;
-11. Possibilités reste exploratoire sans devenir un feed ;
-12. Piloter peut conclure « données insuffisantes » plutôt que fabriquer une métrique ;
-13. L’Espace reste institutionnel et n’absorbe pas les vérités métier ;
-14. les états loading, empty, success et error ont un sens clair ;
-15. le retour arrière conserve le contexte ;
-16. responsabilité et autorité restent distinctes ;
-17. aucune projection ne transfère des droits ou des données privées ;
-18. l’état final peut être calme.
+1. la personne reste visiblement dans Makolo lorsqu’elle entre dans un Space ;
+2. l’Avatar reste la personne authentifiée et ne devient jamais l’identité du Space ;
+3. la personne sait toujours dans quel Space elle agit ;
+4. le filtre de responsabilité n’expose que ce qu’elle porte dans ce Space ;
+5. une personne multi-rôle peut travailler en vue combinée sans concaténation de dashboards ;
+6. la navigation primaire visible est compréhensible sans connaissance de l’architecture interne ;
+7. Maintenant peut représenter les situations sans connaître l’algorithme final de ranking ;
+8. Découvrir peut représenter les possibilités collectives sans devenir un feed ;
+9. le Mark conserve la même identité et ne contourne jamais l’autorité ;
+10. la porte métier parle le vocabulaire naturel de l’archétype ;
+11. Nous donne accès à l’identité collective sans devenir un écran Paramètres ;
+12. Personnes & relations restent composées sans fusionner leurs vérités ;
+13. Piloter peut conclure données insuffisantes plutôt que fabriquer une métrique ;
+14. une action réelle peut ouvrir sa profondeur canonique sans perdre le contexte ;
+15. plusieurs Jour J peuvent coexister dans un Space ;
+16. Live reste attaché à un Jour J déterminé ;
+17. les huit archétypes partagent la même architecture cognitive sans devenir huit applications indépendantes ;
+18. les états loading, empty, success et error ont un sens clair ;
+19. le retour arrière conserve le contexte ;
+20. responsabilité et autorité restent distinctes ;
+21. aucune projection ne transfère des droits ou des données privées ;
+22. l’état final peut être calme.
 
----
 
 # 39. Étape suivante
 
-Cette spécification ferme le **contrat conceptuel UX Space**.
+La spécification conceptuelle et le shell visible sont désormais suffisamment stabilisés pour passer au design des écrans.
 
-La prochaine étape n’est pas encore l’implémentation.
+La séquence UX suivante est :
 
-Elle consiste à effectuer un **stress-test final de cohérence de bout en bout** sur des personnes concrètes de chacun des huit archétypes :
+1. shell Space mobile ;
+2. racine Maintenant ;
+3. racine Découvrir ;
+4. racines métier par archétype ;
+5. racine Nous ;
+6. Personnes & relations ;
+7. Piloter ;
+8. Jour J opérateur ;
+9. Makolo Live opérateur ;
+10. profondeurs et transitions.
 
-- entrer dans le Space ;
-- comprendre Maintenant ;
-- travailler dans le monde opérationnel ;
-- retrouver une personne ou relation ;
-- explorer une possibilité ;
-- piloter ;
-- gouverner ;
-- ouvrir un Jour J ;
-- utiliser Live ;
-- revenir ;
-- changer de responsabilité ;
-- terminer sans trou conceptuel ni duplication.
+Le design d’écran reste distinct du rapprochement runtime.
 
-Après ce test seulement vient le rapprochement avec :
+Après fermeture de ces contrats visuels et interactionnels vient le rapprochement avec :
 
 - runtime actuel ;
-- selectors/read models ;
+- selectors / read models ;
 - routes et surfaces existantes ;
 - gaps de projection ;
-- éventuels contrats API ;
-- implémentation.
+- contrats API réellement nécessaires ;
+- implémentation Web et Mobile.
 
----
 
 # 40. Règle finale
 
