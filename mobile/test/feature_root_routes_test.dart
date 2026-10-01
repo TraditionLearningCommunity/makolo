@@ -22,10 +22,7 @@ Future<void> _pumpRoute(
 ) async {
   final router = createMakoloRouter(runtime, onAuthenticationChanged: () {});
   await tester.pumpWidget(
-    MaterialApp.router(
-      theme: buildMakoloTheme(),
-      routerConfig: router,
-    ),
+    MaterialApp.router(theme: buildMakoloTheme(), routerConfig: router),
   );
   router.go(location);
   await tester.pumpAndSettle();
@@ -77,16 +74,28 @@ void main() {
     tester,
   ) async {
     await _pumpRoute(tester, runtime, '/journeys/journey-1');
-    expect(find.text('Cette démarche n’est pas disponible sur cet appareil.'), findsOneWidget);
+    expect(
+      find.text('Cette démarche n’est pas disponible sur cet appareil.'),
+      findsOneWidget,
+    );
 
     await _pumpRoute(tester, runtime, '/accesses/access-1');
-    expect(find.text('Cet accès n’est pas disponible sur cet appareil.'), findsOneWidget);
+    expect(
+      find.text('Cet accès n’est pas disponible sur cet appareil.'),
+      findsOneWidget,
+    );
 
     await _pumpRoute(tester, runtime, '/occurrences/occurrence-1');
-    expect(find.text('Cette occurrence n’est pas disponible sur cet appareil.'), findsOneWidget);
+    expect(
+      find.text('Cette occurrence n’est pas disponible sur cet appareil.'),
+      findsOneWidget,
+    );
 
     await _pumpRoute(tester, runtime, '/occurrences/occurrence-1/day-of');
-    expect(find.text('Le Jour J n’est pas disponible sur cet appareil.'), findsOneWidget);
+    expect(
+      find.text('Le Jour J n’est pas disponible sur cet appareil.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('unknown route uses the app fallback', (tester) async {
