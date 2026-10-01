@@ -2,6 +2,8 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
+from accounts.models import User
+
 
 class SpaceLifecycleMigrationTests(TransactionTestCase):
     migrate_from = [("organizations", "0005_organization_archetype")]
@@ -13,20 +15,21 @@ class SpaceLifecycleMigrationTests(TransactionTestCase):
         super().tearDown()
 
     def test_legacy_suspended_only_backfills_lifecycle(self):
+        owner = User.objects.create_user(
+            username="space-lifecycle-migration-owner",
+            email="space-lifecycle-migration-owner@test.local",
+            password="Makolo!Migration-Test-2026",
+        )
+        owner_id = owner.pk
+
         executor = MigrationExecutor(connection)
         executor.migrate(self.migrate_from)
         old_apps = executor.loader.project_state(self.migrate_from).apps
-        User = old_apps.get_model("accounts", "User")
         Organization = old_apps.get_model("organizations", "Organization")
-        owner = User.objects.create(
-            username="space-lifecycle-migration-owner",
-            email="space-lifecycle-migration-owner@test.local",
-            password="!",
-        )
         suspended = Organization.objects.create(
             name="Legacy Suspended",
             slug="legacy-suspended",
-            created_by_id=owner.pk,
+            created_by_id=owner_id,
             verification_status="suspended",
         )
         ordinary = Organization.objects.create(
