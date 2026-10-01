@@ -180,11 +180,7 @@ class ZS5SpaceActionProjectionTests(TestCase):
             f"/api/v1/operations/occurrences/{self.occurrence.pk}/day-of/"
         )
         self.assertEqual(allowed.status_code, 200, allowed.data)
-        revoke_mandate(
-            mandate=self.operator_mandate,
-            revoked_by=self.owner,
-            reason="ZS5 TOCTOU",
-        )
+        revoke_mandate(mandate=self.operator_mandate, actor=self.owner)
         denied = self.client.get(
             f"/api/v1/operations/occurrences/{self.occurrence.pk}/day-of/"
         )
