@@ -2,6 +2,7 @@ from django.urls import path
 
 from interoperability.api_views import SpaceInteroperabilityAPIView
 
+from .space_mark_views import SpaceMarkAPIView
 from .views import FollowDetailAPIView, FollowListCreateAPIView
 from .workspace_views import (
     SpaceArchiveAPIView,
@@ -25,6 +26,7 @@ urlpatterns = [
     path("workspaces/<slug:slug>/team/", SpaceTeamAPIView.as_view(), name="workspace-team"),
     path("workspaces/<slug:slug>/team/<uuid:membership_id>/", SpaceTeamMemberAPIView.as_view(), name="workspace-team-member"),
     path("workspaces/<slug:slug>/interoperability/", SpaceInteroperabilityAPIView.as_view(), name="workspace-interoperability"),
+    path("workspaces/<slug:slug>/mark/", SpaceMarkAPIView.as_view(), name="workspace-mark"),
     path("follows/", FollowListCreateAPIView.as_view(), name="follows"),
     path("follows/<uuid:pk>/", FollowDetailAPIView.as_view(), name="follow-detail"),
 ]
