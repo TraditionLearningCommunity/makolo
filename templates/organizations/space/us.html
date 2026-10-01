@@ -1,0 +1,14 @@
+{% extends 'organizations/space/base.html' %}
+{% block space_content %}
+<section class="space-y-4" aria-labelledby="space-us-heading">
+  <div>
+    <span class="mk-kicker">Nous</span>
+    <h2 id="space-us-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">Qui sommes-nous et comment fonctionnons-nous ensemble ?</h2>
+  </div>
+  <div class="mk-panel p-6">
+    <p class="font-bold">{{ space.name }}</p>
+    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">WS1 conserve l’identité collective et le contexte d’autorité sans transformer Nous en écran Paramètres ni exposer des Mandates bruts.</p>
+    <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary mt-5">Ouvrir les outils de l’Espace</a>
+  </div>
+</section>
+{% endblock %}
