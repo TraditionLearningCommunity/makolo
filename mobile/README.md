@@ -37,15 +37,15 @@ Les `*.g.dart` sont générés et ignorés par Git. Drift et json_serializable u
 
 ## Configuration
 
-La seule base API consommée par le client reste la configuration existante :
+La frontière runtime est `MakoloRuntimeConfig`, alimentée par `--dart-define-from-file`. Les defaults versionnés sont sous `config/` et n'inventent ni URL de production, ni provider, ni secret.
 
 ```bash
-flutter run --dart-define=MAKOLO_API_BASE_URL=https://<hote-autorise>
+flutter run --flavor dev --dart-define-from-file=config/dev.json
 ```
 
-Ne jamais committer de secret ni supposer une URL de production.
+DEV/BETA/PROD, Firebase, Maps, Sentry, App Links et la capability de localisation background sont documentés dans `docs/architecture/mobile-par1a-runtime-configuration.md`.
 
-Firebase, Sentry, le provider/style de carte et le host iOS ne sont pas configurés tant que leurs identités/options canoniques ne sont pas disponibles. Les adaptateurs Dart correspondants n'inventent aucune valeur.
+Ne jamais committer de secret ni supposer une URL de production.
 
 ## Stockage
 
@@ -64,7 +64,7 @@ L'identité Android déjà approuvée reste `com.makolo`. Le host Android est so
 Validation native :
 
 ```bash
-flutter build apk --debug
+flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json
 ```
 
 Le workflow `Mobile APK` est uniquement manuel et exige une URL de bêta/test fournie explicitement au lancement.
