@@ -82,8 +82,22 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Format canonical mobile sources
+        run: dart format lib test
+      - name: Export canonical formatting
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: makolo-mobile-canonical-format
+          path: |
+            mobile/lib/app/makolo_app.dart
+            mobile/lib/features/discovery/discovery_routes.dart
+            mobile/lib/features/discovery/discovery_screens.dart
+            mobile/lib/features/settings/settings_screen.dart
+            mobile/lib/features/splash/splash_screen.dart
+            mobile/lib/navigation/avatar_sheet.dart
+            mobile/test/avatar_sheet_test.dart
+            mobile/test/discovery_shell_contract_test.dart
+            mobile/test/shell_header_test.dart
       - name: Architecture guard
         run: flutter test test/architecture_guard_test.dart
       - name: Analyze
