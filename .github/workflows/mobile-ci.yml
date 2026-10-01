@@ -108,7 +108,7 @@ jobs:
             tests+=(test/sync_engine_test.dart test/outbox_processor_test.dart test/projection_contract_test.dart)
           fi
           if [[ "${{ needs.scope.outputs.platform }}" == "true" ]]; then
-            tests+=(test/background_coordinator_test.dart test/workmanager_scheduler_test.dart test/incoming_intent_test.dart test/notification_router_test.dart test/push_signal_processor_test.dart test/observability_test.dart test/file_media_core_test.dart)
+            tests+=(test/background_coordinator_test.dart test/workmanager_scheduler_test.dart test/incoming_intent_test.dart test/notification_router_test.dart test/push_signal_processor_test.dart test/push_destination_test.dart test/firebase_runtime_bootstrap_test.dart test/observability_test.dart test/observability_runtime_test.dart test/ambient_snapshot_test.dart test/file_media_core_test.dart)
           fi
           if [[ "${{ needs.scope.outputs.app_shell }}" == "true" ]]; then
             tests+=(test/app_shell_test.dart test/auth_entry_test.dart test/guest_router_test.dart test/launch_gate_test.dart test/launch_policy_test.dart test/session_recovery_test.dart test/onboarding_flow_test.dart)
