@@ -26,12 +26,12 @@ final runtimeConfigProvider = Provider<MakoloRuntimeConfig>(
 );
 
 final locationCapabilityFactoryProvider = Provider<LocationCapabilityFactory>(
-  (ref) =>
-      (config) => LocationCapability(
-        permissions: const PermissionHandlerGateway(),
-        service: const GeolocatorLocationService(),
-        backgroundCapabilityEnabled: config.location.backgroundCapabilityEnabled,
-      ),
+  (ref) => (config) => LocationCapability(
+    permissions: const PermissionHandlerGateway(),
+    service: const GeolocatorLocationService(),
+    backgroundCapabilityEnabled:
+        config.location.backgroundCapabilityEnabled,
+  ),
 );
 
 final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
