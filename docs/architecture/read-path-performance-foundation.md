@@ -148,10 +148,7 @@ Le runtime Sharing n’est plus chargé directement sur toutes les pages. `capab
 
 `share-actions.js` est idempotent grâce à un `WeakSet` : un swap HTMX ne réattache pas les listeners aux contrôles déjà initialisés.
 
-Lucide n’est plus rescanné à la fois sur `afterSwap` et `afterSettle`, ni une seconde fois via `alpine:initialized`. Le contrat retenu est :
-
-- un scan initial à `DOMContentLoaded` ;
-- un scan après `htmx:afterSettle`.
+Le runtime Lucide central reste inchangé dans cette étape. Son cycle d’initialisation a été audité, mais sa déduplication est reportée à un changement frontend séparé afin de conserver le bundle généré reproductible et de mesurer le gain avant de modifier ce contrat global.
 
 ## 10. Observabilité
 
