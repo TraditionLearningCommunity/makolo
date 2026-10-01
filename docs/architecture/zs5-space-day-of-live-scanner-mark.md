@@ -138,7 +138,7 @@ L'acteur Space est résolu par le serveur via `workspace_spaces(request.user)`. 
 
 `context.responsibility` peut être conservé comme information d'interprétation, mais n'accorde aucun droit.
 
-L'ajout d'un membre à l'équipe fournit un exemple fermé de mutation Mark owner-backed : le Mark collecte une identité et une responsabilité, demande une confirmation décrivant la conséquence humaine, revalide `SPACE_TEAM_MANAGE`, puis appelle `find_user_for_team()` et `add_or_update_member()`. Un replay converge sur la même `TeamMembership`; aucune écriture ORM n'est effectuée par l'orchestrateur.
+L'ajout d'un membre à l'équipe fournit un exemple fermé de mutation Mark owner-backed : le Mark collecte une identité et un rôle d'autorité explicite, demande une confirmation décrivant la conséquence humaine, revalide `SPACE_TEAM_MANAGE`, puis appelle `find_user_for_team()` et `add_or_update_member()`. Ce rôle explicite est distinct de `context.responsibility`, qui n'accorde aucun droit. Un replay converge sur la même `TeamMembership`; aucune écriture ORM n'est effectuée par l'orchestrateur.
 
 Sur la base auditée, le Mark Space ferme seulement les handoffs dont les owners sont déjà stables sur `main` :
 
