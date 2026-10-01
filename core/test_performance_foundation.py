@@ -1,16 +1,22 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase
+from django.db import connection
+from django.http import HttpResponse
+from django.test import RequestFactory, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import resolve
 
 from accounts.models import UserProfile
 from accounts.profile_activation import build_profile_activation_summary
 from accounts.templatetags.profile_activation_tags import profile_activation_summary
+from activities.models import Activity
 from conversations.templatetags.conversation_tags import conversation_attention_badge
 from core.projections import ProjectionBudget
 from core.web.fragments import is_fragment_request
+from core.web.performance import PerformanceEnvelopeMiddleware
 from core.web.request_context import get_request_context
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from notifications.context_processors import notifications_summary
 
 
@@ -127,3 +133,97 @@ class RequestPerformanceFoundationTests(TestCase):
                 2,
             )
         counter.assert_called_once()
+
+
+class WebReadPathRegressionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="perf-web",
+            email="perf-web@example.test",
+            password="StrongPerfWebPassword2026!",
+        )
+        self.activity = Activity.objects.create(
+            created_by=self.user,
+            owner_profile=self.user,
+            title="Performance Web Activity",
+        )
+        self.client.force_login(self.user)
+
+    def _journeys(self, count):
+        for _ in range(count):
+            Journey.objects.create(
+                initiated_by=self.user,
+                beneficiary=self.user,
+                activity=self.activity,
+                workflow=WorkflowKind.REGISTRATION,
+                status=JourneyStatus.APPROVED,
+            )
+
+    def _ongoing_query_count(self, count):
+        Journey.objects.filter(
+            beneficiary=self.user,
+            activity=self.activity,
+        ).delete()
+        self._journeys(count)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get("/me/ongoing/")
+        self.assertEqual(response.status_code, 200)
+        return len(queries)
+
+    def test_ongoing_web_query_growth_is_bounded(self):
+        one = self._ongoing_query_count(1)
+        many = self._ongoing_query_count(20)
+        self.assertLessEqual(many, one + 2)
+
+    def test_ongoing_htmx_main_swap_uses_server_fragment_shell(self):
+        response = self.client.get(
+            "/me/ongoing/",
+            HTTP_HX_REQUEST="true",
+            HTTP_HX_TARGET="main-content",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="main-content"', html=False)
+        self.assertContains(response, 'id="app-topbar"', html=False)
+        self.assertContains(response, 'id="desktop-sidebar"', html=False)
+        self.assertNotContains(response, "<!DOCTYPE html>", html=False)
+        self.assertNotContains(response, "dist/makolo.js", html=False)
+
+    def test_ongoing_non_htmx_response_keeps_full_document(self):
+        response = self.client.get("/me/ongoing/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<!DOCTYPE html>", html=False)
+        self.assertContains(response, "dist/makolo.js", html=False)
+
+    def test_missing_profile_extension_stays_read_only_through_web_shell(self):
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+        response = self.client.get("/me/moi/")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
+
+
+class PerformanceEnvelopeTests(TestCase):
+    @override_settings(
+        MAKOLO_PERFORMANCE_LOGGING=True,
+        MAKOLO_PERFORMANCE_WARN_MS=0,
+        MAKOLO_PERFORMANCE_WARN_QUERIES=0,
+        MAKOLO_PERFORMANCE_WARN_KB=0,
+    )
+    def test_envelope_logs_route_cost_without_payload(self):
+        request = RequestFactory().get("/me/ongoing/")
+        request.user = User.objects.create_user(
+            username="perf-envelope",
+            email="perf-envelope@example.test",
+            password="StrongPerfEnvelopePassword2026!",
+        )
+        request.resolver_match = resolve("/me/ongoing/")
+        middleware = PerformanceEnvelopeMiddleware(
+            lambda incoming: HttpResponse("ok")
+        )
+        with self.assertLogs("makolo.performance", level="INFO") as logs:
+            response = middleware(request)
+        self.assertEqual(response.status_code, 200)
+        message = "\n".join(logs.output)
+        self.assertIn("route=core:participant-ongoing", message)
+        self.assertIn("sql_queries=0", message)
+        self.assertIn("mode=full", message)
+        self.assertNotIn(request.user.email, message)
