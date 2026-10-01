@@ -104,13 +104,18 @@ final sessionRecoveryProvider = Provider<SessionRecoveryController>(
   (ref) => SessionRecoveryController(),
 );
 
+final runtimeConfigProvider = Provider<MakoloRuntimeConfig>(
+  (ref) => MakoloRuntimeConfig.fromEnvironment(),
+);
+
 final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   final tokens = ref.watch(tokenStoreProvider);
   final recovery = ref.watch(sessionRecoveryProvider);
+  final config = ref.watch(runtimeConfigProvider);
   final launchPreferences = await FileLaunchPreferencesStore.open();
   final interactions = await ResumableInteractionStore.open();
   final session = await tokens.readSession();
-  final baseUri = MakoloEnvironment.apiBaseUri;
+  final baseUri = config.api.baseUri;
   final api = baseUri == null
       ? null
       : MakoloApiClient(baseUri: baseUri, tokenStore: tokens);
