@@ -10,6 +10,7 @@
       {% elif personal_nav.back_url %}
         <a href="{{ personal_nav.back_url }}" class="mk-icon-btn" aria-label="Retour à {% if personal_nav.owner == 'now' %}Maintenant{% elif personal_nav.owner == 'discover' %}Découvrir{% elif personal_nav.owner == 'ongoing' %}En cours{% elif personal_nav.owner == 'me' %}Moi{% else %}Makolo{% endif %}"><i data-lucide="arrow-left"></i></a>
       {% endif %}
+      {% if space_context %}<a href="{{ space_root_url }}" class="mk-icon-btn md:hidden" aria-label="Accueil de {{ space.name }}"><span class="h-6 w-6">{% include 'partials/makolo_mark_inline.html' %}</span></a>{% endif %}
       <h2 class="truncate text-[17px] font-extrabold tracking-[-.025em]" style="color:var(--mk-text)">
         {% if space_console %}{{ console_page_title }}
         {% elif space_context %}{{ space_page_title }}
