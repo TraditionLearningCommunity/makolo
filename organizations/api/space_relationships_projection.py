@@ -81,9 +81,8 @@ def build_space_relationships_projection(*, profile, space):
                 "id": str(group.pk),
                 "name": group.name,
                 "status": group.status,
-                "links": {"detail": f"/groups/{group.slug}/"},
+                "links": {},
             },
-            links={"deep": "/groups/"},
         )
 
     crm_visible = direct_space and has_direct_space_permission(
