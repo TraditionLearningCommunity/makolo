@@ -54,7 +54,11 @@ def build_personal_ongoing_read_model(
             .order_by("-updated_at", "-created_at", "id")
         )[: budget.remaining]
     )
-    readiness_by_id = resolve_many(journeys, viewer=profile, observed_at=observed_at)
+    readiness_by_id = (
+        resolve_many(journeys, viewer=profile, observed_at=observed_at)
+        if journeys
+        else {}
+    )
     for journey in budget.take(journeys):
         entries.append(
             PersonalOngoingEntry(
@@ -86,7 +90,11 @@ def build_personal_ongoing_read_model(
             .filter(lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE})
             .order_by("-updated_at", "id")[: budget.remaining]
         )
-        dossier_readiness = resolve_owned_dossiers_readiness(dossiers, viewer=profile)
+        dossier_readiness = (
+            resolve_owned_dossiers_readiness(dossiers, viewer=profile)
+            if dossiers
+            else {}
+        )
         for dossier in budget.take(dossiers):
             entries.append(
                 PersonalOngoingEntry(
