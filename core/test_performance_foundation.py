@@ -196,6 +196,8 @@ class WebReadPathRegressionTests(TestCase):
         self.assertContains(response, 'id="desktop-sidebar"', html=False)
         self.assertNotContains(response, "<!DOCTYPE html>", html=False)
         self.assertNotContains(response, "dist/makolo.js", html=False)
+        vary = {item.strip() for item in response.get("Vary", "").split(",")}
+        self.assertTrue({"HX-Request", "HX-Target"}.issubset(vary))
 
     def test_ongoing_full_shell_does_not_load_share_capability_asset(self):
         response = self.client.get("/me/ongoing/")
@@ -207,6 +209,8 @@ class WebReadPathRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "<!DOCTYPE html>", html=False)
         self.assertContains(response, "dist/makolo.js", html=False)
+        vary = {item.strip() for item in response.get("Vary", "").split(",")}
+        self.assertTrue({"HX-Request", "HX-Target"}.issubset(vary))
 
     def test_missing_profile_extension_stays_read_only_through_web_shell(self):
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
