@@ -120,13 +120,13 @@ void main() {
       }
     }
 
+    final violationDetails = violations.map((value) => ' - $value').join('\n');
     expect(
       violations,
       isEmpty,
       reason: violations.isEmpty
           ? null
-          : 'PAR-1D architecture guard violations:\n' +
-                violations.map((value) => ' - ' + value).join('\n'),
+          : 'PAR-1D architecture guard violations:\n$violationDetails',
     );
   });
 }
