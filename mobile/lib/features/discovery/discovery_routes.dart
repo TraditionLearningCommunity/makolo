@@ -85,8 +85,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         watchId: state.pathParameters['id']!,
         repository: discovery,
         onOpenActivity: (id) => context.push('/activities/$id'),
-        onOpenItem: (family, id) =>
-            context.push('/discover/items/$family/$id'),
+        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
       );
     },
   ),
@@ -142,9 +141,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         occurrenceId: occurrenceId,
         repository: discovery,
         onOpenActivity: (id) => context.push('/activities/$id'),
-        onOpenDayOf: () => context.push(
-          '/occurrences/$occurrenceId/day-of',
-        ),
+        onOpenDayOf: () => context.push('/occurrences/$occurrenceId/day-of'),
       );
     },
   ),
