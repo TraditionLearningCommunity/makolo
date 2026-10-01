@@ -367,15 +367,16 @@ Aucun test ne doit être affaibli pour obtenir du vert.
 
 ## 17. État final intégré
 
-**À compléter uniquement après merge réel de la PR ZS6.**
+Le programme ZS est intégré.
 
-Champs à figer après merge :
+- PR finale : **#419 — ZS6 — Final Space projection reconciliation and Web/Mobile handoff**.
+- Merge réel : `be289f4c0e1c044d297228505b73d0bab789e99c`.
+- Base de `main` immédiatement avant le merge ZS6 : `e2afe23b9cd42fc4dff5a1f4b8fd84db44599a05` (Performance — transversal read-path foundation v2, #418).
+- Checkpoints ZS3 / ZS4 / ZS5 intégrés et reconnus par GitHub comme merged/closed : #414, #415, #416.
+- État ZS2 réel : aucune branche/PR historique ; gap minimal fermé dans ZS6 par les contrats Space Now/Discover sans ranking ni heuristique.
+- CI finale de #419 : verte sur CI, Security supply chain, Beta seed validation, Funding PostgreSQL, Conversation PostgreSQL, Observer PostgreSQL et Subscriptions.
+- Diff ZS6 : aucun modèle, aucune migration, aucun template, aucun CSS, aucun Flutter, aucun algorithme Molongo.
+- Vérification post-merge : routes Space `now/`, `discover/`, `work/`, `us/`, `relationships/`, `pilot/`, `mark/` présentes ; routes Jour J, Live et Scanner occurrence-scoped présentes.
+- Aucun checkpoint ZS ne reste ambigu à merger indépendamment.
 
-- HEAD final de `main` ;
-- numéro/URL de PR ZS6 ;
-- CI finale ;
-- confirmation absence de migration ;
-- checkpoints supersédés/fermés ;
-- vérification rapide des endpoints principaux.
-
-Tant que cette section n’est pas mise à jour après merge réel, le programme ZS n’est pas déclaré intégré.
+Le HEAD ci-dessus est le merge ZS6 lui-même ; un commit documentaire post-merge peut naturellement avancer `main` après cette clôture sans modifier le contenu fonctionnel du train.
