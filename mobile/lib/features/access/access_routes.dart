@@ -31,8 +31,9 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
     builder: (context, state) {
       runtime.recovery.rememberLocation(state.uri.toString());
       final repository = runtime.accesses;
-      final credentialPath =
-          state.extra is String ? state.extra! as String : null;
+      final credentialPath = state.extra is String
+          ? state.extra! as String
+          : null;
       if (repository == null || credentialPath == null) {
         return const MakoloSecondaryScreen(
           title: 'QR d’accès',
