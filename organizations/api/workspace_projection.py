@@ -75,6 +75,47 @@ def workspace_spaces(profile):
     return Organization.objects.filter(pk__in=ids).order_by("name")
 
 
+def _responsibility_projection(profile, space):
+    mandates = list(
+        current_mandates()
+        .filter(profile=profile)
+        .filter(
+            __import__("django.db.models", fromlist=["Q"]).Q(
+                scope_type=AuthorityScope.SPACE,
+                space=space,
+            )
+            | __import__("django.db.models", fromlist=["Q"]).Q(
+                scope_type=AuthorityScope.ACTIVITY,
+                activity__space=space,
+            )
+        )
+        .select_related("role", "activity")
+        .order_by("scope_type", "role__name", "activity__title", "pk")
+    )
+    perspectives = []
+    if mandates:
+        perspectives.append({
+            "key": "all",
+            "label": "Toutes mes responsabilités",
+            "scope": "space",
+            "combined": True,
+        })
+    for mandate in mandates:
+        row = {
+            "key": f"mandate:{mandate.pk}",
+            "label": mandate.role.name,
+            "scope": mandate.scope_type,
+            "combined": False,
+        }
+        if mandate.scope_type == AuthorityScope.ACTIVITY:
+            row["activity"] = {
+                "id": str(mandate.activity_id),
+                "title": mandate.activity.title,
+            }
+        perspectives.append(row)
+    return perspectives
+
+
 def _module(key, *, status="active", capabilities=(), links=None, notes=()):
     return {
         "key": key,
@@ -315,8 +356,13 @@ def build_space_workspace(profile, space):
             "label": preset.label,
             "navigation_section_label": preset.navigation_section_label,
             "activities_label": preset.activities_label,
+            "primary_business_label": preset.primary_business_label,
             "featured_modules": list(preset.featured_modules),
             "suggested_verticals": list(preset.suggested_verticals),
+        },
+        "responsibilities": _responsibility_projection(profile, space),
+        "links": {
+            "workspace": f"/api/v1/organizations/workspaces/{space.slug}/",
         },
         "modules": modules,
         "platform_modules_included": False,
