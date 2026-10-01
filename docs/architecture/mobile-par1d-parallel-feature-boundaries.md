@@ -73,6 +73,6 @@ Mark reste une racine spéciale hors des quatre branches du shell ; seul son own
 
 `test/architecture_guard_test.dart` analyse uniquement le Dart de production sous `lib/features/**`. Il interdit les plugins infrastructure/natifs listés dans le test, la lecture directe de runtime config, les URLs HTTP(S) codées en dur, les imports feature → app router/shell et l’accès DB direct depuis les écrans/routes.
 
-Le test ne bloque pas Flutter, Riverpod ou go_router et ne scanne pas les fixtures/tests/docs.
+Le test ne bloque pas Flutter, Riverpod ou go_router et ne scanne pas les fixtures/tests/docs. Drift reste interdit aux écrans/routes ; les repositories owner-backed existants peuvent l’utiliser comme frontière de stockage explicite.
 
 Lorsqu’une capability native est nécessaire, ajouter ou utiliser d’abord sa frontière Makolo sous platform/runtime/repository, puis injecter cette frontière dans la feature.
