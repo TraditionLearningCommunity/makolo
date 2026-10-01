@@ -78,6 +78,14 @@ Le Web produit ses cartes HTML. L’API conserve son contrat JSON `personal.ongo
 
 La famille Funding reste explicitement Web-only dans ce read model tant qu’elle ne fait pas partie du contrat réseau `personal.ongoing`.
 
+### Contrat de croissance SQL
+
+Les tests de régression protègent contre une croissance ligne-par-ligne et contre les N+1. Ils n'imposent pas une pseudo-constance absolue du nombre de requêtes lorsqu'un batch Readiness ou une relation bornée devient effectivement nécessaire à la réponse.
+
+Le cas Web `/me/ongoing/` a révélé un vrai N+1 : 1 Journey coûtait 34 requêtes et 20 Journeys 146. Après suppression de la carte Journey générique inutilisée et chargement ciblé des lieux, le même scénario passe à 28 puis 38 requêtes.
+
+Le contrat retenu vérifie donc un plafond borné et une croissance limitée. Il ne justifie ni jointures profondes, ni cache partagé, ni nouvelle projection persistée. La sélection, la pertinence, le ranking et la priorisation restent hors de ce socle et appartiennent aux moteurs Molongo lorsqu'ils existent.
+
 ## 6. Shell global
 
 ### Notifications
