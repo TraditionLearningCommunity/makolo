@@ -6,12 +6,15 @@ import '../features/auth/account_actions.dart';
 import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
+import '../features/access/access_credential_screen.dart';
+import '../features/access/access_detail_screen.dart';
 import '../features/continuity/conversation_screens.dart';
 import '../features/continuity/history_screen.dart';
 import '../features/continuity/objective_repository.dart';
 import '../features/continuity/objective_screen.dart';
 import '../features/discovery/discovery_screens.dart';
 import '../features/discovery/discovery_watch_screens.dart';
+import '../features/day_of/day_of_screen.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/connections_screen.dart';
 import '../features/journey/journey_detail_screen.dart';
@@ -405,6 +408,9 @@ GoRouter createMakoloRouter(
             occurrenceId: state.pathParameters['id']!,
             repository: discovery,
             onOpenActivity: (id) => context.push('/activities/$id'),
+            onOpenDayOf: () => context.push(
+              '/occurrences/${state.pathParameters['id']!}/day-of',
+            ),
           );
         },
       ),
@@ -532,6 +538,70 @@ GoRouter createMakoloRouter(
         },
       ),
       GoRoute(
+        path: '/occurrences/:id/day-of',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final dayOf = runtime.dayOf;
+          if (dayOf == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Jour J',
+              message: 'Le Jour J n’est pas disponible sur cet appareil.',
+            );
+          }
+          return DayOfScreen(
+            occurrenceId: state.pathParameters['id']!,
+            repository: dayOf,
+            onOpenAccess: (accessId, detailPath) =>
+                context.push('/accesses/$accessId'),
+            onPresentCredential: (accessId, credentialPath) => context.push(
+              '/accesses/$accessId/credential',
+              extra: credentialPath,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/accesses/:id',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final accesses = runtime.accesses;
+          if (accesses == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Accès',
+              message: 'Cet accès n’est pas disponible sur cet appareil.',
+            );
+          }
+          return AccessDetailScreen(
+            accessId: state.pathParameters['id']!,
+            repository: accesses,
+            onOpenDayOf: (handoff) =>
+                context.push('/occurrences/${handoff.occurrenceId}/day-of'),
+            onOpenJourney: (journeyId) => context.push('/journeys/$journeyId'),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/accesses/:id/credential',
+        builder: (context, state) {
+          runtime.recovery.rememberLocation(state.uri.toString());
+          final accesses = runtime.accesses;
+          final credentialPath = state.extra is String
+              ? state.extra! as String
+              : null;
+          if (accesses == null || credentialPath == null) {
+            return const MakoloSecondaryScreen(
+              title: 'QR d’accès',
+              message: 'Rouvrez ce QR depuis le Jour J afin de revalider son lien propriétaire.',
+            );
+          }
+          return AccessCredentialScreen(
+            accessId: state.pathParameters['id']!,
+            credentialPath: credentialPath,
+            repository: accesses,
+          );
+        },
+      ),
+      GoRoute(
         path: '/dossiers/:id',
         builder: (context, state) {
           runtime.recovery.rememberLocation(state.uri.toString());
@@ -571,7 +641,7 @@ GoRouter createMakoloRouter(
           );
         },
       ),
-      for (final prefix in const ['accesses', 'groups'])
+      for (final prefix in const ['groups'])
         GoRoute(
           path: '/$prefix/:id',
           builder: (context, state) {
