@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from core.mark_orchestration import MARK_TEXT_MAX_LENGTH, mark_web_url, orchestrate_mark
 from core.web.fragments import FragmentTemplateMixin
+from core.web.request_context import get_request_context
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -178,9 +179,10 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
+        observed_at = get_request_context(self.request).observed_at
         entries = build_personal_ongoing_read_model(
             profile,
-            observed_at=timezone.now(),
+            observed_at=observed_at,
             limit=ONGOING_LIMIT,
             include_personal_funding=True,
         )
@@ -201,11 +203,56 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
         kinds = {entry.kind for entry in entries}
 
         context["ongoing_items"] = ongoing_items
-        context["has_personal_dossiers"] = "dossier" in kinds
-        context["has_personal_projects"] = "project" in kinds
-        context["has_waitlist"] = "waitlist" in kinds
-        context["has_transfers"] = "transfer" in kinds
-        context["has_personal_fundings"] = "funding" in kinds
+        context["has_personal_dossiers"] = (
+            "dossier" in kinds
+            or dossiers_for_profile(profile)
+            .filter(
+                owner_profile=profile,
+                lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
+            )
+            .exists()
+        )
+        context["has_personal_projects"] = (
+            "project" in kinds
+            or projects_for_profile(profile)
+            .filter(
+                owner_profile=profile,
+                lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE},
+            )
+            .exists()
+        )
+        context["has_waitlist"] = (
+            "waitlist" in kinds
+            or get_waitlist_entries_visible_to(profile)
+            .filter(
+                user=profile,
+                status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED},
+            )
+            .exists()
+        )
+        context["has_transfers"] = (
+            "transfer" in kinds
+            or get_ticket_transfers_visible_to(profile)
+            .filter(status=TransferStatus.PENDING)
+            .filter(models.Q(sender=profile) | models.Q(recipient=profile))
+            .exists()
+        )
+        if "funding" in kinds:
+            context["has_personal_fundings"] = True
+        else:
+            personal_funding_candidates = list(
+                FundingDetails.objects.select_related("activity")
+                .filter(
+                    activity__owner_profile=profile,
+                    activity__space__isnull=True,
+                    activity__status__in={ActivityStatus.DRAFT, ActivityStatus.PUBLISHED},
+                )
+                .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
+            )
+            context["has_personal_fundings"] = any(
+                can_manage_funding(profile, funding)
+                for funding in personal_funding_candidates
+            )
         return context
 
 
