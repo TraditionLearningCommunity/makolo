@@ -23,9 +23,11 @@ class AppSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final preferences = runtime.preferences;
     if (preferences == null) {
-      return const Scaffold(
-        appBar: AppBar(title: Text('Paramètres')),
-        body: Center(child: Text('Paramètres indisponibles pour le moment.')),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Paramètres')),
+        body: const Center(
+          child: Text('Paramètres indisponibles pour le moment.'),
+        ),
       );
     }
 
