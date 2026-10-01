@@ -57,7 +57,7 @@ AppRuntime _runtime(_MemoryLaunchPreferences preferences) {
 Widget _app(
   AppRuntime runtime, {
   DateTime? launchStartedAt,
-  Duration minimumVisible = const Duration(seconds: 1),
+  Duration minimumVisible = Duration.zero,
 }) {
   final router = createMakoloRouter(runtime, onAuthenticationChanged: () {});
   return MaterialApp.router(
@@ -74,9 +74,7 @@ Widget _app(
 }
 
 void main() {
-  testWidgets('launch splash remains visible for at least one second', (
-    tester,
-  ) async {
+  testWidgets('launch has no artificial splash delay', (tester) async {
     final preferences = _MemoryLaunchPreferences(
       LaunchPreferencesSnapshot(
         hasCompletedOnboarding: true,
@@ -86,21 +84,13 @@ void main() {
     final runtime = _runtime(preferences);
 
     await tester.pumpWidget(_app(runtime));
-    expect(find.byType(SplashScreen), findsOneWidget);
-    expect(find.byKey(const Key('animated-splash-mark')), findsOneWidget);
-    expect(find.byType(BrandMoment), findsNothing);
-
-    await tester.pump(const Duration(milliseconds: 999));
-    expect(find.byType(SplashScreen), findsOneWidget);
-
-    await tester.pump(const Duration(milliseconds: 2));
     await tester.pump();
+
     expect(find.byType(SplashScreen), findsNothing);
-    expect(find.byType(BrandMoment), findsNothing);
     expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
   });
 
-  testWidgets('real initialization can keep splash longer than the minimum', (
+  testWidgets('real initialization keeps splash while preparation runs', (
     tester,
   ) async {
     final preferences = _MemoryLaunchPreferences(
@@ -119,6 +109,28 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump();
     expect(find.byType(SplashScreen), findsNothing);
+  });
+
+  testWidgets('eligible launch plays Brand Moment before destination', (
+    tester,
+  ) async {
+    final preferences = _MemoryLaunchPreferences(
+      const LaunchPreferencesSnapshot(hasCompletedOnboarding: true),
+    );
+    final runtime = _runtime(preferences);
+
+    await tester.pumpWidget(_app(runtime));
+    await tester.pump();
+
+    expect(find.byType(BrandMoment), findsOneWidget);
+    expect(find.byKey(const Key('guest-public-landing')), findsNothing);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+
+    expect(find.byType(BrandMoment), findsNothing);
+    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+    expect(preferences.snapshot.lastBrandMomentAt, isNotNull);
   });
 
   testWidgets(

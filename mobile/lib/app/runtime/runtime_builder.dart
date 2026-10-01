@@ -32,6 +32,11 @@ Future<AppRuntime> buildAppRuntime({
   required LocationCapabilityFactory locationFactory,
 }) async {
   final launchPreferences = await FileLaunchPreferencesStore.open();
+  final preferenceSnapshot = await launchPreferences.read();
+  final preferences = AppPreferencesController(
+    store: launchPreferences,
+    initial: preferenceSnapshot,
+  );
   final interactions = await ResumableInteractionStore.open();
   final session = await tokens.readSession();
   final baseUri = config.api.baseUri;
@@ -46,6 +51,8 @@ Future<AppRuntime> buildAppRuntime({
       session: session,
       recovery: recovery,
       launchPreferences: launchPreferences,
+      preferences: preferences,
+      config: config,
       interactions: interactions,
       api: api,
     );
@@ -105,6 +112,8 @@ Future<AppRuntime> buildAppRuntime({
     session: session,
     recovery: recovery,
     launchPreferences: launchPreferences,
+    preferences: preferences,
+    config: config,
     interactions: interactions,
     api: api,
     database: database,

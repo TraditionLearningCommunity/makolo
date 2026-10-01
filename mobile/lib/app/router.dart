@@ -19,6 +19,7 @@ import '../features/now/now_routes.dart';
 import '../features/ongoing/ongoing_routes.dart';
 import '../features/preparation/preparation_routes.dart';
 import '../features/questionnaires/questionnaire_routes.dart';
+import '../features/settings/settings_screen.dart';
 import '../navigation/secondary_screen.dart';
 import 'app_shell.dart';
 import 'runtime/app_runtime.dart';
@@ -53,6 +54,7 @@ GoRouter createMakoloRouter(
       '/history',
       '/notifications',
       '/ongoing/calendar',
+      '/settings',
     }.contains(path)) {
       return true;
     }
@@ -89,7 +91,7 @@ GoRouter createMakoloRouter(
       }
 
       if (!runtime.isAuthenticated &&
-          (path == '/discover/search' || path == '/discover/filters')) {
+          (path == '/discover/search' || path == '/discover/map')) {
         return '/discover';
       }
 
@@ -153,6 +155,10 @@ GoRouter createMakoloRouter(
           ),
           onAddAccount: () => context.push('/login?add=1'),
         ),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => AppSettingsScreen(runtime: runtime),
       ),
       ...interoperabilityRoutes(runtime),
       ...markRoutes(runtime),

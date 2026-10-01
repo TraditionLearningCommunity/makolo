@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
-import '../../app/environment.dart';
+import 'map_runtime_config.dart';
 
 class MapCoordinate {
   const MapCoordinate(this.latitude, this.longitude);

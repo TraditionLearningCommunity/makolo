@@ -29,6 +29,7 @@ dependencies:
   local_auth: 3.0.2
   maplibre_gl: 0.27.1
   mobile_scanner: 7.4.2
+  package_info_plus: 10.2.1
   path_provider: 2.1.6
   pdfrx: 2.6.5
   permission_handler: 13.0.2
