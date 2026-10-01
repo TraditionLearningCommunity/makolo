@@ -277,9 +277,25 @@ class IdentityResolutionTests(TestCase):
             "candidate:homonym:b", self.interpretation, label="University X"
         )
         self.assertEqual(candidate_a.label, candidate_b.label)
+        reality_a = Reality("reality:homonym:a", "University X")
+        reality_b = Reality("reality:homonym:b", "University X")
+        resolution_a = self._for_candidate(
+            "resolution:homonym:a",
+            candidate_a,
+            IdentityResolutionStatus.RESOLVED,
+            reality=reality_a,
+        )
+        resolution_b = self._for_candidate(
+            "resolution:homonym:b",
+            candidate_b,
+            IdentityResolutionStatus.RESOLVED,
+            reality=reality_b,
+        )
+        validate_identity_resolution(resolution_a, candidate_a)
+        validate_identity_resolution(resolution_b, candidate_b)
         self.assertNotEqual(
-            Reality("reality:homonym:a").reality_ref,
-            Reality("reality:homonym:b").reality_ref,
+            resolution_a.reality.reality_ref,
+            resolution_b.reality.reality_ref,
         )
         short = self._for_mention(
             "resolution:alias:short",
@@ -457,6 +473,14 @@ class IdentityResolutionTests(TestCase):
         )
         with self.assertRaises(MayeleContractError):
             validate_identity_resolution(redundant, self.unilu)
+        self_ref = self._for_mention(
+            "resolution:self-ref",
+            self.unilu,
+            IdentityResolutionStatus.RESOLVED,
+            reality=Reality(self.unilu.mention_ref),
+        )
+        with self.assertRaises(MayeleContractError):
+            validate_identity_resolution(self_ref, self.unilu)
 
     def test_n_ary_relation_participants_can_resolve_independently(self):
         relation = RelationCandidate(
