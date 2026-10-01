@@ -100,3 +100,9 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
 
 def conversation_attention_count(profile, *, at=None):
     return len(attention_points_for_profile(profile, at=at, limit=1000))
+
+
+def conversation_attention_badge_count(profile, *, at=None, cap=10):
+    """Return a UI badge count capped at the requested bound."""
+    cap = max(int(cap), 1)
+    return len(attention_points_for_profile(profile, at=at, limit=cap))
