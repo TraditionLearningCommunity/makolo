@@ -21,8 +21,9 @@ import '../resumable_interaction_store.dart';
 import '../session_recovery.dart';
 import 'app_runtime.dart';
 
-typedef LocationCapabilityFactory =
-    LocationCapability Function(MakoloRuntimeConfig config);
+typedef LocationCapabilityFactory = LocationCapability Function(
+  MakoloRuntimeConfig config,
+);
 
 Future<AppRuntime> buildAppRuntime({
   required TokenStore tokens,
