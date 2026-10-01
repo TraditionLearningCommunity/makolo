@@ -5,6 +5,7 @@ import '../../network/makolo_api_client.dart';
 import '../../repositories/draft_repository.dart';
 import '../../sync/outbox/outbox_processor.dart';
 import '../../sync/outbox/outbox_repository.dart';
+import '../../sync/sync_engine.dart';
 import '../journey/journey_repository.dart';
 import 'questionnaire_repository.dart';
 import 'questionnaire_submit_coordinator.dart';
@@ -30,12 +31,13 @@ QuestionnaireAssembly buildQuestionnaireAssembly({
   required OutboxRepository outbox,
   required DraftRepository drafts,
   required JourneyRepository journeys,
+  required SyncEngine? sync,
 }) {
   final repository = QuestionnaireRepository(
     database: database,
     store: store,
     profileId: profileId,
-    sync: null,
+    sync: sync,
   );
   if (api == null) {
     return QuestionnaireAssembly(
