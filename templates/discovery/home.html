@@ -119,4 +119,4 @@
     </div>
 </aside>
 {% endblock %}
-{% block extra_js %}{% if nearby_active and map_items %}<script defer src="{% static 'dist/discovery-map.js' %}"></script>{% else %}<script defer src="{% static 'dist/discovery-geolocation.js' %}"></script>{% endif %}<script defer src="{% static 'js/discovery-ux.js' %}"></script><script defer src="{% static 'js/share-actions.js' %}"></script>{% endblock %}
+{% block extra_js %}{% if nearby_active and map_items %}<script defer src="{% static 'dist/discovery-map.js' %}"></script>{% else %}<script defer src="{% static 'dist/discovery-geolocation.js' %}"></script>{% endif %}<script defer src="{% static 'js/discovery-ux.js' %}"></script>{% endblock %}
