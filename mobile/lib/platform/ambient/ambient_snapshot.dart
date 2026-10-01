@@ -51,35 +51,43 @@ class HomeWidgetAmbientPublisher implements AmbientSnapshotPublisher {
 
   @override
   Future<void> publish(AmbientSnapshot snapshot) async {
-    for (final entry in snapshot.toMap().entries) {
-      await HomeWidget.saveWidgetData<String>(
-        'makolo.${entry.key}',
-        entry.value,
-        appGroupId: appGroupId,
-      );
+    try {
+      for (final entry in snapshot.toMap().entries) {
+        await HomeWidget.saveWidgetData<String>(
+          'makolo.${entry.key}',
+          entry.value,
+          appGroupId: appGroupId,
+        );
+      }
+      await HomeWidget.updateWidget(name: widgetName, iOSName: iosWidgetName);
+    } catch (_) {
+      // Ambient presentation is best-effort and never owns business success.
     }
-    await HomeWidget.updateWidget(name: widgetName, iOSName: iosWidgetName);
   }
 
   @override
   Future<void> clear() async {
-    const keys = {
-      'kind',
-      'title',
-      'subtitle',
-      'status',
-      'time',
-      'place',
-      'deep_link',
-      'updated_at',
-    };
-    for (final key in keys) {
-      await HomeWidget.saveWidgetData<String>(
-        'makolo.$key',
-        null,
-        appGroupId: appGroupId,
-      );
+    try {
+      const keys = {
+        'kind',
+        'title',
+        'subtitle',
+        'status',
+        'time',
+        'place',
+        'deep_link',
+        'updated_at',
+      };
+      for (final key in keys) {
+        await HomeWidget.saveWidgetData<String>(
+          'makolo.$key',
+          null,
+          appGroupId: appGroupId,
+        );
+      }
+      await HomeWidget.updateWidget(name: widgetName, iOSName: iosWidgetName);
+    } catch (_) {
+      // Clearing a non-installed/unavailable widget is non-fatal.
     }
-    await HomeWidget.updateWidget(name: widgetName, iOSName: iosWidgetName);
   }
 }
