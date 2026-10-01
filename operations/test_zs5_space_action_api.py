@@ -32,12 +32,6 @@ class ZS5SpaceActionProjectionTests(TestCase):
             role=SystemRoleCode.SPACE_OWNER,
             granted_by=self.owner,
         )
-        self.admin_mandate = grant_space_role(
-            profile=self.admin,
-            space=self.space,
-            role=SystemRoleCode.SPACE_ADMIN,
-            granted_by=self.owner,
-        )
         self.activity = Activity.objects.create(
             title="Départ ZS5",
             space=self.space,
@@ -228,6 +222,12 @@ class ZS5SpaceMarkTests(TestCase):
             profile=self.owner,
             space=self.space,
             role=SystemRoleCode.SPACE_OWNER,
+            granted_by=self.owner,
+        )
+        self.admin_mandate = grant_space_role(
+            profile=self.admin,
+            space=self.space,
+            role=SystemRoleCode.SPACE_ADMIN,
             granted_by=self.owner,
         )
         team = Team.objects.create(
