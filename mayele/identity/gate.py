@@ -52,6 +52,13 @@ def validate_identity_resolution(
 
     if referent.ref != subject_ref:
         raise MayeleContractError("resolution referent does not match its subject")
+    if (
+        resolution.reality is not None
+        and resolution.reality.reality_ref == referent.ref
+    ):
+        raise MayeleContractError(
+            "identity resolution must not reuse a non-Reality referent ref as reality_ref"
+        )
     if resolution.referent_scope != subject.scope:
         raise MayeleContractError("resolution referent scope must match subject scope")
 
