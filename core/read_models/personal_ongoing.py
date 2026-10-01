@@ -51,6 +51,7 @@ def build_personal_ongoing_read_model(
             participant_active_journeys(profile)
             .select_related(None)
             .prefetch_related(None)
+            .prefetch_related("occurrence__place_links__place")
             .order_by("-updated_at", "-created_at", "id")
         )[: budget.remaining]
     )
