@@ -205,6 +205,50 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertNotIn("phone", crm_row)
         self.assertNotIn("marketing_consent", crm_row)
 
+        # Being Team + Group + CRM + Partner still does not create Space authority.
+        self.client.force_authenticate(self.member)
+        denied = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/"
+        )
+        self.assertEqual(denied.status_code, 404)
+
+    def test_creator_provenance_is_not_owner_authority(self):
+        provenance_only = Organization.objects.create(
+            name="ZS4 provenance",
+            slug="zs4-provenance",
+            created_by=self.outsider,
+        )
+        grant_space_role(
+            profile=self.owner,
+            space=provenance_only,
+            role=SystemRoleCode.SPACE_OWNER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.outsider)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{provenance_only.slug}/us/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_marketing_analytics_never_inherits_financial_visibility(self):
+        marketing = User.objects.create_user(
+            username="zs4-marketing", email="zs4-marketing@test.local", password="x"
+        )
+        grant_space_role(
+            profile=marketing,
+            space=self.space,
+            role=SystemRoleCode.MARKETING,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(marketing)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/pilot/"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(response.data["capabilities"]["view_analytics"])
+        self.assertFalse(response.data["capabilities"]["view_financials"])
+        self.assertEqual(response.data["sections"]["analytics"]["money"], [])
+
     def test_relationship_language_consumes_all_eight_archetypes(self):
         expected = {
             SpaceArchetype.GENERIC: "Personnes & relations",
