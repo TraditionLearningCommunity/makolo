@@ -21,8 +21,8 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
         accessId: state.pathParameters['id']!,
         repository: repository,
         onOpenDayOf: (handoff) =>
-            context.push('/occurrences/' + handoff.occurrenceId + '/day-of'),
-        onOpenJourney: (journeyId) => context.push('/journeys/' + journeyId),
+            context.push('/occurrences/${handoff.occurrenceId}/day-of'),
+        onOpenJourney: (journeyId) => context.push('/journeys/$journeyId'),
       );
     },
   ),
