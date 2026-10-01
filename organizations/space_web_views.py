@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404
 from django.urls import reverse
 from django.views.generic import TemplateView
@@ -11,9 +14,10 @@ from .api.space_attention_projection import (
 from .api.workspace_projection import build_space_workspace, workspace_spaces
 
 
-class SpaceWebMixin(TemplateView):
-    """WS1 Space Web shell backed only by current ZS projections."""
+class SpaceWebMixin(LoginRequiredMixin, TemplateView):
+    """Space Web shell backed only by current ZS projections."""
 
+    login_url = "core:login"
     space_nav_key = "now"
     space_page_title = "Maintenant"
 
@@ -41,6 +45,13 @@ class SpaceWebMixin(TemplateView):
 
     def _space_url(self, name):
         return reverse(name, kwargs={"slug": self.space.slug})
+
+    def _space_nav_url(self, name):
+        url = self._space_url(name)
+        key = self.selected_responsibility["key"]
+        if key == "all":
+            return url
+        return f"{url}?{urlencode({'responsibility': key})}"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -72,11 +83,11 @@ class SpaceWebMixin(TemplateView):
                 "space_responsibilities": self.responsibilities,
                 "selected_responsibility": self.selected_responsibility,
                 "space_switcher_items": switcher_items,
-                "space_root_url": self._space_url("organizations:console-entry"),
-                "space_discover_url": self._space_url("organizations:space-discover"),
-                "space_work_url": self._space_url("organizations:space-work"),
-                "space_us_url": self._space_url("organizations:space-us"),
-                "space_mark_url": self._space_url("organizations:space-mark"),
+                "space_root_url": self._space_nav_url("organizations:console-entry"),
+                "space_discover_url": self._space_nav_url("organizations:space-discover"),
+                "space_work_url": self._space_nav_url("organizations:space-work"),
+                "space_us_url": self._space_nav_url("organizations:space-us"),
+                "space_mark_url": self._space_nav_url("organizations:space-mark"),
                 "space_console_url": self._space_url("organizations:console-overview"),
             }
         )
