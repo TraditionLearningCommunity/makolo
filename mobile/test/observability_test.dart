@@ -8,6 +8,12 @@ void main() {
       'token': 'secret-token',
       'qr_payload': 'full-secret-code',
       'credential_id': 'credential',
+      'authorization_header': 'Bearer private',
+      'password_reset': 'private',
+      'client_secret': 'private',
+      'accessCredential': 'private',
+      'filePath': '/private/path',
+      'jwt': 'private',
       'note': 'x' * 121,
       'state': 'offline',
     });
