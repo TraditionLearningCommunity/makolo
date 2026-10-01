@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 from .audience_services import profile_in_audience
@@ -10,7 +10,9 @@ from .point_models import (
     ConversationPoint,
     ConversationPointKind,
     ConversationPointLifecycle,
+    ConversationPointResponse,
     ConversationPointResponseStatus,
+    ConversationPointUserState,
 )
 from .point_services import point_expected_from, point_visible_to
 from .services import can_manage_conversation
@@ -29,6 +31,9 @@ class ConversationAttentionItem:
 
 
 def _subject_has_active_response(point, profile):
+    prefetched = getattr(point, "_attention_profile_responses", None)
+    if prefetched is not None:
+        return bool(prefetched)
     return point.responses.filter(
         actor=profile,
         represented_space__isnull=True,
@@ -36,17 +41,37 @@ def _subject_has_active_response(point, profile):
     ).exists()
 
 
+def _profile_state(point, profile):
+    prefetched = getattr(point, "_attention_profile_states", None)
+    if prefetched is not None:
+        return prefetched[0] if prefetched else None
+    return point.user_states.filter(profile=profile).first()
+
+
 def point_attention_reason(profile, point, *, at=None):
     at = at or timezone.now()
-    if point.lifecycle not in ATTENTION_LIFECYCLES or not point_visible_to(profile, point, at=at):
+    if point.lifecycle not in ATTENTION_LIFECYCLES:
+        return None
+    if not point_visible_to(profile, point, at=at):
         return None
     if point.valid_until and at >= point.valid_until:
         return None
-    if point.requires_acknowledgement and point_expected_from(profile, point, at=at):
-        acknowledged = point.user_states.filter(profile=profile, acknowledged_at__isnull=False).exists()
-        if not acknowledged:
+
+    expected = bool(
+        point.expected_action_audience_id
+        and profile_in_audience(
+            profile,
+            point.expected_action_audience,
+            at=at,
+        )
+    )
+    state = _profile_state(point, profile)
+
+    if point.requires_acknowledgement and expected:
+        if state is None or state.acknowledged_at is None:
             return "acknowledge"
-    if point.lifecycle == ConversationPointLifecycle.OPEN and point_expected_from(profile, point, at=at):
+
+    if point.lifecycle == ConversationPointLifecycle.OPEN and expected:
         if point.kind == ConversationPointKind.FORM_REQUEST:
             from .form_services import form_request_completed_for_profile
 
@@ -55,11 +80,16 @@ def point_attention_reason(profile, point, *, at=None):
         elif point.response_mode != "none" and not _subject_has_active_response(point, profile):
             if not point.deadline_at or at < point.deadline_at:
                 return "respond"
-    if point.resolution_audience_id and profile_in_audience(profile, point.resolution_audience, at=at):
-        if can_manage_conversation(profile, point.conversation) and point.lifecycle in ATTENTION_LIFECYCLES:
+
+    if point.resolution_audience_id and profile_in_audience(
+        profile,
+        point.resolution_audience,
+        at=at,
+    ):
+        if can_manage_conversation(profile, point.conversation):
             return "resolve"
-    revisit = point.user_states.filter(profile=profile, revisit_at__isnull=False).exists()
-    if revisit:
+
+    if state is not None and state.revisit_at is not None:
         return "revisit"
     return None
 
@@ -78,7 +108,25 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
             "expected_action_audience",
             "resolution_audience",
         )
-        .order_by("deadline_at", "-importance", "published_at")[: max(int(limit or 100) * 4, 100)]
+        .prefetch_related(
+            Prefetch(
+                "responses",
+                queryset=ConversationPointResponse.objects.filter(
+                    actor=profile,
+                    represented_space__isnull=True,
+                    status=ConversationPointResponseStatus.ACTIVE,
+                ),
+                to_attr="_attention_profile_responses",
+            ),
+            Prefetch(
+                "user_states",
+                queryset=ConversationPointUserState.objects.filter(profile=profile),
+                to_attr="_attention_profile_states",
+            ),
+        )
+        .order_by("deadline_at", "-importance", "published_at")[
+            : max(int(limit or 100) * 4, 100)
+        ]
     )
     items = []
     for point in candidates:
@@ -98,8 +146,8 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
     return items
 
 
-def conversation_attention_count(profile, *, at=None):
-    return len(attention_points_for_profile(profile, at=at, limit=1000))
+def conversation_attention_count(profile, *, at=None, limit=1000):
+    return len(attention_points_for_profile(profile, at=at, limit=limit))
 
 
 def conversation_attention_badge_count(profile, *, at=None, cap=10):
