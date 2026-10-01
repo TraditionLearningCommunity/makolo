@@ -80,6 +80,10 @@ def build_space_pilot_projection(*, profile, space):
             "signals": [],
             "source": {"kind": "analytics", "id": str(space.pk)},
             "generated_at": analytics["generated_at"],
+            "coverage": {
+                "kind": "latest_visible_events",
+                "limit": 40,
+            },
             "links": {
                 "deep": f"/api/v1/analytics/overview/?organization={space.slug}"
             },
