@@ -43,9 +43,8 @@ ONGOING_LIMIT = 18
 ME_PREVIEW_LIMIT = 6
 
 
-def _ongoing_journey_item(card):
-    journey = card["journey"]
-    readiness = card["readiness"]
+def _ongoing_journey_item(journey, readiness):
+    """Present only the Journey facts that En cours actually renders."""
     status = readiness.status if readiness is not None else None
 
     if status == ReadinessStatus.BLOCKED:
@@ -69,9 +68,13 @@ def _ongoing_journey_item(card):
         "title": journey.activity.title,
         "summary": summary,
         "tone": tone,
-        "next_action": card["next_action"] if status in {ReadinessStatus.BLOCKED, ReadinessStatus.ACTION_REQUIRED} else "",
-        "timing": card["timing"],
-        "place": card["place"],
+        "next_action": (
+            readiness_next_action_label(readiness)
+            if status in {ReadinessStatus.BLOCKED, ReadinessStatus.ACTION_REQUIRED}
+            else ""
+        ),
+        "timing": occurrence_timing(journey.occurrence),
+        "place": _primary_place(journey.occurrence),
         "url": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
     }
 
@@ -189,7 +192,8 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
 
         presenters = {
             "journey": lambda entry: _ongoing_journey_item(
-                _journey_card(entry.value, readiness=entry.readiness)
+                entry.value,
+                entry.readiness,
             ),
             "access": lambda entry: _ongoing_access_item(_access_card(entry.value)),
             "dossier": lambda entry: _ongoing_dossier_item(entry.value),
