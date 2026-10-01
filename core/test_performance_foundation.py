@@ -58,6 +58,15 @@ class RequestPerformanceFoundationTests(TestCase):
         self.assertFalse(hasattr(context, "journeys"))
         self.assertFalse(hasattr(context, "permissions"))
 
+    def test_space_surface_requests_space_authority_not_personal_badges(self):
+        request = self._request("/spaces/perf-space/overview/")
+        context = get_request_context(request)
+        self.assertEqual(context.surface.family, "space")
+        self.assertIn("space_authority", context.surface.needs)
+        self.assertIn("space_navigation", context.surface.needs)
+        self.assertNotIn("notifications", context.surface.needs)
+        self.assertNotIn("conversation_attention", context.surface.needs)
+
     def test_fragment_helper_uses_explicit_htmx_headers(self):
         request = self._request(
             "/me/ongoing/",
@@ -110,7 +119,7 @@ class RequestPerformanceFoundationTests(TestCase):
     def test_conversation_badge_is_not_computed_off_now_surface(self):
         request = self._request("/me/ongoing/")
         with patch(
-            "conversations.templatetags.conversation_tags.conversation_attention_count",
+            "conversations.templatetags.conversation_tags.conversation_attention_badge_count",
             side_effect=AssertionError("conversation attention must not run here"),
         ):
             self.assertEqual(
@@ -121,7 +130,7 @@ class RequestPerformanceFoundationTests(TestCase):
     def test_conversation_badge_is_memoized_on_now_surface(self):
         request = self._request("/me/")
         with patch(
-            "conversations.templatetags.conversation_tags.conversation_attention_count",
+            "conversations.templatetags.conversation_tags.conversation_attention_badge_count",
             return_value=2,
         ) as counter:
             self.assertEqual(
@@ -187,6 +196,11 @@ class WebReadPathRegressionTests(TestCase):
         self.assertContains(response, 'id="desktop-sidebar"', html=False)
         self.assertNotContains(response, "<!DOCTYPE html>", html=False)
         self.assertNotContains(response, "dist/makolo.js", html=False)
+
+    def test_ongoing_full_shell_does_not_load_share_capability_asset(self):
+        response = self.client.get("/me/ongoing/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "js/share-actions.js", html=False)
 
     def test_ongoing_non_htmx_response_keeps_full_document(self):
         response = self.client.get("/me/ongoing/")
