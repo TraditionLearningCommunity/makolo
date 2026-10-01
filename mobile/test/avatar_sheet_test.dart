@@ -34,50 +34,51 @@ Future<AppRuntime> _runtimeWithActivation(int percentage) async {
 }
 
 void main() {
-  testWidgets('Avatar exposes global app actions without Compte et paramètres', (
-    tester,
-  ) async {
-    var settingsOpened = false;
-    final runtime = await _runtimeWithActivation(72);
-    addTearDown(runtime.close);
+  testWidgets(
+    'Avatar exposes global app actions without Compte et paramètres',
+    (tester) async {
+      var settingsOpened = false;
+      final runtime = await _runtimeWithActivation(72);
+      addTearDown(runtime.close);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showMakoloAvatarSheet(
-                context,
-                runtime: runtime,
-                onConnections: () {},
-                onSettings: () => settingsOpened = true,
-                onSwitchAccount: () {},
-                onLogout: () {},
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showMakoloAvatarSheet(
+                  context,
+                  runtime: runtime,
+                  onConnections: () {},
+                  onSettings: () => settingsOpened = true,
+                  onSwitchAccount: () {},
+                  onLogout: () {},
+                ),
+                child: const Text('Avatar'),
               ),
-              child: const Text('Avatar'),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('Avatar'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Avatar'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Amina'), findsOneWidget);
-    expect(find.text('Profil Makolo · 72 % activé'), findsOneWidget);
-    expect(find.text('Agir comme'), findsOneWidget);
-    expect(find.text('Connexions'), findsOneWidget);
-    expect(find.text('Paramètres'), findsOneWidget);
-    expect(find.text('Changer de compte'), findsOneWidget);
-    expect(find.text('Se déconnecter'), findsOneWidget);
-    expect(find.text('Compte et paramètres'), findsNothing);
+      expect(find.text('Amina'), findsOneWidget);
+      expect(find.text('Profil Makolo · 72 % activé'), findsOneWidget);
+      expect(find.text('Agir comme'), findsOneWidget);
+      expect(find.text('Connexions'), findsOneWidget);
+      expect(find.text('Paramètres'), findsOneWidget);
+      expect(find.text('Changer de compte'), findsOneWidget);
+      expect(find.text('Se déconnecter'), findsOneWidget);
+      expect(find.text('Compte et paramètres'), findsNothing);
 
-    await tester.tap(find.text('Paramètres'));
-    await tester.pumpAndSettle();
-    expect(settingsOpened, isTrue);
-  });
+      await tester.tap(find.text('Paramètres'));
+      await tester.pumpAndSettle();
+      expect(settingsOpened, isTrue);
+    },
+  );
 
   testWidgets('100 percent activation disappears from Avatar', (tester) async {
     final runtime = await _runtimeWithActivation(100);
@@ -89,8 +90,7 @@ void main() {
         home: Builder(
           builder: (context) => Scaffold(
             body: TextButton(
-              onPressed: () =>
-                  showMakoloAvatarSheet(context, runtime: runtime),
+              onPressed: () => showMakoloAvatarSheet(context, runtime: runtime),
               child: const Text('Avatar'),
             ),
           ),

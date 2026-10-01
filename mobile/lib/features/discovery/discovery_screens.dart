@@ -172,8 +172,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (!mounted) return;
     if (!result.available || result.fix == null) {
       setState(
-        () => _locationMessage =
-            'Votre position n’a pas pu être utilisée. Vous pouvez continuer sans elle.',
+        () => _locationMessage = 'Votre position n’a pas pu être utilisée. Vous pouvez continuer sans elle.',
       );
       return;
     }
@@ -405,8 +404,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                           child: MakoloCard(
                             onTap: () =>
                                 widget.onOpenOccurrence(point.occurrenceId),
-                            semanticLabel:
-                                'Lieu sur la carte. ${point.title}',
+                            semanticLabel: 'Lieu sur la carte. ${point.title}',
                             child: MakoloStatusMetadataAction(
                               title: point.title,
                               subtitle: [
@@ -420,8 +418,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                                   icon: Icons.location_on_outlined,
                                 ),
                               ],
-                              action:
-                                  const Icon(Icons.chevron_right_rounded),
+                              action: const Icon(Icons.chevron_right_rounded),
                             ),
                           ),
                         );

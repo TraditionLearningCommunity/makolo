@@ -44,10 +44,7 @@ class AppSettingsScreen extends StatelessWidget {
               MakoloSpacing.xl,
             ),
             children: [
-              Text(
-                'Apparence',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              Text('Apparence', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.sm),
               Semantics(
                 label: 'Apparence ${_themeLabel(value.themePreference)}',
@@ -93,10 +90,7 @@ class AppSettingsScreen extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.lg),
               const Divider(),
               const SizedBox(height: MakoloSpacing.md),
-              Text(
-                'À propos',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              Text('À propos', style: Theme.of(context).textTheme.titleMedium),
               const _AppVersionTile(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -122,7 +116,6 @@ class AppSettingsScreen extends StatelessWidget {
     );
   }
 }
-
 
 class _AppVersionTile extends StatefulWidget {
   const _AppVersionTile();

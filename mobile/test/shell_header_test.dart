@@ -31,7 +31,9 @@ void main() {
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 
-  testWidgets('Découvrir is Mark plus title with Search and Map', (tester) async {
+  testWidgets('Découvrir is Mark plus title with Search and Map', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
@@ -53,7 +55,9 @@ void main() {
     expect(find.byTooltip('Filtres'), findsNothing);
   });
 
-  testWidgets('main door header fits a small phone at large text', (tester) async {
+  testWidgets('main door header fits a small phone at large text', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(320, 568));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 

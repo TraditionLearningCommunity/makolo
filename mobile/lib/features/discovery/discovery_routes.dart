@@ -50,8 +50,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         repository: discovery,
         location: runtime.location,
         onOpenActivity: (id) => context.push('/activities/$id'),
-        onOpenItem: (family, id) =>
-            context.push('/discover/items/$family/$id'),
+        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
       );
     },
   ),
