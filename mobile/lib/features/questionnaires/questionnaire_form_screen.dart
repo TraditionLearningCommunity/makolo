@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
-import '../../data/local/makolo_database.dart';
 import '../../repositories/draft_repository.dart';
 import '../../sync/outbox/outbox_processor.dart';
 import '../../sync/outbox/outbox_repository.dart';
@@ -210,7 +209,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
           });
         }
 
-        return StreamBuilder<List<OutboxOperation>>(
+        return StreamBuilder<List<OutboxResourceOperation>>(
           stream: widget.outbox.watchResource(
             operationKind: QuestionnaireSubmitCoordinator.operationKind,
             resourceId: widget.requestId,
@@ -263,14 +262,14 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
     );
   }
 
-  bool _operationActive(OutboxOperation? operation) {
+  bool _operationActive(OutboxResourceOperation? operation) {
     if (operation == null) return false;
     return operation.state == OutboxState.queued.wireValue ||
         operation.state == OutboxState.inFlight.wireValue ||
         operation.state == OutboxState.awaitingConfirmation.wireValue;
   }
 
-  MakoloCommitCue _commitCue(OutboxOperation? operation) {
+  MakoloCommitCue _commitCue(OutboxResourceOperation? operation) {
     if (operation == null) {
       return _initializedAnswers
           ? MakoloCommitCue.savedOnDevice

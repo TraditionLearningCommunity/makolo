@@ -37,6 +37,12 @@ enum ReplayPolicy {
   bool get stopsOnAmbiguousResult => this == ReplayPolicy.noBlindRetry;
 }
 
+class OutboxResourceOperation {
+  const OutboxResourceOperation({required this.state});
+
+  final String state;
+}
+
 class OutboxSummary {
   const OutboxSummary({
     required this.pendingCount,
@@ -119,7 +125,7 @@ class OutboxRepository {
         .toList(growable: false);
   }
 
-  Stream<List<OutboxOperation>> watchResource({
+  Stream<List<OutboxResourceOperation>> watchResource({
     required String operationKind,
     required String resourceId,
   }) {
@@ -131,7 +137,11 @@ class OutboxRepository {
             row.resourceId.equals(resourceId),
       )
       ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]);
-    return query.watch();
+    return query.watch().map(
+      (rows) => rows
+          .map((row) => OutboxResourceOperation(state: row.state))
+          .toList(growable: false),
+    );
   }
 
   Future<OutboxOperation?> activeForResource({
