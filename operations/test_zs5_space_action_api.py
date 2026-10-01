@@ -195,6 +195,9 @@ class ZS5SpaceMarkTests(TestCase):
         self.member = User.objects.create_user(
             username="zs5-mark-member", email="zs5-mark-member@test.local", password="x"
         )
+        self.target = User.objects.create_user(
+            username="zs5-mark-target", email="zs5-mark-target@test.local", password="x"
+        )
         self.space = Organization.objects.create(
             name="ZS5 Mark Space", slug="zs5-mark-space", created_by=self.owner
         )
@@ -270,6 +273,48 @@ class ZS5SpaceMarkTests(TestCase):
         self.assertEqual(
             unsupported.data["data"]["result"]["reason"],
             "owner_handoff_not_available_on_base",
+        )
+
+    def test_team_mutation_requires_confirmation_uses_owner_service_and_replays_idempotently(self):
+        context = {
+            "team_member": {
+                "email": self.target.email,
+                "role": "finance",
+            }
+        }
+        pending = self._post(self.owner, "Ajoute Paul dans l'équipe", context=context)
+        self.assertEqual(pending.status_code, 200, pending.data)
+        self.assertEqual(pending.data["data"]["state"], "needs_confirmation")
+        self.assertFalse(
+            TeamMembership.objects.filter(
+                team__organization=self.space,
+                user=self.target,
+            ).exists()
+        )
+
+        confirmed = {
+            **context,
+            "confirmation": {
+                "code": "add_team_member",
+                "email": self.target.email,
+                "role": "finance",
+            },
+        }
+        first = self._post(self.owner, "Ajoute Paul dans l'équipe", context=confirmed)
+        second = self._post(self.owner, "Ajoute Paul dans l'équipe", context=confirmed)
+        self.assertEqual(first.status_code, 200, first.data)
+        self.assertEqual(first.data["data"]["state"], "completed")
+        self.assertEqual(second.data["data"]["state"], "completed")
+        self.assertEqual(
+            first.data["data"]["result"]["id"],
+            second.data["data"]["result"]["id"],
+        )
+        self.assertEqual(
+            TeamMembership.objects.filter(
+                team__organization=self.space,
+                user=self.target,
+            ).count(),
+            1,
         )
 
     def test_non_text_input_is_unsupported_without_persistence(self):
