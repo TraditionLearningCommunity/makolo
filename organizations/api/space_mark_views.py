@@ -42,6 +42,13 @@ class SpaceMarkAPIView(APIView):
         if not isinstance(payload, dict):
             raise ValidationError("Le corps de la requête doit être un objet.")
 
+        blocked_top_level = sorted(_FORBIDDEN_CONTEXT_KEYS.intersection(payload))
+        if blocked_top_level:
+            raise ValidationError({
+                key: "L'autorité Space est résolue par la route et le serveur."
+                for key in blocked_top_level
+            })
+
         mark_input = payload.get("input")
         if not isinstance(mark_input, dict):
             raise ValidationError({"input": ["Une entrée Mark structurée est requise."]})
