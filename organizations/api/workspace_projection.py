@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.db.models import Q
+
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope
 from authorization.selectors import (
@@ -80,11 +82,11 @@ def _responsibility_projection(profile, space):
         current_mandates()
         .filter(profile=profile)
         .filter(
-            __import__("django.db.models", fromlist=["Q"]).Q(
+            Q(
                 scope_type=AuthorityScope.SPACE,
                 space=space,
             )
-            | __import__("django.db.models", fromlist=["Q"]).Q(
+            | Q(
                 scope_type=AuthorityScope.ACTIVITY,
                 activity__space=space,
             )
