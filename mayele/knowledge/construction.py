@@ -128,11 +128,11 @@ class PropositionConstruction:
     candidate_fingerprint: str
     proposition: Proposition
     constructed_at: datetime
+    source_referents: Tuple[InterpretationReferent, ...] = ()
     identity_resolutions: Tuple[IdentityResolution, ...] = ()
     scope: Optional[KnowledgeScope] = None
     construction_rule_ref: Optional[str] = None
     construction_rule_version: Optional[str] = None
-    supersedes_construction_ref: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -148,6 +148,18 @@ class PropositionConstruction:
         object.__setattr__(
             self, "constructed_at", _aware_datetime("constructed_at", self.constructed_at)
         )
+
+        source_referents = tuple(self.source_referents)
+        if not all(
+            isinstance(item, InterpretationReferent) for item in source_referents
+        ):
+            raise MayeleContractError(
+                "source_referents must contain InterpretationReferent values"
+            )
+        source_keys = {(item.kind.value, item.ref) for item in source_referents}
+        if len(source_keys) != len(source_referents):
+            raise MayeleContractError("source referents must be unique")
+        object.__setattr__(self, "source_referents", source_referents)
 
         resolutions = tuple(self.identity_resolutions)
         if not all(isinstance(item, IdentityResolution) for item in resolutions):
@@ -187,14 +199,6 @@ class PropositionConstruction:
             raise MayeleContractError(
                 "construction_rule_version requires construction_rule_ref"
             )
-
-        object.__setattr__(
-            self,
-            "supersedes_construction_ref",
-            _optional_text(
-                "supersedes_construction_ref", self.supersedes_construction_ref
-            ),
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,7 +271,6 @@ def build_proposition_construction(
     validity: Optional[TemporalValidity] = None,
     construction_rule_ref: Optional[str] = None,
     construction_rule_version: Optional[str] = None,
-    supersedes_construction_ref: Optional[str] = None,
 ) -> PropositionConstruction:
     """Deterministically compose MY3/MY4 into an existing MY1 Proposition."""
 
@@ -295,13 +298,16 @@ def build_proposition_construction(
         )
         resolution = _resolution_for(referent, resolutions)
         used.append(resolution)
+        source_referents = (referent,)
         target = resolution.reality
         kind = PropositionKind.REALITY_EXISTS
     elif isinstance(candidate, PropertyCandidate):
+        source_referents = (candidate.subject,)
         reality_ref = _reality_ref_for(candidate.subject, resolutions, used)
         target = Property(reality_ref, candidate.attribute, candidate.value)
         kind = PropositionKind.PROPERTY_HOLDS
     elif isinstance(candidate, RelationCandidate):
+        source_referents = tuple(item.referent for item in candidate.participants)
         participants = tuple(
             RelationParticipant(
                 item.role,
@@ -312,6 +318,7 @@ def build_proposition_construction(
         target = Relation(candidate.predicate, participants)
         kind = PropositionKind.RELATION_HOLDS
     else:
+        source_referents = tuple(candidate.referents)
         for referent in candidate.referents:
             _reality_ref_for(referent, resolutions, used)
         target = Condition(candidate.expression)
@@ -335,11 +342,11 @@ def build_proposition_construction(
         candidate_fingerprint=candidate.fingerprint,
         proposition=proposition,
         constructed_at=constructed_at,
+        source_referents=source_referents,
         identity_resolutions=tuple(used),
         scope=scope,
         construction_rule_ref=construction_rule_ref,
         construction_rule_version=construction_rule_version,
-        supersedes_construction_ref=supersedes_construction_ref,
     )
 
 
