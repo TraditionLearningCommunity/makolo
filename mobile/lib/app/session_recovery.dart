@@ -8,8 +8,14 @@ enum EntryReason {
 
 class SessionRecoveryController {
   String? _lastUsefulLocation;
+  String? _launchLocation;
   bool _recoverAfterAuthentication = false;
   EntryReason _entryReason = EntryReason.normal;
+
+  void restoreLaunchLocation(String? location) {
+    if (location == null || location.isEmpty || location == '/') return;
+    _launchLocation = location;
+  }
 
   void rememberLocation(String location) {
     if (location.isEmpty || location == '/') return;
@@ -35,20 +41,22 @@ class SessionRecoveryController {
 
   void markAccountSwitch() {
     _lastUsefulLocation = null;
+    _launchLocation = null;
     _recoverAfterAuthentication = false;
     _entryReason = EntryReason.accountSwitch;
   }
 
   void markLoggedOut() {
     _lastUsefulLocation = null;
+    _launchLocation = null;
     _recoverAfterAuthentication = false;
     _entryReason = EntryReason.normal;
   }
 
   String initialLocation() {
     final destination = _recoverAfterAuthentication
-        ? (_lastUsefulLocation ?? '/now')
-        : '/now';
+        ? (_lastUsefulLocation ?? _launchLocation ?? '/now')
+        : (_launchLocation ?? '/now');
     _recoverAfterAuthentication = false;
     _entryReason = EntryReason.normal;
     return destination;

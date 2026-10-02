@@ -60,6 +60,9 @@ Future<AppRuntime> buildAppRuntime({
     );
   }
 
+  recovery.restoreLaunchLocation(
+    await launchPreferences.readShellLocation(profileId),
+  );
   final actorContext = await ActorContextController.restore(
     profileId: profileId,
     store: launchPreferences,

@@ -7,6 +7,7 @@ import '../network/api_error.dart';
 import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_status.dart';
 import 'providers.dart';
+import 'runtime/actor_context.dart';
 
 class SyncRefreshScope extends InheritedWidget {
   const SyncRefreshScope({
@@ -112,6 +113,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     }
     try {
       await sync.refreshRoots();
+      await _refreshSpaceContextIfNeeded();
       await widget.runtime.outboxProcessor?.run();
       if (mounted) {
         setState(() {
@@ -129,6 +131,18 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       if (mounted) setState(() => _syncFailed = true);
     } finally {
       if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  Future<void> _refreshSpaceContextIfNeeded() async {
+    final repository = widget.runtime.space;
+    final current = widget.runtime.actorContext?.value;
+    if (repository == null || current is! SpaceActorContext) return;
+
+    await repository.refreshInventory();
+    final reconciled = widget.runtime.actorContext?.value;
+    if (reconciled is SpaceActorContext) {
+      await repository.refreshWorkspace(reconciled.space);
     }
   }
 
