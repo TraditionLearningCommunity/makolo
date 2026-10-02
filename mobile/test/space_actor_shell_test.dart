@@ -364,39 +364,40 @@ void main() {
     },
   );
 
-  testWidgets('Makolo Mark preserves the current actor while Avatar stays human', (
-    tester,
-  ) async {
-    final harness = await _harness();
-    addTearDown(harness.close);
-    await _pump(tester, harness);
+  testWidgets(
+    'Makolo Mark preserves the current actor while Avatar stays human',
+    (tester) async {
+      final harness = await _harness();
+      addTearDown(harness.close);
+      await _pump(tester, harness);
 
-    await tester.tap(find.byTooltip('Makolo Mark'));
-    await tester.pumpAndSettle();
-    expect(find.byType(MarkScreen), findsOneWidget);
-    expect(harness.actorContext.value, const PersonalActorContext());
-    expect(find.text('Space X'), findsNothing);
+      await tester.tap(find.byTooltip('Makolo Mark'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MarkScreen), findsOneWidget);
+      expect(harness.actorContext.value, const PersonalActorContext());
+      expect(find.text('Space X'), findsNothing);
 
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    await _chooseActor(tester, 'Space X');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await _chooseActor(tester, 'Space X');
 
-    await tester.tap(find.byTooltip('Makolo Mark'));
-    await tester.pumpAndSettle();
-    expect(find.byType(MarkScreen), findsOneWidget);
-    expect(
-      harness.actorContext.value,
-      SpaceActorContext(
-        space: SpaceActorIdentity(id: 'space-x', slug: 'space-x'),
-      ),
-    );
-    expect(find.text('Space X'), findsOneWidget);
+      await tester.tap(find.byTooltip('Makolo Mark'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MarkScreen), findsOneWidget);
+      expect(
+        harness.actorContext.value,
+        SpaceActorContext(
+          space: SpaceActorIdentity(id: 'space-x', slug: 'space-x'),
+        ),
+      );
+      expect(find.text('Space X'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Avatar'));
-    await tester.pumpAndSettle();
-    expect(find.text('Amina'), findsOneWidget);
-    await _disposeUi(tester);
-  });
+      await tester.tap(find.byTooltip('Avatar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Amina'), findsOneWidget);
+      await _disposeUi(tester);
+    },
+  );
 
   testWidgets('Space shell stays usable at large text on a small phone', (
     tester,
