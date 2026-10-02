@@ -225,6 +225,7 @@ Future<void> _pump(
 Future<void> _disposeUi(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
+  await tester.pump();
 }
 
 Future<void> _chooseActor(WidgetTester tester, String label) async {
