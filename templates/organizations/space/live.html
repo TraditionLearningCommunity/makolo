@@ -33,12 +33,12 @@
       </dl>
     </section>
     <section class="mk-panel p-5">
-      <h3 class="font-bold">Observation spatiale</h3>
+      <h3 class="font-bold">Contexte spatial</h3>
       {% if projection.spatial.place %}
       <p class="mt-3 font-semibold">{{ projection.spatial.place.name }}</p>
       <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ projection.spatial.place.locality }}</p>
       {% else %}
-      <p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucune position observée exploitable.</p>
+      <p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucun contexte spatial exploitable n’est exposé par Operations.</p>
       {% endif %}
     </section>
     <section class="mk-panel p-5">
