@@ -6,11 +6,7 @@ import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 
 class AppSettingsScreen extends StatelessWidget {
-  const AppSettingsScreen({
-    super.key,
-    required this.runtime,
-    this.packageInfo,
-  });
+  const AppSettingsScreen({super.key, required this.runtime, this.packageInfo});
 
   final AppRuntime runtime;
   final Future<PackageInfo>? packageInfo;
@@ -133,7 +129,7 @@ class _AppVersionTile extends StatefulWidget {
 
 class _AppVersionTileState extends State<_AppVersionTile> {
   late final Future<PackageInfo> _packageInfo =
-    widget.packageInfo ?? PackageInfo.fromPlatform();
+      widget.packageInfo ?? PackageInfo.fromPlatform();
 
   @override
   Widget build(BuildContext context) {
