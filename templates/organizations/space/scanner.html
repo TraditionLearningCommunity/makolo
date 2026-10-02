@@ -14,7 +14,7 @@
   </div>
 
   {% if scanner_available %}
-  <div id="scanner-console" data-scan-url="{{ scan_action_url }}" class="grid gap-5 lg:grid-cols-5">
+  <div id="scanner-console" data-scan-url="{{ scan_action_url }}" data-auto-start="false" class="grid gap-5 lg:grid-cols-5">
     <section class="overflow-hidden rounded-3xl border bg-zinc-950 lg:col-span-3" style="border-color:var(--mk-border)">
       <div class="relative aspect-[4/3] bg-black">
         <video id="scanner-video" class="h-full w-full object-cover" playsinline muted></video>
