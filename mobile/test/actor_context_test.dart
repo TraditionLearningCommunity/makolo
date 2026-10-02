@@ -43,14 +43,14 @@ void main() {
     final allA = SpaceActorContext(space: spaceA);
     final financeA = SpaceActorContext(
       space: spaceA,
-      perspective: ActorPerspective.opaque('mandate:finance'),
+      perspective: ActorPerspective.opaque('perspective:finance'),
     );
     final allB = SpaceActorContext(space: spaceB);
 
     expect(allA, isNot(financeA));
     expect(allA, isNot(allB));
     expect(financeA.space, spaceA);
-    expect(financeA.perspective.id, 'mandate:finance');
+    expect(financeA.perspective.id, 'perspective:finance');
   });
 
   test('personal context persists across store reopen', () async {
@@ -77,7 +77,7 @@ void main() {
 
     await controller.selectSpace(space);
     await controller.selectPerspective(
-      ActorPerspective.opaque('mandate:finance'),
+      ActorPerspective.opaque('perspective:finance'),
     );
     controller.dispose();
 
@@ -86,7 +86,7 @@ void main() {
       await reopened.readActorContext('profile-a'),
       SpaceActorContext(
         space: space,
-        perspective: ActorPerspective.opaque('mandate:finance'),
+        perspective: ActorPerspective.opaque('perspective:finance'),
       ),
     );
   });
