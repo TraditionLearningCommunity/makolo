@@ -69,11 +69,11 @@ passes on the intact checkout.
 
 ## Phase 5: Validation and Closure
 
-- [ ] T008 Run the focused unittest command and the live repository integrity command from
+- [x] T008 Run the focused unittest command and the live repository integrity command from
   `specs/001-spec-kit-integrity-guard/quickstart.md`; confirm both are green.
-- [ ] T009 Review the diff against FR-009 and the constitution; confirm no product runtime,
+- [x] T009 Review the diff against FR-009 and the constitution; confirm no product runtime,
   migration, API, mobile, UX or domain-semantic files changed.
-- [ ] T010 Run the Spec Kit convergence assessment against current implementation; append tasks
+- [x] T010 Run the Spec Kit convergence assessment against current implementation; append tasks
   only if a real spec/plan/task gap remains.
 
 ## Dependencies & Execution Order
