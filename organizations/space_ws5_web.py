@@ -206,7 +206,7 @@ class SpaceOccurrenceScannerActionView(_SpaceOccurrenceWebMixin, View):
                     {
                         "beneficiary": (
                             outcome.access.beneficiary.full_name
-                            or outcome.access.beneficiary.email
+                            or "Bénéficiaire"
                         ),
                         "status": outcome.access.status,
                     }
