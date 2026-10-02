@@ -358,5 +358,5 @@
     if (qrScanner) qrScanner.destroy();
   });
 
-  startCamera();
+  if (scannerRoot.dataset.autoStart !== 'false') startCamera();
 })();
