@@ -16,7 +16,19 @@
         <label for="mark-occurrence" class="text-sm font-bold">Occurrence, si la demande en concerne une</label>
         <input id="mark-occurrence" name="occurrence_id" type="text" class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm" style="border-color:var(--mk-border);background:var(--mk-surface-solid)" value="{{ request.GET.occurrence|default:'' }}" autocomplete="off">
       </div>
-      {% if mark_result.state == "needs_confirmation" and mark_result.action %}
+      {% if mark_result.question.code == "team_member_identity_and_responsibility" %}
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label for="mark-team-email" class="text-sm font-bold">Profil à ajouter</label>
+          <input id="mark-team-email" name="team_member_email" type="email" class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm" style="border-color:var(--mk-border);background:var(--mk-surface-solid)" autocomplete="email">
+        </div>
+        <div>
+          <label for="mark-team-role" class="text-sm font-bold">Rôle d’autorité</label>
+          <input id="mark-team-role" name="team_member_role" type="text" class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm" style="border-color:var(--mk-border);background:var(--mk-surface-solid)" autocomplete="off">
+        </div>
+      </div>
+      <button type="submit" class="mk-btn mk-btn-primary">Continuer</button>
+      {% elif mark_result.state == "needs_confirmation" and mark_result.action %}
       <input type="hidden" name="confirm_code" value="{{ mark_result.action.code }}">
       <input type="hidden" name="confirm_email" value="{{ mark_result.action.target.email }}">
       <input type="hidden" name="confirm_role" value="{{ mark_result.action.target.role }}">
