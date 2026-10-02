@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../app/runtime/actor_context_controller.dart';
 import '../../auth/token_store.dart';
 import '../../design/makolo_theme.dart';
 import 'auth_entry_frame.dart';
@@ -76,6 +77,10 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
     if (remove != true) return;
     final wasActive = widget.runtime.session?.profileId == account.profileId;
     await widget.runtime.tokens.removeAccount(account.profileId);
+    final actorContextStore = widget.runtime.launchPreferences;
+    if (actorContextStore is ActorContextStore) {
+      await actorContextStore.removeActorContext(account.profileId);
+    }
     if (wasActive) {
       widget.runtime.recovery.markLoggedOut();
       ref.invalidate(appRuntimeProvider);
