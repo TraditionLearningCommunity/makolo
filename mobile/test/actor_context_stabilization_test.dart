@@ -119,37 +119,34 @@ void main() {
     },
   );
 
-  test(
-    'revocation still falls back to Personal when the same Space remains active',
-    () async {
-      final store = _DelayedActorStore();
-      final controller = await ActorContextController.restore(
-        profileId: 'profile-a',
-        store: store,
-      );
-      addTearDown(controller.dispose);
+  test('revocation still falls back to Personal when the same Space remains active', () async {
+    final store = _DelayedActorStore();
+    final controller = await ActorContextController.restore(
+      profileId: 'profile-a',
+      store: store,
+    );
+    addTearDown(controller.dispose);
 
-      final space = SpaceActorIdentity(id: 'space-a', slug: 'old-slug');
-      await controller.selectSpace(space);
+    final space = SpaceActorIdentity(id: 'space-a', slug: 'old-slug');
+    await controller.selectSpace(space);
 
-      final validationStarted = Completer<void>();
-      final authoritativeResult = Completer<bool>();
-      final validation = controller.revalidateSpaceContext((candidate) {
-        expect(candidate.id, 'space-a');
-        validationStarted.complete();
-        return authoritativeResult.future;
-      });
+    final validationStarted = Completer<void>();
+    final authoritativeResult = Completer<bool>();
+    final validation = controller.revalidateSpaceContext((candidate) {
+      expect(candidate.id, 'space-a');
+      validationStarted.complete();
+      return authoritativeResult.future;
+    });
 
-      await validationStarted.future;
-      await controller.selectSpace(
-        SpaceActorIdentity(id: 'space-a', slug: 'new-slug'),
-        perspective: ActorPerspective.opaque('finance'),
-      );
-      authoritativeResult.complete(false);
+    await validationStarted.future;
+    await controller.selectSpace(
+      SpaceActorIdentity(id: 'space-a', slug: 'new-slug'),
+      perspective: ActorPerspective.opaque('finance'),
+    );
+    authoritativeResult.complete(false);
 
-      expect(await validation, isFalse);
-      expect(controller.value, const PersonalActorContext());
-      expect(store.values['profile-a'], const PersonalActorContext());
-    },
-  );
+    expect(await validation, isFalse);
+    expect(controller.value, const PersonalActorContext());
+    expect(store.values['profile-a'], const PersonalActorContext());
+  });
 }
