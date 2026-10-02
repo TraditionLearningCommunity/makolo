@@ -28,7 +28,7 @@ class MayeleImportBoundaryTests(TestCase):
         repository_root = Path(__file__).resolve().parents[2]
         code = (
             "from datetime import datetime, timezone; "
-            "from mayele.knowledge import Reality, Proposition, PropositionKind; "
+            "from mayele.knowledge import Reality, Proposition, PropositionKind, PropositionConstruction, KnowledgeSupportTrace, build_proposition_construction; "
             "from mayele.acquisition import DiscoveryResult; "
             "from mayele.observation import Source, SourceKind, ObservationAttempt, ObservationAttemptOutcome, Observation, ObservedArtifact, Passage, ObservedStatement, Mention; "
             "from mayele.cognition import Interpretation, InterpretationMode, RealityCandidate, InterpretationReferent, ReferentKind; "
@@ -45,7 +45,7 @@ class MayeleImportBoundaryTests(TestCase):
             "c=RealityCandidate('candidate:x', i); "
             "r=IdentityResolution('resolution:x', InterpretationReferent(ReferentKind.MENTION, m.mention_ref), m.scope, now, IdentityResolutionStatus.UNRESOLVED, basis=(IdentityResolutionBasis(IdentityResolutionBasisKind.MENTION, m.mention_ref),)); "
             "validate_identity_resolution(r, m); "
-            "assert len(p.fingerprint) == 64; assert len(c.fingerprint) == 64; assert r.reality is None"
+            "assert len(p.fingerprint) == 64; assert len(c.fingerprint) == 64; assert r.reality is None; assert PropositionConstruction; assert KnowledgeSupportTrace; assert build_proposition_construction"
         )
         result = subprocess.run(
             [sys.executable, "-c", code],
