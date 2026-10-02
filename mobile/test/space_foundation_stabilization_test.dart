@@ -17,6 +17,7 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
 
 import 'dio_testing.dart';
+import 'fakes.dart';
 
 class _ActorStore implements ActorContextStore {
   final Map<String, ActorContext> values = <String, ActorContext>{};
