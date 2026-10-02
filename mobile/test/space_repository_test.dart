@@ -23,10 +23,7 @@ class _ActorStore implements ActorContextStore {
       values[profileId] ?? const PersonalActorContext();
 
   @override
-  Future<void> writeActorContext(
-    String profileId,
-    ActorContext context,
-  ) async {
+  Future<void> writeActorContext(String profileId, ActorContext context) async {
     values[profileId] = context;
   }
 
@@ -107,9 +104,7 @@ Map<String, dynamic> _inventoryRow({
   'archetype': 'generic',
   'lifecycle': 'active',
   'limited_to_activities': false,
-  'links': {
-    'workspace': '/api/v1/organizations/workspaces/$slug/',
-  },
+  'links': {'workspace': '/api/v1/organizations/workspaces/$slug/'},
 };
 
 Map<String, dynamic> _workspace({
@@ -153,9 +148,7 @@ Map<String, dynamic> _workspace({
         },
       )
       .toList(),
-  'links': {
-    'workspace': '/api/v1/organizations/workspaces/$slug/',
-  },
+  'links': {'workspace': '/api/v1/organizations/workspaces/$slug/'},
   'modules': <Object>[],
   'platform_modules_included': false,
 };
@@ -178,15 +171,8 @@ Map<String, dynamic> _now({
   String responsibility = 'all',
   String marker = 'valid',
 }) => {
-  ..._contextPayload(
-    id: id,
-    slug: slug,
-    responsibility: responsibility,
-  ),
-  'selection': {
-    'state': 'unavailable',
-    'reason': 'no_safe_selection_contract',
-  },
+  ..._contextPayload(id: id, slug: slug, responsibility: responsibility),
+  'selection': {'state': 'unavailable', 'reason': 'no_safe_selection_contract'},
   'items': <Object>[],
   'has_more': false,
   'links': <String, Object?>{},
@@ -214,9 +200,7 @@ Map<String, dynamic> _work({
         'links': <String, Object?>{},
       },
   },
-  'links': {
-    'workspace': '/api/v1/organizations/workspaces/space-x/',
-  },
+  'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
   'capabilities': {'create_activity': false},
   'marker': marker,
 };
@@ -247,10 +231,7 @@ void main() {
     expect(oldAll.actorScope, SyncActorScope.space(spaceId: 'space-x'));
     expect(
       scoped.actorScope,
-      SyncActorScope.space(
-        spaceId: 'space-x',
-        perspectiveKey: 'mandate:a/b',
-      ),
+      SyncActorScope.space(spaceId: 'space-x', perspectiveKey: 'mandate:a/b'),
     );
     expect(oldAll.path, isNot(contains('responsibility=')));
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
@@ -389,10 +370,7 @@ void main() {
     expect(
       await harness.store.readProjection(
         SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(
-          space.id,
-          perspective: mandate,
-        ),
+        resourceKey: SpaceSyncKeys.resourceKey(space.id, perspective: mandate),
       ),
       isNotNull,
     );
@@ -519,10 +497,7 @@ void main() {
         if (mode == 'revoked') {
           return MockResponse(jsonEncode(<Object>[]), 200);
         }
-        return MockResponse(
-          jsonEncode([_inventoryRow(slug: 'new-slug')]),
-          200,
-        );
+        return MockResponse(jsonEncode([_inventoryRow(slug: 'new-slug')]), 200);
       },
     );
     addTearDown(harness.close);
@@ -568,10 +543,7 @@ void main() {
 
     await repository.refreshWorkspace(space);
 
-    expect(
-      harness.actorContext.value,
-      SpaceActorContext(space: space),
-    );
+    expect(harness.actorContext.value, SpaceActorContext(space: space));
   });
 
   test('Profile isolation keeps Space snapshots separate', () async {
