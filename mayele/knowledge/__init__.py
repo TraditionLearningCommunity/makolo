@@ -1,11 +1,6 @@
 """Mayele Knowledge semantic core."""
 
-from .construction import (
-    KnowledgeSupportTrace,
-    PropositionConstruction,
-    build_knowledge_support,
-    build_proposition_construction,
-)
+from .semantics import KnowledgeValue
 from .contracts import (
     AssessmentStatus,
     Condition,
@@ -20,7 +15,12 @@ from .contracts import (
     SupportDisposition,
     TemporalValidity,
 )
-from .semantics import KnowledgeValue
+from .construction import (
+    KnowledgeSupportTrace,
+    PropositionConstruction,
+    build_knowledge_support,
+    build_proposition_construction,
+)
 
 __all__ = [
     "AssessmentStatus",
