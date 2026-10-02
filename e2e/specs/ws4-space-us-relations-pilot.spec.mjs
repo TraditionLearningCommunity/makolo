@@ -46,14 +46,13 @@ test('WS4 secondary surfaces keep routes, back-forward and relation semantics co
   await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/us\/$/);
 
   const pilot = page.getByRole('link', { name: /Piloter/ });
-  if (await pilot.count()) {
-    await pilot.click();
-    await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/pilot\/$/);
-    await expect(
-      page.getByRole('heading', {
-        name: /Est-ce que cela fonctionne .* Qu’est-ce qui change .* Que devons-nous ajuster/,
-      }),
-    ).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-  }
+  await expect(pilot).toBeVisible();
+  await pilot.click();
+  await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/pilot\/$/);
+  await expect(
+    page.getByRole('heading', {
+      name: /Est-ce que cela fonctionne .* Qu’est-ce qui change .* Que devons-nous ajuster/,
+    }),
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 });

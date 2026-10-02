@@ -204,7 +204,7 @@ WS4 n'ajoute pas : réseau social, annuaire global, CRM parallèle, Team parall�
 
 **Base SHA :** `f3a7cf94514c94d65198b286bcf33e1cbe470697`  
 **Branche :** `ws4-space-us-relations-pilot-web`  
-**PR :** à renseigner à l'ouverture de la PR WS4.
+**PR :** #429 — `WS4 — Space Nous, Relations & Pilotage`.
 
 ### Routes
 
