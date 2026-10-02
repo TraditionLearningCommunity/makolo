@@ -161,10 +161,7 @@ class FileLaunchPreferencesStore
   }
 
   @override
-  Future<void> writeActorContext(
-    String profileId,
-    ActorContext context,
-  ) async {
+  Future<void> writeActorContext(String profileId, ActorContext context) async {
     final current = await read();
     final contexts = <String, ActorContext>{
       ...current.actorContexts,
