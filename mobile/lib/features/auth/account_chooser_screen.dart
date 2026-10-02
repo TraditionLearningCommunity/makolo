@@ -79,7 +79,9 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
     await widget.runtime.tokens.removeAccount(account.profileId);
     final actorContextStore = widget.runtime.launchPreferences;
     if (actorContextStore is ActorContextStore) {
-      await actorContextStore.removeActorContext(account.profileId);
+      await (actorContextStore as ActorContextStore).removeActorContext(
+        account.profileId,
+      );
     }
     if (wasActive) {
       widget.runtime.recovery.markLoggedOut();
