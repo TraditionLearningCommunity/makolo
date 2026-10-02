@@ -223,23 +223,24 @@ class SpaceNowView extends StatelessWidget {
 
   Widget _state() {
     return switch (presentation.state) {
-      SpaceAttentionState.initial => showLoading
-          ? const SizedBox(
-              height: 180,
-              child: MakoloLoadingState(label: 'Mise à jour…'),
-            )
-          : const SizedBox(height: 180),
+      SpaceAttentionState.initial =>
+        showLoading
+            ? const SizedBox(
+                height: 180,
+                child: MakoloLoadingState(label: 'Mise à jour…'),
+              )
+            : const SizedBox(height: 180),
       SpaceAttentionState.unavailable => const MakoloEmptyState(
-          title: 'Aucune priorité n’est présentée pour le moment.',
-          body:
-              'Makolo ne dispose pas d’une sélection suffisamment établie '
-              'pour vous orienter ici.',
-          icon: Icons.hourglass_empty_rounded,
-        ),
+        title: 'Aucune priorité n’est présentée pour le moment.',
+        body:
+            'Makolo ne dispose pas d’une sélection suffisamment établie '
+            'pour vous orienter ici.',
+        icon: Icons.hourglass_empty_rounded,
+      ),
       SpaceAttentionState.failure => MakoloErrorState(
-          message: 'Impossible de mettre cette vue à jour pour le moment.',
-          onRetry: () => unawaited(onRefresh()),
-        ),
+        message: 'Impossible de mettre cette vue à jour pour le moment.',
+        onRetry: () => unawaited(onRefresh()),
+      ),
     };
   }
 }
