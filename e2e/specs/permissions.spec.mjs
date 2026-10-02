@@ -29,7 +29,6 @@ async function selectSpace(page, name, slug) {
   await expect(page).toHaveURL(new RegExp(`/spaces/${slug}/overview/$`));
 }
 
-
 test('participant sees personal navigation and can enter personal Event creation', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');
   for (const label of ['Maintenant', 'Découvrir', 'En cours', 'Moi']) {
