@@ -102,6 +102,6 @@ Deliver one vertically complete engineering capability:
 
 ## Phase 6: Convergence
 
-- [ ] T011 Restore the six Spec Kit v1.0.13 managed assets whose repository bytes contradict their
+- [x] T011 Restore the six Spec Kit v1.0.13 managed assets whose repository bytes contradict their
   declared managed-file SHA-256 hashes, using the pinned v1.0.13 generated output rather than
   changing the manifests, per FR-001/FR-002 (contradicts).
