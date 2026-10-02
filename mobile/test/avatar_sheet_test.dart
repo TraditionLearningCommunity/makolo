@@ -103,7 +103,8 @@ void main() {
     expect(find.textContaining('activé'), findsNothing);
 
     Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await runtime.close();
