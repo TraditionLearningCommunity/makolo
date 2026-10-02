@@ -122,8 +122,7 @@ class FileLaunchPreferencesStore
   FileLaunchPreferencesStore._(this._file);
 
   static const _fileName = 'makolo-launch-preferences-v1.json';
-  static final Map<String, Future<void>> _writeTails =
-      <String, Future<void>>{};
+  static final Map<String, Future<void>> _writeTails = <String, Future<void>>{};
 
   final File _file;
 
@@ -227,7 +226,7 @@ class FileLaunchPreferencesStore
 
   Future<void> _mutate(
     LaunchPreferencesSnapshot? Function(LaunchPreferencesSnapshot current)
-    update,
+        update,
   ) {
     final key = _file.absolute.path;
     final previous = _writeTails[key] ?? Future<void>.value();
@@ -265,7 +264,6 @@ class FileLaunchPreferencesStore
     await _file.parent.create(recursive: true);
     await _file.writeAsString(jsonEncode(snapshot.toJson()), flush: true);
   }
-
 }
 
 class AppPreferencesController extends ChangeNotifier {
