@@ -85,8 +85,12 @@ def build_space_now_projection(*, profile, space, responsibility_key=None):
     }
 
 
-def build_space_discover_projection(*, profile, space):
-    context = _space_context(profile=profile, space=space)
+def build_space_discover_projection(*, profile, space, responsibility_key=None):
+    context = _space_context(
+        profile=profile,
+        space=space,
+        responsibility_key=responsibility_key,
+    )
     if context is None:
         return None
     return {
