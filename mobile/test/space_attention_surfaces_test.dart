@@ -45,9 +45,8 @@ Future<void> _pump(
       home: Scaffold(
         body: Builder(
           builder: (context) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(textScale)),
             child: child,
           ),
         ),
@@ -122,9 +121,7 @@ void main() {
       SpaceNowView(
         scopeKey: 'space-x:all',
         presentation: _unavailable(
-          source: const OwnerSourceState(
-            lastErrorCode: 'transport_error',
-          ),
+          source: const OwnerSourceState(lastErrorCode: 'transport_error'),
         ),
         showLoading: false,
         onRefresh: () async {},
