@@ -6,9 +6,14 @@ import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 
 class AppSettingsScreen extends StatelessWidget {
-  const AppSettingsScreen({super.key, required this.runtime});
+  const AppSettingsScreen({
+    super.key,
+    required this.runtime,
+    this.packageInfo,
+  });
 
   final AppRuntime runtime;
+  final Future<PackageInfo>? packageInfo;
 
   String _themeLabel(MakoloThemePreference preference) {
     return switch (preference) {
@@ -91,7 +96,7 @@ class AppSettingsScreen extends StatelessWidget {
               const Divider(),
               const SizedBox(height: MakoloSpacing.md),
               Text('À propos', style: Theme.of(context).textTheme.titleMedium),
-              const _AppVersionTile(),
+              _AppVersionTile(packageInfo: packageInfo),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.description_outlined),
@@ -118,14 +123,17 @@ class AppSettingsScreen extends StatelessWidget {
 }
 
 class _AppVersionTile extends StatefulWidget {
-  const _AppVersionTile();
+  const _AppVersionTile({this.packageInfo});
+
+  final Future<PackageInfo>? packageInfo;
 
   @override
   State<_AppVersionTile> createState() => _AppVersionTileState();
 }
 
 class _AppVersionTileState extends State<_AppVersionTile> {
-  late final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
+  late final Future<PackageInfo> _packageInfo =
+      widget.packageInfo ?? PackageInfo.fromPlatform();
 
   @override
   Widget build(BuildContext context) {

@@ -7,6 +7,7 @@ import 'package:makolo_mobile/app/launch_preferences.dart';
 import 'package:makolo_mobile/app/runtime/app_runtime.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/features/settings/settings_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'fakes.dart';
 
@@ -52,7 +53,19 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(home: AppSettingsScreen(runtime: runtime)),
+      MaterialApp(
+        home: AppSettingsScreen(
+          runtime: runtime,
+          packageInfo: Future.value(
+            PackageInfo(
+              appName: 'Makolo',
+              packageName: 'com.makolo.mobile',
+              version: '1.0.0',
+              buildNumber: '1',
+            ),
+          ),
+        ),
+      ),
     );
 
     expect(find.text('Système'), findsOneWidget);
