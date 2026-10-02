@@ -1,0 +1,49 @@
+{% extends 'organizations/space/base.html' %}
+{% block space_content %}
+<section class="space-y-5" aria-labelledby="space-mark-heading">
+  <div class="mk-panel p-6 sm:p-8">
+    <div class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</div>
+    <h2 id="space-mark-heading" class="mt-5 text-3xl font-extrabold tracking-[-.04em]">Makolo Mark</h2>
+    <p class="mt-3 max-w-2xl text-sm" style="color:var(--mk-muted)">J’ai quelque chose à donner à Makolo. Le contexte est {{ space.name }} ; l’autorité reste décidée et revalidée par les owners serveur.</p>
+
+    <form method="post" class="mt-6 max-w-2xl space-y-4">
+      {% csrf_token %}
+      <div>
+        <label for="mark-value" class="text-sm font-bold">Que voulez-vous faire ?</label>
+        <textarea id="mark-value" name="value" rows="4" maxlength="600" class="mt-2 w-full rounded-2xl border px-4 py-3" style="border-color:var(--mk-border);background:var(--mk-surface-solid)" placeholder="Ex. Ouvre le Jour J de ce départ.">{{ mark_value }}</textarea>
+      </div>
+      <div>
+        <label for="mark-occurrence" class="text-sm font-bold">Occurrence, si la demande en concerne une</label>
+        <input id="mark-occurrence" name="occurrence_id" type="text" class="mt-2 w-full rounded-2xl border px-4 py-3 text-sm" style="border-color:var(--mk-border);background:var(--mk-surface-solid)" value="{{ request.GET.occurrence|default:'' }}" autocomplete="off">
+      </div>
+      {% if mark_result.state == "needs_confirmation" and mark_result.action %}
+      <input type="hidden" name="confirm_code" value="{{ mark_result.action.code }}">
+      <input type="hidden" name="confirm_email" value="{{ mark_result.action.target.email }}">
+      <input type="hidden" name="confirm_role" value="{{ mark_result.action.target.role }}">
+      <input type="hidden" name="team_member_email" value="{{ mark_result.action.target.email }}">
+      <input type="hidden" name="team_member_role" value="{{ mark_result.action.target.role }}">
+      <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+        <p class="font-bold">Confirmation nécessaire</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ mark_result.action.consequence }}</p>
+      </div>
+      <button type="submit" class="mk-btn mk-btn-primary">Confirmer cette action</button>
+      {% else %}
+      <button type="submit" class="mk-btn mk-btn-primary">Continuer</button>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if mark_result %}
+  <section class="mk-panel p-5 sm:p-6" role="status" aria-live="polite">
+    <p class="mk-kicker">{{ mark_result.state }}</p>
+    <h3 class="mt-2 text-xl font-bold">{{ mark_result.message }}</h3>
+    {% if mark_result.question %}
+    <p class="mt-3 text-sm" style="color:var(--mk-muted)">Une information supplémentaire est nécessaire pour continuer.</p>
+    {% endif %}
+    {% if mark_handoff_url %}
+    <a class="mk-btn mk-btn-primary mt-5" href="{{ mark_handoff_url }}">Continuer vers la surface propriétaire</a>
+    {% endif %}
+  </section>
+  {% endif %}
+</section>
+{% endblock %}
