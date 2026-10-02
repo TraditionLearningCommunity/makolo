@@ -1,6 +1,7 @@
 from django import template
 
 from core.capabilities import get_web_capabilities
+from core.web.request_context import request_memoize
 
 
 register = template.Library()
@@ -16,4 +17,8 @@ from core.personal_navigation import personal_surface_owner
 
 @register.simple_tag
 def personal_navigation(request):
-    return personal_surface_owner(request)
+    return request_memoize(
+        request,
+        ("personal_navigation",),
+        lambda: personal_surface_owner(request),
+    )

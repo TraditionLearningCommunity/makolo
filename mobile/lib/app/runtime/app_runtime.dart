@@ -19,6 +19,7 @@ import '../../repositories/personal_repository.dart';
 import '../../sync/outbox/outbox_processor.dart';
 import '../../sync/outbox/outbox_repository.dart';
 import '../../sync/sync_engine.dart';
+import '../environment.dart';
 import '../launch_preferences.dart';
 import '../resumable_interaction_store.dart';
 import '../session_recovery.dart';
@@ -29,6 +30,8 @@ class AppRuntime {
     required this.session,
     required this.recovery,
     this.launchPreferences,
+    this.preferences,
+    this.config,
     this.interactions,
     this.api,
     this.database,
@@ -57,7 +60,14 @@ class AppRuntime {
   final AuthSession? session;
   final SessionRecoveryController recovery;
   final LaunchPreferencesStore? launchPreferences;
+  final AppPreferencesController? preferences;
+  final MakoloRuntimeConfig? config;
   final ResumableInteractionStore? interactions;
+
+  MakoloMapsConfig get mapConfig =>
+      config?.maps ?? const MakoloMapsConfig(enabled: false, style: null);
+
+  bool get isDevelopment => config?.environment == MakoloRuntimeEnvironment.dev;
   final MakoloApiClient? api;
   final MakoloDatabase? database;
   final ProfileStore? store;
@@ -85,6 +95,7 @@ class AppRuntime {
 
   Future<void> close() async {
     api?.close();
+    preferences?.dispose();
     await database?.close();
   }
 }

@@ -1,0 +1,24 @@
+{% extends 'organizations/space/base.html' %}
+{% block space_content %}
+<section class="space-y-4" aria-labelledby="space-now-heading">
+  <div>
+    <span class="mk-kicker">Maintenant</span>
+    <h2 id="space-now-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">Qu’est-ce qui mérite notre attention maintenant ?</h2>
+  </div>
+
+  {% if projection.items %}
+    <div class="mk-panel p-5">
+      <p class="font-bold">Le serveur expose {{ projection.items|length }} élément{{ projection.items|length|pluralize }}.</p>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">Ouvrez les outils de l’Espace pour traiter ces éléments dans leur contexte propriétaire.</p>
+    </div>
+  {% elif projection.selection.state == 'unavailable' %}
+    <div class="mk-panel p-6" role="status">
+      <p class="text-xl font-extrabold">Aucune sélection sûre n’est disponible pour l’instant.</p>
+      <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Makolo ne fabrique pas de priorité à partir d’indices incomplets. Les outils de l’Espace restent disponibles pour poursuivre le travail.</p>
+      <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary mt-5">Ouvrir les outils de l’Espace</a>
+    </div>
+  {% else %}
+    <div class="mk-panel p-6" role="status"><p class="text-xl font-extrabold">Tout est en ordre. ✓</p></div>
+  {% endif %}
+</section>
+{% endblock %}

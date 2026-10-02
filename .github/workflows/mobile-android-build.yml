@@ -18,6 +18,7 @@ on:
       - "mobile/pubspec.yaml"
       - "mobile/pubspec.lock"
       - "mobile/.flutter-version"
+      - "mobile/config/dev.json"
       - ".github/workflows/mobile-android-build.yml"
   workflow_dispatch:
 
@@ -59,3 +60,9 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Build Android debug
         run: flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json
+      - name: Upload DEV APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: makolo-dev-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-dev-debug.apk
+          if-no-files-found: error

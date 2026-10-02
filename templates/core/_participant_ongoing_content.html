@@ -1,0 +1,32 @@
+<div class="mk-mature-page mk-ongoing-workspace" data-mk-surface="ongoing">
+  <section class="mk-mature-heading">
+    <p class="mk-eyebrow">En cours</p>
+    <h1>Ce qui continue</h1>
+    <p>Vos engagements restent ici tant qu’ils ont encore une suite pour vous.</p>
+  </section>
+
+  {% if ongoing_items %}
+    <div id="ongoing-dates" class="mk-ongoing-list" aria-label="Engagements en cours">
+      {% for item in ongoing_items %}
+        {% include "core/_ongoing_card.html" with expanded=False %}
+        {% include "core/_ongoing_card.html" with expanded=True %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <section class="mk-calm-state">
+      <span class="mk-calm-state__icon" aria-hidden="true"><i data-lucide="circle-check-big"></i></span>
+      <h2>Rien ne continue pour le moment.</h2>
+      <p>Vous n’avez aucun engagement actif qui demande d’être suivi ici.</p>
+    </section>
+  {% endif %}
+
+  <div class="mk-secondary-actions">
+    <a href="{% url 'core:participant-journeys' %}">Démarches</a>
+    <a href="{% url 'core:participant-accesses' %}">Accès</a>
+    {% if has_personal_dossiers %}<a href="{% url 'objectives:dossier-list' %}">Dossiers</a>{% endif %}
+    {% if has_personal_projects %}<a href="{% url 'objectives:project-list' %}">Projets</a>{% endif %}
+    {% if has_waitlist %}<a href="{% url 'tickets:waitlist-list' %}">Liste d’attente</a>{% endif %}
+    {% if has_transfers %}<a href="{% url 'tickets:transfer-list' %}">Transferts</a>{% endif %}
+    {% if has_personal_fundings %}<a href="{% url 'funding:create' %}">Nouveau financement</a>{% else %}<a href="{% url 'funding:create' %}">Créer un financement</a>{% endif %}
+  </div>
+</div>

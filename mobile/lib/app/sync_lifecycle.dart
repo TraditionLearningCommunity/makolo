@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:drift/drift.dart';
 import 'package:flutter/widgets.dart';
 
 import '../network/api_error.dart';
@@ -114,17 +113,10 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     try {
       await sync.refreshRoots();
       await widget.runtime.outboxProcessor?.run();
-      final failedSources =
-          await (database.select(database.syncSources)..where(
-                (row) =>
-                    row.profileId.equals(profileId) &
-                    row.lastErrorCode.isNotNull(),
-              ))
-              .get();
       if (mounted) {
         setState(() {
-          _syncFailed = failedSources.isNotEmpty;
-          if (!_syncFailed) _lastUpdatedAt = DateTime.now();
+          _syncFailed = false;
+          _lastUpdatedAt = DateTime.now();
         });
       }
     } on MakoloApiError catch (error) {

@@ -122,6 +122,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.web.request_context.MakoloRequestContextMiddleware",
+    "core.web.performance.PerformanceEnvelopeMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "growth.middleware.MarketingSessionUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -484,6 +486,11 @@ LOGGING = {
         },
     },
 }
+
+MAKOLO_PERFORMANCE_LOGGING = env_bool("MAKOLO_PERFORMANCE_LOGGING", False)
+MAKOLO_PERFORMANCE_WARN_MS = float(os.environ.get("MAKOLO_PERFORMANCE_WARN_MS", "0"))
+MAKOLO_PERFORMANCE_WARN_QUERIES = int(os.environ.get("MAKOLO_PERFORMANCE_WARN_QUERIES", "0"))
+MAKOLO_PERFORMANCE_WARN_KB = float(os.environ.get("MAKOLO_PERFORMANCE_WARN_KB", "0"))
 
 INTERNAL_IPS = ["127.0.0.1"]
 

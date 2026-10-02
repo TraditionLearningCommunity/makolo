@@ -6,6 +6,8 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from core.mark_orchestration import MARK_TEXT_MAX_LENGTH, mark_web_url, orchestrate_mark
+from core.web.fragments import FragmentTemplateMixin
+from core.web.request_context import get_request_context
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -27,22 +29,24 @@ from tickets.models import TransferStatus, WaitlistStatus
 from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
 from personal_assets.selectors import personal_assets_for_controller
 from readiness import ReadinessStatus, resolve_many
+from readiness.presentation import readiness_next_action_label
 from readiness.selectors import readiness_queryset
 from topics.models import ProfileInterest, ProfileOpenTo
 from trust.credential_selectors import credentials_for_profile
 from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
-from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _journey_card
+from .read_models import build_personal_ongoing_read_model
+from .participant_presentation import occurrence_timing
+from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _primary_place
 
 
 ONGOING_LIMIT = 18
 ME_PREVIEW_LIMIT = 6
 
 
-def _ongoing_journey_item(card):
-    journey = card["journey"]
-    readiness = card["readiness"]
+def _ongoing_journey_item(journey, readiness):
+    """Present only the Journey facts that En cours actually renders."""
     status = readiness.status if readiness is not None else None
 
     if status == ReadinessStatus.BLOCKED:
@@ -66,9 +70,13 @@ def _ongoing_journey_item(card):
         "title": journey.activity.title,
         "summary": summary,
         "tone": tone,
-        "next_action": card["next_action"] if status in {ReadinessStatus.BLOCKED, ReadinessStatus.ACTION_REQUIRED} else "",
-        "timing": card["timing"],
-        "place": card["place"],
+        "next_action": (
+            readiness_next_action_label(readiness)
+            if status in {ReadinessStatus.BLOCKED, ReadinessStatus.ACTION_REQUIRED}
+            else ""
+        ),
+        "timing": occurrence_timing(journey.occurrence),
+        "place": _primary_place(journey.occurrence),
         "url": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
     }
 
@@ -168,102 +176,100 @@ def _ongoing_funding_item(funding):
     }
 
 
-class MatureParticipantOngoingView(LoginRequiredMixin, TemplateView):
+class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, TemplateView):
     template_name = "core/participant_ongoing.html"
+    fragment_template_name = "core/participant_ongoing_fragment.html"
     login_url = "core:login"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
-        now = timezone.now()
-
-        journeys = list(
-            readiness_queryset(
-                participant_active_journeys(profile).order_by("-updated_at", "-created_at", "id")
-            )[:HOME_READINESS_CANDIDATE_LIMIT]
+        observed_at = get_request_context(self.request).observed_at
+        entries = build_personal_ongoing_read_model(
+            profile,
+            observed_at=observed_at,
+            limit=ONGOING_LIMIT,
+            include_personal_funding=True,
         )
-        readiness_by_id = resolve_many(journeys, viewer=profile, observed_at=now)
-        journey_items = [
-            _ongoing_journey_item(_journey_card(journey, readiness=readiness_by_id[journey.pk]))
-            for journey in journeys[:ONGOING_LIMIT]
-        ]
 
-        active_accesses = list(
-            participant_active_accesses(profile, at=now)
-            .order_by("occurrence__start_date", "occurrence__start_time", "id")[:ONGOING_LIMIT]
-        )
-        access_items = [_ongoing_access_item(_access_card(access)) for access in active_accesses]
+        presenters = {
+            "journey": lambda entry: _ongoing_journey_item(
+                entry.value,
+                entry.readiness,
+            ),
+            "access": lambda entry: _ongoing_access_item(_access_card(entry.value)),
+            "dossier": lambda entry: _ongoing_dossier_item(entry.value),
+            "project": lambda entry: _ongoing_project_item(entry.value),
+            "waitlist": lambda entry: _ongoing_waitlist_item(entry.value),
+            "transfer": lambda entry: _ongoing_transfer_item(entry.value, profile),
+            "payment": lambda entry: _ongoing_payment_item(entry.value),
+            "funding": lambda entry: _ongoing_funding_item(entry.value),
+        }
+        ongoing_items = [presenters[entry.kind](entry) for entry in entries]
+        kinds = {entry.kind for entry in entries}
 
-        personal_dossiers = list(
-            dossiers_for_profile(profile)
-            .filter(owner_profile=profile, lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE})
-            .order_by("-updated_at", "id")[:ONGOING_LIMIT]
-        )
-        dossier_items = [_ongoing_dossier_item(dossier) for dossier in personal_dossiers]
+        budget_full = len(entries) >= ONGOING_LIMIT
+        has_personal_dossiers = "dossier" in kinds
+        has_personal_projects = "project" in kinds
+        has_waitlist = "waitlist" in kinds
+        has_transfers = "transfer" in kinds
+        has_personal_fundings = "funding" in kinds
 
-        personal_projects = list(
-            projects_for_profile(profile)
-            .filter(owner_profile=profile, lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE})
-            .order_by("-updated_at", "id")[:ONGOING_LIMIT]
-        )
-        project_items = [_ongoing_project_item(project) for project in personal_projects]
-
-        waitlist_entries = list(
-            get_waitlist_entries_visible_to(profile)
-            .filter(user=profile, status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED})
-            .order_by("created_at", "id")[:ONGOING_LIMIT]
-        )
-        waitlist_items = [_ongoing_waitlist_item(entry) for entry in waitlist_entries]
-
-        transfers = list(
-            get_ticket_transfers_visible_to(profile)
-            .filter(status=TransferStatus.PENDING)
-            .filter(models.Q(sender=profile) | models.Q(recipient=profile))
-            .order_by("-created_at", "id")[:ONGOING_LIMIT]
-        )
-        transfer_items = [_ongoing_transfer_item(transfer, profile) for transfer in transfers if transfer.is_pending_active]
-
-        standalone_payments = list(
-            get_payments_visible_to(profile)
-            .filter(
-                initiated_by=profile,
-                status__in={PaymentStatus.PENDING, PaymentStatus.PROCESSING},
-                commerce_order__journey__isnull=True,
-                obligation__journey__isnull=True,
-                order__journey__isnull=True,
+        if budget_full:
+            has_personal_dossiers = has_personal_dossiers or (
+                dossiers_for_profile(profile)
+                .filter(
+                    owner_profile=profile,
+                    lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
+                )
+                .exists()
             )
-            .order_by("-created_at", "id")[:ONGOING_LIMIT]
-        )
-        payment_items = [_ongoing_payment_item(payment) for payment in standalone_payments]
-
-        personal_fundings = [
-            funding
-            for funding in FundingDetails.objects.select_related("activity")
-            .filter(
-                activity__owner_profile=profile,
-                activity__space__isnull=True,
-                activity__status__in={ActivityStatus.DRAFT, ActivityStatus.PUBLISHED},
+            has_personal_projects = has_personal_projects or (
+                projects_for_profile(profile)
+                .filter(
+                    owner_profile=profile,
+                    lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE},
+                )
+                .exists()
             )
-            .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
-            if can_manage_funding(profile, funding)
-        ]
-        funding_items = [_ongoing_funding_item(funding) for funding in personal_fundings]
+            has_waitlist = has_waitlist or (
+                get_waitlist_entries_visible_to(profile)
+                .filter(
+                    user=profile,
+                    status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED},
+                )
+                .exists()
+            )
+            has_transfers = has_transfers or (
+                get_ticket_transfers_visible_to(profile)
+                .filter(status=TransferStatus.PENDING)
+                .filter(models.Q(sender=profile) | models.Q(recipient=profile))
+                .exists()
+            )
+            if not has_personal_fundings:
+                personal_funding_candidates = list(
+                    FundingDetails.objects.select_related("activity")
+                    .filter(
+                        activity__owner_profile=profile,
+                        activity__space__isnull=True,
+                        activity__status__in={
+                            ActivityStatus.DRAFT,
+                            ActivityStatus.PUBLISHED,
+                        },
+                    )
+                    .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
+                )
+                has_personal_fundings = any(
+                    can_manage_funding(profile, funding)
+                    for funding in personal_funding_candidates
+                )
 
-        context["ongoing_items"] = (
-            journey_items
-            + access_items
-            + dossier_items
-            + project_items
-            + waitlist_items
-            + transfer_items
-            + payment_items
-            + funding_items
-        )[:ONGOING_LIMIT]
-        context["has_personal_dossiers"] = bool(personal_dossiers)
-        context["has_personal_projects"] = bool(personal_projects)
-        context["has_waitlist"] = bool(waitlist_entries)
-        context["has_transfers"] = bool(transfers)
-        context["has_personal_fundings"] = bool(personal_fundings)
+        context["ongoing_items"] = ongoing_items
+        context["has_personal_dossiers"] = has_personal_dossiers
+        context["has_personal_projects"] = has_personal_projects
+        context["has_waitlist"] = has_waitlist
+        context["has_transfers"] = has_transfers
+        context["has_personal_fundings"] = has_personal_fundings
         return context
 
 

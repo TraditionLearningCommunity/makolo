@@ -17,6 +17,7 @@ class SpaceOperatingPreset:
     label: str
     navigation_section_label: str
     activities_label: str
+    primary_business_label: str
     featured_modules: tuple[str, ...]
     suggested_verticals: tuple[str, ...]
 
@@ -26,6 +27,7 @@ SPACE_OPERATING_PRESETS = {
         label="Espace générique",
         navigation_section_label="Activité",
         activities_label="Activités",
+        primary_business_label="Activités",
         featured_modules=("activities", "requests", "groups", "crm", "analytics", "automation"),
         suggested_verticals=("event", "service", "obtention", "transport"),
     ),
@@ -33,6 +35,7 @@ SPACE_OPERATING_PRESETS = {
         label="Artiste / création",
         navigation_section_label="Création",
         activities_label="Créations & activités",
+        primary_business_label="Créations",
         featured_modules=("activities", "crm", "audiences", "promotions", "growth", "partners", "analytics"),
         suggested_verticals=("event", "service", "obtention", "transport"),
     ),
@@ -40,6 +43,7 @@ SPACE_OPERATING_PRESETS = {
         label="Média / journalisme",
         navigation_section_label="Production",
         activities_label="Productions & activités",
+        primary_business_label="Productions",
         featured_modules=("activities", "crm", "audiences", "groups", "promotions", "growth", "partners", "trust", "analytics"),
         suggested_verticals=("event", "service", "obtention", "transport"),
     ),
@@ -47,6 +51,7 @@ SPACE_OPERATING_PRESETS = {
         label="Enseignement / formation",
         navigation_section_label="Enseignement",
         activities_label="Programmes & activités",
+        primary_business_label="Programmes",
         featured_modules=("activities", "requests", "groups", "access", "crm", "analytics", "automation"),
         suggested_verticals=("service", "event", "obtention", "transport"),
     ),
@@ -54,6 +59,7 @@ SPACE_OPERATING_PRESETS = {
         label="Commerce / distribution",
         navigation_section_label="Offre",
         activities_label="Offres & activités",
+        primary_business_label="Commerce",
         featured_modules=("activities", "offers", "orders", "payments", "crm", "promotions", "loyalty", "growth", "analytics"),
         suggested_verticals=("obtention", "service", "event", "transport"),
     ),
@@ -61,6 +67,7 @@ SPACE_OPERATING_PRESETS = {
         label="Prestataire de services",
         navigation_section_label="Prestations",
         activities_label="Prestations & activités",
+        primary_business_label="Prestations",
         featured_modules=("activities", "services", "requests", "crm", "offers", "orders", "payments", "analytics", "automation"),
         suggested_verticals=("service", "event", "obtention", "transport"),
     ),
@@ -68,6 +75,7 @@ SPACE_OPERATING_PRESETS = {
         label="Opérateur de transport",
         navigation_section_label="Transport",
         activities_label="Services de transport & activités",
+        primary_business_label="Transport",
         featured_modules=("transport", "activities", "places", "access", "control", "orders", "payments", "operations", "crm", "analytics"),
         suggested_verticals=("transport", "service", "event", "obtention"),
     ),
@@ -75,6 +83,7 @@ SPACE_OPERATING_PRESETS = {
         label="Association / communauté",
         navigation_section_label="Vie collective",
         activities_label="Activités & initiatives",
+        primary_business_label="Initiatives",
         featured_modules=("activities", "groups", "crm", "funding", "partners", "recognition", "trust", "growth", "analytics", "automation"),
         suggested_verticals=("event", "service", "obtention", "transport"),
     ),
@@ -136,3 +145,23 @@ def operational_footprint_for_space(space) -> SpaceOperationalFootprint:
         signals.append("trust")
 
     return SpaceOperationalFootprint(signals=tuple(dict.fromkeys(signals)))
+
+
+SPACE_RELATIONSHIP_LABELS = {
+    SpaceArchetype.GENERIC: "Personnes & relations",
+    SpaceArchetype.CREATIVE: "Publics & partenaires",
+    SpaceArchetype.MEDIA: "Publics & partenaires",
+    SpaceArchetype.EDUCATION: "Groupes, personnes & partenaires",
+    SpaceArchetype.COMMERCE: "Clients & relations",
+    SpaceArchetype.SERVICE_PROVIDER: "Clients & partenaires",
+    SpaceArchetype.TRANSPORT_OPERATOR: "Relations",
+    SpaceArchetype.COMMUNITY: "Communauté & partenaires",
+}
+
+
+def relationships_label_for_space(space) -> str:
+    try:
+        archetype = SpaceArchetype(space.archetype)
+    except (ValueError, AttributeError):
+        archetype = SpaceArchetype.GENERIC
+    return SPACE_RELATIONSHIP_LABELS[archetype]

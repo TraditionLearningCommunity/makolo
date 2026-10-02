@@ -37,7 +37,6 @@ from .console_views import (
     SpaceConsoleControlView,
     SpaceConsoleCreateEventView,
     SpaceConsoleCRMView,
-    SpaceConsoleEntryView,
     SpaceConsoleGroupsView,
     SpaceConsoleOffersView,
     SpaceConsoleOrdersView,
@@ -51,6 +50,7 @@ from .console_views import (
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
+from .space_web_views import SpaceDiscoverView, SpaceMarkView, SpaceNowView, SpaceUsView, SpaceWorkView
 from .team_views import (
     OrganizationMemberCreateView,
     OrganizationMemberDeactivateView,
@@ -69,7 +69,11 @@ urlpatterns = [
     path("", OrganizationListView.as_view(), name="list"),
     path("following/", FollowingListView.as_view(), name="following"),
     path("new/", OrganizationCreateView.as_view(), name="create"),
-    path("<slug:slug>/", SpaceConsoleEntryView.as_view(), name="console-entry"),
+    path("<slug:slug>/", SpaceNowView.as_view(), name="console-entry"),
+    path("<slug:slug>/discover/", SpaceDiscoverView.as_view(), name="space-discover"),
+    path("<slug:slug>/mark/", SpaceMarkView.as_view(), name="space-mark"),
+    path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
+    path("<slug:slug>/us/", SpaceUsView.as_view(), name="space-us"),
     path("<slug:slug>/overview/", SpaceConsoleOverviewView.as_view(), name="console-overview"),
     path("<slug:slug>/activities/", SpaceConsoleActivitiesView.as_view(), name="console-activities"),
     path("<slug:slug>/activities/new/event/", SpaceConsoleCreateEventView.as_view(), name="console-create-event"),

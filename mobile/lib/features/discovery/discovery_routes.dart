@@ -25,12 +25,9 @@ StatefulShellBranch discoveryBranch(AppRuntime runtime) => StatefulShellBranch(
         return MakoloRefreshBoundary(
           child: DiscoveryScreen(
             repository: discovery,
-            location: runtime.location,
             onOpenActivity: (id) => context.push('/activities/$id'),
-            onOpenOccurrence: (id) => context.push('/occurrences/$id'),
             onOpenItem: (family, id) =>
                 context.push('/discover/items/$family/$id'),
-            onOpenWatches: () => context.push('/discover/watches'),
           ),
         );
       },
@@ -41,17 +38,38 @@ StatefulShellBranch discoveryBranch(AppRuntime runtime) => StatefulShellBranch(
 List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/discover/search',
-    builder: (context, state) => const MakoloSecondaryScreen(
-      title: 'Rechercher',
-      message: 'Recherchez une possibilité.',
-    ),
+    builder: (context, state) {
+      final discovery = runtime.discovery;
+      if (discovery == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Rechercher',
+          message: 'La recherche n’est pas disponible pour le moment.',
+        );
+      }
+      return DiscoverySearchScreen(
+        repository: discovery,
+        location: runtime.location,
+        onOpenActivity: (id) => context.push('/activities/$id'),
+        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
+      );
+    },
   ),
   GoRoute(
-    path: '/discover/filters',
-    builder: (context, state) => const MakoloSecondaryScreen(
-      title: 'Filtres',
-      message: 'Aucun filtre actif.',
-    ),
+    path: '/discover/map',
+    builder: (context, state) {
+      final discovery = runtime.discovery;
+      if (discovery == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Carte',
+          message: 'La carte n’est pas disponible pour le moment.',
+        );
+      }
+      return DiscoveryMapScreen(
+        repository: discovery,
+        mapConfig: runtime.mapConfig,
+        onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+      );
+    },
   ),
   GoRoute(
     path: '/discover/watches',

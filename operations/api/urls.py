@@ -16,6 +16,7 @@ from operations.placement_api import (
     PlacementAssignmentDetailAPIView,
     PlacementAssignmentsAPIView,
 )
+from operations.space_day_of_api import SpaceOccurrenceDayOfAPIView
 from operations.queue_api import (
     MyOccurrenceQueuesAPIView,
     MyQueueEntryAPIView,
@@ -56,6 +57,11 @@ urlpatterns = [
         "occurrences/<uuid:occurrence_id>/readiness/",
         OccurrenceOperationalReadinessAPIView.as_view(),
         name="occurrence-readiness",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/day-of/",
+        SpaceOccurrenceDayOfAPIView.as_view(),
+        name="occurrence-day-of",
     ),
     path(
         "occurrences/<uuid:occurrence_id>/live/",

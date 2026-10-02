@@ -69,7 +69,7 @@ Validation native :
 flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json
 ```
 
-Le workflow `Mobile APK` est uniquement manuel et exige une URL de bêta/test fournie explicitement au lancement.
+`Mobile APK` publie automatiquement après un changement runtime pertinent sur `main` une APK debug du flavor `dev`, construite avec `config/dev.json`. Ce packaging automatique reste volontairement rapide : il ne rejoue pas la suite déjà couverte avant merge par `Mobile CI` et `Mobile Android Build`. Un lancement manuel propose `quick` ou `full`; `full` ajoute format, analyse et suite Flutter complète avant de produire la même APK DEV. Une URL API peut être surchargée manuellement sans modifier la configuration canonique.
 
 Aucun host iOS n'est présent. Aucun bundle identifier, signing team, provisioning, App Group ou entitlement iOS n'est inventé.
 
@@ -78,7 +78,7 @@ Aucun host iOS n'est présent. Aucun bundle identifier, signing team, provisioni
 - `Mobile CI` : sélection du scope réel du diff, format/analyze/codegen et tests impactés avec fallback sûr.
 - `Mobile Android Build` : debug build seulement pour dependency/native impact.
 - `Mobile Visual Golden Regression` : design/surfaces visuelles uniquement.
-- `Mobile APK` : checkpoint manuel.
+- `Mobile APK` : artefact DEV rapide sur `main`, avec checkpoint manuel `full` disponible.
 
 Un changement backend-only ne lance pas Flutter. Un changement mobile inconnu tombe sur la suite Flutter complète.
 

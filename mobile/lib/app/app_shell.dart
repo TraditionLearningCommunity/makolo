@@ -78,6 +78,7 @@ class _AppShellState extends State<AppShell> {
       context,
       runtime: widget.runtime,
       onConnections: () => context.push('/connections'),
+      onSettings: () => context.push('/settings'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
     );
@@ -88,7 +89,9 @@ class _AppShellState extends State<AppShell> {
       top: false,
       child: Column(
         children: [
-          if (syncStatus != null && syncStatus.state != SyncVisualState.synced)
+          if (syncStatus != null &&
+              syncStatus.state != SyncVisualState.synced &&
+              syncStatus.state != SyncVisualState.syncing)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 MakoloSpacing.md,
@@ -131,7 +134,7 @@ class _AppShellState extends State<AppShell> {
             onConversations: () => context.push('/conversations'),
             onNotifications: () => context.push('/notifications'),
             onSearch: () => context.push('/discover/search'),
-            onFilters: () => context.push('/discover/filters'),
+            onMap: () => context.push('/discover/map'),
             onCalendar: () => context.push('/ongoing/calendar'),
             onAvatar: _openAvatar,
           ),
@@ -311,7 +314,7 @@ class _MarkButton extends StatelessWidget {
               height: 56,
               child: Center(
                 child: MakoloMark(
-                  size: 38,
+                  size: 32,
                   semantics: MakoloMarkSemantics.decorative,
                 ),
               ),
