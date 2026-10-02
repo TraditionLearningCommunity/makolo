@@ -222,9 +222,7 @@ Map<String, dynamic> _work({
 };
 
 void main() {
-  test(
-    'Space source identity is actor scoped and independent from route slug',
-    () async {
+  test('Space source keys keep actor scope', () async {
     final harness = await _harness(
       handler: (_) async => const MockResponse('{}', 200),
     );
@@ -258,9 +256,7 @@ void main() {
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
   });
 
-  test(
-    'all direct Space projections parse and remain locally readable',
-    () async {
+  test('Space projections parse into local snapshots', () async {
     final harness = await _harness(
       handler: (request) async {
         final path = request.url.path;
@@ -416,9 +412,7 @@ void main() {
     }
   });
 
-  test(
-    'invalid payload and normal offline failure preserve last valid snapshot',
-    () async {
+  test('invalid payload and offline preserve snapshots', () async {
     var mode = 'valid';
     final harness = await _harness(
       handler: (request) async {
@@ -515,9 +509,7 @@ void main() {
     );
   });
 
-  test(
-    'inventory revalidates revocation and slug changes but not transport failure',
-    () async {
+  test('inventory revalidates context safely', () async {
     var mode = 'renamed';
     final harness = await _harness(
       handler: (_) async {
@@ -582,9 +574,7 @@ void main() {
     );
   });
 
-  test(
-    'ProjectionSnapshots remain Profile isolated with identical Space keys',
-    () async {
+  test('Profile isolation keeps Space snapshots separate', () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final a = ProfileStore(database, 'profile-a');
