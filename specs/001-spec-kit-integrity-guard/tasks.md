@@ -12,7 +12,7 @@
 
 **Purpose**: Establish the isolated repository-fixture harness before implementation.
 
-- [ ] T001 Create temporary-repository fixture helpers and the intact-installation success test in
+- [x] T001 Create temporary-repository fixture helpers and the intact-installation success test in
   `scripts/test_check_spec_kit_integrity.py`.
 
 **Checkpoint**: A focused test exists and fails because the verifier is not implemented yet.
@@ -25,7 +25,7 @@
 
 **Independent Test**: Clean fixture passes; missing and modified managed files fail with their paths.
 
-- [ ] T002 [US1] Extend `scripts/test_check_spec_kit_integrity.py` with missing-file and
+- [x] T002 [US1] Extend `scripts/test_check_spec_kit_integrity.py` with missing-file and
   hash-mismatch tests.
 - [ ] T003 [US1] Implement manifest parsing, file existence checks, SHA-256 verification,
   aggregate findings and CLI exit behavior in `scripts/check_spec_kit_integrity.py`.
@@ -41,7 +41,7 @@
 **Independent Test**: Malformed JSON, version drift and integration drift fixtures all fail
 deterministically while consistent metadata passes.
 
-- [ ] T004 [US2] Add malformed-metadata, version-drift and integration-drift tests to
+- [x] T004 [US2] Add malformed-metadata, version-drift and integration-drift tests to
   `scripts/test_check_spec_kit_integrity.py`.
 - [ ] T005 [US2] Add cross-file version and active/default/installed Codex validation to
   `scripts/check_spec_kit_integrity.py`, preserving aggregate diagnostics.
