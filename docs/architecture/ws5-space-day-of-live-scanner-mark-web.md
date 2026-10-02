@@ -3,7 +3,7 @@
 **Statut :** branche d’implémentation WS5  
 **Base initiale auditée :** `main@f3a7cf94514c94d65198b286bcf33e1cbe470697`  
 **Branche :** `ws5-space-day-of-live-scanner-mark-web`  
-**PR :** à renseigner après ouverture  
+**PR :** #430 — WS5 — Space Jour J, Live, Scanner & Makolo Mark  
 **Portée :** Web Space uniquement ; aucune migration, aucun nouveau modèle, aucune nouvelle vérité Operations/Scanner/Access/Mark.
 
 ## 1. Objectif
@@ -402,7 +402,7 @@ WS5 ne possède pas :
 ```text
 base initiale = f3a7cf94514c94d65198b286bcf33e1cbe470697
 branche       = ws5-space-day-of-live-scanner-mark-web
-PR            = à renseigner après ouverture
+PR            = #430
 ```
 
 ### Routes
