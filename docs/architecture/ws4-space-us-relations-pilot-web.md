@@ -3,6 +3,7 @@
 **Statut :** implémentation Web Space WS4  
 **Base initiale auditée :** `main@f3a7cf94514c94d65198b286bcf33e1cbe470697`  
 **Branche :** `ws4-space-us-relations-pilot-web`  
+**Réconciliation pré-merge :** `main@776364aa873a1284615c9a681611a85ce4a86e15` (PR #428 intégrée ; WS2/#426 et WS3/#427 encore ouvertes et non consommées)  
 **Portée :** Nous, Personnes & relations, Piloter et leurs handoffs Web directs.  
 **Hors portée :** WS2 Maintenant/Découvrir, WS3 Métier, WS5 Jour J/Live/Scanner/Mark, shell final WS6, Platform, Flutter, Molongo.
 
@@ -204,7 +205,8 @@ WS4 n'ajoute pas : réseau social, annuaire global, CRM parallèle, Team parall�
 
 **Base SHA :** `f3a7cf94514c94d65198b286bcf33e1cbe470697`  
 **Branche :** `ws4-space-us-relations-pilot-web`  
-**PR :** #429 — `WS4 — Space Nous, Relations & Pilotage`.
+**PR :** #429 — `WS4 — Space Nous, Relations & Pilotage`.  
+**Main réconcilié avant gates finales :** `776364aa873a1284615c9a681611a85ce4a86e15`.
 
 ### Routes
 
