@@ -27,11 +27,6 @@
       <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Makolo ne peut pas encore déterminer de manière suffisamment sûre ce qui mérite votre attention ici. Cela ne signifie ni qu’il n’existe rien dans le Space, ni que tout est en ordre.</p>
       <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary mt-5">Continuer dans les outils de l’Espace</a>
     </div>
-  {% elif projection_state == 'partial' %}
-    <div class="mk-panel p-6" role="status">
-      <p class="text-xl font-extrabold">La sélection est partielle.</p>
-      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Les éléments disponibles sont conservés ; Makolo ne complète pas ce qui manque par des hypothèses locales.</p>
-    </div>
   {% else %}
     <div class="mk-panel p-6 sm:p-8" role="alert">
       <p class="text-xl font-extrabold">Maintenant n’a pas pu être chargé.</p>
