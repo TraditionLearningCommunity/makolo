@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'actor_context.dart';
@@ -54,11 +56,11 @@ final class ActorContextController extends ChangeNotifier {
   }
 
   Future<bool> revalidateSpaceContext(
-    bool Function(SpaceActorIdentity space) isAvailable,
+    FutureOr<bool> Function(SpaceActorIdentity space) isAvailable,
   ) async {
     final current = _value;
     if (current is! SpaceActorContext) return true;
-    if (isAvailable(current.space)) return true;
+    if (await isAvailable(current.space)) return true;
 
     await selectPersonal();
     return false;
