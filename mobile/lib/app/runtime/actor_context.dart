@@ -65,7 +65,7 @@ final class ActorPerspective {
       other is ActorPerspective && other.id == id;
 
   @override
-  int get hashCode => id.hashCode;
+  int get hashCode => Object.hash(id);
 }
 
 final class SpaceActorContext extends ActorContext {
