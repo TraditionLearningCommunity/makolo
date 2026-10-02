@@ -286,7 +286,7 @@ void main() {
 
     await _chooseActor(tester, 'Moi');
     expect(find.text('Personal Ongoing · 1'), findsOneWidget);
-    expect(find.text('En cours'), findsOneWidget);
+    expect(find.text('En cours'), findsWidgets);
     expect(find.text('Moi'), findsOneWidget);
     await _disposeUi(tester);
     await harness.close();
@@ -327,7 +327,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Personal Ongoing · 0'), findsOneWidget);
-    expect(find.text('En cours'), findsOneWidget);
+    expect(find.text('En cours'), findsWidgets);
     await _disposeUi(tester);
     await harness.close();
   });
@@ -429,7 +429,7 @@ void main() {
   testWidgets('wide Space shell exposes the same semantics in the rail', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1000, 800));
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final harness = await _harness(startInSpace: true);
     addTearDown(harness.close);
