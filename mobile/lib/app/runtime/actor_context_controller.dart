@@ -15,7 +15,8 @@ final class ActorContextController extends ChangeNotifier {
     required this.profileId,
     required this._store,
     required ActorContext initial,
-  }) : _value = initial, _requestedValue = initial;
+  }) : _value = initial,
+       _requestedValue = initial;
 
   final String profileId;
   final ActorContextStore _store;
