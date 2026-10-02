@@ -57,3 +57,51 @@ __all__ = [
     "validate_assessment_history",
     "validate_proposition_assessment",
 ]
+
+from .completeness import (
+    KnowledgeCompleteness,
+    KnowledgeFacetState,
+    KnowledgeFacetStatus,
+    build_knowledge_completeness,
+    validate_knowledge_completeness,
+)
+from .state import KnowledgeState, build_knowledge_state, validate_knowledge_state
+from .gaps import (
+    ResearchGap,
+    ResearchGapReason,
+    ResearchGapResolution,
+    ResearchGapResolutionKind,
+    ResearchGapTarget,
+    ResearchGapTargetKind,
+    RevalidationNeed,
+    RevalidationReason,
+    build_research_gap,
+    build_revalidation_need,
+    resolve_research_gap,
+    validate_research_gap,
+    validate_revalidation_need,
+)
+
+__all__.extend([
+    "KnowledgeCompleteness",
+    "KnowledgeFacetState",
+    "KnowledgeFacetStatus",
+    "KnowledgeState",
+    "ResearchGap",
+    "ResearchGapReason",
+    "ResearchGapResolution",
+    "ResearchGapResolutionKind",
+    "ResearchGapTarget",
+    "ResearchGapTargetKind",
+    "RevalidationNeed",
+    "RevalidationReason",
+    "build_knowledge_completeness",
+    "build_knowledge_state",
+    "build_research_gap",
+    "build_revalidation_need",
+    "resolve_research_gap",
+    "validate_knowledge_completeness",
+    "validate_knowledge_state",
+    "validate_research_gap",
+    "validate_revalidation_need",
+])
