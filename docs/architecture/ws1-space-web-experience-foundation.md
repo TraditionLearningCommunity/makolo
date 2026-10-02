@@ -1,6 +1,6 @@
 # WS1 — Space Web Experience Foundation
 
-**Statut avant merge :** candidat WS1 sur branche dédiée.  
+**Statut :** intégré sur `main` via PR #421.  
 **Base auditée :** `main@f640d0ddd6d7839944ef2d90abf48cbc3e381803`.  
 **Branche :** `ws1-space-web-experience-foundation`.
 
@@ -229,4 +229,13 @@ WS6 — réconciliation et fermeture Web Space
 
 ## 16. État post-merge
 
-Cette section ne doit être marquée intégrée qu’après le merge réel de WS1 et la vérification du `main` résultant.
+WS1 est intégré sur `main` via la PR #421.
+
+- base auditée initiale : `main@f640d0ddd6d7839944ef2d90abf48cbc3e381803` ;
+- HEAD fonctionnel final de la branche : `e504f32f7c4658bdf14f7cfc547792a857ede65c` ;
+- commit de merge : `af285c015881c2ff7cbeacc9df80f4d52593c8a6` ;
+- aucune migration WS1 ;
+- les gates frontend artifact sync, Django checks et missing migrations ont passé avant merge ;
+- le correctif final a réparé la spec E2E `permissions.spec.mjs` sans modifier les invariants d’autorité ni affaiblir les tests.
+
+La suite du programme Web Space reste WS2–WS6 selon le handoff ci-dessus.

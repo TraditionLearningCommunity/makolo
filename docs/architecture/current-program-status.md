@@ -20,6 +20,7 @@
 - PR #355 — Z16 : exposition consommable M7 Profile/Space/Platform ; intégrée après CI verte
 - PR #361 — W8 : consommation Web Profil de Z16 via Avatar → Connexions ; intégrée par ce changement après CI verte
 - PR #419 — ZS6 : réconciliation finale du programme Space UX Projection ; mergée après CI complète verte sur `main@be289f4c0e1c044d297228505b73d0bab789e99c`
+- PR #421 — WS1 : Space Web Experience Foundation ; mergée sur `main@af285c015881c2ff7cbeacc9df80f4d52593c8a6`, sans migration
 
 Le snapshot doit être réactualisé lorsqu'un changement de programme important est mergé.
 
@@ -115,6 +116,23 @@ ZS6   réconciliation / sécurité / performance / handoff ✅ intégré via PR 
 ZS2 n'a jamais existé comme branche/PR indépendante. Le runtime final expose désormais `GET /api/v1/organizations/workspaces/<slug>/now/` et `GET /api/v1/organizations/workspaces/<slug>/discover/` avec une collection vide et `selection.state=unavailable` lorsqu'aucun sélecteur sûr n'existe. Aucun ranking, score ou heuristique Molongo n'est introduit.
 
 Le contrat final et les matrices de convergence/autorité/handoff sont dans [`zs6-space-projection-final-handoff.md`](zs6-space-projection-final-handoff.md).
+
+## 3 ter. Programme WS — Space Web Experience
+
+État réel après PR #421 :
+
+```text
+WS1   Space Web Experience Foundation                  ✅ intégré
+WS2   Maintenant & Découvrir                           ⏳ à venir
+WS3   Métier & Archetypes                              ⏳ à venir
+WS4   Nous, Relations & Pilotage                       ⏳ à venir
+WS5   Jour J, Live, Scanner & Makolo Mark              ⏳ à venir
+WS6   réconciliation / fermeture Web Space             ⏳ à venir
+```
+
+WS1 installe le shell Web Space au-dessus des projections ZS, la navigation primaire `Maintenant | Découvrir | Makolo Mark | Métier contextualisé | Nous`, la responsabilité de lecture revalidée serveur et le handoff explicite vers la Console historique. Il ne duplique ni Permission, ni Mandate, ni archetype, ni logique de ranking.
+
+Le closeout détaillé est dans [`ws1-space-web-experience-foundation.md`](ws1-space-web-experience-foundation.md).
 
 ## 4. Contrat personnel prêt pour client natif
 
