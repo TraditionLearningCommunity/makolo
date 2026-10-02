@@ -80,7 +80,9 @@ void main() {
 
   test('malformed and unsupported wire states do not invent calm states', () {
     final malformed = SpaceAttentionPresentation.resolve(
-      projection: _projection(payload: {'items': <Object>[], 'has_more': false}),
+      projection: _projection(
+        payload: {'items': <Object>[], 'has_more': false},
+      ),
       source: OwnerSourceState.unknown,
       now: now,
     );
