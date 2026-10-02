@@ -149,8 +149,9 @@ void main() {
     expect(controller.value, const PersonalActorContext());
   });
 
-  test('invalid or legacy stored values fall back to personal without crash', (
-  ) async {
+  test(
+    'invalid or legacy stored values fall back to personal without crash',
+    () async {
     await file.writeAsString(
       jsonEncode({
         'has_completed_onboarding': true,
@@ -173,13 +174,16 @@ void main() {
       await store.readActorContext('profile-b'),
       const PersonalActorContext(),
     );
-    expect(
-      await store.readActorContext('profile-legacy'),
-      const PersonalActorContext(),
-    );
-  });
+      expect(
+        await store.readActorContext('profile-legacy'),
+        const PersonalActorContext(),
+      );
+    },
+  );
 
-  test('revalidation falls back to personal instead of another Space', () async {
+  test(
+    'revalidation falls back to personal instead of another Space',
+    () async {
     final controller = await ActorContextController.restore(
       profileId: 'profile-a',
       store: store,
@@ -195,14 +199,16 @@ void main() {
 
     expect(stillValid, isFalse);
     expect(controller.value, const PersonalActorContext());
-    expect(
-      await store.readActorContext('profile-a'),
-      const PersonalActorContext(),
-    );
-  });
+      expect(
+        await store.readActorContext('profile-a'),
+        const PersonalActorContext(),
+      );
+    },
+  );
 
-  test('removing a Profile actor preference does not affect another Profile', (
-  ) async {
+  test(
+    'removing a Profile actor preference does not affect another Profile',
+    () async {
     final spaceX = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
     final spaceY = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
     await store.writeActorContext(
@@ -220,11 +226,12 @@ void main() {
       await store.readActorContext('profile-a'),
       const PersonalActorContext(),
     );
-    expect(
-      await store.readActorContext('profile-b'),
-      SpaceActorContext(space: spaceY),
-    );
-  });
+      expect(
+        await store.readActorContext('profile-b'),
+        SpaceActorContext(space: spaceY),
+      );
+    },
+  );
 
   test('serialized actor context contains no authority state', () async {
     final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
