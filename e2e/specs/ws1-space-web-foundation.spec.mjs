@@ -13,12 +13,25 @@ async function expectNoHorizontalOverflow(page) {
 async function expectSpaceNavigation(page, compact) {
   const nav = compact
     ? page.locator('#mobile-primary-nav')
-    : page.locator('#desktop-sidebar');
+    : page.locator('#desktop-sidebar .mk-mature-rail');
 
   await expect(nav).toBeVisible();
-  for (const label of ['Maintenant', 'Découvrir', 'Makolo', 'Nous']) {
-    await expect(nav.getByText(label, { exact: true })).toBeVisible();
+  const links = nav.locator(':scope > a');
+  await expect(links).toHaveCount(5);
+  for (let index = 0; index < 5; index += 1) {
+    await expect(links.nth(index)).toBeVisible();
   }
+
+  if (compact) {
+    for (const label of ['Maintenant', 'Découvrir', 'Makolo', 'Nous']) {
+      await expect(nav.getByText(label, { exact: true })).toBeVisible();
+    }
+  } else {
+    for (const label of ['Maintenant', 'Découvrir', 'Makolo', 'Nous']) {
+      await expect(nav.getByText(label, { exact: true })).toHaveCount(1);
+    }
+  }
+
   await expect(nav.getByText('En cours', { exact: true })).toHaveCount(0);
   await expect(nav.getByText('Moi', { exact: true })).toHaveCount(0);
 }
