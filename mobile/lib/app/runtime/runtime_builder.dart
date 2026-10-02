@@ -8,6 +8,7 @@ import '../../features/discovery/discovery_assembly.dart';
 import '../../features/journey/journey_assembly.dart';
 import '../../features/preparation/preparation_assembly.dart';
 import '../../features/questionnaires/questionnaire_assembly.dart';
+import '../../features/space/space_assembly.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
 import '../../repositories/draft_repository.dart';
@@ -159,5 +160,12 @@ Future<AppRuntime> buildAppRuntime({
     outboxProcessor: questionnaires.outboxProcessor,
     sync: sync,
     actorContext: actorContext,
+    space: buildWorkspaceContextRepository(
+      database: database,
+      store: store,
+      profileId: profileId,
+      actorContext: actorContext,
+      sync: sync,
+    ),
   );
 }
