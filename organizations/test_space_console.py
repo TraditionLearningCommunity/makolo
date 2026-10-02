@@ -143,7 +143,7 @@ class SpaceConsoleAuthorityTests(TestCase):
         listing = self.client.get(reverse("organizations:list"))
         self.assertEqual(listing.status_code, 200)
         self.assertNotContains(listing, "Mulykap")
-        self.assertEqual(self.client.get(reverse("organizations:console-entry", kwargs={"slug": self.space_a.slug})).status_code, 403)
+        self.assertEqual(self.client.get(reverse("organizations:console-entry", kwargs={"slug": self.space_a.slug})).status_code, 404)
 
     def test_scanner_mandate_uses_canonical_access_and_duplicate_refusal(self):
         access = issue_access(
