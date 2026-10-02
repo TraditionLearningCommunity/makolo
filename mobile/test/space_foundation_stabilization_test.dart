@@ -339,7 +339,7 @@ void main() {
     await actorContext.selectSpace(spaceB);
     await tester.pumpAndSettle();
 
-      expect(find.text('2 éléments à consulter.'), findsOneWidget);
-      expect(find.text('1 élément à consulter.'), findsNothing);
+    expect(find.text('2 éléments à consulter.'), findsOneWidget);
+    expect(find.text('1 élément à consulter.'), findsNothing);
   });
 }
