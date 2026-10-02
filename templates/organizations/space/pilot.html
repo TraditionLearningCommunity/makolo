@@ -22,7 +22,7 @@
       {% endif %}
 
       <section class="mk-ws4-card" aria-labelledby="pilot-operation">
-        <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Fonctionnement</span><h3 id="pilot-operation">Mesures disponibles</h3></div><span class="mk-ws4-coverage">40 événements visibles max.</span></div>
+        <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Fonctionnement</span><h3 id="pilot-operation">Mesures disponibles</h3></div><span class="mk-ws4-coverage">{{ analytics.coverage.limit }} événements visibles max.</span></div>
         <dl class="mk-ws4-metric-grid">
           {% for metric in analytics.metrics %}
           <div class="mk-ws4-metric">
