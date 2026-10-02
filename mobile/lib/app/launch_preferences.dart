@@ -149,9 +149,7 @@ class FileLaunchPreferencesStore
 
   @override
   Future<void> setOnboardingCompleted() {
-    return _mutate(
-      (current) => current.copyWith(hasCompletedOnboarding: true),
-    );
+    return _mutate((current) => current.copyWith(hasCompletedOnboarding: true));
   }
 
   @override
@@ -226,7 +224,7 @@ class FileLaunchPreferencesStore
 
   Future<void> _mutate(
     LaunchPreferencesSnapshot? Function(LaunchPreferencesSnapshot current)
-        update,
+    update,
   ) {
     final key = _file.absolute.path;
     final previous = _writeTails[key] ?? Future<void>.value();
