@@ -392,6 +392,13 @@ def _validate_gap_reason(
         ResearchGapReason.PARTIALLY_KNOWN,
         ResearchGapReason.CONTRADICTORY,
     ):
+        if reason in (
+            ResearchGapReason.UNKNOWN,
+            ResearchGapReason.PARTIALLY_KNOWN,
+        ) and trigger_ref is None:
+            raise MayeleContractError(
+                f"{reason.value} becomes a ResearchGap only for an explicit need"
+            )
         if target.kind is not ResearchGapTargetKind.FACET:
             raise MayeleContractError(
                 "completeness gap reasons require a FACET target"
@@ -430,6 +437,13 @@ def _validate_gap_reason(
         ResearchGapReason.UNRESOLVED_IDENTITY,
         ResearchGapReason.PROVISIONAL_IDENTITY,
     ):
+        if (
+            reason is ResearchGapReason.PROVISIONAL_IDENTITY
+            and trigger_ref is None
+        ):
+            raise MayeleContractError(
+                "PROVISIONAL_IDENTITY becomes a ResearchGap only for an explicit need"
+            )
         effective = set(state.effective_identity_resolution_refs)
         resolutions = {item.resolution_ref: item for item in identity_resolutions}
         expected = (
