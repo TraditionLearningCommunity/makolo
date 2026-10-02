@@ -27,7 +27,7 @@
 
 - [x] T002 [US1] Extend `scripts/test_check_spec_kit_integrity.py` with missing-file and
   hash-mismatch tests.
-- [ ] T003 [US1] Implement manifest parsing, file existence checks, SHA-256 verification,
+- [x] T003 [US1] Implement manifest parsing, file existence checks, SHA-256 verification,
   aggregate findings and CLI exit behavior in `scripts/check_spec_kit_integrity.py`.
 
 **Checkpoint**: FR-001, FR-002, FR-005 and FR-006 are satisfied by focused tests.
@@ -43,7 +43,7 @@ deterministically while consistent metadata passes.
 
 - [x] T004 [US2] Add malformed-metadata, version-drift and integration-drift tests to
   `scripts/test_check_spec_kit_integrity.py`.
-- [ ] T005 [US2] Add cross-file version and active/default/installed Codex validation to
+- [x] T005 [US2] Add cross-file version and active/default/installed Codex validation to
   `scripts/check_spec_kit_integrity.py`, preserving aggregate diagnostics.
 
 **Checkpoint**: FR-003, FR-004 and FR-007 are satisfied by focused tests.
@@ -57,9 +57,9 @@ deterministically while consistent metadata passes.
 **Independent Test**: The CI job executes without Django/frontend dependency installation and
 passes on the intact checkout.
 
-- [ ] T006 [US3] Add a lightweight `spec-kit-integrity` job to
+- [x] T006 [US3] Add a lightweight `spec-kit-integrity` job to
   `.github/workflows/ci.yml` using the repository's already pinned checkout/setup-python actions.
-- [ ] T007 [US3] In that job run
+- [x] T007 [US3] In that job run
   `python -m unittest scripts.test_check_spec_kit_integrity` followed by
   `python scripts/check_spec_kit_integrity.py`.
 
