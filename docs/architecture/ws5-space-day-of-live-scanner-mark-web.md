@@ -83,9 +83,9 @@ resolve_occurrence_live(...)
 GET /api/v1/operations/occurrences/<id>/live/
 ```
 
-WS5 affiche la phase, le timing, les observations spatiales et les agrégats déjà produits par Operations.
+WS5 affiche la phase, le timing, le contexte spatial et les agrégats déjà produits par Operations.
 
-Aucun `Date.now()`, timer ou heuristique frontend ne transforme une heure planifiée en Live.
+Aucun `Date.now()`, timer ou heuristique frontend ne transforme une heure planifiée en Live. Le runtime ZS5 opérateur ne fournit pas aujourd’hui un enum universel `planned|estimated|observed|live|unknown|unavailable` pour chaque sous-champ ; WS5 ne l’invente donc pas et conserve les états/truth réellement exposés par les owners.
 
 ### Scanner
 
