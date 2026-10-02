@@ -153,17 +153,17 @@ void main() {
     'invalid or legacy stored values fall back to personal without crash',
     () async {
       await file.writeAsString(
-      jsonEncode({
-        'has_completed_onboarding': true,
-        'actor_contexts': {
-          'profile-a': {
-            'version': 99,
-            'kind': 'space',
-            'space': {'id': 'space-x', 'slug': 'space-x'},
+        jsonEncode({
+          'has_completed_onboarding': true,
+          'actor_contexts': {
+            'profile-a': {
+              'version': 99,
+              'kind': 'space',
+              'space': {'id': 'space-x', 'slug': 'space-x'},
+            },
+            'profile-b': 'corrupt',
           },
-          'profile-b': 'corrupt',
-        },
-      }),
+        }),
       );
 
       expect(
@@ -185,8 +185,8 @@ void main() {
     'revalidation falls back to personal instead of another Space',
     () async {
       final controller = await ActorContextController.restore(
-      profileId: 'profile-a',
-      store: store,
+        profileId: 'profile-a',
+        store: store,
       );
       addTearDown(controller.dispose);
       final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
