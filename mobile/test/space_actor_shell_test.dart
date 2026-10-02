@@ -429,8 +429,10 @@ void main() {
   testWidgets('wide Space shell exposes the same semantics in the rail', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1280, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
     final harness = await _harness(startInSpace: true);
     addTearDown(harness.close);
 
