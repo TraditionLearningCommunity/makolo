@@ -9,6 +9,7 @@ import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/features/mark/mark_screen.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 
@@ -74,6 +75,14 @@ Future<_Harness> _harness({bool startInSpace = false}) async {
           'lifecycle': 'active',
           'limited_to_activities': false,
         },
+        {
+          'id': 'space-y',
+          'slug': 'space-y',
+          'name': 'Space Y',
+          'archetype': 'generic',
+          'lifecycle': 'active',
+          'limited_to_activities': false,
+        },
       ],
     },
   );
@@ -95,6 +104,22 @@ Future<_Harness> _harness({bool startInSpace = false}) async {
           'label': 'Exploitation',
           'scope': 'space',
           'combined': false,
+        },
+      ],
+    },
+  );
+  await store.putProjection(
+    kind: SpaceProjectionKind.workspace.wireValue,
+    resourceKey: SpaceSyncKeys.resourceKey('space-y'),
+    schemaVersion: 1,
+    payload: {
+      'space': {'id': 'space-y', 'slug': 'space-y', 'name': 'Space Y'},
+      'responsibilities': [
+        {
+          'key': 'all',
+          'label': 'Toutes mes responsabilités',
+          'scope': 'space',
+          'combined': true,
         },
       ],
     },
@@ -148,7 +173,7 @@ Future<_Harness> _harness({bool startInSpace = false}) async {
       ),
       GoRoute(
         path: '/mark',
-        builder: (context, state) => const Scaffold(body: Text('Mark')),
+        builder: (context, state) => MarkScreen(runtime: runtime),
       ),
     ],
   );
@@ -297,6 +322,79 @@ void main() {
 
     expect(find.text('Personal Ongoing · 0'), findsOneWidget);
     expect(find.text('En cours'), findsOneWidget);
+    await _disposeUi(tester);
+  });
+
+  testWidgets(
+    'Personal to Space A to Space B to Personal keeps the semantic Now door',
+    (tester) async {
+      final harness = await _harness();
+      addTearDown(harness.close);
+      await _pump(tester, harness);
+
+      expect(find.text('Personal Now'), findsOneWidget);
+
+      await _chooseActor(tester, 'Space X');
+      expect(
+        harness.actorContext.value,
+        SpaceActorContext(
+          space: SpaceActorIdentity(id: 'space-x', slug: 'space-x'),
+        ),
+      );
+      expect(find.text('Space Now'), findsOneWidget);
+      expect(find.text('Space X'), findsOneWidget);
+
+      await _chooseActor(tester, 'Space Y');
+      expect(
+        harness.actorContext.value,
+        SpaceActorContext(
+          space: SpaceActorIdentity(id: 'space-y', slug: 'space-y'),
+        ),
+      );
+      expect(find.text('Space Now'), findsOneWidget);
+      expect(find.text('Space Y'), findsOneWidget);
+      expect(find.text('Space X'), findsNothing);
+
+      await _chooseActor(tester, 'Moi');
+      expect(harness.actorContext.value, const PersonalActorContext());
+      expect(find.text('Personal Now'), findsOneWidget);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text('Moi'), findsOneWidget);
+      await _disposeUi(tester);
+    },
+  );
+
+  testWidgets('Makolo Mark preserves the current actor while Avatar stays human', (
+    tester,
+  ) async {
+    final harness = await _harness();
+    addTearDown(harness.close);
+    await _pump(tester, harness);
+
+    await tester.tap(find.byTooltip('Makolo Mark'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkScreen), findsOneWidget);
+    expect(harness.actorContext.value, const PersonalActorContext());
+    expect(find.text('Space X'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await _chooseActor(tester, 'Space X');
+
+    await tester.tap(find.byTooltip('Makolo Mark'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkScreen), findsOneWidget);
+    expect(
+      harness.actorContext.value,
+      SpaceActorContext(
+        space: SpaceActorIdentity(id: 'space-x', slug: 'space-x'),
+      ),
+    );
+    expect(find.text('Space X'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Avatar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsOneWidget);
     await _disposeUi(tester);
   });
 
