@@ -323,8 +323,6 @@ void main() {
         actorContext: actorContext,
       ),
     );
-    addTearDown(runtime.close);
-
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
@@ -344,7 +342,7 @@ void main() {
     expect(find.text('1 élément à consulter.'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpAndSettle();
+    await runtime.close();
   });
 }
