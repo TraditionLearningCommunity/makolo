@@ -109,138 +109,144 @@ Map<String, dynamic> _now({
 };
 
 void main() {
-  test('late Space A refresh is stored for A and cannot replace Space B', () async {
-    final aStarted = Completer<void>();
-    final aResponse = Completer<MockResponse>();
-    final harness = await _harness((request) async {
-      if (request.url.path.contains('/space-a/')) {
-        if (!aStarted.isCompleted) aStarted.complete();
-        return aResponse.future;
-      }
-      if (request.url.path.contains('/space-b/')) {
+  test(
+    'late Space A refresh is stored for A and cannot replace Space B',
+    () async {
+      final aStarted = Completer<void>();
+      final aResponse = Completer<MockResponse>();
+      final harness = await _harness((request) async {
+        if (request.url.path.contains('/space-a/')) {
+          if (!aStarted.isCompleted) aStarted.complete();
+          return aResponse.future;
+        }
+        if (request.url.path.contains('/space-b/')) {
+          return MockResponse(
+            jsonEncode(
+              _now(
+                id: 'space-b',
+                slug: 'space-b',
+                responsibility: 'all',
+                marker: 'B',
+              ),
+            ),
+            200,
+          );
+        }
+        throw StateError('Unexpected route ${request.url}');
+      });
+      addTearDown(harness.close);
+
+      final spaceA = SpaceActorIdentity(id: 'space-a', slug: 'space-a');
+      final spaceB = SpaceActorIdentity(id: 'space-b', slug: 'space-b');
+      const all = ActorPerspective.all();
+
+      final refreshA = harness.repository.refreshNow(spaceA, all);
+      await aStarted.future;
+
+      await harness.repository.refreshNow(spaceB, all);
+      expect(
+        (await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(spaceB.id, perspective: all),
+        ))?.payload['marker'],
+        'B',
+      );
+
+      aResponse.complete(
+        MockResponse(
+          jsonEncode(
+            _now(
+              id: 'space-a',
+              slug: 'space-a',
+              responsibility: 'all',
+              marker: 'A-late',
+            ),
+          ),
+          200,
+        ),
+      );
+      await refreshA;
+
+      expect(
+        (await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(spaceA.id, perspective: all),
+        ))?.payload['marker'],
+        'A-late',
+      );
+      expect(
+        (await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(spaceB.id, perspective: all),
+        ))?.payload['marker'],
+        'B',
+      );
+    },
+  );
+
+  test(
+    'late all-perspective response cannot replace finance perspective',
+    () async {
+      final allStarted = Completer<void>();
+      final allResponse = Completer<MockResponse>();
+      final harness = await _harness((request) async {
+        final responsibility = request.url.queryParameters['responsibility'];
+        if (responsibility == null) {
+          if (!allStarted.isCompleted) allStarted.complete();
+          return allResponse.future;
+        }
+        expect(responsibility, 'finance');
         return MockResponse(
           jsonEncode(
             _now(
-              id: 'space-b',
-              slug: 'space-b',
-              responsibility: 'all',
-              marker: 'B',
+              id: 'space-a',
+              slug: 'space-a',
+              responsibility: 'finance',
+              marker: 'finance',
             ),
           ),
           200,
         );
-      }
-      throw StateError('Unexpected route ${request.url}');
-    });
-    addTearDown(harness.close);
+      });
+      addTearDown(harness.close);
 
-    final spaceA = SpaceActorIdentity(id: 'space-a', slug: 'space-a');
-    final spaceB = SpaceActorIdentity(id: 'space-b', slug: 'space-b');
-    const all = ActorPerspective.all();
+      final space = SpaceActorIdentity(id: 'space-a', slug: 'space-a');
+      const all = ActorPerspective.all();
+      final finance = ActorPerspective.opaque('finance');
 
-    final refreshA = harness.repository.refreshNow(spaceA, all);
-    await aStarted.future;
+      final refreshAll = harness.repository.refreshNow(space, all);
+      await allStarted.future;
+      await harness.repository.refreshNow(space, finance);
 
-    await harness.repository.refreshNow(spaceB, all);
-    expect(
-      (await harness.store.readProjection(
-        SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(spaceB.id, perspective: all),
-      ))?.payload['marker'],
-      'B',
-    );
-
-    aResponse.complete(
-      MockResponse(
-        jsonEncode(
-          _now(
-            id: 'space-a',
-            slug: 'space-a',
-            responsibility: 'all',
-            marker: 'A-late',
+      allResponse.complete(
+        MockResponse(
+          jsonEncode(
+            _now(
+              id: 'space-a',
+              slug: 'space-a',
+              responsibility: 'all',
+              marker: 'all-late',
+            ),
           ),
+          200,
         ),
-        200,
-      ),
-    );
-    await refreshA;
-
-    expect(
-      (await harness.store.readProjection(
-        SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(spaceA.id, perspective: all),
-      ))?.payload['marker'],
-      'A-late',
-    );
-    expect(
-      (await harness.store.readProjection(
-        SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(spaceB.id, perspective: all),
-      ))?.payload['marker'],
-      'B',
-    );
-  });
-
-  test('late all-perspective response cannot replace finance perspective', () async {
-    final allStarted = Completer<void>();
-    final allResponse = Completer<MockResponse>();
-    final harness = await _harness((request) async {
-      final responsibility = request.url.queryParameters['responsibility'];
-      if (responsibility == null) {
-        if (!allStarted.isCompleted) allStarted.complete();
-        return allResponse.future;
-      }
-      expect(responsibility, 'finance');
-      return MockResponse(
-        jsonEncode(
-          _now(
-            id: 'space-a',
-            slug: 'space-a',
-            responsibility: 'finance',
-            marker: 'finance',
-          ),
-        ),
-        200,
       );
-    });
-    addTearDown(harness.close);
+      await refreshAll;
 
-    final space = SpaceActorIdentity(id: 'space-a', slug: 'space-a');
-    const all = ActorPerspective.all();
-    final finance = ActorPerspective.opaque('finance');
-
-    final refreshAll = harness.repository.refreshNow(space, all);
-    await allStarted.future;
-    await harness.repository.refreshNow(space, finance);
-
-    allResponse.complete(
-      MockResponse(
-        jsonEncode(
-          _now(
-            id: 'space-a',
-            slug: 'space-a',
-            responsibility: 'all',
-            marker: 'all-late',
-          ),
-        ),
-        200,
-      ),
-    );
-    await refreshAll;
-
-    expect(
-      (await harness.store.readProjection(
-        SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(space.id, perspective: all),
-      ))?.payload['marker'],
-      'all-late',
-    );
-    expect(
-      (await harness.store.readProjection(
-        SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(space.id, perspective: finance),
-      ))?.payload['marker'],
-      'finance',
-    );
-  });
+      expect(
+        (await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(space.id, perspective: all),
+        ))?.payload['marker'],
+        'all-late',
+      );
+      expect(
+        (await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(space.id, perspective: finance),
+        ))?.payload['marker'],
+        'finance',
+      );
+    },
+  );
 }
