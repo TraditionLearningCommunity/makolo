@@ -135,10 +135,15 @@ class OrganizationPermissionTests(TestCase):
         self.assertFalse(Mandate.objects.filter(profile=self.owner, space=self.organization, status=MandateStatus.ACTIVE).exists())
         self.assertTrue(can(second_owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.organization))
 
-    def test_space_console_is_available_to_authorized_team_member(self):
+    def test_space_web_root_and_console_are_available_to_authorized_team_member(self):
         self.client.force_login(self.event_manager)
+
         response = self.client.get(f"/spaces/{self.organization.slug}/")
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Makolo Community Events")
+        self.assertContains(response, "Agir au nom de")
+        self.assertContains(response, "Qu’est-ce qui mérite notre attention maintenant ?")
+
         response = self.client.get(f"/spaces/{self.organization.slug}/overview/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Makolo Community Events")

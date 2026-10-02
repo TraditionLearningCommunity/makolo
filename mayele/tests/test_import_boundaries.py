@@ -9,9 +9,9 @@ class MayeleImportBoundaryTests(TestCase):
         repository_root = Path(__file__).resolve().parents[2]
         code = (
             "import sys; "
-            "import mayele, mayele.common, mayele.knowledge, mayele.acquisition, mayele.observation, mayele.cognition; "
+            "import mayele, mayele.common, mayele.knowledge, mayele.acquisition, mayele.observation, mayele.cognition, mayele.identity; "
             "forbidden=('django','prospector','observer','interpreter','resolver',"
-            "'web_research','orchestration'); "
+            "'web_research','orchestration','projector'); "
             "assert not any(name == prefix or name.startswith(prefix + '.') "
             "for prefix in forbidden for name in sys.modules)"
         )
@@ -28,10 +28,11 @@ class MayeleImportBoundaryTests(TestCase):
         repository_root = Path(__file__).resolve().parents[2]
         code = (
             "from datetime import datetime, timezone; "
-            "from mayele.knowledge import Reality, Proposition, PropositionKind; "
+            "from mayele.knowledge import Reality, Proposition, PropositionKind, PropositionConstruction, KnowledgeSupportTrace, build_proposition_construction; "
             "from mayele.acquisition import DiscoveryResult; "
-            "from mayele.observation import Source, SourceKind, ObservationAttempt, ObservationAttemptOutcome, Observation, ObservedArtifact, Passage, ObservedStatement; "
-            "from mayele.cognition import Interpretation, InterpretationMode, RealityCandidate; "
+            "from mayele.observation import Source, SourceKind, ObservationAttempt, ObservationAttemptOutcome, Observation, ObservedArtifact, Passage, ObservedStatement, Mention; "
+            "from mayele.cognition import Interpretation, InterpretationMode, RealityCandidate, InterpretationReferent, ReferentKind; "
+            "from mayele.identity import IdentityResolution, IdentityResolutionBasis, IdentityResolutionBasisKind, IdentityResolutionStatus, validate_identity_resolution; "
             "p=Proposition(PropositionKind.REALITY_EXISTS, Reality('reality:visa')); "
             "s=Source('source:x', SourceKind.WEB_PAGE); "
             "now=datetime.now(timezone.utc); "
@@ -39,9 +40,12 @@ class MayeleImportBoundaryTests(TestCase):
             "o=Observation('observation:x', a, now); "
             "art=ObservedArtifact('artifact:x', o, 'text/plain'); "
             "st=ObservedStatement('statement:x', Passage('passage:x', art, 'line=1'), 'Observed text'); "
-            "i=Interpretation('interpretation:x', st, now, InterpretationMode.EXPLICIT); "
+            "m=Mention('mention:x', st, 'Observed', start=0, end=8); "
+            "i=Interpretation('interpretation:x', st, now, InterpretationMode.EXPLICIT, mentions=(m,)); "
             "c=RealityCandidate('candidate:x', i); "
-            "assert len(p.fingerprint) == 64; assert len(c.fingerprint) == 64"
+            "r=IdentityResolution('resolution:x', InterpretationReferent(ReferentKind.MENTION, m.mention_ref), m.scope, now, IdentityResolutionStatus.UNRESOLVED, basis=(IdentityResolutionBasis(IdentityResolutionBasisKind.MENTION, m.mention_ref),)); "
+            "validate_identity_resolution(r, m); "
+            "assert len(p.fingerprint) == 64; assert len(c.fingerprint) == 64; assert r.reality is None; assert PropositionConstruction; assert KnowledgeSupportTrace; assert build_proposition_construction"
         )
         result = subprocess.run(
             [sys.executable, "-c", code],

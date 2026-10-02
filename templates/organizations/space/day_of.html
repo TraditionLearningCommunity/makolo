@@ -1,0 +1,62 @@
+{% extends 'organizations/space/base.html' %}
+{% block space_content %}
+<section class="space-y-5" aria-labelledby="day-of-heading">
+  <div class="mk-panel p-5 sm:p-7">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div class="min-w-0">
+        <p class="mk-kicker">Jour J · Occurrence</p>
+        <h2 id="day-of-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ occurrence.label|default:activity.title }}</h2>
+        <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ activity.title }} · {{ projection.context.phase }}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a class="mk-btn mk-btn-secondary" href="{{ live_url }}">Ouvrir Live</a>
+        {% if "open_scanner" in projection.capabilities %}
+        <a class="mk-btn mk-btn-primary" href="{{ scanner_url }}">Scanner</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if projection.live.next_action %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-action">
+    <p class="mk-kicker">Ce qui compte maintenant</p>
+    <h3 id="day-of-action" class="mt-2 text-xl font-bold">{{ projection.live.next_action.label|default:"État opérationnel disponible." }}</h3>
+  </section>
+  {% endif %}
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <section class="mk-panel p-5" aria-labelledby="day-of-readiness">
+      <h3 id="day-of-readiness" class="text-lg font-bold">Préparation opérationnelle</h3>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">État : {{ projection.readiness.state|default:"unknown" }}</p>
+      {% if projection.readiness.contributors %}
+      <ul class="mt-4 space-y-3">
+        {% for row in projection.readiness.contributors %}
+        <li class="rounded-2xl border p-3" style="border-color:var(--mk-border)">
+          <p class="font-semibold">{{ row.message|default:row.key }}</p>
+          <p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ row.state }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+
+    <section class="mk-panel p-5" aria-labelledby="day-of-control">
+      <h3 id="day-of-control" class="text-lg font-bold">Contrôle et flux</h3>
+      <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Capacité</dt><dd class="mt-1 font-bold">{{ projection.capacity|length }}</dd></div>
+        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Files live</dt><dd class="mt-1 font-bold">{{ projection.queues|length }}</dd></div>
+        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Placements</dt><dd class="mt-1 font-bold">{{ projection.placement|length }}</dd></div>
+        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Checkpoints</dt><dd class="mt-1 font-bold">{{ projection.checkpoints|length }}</dd></div>
+      </dl>
+      {% if projection.scanner.next_scan %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">Scanner : {{ projection.scanner.next_scan.state }}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    <a class="mk-btn mk-btn-secondary" href="{{ space_work_url }}">Retour au métier</a>
+    <a class="mk-btn mk-btn-secondary" href="{{ space_root_url }}">Retour à Maintenant</a>
+  </div>
+</section>
+{% endblock %}

@@ -20,9 +20,14 @@ async function selectSpace(page, name, slug) {
   await page.goto('/spaces/');
   await expect(page).toHaveURL(/\/spaces\/$/);
   await page.getByRole('link', { name: new RegExp(name) }).click();
+  await expect(page).toHaveURL(new RegExp(`/spaces/${slug}/$`));
+  await expect(page.getByText('Agir au nom de', { exact: true })).toBeVisible();
+
+  // Permission scenarios below exercise the historical owner-backed Console.
+  // Enter it explicitly now that selecting a Space lands on the WS1 root.
+  await page.goto(`/spaces/${slug}/overview/`);
   await expect(page).toHaveURL(new RegExp(`/spaces/${slug}/overview/$`));
 }
-
 
 test('participant sees personal navigation and can enter personal Event creation', async ({ page }) => {
   await login(page, 'empty.participant@e2e.makolo.test');

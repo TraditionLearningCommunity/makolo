@@ -37,7 +37,6 @@ from .console_views import (
     SpaceConsoleControlView,
     SpaceConsoleCreateEventView,
     SpaceConsoleCRMView,
-    SpaceConsoleEntryView,
     SpaceConsoleGroupsView,
     SpaceConsoleOffersView,
     SpaceConsoleOrdersView,
@@ -50,6 +49,14 @@ from .console_views import (
     SpaceConsoleSettingsView,
     SpaceRequestApproveView,
     SpaceRequestRejectView,
+)
+from .space_web_views import SpaceDiscoverView, SpaceNowView, SpaceUsView, SpaceWorkView
+from .space_ws5_web import (
+    SpaceMarkWS5View,
+    SpaceOccurrenceDayOfView,
+    SpaceOccurrenceLiveView,
+    SpaceOccurrenceScannerActionView,
+    SpaceOccurrenceScannerView,
 )
 from .team_views import (
     OrganizationMemberCreateView,
@@ -69,7 +76,15 @@ urlpatterns = [
     path("", OrganizationListView.as_view(), name="list"),
     path("following/", FollowingListView.as_view(), name="following"),
     path("new/", OrganizationCreateView.as_view(), name="create"),
-    path("<slug:slug>/", SpaceConsoleEntryView.as_view(), name="console-entry"),
+    path("<slug:slug>/", SpaceNowView.as_view(), name="console-entry"),
+    path("<slug:slug>/discover/", SpaceDiscoverView.as_view(), name="space-discover"),
+    path("<slug:slug>/mark/", SpaceMarkWS5View.as_view(), name="space-mark"),
+    path("<slug:slug>/occurrences/<uuid:occurrence_id>/day-of/", SpaceOccurrenceDayOfView.as_view(), name="space-occurrence-day-of"),
+    path("<slug:slug>/occurrences/<uuid:occurrence_id>/live/", SpaceOccurrenceLiveView.as_view(), name="space-occurrence-live"),
+    path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/", SpaceOccurrenceScannerView.as_view(), name="space-occurrence-scanner"),
+    path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/scan/", SpaceOccurrenceScannerActionView.as_view(), name="space-occurrence-scanner-action"),
+    path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
+    path("<slug:slug>/us/", SpaceUsView.as_view(), name="space-us"),
     path("<slug:slug>/overview/", SpaceConsoleOverviewView.as_view(), name="console-overview"),
     path("<slug:slug>/activities/", SpaceConsoleActivitiesView.as_view(), name="console-activities"),
     path("<slug:slug>/activities/new/event/", SpaceConsoleCreateEventView.as_view(), name="console-create-event"),
