@@ -38,6 +38,24 @@ class _MemoryPreferencesController extends AppPreferencesController {
 
 void main() {
   test('theme and Reduce Motion persist across store reopen', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'makolo-settings-test-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/preferences.json');
+
+    final first = FileLaunchPreferencesStore.forFile(file);
+    await first.setThemePreference(MakoloThemePreference.dark);
+    await first.setReduceMotion(true);
+
+    final reopened = FileLaunchPreferencesStore.forFile(file);
+    final snapshot = await reopened.read();
+
+    expect(snapshot.themePreference, MakoloThemePreference.dark);
+    expect(snapshot.reduceMotion, isTrue);
+  });
+
+  testWidgets('settings expose active local controls only', (tester) async {
     final controller = _MemoryPreferencesController();
     addTearDown(controller.dispose);
 
@@ -64,6 +82,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
 
     expect(find.text('Système'), findsOneWidget);
     expect(find.text('Clair'), findsOneWidget);
