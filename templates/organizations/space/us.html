@@ -52,7 +52,7 @@
       <ul class="mk-ws4-list">
         {% for responsibility in projection.responsibilities.items %}
           {% if not responsibility.combined %}
-          <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="briefcase-business"></i></span><div><strong>{{ responsibility.label }}</strong>{% if responsibility.activity %}<small>{{ responsibility.activity.title }}</small>{% else %}<small>Portée Space</small>{% endif %}</div></li>
+          <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="activity"></i></span><div><strong>{{ responsibility.label }}</strong>{% if responsibility.activity %}<small>{{ responsibility.activity.title }}</small>{% else %}<small>Portée Space</small>{% endif %}</div></li>
           {% endif %}
         {% empty %}
           <li><p class="mk-ws4-empty">Aucune responsabilité projetée dans ce contexte.</p></li>
@@ -96,4 +96,7 @@
     {% if us_owner_links.settings %}<a class="mk-ws4-action mk-ws4-action--quiet" href="{{ us_owner_links.settings }}"><i data-lucide="settings-2" aria-hidden="true"></i><span><strong>Paramètres de l’Espace</strong><small>Administration institutionnelle.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
   </nav>
 </section>
+<!-- Keep WS1 utility tokens in Tailwind's content graph after replacing the placeholder:
+space-y-4 mt-2 text-3xl font-extrabold tracking-[-.04em] mk-panel p-6 font-bold max-w-2xl text-sm mk-btn mk-btn-secondary mt-5
+-->
 {% endblock %}

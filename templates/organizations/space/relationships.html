@@ -51,7 +51,7 @@
     <section class="mk-ws4-card" aria-labelledby="relations-audiences">
       <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Publics</span><h3 id="relations-audiences">Audiences</h3></div></div>
       {% if projection.sections.audiences.items %}
-      <ul class="mk-ws4-list">{% for row in projection.sections.audiences.items %}<li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="radio-tower"></i></span><div><strong>{{ row.name }}</strong><small>Audience</small></div></li>{% endfor %}</ul>
+      <ul class="mk-ws4-list">{% for row in projection.sections.audiences.items %}<li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="users"></i></span><div><strong>{{ row.name }}</strong><small>Audience</small></div></li>{% endfor %}</ul>
       {% else %}<p class="mk-ws4-empty">Aucune audience visible dans cette collection.</p>{% endif %}
       {% if projection.sections.audiences.has_more %}<p class="mk-ws4-note">Aperçu limité à 12 relations.</p>{% endif %}
       {% if relationship_owner_links.audiences %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.audiences }}">Voir les audiences <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
@@ -62,7 +62,7 @@
     <section class="mk-ws4-card" aria-labelledby="relations-partners">
       <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Écosystème</span><h3 id="relations-partners">Partenaires</h3></div></div>
       {% if projection.sections.partners.items %}
-      <ul class="mk-ws4-list">{% for row in projection.sections.partners.items %}<li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="handshake"></i></span><div><strong>{{ row.name }}</strong><small>Partenaire{% if row.partner_kind %} · {{ row.partner_kind }}{% endif %}</small></div></li>{% endfor %}</ul>
+      <ul class="mk-ws4-list">{% for row in projection.sections.partners.items %}<li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="heart-handshake"></i></span><div><strong>{{ row.name }}</strong><small>Partenaire{% if row.partner_kind %} · {{ row.partner_kind }}{% endif %}</small></div></li>{% endfor %}</ul>
       {% else %}<p class="mk-ws4-empty">Aucun partenaire visible dans cette collection.</p>{% endif %}
       {% if projection.sections.partners.has_more %}<p class="mk-ws4-note">Aperçu limité à 12 relations.</p>{% endif %}
       {% if relationship_owner_links.partners %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.partners }}">Voir les partenaires <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}

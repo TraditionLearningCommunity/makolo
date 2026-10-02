@@ -66,7 +66,7 @@
       </section>
       {% endif %}
 
-      {% if pilot_owner_links.analytics %}<div class="mk-ws4-actions"><a class="mk-ws4-action" href="{{ pilot_owner_links.analytics }}"><i data-lucide="chart-column-big" aria-hidden="true"></i><span><strong>Approfondir dans Analytics</strong><small>Les faits analytiques restent propriétaires de cette profondeur.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a></div>{% endif %}
+      {% if pilot_owner_links.analytics %}<div class="mk-ws4-actions"><a class="mk-ws4-action" href="{{ pilot_owner_links.analytics }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Approfondir dans Analytics</strong><small>Les faits analytiques restent propriétaires de cette profondeur.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a></div>{% endif %}
     {% endwith %}
   {% elif projection.authority.scope == 'activity_limited' %}
     <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Pilotage global indisponible pour cette responsabilité</strong><p>Une autorité limitée à une activité ne donne pas accès aux Analytics du Space.</p></div></div>
