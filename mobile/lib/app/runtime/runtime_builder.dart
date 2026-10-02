@@ -19,6 +19,7 @@ import '../environment.dart';
 import '../launch_preferences.dart';
 import '../resumable_interaction_store.dart';
 import '../session_recovery.dart';
+import 'actor_context_controller.dart';
 import 'app_runtime.dart';
 
 typedef LocationCapabilityFactory = LocationCapability Function(
@@ -58,6 +59,10 @@ Future<AppRuntime> buildAppRuntime({
     );
   }
 
+  final actorContext = await ActorContextController.restore(
+    profileId: profileId,
+    store: launchPreferences,
+  );
   final database = await MakoloDatabase.openForProfile(profileId);
   final store = ProfileStore(database, profileId);
   final personal = PersonalRepository(store);
@@ -153,5 +158,6 @@ Future<AppRuntime> buildAppRuntime({
     outbox: outbox,
     outboxProcessor: questionnaires.outboxProcessor,
     sync: sync,
+    actorContext: actorContext,
   );
 }
