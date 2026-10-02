@@ -96,3 +96,12 @@ Deliver one vertically complete engineering capability:
 5. validate the real checkout;
 6. converge against the artifacts;
 7. reconcile the stacked branch with current `main` only after PR #437 is merged.
+
+
+---
+
+## Phase 6: Convergence
+
+- [ ] T011 Restore the six Spec Kit v1.0.13 managed assets whose repository bytes contradict their
+  declared managed-file SHA-256 hashes, using the pinned v1.0.13 generated output rather than
+  changing the manifests, per FR-001/FR-002 (contradicts).
