@@ -187,7 +187,8 @@ Au démarrage :
 - WS1 était intégré sur `main` et fournit le shell Space consommé par WS4 ;
 - WS2/#426 travaille en parallèle sur `organizations/space_web_views.py`, Maintenant et Découvrir ;
 - WS3/#427 travaille en parallèle sur `organizations/urls.py` et Métier ;
-- PR #428 corrige des régressions CI post-merge sur des tests ;
+- PR #428 a été mergée pour corriger les régressions CI post-merge ;
+- WS5/#430 a ensuite été mergée sur `main@d329b9db41e500b8b234f0d00debe618696f2101` et WS4 a été réconcilié en conservant ses routes Jour J/Live/Scanner/Mark ;
 - aucune branche WS4 antérieure n'était active.
 
 WS4 touche donc deux fichiers partagés seulement et sans refactor global :
@@ -261,7 +262,7 @@ Team, Groups, CRM, Audiences, Partners, Trust, Analytics et Settings utilisent l
 ### Fichiers partagés touchés
 
 - `organizations/space_web_views.py` — collision probable WS2.
-- `organizations/urls.py` — collision probable WS3.
+- `organizations/urls.py` — collision probable WS3 ; WS5 est déjà réconcilié dans la version finale de WS4.
 
 ### Conflits potentiels
 
@@ -271,7 +272,7 @@ WS6 doit composer, pas choisir entre branches :
 - conserver la surface Métier et les routes WS3 ;
 - conserver les vues/routes WS4 ajoutées ici ;
 - conserver le shell WS1 et la navigation primaire à cinq destinations ;
-- intégrer WS5 sans promouvoir Relations/Piloter en N1 mobile.
+- préserver WS5 déjà intégré sans promouvoir Relations/Piloter en N1 mobile.
 
 ### Décisions UX importantes
 
