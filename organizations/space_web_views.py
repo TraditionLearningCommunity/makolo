@@ -14,6 +14,24 @@ from .api.space_attention_projection import (
 from .api.workspace_projection import build_space_workspace, workspace_spaces
 
 
+def space_projection_ui_state(projection):
+    """Map an owner-backed projection to a presentation state without inventing facts."""
+    if not isinstance(projection, dict):
+        return "error"
+
+    items = projection.get("items")
+    selection = projection.get("selection")
+    if not isinstance(items, list) or not isinstance(selection, dict):
+        return "error"
+
+    selection_state = selection.get("state")
+    if items:
+        return "partial" if selection_state == "partial" else "content"
+    if selection_state in {"unavailable", "empty", "partial", "error"}:
+        return selection_state
+    return "error"
+
+
 class SpaceWebMixin(LoginRequiredMixin, TemplateView):
     """Space Web shell backed only by current ZS projections."""
 
@@ -104,11 +122,15 @@ class SpaceNowView(SpaceWebMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["projection"] = build_space_now_projection(
+        projection = build_space_now_projection(
             profile=self.request.user,
             space=self.space,
             responsibility_key=self.selected_responsibility["key"],
         )
+        if projection is None:
+            raise Http404
+        context["projection"] = projection
+        context["projection_state"] = space_projection_ui_state(projection)
         return context
 
 
@@ -119,10 +141,15 @@ class SpaceDiscoverView(SpaceWebMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["projection"] = build_space_discover_projection(
+        projection = build_space_discover_projection(
             profile=self.request.user,
             space=self.space,
+            responsibility_key=self.selected_responsibility["key"],
         )
+        if projection is None:
+            raise Http404
+        context["projection"] = projection
+        context["projection_state"] = space_projection_ui_state(projection)
         return context
 
 
