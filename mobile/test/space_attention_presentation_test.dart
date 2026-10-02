@@ -31,9 +31,7 @@ void main() {
   test('canonical unavailable is not interpreted as empty or failure', () {
     final presentation = SpaceAttentionPresentation.resolve(
       projection: _projection(),
-      source: const OwnerSourceState(
-        lastSuccessAt: null,
-      ),
+      source: const OwnerSourceState(lastSuccessAt: null),
       now: now,
     );
 
