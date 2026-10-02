@@ -15,8 +15,7 @@ final class ActorContextController extends ChangeNotifier {
     required this.profileId,
     required this._store,
     required ActorContext initial,
-  }) : _value = initial,
-       _requestedValue = initial;
+  }) : _value = initial, _requestedValue = initial;
 
   final String profileId;
   final ActorContextStore _store;
@@ -66,8 +65,7 @@ final class ActorContextController extends ChangeNotifier {
     if (await isAvailable(checked.space)) return true;
 
     final latest = _requestedValue;
-    if (latest is! SpaceActorContext ||
-        latest.space.id != checked.space.id) {
+    if (latest is! SpaceActorContext || latest.space.id != checked.space.id) {
       return true;
     }
 
