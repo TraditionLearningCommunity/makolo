@@ -20,8 +20,11 @@ import '../features/ongoing/ongoing_routes.dart';
 import '../features/preparation/preparation_routes.dart';
 import '../features/questionnaires/questionnaire_routes.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/space/space_shell_routes.dart';
+import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
 import 'app_shell.dart';
+import 'runtime/actor_context.dart';
 import 'runtime/app_runtime.dart';
 
 GoRouter createMakoloRouter(
@@ -44,10 +47,8 @@ GoRouter createMakoloRouter(
   }
 
   bool isProtectedPath(String path) {
+    if (MakoloDestination.forPath(path) != null) return true;
     if (const {
-      '/now',
-      '/ongoing',
-      '/me',
       '/mark',
       '/connections',
       '/conversations',
@@ -77,12 +78,13 @@ GoRouter createMakoloRouter(
       final path = state.uri.path;
       final switchingAccount = state.uri.queryParameters['switch'] == '1';
       final addingAccount = state.uri.queryParameters['add'] == '1';
+      final actor = runtime.actorContext?.value ?? const PersonalActorContext();
 
       if (runtime.isAuthenticated &&
           (path == '/login' || path == '/create-account') &&
           !switchingAccount &&
           !addingAccount) {
-        return '/now';
+        return MakoloDestination.forActor(actor, MakoloPrimaryDoor.now).path;
       }
 
       if (!runtime.isAuthenticated && isProtectedPath(path)) {
@@ -93,6 +95,17 @@ GoRouter createMakoloRouter(
       if (!runtime.isAuthenticated &&
           (path == '/discover/search' || path == '/discover/map')) {
         return '/discover';
+      }
+
+      if (runtime.isAuthenticated) {
+        final shellDestination = MakoloDestination.forPath(path);
+        if (shellDestination != null) {
+          final actorDestination = MakoloDestination.forActor(
+            actor,
+            shellDestination.door,
+          );
+          if (actorDestination.path != path) return actorDestination.path;
+        }
       }
 
       return null;
@@ -119,6 +132,10 @@ GoRouter createMakoloRouter(
             discoveryBranch(runtime),
             ongoingBranch(runtime),
             meBranch(runtime),
+            spaceNowBranch(runtime),
+            spaceDiscoveryBranch(runtime),
+            spaceWorkBranch(runtime),
+            spaceUsBranch(runtime),
           ],
         )
       else

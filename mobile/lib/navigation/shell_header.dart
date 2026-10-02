@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 
-enum MakoloHeaderKind { now, discover, mark, ongoing, me }
+enum MakoloHeaderKind { now, discover, mark, ongoing, me, work, us }
 
 class MakoloPrimaryHeader extends StatelessWidget
     implements PreferredSizeWidget {
@@ -13,6 +13,7 @@ class MakoloPrimaryHeader extends StatelessWidget
     super.key,
     required this.kind,
     required this.onAvatar,
+    this.onBrand,
     this.onConversations,
     this.onNotifications,
     this.onSearch,
@@ -24,6 +25,7 @@ class MakoloPrimaryHeader extends StatelessWidget
 
   final MakoloHeaderKind kind;
   final VoidCallback onAvatar;
+  final VoidCallback? onBrand;
   final VoidCallback? onConversations;
   final VoidCallback? onNotifications;
   final VoidCallback? onSearch;
@@ -43,83 +45,106 @@ class MakoloPrimaryHeader extends StatelessWidget
     MakoloHeaderKind.discover => 'Découvrir',
     MakoloHeaderKind.ongoing => 'En cours',
     MakoloHeaderKind.me => 'Moi',
+    MakoloHeaderKind.work => 'Métier',
+    MakoloHeaderKind.us => 'Nous',
   };
 
   List<Widget> _contextActions() => switch (kind) {
     MakoloHeaderKind.now => [
-      _HeaderAction(
-        tooltip: 'Conversations',
-        icon: Icons.forum_outlined,
-        onPressed: onConversations,
-      ),
-      _HeaderAction(
-        tooltip: unreadNotifications > 0
-            ? 'Notifications, $unreadNotifications non lues'
-            : 'Notifications',
-        icon: Icons.notifications_none_outlined,
-        onPressed: onNotifications,
-        attention: unreadNotifications > 0,
-      ),
+      if (onConversations != null)
+        _HeaderAction(
+          tooltip: 'Conversations',
+          icon: Icons.forum_outlined,
+          onPressed: onConversations,
+        ),
+      if (onNotifications != null)
+        _HeaderAction(
+          tooltip: unreadNotifications > 0
+              ? 'Notifications, $unreadNotifications non lues'
+              : 'Notifications',
+          icon: Icons.notifications_none_outlined,
+          onPressed: onNotifications,
+          attention: unreadNotifications > 0,
+        ),
     ],
     MakoloHeaderKind.discover => [
-      _HeaderAction(
-        tooltip: 'Rechercher',
-        icon: Icons.search,
-        onPressed: onSearch,
-      ),
-      _HeaderAction(
-        tooltip: 'Carte',
-        icon: Icons.map_outlined,
-        onPressed: onMap,
-      ),
+      if (onSearch != null)
+        _HeaderAction(
+          tooltip: 'Rechercher',
+          icon: Icons.search,
+          onPressed: onSearch,
+        ),
+      if (onMap != null)
+        _HeaderAction(
+          tooltip: 'Carte',
+          icon: Icons.map_outlined,
+          onPressed: onMap,
+        ),
     ],
     MakoloHeaderKind.ongoing => [
-      _HeaderAction(
-        tooltip: 'Calendrier',
-        icon: Icons.calendar_month_outlined,
-        onPressed: onCalendar,
-      ),
+      if (onCalendar != null)
+        _HeaderAction(
+          tooltip: 'Calendrier',
+          icon: Icons.calendar_month_outlined,
+          onPressed: onCalendar,
+        ),
     ],
-    MakoloHeaderKind.mark || MakoloHeaderKind.me => const [],
+    MakoloHeaderKind.mark ||
+    MakoloHeaderKind.me ||
+    MakoloHeaderKind.work ||
+    MakoloHeaderKind.us => const [],
   };
 
   Widget _titleWidget(BuildContext context) {
-    if (_usesFullBrand) {
-      return SvgPicture.asset(
-        Theme.of(context).brightness == Brightness.dark
-            ? 'assets/brand/makolo-logo-white.svg'
-            : 'assets/brand/makolo-logo-violet.svg',
-        height: 34,
-        fit: BoxFit.contain,
-        semanticsLabel: 'Makolo',
-      );
-    }
-
-    return Semantics(
-      container: true,
-      label: _title,
-      child: ExcludeSemantics(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const MakoloMark(
-              size: 25,
-              semantics: MakoloMarkSemantics.decorative,
-            ),
-            const SizedBox(width: MakoloSpacing.sm),
-            Flexible(
-              child: Text(
-                _title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
-                ),
+    final title = _usesFullBrand
+        ? SvgPicture.asset(
+            Theme.of(context).brightness == Brightness.dark
+                ? 'assets/brand/makolo-logo-white.svg'
+                : 'assets/brand/makolo-logo-violet.svg',
+            height: 34,
+            fit: BoxFit.contain,
+            semanticsLabel: 'Makolo',
+          )
+        : Semantics(
+            container: true,
+            label: _title,
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const MakoloMark(
+                    size: 25,
+                    semantics: MakoloMarkSemantics.decorative,
+                  ),
+                  const SizedBox(width: MakoloSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      _title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          );
+
+    final onTap = onBrand;
+    if (onTap == null) return title;
+    return Semantics(
+      button: true,
+      label: 'Revenir à Maintenant',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(MakoloRadii.control),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+          child: title,
         ),
       ),
     );
