@@ -11,7 +11,7 @@
   {% if projection.sections.analytics %}
     {% with analytics=projection.sections.analytics %}
       {% if analytics.state == 'insufficient_data' %}
-      <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pas encore assez d’activité pour dégager une tendance utile.</strong><p>Les valeurs connues restent affichées comme telles ; elles ne sont pas transformées en tendance ou en score.</p></div></div>
+      <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pas encore assez d’activité pour dégager une tendance utile.</strong><p>Les valeurs connues restent affichées comme telles ; elles ne deviennent ni une tendance ni un score.</p></div></div>
       {% endif %}
 
       {% if analytics.signals %}
