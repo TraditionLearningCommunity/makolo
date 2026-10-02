@@ -126,10 +126,7 @@ final class SpaceSyncKeys {
   static String perspectiveKey(ActorPerspective perspective) =>
       perspective.isAll ? 'all' : perspective.id!;
 
-  static String resourceKey(
-    String spaceId, {
-    ActorPerspective? perspective,
-  }) {
+  static String resourceKey(String spaceId, {ActorPerspective? perspective}) {
     final encodedSpace = Uri.encodeComponent(spaceId);
     if (perspective == null) return encodedSpace;
     return '$encodedSpace|${Uri.encodeComponent(perspectiveKey(perspective))}';
@@ -227,10 +224,7 @@ final class WorkspaceContextRepository {
       kind: SpaceProjectionKind.discover,
       owner: 'Organizations',
       segment: 'discover',
-      parser: (response) => _parseDiscover(
-        response,
-        expectedSpaceId: space.id,
-      ),
+      parser: (response) => _parseDiscover(response, expectedSpaceId: space.id),
     );
   }
 
@@ -562,10 +556,7 @@ final class WorkspaceContextRepository {
       _requiredString(links, 'workspace');
       rows.add(row);
     }
-    return AcquiredProjection(
-      schemaVersion: 1,
-      payload: {'items': rows},
-    );
+    return AcquiredProjection(schemaVersion: 1, payload: {'items': rows});
   }
 
   static AcquiredProjection _parseWorkspace(
@@ -719,10 +710,8 @@ Map<String, dynamic> _mapValue(Object? value, String label) {
   throw FormatException('Expected $label object.');
 }
 
-Map<String, dynamic> _requiredMap(
-  Map<String, dynamic> json,
-  String key,
-) => _mapValue(json[key], key);
+Map<String, dynamic> _requiredMap(Map<String, dynamic> json, String key) =>
+    _mapValue(json[key], key);
 
 List<dynamic> _requiredList(Map<String, dynamic> json, String key) {
   final value = json[key];
