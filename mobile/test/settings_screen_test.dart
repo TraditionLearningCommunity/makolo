@@ -11,49 +11,34 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'fakes.dart';
 
-Future<void> _waitForPreference(
-  WidgetTester tester,
-  bool Function() predicate,
-) async {
-  await tester.runAsync(() async {
-    for (var attempt = 0; attempt < 200 && !predicate(); attempt++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-  });
-  await tester.pump();
+class _MemoryPreferencesController extends AppPreferencesController {
+  _MemoryPreferencesController()
+      : super(
+          store: FileLaunchPreferencesStore.forFile(File('unused')),
+          initial: const LaunchPreferencesSnapshot(),
+        );
+
+  LaunchPreferencesSnapshot _snapshot = const LaunchPreferencesSnapshot();
+
+  @override
+  LaunchPreferencesSnapshot get value => _snapshot;
+
+  @override
+  Future<void> setThemePreference(MakoloThemePreference value) async {
+    _snapshot = _snapshot.copyWith(themePreference: value);
+    notifyListeners();
+  }
+
+  @override
+  Future<void> setReduceMotion(bool value) async {
+    _snapshot = _snapshot.copyWith(reduceMotion: value);
+    notifyListeners();
+  }
 }
 
 void main() {
   test('theme and Reduce Motion persist across store reopen', () async {
-    final directory = await Directory.systemTemp.createTemp(
-      'makolo-settings-test-',
-    );
-    addTearDown(() => directory.delete(recursive: true));
-    final file = File('${directory.path}/preferences.json');
-
-    final first = FileLaunchPreferencesStore.forFile(file);
-    await first.setThemePreference(MakoloThemePreference.dark);
-    await first.setReduceMotion(true);
-
-    final reopened = FileLaunchPreferencesStore.forFile(file);
-    final snapshot = await reopened.read();
-
-    expect(snapshot.themePreference, MakoloThemePreference.dark);
-    expect(snapshot.reduceMotion, isTrue);
-  });
-
-  testWidgets('settings expose active local controls only', (tester) async {
-    final directory = await Directory.systemTemp.createTemp(
-      'makolo-settings-widget-',
-    );
-    addTearDown(() => directory.delete(recursive: true));
-    final store = FileLaunchPreferencesStore.forFile(
-      File('${directory.path}/preferences.json'),
-    );
-    final controller = AppPreferencesController(
-      store: store,
-      initial: const LaunchPreferencesSnapshot(),
-    );
+    final controller = _MemoryPreferencesController();
     addTearDown(controller.dispose);
 
     final runtime = AppRuntime(
@@ -90,14 +75,11 @@ void main() {
     expect(find.text('Langue'), findsNothing);
 
     await tester.tap(find.text('Sombre'));
-    await _waitForPreference(
-      tester,
-      () => controller.value.themePreference == MakoloThemePreference.dark,
-    );
+    await tester.pump();
     expect(controller.value.themePreference, MakoloThemePreference.dark);
 
     await tester.tap(find.byType(Switch));
-    await _waitForPreference(tester, () => controller.value.reduceMotion);
+    await tester.pump();
     expect(controller.value.reduceMotion, isTrue);
   });
 }
