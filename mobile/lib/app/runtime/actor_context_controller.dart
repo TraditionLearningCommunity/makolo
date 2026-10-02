@@ -13,10 +13,9 @@ abstract interface class ActorContextStore {
 final class ActorContextController extends ChangeNotifier {
   ActorContextController._({
     required this.profileId,
-    required ActorContextStore store,
+    required this._store,
     required ActorContext initial,
-  }) : _store = store,
-       _value = initial;
+  }) : _value = initial;
 
   final String profileId;
   final ActorContextStore _store;
