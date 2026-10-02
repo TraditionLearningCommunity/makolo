@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/app/runtime/actor_context.dart';
 import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
