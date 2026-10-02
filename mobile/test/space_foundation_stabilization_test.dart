@@ -1,13 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/runtime/actor_context.dart';
 import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
+import 'package:makolo_mobile/app/runtime/app_runtime.dart';
+import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
+import 'package:makolo_mobile/features/space/space_shell_routes.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
 
@@ -249,4 +254,90 @@ void main() {
       );
     },
   );
+
+  testWidgets('Space switch rekeys the rendered projection before B is shown', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    final store = ProfileStore(database, 'profile-a');
+    final actorContext = await ActorContextController.restore(
+      profileId: 'profile-a',
+      store: _ActorStore(),
+    );
+    final spaceA = SpaceActorIdentity(id: 'space-a', slug: 'space-a');
+    final spaceB = SpaceActorIdentity(id: 'space-b', slug: 'space-b');
+    const all = ActorPerspective.all();
+
+    await store.putProjection(
+      kind: SpaceProjectionKind.now.wireValue,
+      resourceKey: SpaceSyncKeys.resourceKey(spaceA.id, perspective: all),
+      schemaVersion: 1,
+      payload: {
+        ..._now(
+          id: 'space-a',
+          slug: 'space-a',
+          responsibility: 'all',
+          marker: 'A',
+        ),
+        'selection': {'state': 'available'},
+        'items': [
+          {'id': 'a-1'},
+        ],
+      },
+    );
+    await store.putProjection(
+      kind: SpaceProjectionKind.now.wireValue,
+      resourceKey: SpaceSyncKeys.resourceKey(spaceB.id, perspective: all),
+      schemaVersion: 1,
+      payload: {
+        ..._now(
+          id: 'space-b',
+          slug: 'space-b',
+          responsibility: 'all',
+          marker: 'B',
+        ),
+        'selection': {'state': 'available'},
+        'items': [
+          {'id': 'b-1'},
+          {'id': 'b-2'},
+        ],
+      },
+    );
+    await actorContext.selectSpace(spaceA);
+
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+      database: database,
+      store: store,
+      actorContext: actorContext,
+      space: WorkspaceContextRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+        actorContext: actorContext,
+      ),
+    );
+    addTearDown(runtime.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceShellRootScreen(
+          runtime: runtime,
+          surface: SpaceShellSurface.now,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('1 élément à consulter.'), findsOneWidget);
+
+    await actorContext.selectSpace(spaceB);
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 éléments à consulter.'), findsOneWidget);
+    expect(find.text('1 élément à consulter.'), findsNothing);
+  });
+
 }
