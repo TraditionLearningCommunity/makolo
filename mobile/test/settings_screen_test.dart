@@ -11,6 +11,18 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'fakes.dart';
 
+Future<void> _waitForPreference(
+  WidgetTester tester,
+  bool Function() predicate,
+) async {
+  await tester.runAsync(() async {
+    for (var attempt = 0; attempt < 200 && !predicate(); attempt++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  });
+  await tester.pump();
+}
+
 void main() {
   test('theme and Reduce Motion persist across store reopen', () async {
     final directory = await Directory.systemTemp.createTemp(
@@ -78,11 +90,14 @@ void main() {
     expect(find.text('Langue'), findsNothing);
 
     await tester.tap(find.text('Sombre'));
-    await tester.pumpAndSettle();
+    await _waitForPreference(
+      tester,
+      () => controller.value.themePreference == MakoloThemePreference.dark,
+    );
     expect(controller.value.themePreference, MakoloThemePreference.dark);
 
     await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
+    await _waitForPreference(tester, () => controller.value.reduceMotion);
     expect(controller.value.reduceMotion, isTrue);
   });
 }
