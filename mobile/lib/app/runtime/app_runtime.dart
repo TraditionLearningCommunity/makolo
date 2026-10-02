@@ -11,6 +11,7 @@ import '../../features/journey/journey_repository.dart';
 import '../../features/preparation/preparation_repository.dart';
 import '../../features/questionnaires/questionnaire_repository.dart';
 import '../../features/questionnaires/questionnaire_submit_coordinator.dart';
+import '../../features/space/space_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
 import '../../repositories/draft_repository.dart';
@@ -56,6 +57,7 @@ class AppRuntime {
     this.outboxProcessor,
     this.sync,
     this.actorContext,
+    this.space,
   });
 
   final TokenStore tokens;
@@ -92,6 +94,7 @@ class AppRuntime {
   final OutboxProcessor? outboxProcessor;
   final SyncEngine? sync;
   final ActorContextController? actorContext;
+  final WorkspaceContextRepository? space;
 
   bool get isAuthenticated => session?.profileId != null;
   bool get apiConfigured => api != null;

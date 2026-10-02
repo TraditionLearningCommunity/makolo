@@ -6,6 +6,68 @@ import 'projection_contract.dart';
 
 enum SyncSourceCategory { root, keyedDetail, collection, boundedOperational }
 
+enum SyncActorScopeKind { personal, space }
+
+final class SyncActorScope {
+  const SyncActorScope.personal()
+    : kind = SyncActorScopeKind.personal,
+      spaceId = null,
+      perspectiveKey = null;
+
+  const SyncActorScope._space({
+    required this.spaceId,
+    required this.perspectiveKey,
+  }) : kind = SyncActorScopeKind.space;
+
+  factory SyncActorScope.space({
+    required String spaceId,
+    String? perspectiveKey,
+  }) {
+    final normalizedSpaceId = spaceId.trim();
+    if (normalizedSpaceId.isEmpty) {
+      throw ArgumentError.value(spaceId, 'spaceId', 'must not be empty');
+    }
+
+    final normalizedPerspective = perspectiveKey?.trim();
+    if (perspectiveKey != null && normalizedPerspective!.isEmpty) {
+      throw ArgumentError.value(
+        perspectiveKey,
+        'perspectiveKey',
+        'must not be empty',
+      );
+    }
+
+    return SyncActorScope._space(
+      spaceId: normalizedSpaceId,
+      perspectiveKey: normalizedPerspective,
+    );
+  }
+
+  final SyncActorScopeKind kind;
+  final String? spaceId;
+  final String? perspectiveKey;
+
+  bool get isPersonal => kind == SyncActorScopeKind.personal;
+  bool get isSpace => kind == SyncActorScopeKind.space;
+
+  String get stableKey {
+    if (isPersonal) return 'personal';
+    final perspective = perspectiveKey;
+    if (perspective == null) return 'space:$spaceId';
+    return 'space:$spaceId:perspective:$perspective';
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is SyncActorScope &&
+      other.kind == kind &&
+      other.spaceId == spaceId &&
+      other.perspectiveKey == perspectiveKey;
+
+  @override
+  int get hashCode => Object.hash(kind, spaceId, perspectiveKey);
+}
+
 class AcquiredProjection {
   const AcquiredProjection({
     required this.schemaVersion,
@@ -67,6 +129,7 @@ class SyncSourceDefinition {
     required this.parser,
     required this.applier,
     this.resourceKey = '',
+    this.actorScope = const SyncActorScope.personal(),
   });
 
   final String sourceKey;
@@ -74,6 +137,7 @@ class SyncSourceDefinition {
   final String path;
   final String projectionKind;
   final String resourceKey;
+  final SyncActorScope actorScope;
   final SyncSourceCategory category;
   final FreshnessPolicy freshnessPolicy;
   final SyncSourceParser parser;
@@ -93,6 +157,7 @@ class SyncSourceDefinition {
     String resourceKey = '',
     SyncSourceCategory category = SyncSourceCategory.root,
     FreshnessPolicy freshnessPolicy = const FreshnessPolicy(id: 'contextual'),
+    SyncActorScope actorScope = const SyncActorScope.personal(),
   }) {
     return SyncSourceDefinition(
       sourceKey: sourceKey,
@@ -100,6 +165,7 @@ class SyncSourceDefinition {
       path: path,
       projectionKind: projectionKind,
       resourceKey: resourceKey,
+      actorScope: actorScope,
       category: category,
       freshnessPolicy: freshnessPolicy,
       parser: (response) {
