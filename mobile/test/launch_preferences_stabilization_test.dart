@@ -38,24 +38,27 @@ void main() {
     expect(await reopened.readShellLocation('profile-a'), '/space/work');
   });
 
-  test('concurrent stores cannot lose another Profile actor preference', () async {
-    final storeA = FileLaunchPreferencesStore.forFile(file);
-    final storeB = FileLaunchPreferencesStore.forFile(file);
-    final actorA = SpaceActorContext(
-      space: SpaceActorIdentity(id: 'space-a', slug: 'space-a'),
-      perspective: ActorPerspective.opaque('finance'),
-    );
-    final actorB = SpaceActorContext(
-      space: SpaceActorIdentity(id: 'space-b', slug: 'space-b'),
-    );
+  test(
+    'concurrent stores cannot lose another Profile actor preference',
+    () async {
+      final storeA = FileLaunchPreferencesStore.forFile(file);
+      final storeB = FileLaunchPreferencesStore.forFile(file);
+      final actorA = SpaceActorContext(
+        space: SpaceActorIdentity(id: 'space-a', slug: 'space-a'),
+        perspective: ActorPerspective.opaque('finance'),
+      );
+      final actorB = SpaceActorContext(
+        space: SpaceActorIdentity(id: 'space-b', slug: 'space-b'),
+      );
 
-    await Future.wait<void>([
-      storeA.writeActorContext('profile-a', actorA),
-      storeB.writeActorContext('profile-b', actorB),
-    ]);
+      await Future.wait<void>([
+        storeA.writeActorContext('profile-a', actorA),
+        storeB.writeActorContext('profile-b', actorB),
+      ]);
 
-    final reopened = FileLaunchPreferencesStore.forFile(file);
-    expect(await reopened.readActorContext('profile-a'), actorA);
-    expect(await reopened.readActorContext('profile-b'), actorB);
-  });
+      final reopened = FileLaunchPreferencesStore.forFile(file);
+      expect(await reopened.readActorContext('profile-a'), actorA);
+      expect(await reopened.readActorContext('profile-b'), actorB);
+    },
+  );
 }
