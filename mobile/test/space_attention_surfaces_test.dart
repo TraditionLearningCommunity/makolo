@@ -67,7 +67,9 @@ void main() {
         scopeKey: 'space-x:all',
         presentation: _unavailable(),
         showLoading: false,
-        onRefresh: () async => refreshes += 1,
+        onRefresh: () async {
+          refreshes += 1;
+        },
       ),
     );
 
@@ -154,7 +156,9 @@ void main() {
         spaceId: 'space-x',
         presentation: failure,
         showLoading: false,
-        onRefresh: () async => refreshes += 1,
+        onRefresh: () async {
+          refreshes += 1;
+        },
       ),
     );
 
@@ -162,7 +166,10 @@ void main() {
       find.text('Impossible de mettre cette vue à jour pour le moment.'),
       findsOneWidget,
     );
-    expect(find.text('Aucune possibilité n’est présentée pour le moment.'), findsNothing);
+    expect(
+      find.text('Aucune possibilité n’est présentée pour le moment.'),
+      findsNothing,
+    );
 
     await tester.tap(find.text('Réessayer'));
     await tester.pump();
