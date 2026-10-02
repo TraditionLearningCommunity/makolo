@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from urllib.parse import urlencode
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -12,6 +13,8 @@ from .api.space_attention_projection import (
     build_space_now_projection,
 )
 from .api.workspace_projection import build_space_workspace, workspace_spaces
+
+logger = logging.getLogger(__name__)
 
 
 def space_projection_ui_state(projection):
@@ -115,42 +118,59 @@ class SpaceWebMixin(LoginRequiredMixin, TemplateView):
         return context
 
 
-class SpaceNowView(SpaceWebMixin):
+class SpaceProjectionViewMixin(SpaceWebMixin):
+    """Render one ZS projection while preserving unavailable/empty/error semantics."""
+
+    projection_builder = None
+
+    def projection_kwargs(self):
+        return {
+            "profile": self.request.user,
+            "space": self.space,
+            "responsibility_key": self.selected_responsibility["key"],
+        }
+
+    def get(self, request, *args, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            projection = self.projection_builder(**self.projection_kwargs())
+        except Exception:
+            logger.exception(
+                "Space projection failed",
+                extra={
+                    "space_slug": self.space.slug,
+                    "surface": self.space_nav_key,
+                },
+            )
+            context["projection"] = {
+                "selection": {"state": "error"},
+                "items": [],
+                "has_more": False,
+            }
+            context["projection_state"] = "error"
+            return self.render_to_response(context, status=503)
+
+        if projection is None:
+            raise Http404
+
+        context["projection"] = projection
+        context["projection_state"] = space_projection_ui_state(projection)
+        status = 503 if context["projection_state"] == "error" else 200
+        return self.render_to_response(context, status=status)
+
+
+class SpaceNowView(SpaceProjectionViewMixin):
     template_name = "organizations/space/now.html"
     space_nav_key = "now"
     space_page_title = "Maintenant"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        projection = build_space_now_projection(
-            profile=self.request.user,
-            space=self.space,
-            responsibility_key=self.selected_responsibility["key"],
-        )
-        if projection is None:
-            raise Http404
-        context["projection"] = projection
-        context["projection_state"] = space_projection_ui_state(projection)
-        return context
+    projection_builder = staticmethod(build_space_now_projection)
 
 
-class SpaceDiscoverView(SpaceWebMixin):
+class SpaceDiscoverView(SpaceProjectionViewMixin):
     template_name = "organizations/space/discover.html"
     space_nav_key = "discover"
     space_page_title = "Découvrir"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        projection = build_space_discover_projection(
-            profile=self.request.user,
-            space=self.space,
-            responsibility_key=self.selected_responsibility["key"],
-        )
-        if projection is None:
-            raise Http404
-        context["projection"] = projection
-        context["projection_state"] = space_projection_ui_state(projection)
-        return context
+    projection_builder = staticmethod(build_space_discover_projection)
 
 
 class SpaceWorkView(SpaceWebMixin):
