@@ -197,7 +197,8 @@ final class WorkspaceContextRepository {
       resourceKey: SpaceSyncKeys.resourceKey(space.id),
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: contextFreshness,
-      parser: (response) => _parseWorkspace(response, expectedSpaceId: space.id),
+      parser: (response) =>
+          _parseWorkspace(response, expectedSpaceId: space.id),
       applier: applyProjectionSnapshot,
     );
   }
@@ -535,7 +536,8 @@ final class WorkspaceContextRepository {
   }) {
     final uri = Uri(
       path:
-          'api/v1/organizations/workspaces/${Uri.encodeComponent(slug)}/$segment/',
+          'api/v1/organizations/workspaces/'
+          '${Uri.encodeComponent(slug)}/$segment/',
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
     return uri.toString();
@@ -552,7 +554,9 @@ final class WorkspaceContextRepository {
       final row = _mapValue(item, 'workspace inventory item');
       final summary = SpaceSummary.fromJson(row);
       if (!seen.add(summary.identity.id)) {
-        throw const FormatException('Workspace inventory contains duplicate ids.');
+        throw const FormatException(
+          'Workspace inventory contains duplicate ids.',
+        );
       }
       final links = _requiredMap(row, 'links');
       _requiredString(links, 'workspace');
@@ -571,7 +575,9 @@ final class WorkspaceContextRepository {
     final payload = response.jsonObject();
     final bootstrap = SpaceBootstrap.fromPayload(payload);
     if (bootstrap.identity.id != expectedSpaceId) {
-      throw const FormatException('Workspace response does not match Space id.');
+      throw const FormatException(
+        'Workspace response does not match Space id.',
+      );
     }
     _requiredMap(payload, 'authority');
     _requiredMap(payload, 'capabilities');
