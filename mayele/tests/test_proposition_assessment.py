@@ -6,10 +6,18 @@ from unittest import TestCase
 
 from mayele.common import KnowledgeScope, ScopeVisibility
 from mayele.common.errors import KnowledgeGateError, MayeleContractError
+from mayele.cognition import InterpretationReferent, ReferentKind
+from mayele.identity import (
+    IdentityResolution,
+    IdentityResolutionBasis,
+    IdentityResolutionBasisKind,
+    IdentityResolutionStatus,
+)
 from mayele.knowledge import (
     AssessmentStatus,
     KnowledgeSupport,
     KnowledgeSupportTrace,
+    KnowledgeValue,
     Property,
     Proposition,
     PropositionAssessment,
@@ -17,6 +25,7 @@ from mayele.knowledge import (
     PropositionComparison,
     PropositionComparisonStatus,
     PropositionKind,
+    Reality,
     SupportDisposition,
     TemporalValidity,
     build_proposition_assessment,
@@ -302,6 +311,104 @@ class PropositionAssessmentTests(TestCase):
                 AssessmentStatus.UNRESOLVED,
                 datetime(2026, 10, 2, 10, 0),
                 assessment_ref="assessment:naive",
+            )
+
+
+    def test_remaining_epistemic_non_conflations(self):
+        resolution = IdentityResolution(
+            "resolution:provisional",
+            InterpretationReferent(ReferentKind.REALITY, "reality:opportunity:x"),
+            KnowledgeScope(),
+            self.now,
+            IdentityResolutionStatus.PROVISIONAL,
+            reality=Reality("reality:opportunity:x"),
+            basis=(
+                IdentityResolutionBasis(
+                    IdentityResolutionBasisKind.REALITY,
+                    "reality:opportunity:x",
+                ),
+            ),
+        )
+        before = self.proposition.fingerprint
+        support, support_trace = self._support("provider")
+        assessment, _ = build_proposition_assessment(
+            self.proposition,
+            AssessmentStatus.ESTABLISHED,
+            self.now,
+            assessment_ref="assessment:provider",
+            supports=(support,),
+            support_traces=(support_trace,),
+            metadata={"provider": "example", "model": "example"},
+        )
+        self.assertIs(resolution.status, IdentityResolutionStatus.PROVISIONAL)
+        self.assertEqual(self.proposition.fingerprint, before)
+        self.assertEqual(assessment.proposition_fingerprint, before)
+        self.assertNotIn(KnowledgeValue.UNKNOWN, (False, None, "CLOSED", "NOT_APPLICABLE"))
+
+        unresolved, trace = build_proposition_assessment(
+            self.proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.now,
+            assessment_ref="assessment:no-support",
+        )
+        self.assertIs(unresolved.status, AssessmentStatus.UNRESOLVED)
+        self.assertEqual(trace.support_refs, ())
+
+        import mayele.knowledge as knowledge
+        for forbidden in ("KnowledgeCompleteness", "KnowledgeState", "ResearchGap", "Fact"):
+            self.assertFalse(hasattr(knowledge, forbidden))
+
+        qualified, qualified_trace = self._support(
+            "qualifies", SupportDisposition.QUALIFIES
+        )
+        explicit_unresolved, _ = build_proposition_assessment(
+            self.proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.now,
+            assessment_ref="assessment:qualifies",
+            supports=(qualified,),
+            support_traces=(qualified_trace,),
+        )
+        self.assertIs(explicit_unresolved.status, AssessmentStatus.UNRESOLVED)
+
+        other = Proposition(
+            PropositionKind.PROPERTY_HOLDS,
+            Property("reality:other", "deadline", "2027-01-15"),
+        )
+        wrong = KnowledgeSupport(
+            other.fingerprint, "support:wrong", SupportDisposition.SUPPORTS
+        )
+        wrong_trace = KnowledgeSupportTrace(
+            "support:wrong", self._statement("wrong")
+        )
+        with self.assertRaises(MayeleContractError):
+            build_proposition_assessment(
+                self.proposition,
+                AssessmentStatus.ESTABLISHED,
+                self.now,
+                assessment_ref="assessment:wrong-support",
+                supports=(wrong,),
+                support_traces=(wrong_trace,),
+            )
+
+        other_deadline = Proposition(
+            PropositionKind.PROPERTY_HOLDS,
+            Property("reality:opportunity:x", "deadline", "2027-02-01"),
+        )
+        unresolved_comparison = PropositionComparison(
+            "comparison:unresolved",
+            self.proposition.fingerprint,
+            other_deadline.fingerprint,
+            PropositionComparisonStatus.UNRESOLVED,
+            self.now,
+        )
+        with self.assertRaises(MayeleContractError):
+            build_proposition_assessment(
+                self.proposition,
+                AssessmentStatus.CONTRADICTORY,
+                self.now,
+                assessment_ref="assessment:unresolved-comparison",
+                comparisons=(unresolved_comparison,),
             )
 
     def test_imports_stay_framework_and_legacy_free(self):
