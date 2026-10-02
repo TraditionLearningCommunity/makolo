@@ -251,7 +251,7 @@ def build_proposition_assessment(
     """Compose and validate an explicit epistemic decision; never choose its status."""
 
     if not isinstance(proposition, Proposition):
-        raise MayeleContractError,"proposition must be Proposition")
+        raise MayeleContractError("proposition must be Proposition")
     _required_text("assessment_ref", assessment_ref)
     _aware_datetime("assessed_at", assessed_at)
 
