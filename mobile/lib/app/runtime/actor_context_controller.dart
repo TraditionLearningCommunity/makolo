@@ -111,7 +111,7 @@ final class ActorContextController extends ChangeNotifier {
   void _continueAfter(Future<void> operation) {
     _transitionTail = operation.then<void>(
       (_) {},
-      onError: (Object _, StackTrace __) {},
+      onError: (Object _, StackTrace _) {},
     );
   }
 }
