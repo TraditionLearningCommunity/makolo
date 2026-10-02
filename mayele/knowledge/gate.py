@@ -147,13 +147,16 @@ def validate_proposition_construction(
             validity=construction.proposition.validity,
             construction_rule_ref=construction.construction_rule_ref,
             construction_rule_version=construction.construction_rule_version,
-            supersedes_construction_ref=construction.supersedes_construction_ref,
         )
     except Exception as exc:
         if isinstance(exc, KnowledgeGateError):
             raise
         raise KnowledgeGateError(str(exc)) from exc
 
+    if expected.source_referents != construction.source_referents:
+        raise KnowledgeGateError(
+            "construction must preserve the candidate source referents"
+        )
     if expected.proposition != construction.proposition:
         raise KnowledgeGateError(
             "constructed Proposition is inconsistent with candidate and identity lineage"
