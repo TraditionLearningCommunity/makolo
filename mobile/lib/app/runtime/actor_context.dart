@@ -64,7 +64,7 @@ final class ActorPerspective {
   bool operator ==(Object other) => other is ActorPerspective && other.id == id;
 
   @override
-  int get hashCode => Object.hash(id);
+  int get hashCode => id.hashCode;
 }
 
 final class SpaceActorContext extends ActorContext {
