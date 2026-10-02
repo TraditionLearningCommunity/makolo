@@ -1,15 +1,87 @@
 {% extends 'organizations/space/base.html' %}
+{% block workspace_layout %}focus{% endblock %}
 {% block space_content %}
-<section class="space-y-4" aria-labelledby="space-work-heading">
-  <div>
+<section class="space-y-6" aria-labelledby="space-work-heading" data-ws3-work>
+  <header class="space-y-3">
     <span class="mk-kicker">Métier</span>
-    <h2 id="space-work-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ space_business_label }}</h2>
-    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Le vocabulaire reflète le contexte métier de cet Espace. Les outils spécialisés restent accessibles sans dupliquer leurs données.</p>
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div class="min-w-0">
+        <h2 id="space-work-heading" class="text-3xl font-extrabold tracking-[-.04em]">{{ projection.primary_business_label }}</h2>
+        <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?</p>
+      </div>
+      {% if projection.authority.limited_to_activities %}
+      <span class="mk-badge">Vue limitée à vos activités autorisées</span>
+      {% endif %}
+    </div>
+  </header>
+
+  <nav class="flex gap-2 overflow-x-auto" aria-label="Sections de {{ projection.primary_business_label }}">
+    {% for section in work_sections %}
+    <a class="mk-btn mk-btn-secondary shrink-0" href="#work-{{ section.key }}">{{ section.label }}{% if section.items %} · {{ section.items|length }}{% endif %}</a>
+    {% endfor %}
+  </nav>
+
+  {% if not work_has_items %}
+  <section class="mk-panel p-6" role="status" aria-labelledby="work-empty-title">
+    <h3 id="work-empty-title" class="text-xl font-extrabold">Rien à afficher dans {{ projection.primary_business_label|lower }} pour le moment.</h3>
+    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Cette vue reste vide tant que les propriétaires métier ne projettent aucun travail accessible. Makolo n’invente pas d’activité pour remplir l’écran.</p>
+  </section>
+  {% endif %}
+
+  <div class="grid gap-5">
+    {% for section in work_sections %}
+    <section id="work-{{ section.key }}" class="mk-panel p-5 sm:p-6" aria-labelledby="work-{{ section.key }}-title">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <span class="mk-kicker">{{ projection.primary_business_label }}</span>
+          <h3 id="work-{{ section.key }}-title" class="mt-1 text-xl font-extrabold">{{ section.label }}</h3>
+        </div>
+        {% if section.has_more %}<span class="mk-badge">Aperçu borné</span>{% endif %}
+      </div>
+
+      {% if section.items %}
+      <ul class="mt-4 divide-y" style="border-color:var(--mk-border)">
+        {% for item in section.items %}
+        <li class="py-4" data-work-item="{{ item.key }}">
+          <article class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <h4 class="font-extrabold">{{ item.title }}</h4>
+              {% if item.summary %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
+              {% if item.context.activity.title and item.context.activity.title != item.title %}
+              <p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.activity.title }}</p>
+              {% endif %}
+              <div class="mt-2 flex flex-wrap gap-2">
+                {% if item.timing.start_date %}<span class="mk-badge">{{ item.timing.start_date|date:"d/m/Y" }}</span>{% endif %}
+                {% if item.timing.start_time %}<span class="mk-badge">{{ item.timing.start_time|time:"H:i" }}</span>{% endif %}
+                {% if item.timing.available_until %}<span class="mk-badge">Jusqu’au {{ item.timing.available_until|date:"d/m/Y" }}</span>{% endif %}
+              </div>
+            </div>
+            {% if item.owner_url %}
+            <a class="mk-btn mk-btn-secondary shrink-0" href="{{ item.owner_url }}">Ouvrir</a>
+            {% endif %}
+          </article>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">{{ section.empty_message }}</p>
+      {% endif %}
+
+      {% if section.has_more %}
+      <p class="mt-4 text-xs" style="color:var(--mk-subtle)">La projection serveur limite cet aperçu. Continuez dans les outils propriétaires pour la profondeur complète.</p>
+      {% endif %}
+    </section>
+    {% endfor %}
   </div>
-  <div class="mk-panel p-6">
-    <p class="font-bold">Continuer dans les outils existants</p>
-    <p class="mt-2 text-sm" style="color:var(--mk-muted)">Continuez dans les outils spécialisés lorsque vous avez besoin d’une opération ou d’un détail métier.</p>
-    <a href="{{ space_console_url }}" class="mk-btn mk-btn-primary mt-5">Ouvrir les outils métier</a>
-  </div>
+
+  <footer class="mk-panel p-5 sm:p-6">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p class="font-bold">Besoin d’une opération plus profonde ?</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">La Console reste une profondeur owner-backed ; Métier ne remplace ni Transport, ni Commerce, ni Services, ni les autres domaines propriétaires.</p>
+      </div>
+      <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary shrink-0">Ouvrir les outils de l’Espace</a>
+    </div>
+  </footer>
 </section>
 {% endblock %}
