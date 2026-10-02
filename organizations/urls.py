@@ -50,7 +50,8 @@ from .console_views import (
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
-from .space_web_views import SpaceDiscoverView, SpaceNowView, SpaceUsView, SpaceWorkView
+from .space_web_views import SpaceDiscoverView, SpaceNowView, SpaceUsView
+from .space_work_web import SpaceWorkView
 from .space_ws5_web import (
     SpaceMarkWS5View,
     SpaceOccurrenceDayOfView,
