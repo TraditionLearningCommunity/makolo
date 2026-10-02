@@ -1,0 +1,55 @@
+{% extends 'organizations/space/base.html' %}
+{% block space_content %}
+<section class="space-y-5" aria-labelledby="live-heading">
+  <div class="mk-panel p-5 sm:p-7">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <p class="mk-kicker">Makolo Live · Occurrence</p>
+        <h2 id="live-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ occurrence.label|default:activity.title }}</h2>
+        <p class="mt-2 text-sm" style="color:var(--mk-muted)">Perspective {{ projection.perspective }} · phase {{ projection.phase }}</p>
+      </div>
+      <a class="mk-btn mk-btn-secondary" href="{{ day_of_url }}">Retour au Jour J</a>
+    </div>
+  </div>
+
+  <section class="mk-panel p-5 sm:p-6" aria-live="polite">
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <p class="mk-kicker">État actuel</p>
+        <h3 class="mt-2 text-xl font-bold">{{ projection.next_action.label|default:"Aucune action immédiate." }}</h3>
+      </div>
+      <span class="rounded-full border px-3 py-1 text-xs font-bold" style="border-color:var(--mk-border)">{{ projection.phase }}</span>
+    </div>
+    <p class="mt-3 text-xs" style="color:var(--mk-muted)">Projection générée {{ generated_at|date:"d/m/Y H:i:s" }}. Une planification n’est jamais présentée comme une observation live.</p>
+  </section>
+
+  <div class="grid gap-4 xl:grid-cols-3">
+    <section class="mk-panel p-5">
+      <h3 class="font-bold">Temps</h3>
+      <dl class="mt-3 space-y-2 text-sm">
+        <div><dt style="color:var(--mk-muted)">État temporel</dt><dd class="font-semibold">{{ projection.timing.temporal_state|default:"unknown" }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Début</dt><dd class="font-semibold">{{ projection.timing.start_at|date:"d/m/Y H:i" }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Fin</dt><dd class="font-semibold">{{ projection.timing.end_at|date:"d/m/Y H:i" }}</dd></div>
+      </dl>
+    </section>
+    <section class="mk-panel p-5">
+      <h3 class="font-bold">Observation spatiale</h3>
+      {% if projection.spatial.place %}
+      <p class="mt-3 font-semibold">{{ projection.spatial.place.name }}</p>
+      <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ projection.spatial.place.locality }}</p>
+      {% else %}
+      <p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucune position observée exploitable.</p>
+      {% endif %}
+    </section>
+    <section class="mk-panel p-5">
+      <h3 class="font-bold">Opérations</h3>
+      <dl class="mt-3 grid grid-cols-2 gap-2 text-sm">
+        <div><dt style="color:var(--mk-muted)">Files</dt><dd class="font-bold">{{ projection.queue|length }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Checkpoints</dt><dd class="font-bold">{{ projection.checkpoints|length }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Capacité</dt><dd class="font-bold">{{ projection.capacity|length }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Placements</dt><dd class="font-bold">{{ projection.placement|length }}</dd></div>
+      </dl>
+    </section>
+  </div>
+</section>
+{% endblock %}
