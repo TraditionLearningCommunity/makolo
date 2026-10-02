@@ -61,8 +61,7 @@ final class ActorPerspective {
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is ActorPerspective && other.id == id;
+  bool operator ==(Object other) => other is ActorPerspective && other.id == id;
 
   @override
   int get hashCode => Object.hash(id);
