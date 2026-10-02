@@ -4,6 +4,7 @@ import '../app/providers.dart';
 import '../data/local/profile_store.dart';
 import '../design/behavior_primitives.dart';
 import '../design/makolo_theme.dart';
+import 'actor_selector.dart';
 
 Future<void> showMakoloAvatarSheet(
   BuildContext context, {
@@ -23,6 +24,7 @@ Future<void> showMakoloAvatarSheet(
       onSettings: onSettings,
       onSwitchAccount: onSwitchAccount,
       onLogout: onLogout,
+      onSelectActor: () => showMakoloActorPicker(context, runtime: runtime),
     ),
   );
 }
@@ -36,6 +38,7 @@ class MakoloAvatarSheet extends StatelessWidget {
     this.onSettings,
     this.onSwitchAccount,
     this.onLogout,
+    this.onSelectActor,
   });
 
   final AppRuntime runtime;
@@ -44,6 +47,7 @@ class MakoloAvatarSheet extends StatelessWidget {
   final VoidCallback? onSettings;
   final VoidCallback? onSwitchAccount;
   final VoidCallback? onLogout;
+  final VoidCallback? onSelectActor;
 
   Stream<StoredProjection?> get _identityStream =>
       runtime.personal?.watchMe() ?? Stream<StoredProjection?>.value(null);
@@ -142,11 +146,11 @@ class MakoloAvatarSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: MakoloSpacing.lg),
-                const ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.person_pin_circle_outlined),
-                  title: Text('Agir comme'),
-                  subtitle: Text('Moi'),
+                MakoloActorSelectorTile(
+                  runtime: runtime,
+                  onTap: onSelectActor == null
+                      ? null
+                      : () => _closeThen(context, onSelectActor!),
                 ),
                 if (onConnections != null)
                   ListTile(

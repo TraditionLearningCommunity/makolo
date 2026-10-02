@@ -16,6 +16,7 @@ class LaunchPreferencesSnapshot {
     this.themePreference = MakoloThemePreference.system,
     this.reduceMotion = false,
     this.actorContexts = const {},
+    this.shellLocations = const {},
   });
 
   final bool hasCompletedOnboarding;
@@ -23,6 +24,7 @@ class LaunchPreferencesSnapshot {
   final MakoloThemePreference themePreference;
   final bool reduceMotion;
   final Map<String, ActorContext> actorContexts;
+  final Map<String, String> shellLocations;
 
   LaunchPreferencesSnapshot copyWith({
     bool? hasCompletedOnboarding,
@@ -30,6 +32,7 @@ class LaunchPreferencesSnapshot {
     MakoloThemePreference? themePreference,
     bool? reduceMotion,
     Map<String, ActorContext>? actorContexts,
+    Map<String, String>? shellLocations,
   }) {
     return LaunchPreferencesSnapshot(
       hasCompletedOnboarding:
@@ -38,6 +41,7 @@ class LaunchPreferencesSnapshot {
       themePreference: themePreference ?? this.themePreference,
       reduceMotion: reduceMotion ?? this.reduceMotion,
       actorContexts: actorContexts ?? this.actorContexts,
+      shellLocations: shellLocations ?? this.shellLocations,
     );
   }
 
@@ -50,6 +54,7 @@ class LaunchPreferencesSnapshot {
       for (final entry in actorContexts.entries)
         entry.key: ActorContextCodec.encode(entry.value),
     },
+    'shell_locations': shellLocations,
   };
 
   static LaunchPreferencesSnapshot fromJson(Map<String, dynamic> json) {
@@ -76,6 +81,18 @@ class LaunchPreferencesSnapshot {
       }
     }
 
+    final shellLocations = <String, String>{};
+    final rawShellLocations = json['shell_locations'];
+    if (rawShellLocations is Map) {
+      for (final entry in rawShellLocations.entries) {
+        final profileId = entry.key;
+        final location = entry.value;
+        if (profileId is! String || profileId.trim().isEmpty) continue;
+        if (location is! String || !_validShellLocation(location)) continue;
+        shellLocations[profileId] = location;
+      }
+    }
+
     return LaunchPreferencesSnapshot(
       hasCompletedOnboarding: json['has_completed_onboarding'] == true,
       lastBrandMomentAt: rawBrandMomentAt == null
@@ -84,7 +101,13 @@ class LaunchPreferencesSnapshot {
       themePreference: theme ?? MakoloThemePreference.system,
       reduceMotion: json['reduce_motion'] == true,
       actorContexts: actorContexts,
+      shellLocations: shellLocations,
     );
+  }
+
+  static bool _validShellLocation(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null && uri.path.startsWith('/') && uri.host.isEmpty;
   }
 }
 
@@ -177,6 +200,30 @@ class FileLaunchPreferencesStore
     final contexts = <String, ActorContext>{...current.actorContexts}
       ..remove(profileId);
     await _write(current.copyWith(actorContexts: contexts));
+  }
+
+  Future<String?> readShellLocation(String profileId) async {
+    final current = await read();
+    return current.shellLocations[profileId];
+  }
+
+  Future<void> writeShellLocation(String profileId, String location) async {
+    if (!LaunchPreferencesSnapshot._validShellLocation(location)) return;
+    final current = await read();
+    if (current.shellLocations[profileId] == location) return;
+    final locations = <String, String>{
+      ...current.shellLocations,
+      profileId: location,
+    };
+    await _write(current.copyWith(shellLocations: locations));
+  }
+
+  Future<void> removeShellLocation(String profileId) async {
+    final current = await read();
+    if (!current.shellLocations.containsKey(profileId)) return;
+    final locations = <String, String>{...current.shellLocations}
+      ..remove(profileId);
+    await _write(current.copyWith(shellLocations: locations));
   }
 
   Future<void> _write(LaunchPreferencesSnapshot snapshot) async {

@@ -10,8 +10,12 @@ import '../design/makolo_theme.dart';
 import '../navigation/avatar_sheet.dart';
 import '../navigation/destination.dart';
 import '../navigation/shell_header.dart';
+import '../navigation/space_context_bar.dart';
 import '../sync/sync_status.dart';
+import 'launch_preferences.dart';
 import 'providers.dart';
+import 'runtime/actor_context.dart';
+import 'runtime/actor_context_controller.dart';
 import 'session_recovery.dart';
 
 class AppShell extends StatefulWidget {
@@ -37,12 +41,74 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _unreadNotifications = 0;
   Stream<StoredProjection?>? _meStream;
+  ActorContextController? _actorController;
+  String? _rememberedPath;
 
   @override
   void initState() {
     super.initState();
     _meStream = widget.runtime.personal?.watchMe();
+    _bindActorContext();
     unawaited(_loadUnreadNotifications());
+  }
+
+  void _bindActorContext() {
+    _actorController?.removeListener(_onActorContextChanged);
+    _actorController = widget.runtime.actorContext;
+    _actorController?.addListener(_onActorContextChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime.personal != widget.runtime.personal) {
+      _meStream = widget.runtime.personal?.watchMe();
+    }
+    if (oldWidget.runtime.actorContext != widget.runtime.actorContext) {
+      _bindActorContext();
+    }
+  }
+
+  ActorContext get _actor =>
+      widget.runtime.actorContext?.value ?? const PersonalActorContext();
+
+  MakoloDestination get _currentDestination {
+    final branch = MakoloDestination.forBranchIndex(
+      widget.navigationShell.currentIndex,
+    );
+    return MakoloDestination.forActor(_actor, branch.door);
+  }
+
+  MakoloHeaderKind get _headerKind => switch (_currentDestination) {
+    MakoloDestination.personalNow ||
+    MakoloDestination.spaceNow => MakoloHeaderKind.now,
+    MakoloDestination.personalDiscover ||
+    MakoloDestination.spaceDiscover => MakoloHeaderKind.discover,
+    MakoloDestination.personalContinuity => MakoloHeaderKind.ongoing,
+    MakoloDestination.personalIdentity => MakoloHeaderKind.me,
+    MakoloDestination.spaceContinuity => MakoloHeaderKind.work,
+    MakoloDestination.spaceIdentity => MakoloHeaderKind.us,
+  };
+
+  void _onActorContextChanged() {
+    if (!mounted) return;
+    setState(() {});
+    final current = MakoloDestination.forBranchIndex(
+      widget.navigationShell.currentIndex,
+    );
+    final target = MakoloDestination.forActor(_actor, current.door);
+    if (target.branchIndex == widget.navigationShell.currentIndex) {
+      _rememberDestination(target);
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.navigationShell.goBranch(
+        target.branchIndex,
+        initialLocation: true,
+      );
+      _rememberDestination(target);
+    });
   }
 
   Future<void> _loadUnreadNotifications() async {
@@ -59,18 +125,27 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  MakoloHeaderKind get _headerKind =>
-      switch (widget.navigationShell.currentIndex) {
-        0 => MakoloHeaderKind.now,
-        1 => MakoloHeaderKind.discover,
-        2 => MakoloHeaderKind.ongoing,
-        3 => MakoloHeaderKind.me,
-        _ => MakoloHeaderKind.now,
-      };
+  void _rememberDestination(MakoloDestination destination) {
+    if (_rememberedPath == destination.path) return;
+    _rememberedPath = destination.path;
+    widget.recovery.rememberLocation(destination.path);
+    final profileId =
+        widget.runtime.actorContext?.profileId ??
+        widget.runtime.session?.profileId;
+    final preferences = widget.runtime.launchPreferences;
+    if (profileId != null && preferences is FileLaunchPreferencesStore) {
+      unawaited(preferences.writeShellLocation(profileId, destination.path));
+    }
+  }
 
-  void _goBranch(int index) {
-    if (index == widget.navigationShell.currentIndex) return;
-    widget.navigationShell.goBranch(index);
+  void _goDestination(MakoloDestination destination) {
+    if (destination.branchIndex == widget.navigationShell.currentIndex) return;
+    widget.navigationShell.goBranch(destination.branchIndex);
+    _rememberDestination(destination);
+  }
+
+  void _goDoor(MakoloPrimaryDoor door) {
+    _goDestination(MakoloDestination.forActor(_actor, door));
   }
 
   void _openAvatar() {
@@ -84,11 +159,13 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _content(SyncStatus? syncStatus) {
+  Widget _content(SyncStatus? syncStatus, ActorContext actor) {
     return SafeArea(
       top: false,
       child: Column(
         children: [
+          if (actor is SpaceActorContext)
+            MakoloSpaceContextBar(runtime: widget.runtime, actor: actor),
           if (syncStatus != null &&
               syncStatus.state != SyncVisualState.synced &&
               syncStatus.state != SyncVisualState.syncing)
@@ -109,11 +186,12 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    widget.recovery.rememberLocation(
-      MakoloDestination.values[widget.navigationShell.currentIndex].path,
-    );
+    final actor = _actor;
+    final destination = _currentDestination;
+    _rememberDestination(destination);
     final syncStatus = SyncStatusScope.maybeOf(context);
     final useRail = MakoloLayout.useNavigationRail(MediaQuery.sizeOf(context));
+    final destinations = MakoloDestination.primaryForActor(actor);
 
     return StreamBuilder<StoredProjection?>(
       stream: _meStream,
@@ -124,26 +202,38 @@ class _AppShellState extends State<AppShell> {
             displayName is String && displayName.trim().isNotEmpty
             ? displayName.trim().substring(0, 1).toUpperCase()
             : null;
-        final content = _content(syncStatus);
+        final content = _content(syncStatus, actor);
 
         return Scaffold(
           appBar: MakoloPrimaryHeader(
             kind: _headerKind,
             avatarLetter: avatarLetter,
             unreadNotifications: _unreadNotifications,
-            onConversations: () => context.push('/conversations'),
-            onNotifications: () => context.push('/notifications'),
-            onSearch: () => context.push('/discover/search'),
-            onMap: () => context.push('/discover/map'),
-            onCalendar: () => context.push('/ongoing/calendar'),
+            onBrand: () => _goDoor(MakoloPrimaryDoor.now),
+            onConversations: actor is PersonalActorContext
+                ? () => context.push('/conversations')
+                : null,
+            onNotifications: actor is PersonalActorContext
+                ? () => context.push('/notifications')
+                : null,
+            onSearch: actor is PersonalActorContext
+                ? () => context.push('/discover/search')
+                : null,
+            onMap: actor is PersonalActorContext
+                ? () => context.push('/discover/map')
+                : null,
+            onCalendar: actor is PersonalActorContext
+                ? () => context.push('/ongoing/calendar')
+                : null,
             onAvatar: _openAvatar,
           ),
           body: useRail
               ? Row(
                   children: [
                     _MakoloNavigationRail(
-                      selectedIndex: widget.navigationShell.currentIndex,
-                      onDestination: _goBranch,
+                      destinations: destinations,
+                      selectedDoor: destination.door,
+                      onDestination: _goDestination,
                       onMark: () => context.push('/mark'),
                     ),
                     VerticalDivider(
@@ -157,25 +247,34 @@ class _AppShellState extends State<AppShell> {
           bottomNavigationBar: useRail
               ? null
               : _MakoloBottomNavigation(
-                  selectedIndex: widget.navigationShell.currentIndex,
-                  onDestination: _goBranch,
+                  destinations: destinations,
+                  selectedDoor: destination.door,
+                  onDestination: _goDestination,
                   onMark: () => context.push('/mark'),
                 ),
         );
       },
     );
   }
+
+  @override
+  void dispose() {
+    _actorController?.removeListener(_onActorContextChanged);
+    super.dispose();
+  }
 }
 
 class _MakoloBottomNavigation extends StatelessWidget {
   const _MakoloBottomNavigation({
-    required this.selectedIndex,
+    required this.destinations,
+    required this.selectedDoor,
     required this.onDestination,
     required this.onMark,
   });
 
-  final int selectedIndex;
-  final ValueChanged<int> onDestination;
+  final List<MakoloDestination> destinations;
+  final MakoloPrimaryDoor selectedDoor;
+  final ValueChanged<MakoloDestination> onDestination;
   final VoidCallback onMark;
 
   @override
@@ -191,29 +290,25 @@ class _MakoloBottomNavigation extends StatelessWidget {
           child: Row(
             children: [
               _NavButton(
-                destination: MakoloDestination.now,
-                icon: Icons.schedule_outlined,
-                selected: selectedIndex == 0,
-                onTap: () => onDestination(0),
+                destination: destinations[0],
+                selected: selectedDoor == destinations[0].door,
+                onTap: () => onDestination(destinations[0]),
               ),
               _NavButton(
-                destination: MakoloDestination.discover,
-                icon: Icons.explore_outlined,
-                selected: selectedIndex == 1,
-                onTap: () => onDestination(1),
+                destination: destinations[1],
+                selected: selectedDoor == destinations[1].door,
+                onTap: () => onDestination(destinations[1]),
               ),
               Expanded(child: _MarkButton(onTap: onMark)),
               _NavButton(
-                destination: MakoloDestination.ongoing,
-                icon: Icons.route_outlined,
-                selected: selectedIndex == 2,
-                onTap: () => onDestination(2),
+                destination: destinations[2],
+                selected: selectedDoor == destinations[2].door,
+                onTap: () => onDestination(destinations[2]),
               ),
               _NavButton(
-                destination: MakoloDestination.me,
-                icon: Icons.person_outline,
-                selected: selectedIndex == 3,
-                onTap: () => onDestination(3),
+                destination: destinations[3],
+                selected: selectedDoor == destinations[3].door,
+                onTap: () => onDestination(destinations[3]),
               ),
             ],
           ),
@@ -225,13 +320,15 @@ class _MakoloBottomNavigation extends StatelessWidget {
 
 class _MakoloNavigationRail extends StatelessWidget {
   const _MakoloNavigationRail({
-    required this.selectedIndex,
+    required this.destinations,
+    required this.selectedDoor,
     required this.onDestination,
     required this.onMark,
   });
 
-  final int selectedIndex;
-  final ValueChanged<int> onDestination;
+  final List<MakoloDestination> destinations;
+  final MakoloPrimaryDoor selectedDoor;
+  final ValueChanged<MakoloDestination> onDestination;
   final VoidCallback onMark;
 
   @override
@@ -248,32 +345,28 @@ class _MakoloNavigationRail extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _RailButton(
-                destination: MakoloDestination.now,
-                icon: Icons.schedule_outlined,
-                selected: selectedIndex == 0,
-                onTap: () => onDestination(0),
+                destination: destinations[0],
+                selected: selectedDoor == destinations[0].door,
+                onTap: () => onDestination(destinations[0]),
               ),
               _RailButton(
-                destination: MakoloDestination.discover,
-                icon: Icons.explore_outlined,
-                selected: selectedIndex == 1,
-                onTap: () => onDestination(1),
+                destination: destinations[1],
+                selected: selectedDoor == destinations[1].door,
+                onTap: () => onDestination(destinations[1]),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
                 child: _MarkButton(onTap: onMark),
               ),
               _RailButton(
-                destination: MakoloDestination.ongoing,
-                icon: Icons.route_outlined,
-                selected: selectedIndex == 2,
-                onTap: () => onDestination(2),
+                destination: destinations[2],
+                selected: selectedDoor == destinations[2].door,
+                onTap: () => onDestination(destinations[2]),
               ),
               _RailButton(
-                destination: MakoloDestination.me,
-                icon: Icons.person_outline,
-                selected: selectedIndex == 3,
-                onTap: () => onDestination(3),
+                destination: destinations[3],
+                selected: selectedDoor == destinations[3].door,
+                onTap: () => onDestination(destinations[3]),
               ),
             ],
           ),
@@ -329,13 +422,11 @@ class _MarkButton extends StatelessWidget {
 class _NavButton extends StatelessWidget {
   const _NavButton({
     required this.destination,
-    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
   final MakoloDestination destination;
-  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -358,7 +449,7 @@ class _NavButton extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, color: color),
+                  Icon(_destinationIcon(destination), color: color),
                   const SizedBox(height: 3),
                   Text(
                     destination.label,
@@ -383,13 +474,11 @@ class _NavButton extends StatelessWidget {
 class _RailButton extends StatelessWidget {
   const _RailButton({
     required this.destination,
-    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
   final MakoloDestination destination;
-  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -412,7 +501,7 @@ class _RailButton extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: color),
+                Icon(_destinationIcon(destination), color: color),
                 const SizedBox(height: MakoloSpacing.xs),
                 Text(
                   destination.label,
@@ -431,3 +520,15 @@ class _RailButton extends StatelessWidget {
     );
   }
 }
+
+IconData _destinationIcon(MakoloDestination destination) =>
+    switch (destination) {
+      MakoloDestination.personalNow ||
+      MakoloDestination.spaceNow => Icons.schedule_outlined,
+      MakoloDestination.personalDiscover ||
+      MakoloDestination.spaceDiscover => Icons.explore_outlined,
+      MakoloDestination.personalContinuity => Icons.route_outlined,
+      MakoloDestination.personalIdentity => Icons.person_outline,
+      MakoloDestination.spaceContinuity => Icons.business_center_outlined,
+      MakoloDestination.spaceIdentity => Icons.groups_outlined,
+    };
