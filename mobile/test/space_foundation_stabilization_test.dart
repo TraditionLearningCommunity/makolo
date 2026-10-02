@@ -342,5 +342,9 @@ void main() {
 
     expect(find.text('2 éléments à consulter.'), findsOneWidget);
     expect(find.text('1 élément à consulter.'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.pump();
   });
 }
