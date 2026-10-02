@@ -152,7 +152,7 @@ def validate_assessment_history(
                 "an assessment can supersede only an assessment of the same Proposition"
             )
         if previous.assessment.assessed_at >= item.assessment.assessed_at:
-            raise KnowledeGateError(
+            raise KnowledgeGateError(
                 "a superseding assessment must be later than the assessment it supersedes"
             )
 
