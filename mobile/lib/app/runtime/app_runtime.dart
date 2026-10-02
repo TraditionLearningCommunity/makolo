@@ -23,6 +23,7 @@ import '../environment.dart';
 import '../launch_preferences.dart';
 import '../resumable_interaction_store.dart';
 import '../session_recovery.dart';
+import 'actor_context_controller.dart';
 
 class AppRuntime {
   AppRuntime({
@@ -54,6 +55,7 @@ class AppRuntime {
     this.outbox,
     this.outboxProcessor,
     this.sync,
+    this.actorContext,
   });
 
   final TokenStore tokens;
@@ -89,6 +91,7 @@ class AppRuntime {
   final OutboxRepository? outbox;
   final OutboxProcessor? outboxProcessor;
   final SyncEngine? sync;
+  final ActorContextController? actorContext;
 
   bool get isAuthenticated => session?.profileId != null;
   bool get apiConfigured => api != null;
@@ -96,6 +99,7 @@ class AppRuntime {
   Future<void> close() async {
     api?.close();
     preferences?.dispose();
+    actorContext?.dispose();
     await database?.close();
   }
 }

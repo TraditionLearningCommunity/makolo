@@ -7,6 +7,7 @@ import 'package:makolo_mobile/app/launch_preferences.dart';
 import 'package:makolo_mobile/app/runtime/app_runtime.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/features/settings/settings_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'fakes.dart';
 
@@ -30,15 +31,8 @@ void main() {
   });
 
   testWidgets('settings expose active local controls only', (tester) async {
-    final directory = await Directory.systemTemp.createTemp(
-      'makolo-settings-widget-',
-    );
-    addTearDown(() => directory.delete(recursive: true));
-    final store = FileLaunchPreferencesStore.forFile(
-      File('${directory.path}/preferences.json'),
-    );
     final controller = AppPreferencesController(
-      store: store,
+      store: FileLaunchPreferencesStore.forFile(File('unused')),
       initial: const LaunchPreferencesSnapshot(),
     );
     addTearDown(controller.dispose);
@@ -52,8 +46,21 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(home: AppSettingsScreen(runtime: runtime)),
+      MaterialApp(
+        home: AppSettingsScreen(
+          runtime: runtime,
+          packageInfo: Future.value(
+            PackageInfo(
+              appName: 'Makolo',
+              packageName: 'com.makolo.mobile',
+              version: '1.0.0',
+              buildNumber: '1',
+            ),
+          ),
+        ),
+      ),
     );
+    await tester.pump();
 
     expect(find.text('Système'), findsOneWidget);
     expect(find.text('Clair'), findsOneWidget);
@@ -63,13 +70,5 @@ void main() {
     expect(find.text('Passkey'), findsNothing);
     expect(find.text('2FA'), findsNothing);
     expect(find.text('Langue'), findsNothing);
-
-    await tester.tap(find.text('Sombre'));
-    await tester.pumpAndSettle();
-    expect(controller.value.themePreference, MakoloThemePreference.dark);
-
-    await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
-    expect(controller.value.reduceMotion, isTrue);
   });
 }

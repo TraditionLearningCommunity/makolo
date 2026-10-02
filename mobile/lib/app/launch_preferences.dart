@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'runtime/actor_context.dart';
+import 'runtime/actor_context_controller.dart';
+
 enum MakoloThemePreference { system, light, dark }
 
 class LaunchPreferencesSnapshot {
@@ -12,18 +15,21 @@ class LaunchPreferencesSnapshot {
     this.lastBrandMomentAt,
     this.themePreference = MakoloThemePreference.system,
     this.reduceMotion = false,
+    this.actorContexts = const {},
   });
 
   final bool hasCompletedOnboarding;
   final DateTime? lastBrandMomentAt;
   final MakoloThemePreference themePreference;
   final bool reduceMotion;
+  final Map<String, ActorContext> actorContexts;
 
   LaunchPreferencesSnapshot copyWith({
     bool? hasCompletedOnboarding,
     DateTime? lastBrandMomentAt,
     MakoloThemePreference? themePreference,
     bool? reduceMotion,
+    Map<String, ActorContext>? actorContexts,
   }) {
     return LaunchPreferencesSnapshot(
       hasCompletedOnboarding:
@@ -31,6 +37,7 @@ class LaunchPreferencesSnapshot {
       lastBrandMomentAt: lastBrandMomentAt ?? this.lastBrandMomentAt,
       themePreference: themePreference ?? this.themePreference,
       reduceMotion: reduceMotion ?? this.reduceMotion,
+      actorContexts: actorContexts ?? this.actorContexts,
     );
   }
 
@@ -39,6 +46,10 @@ class LaunchPreferencesSnapshot {
     'last_brand_moment_at': lastBrandMomentAt?.toUtc().toIso8601String(),
     'theme': themePreference.name,
     'reduce_motion': reduceMotion,
+    'actor_contexts': {
+      for (final entry in actorContexts.entries)
+        entry.key: ActorContextCodec.encode(entry.value),
+    },
   };
 
   static LaunchPreferencesSnapshot fromJson(Map<String, dynamic> json) {
@@ -51,6 +62,20 @@ class LaunchPreferencesSnapshot {
         break;
       }
     }
+
+    final actorContexts = <String, ActorContext>{};
+    final rawActorContexts = json['actor_contexts'];
+    if (rawActorContexts is Map) {
+      for (final entry in rawActorContexts.entries) {
+        final profileId = entry.key;
+        if (profileId is! String || profileId.trim().isEmpty) continue;
+        final context = ActorContextCodec.decode(entry.value);
+        if (context != null) {
+          actorContexts[profileId] = context;
+        }
+      }
+    }
+
     return LaunchPreferencesSnapshot(
       hasCompletedOnboarding: json['has_completed_onboarding'] == true,
       lastBrandMomentAt: rawBrandMomentAt == null
@@ -58,6 +83,7 @@ class LaunchPreferencesSnapshot {
           : DateTime.tryParse(rawBrandMomentAt)?.toUtc(),
       themePreference: theme ?? MakoloThemePreference.system,
       reduceMotion: json['reduce_motion'] == true,
+      actorContexts: actorContexts,
     );
   }
 }
@@ -68,7 +94,8 @@ abstract interface class LaunchPreferencesStore {
   Future<void> setLastBrandMomentAt(DateTime value);
 }
 
-class FileLaunchPreferencesStore implements LaunchPreferencesStore {
+class FileLaunchPreferencesStore
+    implements LaunchPreferencesStore, ActorContextStore {
   FileLaunchPreferencesStore._(this._file);
 
   static const _fileName = 'makolo-launch-preferences-v1.json';
@@ -125,6 +152,31 @@ class FileLaunchPreferencesStore implements LaunchPreferencesStore {
   Future<void> setReduceMotion(bool value) async {
     final current = await read();
     await _write(current.copyWith(reduceMotion: value));
+  }
+
+  @override
+  Future<ActorContext> readActorContext(String profileId) async {
+    final current = await read();
+    return current.actorContexts[profileId] ?? const PersonalActorContext();
+  }
+
+  @override
+  Future<void> writeActorContext(String profileId, ActorContext context) async {
+    final current = await read();
+    final contexts = <String, ActorContext>{
+      ...current.actorContexts,
+      profileId: context,
+    };
+    await _write(current.copyWith(actorContexts: contexts));
+  }
+
+  @override
+  Future<void> removeActorContext(String profileId) async {
+    final current = await read();
+    if (!current.actorContexts.containsKey(profileId)) return;
+    final contexts = <String, ActorContext>{...current.actorContexts}
+      ..remove(profileId);
+    await _write(current.copyWith(actorContexts: contexts));
   }
 
   Future<void> _write(LaunchPreferencesSnapshot snapshot) async {

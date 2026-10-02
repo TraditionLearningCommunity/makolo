@@ -82,7 +82,6 @@ void main() {
 
   testWidgets('100 percent activation disappears from Avatar', (tester) async {
     final runtime = await _runtimeWithActivation(100);
-    addTearDown(runtime.close);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -105,6 +104,9 @@ void main() {
 
     Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
     await tester.pump();
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.runAsync(runtime.close);
   });
 }
