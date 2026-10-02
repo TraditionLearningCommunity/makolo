@@ -8,21 +8,30 @@ import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
+import 'space_discover_screen.dart';
+import 'space_now_screen.dart';
 import 'space_repository.dart';
 
-enum SpaceShellSurface { now, discover, work, us }
+enum SpaceShellSurface { work, us }
 
-StatefulShellBranch spaceNowBranch(AppRuntime runtime) => _spaceBranch(
-  runtime: runtime,
-  path: '/space/now',
-  surface: SpaceShellSurface.now,
+StatefulShellBranch spaceNowBranch(AppRuntime runtime) => StatefulShellBranch(
+  routes: [
+    GoRoute(
+      path: '/space/now',
+      builder: (context, state) => SpaceNowScreen(runtime: runtime),
+    ),
+  ],
 );
 
-StatefulShellBranch spaceDiscoveryBranch(AppRuntime runtime) => _spaceBranch(
-  runtime: runtime,
-  path: '/space/discover',
-  surface: SpaceShellSurface.discover,
-);
+StatefulShellBranch spaceDiscoveryBranch(AppRuntime runtime) =>
+    StatefulShellBranch(
+      routes: [
+        GoRoute(
+          path: '/space/discover',
+          builder: (context, state) => SpaceDiscoverScreen(runtime: runtime),
+        ),
+      ],
+    );
 
 StatefulShellBranch spaceWorkBranch(AppRuntime runtime) => _spaceBranch(
   runtime: runtime,
@@ -97,11 +106,6 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
     }
     try {
       await switch (widget.surface) {
-        SpaceShellSurface.now => repository.refreshNow(
-          actor.space,
-          actor.perspective,
-        ),
-        SpaceShellSurface.discover => repository.refreshDiscover(actor.space),
         SpaceShellSurface.work => repository.refreshWork(
           actor.space,
           actor.perspective,
@@ -117,11 +121,6 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
     WorkspaceContextRepository repository,
     SpaceActorContext actor,
   ) => switch (widget.surface) {
-    SpaceShellSurface.now => repository.watchNow(
-      actor.space,
-      actor.perspective,
-    ),
-    SpaceShellSurface.discover => repository.watchDiscover(actor.space),
     SpaceShellSurface.work => repository.watchWork(
       actor.space,
       actor.perspective,
@@ -177,33 +176,9 @@ class _SpaceProjectionBody extends StatelessWidget {
     }
 
     return switch (surface) {
-      SpaceShellSurface.now => _attentionBody(
-        payload,
-        emptyMessage: 'Rien ne demande votre attention pour le moment.',
-      ),
-      SpaceShellSurface.discover => _attentionBody(
-        payload,
-        emptyMessage: 'Rien à découvrir pour le moment.',
-      ),
       SpaceShellSurface.work => _workBody(payload),
       SpaceShellSurface.us => _usBody(payload),
     };
-  }
-
-  Widget _attentionBody(
-    Map<String, dynamic> payload, {
-    required String emptyMessage,
-  }) {
-    final selection = payload['selection'];
-    final state = selection is Map ? selection['state'] : null;
-    if (state == 'unavailable') {
-      return _message('Cette vue n’est pas disponible pour le moment.');
-    }
-    final items = payload['items'];
-    if (items is! List || items.isEmpty) return _message(emptyMessage);
-    return _message(
-      '${items.length} élément${items.length > 1 ? 's' : ''} à consulter.',
-    );
   }
 
   Widget _workBody(Map<String, dynamic> payload) {
