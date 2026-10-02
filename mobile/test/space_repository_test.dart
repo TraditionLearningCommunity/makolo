@@ -243,10 +243,7 @@ void main() {
     expect(discoverOld.path, isNot(discoverRenamed.path));
     expect(discoverOld.sourceKey, isNot(discoverOther.sourceKey));
     expect(discoverOld.resourceKey, isNot(discoverOther.resourceKey));
-    expect(
-      discoverOld.actorScope,
-      SyncActorScope.space(spaceId: 'space-x'),
-    );
+    expect(discoverOld.actorScope, SyncActorScope.space(spaceId: 'space-x'));
     expect(discoverOld.path, isNot(contains('responsibility=')));
   });
 
