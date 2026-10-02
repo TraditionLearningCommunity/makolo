@@ -355,8 +355,9 @@ class PropositionAssessmentTests(TestCase):
         self.assertEqual(trace.support_refs, ())
 
         import mayele.knowledge as knowledge
-        for forbidden in ("KnowledgeCompleteness", "KnowledgeState", "ResearchGap", "Fact"):
-            self.assertFalse(hasattr(knowledge, forbidden))
+        for delivered in ("KnowledgeCompleteness", "KnowledgeState", "ResearchGap"):
+            self.assertTrue(hasattr(knowledge, delivered))
+        self.assertFalse(hasattr(knowledge, "Fact"))
 
         qualified, qualified_trace = self._support(
             "qualifies", SupportDisposition.QUALIFIES
