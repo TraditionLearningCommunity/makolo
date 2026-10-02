@@ -44,8 +44,11 @@ class _Harness {
   final ActorContextController actorContext;
   final MakoloDatabase database;
   final GoRouter router;
+  bool _closed = false;
 
   Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
     router.dispose();
     actorContext.dispose();
     await database.close();
@@ -365,7 +368,7 @@ void main() {
       expect(find.text('En cours'), findsOneWidget);
       expect(find.text('Moi'), findsOneWidget);
       await _disposeUi(tester);
-    await harness.close();
+      await harness.close();
     },
   );
 
@@ -401,7 +404,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Amina'), findsOneWidget);
       await _disposeUi(tester);
-    await harness.close();
+      await harness.close();
     },
   );
 
