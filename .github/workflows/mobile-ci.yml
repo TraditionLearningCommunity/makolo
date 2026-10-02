@@ -83,7 +83,15 @@ jobs:
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
       - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          set +e
+          dart format --output=none --set-exit-if-changed lib test
+          status=$?
+          if [[ "$status" -ne 0 ]]; then
+            dart format lib test
+            git diff -- lib/app/launch_preferences.dart lib/app/runtime/actor_context_controller.dart test/actor_context_stabilization_test.dart test/space_foundation_stabilization_test.dart
+            exit "$status"
+          fi
       - name: Architecture guard
         run: flutter test test/architecture_guard_test.dart
       - name: Analyze
