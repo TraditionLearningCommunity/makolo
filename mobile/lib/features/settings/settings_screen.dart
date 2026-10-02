@@ -141,9 +141,8 @@ class _AppVersionTileState extends State<_AppVersionTile> {
       future: _packageInfo,
       builder: (context, snapshot) {
         final info = snapshot.data;
-        final version = info == null
-            ? null
-            : '${info.version} (${info.buildNumber})';
+        final version =
+            info == null ? null : '${info.version} (${info.buildNumber})';
         return ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.apps_outlined),
