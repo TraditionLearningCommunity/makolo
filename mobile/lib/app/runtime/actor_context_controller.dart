@@ -98,9 +98,8 @@ final class ActorContextController extends ChangeNotifier {
     final revision = ++_transitionRevision;
     final operation = _transitionTail.then((_) async {
       if (revision != _transitionRevision) return;
-      if (_value == next) return;
       await _store.writeActorContext(profileId, next);
-      if (revision != _transitionRevision) return;
+      if (revision != _transitionRevision || _value == next) return;
       _value = next;
       notifyListeners();
     });
