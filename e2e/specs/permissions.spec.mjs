@@ -20,7 +20,49 @@ async function selectSpace(page, name, slug) {
   await page.goto('/spaces/');
   await expect(page).toHaveURL(/\/spaces\/$/);
   await page.getByRole('link', { name: new RegExp(name) }).click();
-  await expect(page).toHaveURL(new RegExp(`/spaces/${slug}/overview/$`));
+  await expect(page).toHaveURL(new RegExp(`/spaces/${slug}/import { test, expect } from '../fixtures/makolo.mjs';
+import { login } from '../helpers/auth.mjs';
+
+
+async function expectForbidden(page, path) {
+  const response = await page.goto(path);
+  expect(response.status()).toBe(403);
+  await expect(page.getByText(/Erreur 403/i)).toBeVisible();
+}
+
+
+async function expectPersonalEventCreation(page) {
+  const response = await page.goto('/events/new/');
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: /Créer|Nouvel événement/i })).toBeVisible();
+}
+
+
+));
+  await expect(page.getByText('Agir au nom de', { exact: true })).toBeVisible();
+
+  // Permission scenarios below exercise the historical owner-backed Console.
+  // Enter it explicitly now that selecting a Space lands on the WS1 root.
+  await page.goto(`/spaces/${slug}/overview/`);
+  await expect(page).toHaveURL(new RegExp(`/spaces/${slug}/overview/import { test, expect } from '../fixtures/makolo.mjs';
+import { login } from '../helpers/auth.mjs';
+
+
+async function expectForbidden(page, path) {
+  const response = await page.goto(path);
+  expect(response.status()).toBe(403);
+  await expect(page.getByText(/Erreur 403/i)).toBeVisible();
+}
+
+
+async function expectPersonalEventCreation(page) {
+  const response = await page.goto('/events/new/');
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: /Créer|Nouvel événement/i })).toBeVisible();
+}
+
+
+));
 }
 
 
