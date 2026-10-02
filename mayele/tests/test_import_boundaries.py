@@ -11,7 +11,7 @@ class MayeleImportBoundaryTests(TestCase):
             "import sys; "
             "import mayele, mayele.common, mayele.knowledge, mayele.acquisition, mayele.observation, mayele.cognition, mayele.identity; "
             "forbidden=('django','prospector','observer','interpreter','resolver',"
-            "'web_research','orchestration','projector'); "
+            "'web_research','orchestration','projector','celery','langgraph','openai','anthropic','neo4j','redis'); "
             "assert not any(name == prefix or name.startswith(prefix + '.') "
             "for prefix in forbidden for name in sys.modules)"
         )
@@ -45,7 +45,11 @@ class MayeleImportBoundaryTests(TestCase):
             "c=RealityCandidate('candidate:x', i); "
             "r=IdentityResolution('resolution:x', InterpretationReferent(ReferentKind.MENTION, m.mention_ref), m.scope, now, IdentityResolutionStatus.UNRESOLVED, basis=(IdentityResolutionBasis(IdentityResolutionBasisKind.MENTION, m.mention_ref),)); "
             "validate_identity_resolution(r, m); "
-            "assert len(p.fingerprint) == 64; assert len(c.fingerprint) == 64; assert r.reality is None; assert PropositionConstruction; assert KnowledgeSupportTrace; assert build_proposition_construction"
+            "from mayele.knowledge import KnowledgeFacetStatus, KnowledgeFacetState, build_knowledge_completeness, build_knowledge_state, ResearchGapTarget, ResearchGapTargetKind, ResearchGapReason, build_research_gap; "
+            "kc=build_knowledge_completeness(Reality('reality:visa'), now, facets=(KnowledgeFacetState('deadline', KnowledgeFacetStatus.UNKNOWN, now),)); "
+            "ks=build_knowledge_state(Reality('reality:visa'), now, state_ref='state:x', completeness=kc); "
+            "gap=build_research_gap(ks, ResearchGapTarget(ResearchGapTargetKind.FACET,'deadline'), ResearchGapReason.UNKNOWN, now, gap_ref='gap:x', basis_refs=('deadline',), trigger_ref='need:x'); "
+            "assert len(p.fingerprint) == 64; assert len(c.fingerprint) == 64; assert r.reality is None; assert PropositionConstruction; assert KnowledgeSupportTrace; assert build_proposition_construction; assert gap.knowledge_state_ref == ks.state_ref"
         )
         result = subprocess.run(
             [sys.executable, "-c", code],
