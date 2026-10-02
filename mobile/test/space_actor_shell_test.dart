@@ -224,8 +224,7 @@ Future<void> _pump(
 
 Future<void> _disposeUi(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pump();
-  await tester.pump();
+  await tester.pumpAndSettle();
 }
 
 Future<void> _chooseActor(WidgetTester tester, String label) async {
@@ -260,6 +259,7 @@ void main() {
     expect(find.text('Space X'), findsOneWidget);
     expect(find.text('Toutes mes responsabilités'), findsOneWidget);
     await _disposeUi(tester);
+    await harness.close();
   });
 
   testWidgets('actor switch preserves the semantic door and branch state', (
@@ -286,6 +286,7 @@ void main() {
     expect(find.text('En cours'), findsOneWidget);
     expect(find.text('Moi'), findsOneWidget);
     await _disposeUi(tester);
+    await harness.close();
   });
 
   testWidgets('perspective uses server label without changing authority', (
@@ -305,6 +306,7 @@ void main() {
     expect(find.text('Exploitation'), findsOneWidget);
     expect(find.text('mandate:a'), findsNothing);
     await _disposeUi(tester);
+    await harness.close();
   });
 
   testWidgets('revoked Space context returns to the personal counterpart', (
@@ -324,6 +326,7 @@ void main() {
     expect(find.text('Personal Ongoing · 0'), findsOneWidget);
     expect(find.text('En cours'), findsOneWidget);
     await _disposeUi(tester);
+    await harness.close();
   });
 
   testWidgets(
@@ -362,6 +365,7 @@ void main() {
       expect(find.text('En cours'), findsOneWidget);
       expect(find.text('Moi'), findsOneWidget);
       await _disposeUi(tester);
+    await harness.close();
     },
   );
 
@@ -397,6 +401,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Amina'), findsOneWidget);
       await _disposeUi(tester);
+    await harness.close();
     },
   );
 
@@ -415,6 +420,7 @@ void main() {
     expect(find.text('Space X'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _disposeUi(tester);
+    await harness.close();
   });
 
   testWidgets('wide Space shell exposes the same semantics in the rail', (
@@ -431,6 +437,7 @@ void main() {
     expect(find.text('Métier'), findsOneWidget);
     expect(find.text('Nous'), findsOneWidget);
     await _disposeUi(tester);
+    await harness.close();
   });
 }
 
