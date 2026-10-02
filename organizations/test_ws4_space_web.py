@@ -215,7 +215,14 @@ class WS4SpaceWebTests(TestCase):
             "Pas encore assez d’activité pour dégager une tendance utile.",
         )
         self.assertContains(response, "Événements")
-        self.assertContains(response, ">0<", html=True)
+        events = next(
+            row
+            for row in response.context["projection"]["sections"]["analytics"]["metrics"]
+            if row["key"] == "events_count"
+        )
+        self.assertEqual(events["state"], "known")
+        self.assertEqual(events["value"], 0)
+        self.assertContains(response, "<strong>0</strong>", html=True)
         self.assertContains(response, "Données insuffisantes")
         self.assertContains(response, "événements visibles max.")
         html = response.content.decode().lower()
@@ -256,7 +263,7 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, "Inconnu")
         self.assertContains(response, "Indisponible")
         self.assertContains(response, "Données insuffisantes")
-        self.assertContains(response, ">0<", html=True)
+        self.assertContains(response, "<strong>0</strong>", html=True)
 
     def test_foreign_responsibility_never_falls_back_on_ws4_routes(self):
         foreign_space = Organization.objects.create(
