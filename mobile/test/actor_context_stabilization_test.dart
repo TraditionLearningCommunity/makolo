@@ -63,6 +63,31 @@ void main() {
   );
 
   test(
+    'returning to the committed actor rewrites persistence after a stale write',
+    () async {
+      final store = _DelayedActorStore(delayFirstWrite: true);
+      final controller = await ActorContextController.restore(
+        profileId: 'profile-a',
+        store: store,
+      );
+      addTearDown(controller.dispose);
+
+      final spaceA = SpaceActorIdentity(id: 'space-a', slug: 'space-a');
+
+      final selectA = controller.selectSpace(spaceA);
+      await store.firstWriteStarted.future;
+
+      final selectPersonal = controller.selectPersonal();
+      store.releaseFirstWrite.complete();
+
+      await Future.wait<void>([selectA, selectPersonal]);
+
+      expect(controller.value, const PersonalActorContext());
+      expect(store.values['profile-a'], const PersonalActorContext());
+    },
+  );
+
+  test(
     'late revocation result for Space A cannot revoke a newer Space B',
     () async {
       final store = _DelayedActorStore();
