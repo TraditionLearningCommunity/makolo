@@ -222,6 +222,9 @@ void main() {
     final renamedAll = repository.nowSource(renamedSpace, all);
     final scoped = repository.nowSource(oldSpace, mandate);
     final other = repository.nowSource(otherSpace, all);
+    final discoverOld = repository.discoverSource(oldSpace);
+    final discoverRenamed = repository.discoverSource(renamedSpace);
+    final discoverOther = repository.discoverSource(otherSpace);
 
     expect(oldAll.sourceKey, renamedAll.sourceKey);
     expect(oldAll.path, isNot(renamedAll.path));
@@ -235,6 +238,16 @@ void main() {
     );
     expect(oldAll.path, isNot(contains('responsibility=')));
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
+
+    expect(discoverOld.sourceKey, discoverRenamed.sourceKey);
+    expect(discoverOld.path, isNot(discoverRenamed.path));
+    expect(discoverOld.sourceKey, isNot(discoverOther.sourceKey));
+    expect(discoverOld.resourceKey, isNot(discoverOther.resourceKey));
+    expect(
+      discoverOld.actorScope,
+      SyncActorScope.space(spaceId: 'space-x'),
+    );
+    expect(discoverOld.path, isNot(contains('responsibility=')));
   });
 
   test('Space projections parse into local snapshots', () async {
