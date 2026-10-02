@@ -326,6 +326,7 @@ class PropositionSupportLineageTests(TestCase):
             candidate, self.now, identity_resolutions=(resolution,)
         )
         self.assertIs(construction.proposition.kind, PropositionKind.CONDITION_APPLIES)
+        self.assertEqual(construction.source_referents, candidate.referents)
         self.assertEqual(
             construction.identity_resolutions[0].resolution_ref,
             "resolution:condition",
@@ -406,6 +407,60 @@ class PropositionSupportLineageTests(TestCase):
             support_b.proposition_fingerprint,
         )
         self.assertNotEqual(support_a.support_ref, support_b.support_ref)
+
+
+    def test_multiple_sources_can_support_same_semantic_proposition(self):
+        candidate_a = PropertyCandidate(
+            "candidate:source:a",
+            self.interpretation,
+            InterpretationReferent(ReferentKind.REALITY, "reality:x"),
+            "fee",
+            "50 USD",
+        )
+        construction_a = build_proposition_construction(candidate_a, self.now)
+        support_a, trace_a = build_knowledge_support(
+            construction_a,
+            candidate_a,
+            "support:source:a",
+            SupportDisposition.SUPPORTS,
+        )
+
+        source_b = Source(
+            "source:b:corroboration",
+            SourceKind.PUBLICATION,
+            locator="https://example.invalid/corroboration",
+        )
+        statement_b = self._statement(source_b, "corroboration", "Application fee: 50 USD.")
+        interpretation_b = Interpretation(
+            "interpretation:corroboration",
+            statement_b,
+            self.now,
+            InterpretationMode.NORMALIZED,
+        )
+        candidate_b = PropertyCandidate(
+            "candidate:source:b",
+            interpretation_b,
+            InterpretationReferent(ReferentKind.REALITY, "reality:x"),
+            "fee",
+            "50 USD",
+        )
+        construction_b = build_proposition_construction(candidate_b, self.now)
+        support_b, trace_b = build_knowledge_support(
+            construction_b,
+            candidate_b,
+            "support:source:b",
+            SupportDisposition.SUPPORTS,
+        )
+
+        self.assertEqual(
+            construction_a.proposition.fingerprint,
+            construction_b.proposition.fingerprint,
+        )
+        self.assertEqual(
+            support_a.proposition_fingerprint,
+            support_b.proposition_fingerprint,
+        )
+        self.assertNotEqual(trace_a.source.source_ref, trace_b.source.source_ref)
 
     def test_same_source_multiple_observations_remain_distinct(self):
         statement_2 = self._statement(
