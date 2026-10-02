@@ -317,8 +317,28 @@ final class WorkspaceContextRepository {
     ActorPerspective perspective,
   ) => _watchPerspective(SpaceProjectionKind.now, space, perspective);
 
+  Future<StoredProjection?> readNow(
+    SpaceActorIdentity space,
+    ActorPerspective perspective,
+  ) {
+    return store.readProjection(
+      SpaceProjectionKind.now.wireValue,
+      resourceKey: SpaceSyncKeys.resourceKey(
+        space.id,
+        perspective: perspective,
+      ),
+    );
+  }
+
   Stream<StoredProjection?> watchDiscover(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.discover, space);
+
+  Future<StoredProjection?> readDiscover(SpaceActorIdentity space) {
+    return store.readProjection(
+      SpaceProjectionKind.discover.wireValue,
+      resourceKey: SpaceSyncKeys.resourceKey(space.id),
+    );
+  }
 
   Stream<StoredProjection?> watchWork(
     SpaceActorIdentity space,
