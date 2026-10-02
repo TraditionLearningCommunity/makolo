@@ -79,6 +79,9 @@ void main() {
     expect(find.byType(NowScreen), findsOneWidget);
     expect(find.text('Métier'), findsNothing);
     expect(find.text('Nous'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('depth routes remain registered after router fragmentation', (
