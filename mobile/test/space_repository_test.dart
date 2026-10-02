@@ -208,7 +208,11 @@ Map<String, dynamic> _work({
       'blocked',
       'completed',
     ])
-      key: {'items': <Object>[], 'has_more': false, 'links': <String, Object?>{}},
+      key: {
+        'items': <Object>[],
+        'has_more': false,
+        'links': <String, Object?>{},
+      },
   },
   'links': {
     'workspace': '/api/v1/organizations/workspaces/space-x/',
@@ -218,7 +222,9 @@ Map<String, dynamic> _work({
 };
 
 void main() {
-  test('Space source identity is actor scoped and independent from route slug', () async {
+  test(
+    'Space source identity is actor scoped and independent from route slug',
+    () async {
     final harness = await _harness(
       handler: (_) async => const MockResponse('{}', 200),
     );
@@ -252,7 +258,9 @@ void main() {
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
   });
 
-  test('all direct Space projections parse and remain locally readable', () async {
+  test(
+    'all direct Space projections parse and remain locally readable',
+    () async {
     final harness = await _harness(
       handler: (request) async {
         final path = request.url.path;
@@ -298,13 +306,26 @@ void main() {
                 'lifecycle': 'active',
                 'public_profile': true,
               },
-              'team': {'items': <Object>[], 'has_more': false, 'links': <String, Object?>{}},
-              'responsibilities': {'items': <Object>[], 'links': <String, Object?>{}},
-              'ownership': {'items': <Object>[], 'has_more': false, 'links': <String, Object?>{}},
+              'team': {
+                'items': <Object>[],
+                'has_more': false,
+                'links': <String, Object?>{},
+              },
+              'responsibilities': {
+                'items': <Object>[],
+                'links': <String, Object?>{},
+              },
+              'ownership': {
+                'items': <Object>[],
+                'has_more': false,
+                'links': <String, Object?>{},
+              },
               'trust': {'verified': false, 'claims': <Object>[]},
               'organization': {'operating_preset': <String, Object?>{}},
               'authority': {'scope': 'space', 'limited_to_activities': false},
-              'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
+              'links': {
+                'workspace': '/api/v1/organizations/workspaces/space-x/',
+              },
               'capabilities': <String, Object?>{},
             }),
             200,
@@ -316,7 +337,9 @@ void main() {
               'label': 'Relations',
               'authority': {'scope': 'space', 'limited_to_activities': false},
               'sections': <String, Object?>{},
-              'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
+              'links': {
+                'workspace': '/api/v1/organizations/workspaces/space-x/',
+              },
               'capabilities': <String, Object?>{},
             }),
             200,
@@ -328,7 +351,9 @@ void main() {
               'authority': {'scope': 'space', 'limited_to_activities': false},
               'sections': <String, Object?>{},
               'signals': <Object>[],
-              'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
+              'links': {
+                'workspace': '/api/v1/organizations/workspaces/space-x/',
+              },
               'capabilities': <String, Object?>{},
             }),
             200,
@@ -391,7 +416,9 @@ void main() {
     }
   });
 
-  test('invalid payload and normal offline failure preserve last valid snapshot', () async {
+  test(
+    'invalid payload and normal offline failure preserve last valid snapshot',
+    () async {
     var mode = 'valid';
     final harness = await _harness(
       handler: (request) async {
@@ -488,7 +515,9 @@ void main() {
     );
   });
 
-  test('inventory revalidates revocation and slug changes but not transport failure', () async {
+  test(
+    'inventory revalidates revocation and slug changes but not transport failure',
+    () async {
     var mode = 'renamed';
     final harness = await _harness(
       handler: (_) async {
@@ -553,7 +582,9 @@ void main() {
     );
   });
 
-  test('ProjectionSnapshots remain Profile isolated with identical Space keys', () async {
+  test(
+    'ProjectionSnapshots remain Profile isolated with identical Space keys',
+    () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final a = ProfileStore(database, 'profile-a');
