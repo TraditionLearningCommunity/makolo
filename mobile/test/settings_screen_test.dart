@@ -7,8 +7,21 @@ import 'package:makolo_mobile/app/launch_preferences.dart';
 import 'package:makolo_mobile/app/runtime/app_runtime.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/features/settings/settings_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'fakes.dart';
+
+Future<void> _waitForPreference(
+  WidgetTester tester,
+  bool Function() predicate,
+) async {
+  await tester.runAsync(() async {
+    for (var attempt = 0; attempt < 200 && !predicate(); attempt++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  });
+  await tester.pump();
+}
 
 void main() {
   test('theme and Reduce Motion persist across store reopen', () async {
@@ -52,7 +65,19 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(home: AppSettingsScreen(runtime: runtime)),
+      MaterialApp(
+        home: AppSettingsScreen(
+          runtime: runtime,
+          packageInfo: Future.value(
+            PackageInfo(
+              appName: 'Makolo',
+              packageName: 'com.makolo.mobile',
+              version: '1.0.0',
+              buildNumber: '1',
+            ),
+          ),
+        ),
+      ),
     );
 
     expect(find.text('Système'), findsOneWidget);
@@ -65,11 +90,14 @@ void main() {
     expect(find.text('Langue'), findsNothing);
 
     await tester.tap(find.text('Sombre'));
-    await tester.pumpAndSettle();
+    await _waitForPreference(
+      tester,
+      () => controller.value.themePreference == MakoloThemePreference.dark,
+    );
     expect(controller.value.themePreference, MakoloThemePreference.dark);
 
     await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
+    await _waitForPreference(tester, () => controller.value.reduceMotion);
     expect(controller.value.reduceMotion, isTrue);
   });
 }
