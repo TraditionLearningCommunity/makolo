@@ -152,7 +152,7 @@ void main() {
   test(
     'invalid or legacy stored values fall back to personal without crash',
     () async {
-    await file.writeAsString(
+      await file.writeAsString(
       jsonEncode({
         'has_completed_onboarding': true,
         'actor_contexts': {
@@ -164,16 +164,16 @@ void main() {
           'profile-b': 'corrupt',
         },
       }),
-    );
+      );
 
-    expect(
-      await store.readActorContext('profile-a'),
-      const PersonalActorContext(),
-    );
-    expect(
-      await store.readActorContext('profile-b'),
-      const PersonalActorContext(),
-    );
+      expect(
+        await store.readActorContext('profile-a'),
+        const PersonalActorContext(),
+      );
+      expect(
+        await store.readActorContext('profile-b'),
+        const PersonalActorContext(),
+      );
       expect(
         await store.readActorContext('profile-legacy'),
         const PersonalActorContext(),
@@ -184,21 +184,21 @@ void main() {
   test(
     'revalidation falls back to personal instead of another Space',
     () async {
-    final controller = await ActorContextController.restore(
+      final controller = await ActorContextController.restore(
       profileId: 'profile-a',
       store: store,
-    );
-    addTearDown(controller.dispose);
-    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      );
+      addTearDown(controller.dispose);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
 
-    await controller.selectSpace(space);
+      await controller.selectSpace(space);
 
-    final stillValid = await controller.revalidateSpaceContext(
-      (candidate) => candidate.id == 'another-space',
-    );
+      final stillValid = await controller.revalidateSpaceContext(
+        (candidate) => candidate.id == 'another-space',
+      );
 
-    expect(stillValid, isFalse);
-    expect(controller.value, const PersonalActorContext());
+      expect(stillValid, isFalse);
+      expect(controller.value, const PersonalActorContext());
       expect(
         await store.readActorContext('profile-a'),
         const PersonalActorContext(),
@@ -209,23 +209,23 @@ void main() {
   test(
     'removing a Profile actor preference does not affect another Profile',
     () async {
-    final spaceX = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-    final spaceY = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
-    await store.writeActorContext(
-      'profile-a',
-      SpaceActorContext(space: spaceX),
-    );
-    await store.writeActorContext(
-      'profile-b',
-      SpaceActorContext(space: spaceY),
-    );
+      final spaceX = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final spaceY = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
+      await store.writeActorContext(
+        'profile-a',
+        SpaceActorContext(space: spaceX),
+      );
+      await store.writeActorContext(
+        'profile-b',
+        SpaceActorContext(space: spaceY),
+      );
 
-    await store.removeActorContext('profile-a');
+      await store.removeActorContext('profile-a');
 
-    expect(
-      await store.readActorContext('profile-a'),
-      const PersonalActorContext(),
-    );
+      expect(
+        await store.readActorContext('profile-a'),
+        const PersonalActorContext(),
+      );
       expect(
         await store.readActorContext('profile-b'),
         SpaceActorContext(space: spaceY),
