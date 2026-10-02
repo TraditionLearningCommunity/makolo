@@ -50,7 +50,15 @@ from .console_views import (
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
-from .space_web_views import SpaceDiscoverView, SpaceMarkView, SpaceNowView, SpaceUsView, SpaceWorkView
+from .space_web_views import (
+    SpaceDiscoverView,
+    SpaceMarkView,
+    SpaceNowView,
+    SpacePilotView,
+    SpaceRelationshipsView,
+    SpaceUsView,
+    SpaceWorkView,
+)
 from .team_views import (
     OrganizationMemberCreateView,
     OrganizationMemberDeactivateView,
@@ -74,6 +82,8 @@ urlpatterns = [
     path("<slug:slug>/mark/", SpaceMarkView.as_view(), name="space-mark"),
     path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
     path("<slug:slug>/us/", SpaceUsView.as_view(), name="space-us"),
+    path("<slug:slug>/relationships/", SpaceRelationshipsView.as_view(), name="space-relationships"),
+    path("<slug:slug>/pilot/", SpacePilotView.as_view(), name="space-pilot"),
     path("<slug:slug>/overview/", SpaceConsoleOverviewView.as_view(), name="console-overview"),
     path("<slug:slug>/activities/", SpaceConsoleActivitiesView.as_view(), name="console-activities"),
     path("<slug:slug>/activities/new/event/", SpaceConsoleCreateEventView.as_view(), name="console-create-event"),

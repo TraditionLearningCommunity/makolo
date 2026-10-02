@@ -11,6 +11,9 @@ from .api.space_attention_projection import (
     build_space_discover_projection,
     build_space_now_projection,
 )
+from .api.space_pilot_projection import build_space_pilot_projection
+from .api.space_relationships_projection import build_space_relationships_projection
+from .api.space_us_projection import build_space_us_projection
 from .api.workspace_projection import build_space_workspace, workspace_spaces
 
 
@@ -90,6 +93,10 @@ class SpaceWebMixin(LoginRequiredMixin, TemplateView):
                 "space_discover_url": self._space_nav_url("organizations:space-discover"),
                 "space_work_url": self._space_nav_url("organizations:space-work"),
                 "space_us_url": self._space_nav_url("organizations:space-us"),
+                "space_relationships_url": self._space_nav_url(
+                    "organizations:space-relationships"
+                ),
+                "space_pilot_url": self._space_nav_url("organizations:space-pilot"),
                 "space_mark_url": self._space_nav_url("organizations:space-mark"),
                 "space_console_url": self._space_url("organizations:console-overview"),
             }
@@ -142,6 +149,84 @@ class SpaceUsView(SpaceWebMixin):
     template_name = "organizations/space/us.html"
     space_nav_key = "us"
     space_page_title = "Nous"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        projection = build_space_us_projection(
+            profile=self.request.user,
+            space=self.space,
+        )
+        owner_links = {
+            "relationships": context["space_relationships_url"],
+        }
+        capabilities = projection.get("capabilities", {})
+        if capabilities.get("manage_team"):
+            owner_links["team"] = self._space_url("organizations:console-team")
+        if capabilities.get("manage_ownership"):
+            owner_links["ownership"] = self._space_url("organizations:console-team")
+        if projection.get("links", {}).get("trust"):
+            owner_links["trust"] = self._space_url("organizations:console-trust")
+        if capabilities.get("update_space"):
+            owner_links["settings"] = self._space_url("organizations:console-settings")
+        if any(
+            module.get("key") == "analytics"
+            for module in self.workspace.get("modules", ())
+        ):
+            owner_links["pilot"] = context["space_pilot_url"]
+
+        context["projection"] = projection
+        context["us_owner_links"] = owner_links
+        return context
+
+
+class SpaceRelationshipsView(SpaceWebMixin):
+    template_name = "organizations/space/relationships.html"
+    space_nav_key = "us"
+    space_page_title = "Personnes & relations"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        projection = build_space_relationships_projection(
+            profile=self.request.user,
+            space=self.space,
+        )
+        sections = projection.get("sections", {})
+        owner_links = {}
+        route_by_section = {
+            "team": "organizations:console-team",
+            "groups": "organizations:console-groups",
+            "crm_contacts": "organizations:console-crm",
+            "audiences": "organizations:console-audiences",
+            "partners": "organizations:console-partners",
+        }
+        for section_key, route_name in route_by_section.items():
+            if section_key in sections:
+                owner_links[section_key] = self._space_url(route_name)
+
+        context["projection"] = projection
+        context["relationship_owner_links"] = owner_links
+        context["space_page_title"] = projection.get("label") or self.space_page_title
+        return context
+
+
+class SpacePilotView(SpaceWebMixin):
+    template_name = "organizations/space/pilot.html"
+    space_nav_key = "us"
+    space_page_title = "Piloter"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        projection = build_space_pilot_projection(
+            profile=self.request.user,
+            space=self.space,
+        )
+        context["projection"] = projection
+        context["pilot_owner_links"] = (
+            {"analytics": self._space_url("organizations:console-analytics")}
+            if "analytics" in projection.get("sections", {})
+            else {}
+        )
+        return context
 
 
 class SpaceMarkView(SpaceWebMixin):

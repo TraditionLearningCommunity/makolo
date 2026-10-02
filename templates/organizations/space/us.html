@@ -1,14 +1,99 @@
-{% extends 'organizations/space/base.html' %}
+{% extends 'organizations/space/ws4_base.html' %}
 {% block space_content %}
-<section class="space-y-4" aria-labelledby="space-us-heading">
-  <div>
+<section class="mk-ws4-stack" aria-labelledby="space-us-heading">
+  <header class="mk-ws4-heading">
     <span class="mk-kicker">Nous</span>
-    <h2 id="space-us-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">Qui sommes-nous et comment fonctionnons-nous ensemble ?</h2>
+    <h2 id="space-us-heading">Qui sommes-nous, avec qui fonctionnons-nous et comment sommes-nous organisés ?</h2>
+    <p>Une lecture humaine du collectif, de ses responsabilités et des relations qui le font avancer.</p>
+  </header>
+
+  <article class="mk-ws4-hero" aria-labelledby="space-us-identity">
+    <div class="mk-ws4-identity-mark" aria-hidden="true"><i data-lucide="building-2"></i></div>
+    <div class="mk-ws4-identity-copy">
+      <span class="mk-ws4-eyebrow">{{ projection.organization.operating_preset.label }}</span>
+      <h3 id="space-us-identity">{{ projection.identity.name }}</h3>
+      {% if projection.identity.description %}
+        <p>{{ projection.identity.description }}</p>
+      {% endif %}
+      <div class="mk-ws4-meta">
+        {% if projection.identity.location.city %}<span><i data-lucide="map-pin" aria-hidden="true"></i>{{ projection.identity.location.city }}{% if projection.identity.location.country %}, {{ projection.identity.location.country }}{% endif %}</span>{% endif %}
+        {% if projection.identity.website %}<a href="{{ projection.identity.website }}" rel="noopener noreferrer"><i data-lucide="external-link" aria-hidden="true"></i>Site</a>{% endif %}
+      </div>
+    </div>
+  </article>
+
+  <div class="mk-ws4-grid mk-ws4-grid--us">
+    {% if projection.team.active_members != None %}
+    <section class="mk-ws4-card" aria-labelledby="space-us-team">
+      <div class="mk-ws4-card-head">
+        <div><span class="mk-ws4-eyebrow">Collectif</span><h3 id="space-us-team">Équipe</h3></div>
+        <strong class="mk-ws4-count">{{ projection.team.active_members }}</strong>
+      </div>
+      {% if projection.team.items %}
+        <ul class="mk-ws4-list">
+          {% for member in projection.team.items %}
+          <li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="user-round"></i></span><div><strong>{{ member.profile.name }}</strong><small>Travaille avec nous</small></div></li>
+          {% endfor %}
+        </ul>
+        {% if projection.team.has_more %}<p class="mk-ws4-note">Aperçu limité. L’équipe complète reste dans son outil propriétaire.</p>{% endif %}
+      {% elif projection.capabilities.manage_team %}
+        <p class="mk-ws4-empty">Aucun membre actif dans l’équipe principale pour le moment.</p>
+      {% else %}
+        <p class="mk-ws4-note">Le nombre collectif est visible sans ouvrir les détails privés de l’équipe.</p>
+      {% endif %}
+      {% if us_owner_links.team %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.team }}">Voir l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+    </section>
+    {% endif %}
+
+    <section class="mk-ws4-card" aria-labelledby="space-us-responsibilities">
+      <div class="mk-ws4-card-head">
+        <div><span class="mk-ws4-eyebrow">Organisation</span><h3 id="space-us-responsibilities">Responsabilités</h3></div>
+      </div>
+      <ul class="mk-ws4-list">
+        {% for responsibility in projection.responsibilities.items %}
+          {% if not responsibility.combined %}
+          <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="briefcase-business"></i></span><div><strong>{{ responsibility.label }}</strong>{% if responsibility.activity %}<small>{{ responsibility.activity.title }}</small>{% else %}<small>Portée Space</small>{% endif %}</div></li>
+          {% endif %}
+        {% empty %}
+          <li><p class="mk-ws4-empty">Aucune responsabilité projetée dans ce contexte.</p></li>
+        {% endfor %}
+      </ul>
+      <p class="mk-ws4-note">Une responsabilité décrit ce que chacun porte. L’autorité reste décidée séparément par le serveur.</p>
+    </section>
+
+    {% if projection.ownership.items %}
+    <section class="mk-ws4-card" aria-labelledby="space-us-ownership">
+      <div class="mk-ws4-card-head">
+        <div><span class="mk-ws4-eyebrow">Institution</span><h3 id="space-us-ownership">Ownership</h3></div>
+      </div>
+      <ul class="mk-ws4-list">
+        {% for owner in projection.ownership.items %}
+        <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><div><strong>{{ owner.profile.name }}</strong><small>{{ owner.responsibility.label }}</small></div></li>
+        {% endfor %}
+      </ul>
+      <p class="mk-ws4-note">L’ownership institutionnel n’est ni une appartenance d’équipe ni une hiérarchie générale des personnes.</p>
+      {% if us_owner_links.ownership %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.ownership }}">Gouvernance de l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+    </section>
+    {% endif %}
+
+    <section class="mk-ws4-card" aria-labelledby="space-us-trust">
+      <div class="mk-ws4-card-head">
+        <div><span class="mk-ws4-eyebrow">Confiance</span><h3 id="space-us-trust">Faits de vérification</h3></div>
+      </div>
+      {% if projection.trust.verified %}
+        <div class="mk-ws4-state"><i data-lucide="badge-check" aria-hidden="true"></i><div><strong>Vérification active</strong><p>Des faits publics de vérification sont actuellement projetés pour cet Espace.</p></div></div>
+      {% else %}
+        <p class="mk-ws4-empty">Aucun fait public de vérification actif n’est projeté pour le moment.</p>
+      {% endif %}
+      <p class="mk-ws4-note">Un fait vérifié ne constitue pas une note globale de qualité.</p>
+      {% if us_owner_links.trust %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.trust }}">Ouvrir Confiance <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+    </section>
   </div>
-  <div class="mk-panel p-6">
-    <p class="font-bold">{{ space.name }}</p>
-    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Cette vue garde l’identité collective au premier plan. Les réglages et outils d’organisation restent accessibles séparément.</p>
-    <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary mt-5">Ouvrir les outils de l’Espace</a>
-  </div>
+
+  <nav class="mk-ws4-actions" aria-label="Approfondir Nous">
+    <a class="mk-ws4-action" href="{{ us_owner_links.relationships }}"><i data-lucide="users-round" aria-hidden="true"></i><span><strong>Personnes & relations</strong><small>Avec qui avançons-nous ?</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
+    {% if us_owner_links.pilot %}<a class="mk-ws4-action" href="{{ us_owner_links.pilot }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Piloter</strong><small>Comprendre ce qui fonctionne et ce qui change.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
+    {% if us_owner_links.settings %}<a class="mk-ws4-action mk-ws4-action--quiet" href="{{ us_owner_links.settings }}"><i data-lucide="settings-2" aria-hidden="true"></i><span><strong>Paramètres de l’Espace</strong><small>Administration institutionnelle.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
+  </nav>
 </section>
 {% endblock %}
