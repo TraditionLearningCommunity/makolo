@@ -11,7 +11,11 @@ import '../../repositories/personal_repository.dart';
 import 'ongoing_presentation.dart';
 
 class OngoingScreen extends StatefulWidget {
-  const OngoingScreen({super.key, required this.repository, this.projectionStream});
+  const OngoingScreen({
+    super.key,
+    required this.repository,
+    this.projectionStream,
+  });
   final PersonalRepository repository;
   final Stream<StoredProjection?>? projectionStream;
   @override
@@ -34,15 +38,20 @@ class _OngoingScreenState extends State<OngoingScreen> {
       stream: widget.projectionStream ?? widget.repository.watchOngoing(),
       builder: (context, snapshot) {
         final projection = snapshot.data;
-        if (!snapshot.hasData && snapshot.connectionState == ConnectionState.waiting) {
+        if (!snapshot.hasData &&
+            snapshot.connectionState == ConnectionState.waiting) {
           return const MakoloSurfaceStateView(
-            state: MakoloSurfacePresentation(availability: MakoloAvailabilityCue.loading),
+            state: MakoloSurfacePresentation(
+              availability: MakoloAvailabilityCue.loading,
+            ),
             content: SizedBox.shrink(),
           );
         }
         if (projection == null) {
           return const MakoloSurfaceStateView(
-            state: MakoloSurfacePresentation(availability: MakoloAvailabilityCue.empty),
+            state: MakoloSurfacePresentation(
+              availability: MakoloAvailabilityCue.empty,
+            ),
             empty: MakoloEmptyState(title: 'Rien en cours pour le moment.'),
             content: SizedBox.shrink(),
           );
@@ -50,20 +59,29 @@ class _OngoingScreenState extends State<OngoingScreen> {
         final items = OngoingContinuityPresentation.fromProjection(projection);
         if (items.isEmpty) {
           return const MakoloSurfaceStateView(
-            state: MakoloSurfacePresentation(availability: MakoloAvailabilityCue.empty),
+            state: MakoloSurfacePresentation(
+              availability: MakoloAvailabilityCue.empty,
+            ),
             empty: MakoloEmptyState(title: 'Rien en cours pour le moment.'),
             content: SizedBox.shrink(),
           );
         }
-        final matches = items.where((item) => _ownerKey(item) == _selectedOwnerKey);
+        final matches = items.where(
+          (item) => _ownerKey(item) == _selectedOwnerKey,
+        );
         final selected = matches.isEmpty ? null : matches.first;
-        final stale = projection.freshUntil != null &&
+        final stale =
+            projection.freshUntil != null &&
             projection.freshUntil!.isBefore(DateTime.now().toUtc());
         return MakoloSurfaceStateView(
           state: MakoloSurfacePresentation(
             availability: MakoloAvailabilityCue.content,
-            freshness: stale ? MakoloFreshnessCue.oldObservation : MakoloFreshnessCue.current,
-            failure: snapshot.hasError ? MakoloFailureCue.recoverable : MakoloFailureCue.none,
+            freshness: stale
+                ? MakoloFreshnessCue.oldObservation
+                : MakoloFreshnessCue.current,
+            failure: snapshot.hasError
+                ? MakoloFailureCue.recoverable
+                : MakoloFailureCue.none,
           ),
           content: _OngoingAdaptiveView(
             items: items,
@@ -72,8 +90,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
             onSelect: _select,
             onBack: _clearSelection,
           ),
-          recoverableErrorMessage:
-              'La mise à jour a échoué. Le contenu déjà disponible reste utilisable.',
+          recoverableErrorMessage: 'La mise à jour a échoué. Le contenu déjà disponible reste utilisable.',
         );
       },
     ),
@@ -99,12 +116,22 @@ class _OngoingAdaptiveView extends StatelessWidget {
     maxContentWidth: 1040,
     child: MakoloAdaptiveSplit(
       splitAt: MakoloLayout.ongoingSplitMinWidth,
-      field: _OngoingField(items: items, selected: selected, stale: stale, onSelect: onSelect),
+      field: _OngoingField(
+        items: items,
+        selected: selected,
+        stale: stale,
+        onSelect: onSelect,
+      ),
       focus: selected == null
           ? const _OngoingFocusPlaceholder()
           : _OngoingFocus(item: selected!, onBack: onBack),
       narrow: selected == null
-          ? _OngoingField(items: items, selected: selected, stale: stale, onSelect: onSelect)
+          ? _OngoingField(
+              items: items,
+              selected: selected,
+              stale: stale,
+              onSelect: onSelect,
+            )
           : _OngoingFocus(item: selected!, onBack: onBack),
     ),
   );
@@ -130,7 +157,8 @@ class _OngoingField extends StatelessWidget {
     separatorBuilder: (_, __) => const SizedBox(height: MakoloSpacing.lg),
     itemBuilder: (context, index) {
       final item = items[index];
-      final key = '\${item.ownerKind ?? item.kind}:\${item.ownerId ?? item.title}';
+      final key =
+          '\${item.ownerKind ?? item.kind}:\${item.ownerId ?? item.title}';
       final selectedKey = selected == null
           ? null
           : '\${selected!.ownerKind ?? selected!.kind}:\${selected!.ownerId ?? selected!.title}';
@@ -181,7 +209,10 @@ class _OngoingRow extends StatelessWidget {
             ],
             if (stale) ...[
               const SizedBox(height: MakoloSpacing.sm),
-              Text('Dernière information connue', style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                'Dernière information connue',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ],
         ),
@@ -208,7 +239,8 @@ class _OngoingFocus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showBack = MediaQuery.sizeOf(context).width < MakoloLayout.ongoingSplitMinWidth;
+    final showBack =
+        MediaQuery.sizeOf(context).width < MakoloLayout.ongoingSplitMinWidth;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
       child: MakoloFocusPane(
@@ -235,7 +267,10 @@ class _OngoingFocus extends StatelessWidget {
             if (item.waiting != null && item.elsewhere.isEmpty)
               _DimensionSection(title: 'En attente', values: [item.waiting!]),
             if (item.blocker != null)
-              _DimensionSection(title: 'Ce qui bloque', values: [item.blocker!]),
+              _DimensionSection(
+                title: 'Ce qui bloque',
+                values: [item.blocker!],
+              ),
             if (item.unknown != null)
               _DimensionSection(title: 'À vérifier', values: [item.unknown!]),
             if (item.timing.isNotEmpty || item.place.isNotEmpty)
@@ -247,7 +282,8 @@ class _OngoingFocus extends StatelessWidget {
                     if (value is String) MakoloMetadataItem(value),
                 ],
               ),
-            if (item.capabilities.contains('open_day_of') && item.links['day_of'] != null)
+            if (item.capabilities.contains('open_day_of') &&
+                item.links['day_of'] != null)
               Padding(
                 padding: const EdgeInsets.only(top: MakoloSpacing.lg),
                 child: OutlinedButton.icon(
