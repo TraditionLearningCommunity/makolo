@@ -5,6 +5,7 @@ import secrets
 from django.test import TransactionTestCase
 
 from access.models import Access, AccessUse
+from accounts.models import User
 from activities.models import Activity, Occurrence
 from authorization.models import Mandate
 from capacity.models import CapacityPool
@@ -88,3 +89,16 @@ class CanonicalBetaSeedTests(TransactionTestCase):
         )
         self.assertGreaterEqual(ActivityResource.objects.filter(activity__in=seeded).count(), 150)
         self.assertGreaterEqual(first["validation"]["mobile_mature_journeys"], 30)
+        primary = User.objects.get(email=MOBILE_MATURE_PERSONAS["primary"])
+        self.client.force_login(primary)
+        now_response = self.client.get("/api/v1/me/now/")
+        ongoing_response = self.client.get("/api/v1/me/ongoing/")
+        discovery_response = self.client.get("/api/v1/discovery/items/?page_size=50")
+        me_response = self.client.get("/api/v1/me/")
+        self.assertEqual(now_response.status_code, 200)
+        self.assertEqual(ongoing_response.status_code, 200)
+        self.assertEqual(discovery_response.status_code, 200)
+        self.assertEqual(me_response.status_code, 200)
+        self.assertGreater(len(now_response.json()["data"]["items"]), 0)
+        self.assertGreater(len(ongoing_response.json()["data"]["items"]), 0)
+        self.assertGreaterEqual(len(discovery_response.json()["data"]["items"]), 20)
