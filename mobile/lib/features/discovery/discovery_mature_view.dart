@@ -11,6 +11,98 @@ import 'discovery_selector.dart';
 
 typedef DiscoveryOpenItem = void Function(DiscoveryItemPresentation item);
 
+class DiscoveryExplorationView extends StatefulWidget {
+  const DiscoveryExplorationView({
+    super.key,
+    required this.selection,
+    required this.onOpen,
+    this.onPage,
+    this.onRetry,
+    this.onResetCriteria,
+  });
+
+  final DiscoveryFieldSelection selection;
+  final DiscoveryOpenItem onOpen;
+  final ValueChanged<int>? onPage;
+  final VoidCallback? onRetry;
+  final VoidCallback? onResetCriteria;
+
+  @override
+  State<DiscoveryExplorationView> createState() =>
+      _DiscoveryExplorationViewState();
+}
+
+class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
+  String? _focusedCandidateKey;
+
+  @override
+  void didUpdateWidget(covariant DiscoveryExplorationView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final keys = widget.selection.collection.items
+        .map((item) => item.candidateKey)
+        .toSet();
+    if (_focusedCandidateKey != null && !keys.contains(_focusedCandidateKey)) {
+      _focusedCandidateKey = null;
+    }
+  }
+
+  DiscoveryItemPresentation? get _focusedItem {
+    final key = _focusedCandidateKey;
+    if (key == null) return null;
+    for (final item in widget.selection.collection.items) {
+      if (item.candidateKey == key) return item;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final wide = width >= MakoloLayout.wideMinWidth;
+        final focused = _focusedItem;
+
+        if (!wide) {
+          return DiscoveryFieldView(
+            selection: widget.selection,
+            onOpen: widget.onOpen,
+            onPage: widget.onPage,
+            onRetry: widget.onRetry,
+            onResetCriteria: widget.onResetCriteria,
+          );
+        }
+
+        final field = DiscoveryFieldView(
+          selection: widget.selection,
+          onOpen: widget.onOpen,
+          onPage: widget.onPage,
+          onRetry: widget.onRetry,
+          onResetCriteria: widget.onResetCriteria,
+          selectedCandidateKey: _focusedCandidateKey,
+          onSelect: (item) => setState(() {
+            _focusedCandidateKey = item.candidateKey;
+          }),
+        );
+        if (focused == null) return field;
+
+        return MakoloAdaptiveSplit(
+          splitAt: MakoloLayout.wideMinWidth,
+          field: field,
+          focus: _DiscoveryFocusPane(
+            item: focused,
+            onClose: () => setState(() => _focusedCandidateKey = null),
+            onOpen: () => widget.onOpen(focused),
+          ),
+          narrow: field,
+        );
+      },
+    );
+  }
+}
+
 class DiscoveryFieldView extends StatelessWidget {
   const DiscoveryFieldView({
     super.key,
@@ -21,6 +113,7 @@ class DiscoveryFieldView extends StatelessWidget {
     this.onResetCriteria,
     this.selectedCandidateKey,
     this.onSelect,
+    this.selectionActionLabel,
   });
 
   final DiscoveryFieldSelection selection;
@@ -30,6 +123,7 @@ class DiscoveryFieldView extends StatelessWidget {
   final VoidCallback? onResetCriteria;
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
+  final String? selectionActionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +148,7 @@ class DiscoveryFieldView extends StatelessWidget {
         onPage: onPage,
         selectedCandidateKey: selectedCandidateKey,
         onSelect: onSelect,
+        selectionActionLabel: selectionActionLabel,
       ),
     );
   }
@@ -135,6 +230,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       onSelect: (item) => setState(() {
         _selectedCandidateKey = item.candidateKey;
       }),
+      selectionActionLabel: 'Voir sur la carte',
     );
 
     if (points.isEmpty) {
@@ -223,6 +319,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
     this.onPage,
     this.selectedCandidateKey,
     this.onSelect,
+    this.selectionActionLabel,
   });
 
   final DiscoveryFieldSelection selection;
@@ -230,6 +327,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final ValueChanged<int>? onPage;
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
+  final String? selectionActionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -250,17 +348,26 @@ class _DiscoveryScrollableField extends StatelessWidget {
               item: item,
               selected: selectedCandidateKey == item.candidateKey,
               onTap: () {
-                if (item.isMappable) onSelect?.call(item);
-                onOpen(item);
+                if (onSelect != null) {
+                  onSelect!(item);
+                } else {
+                  onOpen(item);
+                }
               },
-              onSelect: onSelect == null || !item.isMappable
+              onSelect:
+                  selectionActionLabel == null ||
+                      onSelect == null ||
+                      !item.isMappable
                   ? null
                   : () => onSelect!(item),
+              selectionActionLabel: selectionActionLabel,
             ),
         ];
 
         return ListView(
-          key: ValueKey('discover-page-${selection.collection.page}'),
+          key: PageStorageKey<String>(
+            'discover-page-${selection.collection.page}',
+          ),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(
             top: MakoloSpacing.sm,
@@ -332,12 +439,14 @@ class _DiscoveryUnit extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.onSelect,
+    this.selectionActionLabel,
   });
 
   final DiscoveryItemPresentation item;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback? onSelect;
+  final String? selectionActionLabel;
 
   bool get _hasContextualMedia =>
       item.imageUrl != null || item.routeLabel != null;
@@ -427,7 +536,7 @@ class _DiscoveryUnit extends StatelessWidget {
                       child: TextButton.icon(
                         onPressed: onSelect,
                         icon: const Icon(Icons.map_outlined),
-                        label: const Text('Voir sur la carte'),
+                        label: Text(selectionActionLabel ?? 'Sélectionner'),
                       ),
                     ),
                   ],
@@ -483,6 +592,62 @@ class _DiscoveryMedia extends StatelessWidget {
       child: child,
       placeholder: MakoloMediaPlaceholder(
         label: item.eyebrow ?? 'Possibilité',
+      ),
+    );
+  }
+}
+
+class _DiscoveryFocusPane extends StatelessWidget {
+  const _DiscoveryFocusPane({
+    required this.item,
+    required this.onClose,
+    required this.onOpen,
+  });
+
+  final DiscoveryItemPresentation item;
+  final VoidCallback onClose;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return MakoloFocusPane(
+      child: SingleChildScrollView(
+        key: const Key('discover-focus-depth'),
+        padding: const EdgeInsets.all(MakoloSpacing.inner),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextButton.icon(
+              onPressed: onClose,
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: const Text('Découvrir'),
+            ),
+            const SizedBox(height: MakoloSpacing.md),
+            if (item.imageUrl != null || item.routeLabel != null) ...[
+              _DiscoveryMedia(item: item),
+              const SizedBox(height: MakoloSpacing.lg),
+            ],
+            if (item.eyebrow != null)
+              Text(
+                item.eyebrow!,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            const SizedBox(height: MakoloSpacing.xs),
+            Text(item.title, style: Theme.of(context).textTheme.headlineSmall),
+            if (item.summary.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(item.summary),
+            ],
+            const SizedBox(height: MakoloSpacing.lg),
+            FilledButton.icon(
+              onPressed: onOpen,
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: const Text('Ouvrir le détail'),
+            ),
+          ],
+        ),
       ),
     );
   }
