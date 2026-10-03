@@ -328,6 +328,14 @@ l'Occurrence par l'Activity.
 
 Aucun match sûr ⇒ `NEW_CANDIDATE` avec provisional_ref, sans création ORM.
 
+Pour une entité explicitement typée `organization`, plusieurs pages du même
+**hôte source exact** peuvent réutiliser la même identité provisoire lorsque le
+libellé normalisé est identique. Cette convergence est uniquement technique :
+elle réduit les doublons de revue et rend le replay cohérent. Elle ne constitue
+jamais une preuve d'identité canonique, ne produit pas `MATCHED` à elle seule et
+n'autorise aucune mutation métier. Deux hôtes différents restent distincts tant
+qu'une preuve plus forte ne les relie pas.
+
 ### F — contradiction
 
 Même réalité + même predicate + valeurs incompatibles inter-sources ⇒
