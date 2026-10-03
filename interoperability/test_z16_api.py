@@ -97,7 +97,7 @@ class Z16InteroperabilityAPITests(TestCase):
         self.other_profile = UserProfile.objects.create(user=self.other)
 
         self.space = Organization.objects.create(name="Z16 Space", slug="z16-space", created_by=self.owner)
-        self.other_space = Organization.objects.create(name="Z16 Other", slug="z16-other", created_by=self.other)
+        self.other_space = Organization.objects.create(name="Z16 Other", slug="z16-other-space", created_by=self.other)
         grant_space_role(profile=self.owner, space=self.space, role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner)
         grant_space_role(profile=self.other, space=self.other_space, role=SystemRoleCode.SPACE_OWNER, granted_by=self.other)
         grant_platform_role(profile=self.platform, role=SystemRoleCode.PLATFORM_ADMIN, granted_by=self.platform)
