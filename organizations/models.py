@@ -103,8 +103,13 @@ class Organization(models.Model):
             base = slugify(self.name)[:170] or "organisation"
             candidate = base
             suffix = 2
-            while Organization.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
-                candidate = f"{base[:185]}-{suffix}"
+            from sharing.models import PublicIdentifier
+            while (
+                Organization.objects.exclude(pk=self.pk).filter(slug=candidate).exists()
+                or PublicIdentifier.objects.filter(identifier__iexact=candidate).exclude(space_id=self.pk).exists()
+            ):
+                tail = f"-{suffix}"
+                candidate = f"{base[:200-len(tail)]}{tail}"
                 suffix += 1
             self.slug = candidate
         super().save(*args, **kwargs)
