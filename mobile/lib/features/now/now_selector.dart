@@ -69,6 +69,8 @@ class NowSelector {
       if (situation != null) situations.add(situation);
     }
 
+    final malformedOnly = items.isNotEmpty && situations.isEmpty;
+
     return NowSelection(
       situations: List.unmodifiable(situations),
       state: MakoloSurfacePresentation(
@@ -80,7 +82,7 @@ class NowSelector {
         ),
         reachability: reachability,
         commit: commit,
-        failure: failure,
+        failure: malformedOnly ? MakoloFailureCue.blocking : failure,
         refreshing: refreshing,
       ),
     );
