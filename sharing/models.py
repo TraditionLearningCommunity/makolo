@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from .public_identifiers import normalize_public_identifier, validate_public_identifier
@@ -338,6 +339,7 @@ class PublicIdentifier(models.Model):
     class Meta:
         ordering = ["identifier"]
         constraints = [
+            models.UniqueConstraint(Lower("identifier"), name="sharing_public_identifier_ci_unique"),
             models.CheckConstraint(
                 condition=(
                     models.Q(subject_kind=PublicSubjectKind.PROFILE, profile__isnull=False, space__isnull=True)
