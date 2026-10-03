@@ -130,7 +130,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             );
             return RefreshIndicator(
               onRefresh: _refreshItems,
-              child: DiscoveryFieldView(
+              child: DiscoveryExplorationView(
                 selection: selection,
                 onOpen: _open,
                 onPage: _movePage,
@@ -348,7 +348,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                         );
                         return RefreshIndicator(
                           onRefresh: () => _refreshPage(_query),
-                          child: DiscoveryFieldView(
+                          child: DiscoveryExplorationView(
                             selection: selection,
                             onOpen: _open,
                             onPage: _movePage,
