@@ -524,6 +524,16 @@ def _seed_resources(ctx: SeedContext, activity: Activity, spec: dict, index: int
     )
     source = PUBLIC_SOURCES.get(spec["provenance"])
     source_label = PUBLIC_SOURCE_LABELS.get(spec["provenance"], "Référence publique")
+    if not source:
+        prefix = spec["id"].split("-", 1)[0]
+        vertical = {
+            "EVT": "event",
+            "TRN": "transport",
+            "SRV": "service",
+            "FND": "funding",
+        }.get(prefix)
+        if vertical in VERTICAL_REFERENCE_URLS:
+            source_label, source = VERTICAL_REFERENCE_URLS[vertical]
     if source:
         upsert(
             ActivityResource,
@@ -532,7 +542,7 @@ def _seed_resources(ctx: SeedContext, activity: Activity, spec: dict, index: int
                 "activity": activity,
                 "key": "public-source",
                 "title": source_label,
-                "description": "Ressource publique consultable en ligne.",
+                "description": "Ressource publique consultable en ligne pour approfondir ce type de démarche.",
                 "kind": ResourceKind.URL,
                 "external_url": source,
                 "visibility": ResourceVisibility.PUBLIC,
@@ -544,6 +554,24 @@ def _seed_resources(ctx: SeedContext, activity: Activity, spec: dict, index: int
         )
 
     media = spec["media"].lower()
+    if "magazine_link" in media:
+        upsert(
+            ActivityResource,
+            f"mobile-mature-magazine-{spec['id']}",
+            defaults={
+                "activity": activity,
+                "key": "inflight-magazine",
+                "title": "Magazine de bord Air Fast Congo",
+                "description": "Magazine public consultable en ligne.",
+                "kind": ResourceKind.URL,
+                "external_url": "https://airfast-congo.com/inflight-magazine-fra/",
+                "visibility": ResourceVisibility.PUBLIC,
+                "status": ResourceStatus.PUBLISHED,
+                "version": 1,
+                "created_by": activity.created_by,
+                "published_at": ctx.as_of,
+            },
+        )
     if any(token in media for token in ("image", "gallery", "poster", "cover", "hero", "badge")):
         _file_resource(ctx, activity=activity, key="demo-image", title=f"Visuel — {activity.title}", filename="image.png", mime="image/png", data=_png_bytes(spec["id"]))
     if "gallery" in media:
