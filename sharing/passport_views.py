@@ -82,10 +82,18 @@ class PassportViewMixin(TemplateView):
         self.variant = variant
         return super().dispatch(request, *args, **kwargs)
 
-    def get_download_url(self):
+    def _document_url(self, mode):
         params = self.request.GET.copy()
-        params["download"] = "1"
+        params.pop("download", None)
+        params.pop("document", None)
+        params[mode] = "1"
         return f"{self.request.path}?{params.urlencode()}"
+
+    def get_download_url(self):
+        return self._document_url("download")
+
+    def get_print_url(self):
+        return self._document_url("document")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -96,10 +104,13 @@ class PassportViewMixin(TemplateView):
             and not self.has_custom_selection()
             and self.request.GET.get("download") != "1"
         )
+        is_export = self.request.GET.get("download") == "1"
+        is_print_document = self.request.GET.get("document") == "1"
+        is_document = is_export or is_print_document
         snapshot = None
         verification_url = ""
         qr_data_uri = ""
-        if projection.has_content:
+        if projection.has_content and is_document:
             snapshot = issue_passport_snapshot(projection)
             token = passport_verification_token(snapshot)
             verification_url = self.request.build_absolute_uri(
@@ -107,7 +118,7 @@ class PassportViewMixin(TemplateView):
             )
             qr_data_uri = render_makolo_qr_data_uri(verification_url, box_size=5)
 
-        if self.request.GET.get("download") == "1" and not projection.has_content:
+        if is_document and not projection.has_content:
             raise Http404("Ce Passeport ne contient encore rien à exporter.")
 
         try:
@@ -125,8 +136,11 @@ class PassportViewMixin(TemplateView):
                 "selection_catalog": self.get_selection_catalog() if show_selection_catalog else None,
                 "selected_topic_codes": set(self.request.GET.getlist("topic")),
                 "download_url": self.get_download_url(),
+                "print_url": self.get_print_url(),
                 "can_export": projection.has_content,
-                "is_export": self.request.GET.get("download") == "1",
+                "is_export": is_export,
+                "is_document": is_document,
+                "auto_print": is_print_document,
                 "public_identifier": public_identifier,
                 "passport_snapshot": snapshot,
                 "passport_verification_url": verification_url,
