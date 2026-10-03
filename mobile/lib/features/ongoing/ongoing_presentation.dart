@@ -68,7 +68,8 @@ class OngoingContinuityPresentation {
         if (_text(entry['title']) != null) _text(entry['title'])!,
     ];
     final elsewhere = <String>[
-      if (_text(continuation['summary']) != null) _text(continuation['summary'])!,
+      if (_text(continuation['summary']) != null)
+        _text(continuation['summary'])!,
       if (continuation['state'] == 'waiting' &&
           _text(continuation['summary']) == null)
         'Une réponse est attendue.',
@@ -106,9 +107,10 @@ class OngoingContinuityPresentation {
       timing: Map.unmodifiable(_map(item['timing'])),
       place: Map.unmodifiable(_map(item['place'])),
       capabilities: [
-        for (final value in item['capabilities'] is List
-            ? item['capabilities'] as List
-            : const [])
+        for (final value
+            in item['capabilities'] is List
+                ? item['capabilities'] as List
+                : const [])
           if (value is String) value,
       ],
       links: {
