@@ -46,11 +46,7 @@ NowSelection contentSelection({
         whyNow: 'La fenêtre ferme aujourd’hui.',
         capability: 'open_detail',
       ),
-      situation(
-        'trip',
-        'Départ vers Kolwezi',
-        'Le départ est prévu à 14:00.',
-      ),
+      situation('trip', 'Départ vers Kolwezi', 'Le départ est prévu à 14:00.'),
     ],
     state: MakoloSurfacePresentation(
       availability: MakoloAvailabilityCue.content,
