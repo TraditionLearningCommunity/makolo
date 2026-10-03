@@ -116,12 +116,15 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       widget.selection.collection,
     );
     final selected = _selectedItem;
-    final selectedPoint = selected == null
-        ? null
-        : points.cast<DiscoveryMapPoint?>().firstWhere(
-            (point) => point?.candidateKey == selected.candidateKey,
-            orElse: () => null,
-          );
+    DiscoveryMapPoint? selectedPoint;
+    if (selected != null) {
+      for (final point in points) {
+        if (point.candidateKey == selected.candidateKey) {
+          selectedPoint = point;
+          break;
+        }
+      }
+    }
 
     final field = DiscoveryFieldView(
       selection: widget.selection,
