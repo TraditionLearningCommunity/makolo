@@ -38,7 +38,7 @@ class G6PassportFixtureMixin:
             latitude=-11.66,
             longitude=27.48,
             public_profile=True,
-            searchable=False,
+            searchable=True,
         )
         self.patrick = User.objects.create_user(
             username="g6-patrick",
@@ -282,7 +282,11 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertEqual(response["Content-Type"], "text/html; charset=utf-8")
         self.assertIn("attachment;", response["Content-Disposition"])
         self.assertContains(response, 'data-passport-print-ready="true"')
-        self.assertContains(response, "Imprimer / Enregistrer en PDF")
+        self.assertNotContains(response, "Imprimer / Enregistrer en PDF")
+        self.assertContains(response, "makolo-mark-white.svg")
+        self.assertContains(response, "QR de vérification")
+        self.assertNotContains(response, "Ownership Activity")
+        self.assertNotContains(response, "Credential Trust")
 
 
 class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
