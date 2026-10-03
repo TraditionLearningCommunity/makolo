@@ -64,7 +64,7 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
         self.assertEqual(discover.context["projection_state"], "unavailable")
         self.assertContains(discover, "La sélection n’est pas encore disponible.")
         self.assertNotContains(discover, "no_safe_selection_contract")
-        self.assertNotContains(discover, "populaire")
+        self.assertContains(discover, "Aucun candidat personnel, populaire ou récent n’est injecté")
 
     def test_projection_state_mapping_keeps_empty_unavailable_partial_and_error_distinct(self):
         self.assertEqual(
