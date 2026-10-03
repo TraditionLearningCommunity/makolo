@@ -2,13 +2,24 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core import signing
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.views.generic import TemplateView
+
+from core.branding import render_makolo_qr_data_uri
 
 from organizations.models import Organization
 from organizations.permissions import user_can_access_organization_workspace
+
+from .models import PublicIdentifier, PublicSubjectKind
+from .passport_documents import (
+    issue_passport_snapshot,
+    passport_verification_token,
+    resolve_passport_verification_token,
+)
 
 from .passport import (
     PASSPORT_COMPLETE,
@@ -85,6 +96,25 @@ class PassportViewMixin(TemplateView):
             and not self.has_custom_selection()
             and self.request.GET.get("download") != "1"
         )
+        snapshot = None
+        verification_url = ""
+        qr_data_uri = ""
+        if projection.has_content:
+            snapshot = issue_passport_snapshot(projection)
+            token = passport_verification_token(snapshot)
+            verification_url = self.request.build_absolute_uri(
+                reverse("sharing:passport-verify", kwargs={"token": token})
+            )
+            qr_data_uri = render_makolo_qr_data_uri(verification_url, box_size=5)
+
+        if self.request.GET.get("download") == "1" and not projection.has_content:
+            raise Http404("Ce Passeport ne contient encore rien à exporter.")
+
+        try:
+            public_identifier = self.subject.public_identifier_record.identifier
+        except (AttributeError, ObjectDoesNotExist):
+            public_identifier = getattr(self.subject, "username", None) or getattr(self.subject, "slug", "")
+
         context.update(
             {
                 "projection": projection,
@@ -95,6 +125,12 @@ class PassportViewMixin(TemplateView):
                 "selection_catalog": self.get_selection_catalog() if show_selection_catalog else None,
                 "selected_topic_codes": set(self.request.GET.getlist("topic")),
                 "download_url": self.get_download_url(),
+                "can_export": projection.has_content,
+                "is_export": self.request.GET.get("download") == "1",
+                "public_identifier": public_identifier,
+                "passport_snapshot": snapshot,
+                "passport_verification_url": verification_url,
+                "passport_qr_data_uri": qr_data_uri,
             }
         )
         return context
@@ -110,7 +146,7 @@ class PassportViewMixin(TemplateView):
     def projection_filename_slug(self, projection):
         if projection.subject_kind == "space":
             return projection.subject.slug
-        return str(projection.subject.pk)
+        return projection.subject.username
 
 
 class ProfilePassportView(PassportViewMixin):
@@ -176,3 +212,60 @@ class SpacePassportView(PassportViewMixin):
 
     def get_topic_options(self):
         return space_passport_topic_options(self.subject)
+
+
+class PublicPassportIdentifierView(PassportViewMixin):
+    """Canonical public Passport at /<identifier>/ for Profile or Space."""
+
+    default_variant = PASSPORT_PUBLIC
+
+    def get_subject(self):
+        try:
+            self.identifier_record = PublicIdentifier.objects.select_related("profile", "space").get(
+                identifier__iexact=self.kwargs["identifier"]
+            )
+        except PublicIdentifier.DoesNotExist as exc:
+            raise Http404("Ce Passeport Makolo n’est pas disponible.") from exc
+        subject = self.identifier_record.subject
+        if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE and not subject.is_active:
+            raise Http404("Ce Passeport Makolo n’est pas disponible.")
+        return subject
+
+    def is_private_authorized(self):
+        return False
+
+    def subject_is_public(self):
+        if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
+            return profile_has_public_passport(self.subject)
+        return space_has_public_passport(self.subject)
+
+    def build_projection(self, variant):
+        if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
+            return build_profile_passport(self.subject, variant=PASSPORT_PUBLIC)
+        return build_space_passport(self.subject, variant=PASSPORT_PUBLIC)
+
+
+class PassportVerificationView(TemplateView):
+    template_name = "sharing/passport_verify.html"
+
+    def get_snapshot(self):
+        try:
+            return resolve_passport_verification_token(self.kwargs["token"])
+        except (signing.BadSignature, KeyError, ObjectDoesNotExist) as exc:
+            raise Http404("Ce document Makolo ne peut pas être vérifié.") from exc
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        snapshot = self.get_snapshot()
+        if snapshot.subject_kind == PublicSubjectKind.PROFILE:
+            currently_public = bool(snapshot.profile and profile_has_public_passport(snapshot.profile))
+        else:
+            currently_public = bool(snapshot.space and space_has_public_passport(snapshot.space))
+        context.update(
+            {
+                "snapshot": snapshot,
+                "snapshot_name": snapshot.payload.get("identity", {}).get("name", snapshot.public_identifier),
+                "currently_public": currently_public,
+            }
+        )
+        return context
