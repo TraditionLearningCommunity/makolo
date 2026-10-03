@@ -16,12 +16,28 @@ class MpsPresentationRepository {
 
   String accessArtifactKey(String accessId) => 'access:$accessId:access_pass';
 
+  String activityArtifactKey(String activityId, String purpose) =>
+      'activity:$activityId:$purpose';
+
   SyncSourceDefinition accessArtifactSource(String accessId) => SyncSourceDefinition.projectionEnvelope(
     sourceKey: 'mps:access:$accessId:access_pass',
     owner: 'Presentation',
     path: 'api/v1/presentations/accesses/$accessId/',
     projectionKind: mpsArtifactProjectionKind,
     resourceKey: accessArtifactKey(accessId),
+    category: SyncSourceCategory.keyedDetail,
+    freshnessPolicy: artifactFreshness,
+  );
+
+  SyncSourceDefinition activityArtifactSource(
+    String activityId,
+    String purpose,
+  ) => SyncSourceDefinition.projectionEnvelope(
+    sourceKey: 'mps:activity:$activityId:$purpose',
+    owner: 'Presentation',
+    path: 'api/v1/presentations/activities/$activityId/$purpose/',
+    projectionKind: mpsArtifactProjectionKind,
+    resourceKey: activityArtifactKey(activityId, purpose),
     category: SyncSourceCategory.keyedDetail,
     freshnessPolicy: artifactFreshness,
   );
@@ -35,11 +51,32 @@ class MpsPresentationRepository {
     return _packageFor(MpsArtifact.fromProjection(projection));
   }
 
-  Future<void> refreshAccess(String accessId) async {
+  Future<MpsPresentationPackage?> readActivityPackage(
+    String activityId,
+    String purpose,
+  ) async {
+    final projection = await store.readProjection(
+      mpsArtifactProjectionKind,
+      resourceKey: activityArtifactKey(activityId, purpose),
+    );
+    if (projection == null) return null;
+    return _packageFor(MpsArtifact.fromProjection(projection));
+  }
+
+  Future<void> refreshActivity(String activityId, String purpose) =>
+      _refreshArtifact(activityArtifactSource(activityId, purpose));
+
+  Future<void> refreshAccess(String accessId) =>
+      _refreshArtifact(accessArtifactSource(accessId));
+
+  Future<void> _refreshArtifact(SyncSourceDefinition source) async {
     final engine = sync;
     if (engine == null) throw StateError('Remote Presentation owner is not configured.');
-    await engine.refreshSource(accessArtifactSource(accessId));
-    final projection = await store.readProjection(mpsArtifactProjectionKind, resourceKey: accessArtifactKey(accessId));
+    await engine.refreshSource(source);
+    final projection = await store.readProjection(
+      mpsArtifactProjectionKind,
+      resourceKey: source.resourceKey,
+    );
     if (projection == null) return;
     final artifact = MpsArtifact.fromProjection(projection);
     await _ensureDefinition(artifact.template, projectionKind: mpsTemplateProjectionKind);

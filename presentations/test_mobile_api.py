@@ -18,10 +18,6 @@ from .services import configure_activity_presentation, publish_activity_presenta
 User = get_user_model()
 
 
-class MPSMobileAPIContractTests:
-    pass
-
-
 from django.test import TestCase
 
 
