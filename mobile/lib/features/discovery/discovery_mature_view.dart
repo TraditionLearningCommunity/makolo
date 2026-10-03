@@ -609,8 +609,8 @@ class _DiscoveryFocusPane extends StatelessWidget {
       key: const Key('discover-focus-depth'),
       padding: const EdgeInsets.all(MakoloSpacing.inner),
       child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             TextButton.icon(
               onPressed: onClose,
               icon: const Icon(Icons.arrow_back_rounded),
@@ -635,11 +635,11 @@ class _DiscoveryFocusPane extends StatelessWidget {
               Text(item.summary),
             ],
             const SizedBox(height: MakoloSpacing.lg),
-            FilledButton.icon(
-              onPressed: onOpen,
-              icon: const Icon(Icons.arrow_forward_rounded),
-              label: const Text('Ouvrir le détail'),
-            ),
+          FilledButton.icon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: const Text('Ouvrir le détail'),
+          ),
         ],
       ),
     );
