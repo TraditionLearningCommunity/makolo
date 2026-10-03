@@ -57,6 +57,7 @@ class OrganizationCreateView(LoginRequiredMixin, CreateView):
             country=form.cleaned_data.get("country", ""),
             city=form.cleaned_data.get("city", ""),
             public_profile=form.cleaned_data.get("public_profile", True),
+            searchable=form.cleaned_data.get("searchable", True),
         )
         messages.success(self.request, "Espace créé. Vous en êtes propriétaire.")
         return redirect("organizations:console-overview", slug=self.object.slug)
@@ -84,6 +85,7 @@ class OrganizationFollowToggleView(LoginRequiredMixin, View):
         organization = get_object_or_404(
             Organization.objects.filter(
                 public_profile=True,
+                searchable=True,
                 lifecycle=SpaceLifecycle.ACTIVE,
             ),
             slug=slug,
