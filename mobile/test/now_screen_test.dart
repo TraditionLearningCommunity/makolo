@@ -174,10 +174,13 @@ void main() {
       await PresentationHarness.pump(
         tester,
         viewport: Size(width, 800),
-        child: NowView(selection: contentSelection()),
+        child: NowView(
+          key: ValueKey('now-breakpoint-$width'),
+          selection: contentSelection(),
+        ),
       );
 
-      await tester.tap(find.text('Visa Canada'));
+      await tester.tap(find.text('Visa Canada').first);
       await tester.pump();
 
       final expected = width >= 960 ? findsOneWidget : findsNothing;
