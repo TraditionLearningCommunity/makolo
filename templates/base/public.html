@@ -14,7 +14,9 @@
     <link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}">
+    <link rel="stylesheet" href="{% static 'css/mature-experience.css' %}">
     <script defer src="{% static 'dist/makolo.js' %}"></script>
+    <script defer src="{% static 'js/workspace-runtime.js' %}"></script>
     {% if not request.user.is_authenticated %}<script defer src="{% static 'js/theme-local.js' %}"></script>{% endif %}
     {% block extra_css %}{% endblock %}
 </head>
@@ -49,7 +51,12 @@
             {% if not request.user.is_authenticated %}<a class="mk-btn mk-btn-ghost !min-h-9 !px-3 sm:hidden" href="{% url 'account:register' %}">Créer un compte</a>{% endif %}
         </nav>
     </header>
-    <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
+    <main id="main-content" tabindex="-1">
+        <div class="mk-workspace" data-workspace-layout="{% block workspace_layout %}focus{% endblock %}">
+            <div class="mk-workspace__primary">{% block content %}{% endblock %}</div>
+            {% block workspace_context %}{% endblock %}
+        </div>
+    </main>
     <footer class="border-t py-8" style="border-color:var(--mk-border)">
         <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 text-xs sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8" style="color:var(--mk-muted)">
             <p>Makolo · Vivre, faire, obtenir.</p>
