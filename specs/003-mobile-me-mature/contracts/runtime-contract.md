@@ -1,7 +1,27 @@
 # Runtime Contract — personal.me → Moi
 
-## Pipeline
-`PersonalRepository.watchMe() → StoredProjection personal.me → MeSelector → MePresentation/MeSelection → MeView`
+## Pipeline contenu
+
+```text
+PersonalRepository.watchMe()
+→ StoredProjection personal.me
+→ MeSelector
+→ MePresentation / MeSelection
+→ MeView
+```
+
+## Pipeline état de source
+
+```text
+PersonalRepository.watchMeSource()
+→ watchOwnerSourceState(...)
+→ SyncSources.personal.me
+
+SyncStatusScope
+→ offline / syncing lifecycle
+```
+
+Le contenu et l'état de transport restent deux axes séparés.
 
 ## Sections supportées
 - `identity`
@@ -9,7 +29,7 @@
 - `considerations`
 - `collectives`
 - `resources`
-- `support` lorsque réellement disponible
+- `support` uniquement lorsqu'un élément est réellement disponible
 
 ## Distinctions obligatoires
 - Profile ≠ Account/Settings
@@ -19,7 +39,19 @@
 - posséder une ressource ≠ satisfaire un Requirement
 
 ## États
-Chaque territoire peut être content, local-empty ou local-error indépendamment. Freshness/reachability sont des axes séparés.
+- root snapshot absent: structure SECTION-FIRST de première disponibilité;
+- empty: local au territoire;
+- malformed: error local au territoire;
+- offline: snapshot conservé + cue;
+- syncing: snapshot conservé + feedback discret;
+- source error avec snapshot: recoverable, contenu conservé;
+- source invalidated: freshness demande revalidation;
+- Support vide: section absente.
+
+## Responsive
+- < 840: vertical;
+- >= 840: maximum 2 territoires, uniquement lorsque le contenu le justifie;
+- N2: même vérité, géométrie single-pane ou split selon contraintes partagées.
 
 ## Navigation
-La lane peut ouvrir une profondeur N2 locale. Elle n'invente aucune route owner. Toute future action owner devra venir d'une capability/route existante et autorisée.
+La lane ouvre une profondeur N2 locale de présentation. Elle n'invente aucune route, mutation, capability ou autorité owner. Une profondeur métier future devra utiliser un contrat propriétaire réel.
