@@ -52,9 +52,20 @@ class MY7KnowledgeStateGapTests(TestCase):
         )
 
     def assessment(self, ref, proposition, status, at, supersedes=None, scope=None):
+        support_refs = ()
+        comparison_refs = ()
+        if status in (
+            AssessmentStatus.ESTABLISHED,
+            AssessmentStatus.PARTIALLY_SUPPORTED,
+        ):
+            support_refs = (f"support:{ref}",)
+        elif status is AssessmentStatus.CONTRADICTORY:
+            comparison_refs = (f"comparison:{ref}",)
         return PropositionAssessmentTrace(
             ref,
             PropositionAssessment(proposition.fingerprint, status, at),
+            support_refs=support_refs,
+            comparison_refs=comparison_refs,
             supersedes_assessment_ref=supersedes,
             scope=scope or proposition.scope,
         )
@@ -179,6 +190,82 @@ class MY7KnowledgeStateGapTests(TestCase):
                 KnowledgeFacetStatus.CONTRADICTORY,
                 KnowledgeFacetStatus.NOT_APPLICABLE,
             ],
+        )
+
+    def test_known_rejects_unresolved_assessment_lineage(self):
+        proposition = self.proposition("deadline", "unknown")
+        unresolved = self.assessment(
+            "assessment:unresolved-known",
+            proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        completeness = build_knowledge_completeness(
+            self.reality,
+            self.t1,
+            facets=(
+                KnowledgeFacetState(
+                    "deadline",
+                    KnowledgeFacetStatus.KNOWN,
+                    self.t1,
+                    (proposition.fingerprint,),
+                    (unresolved.assessment_ref,),
+                ),
+            ),
+        )
+        with self.assertRaises(KnowledgeGateError):
+            validate_knowledge_completeness(
+                self.reality,
+                completeness,
+                propositions=(proposition,),
+                assessment_traces=(unresolved,),
+            )
+
+    def test_state_requires_explicit_lineage_selection(self):
+        proposition = self.proposition("deadline", "2027-01-15")
+        trace = self.assessment(
+            "assessment:explicit-lineage",
+            proposition,
+            AssessmentStatus.ESTABLISHED,
+            self.t1,
+        )
+        with self.assertRaises(MayeleContractError):
+            build_knowledge_state(
+                self.reality,
+                self.t1,
+                state_ref="state:implicit-lineage",
+                completeness=self.unknown_completeness(),
+                assessment_traces=(trace,),
+            )
+
+    def test_state_does_not_absorb_unselected_foreign_lineage(self):
+        relevant = self.assessment(
+            "assessment:relevant",
+            self.proposition("deadline", "2027-01-15"),
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        other_reality = Reality("reality:other")
+        foreign_proposition = Proposition(
+            PropositionKind.PROPERTY_HOLDS,
+            Property(other_reality.reality_ref, "deadline", "2027-02-01"),
+        )
+        foreign = self.assessment(
+            "assessment:foreign",
+            foreign_proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        state = build_knowledge_state(
+            self.reality,
+            self.t1,
+            state_ref="state:explicit-lineage",
+            completeness=self.unknown_completeness(),
+            assessment_traces=(relevant, foreign),
+            lineage_assessment_refs=(relevant.assessment_ref,),
+        )
+        self.assertEqual(
+            state.effective_assessment_refs, (relevant.assessment_ref,)
         )
 
     def test_not_applicable_requires_basis_and_unknown_does_not(self):
