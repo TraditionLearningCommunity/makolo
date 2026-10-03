@@ -497,17 +497,9 @@ class _DiscoveryUnit extends StatelessWidget {
                   if (item.eyebrow != null)
                     const SizedBox(height: MakoloSpacing.xs),
                   Text(
-                    item.routeLabel ?? item.title,
+                    item.title,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  if (item.routeLabel != null && item.title != item.routeLabel)
-                    Padding(
-                      padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                      child: Text(
-                        item.title,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
                   if (item.summary.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
@@ -529,6 +521,7 @@ class _DiscoveryUnit extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
+                        key: ValueKey('discover-map-action-${item.candidateKey}'),
                         onPressed: onSelect,
                         icon: const Icon(Icons.map_outlined),
                         label: Text(selectionActionLabel ?? 'Sélectionner'),
