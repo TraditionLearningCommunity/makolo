@@ -79,11 +79,92 @@ PUBLIC_SOURCES = {
 }
 
 PROVIDERS = {
-    "event": ("Makolo Demo Culture", "mobile-mature-culture"),
-    "transport": ("Makolo Demo Mobility", "mobile-mature-mobility"),
-    "service": ("Makolo Demo Services", "mobile-mature-services"),
-    "funding": ("Makolo Demo Funding", "mobile-mature-funding"),
-    "obtention": ("Makolo Demo Obtention", "mobile-mature-obtention"),
+    "event": ("Lusanga Culture & Rencontres", "mobile-mature-culture"),
+    "transport": ("Horizon Katanga Mobilité", "mobile-mature-mobility"),
+    "service": ("Mwangaza Services", "mobile-mature-services"),
+    "funding": ("Kivu Capital & Projets", "mobile-mature-funding"),
+    "obtention": ("Atelier Mosi", "mobile-mature-obtention"),
+}
+
+PUBLIC_SOURCE_LABELS = {
+    "PUBLIC_FACT:TOWN_EVENT": "Town-Event — agenda et billetterie RDC",
+    "DEMO_PUBLIC_ANCHOR:TOWN_EVENT": "Town-Event — agenda et billetterie RDC",
+    "PUBLIC_REFERENCE:AIRFAST_ROUTE": "Air Fast Congo — horaires et informations voyageurs",
+    "PUBLIC_CATALOGUE_ANCHOR:RDC_SERVICES": "Catalogue des Services Publics de la RDC",
+    "PUBLIC_REFERENCE:IRCC_STUDY_PERMIT": "IRCC — permis d’études au Canada",
+    "PUBLIC_REFERENCE:IRCC_BIOMETRICS": "IRCC — biométrie",
+    "PUBLIC_REFERENCE:IRCC": "IRCC — étudier au Canada",
+    "PUBLIC_FACT:EDUCANADA_SICS": "EduCanada — bourses et programmes",
+    "PUBLIC_FACT:EDUCANADA_SEARCH": "EduCanada — moteur de recherche de bourses",
+    "PUBLIC_FACT:AFDB_PEJAB": "Banque africaine de développement — PEJAB",
+}
+
+VERTICAL_REFERENCE_URLS = {
+    "event": ("Agenda public en RDC", "https://town-event.com/"),
+    "transport": ("Air Fast Congo — informations voyageurs", "https://airfast-congo.com/"),
+    "service": ("Catalogue des Services Publics de la RDC", "https://servicepublic.gouv.cd/"),
+    "funding": ("Banque africaine de développement — projets en RDC", "https://www.afdb.org/fr/projects-and-operations/p-cd-ab0-006"),
+}
+
+OPPORTUNITY_DIRECTORY_URLS = {
+    OpportunityKind.SCHOLARSHIP: ("EduCanada — recherche de bourses", "https://www.educanada.ca/scholarships-bourses/searchAll-rechercheTous.aspx?lang=eng"),
+    OpportunityKind.EDUCATION: ("EduCanada — recherche de bourses", "https://www.educanada.ca/scholarships-bourses/searchAll-rechercheTous.aspx?lang=eng"),
+    OpportunityKind.PROGRAM: ("Catalogue des Services Publics — éducation et formation", "https://servicepublic.gouv.cd/"),
+    OpportunityKind.JOB: ("PNUD — carrières", "https://www.undp.org/fr/careers"),
+    OpportunityKind.INTERNSHIP: ("PNUD — carrières", "https://www.undp.org/fr/careers"),
+    OpportunityKind.GRANT: ("Catalogue des Services Publics — entrepreneuriat et affaires", "https://servicepublic.gouv.cd/?pv_theme=Entrepreneuriat+et+Affaires"),
+    OpportunityKind.COMPETITION: ("Catalogue des Services Publics — entrepreneuriat et affaires", "https://servicepublic.gouv.cd/?pv_theme=Entrepreneuriat+et+Affaires"),
+    OpportunityKind.OTHER: ("Banque africaine de développement — projets en RDC", "https://www.afdb.org/fr/projects-and-operations/p-cd-ab0-006"),
+}
+
+ISSUERS = (
+    "Institut Mwangaza",
+    "Réseau Kivu Numérique",
+    "Horizon Compétences",
+    "Initiative Entrepreneurs du Congo",
+    "Programme Atlas",
+)
+
+RELATION_LABELS = {
+    "experienced": "déjà vécu",
+    "completed": "terminé",
+    "engaged": "engagé",
+    "saved": "conservé",
+    "watched": "suivi",
+    "discover_only": "à découvrir",
+    "planned": "prévu",
+    "waiting": "en attente",
+    "rejected": "non retenu",
+    "abandoned": "abandonné",
+    "declined": "refusé",
+    "invited": "invitation reçue",
+    "draft": "en préparation",
+    "space_context": "porté dans un Espace",
+}
+
+STATE_LABELS = {
+    "completed": "terminé",
+    "past": "passé",
+    "cancelled": "annulé",
+    "ended": "clos",
+    "expired": "expiré",
+    "fulfilled": "obtenu",
+    "returned": "rendu",
+    "available": "disponible",
+    "open": "ouvert",
+    "ongoing": "en cours",
+    "waiting": "en attente",
+    "upcoming": "à venir",
+    "day_of": "aujourd’hui",
+    "future": "prévu",
+    "planning": "à l’étude",
+    "accepted": "accepté",
+    "partial": "partiellement financé",
+    "ready": "prêt",
+    "ready_for_pickup": "prêt à retirer",
+    "reserved": "réservé",
+    "active_access": "accès actif",
+    "negotiation": "en discussion",
 }
 
 PLACES = {
@@ -159,8 +240,8 @@ def _providers(owner: User) -> dict[str, Organization]:
             defaults={
                 "name": name,
                 "slug": slug,
-                "description": "Espace fictif réservé au Mobile Mature Demo Universe.",
-                "contact_email": f"{slug}@makolo.test",
+                "description": "Organisation de référence utilisée dans l’univers d’Alain Kabeya.",
+                "contact_email": "",
                 "country": "CD",
                 "city": "Lubumbashi",
                 "public_profile": True,
@@ -250,7 +331,28 @@ def _occurrence_status(spec: dict) -> str:
     return OccurrenceStatus.SCHEDULED
 
 
+def _activity_copy(spec: dict, vertical: str) -> tuple[str, str]:
+    place = spec.get("geo") or "lieu à confirmer"
+    relation = RELATION_LABELS.get(spec.get("relation"), spec.get("relation", "à suivre"))
+    state = STATE_LABELS.get(spec.get("state"), spec.get("state", "à suivre"))
+    intros = {
+        "event": "Un rendez-vous culturel, professionnel ou communautaire",
+        "transport": "Un déplacement inscrit dans les habitudes de mobilité d’Alain",
+        "service": "Un service utile à une démarche personnelle ou professionnelle",
+        "funding": "Une possibilité de financement ou de prise en charge",
+    }
+    intro = intros.get(vertical, "Une possibilité utile")
+    short = f"{intro}, à {place}. Situation actuelle : {state}."
+    description = (
+        f"{spec['title']} fait partie du parcours d’Alain Kabeya. "
+        f"Cette réalité est localisée ou rattachée à {place} et apparaît comme {relation}. "
+        f"Les dates, accès, ressources et prochaines étapes associés sont disponibles dans Makolo."
+    )
+    return short[:320], description
+
+
 def _activity(spec: dict, *, vertical: str, space: Organization, actor: User) -> Activity:
+    short_description, description = _activity_copy(spec, vertical)
     return upsert(
         Activity,
         f"mobile-mature-{spec['id'].lower()}",
@@ -259,11 +361,8 @@ def _activity(spec: dict, *, vertical: str, space: Organization, actor: User) ->
             "created_by": actor,
             "title": spec["title"],
             "slug": f"mobile-mature-{spec['id'].lower()}",
-            "short_description": f"{vertical.capitalize()} de démonstration — {spec['relation']}."[:320],
-            "description": (
-                f"[{SEED_MARKER}:{spec['id']}] Scénario de démonstration mobile. "
-                f"État fixture: {spec['state']}. Provenance: {spec['provenance']}."
-            ),
+            "short_description": short_description,
+            "description": description,
             "status": _activity_status(spec),
             "visibility": ActivityVisibility.PUBLIC,
         },
@@ -301,9 +400,26 @@ def _png_bytes(key: str, variant: int = 0) -> bytes:
     return buffer.getvalue()
 
 
-def _pdf_bytes(label: str) -> bytes:
-    safe = label.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    stream = f"BT /F1 12 Tf 72 720 Td ({safe[:140]}) Tj ET".encode("latin-1", "replace")
+def _pdf_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _pdf_bytes(spec: dict) -> bytes:
+    lines = [
+        spec["title"],
+        f"Lieu : {spec.get('geo') or 'à confirmer'}",
+        f"Année : {spec['year']}",
+        f"Situation : {STATE_LABELS.get(spec.get('state'), spec.get('state', 'à suivre'))}",
+        "Repère : vérifier dans Makolo les dates, ressources et conditions avant l’action.",
+    ]
+    encoded = [_pdf_escape(line)[:150] for line in lines]
+    stream_text = "BT /F1 15 Tf 72 720 Td "
+    for position, line in enumerate(encoded):
+        if position:
+            stream_text += "0 -28 Td /F1 11 Tf "
+        stream_text += f"({line}) Tj "
+    stream_text += "ET"
+    stream = stream_text.encode("latin-1", "replace")
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -334,20 +450,27 @@ def _wav_bytes() -> bytes:
     return buffer.getvalue()
 
 
-def _zip_doc(kind: str, label: str) -> bytes:
-    safe = label.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+def _xml_escape(value: str) -> str:
+    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _zip_doc(kind: str, spec: dict) -> bytes:
+    safe = _xml_escape(spec["title"])
+    geo = _xml_escape(spec.get("geo") or "À confirmer")
+    state = _xml_escape(STATE_LABELS.get(spec.get("state"), spec.get("state", "À suivre")))
+    year = _xml_escape(str(spec["year"]))
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         if kind == "xlsx":
             zf.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
             zf.writestr("_rels/.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
-            zf.writestr("xl/workbook.xml", '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Demo" sheetId="1" r:id="rId1"/></sheets></workbook>')
+            zf.writestr("xl/workbook.xml", '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Suivi" sheetId="1" r:id="rId1"/></sheets></workbook>')
             zf.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
-            zf.writestr("xl/worksheets/sheet1.xml", f'<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>{safe}</t></is></c></row></sheetData></worksheet>')
+            zf.writestr("xl/worksheets/sheet1.xml", f'<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Activité</t></is></c><c r="B1" t="inlineStr"><is><t>{safe}</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Lieu</t></is></c><c r="B2" t="inlineStr"><is><t>{geo}</t></is></c></row><row r="3"><c r="A3" t="inlineStr"><is><t>Année</t></is></c><c r="B3" t="inlineStr"><is><t>{year}</t></is></c></row><row r="4"><c r="A4" t="inlineStr"><is><t>Situation</t></is></c><c r="B4" t="inlineStr"><is><t>{state}</t></is></c></row></sheetData></worksheet>')
         else:
             zf.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
             zf.writestr("_rels/.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
-            zf.writestr("word/document.xml", f'<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>{safe}</w:t></w:r></w:p></w:body></w:document>')
+            zf.writestr("word/document.xml", f'<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>{safe}</w:t></w:r></w:p><w:p><w:r><w:t>Lieu : {geo}</w:t></w:r></w:p><w:p><w:r><w:t>Année : {year} — situation : {state}</w:t></w:r></w:p></w:body></w:document>')
     return buffer.getvalue()
 
 
@@ -361,7 +484,7 @@ def _file_resource(ctx: SeedContext, *, activity: Activity, key: str, title: str
         activity=activity,
         key=key,
         title=title,
-        description="Artefact synthétique réservé à la démonstration mobile.",
+        description=f"Document associé à {activity.title}.",
         kind=ResourceKind.FILE,
         mime_type=mime,
         size=len(data),
@@ -383,11 +506,15 @@ def _seed_resources(ctx: SeedContext, activity: Activity, spec: dict, index: int
         f"mobile-mature-context-{spec['id']}",
         defaults={
             "activity": activity,
-            "key": "demo-context",
-            "title": "Contexte de démonstration",
-            "description": "Métadonnées de fixture; pas une vérité métier parallèle.",
+            "key": "practical-info",
+            "title": "Informations pratiques",
+            "description": f"Repères utiles pour {spec['title']}.",
             "kind": ResourceKind.TEXT,
-            "text_content": f"{spec['id']} · {spec['relation']} · {spec['state']} · {spec['geo']} · {spec['provenance']}",
+            "text_content": (
+                f"{spec['title']} — {spec.get('geo') or 'lieu à confirmer'}. "
+                f"Année {spec['year']}. Situation : "
+                f"{STATE_LABELS.get(spec.get('state'), spec.get('state', 'à suivre'))}."
+            ),
             "visibility": ResourceVisibility.PUBLIC,
             "status": ResourceStatus.PUBLISHED,
             "version": 1,
@@ -396,6 +523,7 @@ def _seed_resources(ctx: SeedContext, activity: Activity, spec: dict, index: int
         },
     )
     source = PUBLIC_SOURCES.get(spec["provenance"])
+    source_label = PUBLIC_SOURCE_LABELS.get(spec["provenance"], "Référence publique")
     if source:
         upsert(
             ActivityResource,
@@ -403,8 +531,8 @@ def _seed_resources(ctx: SeedContext, activity: Activity, spec: dict, index: int
             defaults={
                 "activity": activity,
                 "key": "public-source",
-                "title": "Source publique",
-                "description": "Référence publique; les octets externes ne sont pas copiés.",
+                "title": source_label,
+                "description": "Ressource publique consultable en ligne.",
                 "kind": ResourceKind.URL,
                 "external_url": source,
                 "visibility": ResourceVisibility.PUBLIC,
@@ -417,27 +545,31 @@ def _seed_resources(ctx: SeedContext, activity: Activity, spec: dict, index: int
 
     media = spec["media"].lower()
     if any(token in media for token in ("image", "gallery", "poster", "cover", "hero", "badge")):
-        _file_resource(ctx, activity=activity, key="demo-image", title="Image de démonstration", filename="image.png", mime="image/png", data=_png_bytes(spec["id"]))
+        _file_resource(ctx, activity=activity, key="demo-image", title=f"Visuel — {activity.title}", filename="image.png", mime="image/png", data=_png_bytes(spec["id"]))
     if "gallery" in media:
-        _file_resource(ctx, activity=activity, key="demo-gallery-2", title="Deuxième image", filename="gallery.png", mime="image/png", data=_png_bytes(spec["id"], 2))
+        _file_resource(ctx, activity=activity, key="demo-gallery-2", title=f"Galerie — {activity.title}", filename="gallery.png", mime="image/png", data=_png_bytes(spec["id"], 2))
     if "pdf" in media or any(token in media for token in ("receipt", "ticket_demo", "contract", "rules", "brochure", "checklist", "manual", "invoice", "award")):
-        _file_resource(ctx, activity=activity, key="demo-pdf", title="PDF de démonstration", filename="document.pdf", mime="application/pdf", data=_pdf_bytes(f"{spec['id']} — {spec['title']}"))
+        _file_resource(ctx, activity=activity, key="demo-pdf", title=f"Guide et informations — {activity.title}", filename="document.pdf", mime="application/pdf", data=_pdf_bytes(spec))
     if "xlsx" in media:
-        _file_resource(ctx, activity=activity, key="demo-xlsx", title="Tableur de démonstration", filename="tableur.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data=_zip_doc("xlsx", spec["title"]))
+        _file_resource(ctx, activity=activity, key="demo-xlsx", title=f"Tableau de suivi — {activity.title}", filename="tableur.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data=_zip_doc("xlsx", spec))
     if "docx" in media:
-        _file_resource(ctx, activity=activity, key="demo-docx", title="Document de démonstration", filename="document.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", data=_zip_doc("docx", spec["title"]))
+        _file_resource(ctx, activity=activity, key="demo-docx", title=f"Note de préparation — {activity.title}", filename="document.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", data=_zip_doc("docx", spec))
     if "audio" in media:
-        _file_resource(ctx, activity=activity, key="demo-audio", title="Audio de démonstration", filename="audio.wav", mime="audio/wav", data=_wav_bytes())
+        _file_resource(ctx, activity=activity, key="demo-audio", title=f"Note audio — {activity.title}", filename="audio.wav", mime="audio/wav", data=_wav_bytes())
     if "video" in media:
-        _file_resource(ctx, activity=activity, key="demo-video", title="Vidéo de démonstration", filename="video.mp4", mime="video/mp4", data=base64.b64decode(_MP4_DEMO_B64))
+        _file_resource(ctx, activity=activity, key="demo-video", title=f"Présentation vidéo — {activity.title}", filename="video.mp4", mime="video/mp4", data=base64.b64decode(_MP4_DEMO_B64))
     if index % 6 == 0:
-        csv = f"id,title,state\n{spec['id']},{spec['title'].replace(',', ' ')},{spec['state']}\n".encode()
-        _file_resource(ctx, activity=activity, key="demo-csv", title="CSV de démonstration", filename="donnees.csv", mime="text/csv", data=csv)
+        csv = (
+            "titre,lieu,annee,situation\n"
+            f"{spec['title'].replace(',', ' ')},{spec.get('geo', '').replace(',', ' ')},{spec['year']},"
+            f"{STATE_LABELS.get(spec.get('state'), spec.get('state', 'à suivre'))}\n"
+        ).encode()
+        _file_resource(ctx, activity=activity, key="demo-csv", title=f"Données de suivi — {activity.title}", filename="donnees.csv", mime="text/csv", data=csv)
 
 
 def _seed_events(ctx, specs, *, space, actor, places, activities, occurrences):
-    category = upsert(EventCategory, "mobile-mature-category", defaults={"name": "Univers mobile de démonstration", "slug": "mobile-mature-demo", "description": "Fixture mobile.", "is_active": True})
-    online = upsert(EventVenue, "mobile-mature-online", defaults={"name": "En ligne", "kind": VenueKind.ONLINE, "online_url": "https://example.test/mobile-demo/live", "is_active": True})
+    category = upsert(EventCategory, "mobile-mature-category", defaults={"name": "Rencontres et expériences", "slug": "mobile-mature-experiences", "description": "Conférences, ateliers, culture et rencontres.", "is_active": True})
+    online = upsert(EventVenue, "mobile-mature-online", defaults={"name": "En ligne", "kind": VenueKind.ONLINE, "online_url": "https://www.undp.org/fr/careers", "is_active": True})
     venue_cache = {}
     for index, spec in enumerate(specs):
         place = _place_for(spec, places)
@@ -447,7 +579,7 @@ def _seed_events(ctx, specs, *, space, actor, places, activities, occurrences):
         if place:
             venue = venue_cache.get(place.pk)
             if not venue:
-                venue = upsert(EventVenue, f"mobile-mature-venue-{place.pk}", defaults={"name": f"Site démo — {place.name}", "kind": VenueKind.PHYSICAL, "place": place, "is_active": True})
+                venue = upsert(EventVenue, f"mobile-mature-venue-{place.pk}", defaults={"name": f"Espace central — {place.name}", "kind": VenueKind.PHYSICAL, "place": place, "is_active": True})
                 venue_cache[place.pk] = venue
         event = upsert(
             Event,
@@ -487,8 +619,8 @@ def _route_places(spec, places):
 
 
 def _seed_transport(ctx, specs, *, space, actor, places, activities, occurrences):
-    road = upsert(Vehicle, "mobile-mature-road", defaults={"space": space, "label": "Autocar démo mature", "registration": "", "vehicle_type": VehicleType.BUS, "passenger_capacity": 52, "active": True})
-    air = upsert(Vehicle, "mobile-mature-air", defaults={"space": space, "label": "Appareil démo mature", "registration": "", "vehicle_type": VehicleType.OTHER, "passenger_capacity": 120, "active": True})
+    road = upsert(Vehicle, "mobile-mature-road", defaults={"space": space, "label": "Autocar Horizon 52", "registration": "", "vehicle_type": VehicleType.BUS, "passenger_capacity": 52, "active": True})
+    air = upsert(Vehicle, "mobile-mature-air", defaults={"space": space, "label": "Navette régionale Horizon", "registration": "", "vehicle_type": VehicleType.OTHER, "passenger_capacity": 120, "active": True})
     for index, spec in enumerate(specs):
         origin, destination = _route_places(spec, places)
         mode = TransportMode.AIR if origin.country_code != destination.country_code or origin.locality in {"Kinshasa", "Kamina", "Kalemie"} or destination.locality in {"Kinshasa", "Kamina", "Kalemie"} else TransportMode.ROAD
@@ -545,9 +677,19 @@ def _seed_funding(ctx, specs, *, space, actor, places, activities, occurrences):
 OPPORTUNITY_KINDS = (OpportunityKind.PROGRAM, OpportunityKind.SCHOLARSHIP, OpportunityKind.JOB, OpportunityKind.EDUCATION, OpportunityKind.GRANT, OpportunityKind.COMPETITION, OpportunityKind.INTERNSHIP, OpportunityKind.OTHER)
 
 
+def _opportunity_summary(spec: dict) -> str:
+    relation = RELATION_LABELS.get(spec.get("relation"), "à explorer")
+    state = STATE_LABELS.get(spec.get("state"), "à suivre")
+    return (
+        f"{spec['title']} est une possibilité {relation} dans le parcours d’Alain. "
+        f"Elle est rattachée à {spec.get('geo') or 'un contexte à confirmer'} et apparaît actuellement comme {state}."
+    )
+
+
 def _seed_opportunities(ctx, specs, *, curator, primary):
     for index, spec in enumerate(specs):
-        opportunity = upsert(Opportunity, f"mobile-mature-opportunity-{spec['id']}", defaults={"kind": OPPORTUNITY_KINDS[index % len(OPPORTUNITY_KINDS)], "created_by": curator})
+        kind = OPPORTUNITY_KINDS[index % len(OPPORTUNITY_KINDS)]
+        opportunity = upsert(Opportunity, f"mobile-mature-opportunity-{spec['id']}", defaults={"kind": kind, "created_by": curator})
         pivot = _scheduled_at(ctx, spec, index)
         revision = upsert(
             OpportunityRevision,
@@ -556,25 +698,26 @@ def _seed_opportunities(ctx, specs, *, curator, primary):
                 "opportunity": opportunity,
                 "version": 1,
                 "title": spec["title"],
-                "summary": f"[{SEED_MARKER}:{spec['id']}] Possibilité {spec['relation']} / {spec['state']} pour démo mobile.",
-                "issuer_name": "Institution démo Makolo",
+                "summary": _opportunity_summary(spec),
+                "issuer_name": ISSUERS[index % len(ISSUERS)],
                 "opens_at": pivot - timedelta(days=30),
                 "deadline_at": pivot + (timedelta(days=90) if spec["state"] not in TERMINAL_STATES else timedelta(days=1)),
                 "timezone": "Africa/Lubumbashi",
-                "application_instructions": "Consulter la source et poursuivre via le propriétaire canonique.",
+                "application_instructions": "Vérifier les conditions, préparer les pièces utiles et suivre la candidature depuis Makolo.",
                 "remote_allowed": index % 3 == 0,
                 "created_by": curator,
             },
         )
         public_url = PUBLIC_SOURCES.get(spec["provenance"])
+        directory_name, directory_url = OPPORTUNITY_DIRECTORY_URLS[kind]
         upsert(
             OpportunitySource,
             f"mobile-mature-opportunity-source-{spec['id']}",
             defaults={
                 "opportunity": opportunity,
-                "source_type": OpportunitySourceType.OFFICIAL if public_url else OpportunitySourceType.USER_SUPPLIED,
-                "source_name": "Source publique de référence" if public_url else "Source synthétique de démonstration",
-                "url": public_url or f"https://example.test/mobile-demo/{spec['id'].lower()}",
+                "source_type": OpportunitySourceType.OFFICIAL if public_url else OpportunitySourceType.AGGREGATOR,
+                "source_name": PUBLIC_SOURCE_LABELS.get(spec["provenance"], directory_name),
+                "url": public_url or directory_url,
                 "external_reference": f"mobile-mature:{spec['id']}",
                 "is_primary": True,
                 "status": OpportunitySourceStatus.ACTIVE,
@@ -604,8 +747,11 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
                 actor=actor,
                 space=space,
                 title=spec["title"],
-                short_description=f"Obtention de démonstration — {spec['relation']}.",
-                description=f"[{SEED_MARKER}:{spec['id']}] Fulfillment distinct du paiement.",
+                short_description=f"{spec['title']} — {RELATION_LABELS.get(spec.get('relation'), 'à suivre')}.",
+                description=(
+                    f"{spec['title']} fait partie des choses qu’Alain souhaite acheter, louer, emprunter ou recevoir. "
+                    f"Makolo suit la remise effective ou le droit d’usage, indépendamment du paiement."
+                ),
                 targets=[{"title": spec["title"], "quantity": "1", "unit": "unité"}],
                 modes=[MODE_CYCLE[index % len(MODE_CYCLE)]],
                 result_label="Cible effectivement remise ou droit d'usage effectivement acquis",
@@ -666,7 +812,7 @@ def _generic_journey(ctx, *, primary, vertical, spec, activity, occurrence):
         },
     )
     if vertical == "service":
-        ServiceJourneyContext.objects.get_or_create(journey=journey, defaults={"objective": f"Continuité mobile pour {spec['title']}."})
+        ServiceJourneyContext.objects.get_or_create(journey=journey, defaults={"objective": f"Faire avancer {spec['title']} jusqu’à son résultat utile."})
     if int(spec["year"]) < MATRIX_REFERENCE_YEAR:
         backdate(journey, created_at=pivot - timedelta(days=14), updated_at=pivot)
     return journey
@@ -713,8 +859,8 @@ def _seed_personal_relations(ctx, *, primary, activities, occurrences, obtention
             defaults={
                 "journey": journey,
                 "kind": JourneyStepKind.ACTION,
-                "title": f"Action mobile {position}: vérifier et continuer",
-                "description": "Action de démo destinée à alimenter la projection Now sans ranking sophistiqué.",
+                "title": f"Vérifier la prochaine étape — {journey.activity.title}",
+                "description": "Confirmer ce qui est prêt, ce qui manque et l’action qui peut réellement être faite maintenant.",
                 "status": JourneyStepStatus.READY,
                 "position": position * 10,
                 "is_required": True,
@@ -761,6 +907,6 @@ def seed_mobile_mature_universe(ctx: SeedContext) -> User:
 
     for vertical, specs in REALITY_SPECS.items():
         ctx.add(f"mobile_mature_{vertical}_items", len(specs))
-    ctx.add("mobile_mature_resources", ActivityResource.objects.filter(activity__description__startswith=f"[{SEED_MARKER}:").count())
-    ctx.add("mobile_mature_journeys", Journey.objects.filter(beneficiary=primary, activity__description__startswith=f"[{SEED_MARKER}:").count())
+    ctx.add("mobile_mature_resources", ActivityResource.objects.filter(activity__slug__startswith="mobile-mature-").count())
+    ctx.add("mobile_mature_journeys", Journey.objects.filter(beneficiary=primary, activity__slug__startswith="mobile-mature-").count())
     return primary
