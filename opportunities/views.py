@@ -68,6 +68,7 @@ class OpportunityDetailView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         opportunity = get_object_or_404(published_opportunities().prefetch_related("current_revision__zones__zone", "current_revision__requirements", "sources"), pk=kwargs["pk"])
         revision = opportunity.current_revision
         primary_source = next((source for source in opportunity.sources.all() if source.is_primary and source.status == "active"), None)
