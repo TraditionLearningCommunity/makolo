@@ -53,7 +53,7 @@ def _profile_extension(profile):
     try:
         return profile.profile
     except ObjectDoesNotExist:
-        return UserProfile(user=profile)
+        return UserProfile(user=profile, public_profile=False, searchable=False)
 
 
 def _avatar_url(profile, request):
