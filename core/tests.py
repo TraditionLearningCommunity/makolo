@@ -34,9 +34,12 @@ class DashboardTests(TestCase):
         response = self.client.get(reverse("core:home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Trouvez quoi faire. Réservez quand il le faut.")
-        self.assertContains(response, "Événement public")
+        self.assertContains(response, "Faites avancer ce qui compte.")
+        self.assertContains(response, "Trouvez ce que vous voulez vivre, faire ou obtenir.")
+        self.assertContains(response, "Découvrir")
+        self.assertContains(response, "Espaces")
         self.assertContains(response, "Créer un compte")
+        self.assertNotContains(response, "Trouvez quoi faire. Réservez quand il le faut.")
 
     def test_authenticated_participant_home_redirects_to_personal_space(self):
         self.client.force_login(self.user)
