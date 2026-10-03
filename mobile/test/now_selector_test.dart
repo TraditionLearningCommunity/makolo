@@ -94,7 +94,11 @@ void main() {
 
   test('non-empty malformed rows cannot become calm', () {
     final result = selector.select(
-      projection: projection(items: const [{'title': 'Sans source'}]),
+      projection: projection(
+        items: const [
+          {'title': 'Sans source'},
+        ],
+      ),
       now: now,
     );
 
