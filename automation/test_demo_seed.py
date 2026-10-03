@@ -101,7 +101,17 @@ class CanonicalBetaSeedTests(TransactionTestCase):
         self.assertEqual(me_response.status_code, 200)
         self.assertGreater(len(now_response.json()["data"]["items"]), 0)
         self.assertGreater(len(ongoing_response.json()["data"]["items"]), 0)
-        self.assertGreaterEqual(len(discovery_response.json()["data"]["results"]), 20)
+        discovery_results = discovery_response.json()["data"]["results"]
+        self.assertGreaterEqual(len(discovery_results), 20)
+        self.assertTrue(
+            any(
+                any(
+                    resource.get("external_url") or resource.get("download_url")
+                    for resource in item.get("resources", [])
+                )
+                for item in discovery_results
+            )
+        )
         mature_journey = (
             Journey.objects.filter(
                 beneficiary=primary,
