@@ -12,4 +12,4 @@
 - [x] T010 Ajouter tests selector/runtime shape et états.
 - [x] T011 Ajouter tests widget G03/G04/G05 + textScale.
 - [x] T012 Converger, inspecter diff/collisions et documenter COMMON GAP.
-- [ ] T013 Ouvrir PR non mergée et relever CI.
+- [x] T013 Ouvrir PR non mergée et relever CI.
