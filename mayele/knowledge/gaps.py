@@ -597,6 +597,9 @@ def resolve_research_gap(
     resolved_at: datetime,
     *,
     resolution_kind: ResearchGapResolutionKind = ResearchGapResolutionKind.RESOLVED,
+    assessment_traces: Optional[Tuple[PropositionAssessmentTrace, ...]] = None,
+    identity_resolutions: Optional[Tuple[IdentityResolution, ...]] = None,
+    revalidation_needs: Optional[Tuple[RevalidationNeed, ...]] = None,
     scope: Optional[KnowledgeScope] = None,
 ) -> ResearchGapResolution:
     """Record resolution without mutating the historical ResearchGap."""
@@ -616,6 +619,106 @@ def resolve_research_gap(
         kind = ResearchGapResolutionKind(resolution_kind)
     except (TypeError, ValueError) as exc:
         raise MayeleContractError("invalid ResearchGap resolution kind") from exc
+
+    if kind is ResearchGapResolutionKind.RESOLVED:
+        if (
+            gap.reason is ResearchGapReason.UNRESOLVED_ASSESSMENT
+            and assessment_traces is None
+        ):
+            raise MayeleContractError(
+                "resolving an assessment gap requires explicit assessment lineage"
+            )
+        if (
+            gap.reason in (
+                ResearchGapReason.UNRESOLVED_IDENTITY,
+                ResearchGapReason.PROVISIONAL_IDENTITY,
+            )
+            and identity_resolutions is None
+        ):
+            raise MayeleContractError(
+                "resolving an identity gap requires explicit identity lineage"
+            )
+        if (
+            gap.reason in (
+                ResearchGapReason.REVALIDATION_DUE,
+                ResearchGapReason.STALE,
+            )
+            and revalidation_needs is None
+        ):
+            raise MayeleContractError(
+                "resolving a revalidation gap requires explicit revalidation lineage"
+            )
+
+        assessment_values = tuple(assessment_traces or ())
+        identity_values = tuple(identity_resolutions or ())
+        revalidation_values = tuple(revalidation_needs or ())
+        effective_assessments = set(resulting_state.effective_assessment_refs)
+        traces_by_ref = {
+            item.assessment_ref: item for item in assessment_values
+        }
+        effective_resolutions = set(
+            resulting_state.effective_identity_resolution_refs
+        )
+        resolutions_by_ref = {
+            item.resolution_ref: item for item in identity_values
+        }
+
+        if gap.reason is ResearchGapReason.UNRESOLVED_ASSESSMENT:
+            if any(
+                ref in traces_by_ref
+                and traces_by_ref[ref].assessment.status
+                is AssessmentStatus.UNRESOLVED
+                and traces_by_ref[ref].assessment.proposition_fingerprint
+                == gap.target.ref
+                for ref in effective_assessments
+            ):
+                raise MayeleContractError(
+                    "resulting KnowledgeState still contains an unresolved Assessment"
+                )
+
+        if gap.reason in (
+            ResearchGapReason.UNRESOLVED_IDENTITY,
+            ResearchGapReason.PROVISIONAL_IDENTITY,
+        ):
+            basis_resolutions = [
+                resolutions_by_ref[ref]
+                for ref in gap.basis_refs
+                if ref in resolutions_by_ref
+            ]
+            referents = {item.referent for item in basis_resolutions}
+            expected_status = (
+                IdentityResolutionStatus.UNRESOLVED
+                if gap.reason is ResearchGapReason.UNRESOLVED_IDENTITY
+                else IdentityResolutionStatus.PROVISIONAL
+            )
+            if any(
+                ref in resolutions_by_ref
+                and resolutions_by_ref[ref].referent in referents
+                and resolutions_by_ref[ref].status is expected_status
+                for ref in effective_resolutions
+            ):
+                raise MayeleContractError(
+                    "resulting KnowledgeState still contains the same identity gap"
+                )
+
+        if gap.reason in (
+            ResearchGapReason.REVALIDATION_DUE,
+            ResearchGapReason.STALE,
+        ):
+            expected_reasons = (
+                {RevalidationReason.REVALIDATION_DUE}
+                if gap.reason is ResearchGapReason.REVALIDATION_DUE
+                else {RevalidationReason.STALE_FOR_USE}
+            )
+            if any(
+                item.knowledge_state_ref == resulting_state.state_ref
+                and item.target_ref == gap.target.ref
+                and item.reason in expected_reasons
+                for item in revalidation_values
+            ):
+                raise MayeleContractError(
+                    "resulting KnowledgeState still requires revalidation"
+                )
 
     if (
         kind is ResearchGapResolutionKind.RESOLVED

@@ -9,7 +9,7 @@ from mayele.common.contracts import KnowledgeScope, ScopeVisibility
 from mayele.common.errors import KnowledgeGateError, MayeleContractError
 
 from .assessment import PropositionAssessmentTrace
-from .contracts import Proposition, Reality
+from .contracts import AssessmentStatus, Proposition, Reality
 
 
 def _required_text(name: str, value: str) -> str:
@@ -264,6 +264,7 @@ def validate_knowledge_completeness(
                 )
             selected_scopes.append(proposition.scope)
 
+        selected_assessments: list[PropositionAssessmentTrace] = []
         for assessment_ref in facet.assessment_refs:
             trace = trace_by_ref.get(assessment_ref)
             if trace is None:
@@ -281,7 +282,36 @@ def validate_knowledge_completeness(
                 raise KnowledgeGateError(
                     "assessment lineage must identify its Proposition fingerprint"
                 )
+            selected_assessments.append(trace)
             selected_scopes.append(trace.scope)
+
+        statuses = {item.assessment.status for item in selected_assessments}
+        if facet.status is KnowledgeFacetStatus.KNOWN:
+            if AssessmentStatus.ESTABLISHED not in statuses or statuses - {
+                AssessmentStatus.ESTABLISHED
+            }:
+                raise KnowledgeGateError(
+                    "KNOWN completeness requires only ESTABLISHED assessment lineage"
+                )
+        elif facet.status is KnowledgeFacetStatus.PARTIALLY_KNOWN:
+            if not statuses.intersection(
+                {
+                    AssessmentStatus.ESTABLISHED,
+                    AssessmentStatus.PARTIALLY_SUPPORTED,
+                }
+            ):
+                raise KnowledgeGateError(
+                    "PARTIALLY_KNOWN requires established or partially-supported lineage"
+                )
+            if statuses == {AssessmentStatus.ESTABLISHED}:
+                raise KnowledgeGateError(
+                    "PARTIALLY_KNOWN cannot be justified only by ESTABLISHED assessments"
+                )
+        elif facet.status is KnowledgeFacetStatus.CONTRADICTORY:
+            if AssessmentStatus.CONTRADICTORY not in statuses:
+                raise KnowledgeGateError(
+                    "CONTRADICTORY completeness requires contradictory assessment lineage"
+                )
 
         if selected_scopes:
             try:

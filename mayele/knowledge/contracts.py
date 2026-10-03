@@ -23,10 +23,15 @@ def _required_text(name: str, value: str) -> str:
 def _freeze_metadata(metadata: Mapping[str, Any]) -> Tuple[Tuple[str, Any], ...]:
     if not isinstance(metadata, Mapping):
         raise MayeleContractError("metadata must be a mapping")
-    frozen: list[tuple[str, Any]] = []
-    for key, value in sorted(metadata.items()):
+    normalized: dict[str, Any] = {}
+    for key, value in metadata.items():
         if not isinstance(key, str) or not key.strip():
             raise MayeleContractError("metadata keys must be non-empty strings")
+        normalized_key = key.strip()
+        if normalized_key in normalized:
+            raise MayeleContractError(
+                "metadata keys must be unique after normalization"
+            )
         if not (
             isinstance(value, (str, int, float, bool))
             or value is None
@@ -35,8 +40,8 @@ def _freeze_metadata(metadata: Mapping[str, Any]) -> Tuple[Tuple[str, Any], ...]
             raise MayeleContractError(
                 "metadata values must be scalar JSON values or KnowledgeValue"
             )
-        frozen.append((key.strip(), value))
-    return tuple(frozen)
+        normalized[normalized_key] = value
+    return tuple(sorted(normalized.items()))
 
 
 class PropositionKind(str, Enum):
@@ -271,11 +276,17 @@ class KnowledgeSupport:
             raise MayeleContractError("invalid support disposition") from exc
         object.__setattr__(self, "disposition", disposition)
         if isinstance(self.metadata, Mapping):
-            object.__setattr__(self, "metadata", _freeze_metadata(self.metadata))
+            canonical_metadata = _freeze_metadata(self.metadata)
         else:
             metadata = tuple(self.metadata)
-            _freeze_metadata(dict(metadata))
-            object.__setattr__(self, "metadata", metadata)
+            keys = [item[0] for item in metadata if isinstance(item, tuple) and len(item) == 2]
+            if len(keys) != len(metadata):
+                raise MayeleContractError("metadata must contain key/value pairs")
+            canonical_metadata = _freeze_metadata(dict(metadata))
+            normalized_input_keys = [key.strip() if isinstance(key, str) else key for key in keys]
+            if len(set(normalized_input_keys)) != len(normalized_input_keys):
+                raise MayeleContractError("metadata keys must be unique after normalization")
+        object.__setattr__(self, "metadata", canonical_metadata)
 
 
 @dataclass(frozen=True, slots=True)
@@ -298,14 +309,22 @@ class PropositionAssessment:
         except (TypeError, ValueError) as exc:
             raise MayeleContractError("invalid assessment status") from exc
         object.__setattr__(self, "status", status)
+        if not isinstance(self.assessed_at, datetime):
+            raise MayeleContractError("assessed_at must be a datetime")
         if (
             self.assessed_at.tzinfo is None
             or self.assessed_at.utcoffset() is None
         ):
             raise MayeleContractError("assessed_at must be timezone-aware")
         if isinstance(self.metadata, Mapping):
-            object.__setattr__(self, "metadata", _freeze_metadata(self.metadata))
+            canonical_metadata = _freeze_metadata(self.metadata)
         else:
             metadata = tuple(self.metadata)
-            _freeze_metadata(dict(metadata))
-            object.__setattr__(self, "metadata", metadata)
+            keys = [item[0] for item in metadata if isinstance(item, tuple) and len(item) == 2]
+            if len(keys) != len(metadata):
+                raise MayeleContractError("metadata must contain key/value pairs")
+            canonical_metadata = _freeze_metadata(dict(metadata))
+            normalized_input_keys = [key.strip() if isinstance(key, str) else key for key in keys]
+            if len(set(normalized_input_keys)) != len(normalized_input_keys):
+                raise MayeleContractError("metadata keys must be unique after normalization")
+        object.__setattr__(self, "metadata", canonical_metadata)

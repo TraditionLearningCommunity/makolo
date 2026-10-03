@@ -52,9 +52,20 @@ class MY7KnowledgeStateGapTests(TestCase):
         )
 
     def assessment(self, ref, proposition, status, at, supersedes=None, scope=None):
+        support_refs = ()
+        comparison_refs = ()
+        if status in (
+            AssessmentStatus.ESTABLISHED,
+            AssessmentStatus.PARTIALLY_SUPPORTED,
+        ):
+            support_refs = (f"support:{ref}",)
+        elif status is AssessmentStatus.CONTRADICTORY:
+            comparison_refs = (f"comparison:{ref}",)
         return PropositionAssessmentTrace(
             ref,
             PropositionAssessment(proposition.fingerprint, status, at),
+            support_refs=support_refs,
+            comparison_refs=comparison_refs,
             supersedes_assessment_ref=supersedes,
             scope=scope or proposition.scope,
         )
@@ -181,6 +192,82 @@ class MY7KnowledgeStateGapTests(TestCase):
             ],
         )
 
+    def test_known_rejects_unresolved_assessment_lineage(self):
+        proposition = self.proposition("deadline", "unknown")
+        unresolved = self.assessment(
+            "assessment:unresolved-known",
+            proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        completeness = build_knowledge_completeness(
+            self.reality,
+            self.t1,
+            facets=(
+                KnowledgeFacetState(
+                    "deadline",
+                    KnowledgeFacetStatus.KNOWN,
+                    self.t1,
+                    (proposition.fingerprint,),
+                    (unresolved.assessment_ref,),
+                ),
+            ),
+        )
+        with self.assertRaises(KnowledgeGateError):
+            validate_knowledge_completeness(
+                self.reality,
+                completeness,
+                propositions=(proposition,),
+                assessment_traces=(unresolved,),
+            )
+
+    def test_state_requires_explicit_lineage_selection(self):
+        proposition = self.proposition("deadline", "2027-01-15")
+        trace = self.assessment(
+            "assessment:explicit-lineage",
+            proposition,
+            AssessmentStatus.ESTABLISHED,
+            self.t1,
+        )
+        with self.assertRaises(MayeleContractError):
+            build_knowledge_state(
+                self.reality,
+                self.t1,
+                state_ref="state:implicit-lineage",
+                completeness=self.unknown_completeness(),
+                assessment_traces=(trace,),
+            )
+
+    def test_state_does_not_absorb_unselected_foreign_lineage(self):
+        relevant = self.assessment(
+            "assessment:relevant",
+            self.proposition("deadline", "2027-01-15"),
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        other_reality = Reality("reality:other")
+        foreign_proposition = Proposition(
+            PropositionKind.PROPERTY_HOLDS,
+            Property(other_reality.reality_ref, "deadline", "2027-02-01"),
+        )
+        foreign = self.assessment(
+            "assessment:foreign",
+            foreign_proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        state = build_knowledge_state(
+            self.reality,
+            self.t1,
+            state_ref="state:explicit-lineage",
+            completeness=self.unknown_completeness(),
+            assessment_traces=(relevant, foreign),
+            lineage_assessment_refs=(relevant.assessment_ref,),
+        )
+        self.assertEqual(
+            state.effective_assessment_refs, (relevant.assessment_ref,)
+        )
+
     def test_not_applicable_requires_basis_and_unknown_does_not(self):
         with self.assertRaises(MayeleContractError):
             KnowledgeFacetState(
@@ -263,6 +350,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:t1",
             completeness=self.unknown_completeness(),
             assessment_traces=(a1, a2),
+            lineage_assessment_refs=(a1.assessment_ref, a2.assessment_ref),
         )
         self.assertEqual(s1.effective_assessment_refs, (a1.assessment_ref,))
         s2 = build_knowledge_state(
@@ -271,12 +359,16 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:t2",
             completeness=self.unknown_completeness(at=self.t2),
             assessment_traces=(a1, a2),
+            lineage_assessment_refs=(a1.assessment_ref, a2.assessment_ref),
         )
         self.assertEqual(s2.effective_assessment_refs, (a2.assessment_ref,))
         self.assertIs(a1.assessment.status, AssessmentStatus.PARTIALLY_SUPPORTED)
         self.assertIs(
             validate_knowledge_state(
-                self.reality, s2, assessment_traces=(a1, a2)
+                self.reality,
+                s2,
+                assessment_traces=(a1, a2),
+                lineage_assessment_refs=(a1.assessment_ref, a2.assessment_ref),
             ),
             s2,
         )
@@ -296,6 +388,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:terminals",
             completeness=self.unknown_completeness("fee", at=self.t2),
             assessment_traces=(a2, a1),
+            lineage_assessment_refs=(a2.assessment_ref, a1.assessment_ref),
         )
         self.assertEqual(
             state.effective_assessment_refs, ("assessment:a", "assessment:b")
@@ -323,6 +416,11 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:r1",
             completeness=self.unknown_completeness(),
             identity_resolutions=(r1, r2, r3),
+            lineage_identity_resolution_refs=(
+                r1.resolution_ref,
+                r2.resolution_ref,
+                r3.resolution_ref,
+            ),
         )
         self.assertEqual(
             s1.effective_identity_resolution_refs, (r1.resolution_ref,)
@@ -409,22 +507,24 @@ class MY7KnowledgeStateGapTests(TestCase):
 
     def test_contradictory_and_partial_gaps_are_explicit(self):
         proposition = self.proposition("capacity", "conflict")
-        trace = self.assessment(
-            "assessment:capacity",
-            proposition,
-            AssessmentStatus.CONTRADICTORY,
-            self.t1,
-        )
-        for status, reason in (
+        for status, reason, assessment_status in (
             (
                 KnowledgeFacetStatus.PARTIALLY_KNOWN,
                 ResearchGapReason.PARTIALLY_KNOWN,
+                AssessmentStatus.PARTIALLY_SUPPORTED,
             ),
             (
                 KnowledgeFacetStatus.CONTRADICTORY,
                 ResearchGapReason.CONTRADICTORY,
+                AssessmentStatus.CONTRADICTORY,
             ),
         ):
+            trace = self.assessment(
+                f"assessment:capacity:{status.value}",
+                proposition,
+                assessment_status,
+                self.t1,
+            )
             completeness = build_knowledge_completeness(
                 self.reality,
                 self.t1,
@@ -444,6 +544,7 @@ class MY7KnowledgeStateGapTests(TestCase):
                 state_ref=f"state:{status.value}",
                 completeness=completeness,
                 assessment_traces=(trace,),
+                lineage_assessment_refs=(trace.assessment_ref,),
             )
             gap = build_research_gap(
                 state,
@@ -476,6 +577,8 @@ class MY7KnowledgeStateGapTests(TestCase):
             completeness=self.unknown_completeness(),
             assessment_traces=(assessment,),
             identity_resolutions=(identity,),
+            lineage_assessment_refs=(assessment.assessment_ref,),
+            lineage_identity_resolution_refs=(identity.resolution_ref,),
         )
         gap_a = build_research_gap(
             state,
@@ -516,6 +619,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:provisional",
             completeness=self.unknown_completeness(),
             identity_resolutions=(identity,),
+            lineage_identity_resolution_refs=(identity.resolution_ref,),
         )
         self.assertFalse(hasattr(state, "research_gaps"))
         with self.assertRaises(MayeleContractError):
@@ -568,6 +672,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:price",
             completeness=completeness,
             assessment_traces=(trace,),
+            lineage_assessment_refs=(trace.assessment_ref,),
         )
         need = build_revalidation_need(
             state,
@@ -625,6 +730,51 @@ class MY7KnowledgeStateGapTests(TestCase):
                 revalidation_rule_version="2",
             )
 
+    def test_unresolved_assessment_gap_cannot_resolve_while_cause_remains(self):
+        proposition = self.proposition("deadline", "unknown")
+        assessment = self.assessment(
+            "assessment:still-unresolved",
+            proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        old_state = build_knowledge_state(
+            self.reality,
+            self.t1,
+            state_ref="state:unresolved-old",
+            completeness=self.unknown_completeness(),
+            assessment_traces=(assessment,),
+            lineage_assessment_refs=(assessment.assessment_ref,),
+        )
+        gap = build_research_gap(
+            old_state,
+            ResearchGapTarget(
+                ResearchGapTargetKind.PROPOSITION, proposition.fingerprint
+            ),
+            ResearchGapReason.UNRESOLVED_ASSESSMENT,
+            self.t1,
+            gap_ref="gap:still-unresolved",
+            basis_refs=(assessment.assessment_ref,),
+            assessment_traces=(assessment,),
+        )
+        new_state = build_knowledge_state(
+            self.reality,
+            self.t2,
+            state_ref="state:unresolved-new",
+            completeness=self.unknown_completeness(at=self.t2),
+            assessment_traces=(assessment,),
+            lineage_assessment_refs=(assessment.assessment_ref,),
+        )
+        with self.assertRaises(MayeleContractError):
+            resolve_research_gap(gap, new_state, self.t2)
+        with self.assertRaises(MayeleContractError):
+            resolve_research_gap(
+                gap,
+                new_state,
+                self.t2,
+                assessment_traces=(assessment,),
+            )
+
     def test_new_state_can_resolve_old_gap_without_mutating_history(self):
         old_state = build_knowledge_state(
             self.reality,
@@ -663,6 +813,7 @@ class MY7KnowledgeStateGapTests(TestCase):
                 ),
             ),
             assessment_traces=(trace,),
+            lineage_assessment_refs=(trace.assessment_ref,),
         )
         resolution = resolve_research_gap(gap, new_state, self.t2)
         self.assertIs(

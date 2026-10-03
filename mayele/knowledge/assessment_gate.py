@@ -10,7 +10,7 @@ from .assessment import (
     PropositionComparison,
     build_proposition_assessment,
 )
-from .contracts import KnowledgeSupport, Proposition, PropositionAssessment
+from .contracts import AssessmentStatus, KnowledgeSupport, Proposition, PropositionAssessment
 from .construction import KnowledgeSupportTrace
 
 
@@ -136,6 +136,35 @@ def validate_assessment_history(
     by_ref = {item.assessment_ref: item for item in values}
 
     for item in values:
+        status = item.assessment.status
+        if status in (
+            AssessmentStatus.ESTABLISHED,
+            AssessmentStatus.PARTIALLY_SUPPORTED,
+        ) and not item.support_refs:
+            raise KnowledgeGateError(
+                f"{status.value} assessment history requires explicit support_refs"
+            )
+        if (
+            status is AssessmentStatus.CONTRADICTORY
+            and not item.support_refs
+            and not item.comparison_refs
+        ):
+            raise KnowledgeGateError(
+                "CONTRADICTORY assessment history requires support_refs or comparison_refs"
+            )
+
+        keys = _metadata_keys(item.assessment)
+        if item.scope.visibility is ScopeVisibility.PUBLIC:
+            for key in keys:
+                if any(token in key for token in SENSITIVE_METADATA_TOKENS):
+                    raise KnowledgeGateError(
+                        "public assessment metadata must not contain secrets"
+                    )
+        if keys.intersection(AUTHORITY_MUTATION_KEYS):
+            raise KnowledgeGateError(
+                "Mayele assessment metadata cannot mutate Makolo authority or domains"
+            )
+
         superseded_ref = item.supersedes_assessment_ref
         if superseded_ref is None:
             continue

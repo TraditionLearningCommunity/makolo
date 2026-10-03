@@ -132,6 +132,28 @@ def _effective_assessment_refs(
     )
 
 
+def _select_lineage(
+    values: Tuple[object, ...],
+    refs: Tuple[str, ...],
+    *,
+    ref_attr: str,
+    values_name: str,
+    refs_name: str,
+) -> Tuple[object, ...]:
+    normalized_refs = _unique_refs(refs_name, tuple(refs))
+    if values and not normalized_refs:
+        raise MayeleContractError(
+            f"{refs_name} must explicitly select lineage when {values_name} are supplied"
+        )
+    by_ref = {getattr(item, ref_attr): item for item in values}
+    missing = [ref for ref in normalized_refs if ref not in by_ref]
+    if missing:
+        raise MayeleContractError(
+            f"{refs_name} must reference supplied {values_name}"
+        )
+    return tuple(by_ref[ref] for ref in normalized_refs)
+
+
 def _effective_resolution_refs(
     resolutions: Tuple[IdentityResolution, ...], as_of: datetime
 ) -> Tuple[str, ...]:
@@ -203,6 +225,8 @@ def build_knowledge_state(
     completeness: KnowledgeCompleteness,
     assessment_traces: Tuple[PropositionAssessmentTrace, ...] = (),
     identity_resolutions: Tuple[IdentityResolution, ...] = (),
+    lineage_assessment_refs: Tuple[str, ...] = (),
+    lineage_identity_resolution_refs: Tuple[str, ...] = (),
     scope: Optional[KnowledgeScope] = None,
 ) -> KnowledgeState:
     """Project effective lineage at as_of; never uses latest-timestamp wins."""
@@ -219,8 +243,26 @@ def build_knowledge_state(
 
     traces = tuple(assessment_traces)
     resolutions = tuple(identity_resolutions)
-    effective_assessments = _effective_assessment_refs(traces, as_of)
-    effective_resolutions = _effective_resolution_refs(resolutions, as_of)
+    selected_traces = _select_lineage(
+        traces,
+        tuple(lineage_assessment_refs),
+        ref_attr="assessment_ref",
+        values_name="assessment_traces",
+        refs_name="lineage_assessment_refs",
+    )
+    selected_resolutions = _select_lineage(
+        resolutions,
+        tuple(lineage_identity_resolution_refs),
+        ref_attr="resolution_ref",
+        values_name="identity_resolutions",
+        refs_name="lineage_identity_resolution_refs",
+    )
+    effective_assessments = _effective_assessment_refs(
+        tuple(selected_traces), as_of
+    )
+    effective_resolutions = _effective_resolution_refs(
+        tuple(selected_resolutions), as_of
+    )
     trace_by_ref = {item.assessment_ref: item for item in traces}
     resolution_by_ref = {item.resolution_ref: item for item in resolutions}
     inherited_scope = _combine_scopes(
@@ -246,6 +288,8 @@ def validate_knowledge_state(
     *,
     assessment_traces: Tuple[PropositionAssessmentTrace, ...] = (),
     identity_resolutions: Tuple[IdentityResolution, ...] = (),
+    lineage_assessment_refs: Tuple[str, ...] = (),
+    lineage_identity_resolution_refs: Tuple[str, ...] = (),
 ) -> KnowledgeState:
     """Pure MY7-B gate; the history is read, never collapsed or mutated."""
 
@@ -263,6 +307,8 @@ def validate_knowledge_state(
             completeness=state.completeness,
             assessment_traces=tuple(assessment_traces),
             identity_resolutions=tuple(identity_resolutions),
+            lineage_assessment_refs=tuple(lineage_assessment_refs),
+            lineage_identity_resolution_refs=tuple(lineage_identity_resolution_refs),
             scope=state.scope,
         )
     except Exception as exc:
