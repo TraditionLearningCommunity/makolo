@@ -100,7 +100,6 @@ void main() {
   });
 
   testWidgets('wide split uses the shared 960dp boundary', (tester) async {
-    final controller = StreamController<StoredProjection?>();
 
     await tester.pumpWidget(
       MaterialApp(
