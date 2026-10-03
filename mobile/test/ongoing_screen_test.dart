@@ -14,9 +14,14 @@ StoredProjection _projection({
       'source': {'kind': 'journey', 'id': '1'},
       'state': 'waiting',
       'title': 'Visa Canada',
-      'ready': [{'title': 'Frais réglés'}],
+      'ready': [
+        {'title': 'Frais réglés'},
+      ],
       'actor_interventions': [],
-      'continuation': {'state': 'waiting', 'summary': 'Le consulat examine votre dossier.'},
+      'continuation': {
+        'state': 'waiting',
+        'summary': 'Le consulat examine votre dossier.',
+      },
       'blocker': null,
       'next': {'title': 'Biométrie'},
       'timing': {'deadline_date': '2026-11-15'},
@@ -100,7 +105,6 @@ void main() {
   });
 
   testWidgets('wide split uses the shared 960dp boundary', (tester) async {
-
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
