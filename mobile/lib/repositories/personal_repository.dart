@@ -1,4 +1,5 @@
 import '../data/local/profile_store.dart';
+import '../sync/owner_source_state.dart';
 
 class PersonalRepository {
   PersonalRepository(this.store);
@@ -11,4 +12,10 @@ class PersonalRepository {
       store.watchProjection('personal.ongoing');
 
   Stream<StoredProjection?> watchMe() => store.watchProjection('personal.me');
+
+  Stream<OwnerSourceState> watchMeSource() => watchOwnerSourceState(
+    database: store.database,
+    profileId: store.profileId,
+    sourceKey: 'personal.me',
+  );
 }
