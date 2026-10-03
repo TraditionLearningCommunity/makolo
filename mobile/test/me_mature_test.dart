@@ -398,7 +398,7 @@ void main() {
     expect(find.byKey(const Key('me-territories-wide')), findsOneWidget);
 
     final grid = tester.widget<MakoloAdaptiveGrid>(
-      find.byKey(const Key('makolo-adaptive-grid')),
+      find.byKey(const Key('me-territories-wide')),
     );
     expect(grid.maxColumns, 2);
   });
@@ -434,11 +434,8 @@ void main() {
       child: MeView(selection: selection),
     );
 
-    await tester.scrollUntilVisible(
-      find.text('Passeport.pdf'),
-      240,
-      scrollable: find.byType(Scrollable).first,
-    );
+    await tester.ensureVisible(find.text('Passeport.pdf'));
+    await tester.pump();
     await tester.tap(find.text('Passeport.pdf'));
     await tester.pump();
 
@@ -513,7 +510,8 @@ void main() {
         child: MeScreen(repository: PersonalRepository(store), now: () => now),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Gilbert Bemwiz'), findsOneWidget);
     expect(
