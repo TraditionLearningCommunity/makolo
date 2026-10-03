@@ -55,7 +55,6 @@ from transport.models import (
     VehicleType,
 )
 
-from .beta import BETA_PERSONAS
 from .common import SeedContext, backdate, stable_uuid, upsert
 from .mobile_mature_data import REALITY_SPECS
 
@@ -229,6 +228,54 @@ def _principal(ctx: SeedContext) -> User:
         },
     )
     return user
+
+
+MOBILE_MATURE_SUPPORT_USERS = {
+    "owner": {
+        "email": "mobile.providers@makolo.test",
+        "username": "mobile_mature_owner",
+        "first_name": "Maya",
+        "last_name": "Ilunga",
+        "persona": "provider_owner",
+    },
+    "curator": {
+        "email": "mobile.curator@makolo.test",
+        "username": "mobile_mature_curator",
+        "first_name": "Nadia",
+        "last_name": "Mukendi",
+        "persona": "opportunity_curator",
+    },
+}
+
+
+def _support_users() -> tuple[User, User]:
+    result = {}
+    for key, spec in MOBILE_MATURE_SUPPORT_USERS.items():
+        user = upsert(
+            User,
+            f"mobile-mature-{key}",
+            defaults={
+                "email": spec["email"],
+                "username": spec["username"],
+                "first_name": spec["first_name"],
+                "last_name": spec["last_name"],
+                "language": "fr",
+                "timezone": "Africa/Lubumbashi",
+                "is_active": True,
+                "is_verified": True,
+                "email_verified": True,
+                "onboarding_completed": True,
+                "onboarding_step": 5,
+                "metadata": {
+                    "seed": SEED_MARKER,
+                    "persona": spec["persona"],
+                },
+            },
+        )
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        result[key] = user
+    return result["owner"], result["curator"]
 
 
 def _providers(owner: User) -> dict[str, Organization]:
@@ -930,8 +977,7 @@ def seed_mobile_mature_universe(ctx: SeedContext) -> User:
     """
 
     primary = _principal(ctx)
-    owner = User.objects.get(email=BETA_PERSONAS["space_admin"])
-    curator = User.objects.get(email=BETA_PERSONAS["staff"])
+    owner, curator = _support_users()
     spaces = _providers(owner)
     places = _places(owner)
     activities, occurrences, obtentions = {}, {}, {}
