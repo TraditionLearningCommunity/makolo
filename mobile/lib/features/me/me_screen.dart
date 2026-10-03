@@ -7,6 +7,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
+import '../../navigation/destination.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
@@ -191,13 +192,12 @@ class _MeViewState extends State<MeView> {
                 ),
               );
 
-        return WillPopScope(
-          onWillPop: () async {
-            if (_selectedDestination == null) {
-              return true;
+        return PopScope<Object?>(
+          canPop: _selectedDestination == null,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && _selectedDestination != null) {
+              _closeDepth();
             }
-            _closeDepth();
-            return false;
           },
           child: MakoloSurfaceStateView(
             state: widget.selection.state,
