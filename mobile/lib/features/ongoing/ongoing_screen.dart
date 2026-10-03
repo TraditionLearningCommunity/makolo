@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/local/profile_store.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
@@ -9,8 +10,9 @@ import '../../repositories/personal_repository.dart';
 import 'ongoing_presentation.dart';
 
 class OngoingScreen extends StatefulWidget {
-  const OngoingScreen({super.key, required this.repository});
+  const OngoingScreen({super.key, required this.repository, this.projectionStream});
   final PersonalRepository repository;
+  final Stream<StoredProjection?>? projectionStream;
   @override
   State<OngoingScreen> createState() => _OngoingScreenState();
 }
@@ -28,7 +30,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
   @override
   Widget build(BuildContext context) => MakoloRefreshBoundary(
     child: StreamBuilder(
-      stream: widget.repository.watchOngoing(),
+      stream: widget.projectionStream ?? widget.repository.watchOngoing(),
       builder: (context, snapshot) {
         final projection = snapshot.data;
         if (!snapshot.hasData && snapshot.connectionState == ConnectionState.waiting) {
