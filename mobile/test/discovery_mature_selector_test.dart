@@ -81,10 +81,7 @@ void main() {
 
     final selected = selector.collection(projection);
 
-    expect(
-      selected.items.map((item) => item.id),
-      ['second', 'first'],
-    );
+    expect(selected.items.map((item) => item.id), ['second', 'first']);
   });
 
   test('NO_MATCH is criteria-bound and never widens silently', () {
@@ -107,10 +104,7 @@ void main() {
       hasCriteria: false,
     );
 
-    expect(
-      selected.states,
-      contains(DiscoveryFieldState.noCurrentProposal),
-    );
+    expect(selected.states, contains(DiscoveryFieldState.noCurrentProposal));
     expect(selected.states, isNot(contains(DiscoveryFieldState.noMatch)));
   });
 
@@ -142,10 +136,7 @@ void main() {
       MakoloReachabilityCue.temporarilyUnavailable,
     );
     expect(selected.surface.failure, MakoloFailureCue.recoverable);
-    expect(
-      selected.states,
-      contains(DiscoveryFieldState.offlineWithSnapshot),
-    );
+    expect(selected.states, contains(DiscoveryFieldState.offlineWithSnapshot));
   });
 
   test('offline without snapshot is not presented as no result', () {
@@ -155,10 +146,7 @@ void main() {
       reachability: MakoloReachabilityCue.temporarilyUnavailable,
     );
 
-    expect(
-      selected.states,
-      contains(DiscoveryFieldState.offlineNoSnapshot),
-    );
+    expect(selected.states, contains(DiscoveryFieldState.offlineNoSnapshot));
     expect(selected.states, isNot(contains(DiscoveryFieldState.noMatch)));
   });
 

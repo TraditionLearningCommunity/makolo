@@ -122,8 +122,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               hasCriteria: _query.hasCriteria,
               freshness: freshness,
               reachability: _reachability(sourceState),
-              failure:
-                  sourceState.lastErrorCode != null && projection != null
+              failure: sourceState.lastErrorCode != null && projection != null
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
               refreshing: _refreshing,

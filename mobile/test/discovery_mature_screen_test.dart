@@ -82,39 +82,33 @@ DiscoveryFieldSelection selection({
 }
 
 void main() {
-  testWidgets(
-    'G03 compact renders a natural possibility field',
-    (tester) async {
-      await PresentationHarness.pump(
-        tester,
-        viewport: const Size(360, 800),
-        child: DiscoveryExplorationView(
-          selection: selection(
-            states: const {DiscoveryFieldState.endOfField},
-          ),
-          onOpen: (_) {},
-        ),
-      );
+  testWidgets('G03 compact renders a natural possibility field', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(states: const {DiscoveryFieldState.endOfField}),
+        onOpen: (_) {},
+      ),
+    );
 
-      expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
-      expect(find.byKey(const Key('discover-wide-grid')), findsNothing);
-      expect(find.text('Formation Data Science'), findsOneWidget);
-      expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
-      expect(find.text('Accompagnement à distance'), findsOneWidget);
-      expect(find.text('S’inscrire'), findsNothing);
-      expect(find.textContaining('contenu de remplissage'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
+    expect(find.byKey(const Key('discover-wide-grid')), findsNothing);
+    expect(find.text('Formation Data Science'), findsOneWidget);
+    expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
+    expect(find.text('Accompagnement à distance'), findsOneWidget);
+    expect(find.text('S’inscrire'), findsNothing);
+    expect(find.textContaining('contenu de remplissage'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('G04 wide uses the shared adaptive grid', (tester) async {
     await PresentationHarness.pump(
       tester,
       viewport: const Size(1440, 900),
-      child: DiscoveryExplorationView(
-        selection: selection(),
-        onOpen: (_) {},
-      ),
+      child: DiscoveryExplorationView(selection: selection(), onOpen: (_) {}),
     );
 
     expect(find.byKey(const Key('discover-wide-grid')), findsOneWidget);
@@ -283,10 +277,7 @@ void main() {
       tester,
       viewport: const Size(360, 800),
       textScale: 1.6,
-      child: DiscoveryExplorationView(
-        selection: selection(),
-        onOpen: (_) {},
-      ),
+      child: DiscoveryExplorationView(selection: selection(), onOpen: (_) {}),
     );
 
     expect(find.text('Formation Data Science'), findsOneWidget);

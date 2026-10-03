@@ -132,8 +132,7 @@ class DiscoveryFieldView extends StatelessWidget {
   Widget build(BuildContext context) {
     return MakoloSurfaceStateView(
       state: selection.surface,
-      recoverableErrorMessage:
-          'La mise à jour n’a pas abouti. Les possibilités connues restent disponibles.',
+      recoverableErrorMessage: 'La mise à jour n’a pas abouti. Les possibilités connues restent disponibles.',
       blockingErrorMessage:
           'Makolo ne peut pas interpréter le champ de possibilités reçu.',
       preservedMessage: selection.collection.items.isEmpty
@@ -333,7 +332,8 @@ class _DiscoveryScrollableField extends StatelessWidget {
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
         final widthClass = MakoloLayout.widthClassFor(width);
-        final wide = widthClass == MakoloWidthClass.wide ||
+        final wide =
+            widthClass == MakoloWidthClass.wide ||
             widthClass == MakoloWidthClass.veryWide;
 
         final units = [
@@ -553,17 +553,16 @@ class _DiscoveryMedia extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    final networkImage = uri != null &&
-        (uri.scheme == 'https' || uri.scheme == 'http');
+    final networkImage =
+        uri != null && (uri.scheme == 'https' || uri.scheme == 'http');
 
     Widget? child;
     if (networkImage) {
       child = Image.network(
         item.imageUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => MakoloMediaPlaceholder(
-          label: item.eyebrow ?? 'Média indisponible',
-        ),
+        errorBuilder: (_, _, _) =>
+            MakoloMediaPlaceholder(label: item.eyebrow ?? 'Média indisponible'),
       );
     } else if (item.routeLabel != null) {
       child = ColoredBox(
@@ -585,9 +584,7 @@ class _DiscoveryMedia extends StatelessWidget {
       aspect: MakoloMediaAspect.landscape,
       semanticLabel: item.imageUrl == null ? null : 'Média de ${item.title}',
       child: child,
-      placeholder: MakoloMediaPlaceholder(
-        label: item.eyebrow ?? 'Possibilité',
-      ),
+      placeholder: MakoloMediaPlaceholder(label: item.eyebrow ?? 'Possibilité'),
     );
   }
 }
@@ -611,30 +608,29 @@ class _DiscoveryFocusPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            TextButton.icon(
-              onPressed: onClose,
-              icon: const Icon(Icons.arrow_back_rounded),
-              label: const Text('Découvrir'),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            if (item.imageUrl != null || item.routeLabel != null) ...[
-              _DiscoveryMedia(item: item),
-              const SizedBox(height: MakoloSpacing.lg),
-            ],
-            if (item.eyebrow != null)
-              Text(
-                item.eyebrow!,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            const SizedBox(height: MakoloSpacing.xs),
-            Text(item.title, style: Theme.of(context).textTheme.headlineSmall),
-            if (item.summary.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.sm),
-              Text(item.summary),
-            ],
+          TextButton.icon(
+            onPressed: onClose,
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Découvrir'),
+          ),
+          const SizedBox(height: MakoloSpacing.md),
+          if (item.imageUrl != null || item.routeLabel != null) ...[
+            _DiscoveryMedia(item: item),
             const SizedBox(height: MakoloSpacing.lg),
+          ],
+          if (item.eyebrow != null)
+            Text(
+              item.eyebrow!,
+              style: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(color: Theme.of(context).colorScheme.primary),
+            ),
+          const SizedBox(height: MakoloSpacing.xs),
+          Text(item.title, style: Theme.of(context).textTheme.headlineSmall),
+          if (item.summary.isNotEmpty) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(item.summary),
+          ],
+          const SizedBox(height: MakoloSpacing.lg),
           FilledButton.icon(
             onPressed: onOpen,
             icon: const Icon(Icons.arrow_forward_rounded),
@@ -662,9 +658,9 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.offlineNoSnapshot)) {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,
-        title: 'Impossible de charger de nouvelles possibilités hors connexion.',
-        body:
-            'Aucun snapshot Discovery n’est disponible sur cet appareil. Réessayez lorsque la source est joignable.',
+        title:
+            'Impossible de charger de nouvelles possibilités hors connexion.',
+        body: 'Aucun snapshot Discovery n’est disponible sur cet appareil. Réessayez lorsque la source est joignable.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -673,8 +669,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,
         title: 'Le champ disponible est limité à ce qui est déjà acquis.',
-        body:
-            'Vous êtes hors connexion. Makolo ne présente pas ce corpus local comme exhaustif.',
+        body: 'Vous êtes hors connexion. Makolo ne présente pas ce corpus local comme exhaustif.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -683,8 +678,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
       return _EmptyBody(
         icon: Icons.search_off_outlined,
         title: 'Aucune possibilité ne correspond à ces critères.',
-        body:
-            'Modifiez la recherche, retirez une contrainte ou élargissez volontairement la zone.',
+        body: 'Modifiez la recherche, retirez une contrainte ou élargissez volontairement la zone.',
         actionLabel: onResetCriteria == null ? null : 'Modifier mes critères',
         onAction: onResetCriteria,
       );
@@ -692,8 +686,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
     return const _EmptyBody(
       icon: Icons.explore_outlined,
       title: 'Aucune proposition suffisante dans ce contexte pour le moment.',
-      body:
-          'Makolo n’invente pas de contenu pour remplir Découvrir. Vous pouvez préciser ce que vous cherchez.',
+      body: 'Makolo n’invente pas de contenu pour remplir Découvrir. Vous pouvez préciser ce que vous cherchez.',
     );
   }
 }
@@ -773,10 +766,7 @@ class _DiscoveryEndOfField extends StatelessWidget {
 }
 
 class _DiscoveryPagination extends StatelessWidget {
-  const _DiscoveryPagination({
-    required this.collection,
-    required this.onPage,
-  });
+  const _DiscoveryPagination({required this.collection, required this.onPage});
 
   final DiscoveryCollectionPresentation collection;
   final ValueChanged<int>? onPage;
