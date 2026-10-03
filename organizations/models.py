@@ -104,10 +104,19 @@ class Organization(models.Model):
             candidate = base
             suffix = 2
             from sharing.models import PublicIdentifier
-            while (
-                Organization.objects.exclude(pk=self.pk).filter(slug=candidate).exists()
-                or PublicIdentifier.objects.filter(identifier__iexact=candidate).exclude(space_id=self.pk).exists()
-            ):
+            from sharing.public_identifiers import validate_public_identifier
+            while True:
+                try:
+                    validate_public_identifier(candidate)
+                    reserved = False
+                except ValidationError:
+                    reserved = True
+                if not (
+                    reserved
+                    or Organization.objects.exclude(pk=self.pk).filter(slug=candidate).exists()
+                    or PublicIdentifier.objects.filter(identifier__iexact=candidate).exclude(space_id=self.pk).exists()
+                ):
+                    break
                 tail = f"-{suffix}"
                 candidate = f"{base[:200-len(tail)]}{tail}"
                 suffix += 1
