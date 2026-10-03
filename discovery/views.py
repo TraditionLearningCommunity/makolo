@@ -126,6 +126,7 @@ class DiscoveryHomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["discovery_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         errors = []
         intent = resolve_discovery_intent(self.request.GET)
         intent = interpret_with_intelligence(intent, profile=self.request.user)
@@ -255,6 +256,7 @@ class DiscoveryActivityDetailView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["discovery_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         try:
             occurrence = get_public_occurrence(kwargs["occurrence_id"])
         except ObjectDoesNotExist as exc:
