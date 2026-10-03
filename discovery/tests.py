@@ -498,6 +498,7 @@ class CanonicalDiscoveryTests(TestCase):
         response = self.client.get(reverse("discovery:home"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Favori Event")
+        self.assertContains(response, 'class="mk-discovery-preview-action')
         self.client.force_login(self.participant)
         url = reverse("discovery:bookmark-toggle", kwargs={"event_id": event.pk})
         self.client.post(url)
@@ -512,9 +513,22 @@ class DiscoveryExpandedPresentationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-workspace-layout="explore"')
+        self.assertContains(response, 'data-mk-runtime-scope="public"')
         self.assertContains(response, 'data-mk-surface="discover"')
         self.assertContains(response, 'id="discover-preview"')
         self.assertContains(response, 'id="discover-preview-body"')
         self.assertContains(response, 'class="mk-discovery-filters')
         self.assertContains(response, 'class="mk-discovery-results')
         self.assertIn("page_obj", response.context)
+
+    def test_discover_distinguishes_no_current_proposal_from_no_match(self):
+        landing = self.client.get(reverse("discovery:home"))
+        no_match = self.client.get(reverse("discovery:home"), {"q": "aucune-correspondance-makolo"})
+
+        self.assertContains(landing, 'data-discovery-end-state="no-current-proposal"')
+        self.assertContains(landing, "Aucune proposition utile dans ce contexte pour le moment.")
+        self.assertNotContains(landing, 'data-discovery-end-state="no-match"')
+
+        self.assertContains(no_match, 'data-discovery-end-state="no-match"')
+        self.assertContains(no_match, "Aucune possibilité ne correspond à ces critères.")
+        self.assertNotContains(no_match, 'data-discovery-end-state="no-current-proposal"')
