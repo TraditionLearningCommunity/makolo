@@ -62,15 +62,18 @@ NowSelection contentSelection({
 }
 
 void main() {
-  testWidgets('G01 compact keeps one dominant consequence and quieter secondary', (
-    tester,
-  ) async {
+  testWidgets(
+    'G01 compact keeps one dominant consequence and quieter secondary',
+    (tester) async {
     await PresentationHarness.pump(
       tester,
       child: NowView(selection: contentSelection()),
     );
 
-    expect(find.text('Votre certificat doit être transmis aujourd’hui.'), findsOneWidget);
+    expect(
+      find.text('Votre certificat doit être transmis aujourd’hui.'),
+      findsOneWidget,
+    );
     expect(find.text('Aussi maintenant'), findsOneWidget);
     expect(find.text('Départ vers Kolwezi'), findsOneWidget);
     expect(find.text('Ouvrir'), findsNothing);
@@ -192,7 +195,10 @@ void main() {
       child: NowView(selection: contentSelection()),
     );
 
-    expect(find.text('Votre certificat doit être transmis aujourd’hui.'), findsOneWidget);
+    expect(
+      find.text('Votre certificat doit être transmis aujourd’hui.'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
