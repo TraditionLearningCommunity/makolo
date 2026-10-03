@@ -14,9 +14,9 @@
     <link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-brand-assets.css' %}">
     <link rel="stylesheet" href="{% static 'css/makolo-a11y.css' %}">
-    <link rel="stylesheet" href="{% static 'css/mature-experience.css' %}">
+    {% if public_workspace_layout %}<link rel="stylesheet" href="{% static 'css/mature-experience.css' %}">{% endif %}
     <script defer src="{% static 'dist/makolo.js' %}"></script>
-    <script defer src="{% static 'js/workspace-runtime.js' %}"></script>
+    {% if public_workspace_layout %}<script defer src="{% static 'js/workspace-runtime.js' %}"></script>{% endif %}
     {% if not request.user.is_authenticated %}<script defer src="{% static 'js/theme-local.js' %}"></script>{% endif %}
     {% block extra_css %}{% endblock %}
 </head>
@@ -52,9 +52,9 @@
         </nav>
     </header>
     <main id="main-content" tabindex="-1">
-        <div class="mk-workspace" data-workspace-layout="{% block workspace_layout %}focus{% endblock %}">
-            <div class="mk-workspace__primary">{% block content %}{% endblock %}</div>
-            {% block workspace_context %}{% endblock %}
+        <div{% if public_workspace_layout %} class="mk-workspace" data-workspace-layout="{{ public_workspace_layout }}"{% endif %}>
+            <div{% if public_workspace_layout %} class="mk-workspace__primary"{% endif %}>{% block content %}{% endblock %}</div>
+            {% if public_workspace_layout %}{% block workspace_context %}{% endblock %}{% endif %}
         </div>
     </main>
     <footer class="border-t py-8" style="border-color:var(--mk-border)">
@@ -66,7 +66,7 @@
                 {% if request.user.is_authenticated %}
                 <a href="{% url 'core:participant-home' %}">Maintenant</a>
                 {% else %}
-                <a href="{% url 'core:login' %}">Connexion</a>
+                <a href="{% url 'core:login' %}" aria-label="Connexion — pied de page">Connexion</a>
                 <a href="{% url 'account:register' %}">Créer un compte</a>
                 <label for="public-theme-preference" class="sr-only">Apparence</label>
                 <select id="public-theme-preference" aria-label="Apparence" class="!w-auto !py-1 !text-xs"><option value="system">Système</option><option value="light">Clair</option><option value="dark">Sombre</option></select>
