@@ -728,6 +728,49 @@ class MY7KnowledgeStateGapTests(TestCase):
                 revalidation_rule_version="2",
             )
 
+    def test_unresolved_assessment_gap_cannot_resolve_while_cause_remains(self):
+        proposition = self.proposition("deadline", "unknown")
+        assessment = self.assessment(
+            "assessment:still-unresolved",
+            proposition,
+            AssessmentStatus.UNRESOLVED,
+            self.t1,
+        )
+        old_state = build_knowledge_state(
+            self.reality,
+            self.t1,
+            state_ref="state:unresolved-old",
+            completeness=self.unknown_completeness(),
+            assessment_traces=(assessment,),
+            lineage_assessment_refs=(assessment.assessment_ref,),
+        )
+        gap = build_research_gap(
+            old_state,
+            ResearchGapTarget(
+                ResearchGapTargetKind.PROPOSITION, proposition.fingerprint
+            ),
+            ResearchGapReason.UNRESOLVED_ASSESSMENT,
+            self.t1,
+            gap_ref="gap:still-unresolved",
+            basis_refs=(assessment.assessment_ref,),
+            assessment_traces=(assessment,),
+        )
+        new_state = build_knowledge_state(
+            self.reality,
+            self.t2,
+            state_ref="state:unresolved-new",
+            completeness=self.unknown_completeness(at=self.t2),
+            assessment_traces=(assessment,),
+            lineage_assessment_refs=(assessment.assessment_ref,),
+        )
+        with self.assertRaises(MayeleContractError):
+            resolve_research_gap(
+                gap,
+                new_state,
+                self.t2,
+                assessment_traces=(assessment,),
+            )
+
     def test_new_state_can_resolve_old_gap_without_mutating_history(self):
         old_state = build_knowledge_state(
             self.reality,
