@@ -1,0 +1,44 @@
+name: Mobile Discovery Format Once
+
+on:
+  push:
+    branches:
+      - feat/mobile-discovery-mature
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/mobile-discovery-mature
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.3'
+          channel: stable
+          cache: true
+      - name: Apply canonical Dart formatter
+        working-directory: mobile
+        run: |
+          dart format \
+            lib/features/discovery/discovery_mature_view.dart \
+            lib/features/discovery/discovery_screens.dart \
+            test/discovery_mature_screen_test.dart \
+            test/discovery_mature_selector_test.dart
+      - name: Commit formatted files
+        run: |
+          if git diff --quiet -- mobile/lib/features/discovery/discovery_mature_view.dart mobile/lib/features/discovery/discovery_screens.dart mobile/test/discovery_mature_screen_test.dart mobile/test/discovery_mature_selector_test.dart; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/lib/features/discovery/discovery_mature_view.dart \
+                  mobile/lib/features/discovery/discovery_screens.dart \
+                  mobile/test/discovery_mature_screen_test.dart \
+                  mobile/test/discovery_mature_selector_test.dart
+          git commit -m "Format mature Discovery Dart sources"
+          git push origin HEAD:feat/mobile-discovery-mature
