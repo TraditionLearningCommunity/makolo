@@ -56,7 +56,8 @@ class PassportPublicIdentityTests(TestCase):
         self.assertContains(response, "Passeport Makolo")
         self.assertContains(response, "Naomi Traore")
         self.assertContains(response, "Entrepreneure")
-        self.assertContains(response, "QR de vérification")
+        self.assertNotContains(response, "QR de vérification")
+        self.assertIsNone(response.context["passport_snapshot"])
         self.assertNotContains(response, "Ownership Activity")
         self.assertNotContains(response, "Credential Trust")
 
@@ -66,7 +67,8 @@ class PassportPublicIdentityTests(TestCase):
         self.assertContains(response, "Mulykap Demo")
         self.assertContains(response, "Transport et mobilité.")
         self.assertContains(response, "Espace générique")
-        self.assertContains(response, "QR de vérification")
+        self.assertNotContains(response, "QR de vérification")
+        self.assertIsNone(response.context["passport_snapshot"])
 
     def test_non_searchable_profile_returns_404_even_with_known_identifier(self):
         self.profile.searchable = False
@@ -81,7 +83,10 @@ class PassportPublicIdentityTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_rendered_passport_issues_verifiable_snapshot(self):
-        response = self.client.get(reverse("public-passport", kwargs={"identifier": "naomi-demo"}))
+        response = self.client.get(
+            reverse("public-passport", kwargs={"identifier": "naomi-demo"}),
+            {"document": "1"},
+        )
         snapshot = response.context["passport_snapshot"]
         self.assertIsInstance(snapshot, PassportSnapshot)
         self.assertEqual(snapshot.public_identifier, "naomi-demo")
