@@ -95,6 +95,16 @@ void main() {
     expect(result.state.failure, MakoloFailureCue.blocking);
   });
 
+  test('non-empty malformed rows cannot become calm', () {
+    final result = selector.select(
+      projection: projection(items: const [{'title': 'Sans source'}]),
+      now: now,
+    );
+
+    expect(result.isCalm, isFalse);
+    expect(result.state.failure, MakoloFailureCue.blocking);
+  });
+
   test('unknown capability never creates a CTA', () {
     final result = selector.select(
       projection: projection(
