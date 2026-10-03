@@ -26,6 +26,9 @@ class MeTerritorySelection {
 
   final MeTerritoryPresentation presentation;
   final List<MeItemPresentation> items;
+
+  bool get hasContent =>
+      presentation.state.availability == MakoloAvailabilityCue.content;
 }
 
 class MeSelection {
@@ -44,6 +47,9 @@ class MeSelection {
   final MakoloSurfacePresentation identityState;
   final String? identitySubtitle;
   final String? identityDetail;
+
+  int get contentfulTerritoryCount =>
+      territories.where((territory) => territory.hasContent).length;
 }
 
 class MeSelector {
@@ -59,13 +65,17 @@ class MeSelector {
     MakoloReachabilityCue reachability = MakoloReachabilityCue.unknown,
     MakoloFailureCue failure = MakoloFailureCue.none,
     bool refreshing = false,
+    bool sourceInvalidated = false,
   }) {
     if (projection == null) {
       const state = MakoloSurfacePresentation(
         availability: MakoloAvailabilityCue.initial,
       );
       return const MeSelection(
-        presentation: MePresentation(identityLabel: 'Moi', territories: []),
+        presentation: MePresentation(
+          identityLabel: 'Moi',
+          territories: [],
+        ),
         territories: [],
         state: state,
         identityState: state,
@@ -73,9 +83,13 @@ class MeSelector {
     }
 
     final freshness = _freshnessCue(
-      _freshnessPolicy.evaluate(projection, now: now),
+      _freshnessPolicy.evaluate(
+        projection,
+        now: now,
+        invalidated: sourceInvalidated,
+      ),
     );
-    final commonState = MakoloSurfacePresentation(
+    final state = MakoloSurfacePresentation(
       availability: MakoloAvailabilityCue.content,
       freshness: freshness,
       reachability: reachability,
@@ -84,7 +98,6 @@ class MeSelector {
     );
 
     final identityRaw = _map(projection.payload['identity']);
-    final identityLabel = _string(identityRaw?['display_name']) ?? 'Moi';
     final identityMalformed =
         projection.payload.containsKey('identity') && identityRaw == null;
     final identityState = MakoloSurfacePresentation(
@@ -99,14 +112,26 @@ class MeSelector {
     );
 
     final territories = <MeTerritorySelection>[
-      _passport(projection.payload['passport'], freshness, reachability),
+      _passport(
+        projection.payload['passport'],
+        freshness,
+        reachability,
+      ),
       _considerations(
         projection.payload['considerations'],
         freshness,
         reachability,
       ),
-      _collectives(projection.payload['collectives'], freshness, reachability),
-      _resources(projection.payload['resources'], freshness, reachability),
+      _collectives(
+        projection.payload['collectives'],
+        freshness,
+        reachability,
+      ),
+      _resources(
+        projection.payload['resources'],
+        freshness,
+        reachability,
+      ),
     ];
 
     final support = _support(
@@ -114,19 +139,19 @@ class MeSelector {
       freshness,
       reachability,
     );
-    if (support != null) territories.add(support);
-
-    final presentations = territories
-        .map((territory) => territory.presentation)
-        .toList(growable: false);
+    if (support != null) {
+      territories.add(support);
+    }
 
     return MeSelection(
       presentation: MePresentation(
-        identityLabel: identityLabel,
-        territories: List.unmodifiable(presentations),
+        identityLabel: _string(identityRaw?['display_name']) ?? 'Moi',
+        territories: List.unmodifiable(
+          territories.map((territory) => territory.presentation),
+        ),
       ),
       territories: List.unmodifiable(territories),
-      state: commonState,
+      state: state,
       identityState: identityState,
       identitySubtitle: _identitySubtitle(identityRaw),
       identityDetail: _string(identityRaw?['bio']),
@@ -139,13 +164,18 @@ class MeSelector {
     MakoloReachabilityCue reachability,
   ) {
     final section = _map(raw);
-    final malformed = raw != null && section == null;
+    final malformed =
+        raw != null &&
+        (section == null ||
+            (section.containsKey('available') &&
+                section['available'] is! bool));
     final available = section?['available'] == true;
+
     return MeTerritorySelection(
       presentation: MeTerritoryPresentation(
         key: 'passport',
         label: 'Passeport Makolo',
-        summary: 'Ce qui peut vous représenter selon le contexte.',
+        summary: 'Une projection utile de ce qui peut vous représenter.',
         state: _sectionState(
           hasContent: available,
           malformed: malformed,
@@ -163,16 +193,60 @@ class MeSelector {
     MakoloReachabilityCue reachability,
   ) {
     final section = _map(raw);
-    final malformed = raw != null && section == null;
+    var malformed = raw != null && section == null;
     final items = <MeItemPresentation>[];
+
     if (section != null) {
-      _appendBounded(items, section['interests'], _interest);
-      _appendBounded(items, section['open_to'], _openTo);
-      _appendBounded(items, section['watches'], _watch);
-      _appendBounded(items, section['bookmarks'], _bookmark);
-      _appendBounded(items, section['followed_spaces'], _followedSpace);
-      _appendBounded(items, section['followed_profiles'], _followedProfile);
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'interests',
+            _interest,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'open_to',
+            _openTo,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'watches',
+            _watch,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'bookmarks',
+            _bookmark,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'followed_spaces',
+            _followedSpace,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'followed_profiles',
+            _followedProfile,
+          ) ||
+          malformed;
     }
+
     return _territory(
       key: 'considerations',
       label: 'Ce qui compte pour moi',
@@ -190,17 +264,40 @@ class MeSelector {
     MakoloReachabilityCue reachability,
   ) {
     final section = _map(raw);
-    final malformed = raw != null && section == null;
+    var malformed = raw != null && section == null;
     final items = <MeItemPresentation>[];
+
     if (section != null) {
-      _appendBounded(items, section['authorized_spaces'], _space);
-      _appendBounded(items, section['teams'], _team);
-      _appendBounded(items, section['groups'], _group);
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'authorized_spaces',
+            _space,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'teams',
+            _team,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'groups',
+            _group,
+          ) ||
+          malformed;
     }
+
     return _territory(
       key: 'collectives',
       label: 'Mes collectifs',
-      summary: 'Appartenances et contextes visibles, sans autorité implicite.',
+      summary: 'Les collectifs auxquels votre Profil est relié.',
       items: items,
       malformed: malformed,
       freshness: freshness,
@@ -214,17 +311,40 @@ class MeSelector {
     MakoloReachabilityCue reachability,
   ) {
     final section = _map(raw);
-    final malformed = raw != null && section == null;
+    var malformed = raw != null && section == null;
     final items = <MeItemPresentation>[];
+
     if (section != null) {
-      _appendBounded(items, section['documents'], _document);
-      _appendBounded(items, section['proofs'], _proof);
-      _appendBounded(items, section['credentials'], _credential);
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'documents',
+            _document,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'proofs',
+            _proof,
+          ) ||
+          malformed;
+      malformed =
+          _appendBounded(
+            items,
+            section,
+            'credentials',
+            _credential,
+          ) ||
+          malformed;
     }
+
     return _territory(
       key: 'resources',
       label: 'Mes ressources',
-      summary: 'Documents, preuves et credentials restent des réalités distinctes.',
+      summary: 'Ce qui est déjà disponible pour faciliter la suite.',
       items: items,
       malformed: malformed,
       freshness: freshness,
@@ -238,14 +358,22 @@ class MeSelector {
     MakoloReachabilityCue reachability,
   ) {
     final section = _map(raw);
-    if (section == null) return null;
+    if (section == null) {
+      return null;
+    }
+
     final items = <MeItemPresentation>[];
     for (final entry in section.entries) {
       final value = _map(entry.value);
-      if (value?['available'] != true) continue;
+      if (value?['available'] != true) {
+        continue;
+      }
       items.add(
         MeItemPresentation(
-          destination: StructuredDestination(kind: 'support', id: entry.key),
+          destination: StructuredDestination(
+            kind: 'support',
+            id: entry.key,
+          ),
           title: _supportLabel(entry.key),
           subtitle: value?['needs_response'] == true
               ? 'Une réponse peut être nécessaire.'
@@ -253,11 +381,15 @@ class MeSelector {
         ),
       );
     }
-    if (items.isEmpty) return null;
+
+    if (items.isEmpty) {
+      return null;
+    }
+
     return _territory(
       key: 'support',
       label: 'Mes appuis',
-      summary: 'Relations et soutiens déjà disponibles.',
+      summary: 'Des appuis déjà disponibles autour de vous.',
       items: items,
       malformed: false,
       freshness: freshness,
@@ -279,7 +411,9 @@ class MeSelector {
         key: key,
         label: label,
         summary: summary,
-        items: List.unmodifiable(items.map((item) => item.destination)),
+        items: List.unmodifiable(
+          items.map((item) => item.destination),
+        ),
         state: _sectionState(
           hasContent: items.isNotEmpty,
           malformed: malformed,
@@ -303,33 +437,58 @@ class MeSelector {
           : MakoloAvailabilityCue.empty,
       freshness: freshness,
       reachability: reachability,
-      failure: malformed ? MakoloFailureCue.blocking : MakoloFailureCue.none,
+      failure: malformed
+          ? MakoloFailureCue.blocking
+          : MakoloFailureCue.none,
     );
   }
 
-  void _appendBounded(
+  bool _appendBounded(
     List<MeItemPresentation> target,
-    Object? raw,
+    Map<String, dynamic> section,
+    String key,
     MeItemPresentation? Function(Map<String, dynamic>) parser,
   ) {
-    final collection = _map(raw);
-    final rows = collection?['items'];
-    if (rows is! List) return;
-    for (final row in rows) {
-      final map = _map(row);
-      if (map == null) continue;
-      final parsed = parser(map);
-      if (parsed != null) target.add(parsed);
+    if (!section.containsKey(key)) {
+      return false;
     }
+
+    final collection = _map(section[key]);
+    if (collection == null) {
+      return true;
+    }
+
+    final rows = collection['items'];
+    if (rows is! List) {
+      return true;
+    }
+
+    for (final raw in rows) {
+      final map = _map(raw);
+      if (map == null) {
+        continue;
+      }
+      final item = parser(map);
+      if (item != null) {
+        target.add(item);
+      }
+    }
+
+    return false;
   }
 
   MeItemPresentation? _interest(Map<String, dynamic> raw) {
     final topic = _map(raw['topic']);
     final id = _string(topic?['id']);
     final label = _string(topic?['label']);
-    if (id == null || label == null) return null;
+    if (id == null || label == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'topic', id: id),
+      destination: StructuredDestination(
+        kind: 'topic',
+        id: id,
+      ),
       title: label,
       subtitle: 'Intérêt',
     );
@@ -338,9 +497,14 @@ class MeSelector {
   MeItemPresentation? _openTo(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final label = _string(raw['label']);
-    if (id == null || label == null) return null;
+    if (id == null || label == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'open_to', id: id),
+      destination: StructuredDestination(
+        kind: 'open_to',
+        id: id,
+      ),
       title: label,
       subtitle: 'Ouvert à',
     );
@@ -349,9 +513,14 @@ class MeSelector {
   MeItemPresentation? _watch(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title = _string(raw['name']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'watch', id: id),
+      destination: StructuredDestination(
+        kind: 'watch',
+        id: id,
+      ),
       title: title,
       subtitle: _string(raw['status_label']) ?? 'Veille',
     );
@@ -361,9 +530,14 @@ class MeSelector {
     final activity = _map(raw['activity']);
     final id = _string(activity?['id']);
     final title = _string(activity?['title']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'activity', id: id),
+      destination: StructuredDestination(
+        kind: 'activity',
+        id: id,
+      ),
       title: title,
       subtitle: 'Enregistré',
     );
@@ -373,9 +547,14 @@ class MeSelector {
     final space = _map(raw['space']);
     final id = _string(space?['id']);
     final title = _string(space?['name']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: id),
+      destination: StructuredDestination(
+        kind: 'space',
+        id: id,
+      ),
       title: title,
       subtitle: 'Espace suivi',
     );
@@ -385,9 +564,14 @@ class MeSelector {
     final profile = _map(raw['profile']);
     final id = _string(profile?['id']);
     final title = _string(profile?['display_name']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'profile', id: id),
+      destination: StructuredDestination(
+        kind: 'profile',
+        id: id,
+      ),
       title: title,
       subtitle: 'Profil suivi',
     );
@@ -396,12 +580,17 @@ class MeSelector {
   MeItemPresentation? _space(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title = _string(raw['name']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: id),
+      destination: StructuredDestination(
+        kind: 'space',
+        id: id,
+      ),
       title: title,
       subtitle: raw['can_act'] == true
-          ? 'Contexte autorisé par le serveur'
+          ? 'Contexte autorisé'
           : 'Espace',
     );
   }
@@ -409,45 +598,67 @@ class MeSelector {
   MeItemPresentation? _team(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title = _string(raw['name']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'team', id: id),
+      destination: StructuredDestination(
+        kind: 'team',
+        id: id,
+      ),
       title: title,
-      subtitle: 'Membre',
+      subtitle: 'Équipe',
     );
   }
 
   MeItemPresentation? _group(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title = _string(raw['name']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'group', id: id),
+      destination: StructuredDestination(
+        kind: 'group',
+        id: id,
+      ),
       title: title,
-      subtitle: 'Groupe visible',
+      subtitle: 'Groupe',
     );
   }
 
   MeItemPresentation? _document(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title = _string(raw['title']);
-    if (id == null || title == null) return null;
-    final kind = _string(raw['asset_kind_label']) ?? 'Document';
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'personal_asset', id: id),
+      destination: StructuredDestination(
+        kind: 'personal_asset',
+        id: id,
+      ),
       title: title,
-      subtitle: kind,
-      metadata: _metadata(_string(raw['sensitivity_label'])),
+      subtitle: _string(raw['asset_kind_label']) ?? 'Ressource',
+      metadata: _metadata(
+        _string(raw['sensitivity_label']),
+      ),
     );
   }
 
   MeItemPresentation? _proof(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title =
-        _string(raw['proof_type_label']) ?? _string(raw['proof_type']);
-    if (id == null || title == null) return null;
+        _string(raw['proof_type_label']) ??
+        _string(raw['proof_type']);
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'proof', id: id),
+      destination: StructuredDestination(
+        kind: 'proof',
+        id: id,
+      ),
       title: title,
       subtitle: _string(raw['status_label']) ?? 'Preuve',
     );
@@ -456,56 +667,93 @@ class MeSelector {
   MeItemPresentation? _credential(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title = _string(raw['title']);
-    if (id == null || title == null) return null;
+    if (id == null || title == null) {
+      return null;
+    }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'credential', id: id),
+      destination: StructuredDestination(
+        kind: 'credential',
+        id: id,
+      ),
       title: title,
-      subtitle: _string(raw['credential_type_label']) ?? 'Credential',
-      metadata: _metadata(_string(raw['status_label'])),
+      subtitle:
+          _string(raw['credential_type_label']) ??
+          'Titre',
+      metadata: _metadata(
+        _string(raw['status_label']),
+      ),
     );
   }
 
   String? _identitySubtitle(Map<String, dynamic>? identity) {
-    if (identity == null) return null;
+    if (identity == null) {
+      return null;
+    }
+
     final parts = <String>[];
     final profession = _string(identity['profession']);
-    if (profession != null) parts.add(profession);
+    if (profession != null) {
+      parts.add(profession);
+    }
+
     final location = _map(identity['location']);
     if (location != null) {
       final place = [
         _string(location['city']),
         _string(location['country']),
       ].whereType<String>().join(', ');
-      if (place.isNotEmpty) parts.add(place);
+      if (place.isNotEmpty) {
+        parts.add(place);
+      }
     }
-    return parts.isEmpty ? null : parts.join(' · ');
+
+    return parts.isEmpty
+        ? null
+        : parts.join(' · ');
   }
 
-  List<String> _metadata(String? value) =>
-      value == null ? const [] : <String>[value];
+  List<String> _metadata(String? value) {
+    return value == null
+        ? const []
+        : <String>[value];
+  }
 
-  String _supportLabel(String key) => switch (key) {
-    'recognition' => 'Reconnaissance',
-    'loyalty' => 'Fidélité',
-    'partners' => 'Partenaires',
-    _ => key,
-  };
+  String _supportLabel(String key) {
+    return switch (key) {
+      'recognition' => 'Reconnaissance',
+      'loyalty' => 'Fidélité',
+      'partners' => 'Partenaires',
+      _ => key,
+    };
+  }
 
   Map<String, dynamic>? _map(Object? value) {
-    if (value is! Map) return null;
-    return value.map((key, value) => MapEntry(key.toString(), value));
+    if (value is! Map) {
+      return null;
+    }
+    return value.map(
+      (key, item) => MapEntry(
+        key.toString(),
+        item,
+      ),
+    );
   }
 
   String? _string(Object? value) {
-    if (value is! String) return null;
+    if (value is! String) {
+      return null;
+    }
     final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
+    return trimmed.isEmpty
+        ? null
+        : trimmed;
   }
 
   MakoloFreshnessCue _freshnessCue(FreshnessState state) {
     return switch (state) {
       FreshnessState.fresh => MakoloFreshnessCue.current,
-      FreshnessState.usableButOld => MakoloFreshnessCue.oldObservation,
+      FreshnessState.usableButOld =>
+        MakoloFreshnessCue.oldObservation,
       FreshnessState.refreshRecommended =>
         MakoloFreshnessCue.refreshRecommended,
       FreshnessState.revalidationRequired =>
