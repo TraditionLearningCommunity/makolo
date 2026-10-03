@@ -30,7 +30,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
   void _clearSelection() => setState(() => _selectedOwnerKey = null);
 
   String _ownerKey(OngoingContinuityPresentation item) =>
-      '\${item.ownerKind ?? item.kind}:\${item.ownerId ?? item.title}';
+      '${item.ownerKind ?? item.kind}:${item.ownerId ?? item.title}';
 
   @override
   Widget build(BuildContext context) => MakoloRefreshBoundary(
@@ -158,10 +158,10 @@ class _OngoingField extends StatelessWidget {
     itemBuilder: (context, index) {
       final item = items[index];
       final key =
-          '\${item.ownerKind ?? item.kind}:\${item.ownerId ?? item.title}';
+          '${item.ownerKind ?? item.kind}:${item.ownerId ?? item.title}';
       final selectedKey = selected == null
           ? null
-          : '\${selected!.ownerKind ?? selected!.kind}:\${selected!.ownerId ?? selected!.title}';
+          : '${selected!.ownerKind ?? selected!.kind}:${selected!.ownerId ?? selected!.title}';
       return _OngoingRow(
         item: item,
         selected: key == selectedKey,
@@ -188,7 +188,7 @@ class _OngoingRow extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     button: true,
     selected: selected,
-    label: '\${item.title}. \${item.synthesis}',
+    label: '${item.title}. ${item.synthesis}',
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(MakoloRadii.card),

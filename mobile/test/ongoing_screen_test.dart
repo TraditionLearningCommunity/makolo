@@ -54,9 +54,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
-        home: OngoingScreen(
-          repository: _UnusedRepository(),
-          projectionStream: controller.stream,
+        home: Scaffold(
+          body: OngoingScreen(
+            repository: _UnusedRepository(),
+            projectionStream: controller.stream,
+          ),
         ),
       ),
     );
@@ -84,9 +86,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
-        home: OngoingScreen(
-          repository: _UnusedRepository(),
-          projectionStream: controller.stream,
+        home: Scaffold(
+          body: OngoingScreen(
+            repository: _UnusedRepository(),
+            projectionStream: controller.stream,
+          ),
         ),
       ),
     );
@@ -108,12 +112,14 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
-        home: SizedBox(
-          width: 960,
-          height: 900,
-          child: OngoingScreen(
-            repository: _UnusedRepository(),
-            projectionStream: Stream.value(_projection()),
+        home: Scaffold(
+          body: SizedBox(
+            width: 960,
+            height: 900,
+            child: OngoingScreen(
+              repository: _UnusedRepository(),
+              projectionStream: Stream.value(_projection()),
+            ),
           ),
         ),
       ),

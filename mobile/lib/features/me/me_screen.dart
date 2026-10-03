@@ -777,5 +777,3 @@ class _MeDepth extends StatelessWidget {
     };
   }
 }
-Formatted 1 file (1 changed) in 0.02 seconds.
-Formatter capture complete; failing intentionally.
