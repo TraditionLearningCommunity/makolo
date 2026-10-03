@@ -5,7 +5,10 @@ import '../../presentation/contracts/now_presentation.dart';
 import '../../sync/freshness.dart';
 
 class NowSelection {
-  const NowSelection({required this.situations, required this.state});
+  const NowSelection({
+    required this.situations,
+    required this.state,
+  });
 
   final List<NowSituationPresentation> situations;
   final MakoloSurfacePresentation state;
