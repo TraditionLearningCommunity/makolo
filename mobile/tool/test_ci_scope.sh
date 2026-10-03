@@ -29,6 +29,9 @@ assert_eq true "$(value_for drift mobile/lib/data/local/tables.dart)" "drift sco
 assert_eq true "$(value_for android_build mobile/pubspec.yaml)" "dependency builds Android"
 assert_eq true "$(value_for full_test mobile/pubspec.lock)" "dependency runs full tests"
 assert_eq true "$(value_for full mobile/lib/unclassified_core.dart)" "unknown mobile falls back broad"
+assert_eq true "$(value_for flutter mobile/tool/dart_format.sh)" "formatter tool runs real Flutter gate"
+assert_eq true "$(value_for full_test mobile/tool/dart_format.sh)" "formatter tool runs full tests"
+assert_eq true "$(value_for flutter .github/workflows/mobile-format.yml)" "formatter workflow runs real Flutter gate"
 assert_eq false "$(value_for flutter profiles/models.py)" "backend does not trigger Flutter"
 
 echo "mobile CI scope selector: ok"
