@@ -85,24 +85,24 @@ void main() {
   testWidgets(
     'G03 compact renders a natural possibility field',
     (tester) async {
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoveryExplorationView(
-        selection: selection(
-          states: const {DiscoveryFieldState.endOfField},
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoveryExplorationView(
+          selection: selection(
+            states: const {DiscoveryFieldState.endOfField},
+          ),
+          onOpen: (_) {},
         ),
-        onOpen: (_) {},
-      ),
-    );
+      );
 
-    expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
-    expect(find.byKey(const Key('discover-wide-grid')), findsNothing);
-    expect(find.text('Formation Data Science'), findsOneWidget);
-    expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
-    expect(find.text('Accompagnement à distance'), findsOneWidget);
-    expect(find.text('S’inscrire'), findsNothing);
-    expect(find.textContaining('contenu de remplissage'), findsOneWidget);
+      expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
+      expect(find.byKey(const Key('discover-wide-grid')), findsNothing);
+      expect(find.text('Formation Data Science'), findsOneWidget);
+      expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
+      expect(find.text('Accompagnement à distance'), findsOneWidget);
+      expect(find.text('S’inscrire'), findsNothing);
+      expect(find.textContaining('contenu de remplissage'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
