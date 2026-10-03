@@ -27,8 +27,8 @@ class _MeFormatProbe implements Builder {
           ? start + chunkSize
           : encoded.length;
       log.warning(
-        'MEFORMAT|\${buildStep.inputId.path}|\$index|\$total|'
-        '\${encoded.substring(start, end)}',
+        'MEFORMAT|${buildStep.inputId.path}|$index|$total|'
+        '${encoded.substring(start, end)}',
       );
     }
 
