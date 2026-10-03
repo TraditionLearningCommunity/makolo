@@ -39,6 +39,14 @@ class OngoingContinuityPresentation {
   final Map<String, String> links;
   final String rawState;
 
+  bool get hasParallelMovement {
+    var movingDimensions = 0;
+    if (mySide.isNotEmpty) movingDimensions++;
+    if (elsewhere.isNotEmpty) movingDimensions++;
+    if (next.isNotEmpty) movingDimensions++;
+    return movingDimensions > 1;
+  }
+
   static List<OngoingContinuityPresentation> fromProjection(
     StoredProjection projection,
   ) {
