@@ -78,6 +78,7 @@ class ObtentionDetailView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         obtention = get_object_or_404(public_obtentions(), pk=kwargs["pk"])
         configuration = (
             obtention.published_configurations[0]
