@@ -1,15 +1,28 @@
 import '../../data/local/profile_store.dart';
+import '../../design/surface_states.dart';
+import '../../sync/freshness.dart';
+
+enum DiscoveryFieldState {
+  noMatch,
+  endOfField,
+  noCurrentProposal,
+  offlineWithSnapshot,
+  offlineNoSnapshot,
+}
 
 class DiscoveryItemPresentation {
   const DiscoveryItemPresentation({
     required this.family,
     required this.id,
+    required this.candidateKey,
     required this.title,
     required this.summary,
     required this.capabilities,
     required this.links,
     required this.savedState,
     this.occurrenceId,
+    this.representationKind,
+    this.routeLabel,
     this.imageUrl,
     this.eyebrow,
     this.owner,
@@ -17,11 +30,17 @@ class DiscoveryItemPresentation {
     this.timing,
     this.availability,
     this.price,
+    this.latitude,
+    this.longitude,
+    this.distanceKm,
   });
 
   final String family;
   final String id;
+  final String candidateKey;
   final String? occurrenceId;
+  final String? representationKind;
+  final String? routeLabel;
   final String title;
   final String summary;
   final String? imageUrl;
@@ -31,12 +50,16 @@ class DiscoveryItemPresentation {
   final String? timing;
   final String? availability;
   final String? price;
+  final double? latitude;
+  final double? longitude;
+  final double? distanceKm;
   final String savedState;
   final Set<String> capabilities;
   final Map<String, String> links;
 
   bool get canSave => capabilities.contains('save');
   bool get canUnsave => capabilities.contains('unsave');
+  bool get isMappable => latitude != null && longitude != null;
 }
 
 class DiscoveryCollectionPresentation {
@@ -63,6 +86,22 @@ class DiscoveryCollectionPresentation {
   );
 }
 
+class DiscoveryFieldSelection {
+  const DiscoveryFieldSelection({
+    required this.collection,
+    required this.surface,
+    required this.states,
+  });
+
+  final DiscoveryCollectionPresentation collection;
+  final MakoloSurfacePresentation surface;
+  final Set<DiscoveryFieldState> states;
+
+  bool get hasSnapshot =>
+      !states.contains(DiscoveryFieldState.offlineNoSnapshot);
+  bool get reachedEnd => states.contains(DiscoveryFieldState.endOfField);
+}
+
 class DiscoveryMapPoint {
   const DiscoveryMapPoint({
     required this.activityId,
@@ -70,6 +109,7 @@ class DiscoveryMapPoint {
     required this.title,
     required this.latitude,
     required this.longitude,
+    this.candidateKey,
     this.locality,
     this.placeName,
   });
@@ -79,6 +119,7 @@ class DiscoveryMapPoint {
   final String title;
   final double latitude;
   final double longitude;
+  final String? candidateKey;
   final String? locality;
   final String? placeName;
 }
@@ -86,9 +127,89 @@ class DiscoveryMapPoint {
 class DiscoverySelector {
   const DiscoverySelector();
 
+  DiscoveryFieldSelection select({
+    required StoredProjection? projection,
+    required bool hasCriteria,
+    FreshnessState freshness = FreshnessState.fresh,
+    MakoloReachabilityCue reachability = MakoloReachabilityCue.unknown,
+    MakoloFailureCue failure = MakoloFailureCue.none,
+    bool refreshing = false,
+  }) {
+    if (projection == null) {
+      final states = <DiscoveryFieldState>{
+        if (reachability == MakoloReachabilityCue.temporarilyUnavailable)
+          DiscoveryFieldState.offlineNoSnapshot,
+      };
+      return DiscoveryFieldSelection(
+        collection: DiscoveryCollectionPresentation.empty,
+        surface: MakoloSurfacePresentation(
+          availability: states.isEmpty
+              ? MakoloAvailabilityCue.initial
+              : MakoloAvailabilityCue.empty,
+          reachability: reachability,
+          failure: failure,
+          refreshing: refreshing,
+        ),
+        states: Set.unmodifiable(states),
+      );
+    }
+
+    final rawItems = projection.payload['results'];
+    if (rawItems is! List) {
+      return DiscoveryFieldSelection(
+        collection: DiscoveryCollectionPresentation.empty,
+        surface: MakoloSurfacePresentation(
+          availability: MakoloAvailabilityCue.empty,
+          freshness: _freshnessCue(freshness),
+          reachability: reachability,
+          failure: MakoloFailureCue.blocking,
+          refreshing: refreshing,
+        ),
+        states: const {},
+      );
+    }
+
+    final collection = _collectionFromPayload(projection.payload);
+    final malformedOnly = rawItems.isNotEmpty && collection.items.isEmpty;
+    final states = <DiscoveryFieldState>{};
+
+    if (reachability == MakoloReachabilityCue.temporarilyUnavailable) {
+      states.add(DiscoveryFieldState.offlineWithSnapshot);
+    }
+    if (collection.items.isEmpty) {
+      states.add(
+        hasCriteria
+            ? DiscoveryFieldState.noMatch
+            : DiscoveryFieldState.noCurrentProposal,
+      );
+    } else if (!collection.hasNext) {
+      states.add(DiscoveryFieldState.endOfField);
+    }
+
+    return DiscoveryFieldSelection(
+      collection: collection,
+      surface: MakoloSurfacePresentation(
+        availability: collection.items.isEmpty
+            ? MakoloAvailabilityCue.empty
+            : MakoloAvailabilityCue.content,
+        freshness: _freshnessCue(freshness),
+        reachability: reachability,
+        failure: malformedOnly ? MakoloFailureCue.blocking : failure,
+        refreshing: refreshing,
+      ),
+      states: Set.unmodifiable(states),
+    );
+  }
+
   DiscoveryCollectionPresentation collection(StoredProjection? projection) {
     final payload = projection?.payload;
     if (payload == null) return DiscoveryCollectionPresentation.empty;
+    return _collectionFromPayload(payload);
+  }
+
+  DiscoveryCollectionPresentation _collectionFromPayload(
+    Map<String, dynamic> payload,
+  ) {
     final rawItems = payload['results'];
     final items = rawItems is List
         ? rawItems
@@ -112,6 +233,31 @@ class DiscoverySelector {
     return _item(Map<String, dynamic>.from(raw));
   }
 
+  List<DiscoveryMapPoint> mapPointsFromCollection(
+    DiscoveryCollectionPresentation collection,
+  ) {
+    final points = <DiscoveryMapPoint>[];
+    for (final item in collection.items) {
+      if (!item.isMappable || item.occurrenceId == null) continue;
+      points.add(
+        DiscoveryMapPoint(
+          activityId: item.id,
+          occurrenceId: item.occurrenceId!,
+          candidateKey: item.candidateKey,
+          title: item.title,
+          latitude: item.latitude!,
+          longitude: item.longitude!,
+          placeName: item.place,
+        ),
+      );
+    }
+    return List.unmodifiable(points);
+  }
+
+  /// Compatibility parser for the existing `discovery.map` snapshot.
+  ///
+  /// G05 does not use this as a second field of truth; production spatial
+  /// composition derives from [mapPointsFromCollection].
   List<DiscoveryMapPoint> mapPoints(StoredProjection? projection) {
     final results = projection?.payload['results'];
     if (results is! List) return const [];
@@ -152,6 +298,7 @@ class DiscoverySelector {
     final representation = _map(item['representation']);
     final family = _text(identity?['family']);
     final id = _text(resource?['id']);
+    final candidateKey = _text(identity?['candidate_key']) ?? '$family:$id';
     final title = _text(representation?['title']);
     if (family == null || id == null || title == null) return null;
 
@@ -179,7 +326,7 @@ class DiscoverySelector {
     final placeName = _text(place?['name']);
     final locality = _text(place?['locality']);
     if (placeName != null) placeParts.add(placeName);
-    if (locality != null) placeParts.add(locality);
+    if (locality != null && locality != placeName) placeParts.add(locality);
     final timingText =
         _text(timing?['start_at']) ??
         [
@@ -202,7 +349,10 @@ class DiscoverySelector {
     return DiscoveryItemPresentation(
       family: family,
       id: id,
+      candidateKey: candidateKey,
       occurrenceId: _text(occurrence?['id']),
+      representationKind: _text(representation?['kind']),
+      routeLabel: _text(representation?['route_label']),
       title: title,
       summary: _text(representation?['summary']) ?? '',
       imageUrl: _text(representation?['image_url']),
@@ -212,10 +362,25 @@ class DiscoverySelector {
       timing: timingText.trim().isEmpty ? null : timingText,
       availability: _text(availability?['state']),
       price: priceText,
+      latitude: _double(place?['latitude']),
+      longitude: _double(place?['longitude']),
+      distanceKm: _double(place?['distance_km']),
       savedState: _text(saved?['state']) ?? 'unknown',
       capabilities: Set.unmodifiable(capabilities),
       links: Map.unmodifiable(links),
     );
+  }
+
+  MakoloFreshnessCue _freshnessCue(FreshnessState state) {
+    return switch (state) {
+      FreshnessState.fresh => MakoloFreshnessCue.current,
+      FreshnessState.usableButOld => MakoloFreshnessCue.oldObservation,
+      FreshnessState.refreshRecommended =>
+        MakoloFreshnessCue.refreshRecommended,
+      FreshnessState.revalidationRequired =>
+        MakoloFreshnessCue.revalidationRequired,
+      FreshnessState.expired => MakoloFreshnessCue.expired,
+    };
   }
 }
 
