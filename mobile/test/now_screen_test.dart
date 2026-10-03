@@ -62,9 +62,9 @@ NowSelection contentSelection({
 }
 
 void main() {
-  testWidgets('G01 compact keeps one dominant consequence and quieter secondary', (
-    tester,
-  ) async {
+  testWidgets(
+    'G01 compact keeps one dominant consequence and quieter secondary',
+    (tester) async {
     await PresentationHarness.pump(
       tester,
       child: NowView(selection: contentSelection()),
@@ -77,7 +77,8 @@ void main() {
     expect(find.text('Aussi maintenant'), findsOneWidget);
     expect(find.text('Départ vers Kolwezi'), findsOneWidget);
     expect(find.text('Ouvrir'), findsNothing);
-  });
+    },
+  );
 
   testWidgets('known calm is a successful quiet ending', (tester) async {
     await PresentationHarness.pump(
