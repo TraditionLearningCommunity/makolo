@@ -154,7 +154,7 @@ class _OngoingField extends StatelessWidget {
     key: const PageStorageKey<String>('ongoing-field'),
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
     itemCount: items.length,
-    separatorBuilder: (_, __) => const SizedBox(height: MakoloSpacing.lg),
+    separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.lg),
     itemBuilder: (context, index) {
       final item = items[index];
       final key =
