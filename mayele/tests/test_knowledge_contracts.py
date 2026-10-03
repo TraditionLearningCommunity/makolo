@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from unittest import TestCase
 
 from mayele.common import KnowledgeScope, ScopeVisibility
+from mayele.common.errors import MayeleContractError
 from mayele.knowledge import (
     AssessmentStatus,
     Condition,
@@ -125,6 +126,36 @@ class KnowledgeContractTests(TestCase):
             ),
         )
         self.assertEqual(len(relation.participants), 3)
+
+    def test_metadata_iterables_are_canonicalized_and_duplicates_rejected(self):
+        proposition = Proposition(
+            PropositionKind.REALITY_EXISTS, Reality("reality:metadata")
+        )
+        support = KnowledgeSupport(
+            proposition.fingerprint,
+            "support:metadata",
+            SupportDisposition.SUPPORTS,
+            metadata=((" z ", 1), ("a", 2)),
+        )
+        self.assertEqual(support.metadata, (("a", 2), ("z", 1)))
+        with self.assertRaises(MayeleContractError):
+            KnowledgeSupport(
+                proposition.fingerprint,
+                "support:duplicate",
+                SupportDisposition.SUPPORTS,
+                metadata=((" key ", 1), ("key", 2)),
+            )
+
+    def test_assessment_datetime_type_errors_are_contract_errors(self):
+        proposition = Proposition(
+            PropositionKind.REALITY_EXISTS, Reality("reality:datetime")
+        )
+        with self.assertRaises(MayeleContractError):
+            PropositionAssessment(
+                proposition.fingerprint,
+                AssessmentStatus.UNRESOLVED,
+                42,
+            )
 
     def test_private_and_restricted_scope_are_preserved(self):
         private = KnowledgeScope(ScopeVisibility.PRIVATE, "profile:42")
