@@ -14,6 +14,13 @@ class DiscoveryQuery {
   const DiscoveryQuery({
     this.text = '',
     this.place = '',
+    this.when = '',
+    this.period = '',
+    this.vertical = '',
+    this.price = '',
+    this.date = '',
+    this.dateFrom = '',
+    this.dateTo = '',
     this.latitude,
     this.longitude,
     this.radiusKm,
@@ -23,6 +30,13 @@ class DiscoveryQuery {
 
   final String text;
   final String place;
+  final String when;
+  final String period;
+  final String vertical;
+  final String price;
+  final String date;
+  final String dateFrom;
+  final String dateTo;
   final double? latitude;
   final double? longitude;
   final double? radiusKm;
@@ -32,6 +46,13 @@ class DiscoveryQuery {
   DiscoveryQuery copyWith({
     String? text,
     String? place,
+    String? when,
+    String? period,
+    String? vertical,
+    String? price,
+    String? date,
+    String? dateFrom,
+    String? dateTo,
     double? latitude,
     double? longitude,
     double? radiusKm,
@@ -42,6 +63,13 @@ class DiscoveryQuery {
     return DiscoveryQuery(
       text: text ?? this.text,
       place: place ?? this.place,
+      when: when ?? this.when,
+      period: period ?? this.period,
+      vertical: vertical ?? this.vertical,
+      price: price ?? this.price,
+      date: date ?? this.date,
+      dateFrom: dateFrom ?? this.dateFrom,
+      dateTo: dateTo ?? this.dateTo,
       latitude: clearLocation ? null : latitude ?? this.latitude,
       longitude: clearLocation ? null : longitude ?? this.longitude,
       radiusKm: clearLocation ? null : radiusKm ?? this.radiusKm,
@@ -54,6 +82,13 @@ class DiscoveryQuery {
     return <String, String>{
       if (text.trim().isNotEmpty) 'q': text.trim(),
       if (place.trim().isNotEmpty) 'place': place.trim(),
+      if (when.trim().isNotEmpty) 'when': when.trim(),
+      if (period.trim().isNotEmpty) 'period': period.trim(),
+      if (vertical.trim().isNotEmpty) 'vertical': vertical.trim(),
+      if (price.trim().isNotEmpty) 'price': price.trim(),
+      if (date.trim().isNotEmpty) 'date': date.trim(),
+      if (dateFrom.trim().isNotEmpty) 'date_from': dateFrom.trim(),
+      if (dateTo.trim().isNotEmpty) 'date_to': dateTo.trim(),
       if (latitude != null) 'lat': latitude!.toString(),
       if (longitude != null) 'lon': longitude!.toString(),
       if (radiusKm != null) 'radius_km': radiusKm!.toString(),
@@ -61,6 +96,19 @@ class DiscoveryQuery {
       'page_size': pageSize.toString(),
     };
   }
+
+  bool get hasCriteria =>
+      text.trim().isNotEmpty ||
+      place.trim().isNotEmpty ||
+      when.trim().isNotEmpty ||
+      period.trim().isNotEmpty ||
+      vertical.trim().isNotEmpty ||
+      price.trim().isNotEmpty ||
+      date.trim().isNotEmpty ||
+      dateFrom.trim().isNotEmpty ||
+      dateTo.trim().isNotEmpty ||
+      latitude != null ||
+      longitude != null;
 
   String get canonicalQuery {
     final entries = parameters.entries.toList()
