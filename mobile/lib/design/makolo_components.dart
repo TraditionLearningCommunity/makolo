@@ -108,10 +108,12 @@ class MakoloMetadata extends StatelessWidget {
                     ),
                     const SizedBox(width: MakoloSpacing.xs),
                   ],
-                  Text(
-                    item.label,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Flexible(
+                    child: Text(
+                      item.label,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
