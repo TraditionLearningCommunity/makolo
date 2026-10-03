@@ -20,7 +20,9 @@ void main() {
     expect(source, isNot(contains('aucun fournisseur n’est inventé')));
   });
 
-  test('Discover map uses the configured MapLibre runtime from the same field', () {
+  test(
+    'Discover map uses the configured MapLibre runtime from the same field',
+    () {
     final screens = File('lib/features/discovery/discovery_screens.dart')
         .readAsStringSync();
     final presentation = File(
@@ -34,6 +36,7 @@ void main() {
     expect(screens, contains('watchItems(_query)'));
     expect(screens, isNot(contains('watchMap(_query)')));
     expect(routes, contains('mapConfig: runtime.mapConfig'));
-    expect(routes, contains("path: '/discover/map'"));
-  });
+      expect(routes, contains("path: '/discover/map'"));
+    },
+  );
 }
