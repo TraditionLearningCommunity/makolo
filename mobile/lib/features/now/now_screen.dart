@@ -226,7 +226,6 @@ class _NowField extends StatelessWidget {
           for (var index = 0; index < secondary.length; index++) ...[
             _NowSecondarySituation(
               situation: secondary[index],
-              selected: selectedKey == _keyOf(secondary[index]),
               onSelect: () => onSelect(secondary[index]),
             ),
             if (index != secondary.length - 1)
@@ -324,12 +323,10 @@ class _NowPrimarySituation extends StatelessWidget {
 class _NowSecondarySituation extends StatelessWidget {
   const _NowSecondarySituation({
     required this.situation,
-    required this.selected,
     required this.onSelect,
   });
 
   final NowSituationPresentation situation;
-  final bool selected;
   final VoidCallback onSelect;
 
   @override
