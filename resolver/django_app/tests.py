@@ -363,6 +363,69 @@ class ResolverDjangoCatalogTests(TestCase):
         self.assertEqual(len(lookup.alternatives), 1)
         self.assertEqual(lookup.alternatives[0].strength, ResolutionStrength.POSSIBLE)
 
+    def test_same_organization_on_same_source_host_reuses_provisional_identity_without_matching(self):
+        entity_a = CandidateEntity("entity-a", "Université de Kinshasa", ("organization",))
+        entity_b = CandidateEntity("entity-b", "Université de Kinshasa", ("organization",))
+        target_a, observation_a = self.observation("https://www.unikin.ac.cd/actualites/a", "n")
+        target_b, observation_b = self.observation("https://www.unikin.ac.cd/actualites/b", "o")
+        material_a = interpreted(entity_a, target_key=target_a, observation_ref=observation_a)
+        material_b = interpreted(entity_b, target_key=target_b, observation_ref=observation_b)
+        catalog = DjangoRealityCatalog()
+        context_a = {"families": ("organization",), "facts": (), "all_candidates": material_a.candidates}
+        context_b = {"families": ("organization",), "facts": (), "all_candidates": material_b.candidates}
+
+        lookup_a = catalog.lookup_entity(material_a, entity_a, context_a)
+        lookup_b = catalog.lookup_entity(material_b, entity_b, context_b)
+
+        self.assertFalse(lookup_a.alternatives)
+        self.assertFalse(lookup_b.alternatives)
+        self.assertEqual(lookup_a.provisional_identity_key, lookup_b.provisional_identity_key)
+        self.assertIn("same_source_host_provisional_identity", lookup_a.basis_codes)
+
+        result_a, _ = DeterministicResolver().resolve(
+            material_a,
+            catalog,
+            NoHistory(),
+            started_at=django_timezone.now(),
+            clock=django_timezone.now,
+        )
+        result_b, _ = DeterministicResolver().resolve(
+            material_b,
+            catalog,
+            NoHistory(),
+            started_at=django_timezone.now(),
+            clock=django_timezone.now,
+        )
+        resolved_a = result_a.entity_resolutions[0]
+        resolved_b = result_b.entity_resolutions[0]
+        self.assertEqual(resolved_a.status, ResolutionStatus.NEW_CANDIDATE)
+        self.assertEqual(resolved_b.status, ResolutionStatus.NEW_CANDIDATE)
+        self.assertEqual(resolved_a.provisional_ref, resolved_b.provisional_ref)
+        self.assertIsNone(resolved_a.canonical_ref)
+        self.assertIsNone(resolved_b.canonical_ref)
+
+    def test_same_organization_on_different_source_hosts_keeps_distinct_provisional_identity(self):
+        entity_a = CandidateEntity("entity-a", "Université de Kinshasa", ("organization",))
+        entity_b = CandidateEntity("entity-b", "Université de Kinshasa", ("organization",))
+        target_a, observation_a = self.observation("https://www.unikin.ac.cd/actualites/a", "p")
+        target_b, observation_b = self.observation("https://medecine.unikin.ac.cd/actualites/b", "q")
+        material_a = interpreted(entity_a, target_key=target_a, observation_ref=observation_a)
+        material_b = interpreted(entity_b, target_key=target_b, observation_ref=observation_b)
+        catalog = DjangoRealityCatalog()
+
+        lookup_a = catalog.lookup_entity(
+            material_a,
+            entity_a,
+            {"families": ("organization",), "facts": (), "all_candidates": material_a.candidates},
+        )
+        lookup_b = catalog.lookup_entity(
+            material_b,
+            entity_b,
+            {"families": ("organization",), "facts": (), "all_candidates": material_b.candidates},
+        )
+
+        self.assertNotEqual(lookup_a.provisional_identity_key, lookup_b.provisional_identity_key)
+
     def test_same_activity_title_and_date_can_resolve_occurrence_not_activity(self):
         activity = Activity.objects.create(owner_profile=self.user, created_by=self.user, title="TOEFL Test")
         occurrence = Occurrence.objects.create(
