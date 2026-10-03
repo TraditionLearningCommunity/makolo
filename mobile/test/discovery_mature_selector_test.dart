@@ -187,7 +187,9 @@ void main() {
     expect(collection.items.last.isMappable, isFalse);
   });
 
-  test('media and save capabilities are represented without engagement inference', () {
+  test(
+    'media and save capabilities are represented without engagement inference',
+    () {
     final collection = selector.collection(
       fieldProjection(
         results: [
@@ -205,8 +207,9 @@ void main() {
     expect(item.imageUrl, 'https://example.test/media.jpg');
     expect(item.canSave, isTrue);
     expect(item.canUnsave, isFalse);
-    expect(item.capabilities, isNot(contains('engage')));
-  });
+      expect(item.capabilities, isNot(contains('engage')));
+    },
+  );
 
   test('DiscoveryQuery preserves all criteria while paging', () {
     const query = DiscoveryQuery(
