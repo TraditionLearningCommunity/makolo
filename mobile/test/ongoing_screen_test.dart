@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
-import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/ongoing/ongoing_screen.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
+
+import 'support/presentation_harness.dart';
 
 StoredProjection _projection({
   List<Object> items = const [
@@ -51,15 +52,11 @@ void main() {
   testWidgets('calm content and true empty stay distinct', (tester) async {
     final controller = StreamController<StoredProjection?>();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Scaffold(
-          body: OngoingScreen(
-            repository: _UnusedRepository(),
-            projectionStream: controller.stream,
-          ),
-        ),
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: controller.stream,
       ),
     );
 
@@ -73,6 +70,7 @@ void main() {
 
     controller.add(_projection(items: const []));
     await tester.pump();
+    await tester.pump();
 
     expect(find.text('Rien en cours pour le moment.'), findsOneWidget);
     expect(find.text('Visa Canada'), findsNothing);
@@ -83,15 +81,11 @@ void main() {
   testWidgets('refresh error preserves known content', (tester) async {
     final controller = StreamController<StoredProjection?>();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Scaffold(
-          body: OngoingScreen(
-            repository: _UnusedRepository(),
-            projectionStream: controller.stream,
-          ),
-        ),
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: controller.stream,
       ),
     );
 
@@ -101,6 +95,7 @@ void main() {
 
     controller.addError(StateError('refresh failed'));
     await tester.pump();
+    await tester.pump();
 
     expect(find.text('Visa Canada'), findsOneWidget);
     expect(find.textContaining('mise à jour a échoué'), findsOneWidget);
@@ -109,22 +104,14 @@ void main() {
   });
 
   testWidgets('wide split uses the shared 960dp boundary', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Scaffold(
-          body: SizedBox(
-            width: 960,
-            height: 900,
-            child: OngoingScreen(
-              repository: _UnusedRepository(),
-              projectionStream: Stream.value(_projection()),
-            ),
-          ),
-        ),
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(960, 900),
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(_projection()),
       ),
     );
-    await tester.pump();
     await tester.pump();
 
     expect(find.byKey(const Key('makolo-adaptive-split-row')), findsOneWidget);

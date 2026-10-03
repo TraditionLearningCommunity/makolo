@@ -323,7 +323,6 @@ void main() {
 
   testWidgets('first availability preserves section grammar', (tester) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final store = ProfileStore(database, 'profile-1');
 
     await PresentationHarness.pump(
@@ -341,6 +340,10 @@ void main() {
     expect(find.text('Mes collectifs'), findsOneWidget);
     expect(find.text('Mes ressources'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await database.close();
   });
 
   testWidgets('sparse renders human local empty copy', (tester) async {
@@ -453,7 +456,8 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Moi'));
     await tester.pump();
 
-    expect(find.text('Déjà en place'), findsOneWidget);
+    expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
+    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
   testWidgets('refresh keeps existing content visible', (tester) async {
@@ -493,7 +497,6 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final store = ProfileStore(database, 'profile-1');
     await store.putProjection(
       kind: 'personal.me',
@@ -518,6 +521,10 @@ void main() {
       find.text('Contenu déjà disponible sur cet appareil.'),
       findsWidgets,
     );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await database.close();
   });
 
   for (final scale in [1.0, 1.3, 1.6]) {

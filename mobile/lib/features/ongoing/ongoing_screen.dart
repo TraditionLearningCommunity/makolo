@@ -24,6 +24,7 @@ class OngoingScreen extends StatefulWidget {
 
 class _OngoingScreenState extends State<OngoingScreen> {
   String? _selectedOwnerKey;
+  StoredProjection? _lastProjection;
 
   void _select(OngoingContinuityPresentation item) =>
       setState(() => _selectedOwnerKey = _ownerKey(item));
@@ -37,7 +38,10 @@ class _OngoingScreenState extends State<OngoingScreen> {
     child: StreamBuilder<StoredProjection?>(
       stream: widget.projectionStream ?? widget.repository.watchOngoing(),
       builder: (context, snapshot) {
-        final projection = snapshot.data;
+        if (snapshot.hasData && snapshot.data != null) {
+          _lastProjection = snapshot.data;
+        }
+        final projection = snapshot.data ?? _lastProjection;
         if (!snapshot.hasData &&
             snapshot.connectionState == ConnectionState.waiting) {
           return const MakoloSurfaceStateView(
