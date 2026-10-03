@@ -32,6 +32,7 @@ class FundingDetailView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         funding = _public_funding(kwargs["pk"])
         context.update({"funding": funding, "activity": funding.activity, "progress": funding_progress(funding), "accepts_contributions": funding_accepts_contributions(funding), "contribution_form": FundingContributionForm(funding=funding), "client_reference": uuid.uuid4().hex, "help_needs": list(_open_public_needs(funding.activity))})
         return context

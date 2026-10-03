@@ -1,8 +1,8 @@
-{% extends 'base/app.html' %}
+{% extends surface_base_template %}
 {% load static %}
 {% block title %}{{ event.title }} | Makolo{% endblock %}
 {% block content %}
-<div class="space-y-6 lg:space-y-8">
+<div class="{% if not request.user.is_authenticated %}mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8{% endif %} space-y-6 lg:space-y-8">
     <section class="grid gap-6 xl:grid-cols-[1fr_auto] xl:items-end">
         <div class="min-w-0 max-w-4xl">
             <div class="flex flex-wrap items-center gap-2">

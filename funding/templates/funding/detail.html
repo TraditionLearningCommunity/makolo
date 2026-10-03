@@ -1,7 +1,7 @@
-{% extends 'base/app.html' %}
+{% extends surface_base_template %}
 {% block title %}{{ activity.title }} | Makolo{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-3xl space-y-6 pb-10">
+<div class="mx-auto max-w-3xl space-y-6 pb-10 {% if not request.user.is_authenticated %}px-4 py-8 sm:px-6{% endif %}">
   <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-ghost">Retour à Découvrir</a>
   <section class="mk-panel p-6 sm:p-8">
     <div class="flex flex-wrap items-center gap-2"><span class="mk-badge">Financement</span>{% if accepts_contributions %}<span class="mk-badge mk-badge-success">Contributions ouvertes</span>{% else %}<span class="mk-badge">Contributions fermées</span>{% endif %}</div>

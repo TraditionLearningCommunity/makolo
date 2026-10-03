@@ -23,14 +23,7 @@ async function usePublicLight(page) {
 }
 
 async function stabilizePublicHome(page) {
-  await page.locator('a[href="/events/discovery-event-e2e/"]').evaluate((card) => {
-    const leaves = [...card.querySelectorAll('*')].filter((node) => node.children.length === 0);
-    const day = leaves.find((node) => /^\d{1,2}$/.test(node.textContent.trim()));
-    const monthYear = leaves.find((node) => /^\D{3} \d{4}$/.test(node.textContent.trim()));
-    const dateLine = [...card.querySelectorAll('p')].find((node) => node.textContent.includes('17:30'));
-    if (day) day.textContent = '25';
-    if (monthYear) monthYear.textContent = 'Aoû 2026';
-    if (dateLine) dateLine.textContent = 'mar 25 Aoû · 17:30';
+  await page.evaluate(() => {
     const themePreference = document.getElementById('public-theme-preference');
     if (themePreference) themePreference.style.display = 'none';
   });
