@@ -252,11 +252,13 @@ class _MeFirstAvailability extends StatelessWidget {
         : 'Makolo prépare ce qui est déjà en place autour de vous.';
 
     return MakoloContentFrame(
-      child: ListView(
+      child: SingleChildScrollView(
         key: const Key('me-first-availability'),
         padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-        children: [
-          Text('Moi', style: Theme.of(context).textTheme.headlineLarge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Moi', style: Theme.of(context).textTheme.headlineLarge),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
             message,
@@ -273,8 +275,9 @@ class _MeFirstAvailability extends StatelessWidget {
           const SizedBox(height: MakoloSpacing.lg),
           _MeLoadingSection(title: 'Mes collectifs', loading: loading),
           const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(title: 'Mes ressources', loading: loading),
-        ],
+            _MeLoadingSection(title: 'Mes ressources', loading: loading),
+          ],
+        ),
       ),
     );
   }
