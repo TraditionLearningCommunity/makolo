@@ -14,6 +14,8 @@ class ResolvedPresentation:
     theme_tokens: dict
     binding: ActivityPresentation | None
     fallback_reason: str = ""
+    template_version: PresentationTemplateVersion | None = None
+    theme_version: PresentationThemeVersion | None = None
 
 
 def _versions_safe(template_version, theme_version):
@@ -48,7 +50,14 @@ def _security_fallback(binding, purpose):
     if theme.status == VersionStatus.SUSPENDED:
         theme = _latest_safe_theme(theme)
     if template and theme and _versions_safe(template, theme):
-        return ResolvedPresentation(template.manifest, theme.tokens, binding, "previous-healthy-version")
+        return ResolvedPresentation(
+            template.manifest,
+            theme.tokens,
+            binding,
+            "previous-healthy-version",
+            template_version=template,
+            theme_version=theme,
+        )
     return None
 
 
@@ -58,7 +67,14 @@ def _space_default(activity, purpose):
     from .library_models import SpacePresentationDefault
     default = SpacePresentationDefault.objects.select_related("template_version", "theme_version").filter(space_id=activity.space_id, purpose=purpose).first()
     if default and _versions_safe(default.template_version, default.theme_version):
-        return ResolvedPresentation(default.template_version.manifest, default.theme_version.tokens, None, "space-default")
+        return ResolvedPresentation(
+            default.template_version.manifest,
+            default.theme_version.tokens,
+            None,
+            "space-default",
+            template_version=default.template_version,
+            theme_version=default.theme_version,
+        )
     if default:
         class DefaultBinding:
             template_version = default.template_version
@@ -75,7 +91,13 @@ def resolve_presentation(*, activity, purpose, occurrence=None):
     candidates.append(qs.filter(activity=activity, occurrence__isnull=True, purpose=purpose).first())
     for binding in candidates:
         if _healthy(binding):
-            return ResolvedPresentation(binding.template_version.manifest, binding.theme_version.tokens, binding)
+            return ResolvedPresentation(
+                binding.template_version.manifest,
+                binding.theme_version.tokens,
+                binding,
+                template_version=binding.template_version,
+                theme_version=binding.theme_version,
+            )
         if binding and (binding.template_version.status == VersionStatus.SUSPENDED or binding.theme_version.status == VersionStatus.SUSPENDED):
             safe = _security_fallback(binding, str(purpose))
             if safe:
