@@ -38,9 +38,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      - name: Validate scope selector
+      - name: Validate mobile tooling
         working-directory: mobile
-        run: bash tool/test_ci_scope.sh
+        run: |
+          bash tool/test_ci_scope.sh
+          bash tool/test_dart_format.sh
       - name: Determine impacted mobile scopes
         id: scope
         shell: bash
@@ -83,7 +85,7 @@ jobs:
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
       - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: bash tool/dart_format.sh check
       - name: Architecture guard
         run: flutter test test/architecture_guard_test.dart
       - name: Analyze

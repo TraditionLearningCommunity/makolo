@@ -31,6 +31,14 @@ for path in "${paths[@]}"; do
     docs/architecture/mobile-*|mobile/README.md)
       docs=true
       ;;
+    mobile/tool/dart_format.sh|mobile/tool/test_dart_format.sh)
+      ci=true
+      full=true
+      ;;
+    .github/workflows/mobile-ci.yml|.github/workflows/mobile-format.yml)
+      ci=true
+      full=true
+      ;;
     .github/workflows/mobile-*|mobile/tool/*)
       ci=true
       ;;
