@@ -57,10 +57,10 @@ void main() {
     );
 
     expect(result.state.availability, MakoloAvailabilityCue.content);
-    expect(result.situations.map((item) => item.reference.id), [
-      'first',
-      'second',
-    ]);
+    expect(
+      result.situations.map((item) => item.reference.id),
+      ['first', 'second'],
+    );
     expect(result.situations.first.emphasis.name, 'primary');
     expect(result.situations.last.emphasis.name, 'secondary');
   });
