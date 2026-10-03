@@ -1,0 +1,36 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vérifier un Passeport Makolo</title>
+  <style>
+    :root{--violet:#5232DB;--deep:#2B176E;--ink:#0F172A;--paper:#FAF7F5;--muted:#64748B;--ok:#166534;--bad:#991B1B}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .wrap{max-width:720px;margin:8vh auto;padding:24px}.card{background:white;border:1px solid #e5e7eb;border-radius:24px;padding:28px;box-shadow:0 18px 55px rgba(43,23,110,.10)}
+    .brand{display:flex;align-items:center;gap:12px;color:var(--deep);font-weight:850}.brand img{width:34px;height:34px}.status{margin:28px 0 18px;padding:18px;border-radius:16px;background:#ecfdf5;color:var(--ok);font-weight:850}.status.bad{background:#fef2f2;color:var(--bad)}
+    h1{font-size:30px;margin:18px 0 6px}.muted{color:var(--muted)}dl{display:grid;grid-template-columns:180px 1fr;gap:10px 18px;margin:24px 0}dt{font-weight:750}dd{margin:0;overflow-wrap:anywhere}.hash{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+    @media(max-width:600px){.wrap{margin:0;padding:16px}.card{border-radius:18px}dl{grid-template-columns:1fr;gap:4px}dd{margin-bottom:10px}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <section class="card">
+    <div class="brand"><img src="{% static 'brand/makolo-mark-ink.svg' %}" alt=""><span>Makolo · Vérification de document</span></div>
+    {% if snapshot.is_revoked %}<div class="status bad">Ce Passeport Makolo a été révoqué.</div>{% else %}<div class="status">Document Makolo authentique ✓</div>{% endif %}
+    <h1>{{ snapshot_name }}</h1>
+    <p class="muted">Cette page confirme l’émission du document. Elle ne transforme pas le Passeport Makolo en pièce d’identité légale.</p>
+    <dl>
+      <dt>Document</dt><dd>{{ snapshot.document_id }}</dd>
+      <dt>Type</dt><dd>{% if snapshot.subject_kind == 'profile' %}Passeport personnel{% else %}Passeport Space{% endif %}</dd>
+      <dt>Identifiant</dt><dd>{{ snapshot.public_identifier }}</dd>
+      <dt>Généré le</dt><dd>{{ snapshot.generated_at|date:"d/m/Y H:i" }}</dd>
+      <dt>Variante</dt><dd>{{ snapshot.variant }}</dd>
+      <dt>Empreinte</dt><dd class="hash">{{ snapshot.payload_hash }}</dd>
+      <dt>Passeport public actuel</dt><dd>{% if currently_public %}Disponible{% else %}Non disponible actuellement{% endif %}</dd>
+    </dl>
+  </section>
+</main>
+</body>
+</html>
