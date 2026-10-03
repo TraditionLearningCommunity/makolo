@@ -249,13 +249,14 @@ class CommonCrawlIndexSource:
         tld: str,
         media_type: str,
         path_terms: Sequence[str],
-        page: int,
+        limit: int,
     ) -> str:
         params = [
             ("url", f"*.{tld}/*"),
             ("output", "json"),
-            ("page", str(page)),
-            ("pageSize", str(DEFAULT_PAGE_SIZE_BLOCKS)),
+            ("limit", str(max(int(limit), 1))),
+        ]
+        params.extend([
             ("filter", "status:200"),
             ("filter", f"=mime:{media_type}"),
             ("filter", f"~url:{_path_filter_regex(path_terms)}"),
@@ -263,7 +264,7 @@ class CommonCrawlIndexSource:
                 "fields",
                 "timestamp,url,mime,status,digest,filename,offset,length",
             ),
-        ]
+        ])
         return f"{INDEX_ORIGIN}/{collection_id}-index?{urlencode(params)}"
 
     @staticmethod
@@ -360,13 +361,14 @@ class CommonCrawlIndexSource:
             and requests_used < self.max_requests_per_run
         ):
             tld, media_type = selectors[selector_index]
+            remaining = mission.max_candidates - len(collected)
             response = await self._get(
                 self._query_url(
                     collection_id=collection_id,
                     tld=tld,
                     media_type=media_type,
                     path_terms=mission.path_terms,
-                    page=page,
+                    limit=remaining,
                 )
             )
             requests_used += 1
@@ -403,7 +405,8 @@ class CommonCrawlIndexSource:
             offset += len(consumed)
 
             if offset >= len(page_records):
-                page += 1
+                selector_index += 1
+                page = 0
                 offset = 0
 
         exhausted = selector_index >= len(selectors)
