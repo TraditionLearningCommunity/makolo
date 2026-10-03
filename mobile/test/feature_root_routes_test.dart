@@ -71,6 +71,19 @@ void main() {
     expect(find.byType(MarkScreen), findsOneWidget);
   });
 
+  testWidgets('a Space root route does not grant a Space actor context', (
+    tester,
+  ) async {
+    await _pumpRoute(tester, runtime, '/space/now');
+
+    expect(find.byType(NowScreen), findsOneWidget);
+    expect(find.text('Métier'), findsNothing);
+    expect(find.text('Nous'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('depth routes remain registered after router fragmentation', (
     tester,
   ) async {

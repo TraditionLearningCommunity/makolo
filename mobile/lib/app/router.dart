@@ -47,6 +47,7 @@ GoRouter createMakoloRouter(
   }
 
   bool isProtectedPath(String path) {
+    if (path == '/discover') return false;
     if (MakoloDestination.forPath(path) != null) return true;
     if (const {
       '/mark',

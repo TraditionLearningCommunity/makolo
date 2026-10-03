@@ -15,11 +15,15 @@ final class ActorContextController extends ChangeNotifier {
     required this.profileId,
     required this._store,
     required ActorContext initial,
-  }) : _value = initial;
+  }) : _value = initial,
+       _requestedValue = initial;
 
   final String profileId;
   final ActorContextStore _store;
   ActorContext _value;
+  ActorContext _requestedValue;
+  Future<void> _transitionTail = Future<void>.value();
+  int _transitionRevision = 0;
 
   ActorContext get value => _value;
 
@@ -35,47 +39,79 @@ final class ActorContextController extends ChangeNotifier {
     );
   }
 
-  Future<void> selectPersonal() async {
-    await _set(const PersonalActorContext());
+  Future<void> selectPersonal() {
+    return _set(const PersonalActorContext());
   }
 
   Future<void> selectSpace(
     SpaceActorIdentity space, {
     ActorPerspective perspective = const ActorPerspective.all(),
-  }) async {
-    await _set(SpaceActorContext(space: space, perspective: perspective));
+  }) {
+    return _set(SpaceActorContext(space: space, perspective: perspective));
   }
 
-  Future<void> selectPerspective(ActorPerspective perspective) async {
-    final current = _value;
+  Future<void> selectPerspective(ActorPerspective perspective) {
+    final current = _requestedValue;
     if (current is! SpaceActorContext) {
       throw StateError('A perspective requires a Space actor context.');
     }
-    await _set(current.copyWith(perspective: perspective));
+    return _set(current.copyWith(perspective: perspective));
   }
 
   Future<bool> revalidateSpaceContext(
     FutureOr<bool> Function(SpaceActorIdentity space) isAvailable,
   ) async {
-    final current = _value;
-    if (current is! SpaceActorContext) return true;
-    if (await isAvailable(current.space)) return true;
+    final checked = _requestedValue;
+    if (checked is! SpaceActorContext) return true;
+    if (await isAvailable(checked.space)) return true;
+
+    final latest = _requestedValue;
+    if (latest is! SpaceActorContext || latest.space.id != checked.space.id) {
+      return true;
+    }
 
     await selectPersonal();
     return false;
   }
 
-  Future<void> forget() async {
-    await _store.removeActorContext(profileId);
-    if (_value is PersonalActorContext) return;
-    _value = const PersonalActorContext();
-    notifyListeners();
+  Future<void> forget() {
+    final next = const PersonalActorContext();
+    _requestedValue = next;
+    final revision = ++_transitionRevision;
+
+    final operation = _transitionTail.then((_) async {
+      if (revision != _transitionRevision) return;
+      await _store.removeActorContext(profileId);
+      if (revision != _transitionRevision || _value == next) return;
+      _value = next;
+      notifyListeners();
+    });
+    _continueAfter(operation);
+    return operation;
   }
 
-  Future<void> _set(ActorContext next) async {
-    if (_value == next) return;
-    await _store.writeActorContext(profileId, next);
-    _value = next;
-    notifyListeners();
+  Future<void> _set(ActorContext next) {
+    if (_requestedValue == next && _value == next) {
+      return Future<void>.value();
+    }
+
+    _requestedValue = next;
+    final revision = ++_transitionRevision;
+    final operation = _transitionTail.then((_) async {
+      if (revision != _transitionRevision) return;
+      await _store.writeActorContext(profileId, next);
+      if (revision != _transitionRevision || _value == next) return;
+      _value = next;
+      notifyListeners();
+    });
+    _continueAfter(operation);
+    return operation;
+  }
+
+  void _continueAfter(Future<void> operation) {
+    _transitionTail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
   }
 }

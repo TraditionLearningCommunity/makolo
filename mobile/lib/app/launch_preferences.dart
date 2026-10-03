@@ -122,6 +122,7 @@ class FileLaunchPreferencesStore
   FileLaunchPreferencesStore._(this._file);
 
   static const _fileName = 'makolo-launch-preferences-v1.json';
+  static final Map<String, Future<void>> _writeTails = <String, Future<void>>{};
 
   final File _file;
 
@@ -139,6 +140,108 @@ class FileLaunchPreferencesStore
 
   @override
   Future<LaunchPreferencesSnapshot> read() async {
+    final pending = _writeTails[_file.absolute.path];
+    if (pending != null) {
+      await pending;
+    }
+    return _readCurrent();
+  }
+
+  @override
+  Future<void> setOnboardingCompleted() {
+    return _mutate((current) => current.copyWith(hasCompletedOnboarding: true));
+  }
+
+  @override
+  Future<void> setLastBrandMomentAt(DateTime value) {
+    return _mutate(
+      (current) => current.copyWith(lastBrandMomentAt: value.toUtc()),
+    );
+  }
+
+  Future<void> setThemePreference(MakoloThemePreference value) {
+    return _mutate((current) => current.copyWith(themePreference: value));
+  }
+
+  Future<void> setReduceMotion(bool value) {
+    return _mutate((current) => current.copyWith(reduceMotion: value));
+  }
+
+  @override
+  Future<ActorContext> readActorContext(String profileId) async {
+    final current = await read();
+    return current.actorContexts[profileId] ?? const PersonalActorContext();
+  }
+
+  @override
+  Future<void> writeActorContext(String profileId, ActorContext context) {
+    return _mutate((current) {
+      final contexts = <String, ActorContext>{
+        ...current.actorContexts,
+        profileId: context,
+      };
+      return current.copyWith(actorContexts: contexts);
+    });
+  }
+
+  @override
+  Future<void> removeActorContext(String profileId) {
+    return _mutate((current) {
+      if (!current.actorContexts.containsKey(profileId)) return null;
+      final contexts = <String, ActorContext>{...current.actorContexts}
+        ..remove(profileId);
+      return current.copyWith(actorContexts: contexts);
+    });
+  }
+
+  Future<String?> readShellLocation(String profileId) async {
+    final current = await read();
+    return current.shellLocations[profileId];
+  }
+
+  Future<void> writeShellLocation(String profileId, String location) {
+    if (!LaunchPreferencesSnapshot._validShellLocation(location)) {
+      return Future<void>.value();
+    }
+    return _mutate((current) {
+      if (current.shellLocations[profileId] == location) return null;
+      final locations = <String, String>{
+        ...current.shellLocations,
+        profileId: location,
+      };
+      return current.copyWith(shellLocations: locations);
+    });
+  }
+
+  Future<void> removeShellLocation(String profileId) {
+    return _mutate((current) {
+      if (!current.shellLocations.containsKey(profileId)) return null;
+      final locations = <String, String>{...current.shellLocations}
+        ..remove(profileId);
+      return current.copyWith(shellLocations: locations);
+    });
+  }
+
+  Future<void> _mutate(
+    LaunchPreferencesSnapshot? Function(LaunchPreferencesSnapshot current)
+    update,
+  ) {
+    final key = _file.absolute.path;
+    final previous = _writeTails[key] ?? Future<void>.value();
+    final operation = previous.then((_) async {
+      final current = await _readCurrent();
+      final next = update(current);
+      if (next == null) return;
+      await _writeCurrent(next);
+    });
+    _writeTails[key] = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<LaunchPreferencesSnapshot> _readCurrent() async {
     if (!await _file.exists()) {
       return const LaunchPreferencesSnapshot();
     }
@@ -155,78 +258,7 @@ class FileLaunchPreferencesStore
     }
   }
 
-  @override
-  Future<void> setOnboardingCompleted() async {
-    final current = await read();
-    await _write(current.copyWith(hasCompletedOnboarding: true));
-  }
-
-  @override
-  Future<void> setLastBrandMomentAt(DateTime value) async {
-    final current = await read();
-    await _write(current.copyWith(lastBrandMomentAt: value.toUtc()));
-  }
-
-  Future<void> setThemePreference(MakoloThemePreference value) async {
-    final current = await read();
-    await _write(current.copyWith(themePreference: value));
-  }
-
-  Future<void> setReduceMotion(bool value) async {
-    final current = await read();
-    await _write(current.copyWith(reduceMotion: value));
-  }
-
-  @override
-  Future<ActorContext> readActorContext(String profileId) async {
-    final current = await read();
-    return current.actorContexts[profileId] ?? const PersonalActorContext();
-  }
-
-  @override
-  Future<void> writeActorContext(String profileId, ActorContext context) async {
-    final current = await read();
-    final contexts = <String, ActorContext>{
-      ...current.actorContexts,
-      profileId: context,
-    };
-    await _write(current.copyWith(actorContexts: contexts));
-  }
-
-  @override
-  Future<void> removeActorContext(String profileId) async {
-    final current = await read();
-    if (!current.actorContexts.containsKey(profileId)) return;
-    final contexts = <String, ActorContext>{...current.actorContexts}
-      ..remove(profileId);
-    await _write(current.copyWith(actorContexts: contexts));
-  }
-
-  Future<String?> readShellLocation(String profileId) async {
-    final current = await read();
-    return current.shellLocations[profileId];
-  }
-
-  Future<void> writeShellLocation(String profileId, String location) async {
-    if (!LaunchPreferencesSnapshot._validShellLocation(location)) return;
-    final current = await read();
-    if (current.shellLocations[profileId] == location) return;
-    final locations = <String, String>{
-      ...current.shellLocations,
-      profileId: location,
-    };
-    await _write(current.copyWith(shellLocations: locations));
-  }
-
-  Future<void> removeShellLocation(String profileId) async {
-    final current = await read();
-    if (!current.shellLocations.containsKey(profileId)) return;
-    final locations = <String, String>{...current.shellLocations}
-      ..remove(profileId);
-    await _write(current.copyWith(shellLocations: locations));
-  }
-
-  Future<void> _write(LaunchPreferencesSnapshot snapshot) async {
+  Future<void> _writeCurrent(LaunchPreferencesSnapshot snapshot) async {
     await _file.parent.create(recursive: true);
     await _file.writeAsString(jsonEncode(snapshot.toJson()), flush: true);
   }
