@@ -15,7 +15,11 @@ import '../../repositories/personal_repository.dart';
 import 'now_selector.dart';
 
 class NowScreen extends StatelessWidget {
-  const NowScreen({super.key, required this.repository, this.now});
+  const NowScreen({
+    super.key,
+    required this.repository,
+    this.now,
+  });
 
   final PersonalRepository repository;
   final DateTime Function()? now;
@@ -75,7 +79,11 @@ class NowScreen extends StatelessWidget {
 }
 
 class NowView extends StatefulWidget {
-  const NowView({super.key, required this.selection, this.onOpenOwner});
+  const NowView({
+    super.key,
+    required this.selection,
+    this.onOpenOwner,
+  });
 
   final NowSelection selection;
   final ValueChanged<StructuredDestination>? onOpenOwner;
@@ -443,7 +451,9 @@ class _NowCalm extends StatelessWidget {
     return MakoloContentFrame(
       maxContentWidth: MakoloLayout.calmMaxWidth,
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.exceptional),
+        padding: const EdgeInsets.symmetric(
+          vertical: MakoloSpacing.exceptional,
+        ),
         children: [
           Text(
             'Tout est en ordre. ✓',
