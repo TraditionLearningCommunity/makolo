@@ -335,10 +335,7 @@ class _NowSecondarySituation extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            situation.meaning,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
+          Text(situation.meaning, style: Theme.of(context).textTheme.bodyLarge),
           if (situation.metadata.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
             MakoloMetadata(
