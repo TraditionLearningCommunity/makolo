@@ -284,12 +284,12 @@ class G1ProfileCanonicalStorageTests(TestCase):
         self.assertTrue(profile.searchable)
         self.assertNotIn("profile_completed", {field.name for field in UserProfile._meta.fields})
 
-    def test_new_profile_defaults_are_private(self):
+    def test_new_profile_defaults_are_public_and_searchable(self):
         user = User.objects.create_user(
             username="g1-new",
             email="g1-new@example.test",
             password=PASSWORD,
         )
         profile = UserProfile.objects.create(user=user)
-        self.assertFalse(profile.public_profile)
-        self.assertFalse(profile.searchable)
+        self.assertTrue(profile.public_profile)
+        self.assertTrue(profile.searchable)
