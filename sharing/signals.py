@@ -6,11 +6,13 @@ from django.dispatch import receiver
 from organizations.models import Organization
 
 from .models import PublicIdentifier, PublicSubjectKind
+from .public_identifiers import validate_public_identifier
 
 User = get_user_model()
 
 
 def _assert_identifier_available(identifier, *, profile_id=None, space_id=None):
+    validate_public_identifier(identifier)
     qs = PublicIdentifier.objects.filter(identifier__iexact=(identifier or "").strip().lower())
     if profile_id:
         qs = qs.exclude(profile_id=profile_id)
