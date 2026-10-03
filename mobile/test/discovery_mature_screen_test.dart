@@ -189,8 +189,11 @@ void main() {
     expect(find.text('Voir sur la carte'), findsNWidgets(2));
     expect(find.text('Accompagnement à distance'), findsOneWidget);
 
-    final secondMapAction = find.text('Voir sur la carte').at(1);
+    final secondMapAction = find.byKey(
+      const ValueKey('discover-map-action-activity:route'),
+    );
     await tester.ensureVisible(secondMapAction);
+    await tester.pump();
     await tester.tap(secondMapAction);
     await tester.pump();
 
