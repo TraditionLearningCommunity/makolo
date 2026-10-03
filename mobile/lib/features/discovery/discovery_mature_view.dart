@@ -200,20 +200,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       compactFallback: field,
     );
 
-    return MakoloContentFrame(
-      child: MakoloAdaptiveSplit(
-        splitAt: MakoloLayout.discoverSpatialMinWidth,
-        field: field,
-        focus: SizedBox(
-          key: const Key('discover-spatial-pane'),
-          height: 620,
-          child: spatial,
-        ),
-        narrow: field,
-        focusMin: MakoloLayout.mapMinWidth,
-        focusPreferred: 560,
-        focusMax: 720,
+    return MakoloAdaptiveSplit(
+      splitAt: MakoloLayout.discoverSpatialMinWidth,
+      field: field,
+      focus: SizedBox(
+        key: const Key('discover-spatial-pane'),
+        height: 620,
+        child: spatial,
       ),
+      narrow: field,
+      focusMin: MakoloLayout.mapMinWidth,
+      focusPreferred: 560,
+      focusMax: 720,
     );
   }
 }
@@ -252,10 +250,12 @@ class _DiscoveryScrollableField extends StatelessWidget {
               item: item,
               selected: selectedCandidateKey == item.candidateKey,
               onTap: () {
-                onSelect?.call(item);
+                if (item.isMappable) onSelect?.call(item);
                 onOpen(item);
               },
-              onSelect: onSelect == null ? null : () => onSelect!(item),
+              onSelect: onSelect == null || !item.isMappable
+                  ? null
+                  : () => onSelect!(item),
             ),
         ];
 
