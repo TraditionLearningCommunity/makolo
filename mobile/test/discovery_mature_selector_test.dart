@@ -190,23 +190,23 @@ void main() {
   test(
     'media and save capabilities are represented without engagement inference',
     () {
-    final collection = selector.collection(
-      fieldProjection(
-        results: [
-          possibility(
-            'media',
-            'Avec média',
-            imageUrl: 'https://example.test/media.jpg',
-            capabilities: const ['view', 'save'],
-          ),
-        ],
-      ),
-    );
+      final collection = selector.collection(
+        fieldProjection(
+          results: [
+            possibility(
+              'media',
+              'Avec média',
+              imageUrl: 'https://example.test/media.jpg',
+              capabilities: const ['view', 'save'],
+            ),
+          ],
+        ),
+      );
 
-    final item = collection.items.single;
-    expect(item.imageUrl, 'https://example.test/media.jpg');
-    expect(item.canSave, isTrue);
-    expect(item.canUnsave, isFalse);
+      final item = collection.items.single;
+      expect(item.imageUrl, 'https://example.test/media.jpg');
+      expect(item.canSave, isTrue);
+      expect(item.canUnsave, isFalse);
       expect(item.capabilities, isNot(contains('engage')));
     },
   );
