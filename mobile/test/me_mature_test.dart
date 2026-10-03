@@ -400,13 +400,50 @@ void main() {
 
     expect(
       selection.state.freshness,
-      MakoloFreshnessCue.refreshRecommended,
+      MakoloFreshnessCue.unknown,
     );
     expect(
       selection.territories.first
           .presentation.state.freshness,
       MakoloFreshnessCue.refreshRecommended,
     );
+  });
+
+  testWidgets('first availability preserves section grammar', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(
+      database,
+      'profile-1',
+    );
+
+    await PresentationHarness.pump(
+      tester,
+      child: SyncStatusScope(
+        status: const SyncStatus(
+          state: SyncVisualState.syncing,
+        ),
+        child: MeScreen(
+          repository: PersonalRepository(store),
+          now: () => now,
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(
+        const Key('me-first-availability'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Identité'), findsOneWidget);
+    expect(find.text('Passeport Makolo'), findsOneWidget);
+    expect(find.text('Ce qui compte pour moi'), findsOneWidget);
+    expect(find.text('Mes collectifs'), findsOneWidget);
+    expect(find.text('Mes ressources'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   testWidgets('sparse renders human local empty copy', (tester) async {
@@ -566,6 +603,14 @@ void main() {
         'Son usage dépendra de ce que vous entreprendrez.',
       ),
       findsOneWidget,
+    );
+    expect(
+      find.textContaining('Requirement'),
+      findsNothing,
+    );
+    expect(
+      find.textContaining('AccessCredential'),
+      findsNothing,
     );
 
     await tester.tap(
