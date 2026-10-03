@@ -139,12 +139,13 @@ def _profile_identity(profile):
 
 
 def _space_identity(space):
+    headline = "Organisation" if space.archetype == "generic" else space.get_archetype_display()
     return {
         "name": space.name,
         "avatar_url": "",
         "bio": space.description or "",
         "profession": "",
-        "headline": space.get_archetype_display(),
+        "headline": headline,
         "location": ", ".join(part for part in (space.city, space.country) if part),
         "links": (("Site web", space.website),) if space.website else (),
     }
