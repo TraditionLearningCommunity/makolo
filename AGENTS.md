@@ -45,6 +45,24 @@ Before adding a model or persistent state, verify whether the need belongs in an
 
 Manual local work, ChatGPT+GitHub work and Codex/ECC work may coexist. Push local changes before expecting remote agents to review them.
 
+## Flutter formatting gate
+
+Any change to Dart under `mobile/lib/**` or `mobile/test/**` must pass the repository-owned formatter before the work is presented as ready:
+
+```bash
+cd mobile
+bash tool/dart_format.sh write
+bash tool/dart_format.sh check
+```
+
+- The canonical toolchain is Flutter 3.47.3 / Dart 3.13.3.
+- Do not hand-emulate `dart format`, guess formatter output, or create repeated “CI probe” commits.
+- Do not add lane-specific formatter workflows.
+- If the local/agent environment has no Dart SDK, use the repository `Mobile Format` manual workflow on the feature branch, then re-read the branch head and continue from that canonical formatter commit.
+- `Mobile CI` must call the same repository formatter check rather than carrying a second formatting command.
+
+Lack of a real formatter is a tooling blocker, not permission to claim formatting as verified.
+
 ## Change contract
 
 Every meaningful work item should state:
