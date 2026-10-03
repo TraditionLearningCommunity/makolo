@@ -76,7 +76,7 @@ class CanonicalBetaSeedTests(TransactionTestCase):
         self.assertGreater(first["validation"]["non_event_access_uses"], 0)
         self.assertEqual(sum(len(rows) for rows in REALITY_SPECS.values()), 150)
         self.assertTrue(all(len(rows) == 25 for rows in REALITY_SPECS.values()))
-        seeded = Activity.objects.filter(description__startswith=f"[{SEED_MARKER}:")
+        seeded = Activity.objects.filter(slug__startswith="mobile-mature-")
         self.assertEqual(seeded.count(), 125)
         self.assertEqual(Event.objects.filter(metadata__seed=SEED_MARKER).count(), 25)
         self.assertEqual(TransportService.objects.filter(activity__in=seeded).count(), 25)
@@ -101,4 +101,26 @@ class CanonicalBetaSeedTests(TransactionTestCase):
         self.assertEqual(me_response.status_code, 200)
         self.assertGreater(len(now_response.json()["data"]["items"]), 0)
         self.assertGreater(len(ongoing_response.json()["data"]["items"]), 0)
-        self.assertGreaterEqual(len(discovery_response.json()["data"]["items"]), 20)
+        self.assertGreaterEqual(len(discovery_response.json()["data"]["results"]), 20)
+        mature_journey = (
+            Journey.objects.filter(
+                beneficiary=primary,
+                activity__slug__startswith="mobile-mature-",
+            )
+            .order_by("created_at", "id")
+            .first()
+        )
+        self.assertIsNotNone(mature_journey)
+        resources_response = self.client.get(
+            f"/api/v1/preparation/journeys/{mature_journey.pk}/resources/"
+        )
+        self.assertEqual(resources_response.status_code, 200)
+        resource_rows = resources_response.json()
+        self.assertGreaterEqual(len(resource_rows), 2)
+        self.assertTrue(
+            any(
+                row.get("kind") in {"file", "url"}
+                and (row.get("download_url") or row.get("external_url"))
+                for row in resource_rows
+            )
+        )
