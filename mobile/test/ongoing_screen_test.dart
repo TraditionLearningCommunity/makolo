@@ -105,8 +105,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
-        home: MediaQuery(
-          data: const MediaQueryData(size: Size(960, 900)),
+        home: SizedBox(
+          width: 960,
+          height: 900,
           child: OngoingScreen(
             repository: _UnusedRepository(),
             projectionStream: Stream.value(_projection()),
@@ -118,6 +119,5 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('makolo-adaptive-split-row')), findsOneWidget);
-    await controller.close();
   });
 }
