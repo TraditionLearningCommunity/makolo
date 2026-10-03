@@ -77,6 +77,7 @@ class PublicOrganizationDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         context["is_verified"] = self.object.verification_status == OrganizationVerificationStatus.VERIFIED
         context["follow"] = None
         if self.request.user.is_authenticated:
