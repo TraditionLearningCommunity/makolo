@@ -79,11 +79,11 @@ PUBLIC_SOURCES = {
 }
 
 PROVIDERS = {
-    "event": ("Lusanga Culture & Rencontres", "mobile-mature-culture"),
-    "transport": ("Horizon Katanga Mobilité", "mobile-mature-mobility"),
-    "service": ("Mwangaza Services", "mobile-mature-services"),
-    "funding": ("Kivu Capital & Projets", "mobile-mature-funding"),
-    "obtention": ("Atelier Mosi", "mobile-mature-obtention"),
+    "event": ("Lusanga Culture & Rencontres", "mobile-mature-culture", "Rencontres culturelles, ateliers et rendez-vous professionnels à Lubumbashi et dans la région."),
+    "transport": ("Horizon Katanga Mobilité", "mobile-mature-mobility", "Solutions de mobilité interurbaine et accompagnement des déplacements professionnels."),
+    "service": ("Mwangaza Services", "mobile-mature-services", "Services administratifs, professionnels et pratiques pour accompagner les démarches du quotidien."),
+    "funding": ("Kivu Capital & Projets", "mobile-mature-funding", "Accompagnement de projets, budgets, prises en charge et solutions de financement."),
+    "obtention": ("Atelier Mosi", "mobile-mature-obtention", "Équipements, locations et solutions d'usage pour les besoins professionnels et personnels."),
 }
 
 PUBLIC_SOURCE_LABELS = {
@@ -233,14 +233,14 @@ def _principal(ctx: SeedContext) -> User:
 
 def _providers(owner: User) -> dict[str, Organization]:
     result = {}
-    for vertical, (name, slug) in PROVIDERS.items():
+    for vertical, (name, slug, description) in PROVIDERS.items():
         space = upsert(
             Organization,
             f"mobile-mature-{vertical}-space",
             defaults={
                 "name": name,
                 "slug": slug,
-                "description": "Organisation de référence utilisée dans l’univers d’Alain Kabeya.",
+                "description": description,
                 "contact_email": "",
                 "country": "CD",
                 "city": "Lubumbashi",
