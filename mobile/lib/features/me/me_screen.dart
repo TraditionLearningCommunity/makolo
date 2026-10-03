@@ -259,22 +259,25 @@ class _MeFirstAvailability extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Moi', style: Theme.of(context).textTheme.headlineLarge),
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            message,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: MakoloSpacing.strong),
-          _MeLoadingSection(title: 'Identité', loading: loading),
-          const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(title: 'Passeport Makolo', loading: loading),
-          const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(title: 'Ce qui compte pour moi', loading: loading),
-          const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(title: 'Mes collectifs', loading: loading),
-          const SizedBox(height: MakoloSpacing.lg),
+            const SizedBox(height: MakoloSpacing.strong),
+            _MeLoadingSection(title: 'Identité', loading: loading),
+            const SizedBox(height: MakoloSpacing.lg),
+            _MeLoadingSection(title: 'Passeport Makolo', loading: loading),
+            const SizedBox(height: MakoloSpacing.lg),
+            _MeLoadingSection(
+              title: 'Ce qui compte pour moi',
+              loading: loading,
+            ),
+            const SizedBox(height: MakoloSpacing.lg),
+            _MeLoadingSection(title: 'Mes collectifs', loading: loading),
+            const SizedBox(height: MakoloSpacing.lg),
             _MeLoadingSection(title: 'Mes ressources', loading: loading),
           ],
         ),
@@ -774,3 +777,5 @@ class _MeDepth extends StatelessWidget {
     };
   }
 }
+Formatted 1 file (1 changed) in 0.02 seconds.
+Formatter capture complete; failing intentionally.
