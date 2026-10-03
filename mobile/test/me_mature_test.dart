@@ -342,26 +342,26 @@ void main() {
   testWidgets(
     'offline-known remains usable and textScale critical does not break',
     (tester) async {
-    final selection = selector.select(
+      final selection = selector.select(
       projection: _projection(_fullPayload()),
       now: now,
       reachability: MakoloReachabilityCue.temporarilyUnavailable,
-    );
+      );
 
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(430, 932),
-      textScale: 1.6,
-      child: MeView(selection: selection),
-    );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        textScale: 1.6,
+        child: MeView(selection: selection),
+      );
 
-    expect(
-      find.text(
-        'La source distante est momentanément indisponible. Le contenu déjà disponible reste utilisable.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Gilbra'), findsOneWidget);
+      expect(
+        find.text(
+          'La source distante est momentanément indisponible. Le contenu déjà disponible reste utilisable.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Gilbra'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
