@@ -136,16 +136,19 @@ class _NowViewState extends State<NowView> {
             maxContentWidth: MakoloLayout.calmMaxWidth,
             child: field,
           )
-        : MakoloContentFrame(
-            child: MakoloAdaptiveSplit(
-              splitAt: MakoloLayout.nowFocusSplitMinWidth,
-              field: field,
-              focus: _NowDepth(
+        : MakoloAdaptiveSplit(
+            splitAt: MakoloLayout.nowFocusSplitMinWidth,
+            field: MakoloContentFrame(child: field),
+            focus: MakoloContentFrame(
+              child: _NowDepth(
                 situation: selected,
                 onClose: _closeDepth,
                 onOpenOwner: widget.onOpenOwner,
               ),
-              narrow: _NowDepth(
+            ),
+            narrow: MakoloContentFrame(
+              maxContentWidth: MakoloLayout.calmMaxWidth,
+              child: _NowDepth(
                 situation: selected,
                 onClose: _closeDepth,
                 onOpenOwner: widget.onOpenOwner,
