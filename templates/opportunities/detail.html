@@ -1,7 +1,7 @@
 {% extends surface_base_template %}
 {% block title %}{{ revision.title }} | Makolo{% endblock %}
 {% block content %}
-<div class="space-y-6">
+<div class="{% if not request.user.is_authenticated %}mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8{% endif %} space-y-6">
 <a class="text-sm font-bold" href="{% url 'opportunities:list' %}">← Toutes les opportunités</a>
 <section class="mk-participant-hero px-5 py-7 sm:px-7 sm:py-9"><div class="flex flex-wrap gap-2"><span class="mk-badge">{{ opportunity.get_kind_display }}</span><span class="mk-badge">{% if temporal_state == 'open' %}Ouverte{% elif temporal_state == 'upcoming' %}À venir{% else %}Fermée{% endif %}</span></div><h1 class="mk-page-title mt-4">{{ revision.title }}</h1><p class="mt-2 font-semibold">{{ revision.issuer_name }}</p>{% if revision.summary %}<p class="mk-page-copy mt-4">{{ revision.summary }}</p>{% endif %}<div class="mt-6 flex flex-wrap gap-3">{% if request.user.is_authenticated %}<form method="post" action="{% url 'opportunities:save-toggle' opportunity.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">{% if is_saved %}Retirer des sauvegardes{% else %}Sauvegarder{% endif %}</button></form><a class="mk-btn mk-btn-primary" href="{% url 'services:list' %}?opportunity={{ opportunity.pk }}">Obtenir de l’aide</a>{% else %}<a class="mk-btn mk-btn-primary" href="{% url 'core:login' %}?next={{ request.path|urlencode }}">Se connecter pour demander de l’aide</a>{% endif %}</div></section>
 {% if request.user.is_authenticated %}{% url 'sharing:create-opportunity' opportunity.pk as share_create_url %}{% include 'sharing/_share_controls.html' with create_url=share_create_url share_title=revision.title share_text=revision.summary share_intent='start_journey' %}{% endif %}
