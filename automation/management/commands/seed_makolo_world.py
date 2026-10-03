@@ -170,7 +170,7 @@ def seed_world(scale, as_of, password):
     spaces=[]
     for i in range(cfg["spaces"]):
         city,_,country,*_=PLACES[(i*2)%len(PLACES)]; creator=users[i%len(users)]
-        space,_=Organization.objects.update_or_create(pk=sid(f"space:{i}"), defaults={"name":SPACE_NAMES[i],"slug":f"world-{i+1:02d}-space","description":f"Espace synthétique de démonstration actif à {city}.","contact_email":f"space{i+1:02d}@makolo.demo","country":country,"city":city,"public_profile":True,"verification_status":"verified","created_by":creator})
+        space,_=Organization.objects.update_or_create(pk=sid(f"space:{i}"), defaults={"name":SPACE_NAMES[i],"slug":f"world-{i+1:02d}-space","description":f"{SPACE_NAMES[i]} est présent à {city}.","contact_email":f"space{i+1:02d}@makolo.demo","country":country,"city":city,"public_profile":True,"verification_status":"verified","created_by":creator})
         team,_=Team.objects.update_or_create(pk=sid(f"team:{i}"), defaults={"organization":space,"name":"Équipe principale","is_default":True,"is_active":True})
         for j in range(min(5,len(users))):
             TeamMembership.objects.update_or_create(team=team,user=users[(i*3+j)%len(users)],defaults={"status":TeamMembershipStatus.ACTIVE,"invited_by":creator,"joined_at":at-timedelta(days=120)})
@@ -191,7 +191,7 @@ def seed_world(scale, as_of, password):
     for i in range(cfg["activities"]):
         vertical,topic,title_base,price,capacity,source=ACTIVITY_TEMPLATES[i%len(ACTIVITY_TEMPLATES)]
         space=spaces[i%len(spaces)]; place=places[(i*5+1)%len(places)]; d1=spread(i); d2=d1+timedelta(days=14)
-        activity=Activity(id=sid(f"activity:{i}"),space=space,created_by=space.created_by,title=f"{title_base} {place.locality} — {i+1:03d}",slug=f"world-{i+1:04d}-{topic}",short_description=f"{title_base}: expérience synthétique ancrée dans les réalités 2025–2026.",description=f"Donnée synthétique. Référence de calibration publique: {source}",status=ActivityStatus.PUBLISHED if d2>=at.date() else ActivityStatus.COMPLETED,visibility=ActivityVisibility.PUBLIC)
+        activity=Activity(id=sid(f"activity:{i}"),space=space,created_by=space.created_by,title=f"{title_base} {place.locality} — {i+1:03d}",slug=f"world-{i+1:04d}-{topic}",short_description=f"{title_base} à {place.locality}.",description=f"{title_base} à {place.locality}. Référence publique : {source}",status=ActivityStatus.PUBLISHED if d2>=at.date() else ActivityStatus.COMPLETED,visibility=ActivityVisibility.PUBLIC)
         activities.append(activity)
         for n,day in enumerate((d1,d2),1):
             start=aware(day,9+(i%7),place.timezone or "Africa/Lubumbashi"); end=start+timedelta(hours=6 if vertical=="event" else 3)
