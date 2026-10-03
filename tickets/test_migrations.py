@@ -91,6 +91,7 @@ class PopulatedBetaUpgradeMigrationTests(TransactionTestCase):
 
     migrate_from = [
         ("accounts", "0006_remove_legacy_account_truths"),
+        ("organizations", "0006_organization_lifecycle"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("tickets", "0007_commerce_capacity_bridges"),
