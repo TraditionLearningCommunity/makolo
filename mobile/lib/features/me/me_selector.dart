@@ -433,9 +433,7 @@ class MeSelector {
       destination: StructuredDestination(kind: 'personal_asset', id: id),
       title: title,
       subtitle: kind,
-      metadata: [
-        if (_string(raw['sensitivity_label']) case final value?) value,
-      ],
+      metadata: _metadata(_string(raw['sensitivity_label'])),
     );
   }
 
@@ -458,17 +456,15 @@ class MeSelector {
       destination: StructuredDestination(kind: 'credential', id: id),
       title: title,
       subtitle: _string(raw['credential_type_label']) ?? 'Credential',
-      metadata: [
-        if (_string(raw['status_label']) case final value?) value,
-      ],
+      metadata: _metadata(_string(raw['status_label'])),
     );
   }
 
   String? _identitySubtitle(Map<String, dynamic>? identity) {
     if (identity == null) return null;
-    final parts = <String>[
-      if (_string(identity['profession']) case final value?) value,
-    ];
+    final parts = <String>[];
+    final profession = _string(identity['profession']);
+    if (profession != null) parts.add(profession);
     final location = _map(identity['location']);
     if (location != null) {
       final place = [
@@ -479,6 +475,9 @@ class MeSelector {
     }
     return parts.isEmpty ? null : parts.join(' · ');
   }
+
+  List<String> _metadata(String? value) =>
+      value == null ? const [] : <String>[value];
 
   String _supportLabel(String key) => switch (key) {
     'recognition' => 'Reconnaissance',
