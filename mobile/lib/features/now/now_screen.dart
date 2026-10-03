@@ -262,9 +262,7 @@ class _NowPrimarySituation extends StatelessWidget {
         onTap: onSelect,
         borderRadius: BorderRadius.circular(MakoloRadii.card),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: MakoloSpacing.compact,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
