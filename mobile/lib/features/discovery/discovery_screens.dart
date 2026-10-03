@@ -7,11 +7,13 @@ import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
+import '../../design/surface_states.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../sync/freshness.dart';
 import 'detail_selector.dart';
+import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
 import 'discovery_selector.dart';
 
@@ -76,6 +78,26 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     unawaited(_acquire());
   }
 
+  void _open(DiscoveryItemPresentation item) {
+    if (item.family == 'activity' ||
+        item.family == 'service_activity' ||
+        item.family == 'funding_activity') {
+      widget.onOpenActivity(item.id);
+      return;
+    }
+    widget.onOpenItem(item.family, item.id);
+  }
+
+  MakoloReachabilityCue _reachability(DiscoverySourceState source) {
+    if (source.reachability == ReachabilityState.unreachable) {
+      return MakoloReachabilityCue.temporarilyUnavailable;
+    }
+    if (source.lastSuccessAt != null) {
+      return MakoloReachabilityCue.reachable;
+    }
+    return MakoloReachabilityCue.unknown;
+  }
+
   @override
   Widget build(BuildContext context) {
     final source = widget.repository.itemsSource(_query);
@@ -87,23 +109,33 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           initialData: DiscoverySourceState.unknown,
           builder: (context, sourceSnapshot) {
             final projection = snapshot.data;
-            if (projection == null) {
-              if (_refreshing) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              return _DiscoveryUnavailable(
-                source: sourceSnapshot.data,
-                onRetry: _refreshItems,
-              );
-            }
-            final presentation = _selector.collection(projection);
+            final sourceState =
+                sourceSnapshot.data ?? DiscoverySourceState.unknown;
+            final freshness = projection == null
+                ? FreshnessState.fresh
+                : DiscoveryRepository.discoveryFreshness.evaluate(
+                    projection,
+                    now: DateTime.now(),
+                    invalidated: sourceState.invalidated,
+                  );
+            final selection = _selector.select(
+              projection: projection,
+              hasCriteria: _query.hasCriteria,
+              freshness: freshness,
+              reachability: _reachability(sourceState),
+              failure:
+                  sourceState.lastErrorCode != null && projection != null
+                  ? MakoloFailureCue.recoverable
+                  : MakoloFailureCue.none,
+              refreshing: _refreshing,
+            );
             return RefreshIndicator(
               onRefresh: _refreshItems,
-              child: _DiscoveryResultsList(
-                presentation: presentation,
-                onOpenActivity: widget.onOpenActivity,
-                onOpenItem: widget.onOpenItem,
+              child: DiscoveryFieldView(
+                selection: selection,
+                onOpen: _open,
                 onPage: _movePage,
+                onRetry: () => unawaited(_refreshItems()),
               ),
             );
           },
@@ -310,7 +342,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   }
 
   Future<void> _acquire() async {
-    final local = await widget.repository.readMap(_query);
+    final local = await widget.repository.readItems(_query);
     if (local == null) await _refresh();
   }
 
@@ -318,9 +350,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshMap(_query);
+      await widget.repository.refreshItems(_query);
     } on Object {
-      // Existing map data remains available.
+      // Existing Discovery field remains available.
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -340,94 +372,23 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         ],
       ),
       body: StreamBuilder<StoredProjection?>(
-        stream: widget.repository.watchMap(_query),
+        stream: widget.repository.watchItems(_query),
         builder: (context, snapshot) {
-          if (snapshot.data == null) {
-            if (_refreshing) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return MakoloErrorState(
-              message: 'Impossible de charger la carte pour le moment.',
-              onRetry: _refresh,
-            );
-          }
-
-          final points = _selector.mapPoints(snapshot.data);
-          if (points.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(MakoloSpacing.inner),
-                child: Text(
-                  'Aucun lieu à afficher sur la carte pour le moment.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
-          final first = points.first;
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: ConfiguredMakoloMapView(
-                  config: widget.mapConfig,
-                  initialViewport: MapViewport(
-                    center: MapCoordinate(first.latitude, first.longitude),
-                    zoom: 11,
-                  ),
-                  fallbackBuilder: (context, state, retry) {
-                    final retryable = state == MakoloMapRuntimeState.error;
-                    return MakoloErrorState(
-                      message: 'Impossible d’afficher la carte pour le moment.',
-                      preservedMessage:
-                          'Les possibilités restent accessibles dans la liste.',
-                      onRetry: retryable ? retry : null,
-                    );
-                  },
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: SafeArea(
-                  minimum: const EdgeInsets.all(MakoloSpacing.md),
-                  child: SizedBox(
-                    height: 118,
-                    child: PageView.builder(
-                      controller: PageController(viewportFraction: 0.88),
-                      itemCount: points.length,
-                      itemBuilder: (context, index) {
-                        final point = points[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: MakoloSpacing.xs,
-                          ),
-                          child: MakoloCard(
-                            onTap: () =>
-                                widget.onOpenOccurrence(point.occurrenceId),
-                            semanticLabel: 'Lieu sur la carte. ${point.title}',
-                            child: MakoloStatusMetadataAction(
-                              title: point.title,
-                              subtitle: [
-                                point.placeName,
-                                point.locality,
-                              ].whereType<String>().join(' · '),
-                              metadata: [
-                                MakoloMetadataItem(
-                                  '${point.latitude.toStringAsFixed(4)}, '
-                                  '${point.longitude.toStringAsFixed(4)}',
-                                  icon: Icons.location_on_outlined,
-                                ),
-                              ],
-                              action: const Icon(Icons.chevron_right_rounded),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          final selection = _selector.select(
+            projection: snapshot.data,
+            hasCriteria: _query.hasCriteria,
+            refreshing: _refreshing,
+          );
+          return DiscoverySpatialView(
+            selection: selection,
+            mapConfig: widget.mapConfig,
+            onRetry: () => unawaited(_refresh()),
+            onOpen: (item) {
+              final occurrenceId = item.occurrenceId;
+              if (occurrenceId != null) {
+                widget.onOpenOccurrence(occurrenceId);
+              }
+            },
           );
         },
       ),
