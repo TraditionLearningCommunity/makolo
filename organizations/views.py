@@ -6,8 +6,6 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
-from events.models import Event, EventStatus, EventVisibility
-
 from .console_context import authorized_spaces
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
 from .models import Organization, OrganizationFollow, OrganizationVerificationStatus, SpaceLifecycle, TeamMembership
@@ -79,18 +77,7 @@ class PublicOrganizationDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["events"] = (
-            Event.objects.filter(
-                activity__space=self.object,
-                activity__status=EventStatus.PUBLISHED,
-                activity__visibility=EventVisibility.PUBLIC,
-            )
-            .select_related("activity", "venue", "category")
-            .order_by("activity__occurrences__start_at")
-            .distinct()[:24]
-        )
         context["is_verified"] = self.object.verification_status == OrganizationVerificationStatus.VERIFIED
-        context["follower_count"] = self.object.followers.count()
         context["follow"] = None
         if self.request.user.is_authenticated:
             context["follow"] = OrganizationFollow.objects.filter(
