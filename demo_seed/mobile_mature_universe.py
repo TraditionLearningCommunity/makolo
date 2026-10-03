@@ -476,8 +476,29 @@ def _zip_doc(kind: str, spec: dict) -> bytes:
 
 def _file_resource(ctx: SeedContext, *, activity: Activity, key: str, title: str, filename: str, mime: str, data: bytes) -> ActivityResource:
     pk = stable_uuid(f"mobile-mature-resource:{activity.pk}:{key}")
+    content_hash = hashlib.sha256(data).hexdigest()
     existing = ActivityResource.objects.filter(pk=pk).first()
     if existing:
+        existing.title = title
+        existing.description = f"Document associé à {activity.title}."
+        existing.mime_type = mime
+        existing.size = len(data)
+        if existing.content_hash != content_hash or not existing.file:
+            existing.file.save(filename, ContentFile(data), save=False)
+        existing.content_hash = content_hash
+        existing.visibility = ResourceVisibility.PUBLIC
+        existing.save(
+            update_fields=[
+                "title",
+                "description",
+                "mime_type",
+                "size",
+                "file",
+                "content_hash",
+                "visibility",
+                "updated_at",
+            ]
+        )
         return existing
     resource = ActivityResource(
         pk=pk,
@@ -488,7 +509,7 @@ def _file_resource(ctx: SeedContext, *, activity: Activity, key: str, title: str
         kind=ResourceKind.FILE,
         mime_type=mime,
         size=len(data),
-        content_hash=hashlib.sha256(data).hexdigest(),
+        content_hash=content_hash,
         visibility=ResourceVisibility.PUBLIC,
         status=ResourceStatus.PUBLISHED,
         version=1,
