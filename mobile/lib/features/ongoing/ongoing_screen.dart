@@ -29,7 +29,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
 
   @override
   Widget build(BuildContext context) => MakoloRefreshBoundary(
-    child: StreamBuilder(
+    child: StreamBuilder<StoredProjection?>(
       stream: widget.projectionStream ?? widget.repository.watchOngoing(),
       builder: (context, snapshot) {
         final projection = snapshot.data;
@@ -54,7 +54,8 @@ class _OngoingScreenState extends State<OngoingScreen> {
             content: SizedBox.shrink(),
           );
         }
-        final selected = items.where((item) => _ownerKey(item) == _selectedOwnerKey).firstOrNull;
+        final matches = items.where((item) => _ownerKey(item) == _selectedOwnerKey);
+        final selected = matches.isEmpty ? null : matches.first;
         final stale = projection.freshUntil != null &&
             projection.freshUntil!.isBefore(DateTime.now().toUtc());
         return MakoloSurfaceStateView(
