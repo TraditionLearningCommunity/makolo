@@ -52,12 +52,12 @@ class NowSelector {
         situations: const [],
         state: MakoloSurfacePresentation(
           availability: MakoloAvailabilityCue.empty,
+          failure: MakoloFailureCue.blocking,
           freshness: _freshnessCue(
             _freshnessPolicy.evaluate(projection, now: now),
           ),
           reachability: reachability,
           commit: commit,
-          failure: failure,
           refreshing: refreshing,
         ),
       );
