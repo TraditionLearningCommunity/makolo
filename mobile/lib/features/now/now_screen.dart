@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
-import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -150,11 +149,10 @@ class _NowViewState extends State<NowView> {
             ),
           );
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (_selected == null) return true;
-        _closeDepth();
-        return false;
+    return PopScope<Object?>(
+      canPop: _selected == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _selected != null) _closeDepth();
       },
       child: MakoloSurfaceStateView(
         state: widget.selection.state,
