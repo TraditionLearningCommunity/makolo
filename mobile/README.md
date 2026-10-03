@@ -24,11 +24,26 @@ Le socle détaillé et ses règles d'extension sont dans `docs/architecture/mobi
 
 Flutter 3.47.3 / Dart 3.13.3 sont pinés.
 
+Le formatage Dart a une seule entrée canonique partagée par les développeurs, les agents et la CI :
+
+```bash
+cd mobile
+bash tool/dart_format.sh write
+bash tool/dart_format.sh check
+```
+
+`write` applique le formatter réel ; `check` exécute exactement le gate non-mutant utilisé par `Mobile CI`.
+
+Si Flutter/Dart n'est pas disponible dans l'environnement de travail, ne pas reproduire le formatter à la main et ne pas créer de workflow temporaire propre à une lane. Lancer le workflow manuel GitHub `Mobile Format` sur la branche de feature ; il utilise Flutter 3.47.3, applique le même script, vérifie le résultat puis pousse uniquement le commit de formatage nécessaire. `main` est explicitement interdit comme cible.
+
+Boucle de validation normale :
+
 ```bash
 cd mobile
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
-dart format --output=none --set-exit-if-changed lib test
+bash tool/dart_format.sh write
+bash tool/dart_format.sh check
 flutter analyze
 flutter test --exclude-tags golden
 ```
@@ -75,7 +90,8 @@ Aucun host iOS n'est présent. Aucun bundle identifier, signing team, provisioni
 
 ## CI
 
-- `Mobile CI` : sélection du scope réel du diff, format/analyze/codegen et tests impactés avec fallback sûr.
+- `Mobile CI` : sélection du scope réel du diff, validation des scripts de tooling, format canonique, analyze/codegen et tests impactés avec fallback sûr.
+- `Mobile Format` : fallback manuel de formatage pour une branche de feature lorsqu'aucun SDK Flutter/Dart n'est disponible localement ; ne cible jamais `main`.
 - `Mobile Android Build` : debug build seulement pour dependency/native impact.
 - `Mobile Visual Golden Regression` : design/surfaces visuelles uniquement.
 - `Mobile APK` : artefact DEV rapide sur `main`, avec checkpoint manuel `full` disponible.
