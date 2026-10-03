@@ -5,7 +5,7 @@ event|2025|EVT-002|Festival musical à Lubumbashi|experienced|completed|Lubumbas
 event|2025|EVT-003|Webinaire IA appliquée aux PME|experienced|completed|Online|video+pdf+url|SYNTHETIC_DEMO
 event|2025|EVT-004|Salon professionnel mines & sous-traitance|experienced|completed|Kolwezi|gallery+pdf+map|SYNTHETIC_DEMO
 event|2025|EVT-005|Atelier fiscalité pour PME|experienced|completed|Lubumbashi|pdf+receipt|SYNTHETIC_DEMO
-event|2025|EVT-006|Projection cinéma africaine|experienced|completed|Lubumbashi|poster+image|Occurrence+Access|SYNTHETIC_DEMO
+event|2025|EVT-006|Projection cinéma africaine|experienced|completed|Lubumbashi|poster+image|SYNTHETIC_DEMO
 event|2025|EVT-007|Hackathon civic-tech|abandoned|ended|Kinshasa|image+rules_pdf+video|SYNTHETIC_DEMO
 event|2025|EVT-008|Rencontre communauté développeurs|experienced|completed|Lubumbashi|image+url|SYNTHETIC_DEMO
 event|2025|EVT-009|Conférence annulée après réservation|cancelled|cancelled|Kinshasa|poster+pdf|SYNTHETIC_DEMO
