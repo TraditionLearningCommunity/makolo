@@ -138,6 +138,7 @@ class EventDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         can_manage_event = user_can_manage_event(self.request.user, self.object)
         context["can_manage_event"] = can_manage_event
         occurrences = list(self.object.activity.occurrences.order_by("start_date", "start_time", "id"))
