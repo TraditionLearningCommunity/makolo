@@ -583,8 +583,8 @@ class _DiscoveryMedia extends StatelessWidget {
     return MakoloMediaFrame(
       aspect: MakoloMediaAspect.landscape,
       semanticLabel: item.imageUrl == null ? null : 'Média de ${item.title}',
-      child: child,
       placeholder: MakoloMediaPlaceholder(label: item.eyebrow ?? 'Possibilité'),
+      child: child,
     );
   }
 }
