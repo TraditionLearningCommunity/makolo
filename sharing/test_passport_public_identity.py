@@ -66,7 +66,7 @@ class PassportPublicIdentityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mulykap Demo")
         self.assertContains(response, "Transport et mobilité.")
-        self.assertContains(response, "Espace générique")
+        self.assertContains(response, "Organisation")
         self.assertNotContains(response, "QR de vérification")
         self.assertIsNone(response.context["passport_snapshot"])
 
@@ -113,7 +113,10 @@ class PassportPublicIdentityTests(TestCase):
             )
 
     def test_snapshot_core_is_immutable(self):
-        response = self.client.get(reverse("public-passport", kwargs={"identifier": "naomi-demo"}))
+        response = self.client.get(
+            reverse("public-passport", kwargs={"identifier": "naomi-demo"}),
+            {"document": "1"},
+        )
         snapshot = response.context["passport_snapshot"]
         snapshot.public_identifier = "changed"
         with self.assertRaises(ValidationError):
