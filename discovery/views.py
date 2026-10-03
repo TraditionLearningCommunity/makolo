@@ -127,6 +127,7 @@ class DiscoveryHomeView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["discovery_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
+        context["public_workspace_layout"] = "explore"
         errors = []
         intent = resolve_discovery_intent(self.request.GET)
         intent = interpret_with_intelligence(intent, profile=self.request.user)
@@ -204,6 +205,10 @@ class DiscoveryHomeView(TemplateView):
         filters = {key: self.request.GET.get(key, "") for key in DISCOVERY_FILTER_KEYS}
         filters["place"] = self.request.GET.get("place") or self.request.GET.get("city") or ""
         filters["period"] = intent.period
+        has_exploration_criteria = any(
+            (self.request.GET.get(key) or "").strip()
+            for key in ("q", "place", "city", "when", "period", "vertical", "price", "lat", "lon", "date", "date_from", "date_to")
+        )
         nearby_active = bool(result.nearby_active)
         map_items = []
         if nearby_active:
@@ -232,6 +237,7 @@ class DiscoveryHomeView(TemplateView):
                 "discovery_intent": intent,
                 "applied_constraints": intent.constraints,
                 "search_errors": errors,
+                "has_exploration_criteria": has_exploration_criteria,
                 "search_timezone": result.timezone_name,
                 "result_count": result_count,
                 "mappable_result_count": mappable_result_count,
