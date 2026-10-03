@@ -19,10 +19,7 @@ class MeItemPresentation {
 }
 
 class MeTerritorySelection {
-  const MeTerritorySelection({
-    required this.presentation,
-    required this.items,
-  });
+  const MeTerritorySelection({required this.presentation, required this.items});
 
   final MeTerritoryPresentation presentation;
   final List<MeItemPresentation> items;
@@ -72,10 +69,7 @@ class MeSelector {
         availability: MakoloAvailabilityCue.initial,
       );
       return const MeSelection(
-        presentation: MePresentation(
-          identityLabel: 'Moi',
-          territories: [],
-        ),
+        presentation: MePresentation(identityLabel: 'Moi', territories: []),
         territories: [],
         state: state,
         identityState: state,
@@ -110,26 +104,14 @@ class MeSelector {
     );
 
     final territories = <MeTerritorySelection>[
-      _passport(
-        projection.payload['passport'],
-        freshness,
-        reachability,
-      ),
+      _passport(projection.payload['passport'], freshness, reachability),
       _considerations(
         projection.payload['considerations'],
         freshness,
         reachability,
       ),
-      _collectives(
-        projection.payload['collectives'],
-        freshness,
-        reachability,
-      ),
-      _resources(
-        projection.payload['resources'],
-        freshness,
-        reachability,
-      ),
+      _collectives(projection.payload['collectives'], freshness, reachability),
+      _resources(projection.payload['resources'], freshness, reachability),
     ];
 
     final support = _support(
@@ -196,44 +178,15 @@ class MeSelector {
 
     if (section != null) {
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'interests',
-            _interest,
-          ) ||
-          malformed;
+          _appendBounded(items, section, 'interests', _interest) || malformed;
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'open_to',
-            _openTo,
-          ) ||
-          malformed;
+          _appendBounded(items, section, 'open_to', _openTo) || malformed;
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'watches',
-            _watch,
-          ) ||
-          malformed;
+          _appendBounded(items, section, 'watches', _watch) || malformed;
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'bookmarks',
-            _bookmark,
-          ) ||
-          malformed;
+          _appendBounded(items, section, 'bookmarks', _bookmark) || malformed;
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'followed_spaces',
-            _followedSpace,
-          ) ||
+          _appendBounded(items, section, 'followed_spaces', _followedSpace) ||
           malformed;
       malformed =
           _appendBounded(
@@ -267,29 +220,10 @@ class MeSelector {
 
     if (section != null) {
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'authorized_spaces',
-            _space,
-          ) ||
+          _appendBounded(items, section, 'authorized_spaces', _space) ||
           malformed;
-      malformed =
-          _appendBounded(
-            items,
-            section,
-            'teams',
-            _team,
-          ) ||
-          malformed;
-      malformed =
-          _appendBounded(
-            items,
-            section,
-            'groups',
-            _group,
-          ) ||
-          malformed;
+      malformed = _appendBounded(items, section, 'teams', _team) || malformed;
+      malformed = _appendBounded(items, section, 'groups', _group) || malformed;
     }
 
     return _territory(
@@ -314,28 +248,10 @@ class MeSelector {
 
     if (section != null) {
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'documents',
-            _document,
-          ) ||
-          malformed;
+          _appendBounded(items, section, 'documents', _document) || malformed;
+      malformed = _appendBounded(items, section, 'proofs', _proof) || malformed;
       malformed =
-          _appendBounded(
-            items,
-            section,
-            'proofs',
-            _proof,
-          ) ||
-          malformed;
-      malformed =
-          _appendBounded(
-            items,
-            section,
-            'credentials',
-            _credential,
-          ) ||
+          _appendBounded(items, section, 'credentials', _credential) ||
           malformed;
     }
 
@@ -368,10 +284,7 @@ class MeSelector {
       }
       items.add(
         MeItemPresentation(
-          destination: StructuredDestination(
-            kind: 'support',
-            id: entry.key,
-          ),
+          destination: StructuredDestination(kind: 'support', id: entry.key),
           title: _supportLabel(entry.key),
           subtitle: value?['needs_response'] == true
               ? 'Une réponse peut être nécessaire.'
@@ -409,9 +322,7 @@ class MeSelector {
         key: key,
         label: label,
         summary: summary,
-        items: List.unmodifiable(
-          items.map((item) => item.destination),
-        ),
+        items: List.unmodifiable(items.map((item) => item.destination)),
         state: _sectionState(
           hasContent: items.isNotEmpty,
           malformed: malformed,
@@ -435,9 +346,7 @@ class MeSelector {
           : MakoloAvailabilityCue.empty,
       freshness: freshness,
       reachability: reachability,
-      failure: malformed
-          ? MakoloFailureCue.blocking
-          : MakoloFailureCue.none,
+      failure: malformed ? MakoloFailureCue.blocking : MakoloFailureCue.none,
     );
   }
 
@@ -483,10 +392,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'topic',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'topic', id: id),
       title: label,
       subtitle: 'Intérêt',
     );
@@ -499,10 +405,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'open_to',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'open_to', id: id),
       title: label,
       subtitle: 'Ouvert à',
     );
@@ -515,10 +418,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'watch',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'watch', id: id),
       title: title,
       subtitle: _string(raw['status_label']) ?? 'Veille',
     );
@@ -532,10 +432,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'activity',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'activity', id: id),
       title: title,
       subtitle: 'Enregistré',
     );
@@ -549,10 +446,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'space',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'space', id: id),
       title: title,
       subtitle: 'Espace suivi',
     );
@@ -566,10 +460,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'profile',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'profile', id: id),
       title: title,
       subtitle: 'Profil suivi',
     );
@@ -582,14 +473,9 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'space',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'space', id: id),
       title: title,
-      subtitle: raw['can_act'] == true
-          ? 'Contexte autorisé'
-          : 'Espace',
+      subtitle: raw['can_act'] == true ? 'Contexte autorisé' : 'Espace',
     );
   }
 
@@ -600,10 +486,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'team',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'team', id: id),
       title: title,
       subtitle: 'Équipe',
     );
@@ -616,10 +499,7 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'group',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'group', id: id),
       title: title,
       subtitle: 'Groupe',
     );
@@ -632,31 +512,22 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'personal_asset',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'personal_asset', id: id),
       title: title,
       subtitle: _string(raw['asset_kind_label']) ?? 'Ressource',
-      metadata: _metadata(
-        _string(raw['sensitivity_label']),
-      ),
+      metadata: _metadata(_string(raw['sensitivity_label'])),
     );
   }
 
   MeItemPresentation? _proof(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
     final title =
-        _string(raw['proof_type_label']) ??
-        _string(raw['proof_type']);
+        _string(raw['proof_type_label']) ?? _string(raw['proof_type']);
     if (id == null || title == null) {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'proof',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'proof', id: id),
       title: title,
       subtitle: _string(raw['status_label']) ?? 'Preuve',
     );
@@ -669,17 +540,10 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(
-        kind: 'credential',
-        id: id,
-      ),
+      destination: StructuredDestination(kind: 'credential', id: id),
       title: title,
-      subtitle:
-          _string(raw['credential_type_label']) ??
-          'Titre',
-      metadata: _metadata(
-        _string(raw['status_label']),
-      ),
+      subtitle: _string(raw['credential_type_label']) ?? 'Titre',
+      metadata: _metadata(_string(raw['status_label'])),
     );
   }
 
@@ -705,15 +569,11 @@ class MeSelector {
       }
     }
 
-    return parts.isEmpty
-        ? null
-        : parts.join(' · ');
+    return parts.isEmpty ? null : parts.join(' · ');
   }
 
   List<String> _metadata(String? value) {
-    return value == null
-        ? const []
-        : <String>[value];
+    return value == null ? const [] : <String>[value];
   }
 
   String _supportLabel(String key) {
@@ -729,12 +589,7 @@ class MeSelector {
     if (value is! Map) {
       return null;
     }
-    return value.map(
-      (key, item) => MapEntry(
-        key.toString(),
-        item,
-      ),
-    );
+    return value.map((key, item) => MapEntry(key.toString(), item));
   }
 
   String? _string(Object? value) {
@@ -742,16 +597,13 @@ class MeSelector {
       return null;
     }
     final trimmed = value.trim();
-    return trimmed.isEmpty
-        ? null
-        : trimmed;
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   MakoloFreshnessCue _freshnessCue(FreshnessState state) {
     return switch (state) {
       FreshnessState.fresh => MakoloFreshnessCue.current,
-      FreshnessState.usableButOld =>
-        MakoloFreshnessCue.oldObservation,
+      FreshnessState.usableButOld => MakoloFreshnessCue.oldObservation,
       FreshnessState.refreshRecommended =>
         MakoloFreshnessCue.refreshRecommended,
       FreshnessState.revalidationRequired =>
