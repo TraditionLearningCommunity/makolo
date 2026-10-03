@@ -33,9 +33,7 @@ Map<String, dynamic> _emptyBounded() => {
   'has_more': false,
 };
 
-Map<String, dynamic> _fullPayload({
-  bool supportAvailable = false,
-}) {
+Map<String, dynamic> _fullPayload({bool supportAvailable = false}) {
   return {
     'identity': {
       'kind': 'profile',
@@ -43,16 +41,11 @@ Map<String, dynamic> _fullPayload({
       'display_name': 'Gilbert Bemwiz',
       'profession': 'Ingénieur',
       'bio': 'Construire ce qui facilite la suite.',
-      'location': {
-        'city': 'Lubumbashi',
-        'country': 'RDC',
-      },
+      'location': {'city': 'Lubumbashi', 'country': 'RDC'},
     },
     'passport': {
       'available': true,
-      'links': {
-        'api': '/api/v1/me/passport/',
-      },
+      'links': {'api': '/api/v1/me/passport/'},
     },
     'considerations': {
       'interests': {
@@ -60,11 +53,7 @@ Map<String, dynamic> _fullPayload({
         'items': [
           {
             'id': 'interest-1',
-            'topic': {
-              'id': 'topic-1',
-              'code': 'tech',
-              'label': 'Technologie',
-            },
+            'topic': {'id': 'topic-1', 'code': 'tech', 'label': 'Technologie'},
           },
         ],
         'has_more': false,
@@ -92,22 +81,14 @@ Map<String, dynamic> _fullPayload({
       'teams': {
         'count': 1,
         'items': [
-          {
-            'kind': 'team',
-            'id': 'team-1',
-            'name': 'Équipe terrain',
-          },
+          {'kind': 'team', 'id': 'team-1', 'name': 'Équipe terrain'},
         ],
         'has_more': false,
       },
       'groups': {
         'count': 1,
         'items': [
-          {
-            'kind': 'group',
-            'id': 'group-1',
-            'name': 'Groupe local',
-          },
+          {'kind': 'group', 'id': 'group-1', 'name': 'Groupe local'},
         ],
         'has_more': false,
       },
@@ -158,12 +139,8 @@ Map<String, dynamic> _fullPayload({
         'available': supportAvailable,
         'needs_response': supportAvailable,
       },
-      'loyalty': {
-        'available': false,
-      },
-      'partners': {
-        'available': false,
-      },
+      'loyalty': {'available': false},
+      'partners': {'available': false},
     },
     'links': {
       'self': '/api/v1/me/',
@@ -182,9 +159,7 @@ Map<String, dynamic> _sparsePayload() {
     },
     'passport': {
       'available': false,
-      'links': {
-        'api': '/api/v1/me/passport/',
-      },
+      'links': {'api': '/api/v1/me/passport/'},
     },
     'considerations': {
       'interests': _emptyBounded(),
@@ -205,19 +180,11 @@ Map<String, dynamic> _sparsePayload() {
       'credentials': _emptyBounded(),
     },
     'support': {
-      'recognition': {
-        'available': false,
-      },
-      'loyalty': {
-        'available': false,
-      },
-      'partners': {
-        'available': false,
-      },
+      'recognition': {'available': false},
+      'loyalty': {'available': false},
+      'partners': {'available': false},
     },
-    'links': {
-      'self': '/api/v1/me/',
-    },
+    'links': {'self': '/api/v1/me/'},
   };
 }
 
@@ -231,53 +198,30 @@ void main() {
       now: now,
     );
 
+    expect(selection.presentation.identityLabel, 'Gilbert Bemwiz');
+    expect(selection.identitySubtitle, 'Ingénieur · Lubumbashi, RDC');
     expect(
-      selection.presentation.identityLabel,
-      'Gilbert Bemwiz',
-    );
-    expect(
-      selection.identitySubtitle,
-      'Ingénieur · Lubumbashi, RDC',
-    );
-    expect(
-      selection.territories.map(
-        (territory) => territory.presentation.key,
-      ),
-      [
-        'passport',
-        'considerations',
-        'collectives',
-        'resources',
-      ],
+      selection.territories.map((territory) => territory.presentation.key),
+      ['passport', 'considerations', 'collectives', 'resources'],
     );
 
     final resources = selection.territories.singleWhere(
-      (territory) =>
-          territory.presentation.key == 'resources',
+      (territory) => territory.presentation.key == 'resources',
     );
-    expect(
-      resources.items.map(
-        (item) => item.destination.kind,
-      ),
-      [
-        'personal_asset',
-        'proof',
-        'credential',
-      ],
-    );
+    expect(resources.items.map((item) => item.destination.kind), [
+      'personal_asset',
+      'proof',
+      'credential',
+    ]);
 
     final collectives = selection.territories.singleWhere(
-      (territory) =>
-          territory.presentation.key == 'collectives',
+      (territory) => territory.presentation.key == 'collectives',
     );
-    expect(
-      collectives.items.map((item) => item.subtitle),
-      [
-        'Contexte autorisé',
-        'Équipe',
-        'Groupe',
-      ],
-    );
+    expect(collectives.items.map((item) => item.subtitle), [
+      'Contexte autorisé',
+      'Équipe',
+      'Groupe',
+    ]);
     expect(
       collectives.items
           .where(
@@ -286,11 +230,7 @@ void main() {
                 item.destination.kind == 'group',
           )
           .map((item) => item.subtitle),
-      isNot(
-        contains(
-          'Contexte autorisé',
-        ),
-      ),
+      isNot(contains('Contexte autorisé')),
     );
   });
 
@@ -300,25 +240,19 @@ void main() {
       now: now,
     );
     final withSupport = selector.select(
-      projection: _projection(
-        _fullPayload(
-          supportAvailable: true,
-        ),
-      ),
+      projection: _projection(_fullPayload(supportAvailable: true)),
       now: now,
     );
 
     expect(
       withoutSupport.territories.any(
-        (territory) =>
-            territory.presentation.key == 'support',
+        (territory) => territory.presentation.key == 'support',
       ),
       isFalse,
     );
     expect(
       withSupport.territories.any(
-        (territory) =>
-            territory.presentation.key == 'support',
+        (territory) => territory.presentation.key == 'support',
       ),
       isTrue,
     );
@@ -330,10 +264,7 @@ void main() {
       now: now,
     );
 
-    expect(
-      selection.presentation.identityLabel,
-      'Gilbert Bemwiz',
-    );
+    expect(selection.presentation.identityLabel, 'Gilbert Bemwiz');
     expect(selection.territories, hasLength(4));
     expect(
       selection.territories.every(
@@ -343,16 +274,12 @@ void main() {
       ),
       isTrue,
     );
-    expect(
-      selection.state.availability,
-      MakoloAvailabilityCue.content,
-    );
+    expect(selection.state.availability, MakoloAvailabilityCue.content);
   });
 
   test('nested malformed data degrades only its territory', () {
     final payload = _fullPayload();
-    final resources =
-        payload['resources'] as Map<String, dynamic>;
+    final resources = payload['resources'] as Map<String, dynamic>;
     resources['documents'] = {
       'count': 1,
       'items': 'malformed',
@@ -363,81 +290,51 @@ void main() {
       projection: _projection(payload),
       now: now,
     );
-    final resourceTerritory =
-        selection.territories.singleWhere(
-      (territory) =>
-          territory.presentation.key == 'resources',
+    final resourceTerritory = selection.territories.singleWhere(
+      (territory) => territory.presentation.key == 'resources',
     );
-    final considerations =
-        selection.territories.singleWhere(
-      (territory) =>
-          territory.presentation.key == 'considerations',
+    final considerations = selection.territories.singleWhere(
+      (territory) => territory.presentation.key == 'considerations',
     );
 
     expect(
       resourceTerritory.presentation.state.failure,
       MakoloFailureCue.blocking,
     );
-    expect(
-      considerations.presentation.state.failure,
-      MakoloFailureCue.none,
-    );
-    expect(
-      selection.state.failure,
-      MakoloFailureCue.none,
-    );
+    expect(considerations.presentation.state.failure, MakoloFailureCue.none);
+    expect(selection.state.failure, MakoloFailureCue.none);
   });
 
   test('freshness remains source metadata driven', () {
     final selection = selector.select(
       projection: _projection(
         _fullPayload(),
-        freshUntil:
-            DateTime.utc(2026, 10, 3, 12, 30),
+        freshUntil: DateTime.utc(2026, 10, 3, 12, 30),
       ),
       now: now,
     );
 
+    expect(selection.state.freshness, MakoloFreshnessCue.unknown);
     expect(
-      selection.state.freshness,
-      MakoloFreshnessCue.unknown,
-    );
-    expect(
-      selection.territories.first
-          .presentation.state.freshness,
+      selection.territories.first.presentation.state.freshness,
       MakoloFreshnessCue.refreshRecommended,
     );
   });
 
-  testWidgets('first availability preserves section grammar', (
-    tester,
-  ) async {
+  testWidgets('first availability preserves section grammar', (tester) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
-    final store = ProfileStore(
-      database,
-      'profile-1',
-    );
+    final store = ProfileStore(database, 'profile-1');
 
     await PresentationHarness.pump(
       tester,
       child: SyncStatusScope(
-        status: const SyncStatus(
-          state: SyncVisualState.syncing,
-        ),
-        child: MeScreen(
-          repository: PersonalRepository(store),
-          now: () => now,
-        ),
+        status: const SyncStatus(state: SyncVisualState.syncing),
+        child: MeScreen(repository: PersonalRepository(store), now: () => now),
       ),
     );
 
-    expect(
-      find.byKey(
-        const Key('me-first-availability'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('me-first-availability')), findsOneWidget);
     expect(find.text('Identité'), findsOneWidget);
     expect(find.text('Passeport Makolo'), findsOneWidget);
     expect(find.text('Ce qui compte pour moi'), findsOneWidget);
@@ -452,29 +349,15 @@ void main() {
       now: now,
     );
 
-    await PresentationHarness.pump(
-      tester,
-      child: MeView(selection: selection),
-    );
+    await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
     expect(
-      find.text(
-        'Aucun Passeport disponible ici pour le moment.',
-      ),
+      find.text('Aucun Passeport disponible ici pour le moment.'),
       findsOneWidget,
     );
-    expect(
-      find.text('Rien de déclaré pour le moment.'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Aucun collectif lié pour le moment.'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Aucune ressource disponible ici.'),
-      findsOneWidget,
-    );
+    expect(find.text('Rien de déclaré pour le moment.'), findsOneWidget);
+    expect(find.text('Aucun collectif lié pour le moment.'), findsOneWidget);
+    expect(find.text('Aucune ressource disponible ici.'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
@@ -486,18 +369,8 @@ void main() {
       viewport: const Size(800, 900),
     );
 
-    expect(
-      find.byKey(
-        const Key('me-territories-compact'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(
-        const Key('me-territories-wide'),
-      ),
-      findsNothing,
-    );
+    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.byKey(const Key('me-territories-wide')), findsNothing);
   });
 
   testWidgets('840 opens stable two-territory composition', (tester) async {
@@ -508,18 +381,8 @@ void main() {
       viewport: const Size(840, 900),
     );
 
-    expect(
-      find.byKey(
-        const Key('me-territories-wide'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(
-        const Key('makolo-adaptive-grid'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('me-territories-wide')), findsOneWidget);
+    expect(find.byKey(const Key('makolo-adaptive-grid')), findsOneWidget);
   });
 
   testWidgets('900 stays two-territory without dashboard expansion', (
@@ -532,17 +395,10 @@ void main() {
       viewport: const Size(900, 900),
     );
 
-    expect(
-      find.byKey(
-        const Key('me-territories-wide'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('me-territories-wide')), findsOneWidget);
 
     final grid = tester.widget<MakoloAdaptiveGrid>(
-      find.byKey(
-        const Key('makolo-adaptive-grid'),
-      ),
+      find.byKey(const Key('makolo-adaptive-grid')),
     );
     expect(grid.maxColumns, 2);
   });
@@ -561,12 +417,7 @@ void main() {
       child: MeView(selection: selection),
     );
 
-    expect(
-      find.byKey(
-        const Key('me-territories-compact'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
   testWidgets('resource N2 changes focus and back restores Moi', (
@@ -591,12 +442,7 @@ void main() {
     await tester.tap(find.text('Passeport.pdf'));
     await tester.pump();
 
-    expect(
-      find.byKey(
-        const Key('me-depth-scroll'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('me-depth-scroll')), findsOneWidget);
     expect(
       find.text(
         'Cette ressource est disponible ici. '
@@ -604,27 +450,13 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('Requirement'),
-      findsNothing,
-    );
-    expect(
-      find.textContaining('AccessCredential'),
-      findsNothing,
-    );
+    expect(find.textContaining('Requirement'), findsNothing);
+    expect(find.textContaining('AccessCredential'), findsNothing);
 
-    await tester.tap(
-      find.widgetWithText(
-        TextButton,
-        'Moi',
-      ),
-    );
+    await tester.tap(find.widgetWithText(TextButton, 'Moi'));
     await tester.pump();
 
-    expect(
-      find.text('Déjà en place'),
-      findsOneWidget,
-    );
+    expect(find.text('Déjà en place'), findsOneWidget);
   });
 
   testWidgets('refresh keeps existing content visible', (tester) async {
@@ -634,19 +466,10 @@ void main() {
       refreshing: true,
     );
 
-    await PresentationHarness.pump(
-      tester,
-      child: MeView(selection: selection),
-    );
+    await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
-    expect(
-      find.text('Gilbert Bemwiz'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Mise à jour…'),
-      findsOneWidget,
-    );
+    expect(find.text('Gilbert Bemwiz'), findsOneWidget);
+    expect(find.text('Mise à jour…'), findsOneWidget);
   });
 
   testWidgets('recoverable source failure preserves Moi grammar', (
@@ -655,28 +478,16 @@ void main() {
     final selection = selector.select(
       projection: _projection(_fullPayload()),
       now: now,
-      reachability:
-          MakoloReachabilityCue.temporarilyUnavailable,
+      reachability: MakoloReachabilityCue.temporarilyUnavailable,
       failure: MakoloFailureCue.recoverable,
     );
 
-    await PresentationHarness.pump(
-      tester,
-      child: MeView(selection: selection),
-    );
+    await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
+    expect(find.text('Gilbert Bemwiz'), findsOneWidget);
+    expect(find.text('Mes ressources'), findsOneWidget);
     expect(
-      find.text('Gilbert Bemwiz'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Mes ressources'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Ce qui est déjà disponible reste visible',
-      ),
+      find.textContaining('Ce qui est déjà disponible reste visible'),
       findsOneWidget,
     );
   });
@@ -686,10 +497,7 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
-    final store = ProfileStore(
-      database,
-      'profile-1',
-    );
+    final store = ProfileStore(database, 'profile-1');
     await store.putProjection(
       kind: 'personal.me',
       schemaVersion: 1,
@@ -701,25 +509,15 @@ void main() {
       tester,
       viewport: const Size(430, 932),
       child: SyncStatusScope(
-        status: const SyncStatus(
-          state: SyncVisualState.offline,
-        ),
-        child: MeScreen(
-          repository: PersonalRepository(store),
-          now: () => now,
-        ),
+        status: const SyncStatus(state: SyncVisualState.offline),
+        child: MeScreen(repository: PersonalRepository(store), now: () => now),
       ),
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Gilbert Bemwiz'), findsOneWidget);
     expect(
-      find.text('Gilbert Bemwiz'),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Contenu déjà disponible sur cet appareil.',
-      ),
+      find.text('Contenu déjà disponible sur cet appareil.'),
       findsWidgets,
     );
   });
@@ -740,14 +538,8 @@ void main() {
         child: MeView(selection: selection),
       );
 
-      expect(
-        find.text('Gilbert Bemwiz'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Passeport Makolo'),
-        findsOneWidget,
-      );
+      expect(find.text('Gilbert Bemwiz'), findsOneWidget);
+      expect(find.text('Passeport Makolo'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
