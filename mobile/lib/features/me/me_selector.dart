@@ -91,8 +91,6 @@ class MeSelector {
     );
     final state = MakoloSurfacePresentation(
       availability: MakoloAvailabilityCue.content,
-      freshness: freshness,
-      reachability: reachability,
       failure: failure,
       refreshing: refreshing,
     );
