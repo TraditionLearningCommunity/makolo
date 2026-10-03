@@ -6,7 +6,6 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from accounts.device_accounts import remember_account_on_device
-from events.selectors import get_public_discoverable_events
 from organizations.models import Organization, SpaceLifecycle
 
 from .web_throttling import (
@@ -66,7 +65,6 @@ class PublicHomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["featured_events"] = get_public_discoverable_events().order_by("start_at")[:6]
         context["public_organizations"] = (
             Organization.objects.filter(
                 public_profile=True,
