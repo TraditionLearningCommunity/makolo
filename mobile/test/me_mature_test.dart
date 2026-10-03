@@ -265,8 +265,10 @@ void main() {
       selection.state.reachability,
       MakoloReachabilityCue.temporarilyUnavailable,
     );
-    expect(selection.territories.first.presentation.state.reachability,
-        MakoloReachabilityCue.temporarilyUnavailable);
+    expect(
+      selection.territories.first.presentation.state.reachability,
+      MakoloReachabilityCue.temporarilyUnavailable,
+    );
   });
 
   testWidgets('G08 compact remains section-first and vertical', (tester) async {
@@ -337,9 +339,9 @@ void main() {
     expect(find.text('Déjà en place'), findsOneWidget);
   });
 
-  testWidgets('offline-known remains usable and textScale critical does not break', (
-    tester,
-  ) async {
+  testWidgets(
+    'offline-known remains usable and textScale critical does not break',
+    (tester) async {
     final selection = selector.select(
       projection: _projection(_fullPayload()),
       now: now,
@@ -360,6 +362,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Gilbra'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
