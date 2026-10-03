@@ -65,26 +65,48 @@ class PassportProjection:
     def variant_label(self):
         return PASSPORT_VARIANT_LABELS[self.variant]
 
+    @property
+    def has_content(self):
+        identity = self.identity or {}
+        return bool(
+            identity.get("bio")
+            or identity.get("headline")
+            or identity.get("location")
+            or identity.get("links")
+            or self.interests
+            or self.open_to
+            or self.activities
+            or self.proofs
+            or self.credentials
+            or self.trust_verifications
+            or self.credential_summary
+        )
+
 
 class PassportSelectionError(PermissionDenied):
     pass
 
 
 def profile_has_public_passport(profile) -> bool:
-    return UserProfile.objects.filter(user=profile, public_profile=True).exists()
+    return UserProfile.objects.filter(
+        user=profile,
+        public_profile=True,
+        searchable=True,
+    ).exists()
 
 
 def space_has_public_passport(space) -> bool:
-    return organization_has_public_profile(space)
+    return bool(organization_has_public_profile(space) and space.searchable)
 
 
 def _avatar_url(profile):
-    if not getattr(profile, "avatar", None):
-        return ""
-    try:
-        return profile.avatar.url
-    except ValueError:
-        return ""
+    if getattr(profile, "avatar", None):
+        try:
+            return profile.avatar.url
+        except ValueError:
+            pass
+    metadata = profile.metadata if isinstance(profile.metadata, dict) else {}
+    return str(metadata.get("avatar_url") or "")
 
 
 def _profile_identity(profile):
@@ -110,6 +132,7 @@ def _profile_identity(profile):
         "avatar_url": _avatar_url(profile),
         "bio": profile.bio or "",
         "profession": profile_row.profession if profile_row and profile_row.profession else "",
+        "headline": profile_row.profession if profile_row and profile_row.profession else "",
         "location": ", ".join(location_parts),
         "links": links,
     }
@@ -121,6 +144,7 @@ def _space_identity(space):
         "avatar_url": "",
         "bio": space.description or "",
         "profession": "",
+        "headline": space.get_archetype_display(),
         "location": ", ".join(part for part in (space.city, space.country) if part),
         "links": (("Site web", space.website),) if space.website else (),
     }
@@ -268,6 +292,7 @@ def build_profile_passport(
             identity["location"] = ""
         if "profession" not in sections:
             identity["profession"] = ""
+            identity["headline"] = ""
 
     return PassportProjection(
         subject_kind="profile",
