@@ -40,9 +40,7 @@ class NowScreen extends StatelessWidget {
           if (projection == null) {
             return const MakoloEmptyState(
               title: 'Pas encore disponible sur cet appareil',
-              body:
-                  'Une première connexion est nécessaire pour rendre '
-                  'Maintenant disponible ici.',
+              body: 'Une première connexion est nécessaire pour rendre Maintenant disponible ici.',
               icon: Icons.cloud_off_outlined,
             );
           }
