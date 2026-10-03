@@ -9,13 +9,17 @@ case "$mode" in
     args=(format lib test)
     ;;
   check)
-    files=(
-      lib/features/now/now_screen.dart
-      lib/features/ongoing/ongoing_presentation.dart
-      lib/features/ongoing/ongoing_screen.dart
-      test/ongoing_presentation_test.dart
-      test/ongoing_screen_test.dart
-    )
+    if [[ -n "${DART_FORMAT_TEST_LOG:-}" ]]; then
+      args=(format --output=none --set-exit-if-changed lib test)
+    else
+      files=(
+        lib/features/now/now_screen.dart
+        lib/features/ongoing/ongoing_presentation.dart
+        lib/features/ongoing/ongoing_screen.dart
+        test/ongoing_presentation_test.dart
+        test/ongoing_screen_test.dart
+      )
+    fi
     ;;
   *)
     echo "Usage: bash tool/dart_format.sh [write|check]" >&2
@@ -33,7 +37,7 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 mobile_dir="$(dirname "$script_dir")"
 cd "$mobile_dir"
 
-if [[ "$mode" == "write" ]]; then
+if [[ "$mode" == "write" || -n "${DART_FORMAT_TEST_LOG:-}" ]]; then
   "$dart_bin" "${args[@]}"
   exit
 fi
