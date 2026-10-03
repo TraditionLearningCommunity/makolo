@@ -250,12 +250,22 @@ class CommonCrawlIndexSource:
         media_type: str,
         path_terms: Sequence[str],
         page: int,
+        fallback_limit: Optional[int] = None,
     ) -> str:
         params = [
             ("url", f"*.{tld}/*"),
             ("output", "json"),
-            ("page", str(page)),
-            ("pageSize", str(DEFAULT_PAGE_SIZE_BLOCKS)),
+        ]
+        if fallback_limit is None:
+            params.extend(
+                [
+                    ("page", str(page)),
+                    ("pageSize", str(DEFAULT_PAGE_SIZE_BLOCKS)),
+                ]
+            )
+        else:
+            params.append(("limit", str(max(int(fallback_limit), 1))))
+        params.extend([
             ("filter", "status:200"),
             ("filter", f"=mime:{media_type}"),
             ("filter", f"~url:{_path_filter_regex(path_terms)}"),
@@ -263,7 +273,7 @@ class CommonCrawlIndexSource:
                 "fields",
                 "timestamp,url,mime,status,digest,filename,offset,length",
             ),
-        ]
+        ])
         return f"{INDEX_ORIGIN}/{collection_id}-index?{urlencode(params)}"
 
     @staticmethod
@@ -370,6 +380,25 @@ class CommonCrawlIndexSource:
                 )
             )
             requests_used += 1
+            unpaged_fallback = False
+
+            if (
+                response.status == 404
+                and requests_used < self.max_requests_per_run
+            ):
+                remaining = mission.max_candidates - len(collected)
+                response = await self._get(
+                    self._query_url(
+                        collection_id=collection_id,
+                        tld=tld,
+                        media_type=media_type,
+                        path_terms=mission.path_terms,
+                        page=page,
+                        fallback_limit=remaining,
+                    )
+                )
+                requests_used += 1
+                unpaged_fallback = True
 
             if response.status == 400:
                 selector_index += 1
@@ -402,7 +431,11 @@ class CommonCrawlIndexSource:
             collected.extend(consumed)
             offset += len(consumed)
 
-            if offset >= len(page_records):
+            if unpaged_fallback:
+                selector_index += 1
+                page = 0
+                offset = 0
+            elif offset >= len(page_records):
                 page += 1
                 offset = 0
 
