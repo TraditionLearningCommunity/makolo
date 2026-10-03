@@ -57,7 +57,10 @@ void main() {
     );
 
     expect(result.state.availability, MakoloAvailabilityCue.content);
-    expect(result.situations.map((item) => item.reference.id), ['first', 'second']);
+    expect(
+      result.situations.map((item) => item.reference.id),
+      ['first', 'second'],
+    );
     expect(
       result.situations.first.emphasis.name,
       'primary',
@@ -135,7 +138,10 @@ void main() {
     );
 
     expect(result.state.availability, MakoloAvailabilityCue.content);
-    expect(result.state.reachability, MakoloReachabilityCue.temporarilyUnavailable);
+    expect(
+      result.state.reachability,
+      MakoloReachabilityCue.temporarilyUnavailable,
+    );
     expect(result.state.commit, MakoloCommitCue.pending);
     expect(result.state.failure, MakoloFailureCue.recoverable);
     expect(result.state.freshness, MakoloFreshnessCue.revalidationRequired);
