@@ -1,0 +1,77 @@
+{% extends 'organizations/space/ws4_base.html' %}
+{% block space_content %}
+<section class="mk-ws4-stack mk-ws4-pilot" aria-labelledby="space-pilot-heading">
+  <header class="mk-ws4-heading">
+    <a class="mk-ws4-back" href="{{ space_us_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i>Nous</a>
+    <span class="mk-kicker">Piloter</span>
+    <h2 id="space-pilot-heading">Est-ce que cela fonctionne ? Qu’est-ce qui change ? Que devons-nous ajuster ?</h2>
+    <p>Une lecture de recul à partir des faits analytiques que votre autorité permet réellement de voir.</p>
+  </header>
+
+  {% if projection.sections.analytics %}
+    {% with analytics=projection.sections.analytics %}
+      {% if analytics.state == 'insufficient_data' %}
+      <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pas encore assez d’activité pour dégager une tendance utile.</strong><p>Les valeurs connues restent affichées comme telles ; elles ne deviennent ni une tendance ni un score.</p></div></div>
+      {% endif %}
+
+      {% if analytics.signals %}
+      <section class="mk-ws4-card mk-ws4-card--signal" aria-labelledby="pilot-signals">
+        <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">À comprendre</span><h3 id="pilot-signals">Signaux</h3></div></div>
+        <div class="mk-ws4-signal-list">{% for signal in analytics.signals %}<article><strong>{{ signal.title }}</strong>{% if signal.summary %}<p>{{ signal.summary }}</p>{% endif %}</article>{% endfor %}</div>
+      </section>
+      {% endif %}
+
+      <section class="mk-ws4-card" aria-labelledby="pilot-operation">
+        <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Fonctionnement</span><h3 id="pilot-operation">Mesures disponibles</h3></div><span class="mk-ws4-coverage">{{ analytics.coverage.limit }} événements visibles max.</span></div>
+        <dl class="mk-ws4-metric-grid">
+          {% for metric in analytics.metrics %}
+          <div class="mk-ws4-metric">
+            <dt>
+              {% if metric.key == 'events_count' %}Événements
+              {% elif metric.key == 'published_count' %}Publiés
+              {% elif metric.key == 'upcoming_count' %}À venir
+              {% elif metric.key == 'active_tickets' %}Accès actifs
+              {% elif metric.key == 'used_tickets' %}Accès utilisés
+              {% elif metric.key == 'confirmed_orders' %}Commandes confirmées
+              {% elif metric.key == 'waitlist_waiting' %}En liste d’attente
+              {% elif metric.key == 'attendance_percent' %}Présence
+              {% else %}{{ metric.key }}{% endif %}
+            </dt>
+            <dd>
+              {% if metric.state == 'known' %}
+                <strong>{{ metric.value }}{% if metric.unit == 'percent' %} %{% endif %}</strong><small>Connu</small>
+              {% elif metric.state == 'insufficient_data' %}
+                <strong class="mk-ws4-word-value">Données insuffisantes</strong><small>Pas de valeur défendable</small>
+              {% elif metric.state == 'unknown' %}
+                <strong class="mk-ws4-word-value">Inconnu</strong><small>Valeur non connue</small>
+              {% elif metric.state == 'unavailable' %}
+                <strong class="mk-ws4-word-value">Indisponible</strong><small>Capacité non disponible</small>
+              {% else %}
+                <strong class="mk-ws4-word-value">{{ metric.state }}</strong><small>État projeté par le serveur</small>
+              {% endif %}
+            </dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </section>
+
+      {% if analytics.money %}
+      <section class="mk-ws4-card" aria-labelledby="pilot-finance">
+        <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Flux</span><h3 id="pilot-finance">Finance visible</h3></div></div>
+        <div class="mk-ws4-money-list">
+          {% for row in analytics.money %}
+          <article><div><strong>{{ row.currency }}</strong><small>Devise</small></div><dl><div><dt>Brut</dt><dd>{{ row.gross }}</dd></div><div><dt>Remboursements</dt><dd>{{ row.refunds }}</dd></div><div><dt>Net</dt><dd>{{ row.net }}</dd></div></dl></article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if pilot_owner_links.analytics %}<div class="mk-ws4-actions"><a class="mk-ws4-action" href="{{ pilot_owner_links.analytics }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Approfondir dans Analytics</strong><small>Les faits analytiques restent propriétaires de cette profondeur.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a></div>{% endif %}
+    {% endwith %}
+  {% elif projection.authority.scope == 'activity_limited' %}
+    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Pilotage global indisponible pour cette responsabilité</strong><p>Une autorité limitée à une activité ne donne pas accès aux Analytics du Space.</p></div></div>
+  {% else %}
+    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pilotage indisponible avec votre autorité actuelle</strong><p>Makolo ne remplace pas une capability absente par zéro, par une estimation ou par un tableau de bord vide.</p></div></div>
+  {% endif %}
+</section>
+{% endblock %}
