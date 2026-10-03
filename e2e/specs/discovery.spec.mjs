@@ -101,7 +101,7 @@ test('expanded Discovery previews a result without losing search context', async
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/discover/?place=Lubumbashi&when=tomorrow');
 
-  await expect(page.locator('.mk-workspace')).toHaveAttribute('data-workspace-layout', 'explore');
+  await expect(page.locator('.mk-discovery-workspace')).toHaveAttribute('data-workspace-layout', 'explore');
   await expect(page.locator('.mk-discovery-filters')).toHaveAttribute('open', '');
   const result = page.locator('article').filter({ hasText: 'Discovery Event E2E' }).first();
   const title = await result.getByRole('heading').textContent();
