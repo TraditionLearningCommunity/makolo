@@ -76,6 +76,7 @@ class Organization(models.Model):
     country = models.CharField(max_length=120, blank=True)
     city = models.CharField(max_length=120, blank=True)
     public_profile = models.BooleanField(default=True)
+    searchable = models.BooleanField(default=True)
     lifecycle = models.CharField(
         max_length=16,
         choices=SpaceLifecycle.choices,
@@ -93,6 +94,7 @@ class Organization(models.Model):
         indexes = [
             models.Index(fields=["verification_status", "public_profile"], name="organizatio_verific_68b188_idx"),
             models.Index(fields=["lifecycle", "public_profile"], name="org_lifecycle_public_idx"),
+            models.Index(fields=["searchable", "public_profile"], name="org_search_public_idx"),
             models.Index(fields=["created_at"], name="organizatio_created_dde2e1_idx"),
         ]
 
