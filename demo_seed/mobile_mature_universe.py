@@ -615,9 +615,9 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
             existing.activity.slug = f"mobile-mature-{spec['id'].lower()}"
             existing.activity.save(update_fields=["slug", "updated_at"])
         activity = existing.activity
-        activity.status = _activity_status(spec)
-        activity._allow_status_transition = True
-        activity.save(update_fields=["status", "updated_at"])
+        # Keep Obtention enterable until the beneficiary Journey has been
+        # created through the canonical service. Historical closure is applied
+        # after personal relations are seeded.
         occurrence = _occurrence(ctx, spec, activity=activity, place=_place_for(spec, places), index=index)
         _seed_resources(ctx, activity, spec, index)
         activities[spec["id"]] = activity
@@ -748,6 +748,16 @@ def seed_mobile_mature_universe(ctx: SeedContext) -> User:
     _seed_opportunities(ctx, REALITY_SPECS["opportunity"], curator=curator, primary=primary)
     _seed_obtentions(ctx, REALITY_SPECS["obtention"], space=spaces["obtention"], actor=owner, primary=primary, places=places, activities=activities, occurrences=occurrences, obtentions=obtentions)
     _seed_personal_relations(ctx, primary=primary, activities=activities, occurrences=occurrences, obtentions=obtentions)
+
+    # Historical Obtention can only be closed after its Journey exists: the
+    # canonical entry service correctly rejects non-published Activities.
+    for spec in REALITY_SPECS["obtention"]:
+        activity = activities[spec["id"]]
+        target_status = _activity_status(spec)
+        if activity.status != target_status:
+            activity.status = target_status
+            activity._allow_status_transition = True
+            activity.save(update_fields=["status", "updated_at"])
 
     for vertical, specs in REALITY_SPECS.items():
         ctx.add(f"mobile_mature_{vertical}_items", len(specs))
