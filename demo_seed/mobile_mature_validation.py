@@ -18,7 +18,7 @@ class MobileMatureDemoValidationError(RuntimeError):
 
 
 def assert_mobile_mature_demo_coverage() -> dict[str, int]:
-    activities = Activity.objects.filter(description__startswith=f"[{SEED_MARKER}:")
+    activities = Activity.objects.filter(slug__startswith="mobile-mature-")
     activity_ids = activities.values_list("pk", flat=True)
     opportunities = OpportunitySource.objects.filter(external_reference__startswith="mobile-mature:")
     profile_email = MOBILE_MATURE_PERSONAS["primary"]
