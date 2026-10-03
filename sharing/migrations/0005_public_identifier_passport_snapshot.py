@@ -2,6 +2,7 @@ import uuid
 
 from django.db import migrations, models
 import django.db.models.deletion
+import django.db.models.functions.text
 import django.utils.timezone
 
 
@@ -83,6 +84,10 @@ class Migration(migrations.Migration):
                 "ordering": ["-generated_at", "id"],
                 "indexes": [models.Index(fields=["subject_kind", "public_identifier", "generated_at"], name="passport_subject_generated_idx")],
             },
+        ),
+        migrations.AddConstraint(
+            model_name="publicidentifier",
+            constraint=models.UniqueConstraint(django.db.models.functions.text.Lower("identifier"), name="sharing_public_identifier_ci_unique"),
         ),
         migrations.AddConstraint(
             model_name="publicidentifier",
