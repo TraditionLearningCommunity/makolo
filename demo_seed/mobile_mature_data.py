@@ -16,7 +16,7 @@ event|2026|EVT-013|Forum PME et numérique|engaged|upcoming|Lubumbashi|poster+pd
 event|2026|EVT-014|Atelier prise de parole|engaged|waiting|Lubumbashi|image+pdf|SYNTHETIC_DEMO
 event|2026|EVT-015|Concert du week-end|engaged|day_of|Lubumbashi|poster+audio+ticket_demo|SYNTHETIC_DEMO
 event|2026|EVT-016|Conférence cybersécurité|engaged|upcoming|Kinshasa|image+pdf+video|SYNTHETIC_DEMO
-event|2026|EVT-017|Démo produits d'un partenaire|invited|upcoming|Lubumbashi|image+calendar|SYNTHETIC_DEMO
+event|2026|EVT-017|Présentation produits d'un partenaire|invited|upcoming|Lubumbashi|image+calendar|SYNTHETIC_DEMO
 event|2026|EVT-018|Webinaire export Afrique australe|saved|available|Online|video+pdf|SYNTHETIC_DEMO
 event|2026|EVT-019|Cérémonie familiale|engaged|upcoming|Lubumbashi|image|SYNTHETIC_PRIVATE_DEMO
 event|2026|EVT-020|Rencontre alumni formation|experienced|completed|Lubumbashi|gallery+pdf|SYNTHETIC_DEMO
@@ -86,7 +86,7 @@ opportunity|2025|OPP-008|Certification professionnelle sponsorisée|completed|co
 opportunity|2025|OPP-009|Résidence entrepreneuriale régionale|not_eligible|closed|Southern Africa|pdf|SYNTHETIC_DEMO
 opportunity|2026|OPP-010|Study in Canada Scholarships 2026-2027|not_eligible|closed|Canada|official_url+video|PUBLIC_FACT:EDUCANADA_SICS
 opportunity|2026|OPP-011|Recherche bourses internationales via EduCanada|discover_only|available|Canada/Global|official_url|PUBLIC_FACT:EDUCANADA_SEARCH
-opportunity|2026|OPP-012|Formation professionnelle Montréal — admission demo|engaged|ongoing|Montréal|brochure_pdf+video+form_demo|SYNTHETIC_DEMO
+opportunity|2026|OPP-012|Formation professionnelle Montréal — admission en cours|engaged|ongoing|Montréal|brochure_pdf+video+form_demo|SYNTHETIC_DEMO
 opportunity|2026|OPP-013|Programme leadership francophone|engaged|waiting|Online|pdf+video|SYNTHETIC_DEMO
 opportunity|2026|OPP-014|Mission conseil transformation numérique|engaged|negotiation|Lubumbashi|brief_pdf|SYNTHETIC_DEMO
 opportunity|2026|OPP-015|Appel à projets énergie PME|saved|open|DRC|rules_pdf+xlsx|SYNTHETIC_DEMO
