@@ -85,6 +85,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           onSelect: (item) => setState(() {
             _focusedCandidateKey = item.candidateKey;
           }),
+          selectOnCardTap: true,
         );
         if (focused == null) return field;
 
@@ -114,6 +115,7 @@ class DiscoveryFieldView extends StatelessWidget {
     this.selectedCandidateKey,
     this.onSelect,
     this.selectionActionLabel,
+    this.selectOnCardTap = false,
   });
 
   final DiscoveryFieldSelection selection;
@@ -124,6 +126,7 @@ class DiscoveryFieldView extends StatelessWidget {
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
   final String? selectionActionLabel;
+  final bool selectOnCardTap;
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +152,7 @@ class DiscoveryFieldView extends StatelessWidget {
         selectedCandidateKey: selectedCandidateKey,
         onSelect: onSelect,
         selectionActionLabel: selectionActionLabel,
+        selectOnCardTap: selectOnCardTap,
       ),
     );
   }
@@ -280,17 +284,6 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               },
             ),
           ),
-          if (selected != null)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-                minimum: const EdgeInsets.all(MakoloSpacing.md),
-                child: _SpatialSelectionSummary(
-                  item: selected,
-                  onOpen: () => widget.onOpen(selected),
-                ),
-              ),
-            ),
         ],
       ),
       compactFallback: field,
@@ -320,6 +313,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
     this.selectedCandidateKey,
     this.onSelect,
     this.selectionActionLabel,
+    this.selectOnCardTap = false,
   });
 
   final DiscoveryFieldSelection selection;
@@ -328,6 +322,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
   final String? selectionActionLabel;
+  final bool selectOnCardTap;
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +343,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
               item: item,
               selected: selectedCandidateKey == item.candidateKey,
               onTap: () {
-                if (onSelect != null) {
+                if (selectOnCardTap && onSelect != null) {
                   onSelect!(item);
                 } else {
                   onOpen(item);
@@ -610,11 +605,10 @@ class _DiscoveryFocusPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MakoloFocusPane(
-      child: SingleChildScrollView(
-        key: const Key('discover-focus-depth'),
-        padding: const EdgeInsets.all(MakoloSpacing.inner),
-        child: Column(
+    return SingleChildScrollView(
+      key: const Key('discover-focus-depth'),
+      padding: const EdgeInsets.all(MakoloSpacing.inner),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextButton.icon(
@@ -646,8 +640,7 @@ class _DiscoveryFocusPane extends StatelessWidget {
               icon: const Icon(Icons.arrow_forward_rounded),
               label: const Text('Ouvrir le détail'),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -813,35 +806,6 @@ class _DiscoveryPagination extends StatelessWidget {
           label: const Text('Suivant'),
         ),
       ],
-    );
-  }
-}
-
-class _SpatialSelectionSummary extends StatelessWidget {
-  const _SpatialSelectionSummary({
-    required this.item,
-    required this.onOpen,
-  });
-
-  final DiscoveryItemPresentation item;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return MakoloCard(
-      onTap: onOpen,
-      semanticLabel: 'Possibilité sélectionnée. ${item.title}',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(item.title, style: Theme.of(context).textTheme.titleMedium),
-          if (item.place != null) ...[
-            const SizedBox(height: MakoloSpacing.xs),
-            Text(item.place!),
-          ],
-        ],
-      ),
     );
   }
 }
