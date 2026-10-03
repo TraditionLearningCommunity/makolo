@@ -11,7 +11,9 @@ class NowSelection {
   final MakoloSurfacePresentation state;
 
   bool get isCalm =>
-      state.availability == MakoloAvailabilityCue.empty && situations.isEmpty;
+      state.availability == MakoloAvailabilityCue.empty &&
+      state.failure == MakoloFailureCue.none &&
+      situations.isEmpty;
 }
 
 class NowSelector {
