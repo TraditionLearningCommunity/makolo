@@ -12,5 +12,5 @@
 - [x] T010 Add state tests for offline, stale, pending and refresh error with content preserved.
 - [x] T011 Add Compact/Wide/textScale structural tests and G01/G02 golden tests.
 - [x] T012 Convergence review: no protected seam changes, no dev fixture import, no fake success/ranking.
-- [ ] T013 Push final lane commits and open PR `Mobile — mature personal Now experience`.
+- [x] T013 Push final lane commits and open PR `Mobile — mature personal Now experience`.
 - [ ] T014 Check PR CI and leave PR open for batch reconciliation.
