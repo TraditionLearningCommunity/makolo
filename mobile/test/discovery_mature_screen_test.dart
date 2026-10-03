@@ -152,6 +152,23 @@ void main() {
     expect(find.text('Formation Data Science'), findsOneWidget);
   });
 
+  testWidgets('G05 uses the shared 1040 spatial threshold', (tester) async {
+    for (final width in [1000.0, 1040.0, 1080.0]) {
+      await PresentationHarness.pump(
+        tester,
+        viewport: Size(width, 800),
+        child: DiscoverySpatialView(
+          selection: selection(),
+          mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+          onOpen: (_) {},
+        ),
+      );
+
+      final expected = width >= 1040 ? findsOneWidget : findsNothing;
+      expect(find.byKey(const Key('makolo-adaptive-split-row')), expected);
+    }
+  });
+
   testWidgets('G05 spatial split projects the same field and selection', (
     tester,
   ) async {
