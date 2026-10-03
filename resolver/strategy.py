@@ -30,11 +30,11 @@ from .normalization import endpoint_key, normalize_text, semantic_fingerprint
 from .ports import FactHistoryComparison
 
 STRATEGY_KEY = "deterministic-first"
-STRATEGY_VERSION = "1.1"
+STRATEGY_VERSION = "1.2"
 STRATEGY_COMPONENTS = {
     "contracts": "1",
     "family_routing": "1",
-    "canonical_lookup": "1",
+    "canonical_lookup": "2",
     "history_comparison": "1",
     "conflicts": "2",
 }
