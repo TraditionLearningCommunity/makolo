@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from .public_identifiers import normalize_public_identifier, validate_public_identifier
+
 
 class ShareIntent(models.TextChoices):
     VIEW = "view", "Voir"
@@ -345,8 +347,12 @@ class PublicIdentifier(models.Model):
             )
         ]
 
+    def clean(self):
+        super().clean()
+        self.identifier = validate_public_identifier(self.identifier)
+
     def save(self, *args, **kwargs):
-        self.identifier = (self.identifier or "").strip().lower()
+        self.identifier = normalize_public_identifier(self.identifier)
         self.full_clean()
         return super().save(*args, **kwargs)
 
