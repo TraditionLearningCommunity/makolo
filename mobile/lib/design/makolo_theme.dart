@@ -48,12 +48,87 @@ abstract final class MakoloRadii {
   static const pill = 999.0;
 }
 
+enum MakoloWidthClass { compact, medium, wide, veryWide }
+
 abstract final class MakoloLayout {
+  // Existing shell geometry. Surface composition MUST NOT reuse the shell
+  // breakpoint as an implicit presentation threshold.
   static const screenMargin = 20.0;
   static const compactScreenMargin = 16.0;
   static const navigationRailMinWidth = 840.0;
   static const navigationRailMinHeight = 480.0;
   static const navigationRailWidth = 104.0;
+
+  // Shared Presentation edges and gutters.
+  static const edgeCompact = 16.0;
+  static const edgeStandard = 20.0;
+  static const edgeMedium = 24.0;
+  static const edgeWide = 32.0;
+  static const gutterCompact = 16.0;
+  static const gutterGrid = 20.0;
+  static const gutterPane = 24.0;
+  static const sectionMajor = 32.0;
+
+  // Shared readable / compositional widths.
+  static const readingMaxWidth = 680.0;
+  static const calmMaxWidth = 720.0;
+  static const unitMinWidth = 280.0;
+  static const fieldMinWidth = 320.0;
+  static const focusMinWidth = 420.0;
+  static const focusPreferredWidth = 560.0;
+  static const focusMaxWidth = 680.0;
+  static const mapMinWidth = 480.0;
+  static const dayOfActionMinWidth = 360.0;
+
+  // Presentation width classes. These describe available content space, not a
+  // device family and not the navigation shell mode.
+  static const mediumMinWidth = 720.0;
+  static const wideMinWidth = 960.0;
+  static const veryWideMinWidth = 1440.0;
+
+  // Surface composition candidates from the Golden v1.1 system.
+  static const meTwoColumnMinWidth = 840.0;
+  static const dayOfParticipantSplitMinWidth = 880.0;
+  static const ongoingSplitMinWidth = 960.0;
+  static const nowFocusSplitMinWidth = 960.0;
+  static const discoverSpatialMinWidth = 1040.0;
+  static const dayOfOperatorMultiPaneMinWidth = 1200.0;
+
+  static MakoloWidthClass widthClassFor(double availableWidth) {
+    if (availableWidth >= veryWideMinWidth) {
+      return MakoloWidthClass.veryWide;
+    }
+    if (availableWidth >= wideMinWidth) {
+      return MakoloWidthClass.wide;
+    }
+    if (availableWidth >= mediumMinWidth) {
+      return MakoloWidthClass.medium;
+    }
+    return MakoloWidthClass.compact;
+  }
+
+  static double edgePaddingFor(double availableWidth) {
+    if (availableWidth >= wideMinWidth) return edgeWide;
+    if (availableWidth >= mediumMinWidth) return edgeMedium;
+    if (availableWidth > 360) return edgeStandard;
+    return edgeCompact;
+  }
+
+  static bool canSplit({
+    required double availableWidth,
+    double fieldMin = fieldMinWidth,
+    double focusMin = focusMinWidth,
+    double gutter = gutterPane,
+    double? splitAt,
+  }) {
+    final geometricMinimum = fieldMin + gutter + focusMin;
+    final threshold = splitAt == null
+        ? geometricMinimum
+        : splitAt > geometricMinimum
+        ? splitAt
+        : geometricMinimum;
+    return availableWidth >= threshold;
+  }
 
   static bool useNavigationRail(Size size) {
     return size.width >= navigationRailMinWidth &&
