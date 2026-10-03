@@ -543,6 +543,7 @@ def update_organization(*, organization, actor, **fields) -> Organization:
         "country",
         "city",
         "public_profile",
+        "searchable",
     }
     unexpected = set(fields) - allowed
     if unexpected:

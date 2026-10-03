@@ -40,6 +40,7 @@ class OrganizationForm(forms.ModelForm):
             "country",
             "city",
             "public_profile",
+            "searchable",
         ]
         widgets = {"description": forms.Textarea(attrs={"rows": 5})}
 

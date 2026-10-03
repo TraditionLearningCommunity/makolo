@@ -185,8 +185,8 @@ class UserProfile(UUIDModel, TimeStampedModel):
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
     theme = models.CharField(max_length=50, default="system")
-    public_profile = models.BooleanField(default=False)
-    searchable = models.BooleanField(default=False)
+    public_profile = models.BooleanField(default=True)
+    searchable = models.BooleanField(default=True)
 
     def derive_profile_completed(self):
         """Compatibility helper for callers; completion itself is never persisted."""

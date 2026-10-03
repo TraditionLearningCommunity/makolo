@@ -41,7 +41,7 @@ class Task25TransportRetryConcurrencyTests(TransactionTestCase):
         )
         space = Organization.objects.create(
             name="T25 Transport Retry Race",
-            slug="t25-transport-retry-race",
+            slug="t25-transport-retry-race-space",
             archetype=SpaceArchetype.TRANSPORT_OPERATOR,
             created_by=self.buyer,
         )

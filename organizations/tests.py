@@ -181,10 +181,13 @@ class OrganizationPermissionTests(TestCase):
         self.assertFalse(can(target, PermissionCode.MARKETING_MANAGE, self.organization))
 
     def test_public_profile_is_visible_without_team_data(self):
-        response = self.client.get(f"/o/{self.organization.slug}/")
+        legacy_response = self.client.get(f"/o/{self.organization.slug}/")
+        self.assertEqual(legacy_response.status_code, 301)
+        self.assertEqual(legacy_response["Location"], f"/{self.organization.slug}/")
+
+        response = self.client.get(legacy_response["Location"])
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Makolo Community Events")
-        self.assertContains(response, "Community Day")
         self.assertNotContains(response, self.finance.email)
         self.assertNotContains(response, "Finance")
 

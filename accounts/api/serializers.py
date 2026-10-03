@@ -171,6 +171,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(exc.messages) from exc
         if User.objects.filter(username__iexact=normalized).exists():
             raise serializers.ValidationError("Cet identifiant Makolo est déjà utilisé.")
+        from sharing.models import PublicIdentifier
+        if PublicIdentifier.objects.filter(identifier__iexact=normalized).exists():
+            raise serializers.ValidationError("Cet identifiant Makolo est déjà utilisé.")
         return normalized
 
     def validate_email(self, value):
@@ -228,6 +231,9 @@ class MakoloIdentifierChangeSerializer(MakoloIdentifierSerializer):
         user = request.user
         if User.objects.filter(username__iexact=normalized).exclude(pk=user.pk).exists():
             raise serializers.ValidationError("Cet identifiant Makolo est déjà utilisé.")
+        from sharing.models import PublicIdentifier
+        if PublicIdentifier.objects.filter(identifier__iexact=normalized).exclude(profile_id=user.pk).exists():
+            raise serializers.ValidationError("Cet identifiant Makolo est déjà utilisé.")
         if user.username_configured and user.username_changed_at:
             next_change_at = user.username_changed_at + timedelta(days=90)
             if timezone.now() < next_change_at:
@@ -241,6 +247,11 @@ class MakoloIdentifierChangeSerializer(MakoloIdentifierSerializer):
         user = User.objects.select_for_update().get(pk=self.context["request"].user.pk)
         username = self.validated_data["username"]
         if User.objects.filter(username__iexact=username).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError(
+                {"username": "Cet identifiant Makolo n’est plus disponible."}
+            )
+        from sharing.models import PublicIdentifier
+        if PublicIdentifier.objects.filter(identifier__iexact=username).exclude(profile_id=user.pk).exists():
             raise serializers.ValidationError(
                 {"username": "Cet identifiant Makolo n’est plus disponible."}
             )

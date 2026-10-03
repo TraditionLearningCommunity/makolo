@@ -3,7 +3,10 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
+
+from .public_identifiers import normalize_public_identifier, validate_public_identifier
 
 
 class ShareIntent(models.TextChoices):
@@ -304,3 +307,135 @@ class JourneyShareAcceptance(models.Model):
 
     def __str__(self):
         return f"{self.delivery_id} → {self.resulting_journey_id}"
+
+class PublicSubjectKind(models.TextChoices):
+    PROFILE = "profile", "Profil"
+    SPACE = "space", "Space"
+
+
+class PublicIdentifier(models.Model):
+    """Global, collision-free public handle resolving to one Makolo subject."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    identifier = models.CharField(max_length=200, unique=True, db_index=True)
+    subject_kind = models.CharField(max_length=16, choices=PublicSubjectKind.choices)
+    profile = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="public_identifier_record",
+        null=True,
+        blank=True,
+    )
+    space = models.OneToOneField(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="public_identifier_record",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["identifier"]
+        constraints = [
+            models.UniqueConstraint(Lower("identifier"), name="sharing_public_identifier_ci_unique"),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(subject_kind=PublicSubjectKind.PROFILE, profile__isnull=False, space__isnull=True)
+                    | models.Q(subject_kind=PublicSubjectKind.SPACE, profile__isnull=True, space__isnull=False)
+                ),
+                name="sharing_public_identifier_one_subject",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        self.identifier = validate_public_identifier(self.identifier)
+
+    def save(self, *args, **kwargs):
+        self.identifier = normalize_public_identifier(self.identifier)
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def subject(self):
+        return self.profile if self.subject_kind == PublicSubjectKind.PROFILE else self.space
+
+    def __str__(self):
+        return f"{self.identifier} → {self.subject_kind}"
+
+
+class PassportSnapshot(models.Model):
+    """Immutable issued-document snapshot used only to verify one generated Passport."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    subject_kind = models.CharField(max_length=16, choices=PublicSubjectKind.choices)
+    profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="passport_snapshots",
+        null=True,
+        blank=True,
+    )
+    space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.SET_NULL,
+        related_name="passport_snapshots",
+        null=True,
+        blank=True,
+    )
+    public_identifier = models.CharField(max_length=200)
+    variant = models.CharField(max_length=24)
+    payload = models.JSONField()
+    payload_hash = models.CharField(max_length=64, db_index=True)
+    generated_at = models.DateTimeField(default=timezone.now, editable=False)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-generated_at", "id"]
+        indexes = [
+            models.Index(fields=["subject_kind", "public_identifier", "generated_at"], name="passport_subject_generated_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(subject_kind=PublicSubjectKind.PROFILE, profile__isnull=False, space__isnull=True)
+                    | models.Q(subject_kind=PublicSubjectKind.SPACE, profile__isnull=True, space__isnull=False)
+                ),
+                name="sharing_passport_snapshot_one_subject",
+            )
+        ]
+
+    @property
+    def is_revoked(self):
+        return self.revoked_at is not None
+
+    @property
+    def document_id(self):
+        prefix = "P" if self.subject_kind == PublicSubjectKind.PROFILE else "S"
+        return f"PM-{prefix}-{self.generated_at:%Y%m%d}-{str(self.id)[:8].upper()}"
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            previous = PassportSnapshot.objects.filter(pk=self.pk).values(
+                "subject_kind", "profile_id", "space_id", "public_identifier",
+                "variant", "payload", "payload_hash", "generated_at"
+            ).first()
+            current = {
+                "subject_kind": self.subject_kind,
+                "profile_id": self.profile_id,
+                "space_id": self.space_id,
+                "public_identifier": self.public_identifier,
+                "variant": self.variant,
+                "payload": self.payload,
+                "payload_hash": self.payload_hash,
+                "generated_at": self.generated_at,
+            }
+            if previous and previous != current:
+                raise ValidationError("Un Passeport émis est immuable. Générez un nouveau document.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.document_id

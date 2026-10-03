@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
-from django.views.generic import CreateView, DetailView, ListView, UpdateView
+from django.views.generic import CreateView, ListView, RedirectView, UpdateView
 
 from .console_context import authorized_spaces
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
@@ -57,35 +57,27 @@ class OrganizationCreateView(LoginRequiredMixin, CreateView):
             country=form.cleaned_data.get("country", ""),
             city=form.cleaned_data.get("city", ""),
             public_profile=form.cleaned_data.get("public_profile", True),
+            searchable=form.cleaned_data.get("searchable", True),
         )
         messages.success(self.request, "Espace créé. Vous en êtes propriétaire.")
         return redirect("organizations:console-overview", slug=self.object.slug)
 
 
-class PublicOrganizationDetailView(DetailView):
-    model = Organization
-    template_name = "organizations/public_detail.html"
-    context_object_name = "organization"
-    slug_field = "slug"
-    slug_url_kwarg = "slug"
+class PublicOrganizationDetailView(RedirectView):
+    """Compatibility entry point redirecting to the canonical public Space Passeport."""
 
-    def get_queryset(self):
-        return Organization.objects.filter(
-            public_profile=True,
-            lifecycle=SpaceLifecycle.ACTIVE,
+    permanent = True
+
+    def get_redirect_url(self, *args, **kwargs):
+        organization = get_object_or_404(
+            Organization.objects.filter(
+                public_profile=True,
+                searchable=True,
+                lifecycle=SpaceLifecycle.ACTIVE,
+            ),
+            slug=self.kwargs["slug"],
         )
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
-        context["is_verified"] = self.object.verification_status == OrganizationVerificationStatus.VERIFIED
-        context["follow"] = None
-        if self.request.user.is_authenticated:
-            context["follow"] = OrganizationFollow.objects.filter(
-                organization=self.object,
-                user=self.request.user,
-            ).first()
-        return context
+        return reverse("public-passport", kwargs={"identifier": organization.slug})
 
 
 class OrganizationFollowToggleView(LoginRequiredMixin, View):
@@ -93,6 +85,7 @@ class OrganizationFollowToggleView(LoginRequiredMixin, View):
         organization = get_object_or_404(
             Organization.objects.filter(
                 public_profile=True,
+                searchable=True,
                 lifecycle=SpaceLifecycle.ACTIVE,
             ),
             slug=slug,

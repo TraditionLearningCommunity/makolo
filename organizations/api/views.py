@@ -40,6 +40,7 @@ class FollowListCreateAPIView(APIView):
         organization = get_object_or_404(
             Organization.objects.filter(
                 public_profile=True,
+                searchable=True,
                 lifecycle=SpaceLifecycle.ACTIVE,
             ),
             pk=data.pop("organization_id"),

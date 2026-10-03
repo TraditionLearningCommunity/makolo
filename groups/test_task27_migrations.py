@@ -6,10 +6,12 @@ from django.test import TransactionTestCase
 class Task27GroupMigrationTests(TransactionTestCase):
     migrate_from = [
         ("accounts", "0006_remove_legacy_account_truths"),
+        ("organizations", "0006_organization_lifecycle"),
         ("groups", "0004_align_invitation_identity_constraint"),
     ]
     migrate_to = [
         ("accounts", "0006_remove_legacy_account_truths"),
+        ("organizations", "0006_organization_lifecycle"),
         ("groups", "0005_community_layer"),
     ]
 
