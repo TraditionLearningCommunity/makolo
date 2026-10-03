@@ -507,22 +507,24 @@ class MY7KnowledgeStateGapTests(TestCase):
 
     def test_contradictory_and_partial_gaps_are_explicit(self):
         proposition = self.proposition("capacity", "conflict")
-        trace = self.assessment(
-            "assessment:capacity",
-            proposition,
-            AssessmentStatus.CONTRADICTORY,
-            self.t1,
-        )
-        for status, reason in (
+        for status, reason, assessment_status in (
             (
                 KnowledgeFacetStatus.PARTIALLY_KNOWN,
                 ResearchGapReason.PARTIALLY_KNOWN,
+                AssessmentStatus.PARTIALLY_SUPPORTED,
             ),
             (
                 KnowledgeFacetStatus.CONTRADICTORY,
                 ResearchGapReason.CONTRADICTORY,
+                AssessmentStatus.CONTRADICTORY,
             ),
         ):
+            trace = self.assessment(
+                f"assessment:capacity:{status.value}",
+                proposition,
+                assessment_status,
+                self.t1,
+            )
             completeness = build_knowledge_completeness(
                 self.reality,
                 self.t1,
