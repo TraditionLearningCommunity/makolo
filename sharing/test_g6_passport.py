@@ -283,7 +283,7 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertIn("attachment;", response["Content-Disposition"])
         self.assertContains(response, 'data-passport-print-ready="true"')
         self.assertNotContains(response, "Imprimer / Enregistrer en PDF")
-        self.assertContains(response, "makolo-mark-white.svg")
+        self.assertContains(response, "makolo-logo-light.svg")
         self.assertContains(response, "QR de vérification")
         self.assertNotContains(response, "Ownership Activity")
         self.assertNotContains(response, "Credential Trust")
