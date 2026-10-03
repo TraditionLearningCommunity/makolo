@@ -498,9 +498,9 @@ def build_research_gap(
     *,
     gap_ref: str,
     basis_refs: Tuple[str, ...],
-    assessment_traces: Tuple[PropositionAssessmentTrace, ...] = (),
-    identity_resolutions: Tuple[IdentityResolution, ...] = (),
-    revalidation_needs: Tuple[RevalidationNeed, ...] = (),
+    assessment_traces: Optional[Tuple[PropositionAssessmentTrace, ...]] = None,
+    identity_resolutions: Optional[Tuple[IdentityResolution, ...]] = None,
+    revalidation_needs: Optional[Tuple[RevalidationNeed, ...]] = None,
     trigger_ref: Optional[str] = None,
     revalidation_due_at: Optional[datetime] = None,
     supersedes_gap_ref: Optional[str] = None,
@@ -621,15 +621,46 @@ def resolve_research_gap(
         raise MayeleContractError("invalid ResearchGap resolution kind") from exc
 
     if kind is ResearchGapResolutionKind.RESOLVED:
+        if (
+            gap.reason is ResearchGapReason.UNRESOLVED_ASSESSMENT
+            and assessment_traces is None
+        ):
+            raise MayeleContractError(
+                "resolving an assessment gap requires explicit assessment lineage"
+            )
+        if (
+            gap.reason in (
+                ResearchGapReason.UNRESOLVED_IDENTITY,
+                ResearchGapReason.PROVISIONAL_IDENTITY,
+            )
+            and identity_resolutions is None
+        ):
+            raise MayeleContractError(
+                "resolving an identity gap requires explicit identity lineage"
+            )
+        if (
+            gap.reason in (
+                ResearchGapReason.REVALIDATION_DUE,
+                ResearchGapReason.STALE,
+            )
+            and revalidation_needs is None
+        ):
+            raise MayeleContractError(
+                "resolving a revalidation gap requires explicit revalidation lineage"
+            )
+
+        assessment_values = tuple(assessment_traces or ())
+        identity_values = tuple(identity_resolutions or ())
+        revalidation_values = tuple(revalidation_needs or ())
         effective_assessments = set(resulting_state.effective_assessment_refs)
         traces_by_ref = {
-            item.assessment_ref: item for item in tuple(assessment_traces)
+            item.assessment_ref: item for item in assessment_values
         }
         effective_resolutions = set(
             resulting_state.effective_identity_resolution_refs
         )
         resolutions_by_ref = {
-            item.resolution_ref: item for item in tuple(identity_resolutions)
+            item.resolution_ref: item for item in identity_values
         }
 
         if gap.reason is ResearchGapReason.UNRESOLVED_ASSESSMENT:
@@ -683,7 +714,7 @@ def resolve_research_gap(
                 item.knowledge_state_ref == resulting_state.state_ref
                 and item.target_ref == gap.target.ref
                 and item.reason in expected_reasons
-                for item in tuple(revalidation_needs)
+                for item in revalidation_values
             ):
                 raise MayeleContractError(
                     "resulting KnowledgeState still requires revalidation"
