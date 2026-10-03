@@ -203,7 +203,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (!mounted) return;
     if (!result.available || result.fix == null) {
       setState(
-        () => _locationMessage = 'Votre position n’a pas pu être utilisée. Vous pouvez continuer sans elle.',
+        () => _locationMessage =
+            'Votre position n’a pas pu être utilisée. '
+            'Vous pouvez continuer sans elle.',
       );
       return;
     }
@@ -864,7 +866,9 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                         ),
                         child: MakoloAttentionBlock(
                           title: 'Jour J disponible',
-                          body: 'Le serveur indique qu’une profondeur Jour J est disponible pour cette occurrence.',
+                          body:
+                              'Le serveur indique qu’une profondeur Jour J '
+                              'est disponible pour cette occurrence.',
                           icon: Icons.directions_walk_rounded,
                           action: widget.onOpenDayOf == null
                               ? null
