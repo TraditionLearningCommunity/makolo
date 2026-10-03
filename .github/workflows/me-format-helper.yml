@@ -1,0 +1,32 @@
+name: Me format helper
+on:
+  push:
+    branches:
+      - feat/mobile-me-mature
+permissions:
+  contents: read
+jobs:
+  format-me:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Format selected files
+        run: |
+          dart format lib/features/me/me_screen.dart lib/features/me/me_selector.dart test/me_mature_test.dart
+      - name: Emit formatted files
+        run: |
+          for f in lib/features/me/me_screen.dart lib/features/me/me_selector.dart test/me_mature_test.dart; do
+            echo "===BEGIN:$f==="
+            base64 -w0 "$f"
+            echo
+            echo "===END:$f==="
+          done
