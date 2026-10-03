@@ -109,7 +109,11 @@ class MeSelector {
       _resources(projection.payload['resources'], freshness, reachability),
     ];
 
-    final support = _support(projection.payload['support'], freshness, reachability);
+    final support = _support(
+      projection.payload['support'],
+      freshness,
+      reachability,
+    );
     if (support != null) territories.add(support);
 
     final presentations = territories
@@ -439,7 +443,8 @@ class MeSelector {
 
   MeItemPresentation? _proof(Map<String, dynamic> raw) {
     final id = _string(raw['id']);
-    final title = _string(raw['proof_type_label']) ?? _string(raw['proof_type']);
+    final title =
+        _string(raw['proof_type_label']) ?? _string(raw['proof_type']);
     if (id == null || title == null) return null;
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'proof', id: id),
@@ -501,7 +506,8 @@ class MeSelector {
     return switch (state) {
       FreshnessState.fresh => MakoloFreshnessCue.current,
       FreshnessState.usableButOld => MakoloFreshnessCue.oldObservation,
-      FreshnessState.refreshRecommended => MakoloFreshnessCue.refreshRecommended,
+      FreshnessState.refreshRecommended =>
+        MakoloFreshnessCue.refreshRecommended,
       FreshnessState.revalidationRequired =>
         MakoloFreshnessCue.revalidationRequired,
       FreshnessState.expired => MakoloFreshnessCue.expired,
