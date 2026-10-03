@@ -24,6 +24,7 @@ from demo_seed.beta_validation import assert_beta_scenario_coverage
 from demo_seed.common import SCALE, SeedContext
 from demo_seed.engagement import seed_engagement
 from demo_seed.mobile_mature_universe import MOBILE_MATURE_PERSONAS, seed_mobile_mature_universe
+from demo_seed.mobile_mature_validation import assert_mobile_mature_demo_coverage
 from demo_seed.events_commerce import seed_events_and_commerce
 from demo_seed.operations import seed_operations_and_edge_cases
 from demo_seed.obtention import seed_obtention
@@ -71,6 +72,7 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
             validation = assert_beta_scenario_coverage(as_of=ctx.as_of)
             validation.update(assert_task33_beta_coverage())
             validation.update(assert_task34b_beta_coverage())
+            validation.update(assert_mobile_mature_demo_coverage())
         else:
             seed_accounts_and_organizations(ctx)
             seed_contextual_authority(ctx)
