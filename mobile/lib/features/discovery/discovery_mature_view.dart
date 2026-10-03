@@ -521,7 +521,9 @@ class _DiscoveryUnit extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        key: ValueKey('discover-map-action-${item.candidateKey}'),
+                        key: ValueKey(
+                          'discover-map-action-${item.candidateKey}',
+                        ),
                         onPressed: onSelect,
                         icon: const Icon(Icons.map_outlined),
                         label: Text(selectionActionLabel ?? 'Sélectionner'),
