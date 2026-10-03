@@ -2,7 +2,7 @@
 {% load tz spatiotemporal_ui %}
 {% block title %}{{ item.title }} | Makolo{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-3xl space-y-6 pb-10">
+<div class="mx-auto max-w-3xl space-y-6 pb-10 {% if not request.user.is_authenticated %}px-4 py-8 sm:px-6{% endif %}">
     <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-ghost"><i data-lucide="arrow-left" class="h-4 w-4"></i>Retour à Découvrir</a>
     <section class="mk-panel p-6 sm:p-8">
         <div class="flex flex-wrap items-center gap-2"><span class="mk-badge">{{ item.vertical_label }}</span><span class="mk-badge {% if item.participant.availability == 'sold_out' or item.participant.availability == 'cancelled' %}mk-badge-danger{% elif item.participant.availability == 'available' or item.participant.availability == 'unlimited' %}mk-badge-success{% endif %}">{{ item.participant.availability_label }}</span>{% if item.participant.label %}<span class="mk-badge {% if item.participant.visual_variant == 'success' %}mk-badge-success{% elif item.participant.visual_variant == 'danger' %}mk-badge-danger{% endif %}">{{ item.participant.label }}</span>{% endif %}</div>
