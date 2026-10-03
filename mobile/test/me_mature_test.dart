@@ -171,6 +171,52 @@ void main() {
     expect(collectives.items[1].subtitle, 'Membre');
   });
 
+  test('sparse payload keeps identity and local empty territories', () {
+    final selection = selector.select(
+      projection: _projection({
+        'identity': {
+          'kind': 'profile',
+          'id': 'profile-1',
+          'display_name': 'Gilbra',
+        },
+        'passport': {'available': false},
+      }),
+      now: now,
+    );
+
+    expect(selection.presentation.identityLabel, 'Gilbra');
+    expect(selection.territories, hasLength(4));
+    expect(
+      selection.territories
+          .where(
+            (item) =>
+                item.presentation.state.availability ==
+                MakoloAvailabilityCue.empty,
+          )
+          .length,
+      greaterThanOrEqualTo(4),
+    );
+  });
+
+  test('projection freshness is reflected without inventing a TTL', () {
+    final selection = selector.select(
+      projection: _projection(
+        _fullPayload(),
+        freshUntil: DateTime.utc(2026, 10, 3, 12, 30),
+      ),
+      now: now,
+    );
+
+    expect(
+      selection.state.freshness,
+      MakoloFreshnessCue.refreshRecommended,
+    );
+    expect(
+      selection.territories.first.presentation.state.freshness,
+      MakoloFreshnessCue.refreshRecommended,
+    );
+  });
+
   test('section empty and section error stay local', () {
     final payload = _fullPayload();
     payload['considerations'] = {
