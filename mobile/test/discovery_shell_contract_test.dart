@@ -20,13 +20,19 @@ void main() {
     expect(source, isNot(contains('aucun fournisseur n’est inventé')));
   });
 
-  test('Discover map uses the configured MapLibre runtime', () {
-    final source = File('lib/features/discovery/discovery_screens.dart')
+  test('Discover map uses the configured MapLibre runtime from the same field', () {
+    final screens = File('lib/features/discovery/discovery_screens.dart')
         .readAsStringSync();
+    final presentation = File(
+      'lib/features/discovery/discovery_mature_view.dart',
+    ).readAsStringSync();
     final routes = File('lib/features/discovery/discovery_routes.dart')
         .readAsStringSync();
 
-    expect(source, contains('ConfiguredMakoloMapView('));
+    expect(presentation, contains('ConfiguredMakoloMapView('));
+    expect(presentation, contains('MakoloSpatialFrame('));
+    expect(screens, contains('watchItems(_query)'));
+    expect(screens, isNot(contains('watchMap(_query)')));
     expect(routes, contains('mapConfig: runtime.mapConfig'));
     expect(routes, contains("path: '/discover/map'"));
   });
