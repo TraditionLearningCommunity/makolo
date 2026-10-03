@@ -15,11 +15,7 @@ import '../../sync/sync_status.dart';
 import 'me_selector.dart';
 
 class MeScreen extends StatefulWidget {
-  const MeScreen({
-    super.key,
-    required this.repository,
-    this.now,
-  });
+  const MeScreen({super.key, required this.repository, this.now});
 
   final PersonalRepository repository;
   final DateTime Function()? now;
@@ -58,16 +54,11 @@ class _MeScreenState extends State<MeScreen> {
         stream: _sourceStream,
         initialData: OwnerSourceState.unknown,
         builder: (context, sourceSnapshot) {
-          final source =
-              sourceSnapshot.data ?? OwnerSourceState.unknown;
+          final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
           return StreamBuilder<StoredProjection?>(
             stream: _projectionStream,
             builder: (context, projectionSnapshot) {
-              return _buildProjection(
-                context,
-                projectionSnapshot,
-                source,
-              );
+              return _buildProjection(context, projectionSnapshot, source);
             },
           );
         },
@@ -90,8 +81,7 @@ class _MeScreenState extends State<MeScreen> {
       return _MeFirstAvailability(
         loading: loading,
         offline: syncStatus?.state == SyncVisualState.offline,
-        unavailable:
-            source.invalidated || source.lastErrorCode != null,
+        unavailable: source.invalidated || source.lastErrorCode != null,
       );
     }
 
@@ -102,8 +92,7 @@ class _MeScreenState extends State<MeScreen> {
       failure: source.lastErrorCode != null
           ? MakoloFailureCue.recoverable
           : MakoloFailureCue.none,
-      refreshing:
-          syncStatus?.state == SyncVisualState.syncing,
+      refreshing: syncStatus?.state == SyncVisualState.syncing,
       sourceInvalidated: source.invalidated,
     );
 
@@ -128,10 +117,7 @@ class _MeScreenState extends State<MeScreen> {
 }
 
 class MeView extends StatefulWidget {
-  const MeView({
-    super.key,
-    required this.selection,
-  });
+  const MeView({super.key, required this.selection});
 
   final MeSelection selection;
 
@@ -198,16 +184,10 @@ class _MeViewState extends State<MeView> {
                 splitAt: MakoloLayout.meTwoColumnMinWidth,
                 field: field,
                 focus: MakoloContentFrame(
-                  child: _MeDepth(
-                    item: selected,
-                    onClose: _closeDepth,
-                  ),
+                  child: _MeDepth(item: selected, onClose: _closeDepth),
                 ),
                 narrow: MakoloContentFrame(
-                  child: _MeDepth(
-                    item: selected,
-                    onClose: _closeDepth,
-                  ),
+                  child: _MeDepth(item: selected, onClose: _closeDepth),
                 ),
               );
 
@@ -265,23 +245,18 @@ class _MeFirstAvailability extends StatelessWidget {
   Widget build(BuildContext context) {
     final message = offline
         ? 'Une première connexion est nécessaire '
-            'pour rendre ces territoires disponibles ici.'
+              'pour rendre ces territoires disponibles ici.'
         : unavailable
         ? 'Ces territoires ne sont pas disponibles '
-            'sur cet appareil pour le moment.'
+              'sur cet appareil pour le moment.'
         : 'Makolo prépare ce qui est déjà en place autour de vous.';
 
     return MakoloContentFrame(
       child: ListView(
         key: const Key('me-first-availability'),
-        padding: const EdgeInsets.symmetric(
-          vertical: MakoloSpacing.xl,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
         children: [
-          Text(
-            'Moi',
-            style: Theme.of(context).textTheme.headlineLarge,
-          ),
+          Text('Moi', style: Theme.of(context).textTheme.headlineLarge),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
             message,
@@ -290,30 +265,15 @@ class _MeFirstAvailability extends StatelessWidget {
             ),
           ),
           const SizedBox(height: MakoloSpacing.strong),
-          _MeLoadingSection(
-            title: 'Identité',
-            loading: loading,
-          ),
+          _MeLoadingSection(title: 'Identité', loading: loading),
           const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(
-            title: 'Passeport Makolo',
-            loading: loading,
-          ),
+          _MeLoadingSection(title: 'Passeport Makolo', loading: loading),
           const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(
-            title: 'Ce qui compte pour moi',
-            loading: loading,
-          ),
+          _MeLoadingSection(title: 'Ce qui compte pour moi', loading: loading),
           const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(
-            title: 'Mes collectifs',
-            loading: loading,
-          ),
+          _MeLoadingSection(title: 'Mes collectifs', loading: loading),
           const SizedBox(height: MakoloSpacing.lg),
-          _MeLoadingSection(
-            title: 'Mes ressources',
-            loading: loading,
-          ),
+          _MeLoadingSection(title: 'Mes ressources', loading: loading),
         ],
       ),
     );
@@ -321,10 +281,7 @@ class _MeFirstAvailability extends StatelessWidget {
 }
 
 class _MeLoadingSection extends StatelessWidget {
-  const _MeLoadingSection({
-    required this.title,
-    required this.loading,
-  });
+  const _MeLoadingSection({required this.title, required this.loading});
 
   final String title;
   final bool loading;
@@ -363,18 +320,13 @@ class _MeField extends StatelessWidget {
   Widget build(BuildContext context) {
     final territories = [
       for (final territory in selection.territories)
-        _MeTerritory(
-          territory: territory,
-          onSelectItem: onSelectItem,
-        ),
+        _MeTerritory(territory: territory, onSelectItem: onSelectItem),
     ];
 
     return ListView(
       key: const PageStorageKey<String>('me-field-scroll'),
       controller: controller,
-      padding: const EdgeInsets.symmetric(
-        vertical: MakoloSpacing.xl,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
       children: [
         _MeIdentity(selection: selection),
         const SizedBox(height: MakoloSpacing.strong),
@@ -385,9 +337,8 @@ class _MeField extends StatelessWidget {
         const SizedBox(height: MakoloSpacing.xs),
         Text(
           'Ce qui est déjà là pour faciliter la suite.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: MakoloSpacing.lg),
         if (useTwoTerritories)
@@ -401,9 +352,7 @@ class _MeField extends StatelessWidget {
           Column(
             key: const Key('me-territories-compact'),
             children: [
-              for (var index = 0;
-                  index < territories.length;
-                  index++) ...[
+              for (var index = 0; index < territories.length; index++) ...[
                 territories[index],
                 if (index != territories.length - 1)
                   const SizedBox(height: MakoloSpacing.lg),
@@ -416,9 +365,7 @@ class _MeField extends StatelessWidget {
 }
 
 class _MeIdentity extends StatelessWidget {
-  const _MeIdentity({
-    required this.selection,
-  });
+  const _MeIdentity({required this.selection});
 
   final MeSelection selection;
 
@@ -439,10 +386,7 @@ class _MeIdentity extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Moi',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Moi', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
             selection.presentation.identityLabel,
@@ -468,10 +412,7 @@ class _MeIdentity extends StatelessWidget {
 }
 
 class _MeTerritory extends StatelessWidget {
-  const _MeTerritory({
-    required this.territory,
-    required this.onSelectItem,
-  });
+  const _MeTerritory({required this.territory, required this.onSelectItem});
 
   final MeTerritorySelection territory;
   final ValueChanged<MeItemPresentation> onSelectItem;
@@ -512,8 +453,7 @@ class _MeTerritory extends StatelessWidget {
       if (state.freshness != MakoloFreshnessCue.unknown &&
           state.freshness != MakoloFreshnessCue.current)
         MakoloFreshnessNotice(freshness: state.freshness),
-      if (state.reachability ==
-          MakoloReachabilityCue.temporarilyUnavailable)
+      if (state.reachability == MakoloReachabilityCue.temporarilyUnavailable)
         const MakoloNotice(
           message: 'Contenu déjà disponible sur cet appareil.',
           kind: MakoloNoticeKind.warning,
@@ -538,10 +478,7 @@ class _MeTerritory extends StatelessWidget {
 
   Widget _passport(BuildContext context) {
     if (!territory.hasContent) {
-      return _empty(
-        context,
-        'Aucun Passeport disponible ici pour le moment.',
-      );
+      return _empty(context, 'Aucun Passeport disponible ici pour le moment.');
     }
 
     return MakoloCard(
@@ -577,18 +514,13 @@ class _MeTerritory extends StatelessWidget {
 
   Widget _considerations(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(
-        context,
-        'Rien de déclaré pour le moment.',
-      );
+      return _empty(context, 'Rien de déclaré pour le moment.');
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var index = 0;
-            index < territory.items.length;
-            index++) ...[
+        for (var index = 0; index < territory.items.length; index++) ...[
           _MeConsideration(
             item: territory.items[index],
             onTap: () => onSelectItem(territory.items[index]),
@@ -602,38 +534,26 @@ class _MeTerritory extends StatelessWidget {
 
   Widget _collectives(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(
-        context,
-        'Aucun collectif lié pour le moment.',
-      );
+      return _empty(context, 'Aucun collectif lié pour le moment.');
     }
 
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(
-            item: item,
-            onTap: () => onSelectItem(item),
-          ),
+          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
       ],
     );
   }
 
   Widget _resources(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(
-        context,
-        'Aucune ressource disponible ici.',
-      );
+      return _empty(context, 'Aucune ressource disponible ici.');
     }
 
     return Column(
       children: [
         for (final item in territory.items)
-          _MeResourceRow(
-            item: item,
-            onTap: () => onSelectItem(item),
-          ),
+          _MeResourceRow(item: item, onTap: () => onSelectItem(item)),
       ],
     );
   }
@@ -646,51 +566,35 @@ class _MeTerritory extends StatelessWidget {
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(
-            item: item,
-            onTap: () => onSelectItem(item),
-          ),
+          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
       ],
     );
   }
 
   Widget _generic(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(
-        context,
-        'Rien ici pour le moment.',
-      );
+      return _empty(context, 'Rien ici pour le moment.');
     }
 
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(
-            item: item,
-            onTap: () => onSelectItem(item),
-          ),
+          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
       ],
     );
   }
 
-  Widget _empty(
-    BuildContext context,
-    String message,
-  ) {
+  Widget _empty(BuildContext context, String message) {
     return Text(
       message,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
+      style: Theme.of(context).textTheme.bodyMedium
+          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 }
 
 class _MeConsideration extends StatelessWidget {
-  const _MeConsideration({
-    required this.item,
-    required this.onTap,
-  });
+  const _MeConsideration({required this.item, required this.onTap});
 
   final MeItemPresentation item;
   final VoidCallback onTap;
@@ -711,9 +615,7 @@ class _MeConsideration extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 48),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: MakoloSpacing.sm,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
             child: Row(
               children: [
                 Expanded(
@@ -726,9 +628,7 @@ class _MeConsideration extends StatelessWidget {
                   Text(
                     item.subtitle!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
               ],
@@ -741,10 +641,7 @@ class _MeConsideration extends StatelessWidget {
 }
 
 class _MeIdentityRow extends StatelessWidget {
-  const _MeIdentityRow({
-    required this.item,
-    required this.onTap,
-  });
+  const _MeIdentityRow({required this.item, required this.onTap});
 
   final MeItemPresentation item;
   final VoidCallback onTap;
@@ -757,19 +654,14 @@ class _MeIdentityRow extends StatelessWidget {
       onTap: onTap,
       leading: const Icon(Icons.group_outlined),
       title: Text(item.title),
-      subtitle: item.subtitle == null
-          ? null
-          : Text(item.subtitle!),
+      subtitle: item.subtitle == null ? null : Text(item.subtitle!),
       trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
 }
 
 class _MeResourceRow extends StatelessWidget {
-  const _MeResourceRow({
-    required this.item,
-    required this.onTap,
-  });
+  const _MeResourceRow({required this.item, required this.onTap});
 
   final MeItemPresentation item;
   final VoidCallback onTap;
@@ -782,9 +674,7 @@ class _MeResourceRow extends StatelessWidget {
       onTap: onTap,
       leading: Icon(_iconFor(item.destination.kind)),
       title: Text(item.title),
-      subtitle: item.subtitle == null
-          ? null
-          : Text(item.subtitle!),
+      subtitle: item.subtitle == null ? null : Text(item.subtitle!),
       trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
@@ -799,10 +689,7 @@ class _MeResourceRow extends StatelessWidget {
 }
 
 class _MeDepth extends StatelessWidget {
-  const _MeDepth({
-    required this.item,
-    required this.onClose,
-  });
+  const _MeDepth({required this.item, required this.onClose});
 
   final MeItemPresentation item;
   final VoidCallback onClose;
@@ -811,9 +698,7 @@ class _MeDepth extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       key: const Key('me-depth-scroll'),
-      padding: const EdgeInsets.symmetric(
-        vertical: MakoloSpacing.xl,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
       child: MakoloFocusPane(
         child: FocusTraversalGroup(
           child: Column(
@@ -840,9 +725,7 @@ class _MeDepth extends StatelessWidget {
                 Text(
                   item.subtitle!,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -871,21 +754,20 @@ class _MeDepth extends StatelessWidget {
     return switch (kind.toLowerCase()) {
       'personal_asset' =>
         'Cette ressource est disponible ici. '
-        'Son usage dépendra de ce que vous entreprendrez.',
+            'Son usage dépendra de ce que vous entreprendrez.',
       'proof' =>
         'Cette preuve fait partie de ce qui '
-        'est déjà établi autour de vous.',
+            'est déjà établi autour de vous.',
       'credential' =>
         'Ce titre fait partie de ce qui '
-        'vous a déjà été délivré.',
-      'group' || 'team' =>
-        'Votre lien avec ce collectif est visible ici.',
+            'vous a déjà été délivré.',
+      'group' || 'team' => 'Votre lien avec ce collectif est visible ici.',
       'space' =>
         'Ce contexte est visible ici selon '
-        'les droits déjà établis par Makolo.',
+            'les droits déjà établis par Makolo.',
       _ =>
         'Ce détail appartient à ce qui est '
-        'déjà en place autour de vous.',
+            'déjà en place autour de vous.',
     };
   }
 }
