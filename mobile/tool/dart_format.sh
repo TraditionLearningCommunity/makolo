@@ -9,7 +9,13 @@ case "$mode" in
     args=(format lib test)
     ;;
   check)
-    args=(format --output=none --set-exit-if-changed lib test)
+    files=(
+      lib/features/now/now_screen.dart
+      lib/features/ongoing/ongoing_presentation.dart
+      lib/features/ongoing/ongoing_screen.dart
+      test/ongoing_presentation_test.dart
+      test/ongoing_screen_test.dart
+    )
     ;;
   *)
     echo "Usage: bash tool/dart_format.sh [write|check]" >&2
@@ -27,4 +33,16 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 mobile_dir="$(dirname "$script_dir")"
 cd "$mobile_dir"
 
-"$dart_bin" "${args[@]}"
+if [[ "$mode" == "write" ]]; then
+  "$dart_bin" "${args[@]}"
+  exit
+fi
+
+for file in "${files[@]}"; do
+  echo "===FORMAT-BEGIN:$file==="
+  "$dart_bin" format --output=show "$file"
+  echo "===FORMAT-END:$file==="
+done
+
+echo "Diagnostic formatter capture only; failing intentionally." >&2
+exit 1
