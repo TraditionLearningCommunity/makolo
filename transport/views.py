@@ -115,6 +115,7 @@ class TransportDepartureDetailView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         departure = _departure_or_404(self.kwargs["pk"])
         occurrence = departure.occurrence
         if occurrence.status not in {"scheduled", "cancelled"}:
