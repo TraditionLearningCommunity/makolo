@@ -25,7 +25,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_space_role
 from capacity.models import CapacityPool
 from discovery.models import ActivityBookmark
-from events.models import Event, EventCategory, EventVenue, VenueKind
+from events.models import Event, EventCategory, EventVenue, VenueKind, event_cover_path
 from funding.models import FundingDetails
 from geography.models import Place
 from journeys.collaboration_models import JourneyStep, JourneyStepKind, JourneyStepOrigin, JourneyStepStatus
@@ -462,8 +462,13 @@ def _seed_events(ctx, specs, *, space, actor, places, activities, occurrences):
             },
         )
         if not event.cover_image:
-            event.cover_image.save(f"{spec['id'].lower()}.png", ContentFile(_png_bytes(spec["id"])), save=False)
-            event.save(update_fields=["cover_image", "updated_at"])
+            cover_name = event_cover_path(event, f"{spec['id'].lower()}.png")
+            stored_name = event.cover_image.storage.save(
+                cover_name,
+                ContentFile(_png_bytes(spec["id"])),
+            )
+            Event.objects.filter(pk=event.pk).update(cover_image=stored_name)
+            event.refresh_from_db(fields=["cover_image"])
         _seed_resources(ctx, activity, spec, index)
         activities[spec["id"]] = activity
         occurrences[spec["id"]] = occurrence
