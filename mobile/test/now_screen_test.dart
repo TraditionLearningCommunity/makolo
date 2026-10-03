@@ -167,6 +167,24 @@ void main() {
     expect(find.text('Aussi maintenant'), findsOneWidget);
   });
 
+  testWidgets('shared Now breakpoint opens split at 960 but not below', (
+    tester,
+  ) async {
+    for (final width in [920.0, 960.0, 1000.0]) {
+      await PresentationHarness.pump(
+        tester,
+        viewport: Size(width, 800),
+        child: NowView(selection: contentSelection()),
+      );
+
+      await tester.tap(find.text('Visa Canada'));
+      await tester.pump();
+
+      final expected = width >= 960 ? findsOneWidget : findsNothing;
+      expect(find.byKey(const Key('makolo-adaptive-split-row')), expected);
+    }
+  });
+
   testWidgets('critical text scale keeps content reachable', (tester) async {
     await PresentationHarness.pump(
       tester,
