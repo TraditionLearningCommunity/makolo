@@ -6,7 +6,7 @@ from django.test import SimpleTestCase
 
 from intelligence.capabilities import IntelligenceCapability
 from intelligence.contracts import IntelligenceRequest
-from intelligence.exceptions import ProviderUnavailable
+from intelligence.exceptions import InvalidProviderResult, ProviderUnavailable
 from intelligence.gateway import IntelligenceGateway
 from intelligence.providers.exa_web import ExaWebResearchProvider
 from intelligence.providers.tavily_web import TavilyWebResearchProvider
@@ -130,7 +130,10 @@ class TavilyWebResearchProviderTests(SimpleTestCase):
             "intelligence.providers.tavily_web._open_url",
             return_value=_FakeResponse({"results": "not-a-list"}),
         ):
-            with self.assertRaisesMessage(Exception, "tavily_results_invalid"):
+            with self.assertRaisesMessage(
+                InvalidProviderResult,
+                "tavily_results_invalid",
+            ):
                 provider.execute(_intelligence_request())
 
 
