@@ -263,6 +263,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:t1",
             completeness=self.unknown_completeness(),
             assessment_traces=(a1, a2),
+            lineage_assessment_refs=(a1.assessment_ref, a2.assessment_ref),
         )
         self.assertEqual(s1.effective_assessment_refs, (a1.assessment_ref,))
         s2 = build_knowledge_state(
@@ -271,12 +272,16 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:t2",
             completeness=self.unknown_completeness(at=self.t2),
             assessment_traces=(a1, a2),
+            lineage_assessment_refs=(a1.assessment_ref, a2.assessment_ref),
         )
         self.assertEqual(s2.effective_assessment_refs, (a2.assessment_ref,))
         self.assertIs(a1.assessment.status, AssessmentStatus.PARTIALLY_SUPPORTED)
         self.assertIs(
             validate_knowledge_state(
-                self.reality, s2, assessment_traces=(a1, a2)
+                self.reality,
+                s2,
+                assessment_traces=(a1, a2),
+                lineage_assessment_refs=(a1.assessment_ref, a2.assessment_ref),
             ),
             s2,
         )
@@ -296,6 +301,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:terminals",
             completeness=self.unknown_completeness("fee", at=self.t2),
             assessment_traces=(a2, a1),
+            lineage_assessment_refs=(a2.assessment_ref, a1.assessment_ref),
         )
         self.assertEqual(
             state.effective_assessment_refs, ("assessment:a", "assessment:b")
@@ -323,6 +329,11 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:r1",
             completeness=self.unknown_completeness(),
             identity_resolutions=(r1, r2, r3),
+            lineage_identity_resolution_refs=(
+                r1.resolution_ref,
+                r2.resolution_ref,
+                r3.resolution_ref,
+            ),
         )
         self.assertEqual(
             s1.effective_identity_resolution_refs, (r1.resolution_ref,)
@@ -444,6 +455,7 @@ class MY7KnowledgeStateGapTests(TestCase):
                 state_ref=f"state:{status.value}",
                 completeness=completeness,
                 assessment_traces=(trace,),
+                lineage_assessment_refs=(trace.assessment_ref,),
             )
             gap = build_research_gap(
                 state,
@@ -476,6 +488,8 @@ class MY7KnowledgeStateGapTests(TestCase):
             completeness=self.unknown_completeness(),
             assessment_traces=(assessment,),
             identity_resolutions=(identity,),
+            lineage_assessment_refs=(assessment.assessment_ref,),
+            lineage_identity_resolution_refs=(identity.resolution_ref,),
         )
         gap_a = build_research_gap(
             state,
@@ -516,6 +530,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:provisional",
             completeness=self.unknown_completeness(),
             identity_resolutions=(identity,),
+            lineage_identity_resolution_refs=(identity.resolution_ref,),
         )
         self.assertFalse(hasattr(state, "research_gaps"))
         with self.assertRaises(MayeleContractError):
@@ -568,6 +583,7 @@ class MY7KnowledgeStateGapTests(TestCase):
             state_ref="state:price",
             completeness=completeness,
             assessment_traces=(trace,),
+            lineage_assessment_refs=(trace.assessment_ref,),
         )
         need = build_revalidation_need(
             state,
@@ -663,6 +679,7 @@ class MY7KnowledgeStateGapTests(TestCase):
                 ),
             ),
             assessment_traces=(trace,),
+            lineage_assessment_refs=(trace.assessment_ref,),
         )
         resolution = resolve_research_gap(gap, new_state, self.t2)
         self.assertIs(
