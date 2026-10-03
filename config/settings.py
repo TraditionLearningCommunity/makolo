@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "subscriptions.apps.SubscriptionsConfig",
     "questionnaires.apps.QuestionnairesConfig",
     "preparation.apps.PreparationConfig",
+    "presentations.apps.PresentationsConfig",
     "trust.apps.TrustConfig",
     "sharing.apps.SharingConfig",
     "social.apps.SocialConfig",
