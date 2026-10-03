@@ -107,8 +107,7 @@ class _PresentationGalleryState extends State<PresentationGallery> {
             onCycleTextScale: _cycleTextScale,
             onReduceMotionChanged: (value) =>
                 setState(() => _reduceMotion = value),
-            onScenarioChanged: (value) =>
-                setState(() => _scenarioId = value),
+            onScenarioChanged: (value) => setState(() => _scenarioId = value),
           ),
           const Divider(height: 1),
           Expanded(
@@ -237,10 +236,7 @@ class _GalleryControls extends StatelessWidget {
             value: scenarioId,
             items: [
               for (final scenario in PresentationScenarioCatalog.all)
-                DropdownMenuItem(
-                  value: scenario.id,
-                  child: Text(scenario.id),
-                ),
+                DropdownMenuItem(value: scenario.id, child: Text(scenario.id)),
             ],
             onChanged: (value) {
               if (value != null) onScenarioChanged(value);
@@ -253,10 +249,7 @@ class _GalleryControls extends StatelessWidget {
 }
 
 class _GalleryPreview extends StatelessWidget {
-  const _GalleryPreview({
-    required this.category,
-    required this.scenarioId,
-  });
+  const _GalleryPreview({required this.category, required this.scenarioId});
 
   final _GalleryCategory category;
   final String scenarioId;
@@ -424,7 +417,8 @@ class _ScenarioPreview extends StatelessWidget {
             Text('Surface : ${scenario.surface}'),
             const SizedBox(height: MakoloSpacing.sm),
             MakoloStatus(
-              label: scenario.dataKind ==
+              label:
+                  scenario.dataKind ==
                       PresentationScenarioDataKind.runtimeCompatible
                   ? 'Runtime-compatible'
                   : 'Target Presentation',

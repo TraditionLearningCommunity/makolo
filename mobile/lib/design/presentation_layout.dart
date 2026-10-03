@@ -43,10 +43,7 @@ class MakoloSplitGeometry {
       return const MakoloSplitGeometry.single();
     }
 
-    final maximumFocus = math.min(
-      focusMax,
-      availableWidth - gutter - fieldMin,
-    );
+    final maximumFocus = math.min(focusMax, availableWidth - gutter - fieldMin);
     final focusWidth = math.min(
       math.max(focusPreferred, focusMin),
       maximumFocus,
@@ -109,9 +106,7 @@ class MakoloReadingWidth extends StatelessWidget {
   Widget build(BuildContext context) => Align(
     alignment: Alignment.topCenter,
     child: ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxWidth: MakoloLayout.readingMaxWidth,
-      ),
+      constraints: const BoxConstraints(maxWidth: MakoloLayout.readingMaxWidth),
       child: child,
     ),
   );

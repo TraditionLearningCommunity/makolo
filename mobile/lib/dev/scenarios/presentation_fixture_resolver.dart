@@ -14,7 +14,9 @@ abstract final class FixtureMediaResolver {
         'Only fixture:// media is allowed in Presentation scenarios.',
       );
     }
-    final label = reference.substring('fixture://'.length).replaceAll('/', ' · ');
+    final label = reference
+        .substring('fixture://'.length)
+        .replaceAll('/', ' · ');
     return MakoloMediaPlaceholder(label: label);
   }
 }

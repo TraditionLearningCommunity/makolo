@@ -14,10 +14,7 @@ class MarkAttachmentPresentation {
 }
 
 class MarkIntentPresentation {
-  const MarkIntentPresentation({
-    required this.label,
-    this.consequence,
-  });
+  const MarkIntentPresentation({required this.label, this.consequence});
 
   final String label;
   final String? consequence;

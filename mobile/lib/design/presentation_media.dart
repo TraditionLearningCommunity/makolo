@@ -34,10 +34,7 @@ class MakoloMediaFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child:
-          child ??
-          placeholder ??
-          const MakoloMediaPlaceholder(),
+      child: child ?? placeholder ?? const MakoloMediaPlaceholder(),
     );
     final framed = aspect.value == null
         ? media
@@ -76,9 +73,8 @@ class MakoloMediaPlaceholder extends StatelessWidget {
                 Text(
                   label!,
                   textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: foreground),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: foreground),
                 ),
               ],
             ],

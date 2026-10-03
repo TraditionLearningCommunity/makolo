@@ -77,10 +77,7 @@ void main() {
       geometry.focusWidth,
       greaterThanOrEqualTo(MakoloLayout.focusMinWidth),
     );
-    expect(
-      geometry.focusWidth,
-      lessThanOrEqualTo(MakoloLayout.focusMaxWidth),
-    );
+    expect(geometry.focusWidth, lessThanOrEqualTo(MakoloLayout.focusMaxWidth));
   });
 
   testWidgets('adaptive split stays single below threshold and splits at it', (
