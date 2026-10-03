@@ -67,6 +67,8 @@ class ProfileActivationProjectionTests(TestCase):
         self.assertTrue(self._step(summary, "network").complete)
 
     def test_private_open_to_does_not_force_searchability(self):
+        self.profile.searchable = False
+        self.profile.save(update_fields=["searchable"])
         ProfileOpenTo.objects.create(
             profile=self.user,
             kind=OpenToKind.MENTOR,
@@ -113,9 +115,10 @@ class ProfileActivationUxTests(TestCase):
         self.assertContains(response, f"Profil Makolo · {summary.percentage} % activé")
         self.assertContains(response, reverse("account:profile"))
 
-    def test_public_profile_does_not_show_activation_percentage(self):
+    def test_public_passport_does_not_show_activation_percentage(self):
         self.profile.public_profile = True
-        self.profile.save(update_fields=["public_profile"])
+        self.profile.searchable = True
+        self.profile.save(update_fields=["public_profile", "searchable"])
         viewer = User.objects.create_user(
             username="viewer",
             email="viewer@example.com",
@@ -123,7 +126,13 @@ class ProfileActivationUxTests(TestCase):
         )
         UserProfile.objects.create(user=viewer)
         self.client.force_login(viewer)
-        response = self.client.get(reverse("account:public-profile", kwargs={"profile_id": self.user.pk}))
+        legacy = self.client.get(reverse("account:public-profile", kwargs={"profile_id": self.user.pk}))
+        self.assertEqual(legacy.status_code, 301)
+        self.assertEqual(
+            legacy["Location"],
+            reverse("public-passport", kwargs={"identifier": self.user.username}),
+        )
+        response = self.client.get(legacy["Location"])
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Profil Makolo :")
         self.assertNotContains(response, "activé à")
