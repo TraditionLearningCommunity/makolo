@@ -766,6 +766,8 @@ class MY7KnowledgeStateGapTests(TestCase):
             lineage_assessment_refs=(assessment.assessment_ref,),
         )
         with self.assertRaises(MayeleContractError):
+            resolve_research_gap(gap, new_state, self.t2)
+        with self.assertRaises(MayeleContractError):
             resolve_research_gap(
                 gap,
                 new_state,
