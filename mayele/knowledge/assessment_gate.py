@@ -10,7 +10,7 @@ from .assessment import (
     PropositionComparison,
     build_proposition_assessment,
 )
-from .contracts import KnowledgeSupport, Proposition, PropositionAssessment
+from .contracts import AssessmentStatus, KnowledgeSupport, Proposition, PropositionAssessment
 from .construction import KnowledgeSupportTrace
 
 
