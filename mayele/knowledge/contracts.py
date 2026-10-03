@@ -23,10 +23,15 @@ def _required_text(name: str, value: str) -> str:
 def _freeze_metadata(metadata: Mapping[str, Any]) -> Tuple[Tuple[str, Any], ...]:
     if not isinstance(metadata, Mapping):
         raise MayeleContractError("metadata must be a mapping")
-    frozen: list[tuple[str, Any]] = []
-    for key, value in sorted(metadata.items()):
+    normalized: dict[str, Any] = {}
+    for key, value in metadata.items():
         if not isinstance(key, str) or not key.strip():
             raise MayeleContractError("metadata keys must be non-empty strings")
+        normalized_key = key.strip()
+        if normalized_key in normalized:
+            raise MayeleContractError(
+                "metadata keys must be unique after normalization"
+            )
         if not (
             isinstance(value, (str, int, float, bool))
             or value is None
@@ -35,8 +40,8 @@ def _freeze_metadata(metadata: Mapping[str, Any]) -> Tuple[Tuple[str, Any], ...]
             raise MayeleContractError(
                 "metadata values must be scalar JSON values or KnowledgeValue"
             )
-        frozen.append((key.strip(), value))
-    return tuple(frozen)
+        normalized[normalized_key] = value
+    return tuple(sorted(normalized.items()))
 
 
 class PropositionKind(str, Enum):
