@@ -82,7 +82,9 @@ DiscoveryFieldSelection selection({
 }
 
 void main() {
-  testWidgets('G03 compact renders a natural possibility field', (tester) async {
+  testWidgets(
+    'G03 compact renders a natural possibility field',
+    (tester) async {
     await PresentationHarness.pump(
       tester,
       viewport: const Size(360, 800),
@@ -101,8 +103,9 @@ void main() {
     expect(find.text('Accompagnement à distance'), findsOneWidget);
     expect(find.text('S’inscrire'), findsNothing);
     expect(find.textContaining('contenu de remplissage'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('G04 wide uses the shared adaptive grid', (tester) async {
     await PresentationHarness.pump(
