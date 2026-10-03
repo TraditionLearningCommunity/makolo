@@ -6,6 +6,8 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from activities.models import Activity, ActivityStatus, ActivityVisibility
+
 from .console_context import authorized_spaces
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
 from .models import Organization, OrganizationFollow, OrganizationVerificationStatus, SpaceLifecycle, TeamMembership
@@ -85,6 +87,14 @@ class PublicOrganizationDetailView(DetailView):
                 organization=self.object,
                 user=self.request.user,
             ).first()
+        context["public_activities"] = list(
+            Activity.objects.filter(
+                space=self.object,
+                status=ActivityStatus.PUBLISHED,
+                visibility=ActivityVisibility.PUBLIC,
+            )
+            .order_by("-updated_at", "title", "id")[:12]
+        )
         return context
 
 
