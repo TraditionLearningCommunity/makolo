@@ -98,7 +98,10 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
             );
             final available = presentation.available;
             final unavailableWithoutContent =
-                !available && source.invalidated && !_refreshing;
+                !available &&
+                (source.invalidated ||
+                    source.reachability == ReachabilityState.unreachable) &&
+                !_refreshing;
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
