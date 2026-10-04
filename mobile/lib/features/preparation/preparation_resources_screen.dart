@@ -178,7 +178,8 @@ class _PreparationResourceCard extends StatelessWidget {
             subtitle: resource.description,
             status: MakoloStatus(label: resource.kindLabel),
             metadata: [
-              MakoloMetadataItem('Version ${resource.version}'),
+              if (resource.version > 1)
+                MakoloMetadataItem('Version ${resource.version}'),
               if (resource.occurrenceId != null)
                 const MakoloMetadataItem(
                   'Liée à une occurrence',
@@ -197,7 +198,7 @@ class _PreparationResourceCard extends StatelessWidget {
           if (resource.downloadUrl != null) ...[
             const SizedBox(height: MakoloSpacing.md),
             Text(
-              'Fichier disponible auprès de Makolo.',
+              'Document disponible dans Makolo.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
