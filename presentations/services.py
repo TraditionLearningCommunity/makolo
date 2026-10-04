@@ -45,6 +45,8 @@ def configure_activity_presentation(*, actor, activity, purpose, template_versio
         raise ValidationError("Seules des versions publiées peuvent être sélectionnées.")
     if not _template_accessible(actor, template_version, activity) or not _theme_accessible(actor, theme_version, activity):
         raise PermissionDenied("Ce modèle ou ce thème n’est pas disponible dans ce contexte.")
+    if purpose not in template_version.manifest.get("purposes", []):
+        raise ValidationError("Ce modèle n’est pas compatible avec cet usage.")
     lookup = {"activity": activity, "occurrence": occurrence, "purpose": purpose}
     binding = ActivityPresentation.objects.select_for_update().filter(**lookup).first()
     if binding is None:

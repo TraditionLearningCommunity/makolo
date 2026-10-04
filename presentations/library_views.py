@@ -15,7 +15,7 @@ from organizations.models import Organization
 from .contexts import PresentationContext
 from .enums import PresentationPurpose, Provenance, VersionStatus, Visibility
 from .library_models import PresentationTemplateModeration, SpacePresentationDefault
-from .library_services import duplicate_template, publish_template_version, retire_template_version, set_space_default, submit_template_version, suspend_template_version
+from .library_services import activate_template_version, duplicate_template, publish_template_version, retire_template_version, set_space_default, submit_template_version, suspend_template_version
 from .models import PresentationTemplate, PresentationTemplateVersion, PresentationThemeVersion
 from .rendering import render_presentation
 
@@ -115,6 +115,21 @@ class DuplicateTemplateView(LoginRequiredMixin, View):
         duplicate_template(actor=request.user, source_version=source, slug=(request.POST.get("slug") or f"{source.template.slug}-copie"), name=(request.POST.get("name") or f"{source.template.name} — copie"), owner_space=owner_space)
         messages.success(request, "Modèle dupliqué dans votre bibliothèque.")
         return redirect("presentations:space-library", slug=owner_space.slug) if owner_space else redirect("presentations:library")
+
+
+class ActivateTemplateVersionView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, version_id):
+        version = get_object_or_404(
+            PresentationTemplateVersion.objects.select_related("template", "template__owner_space"),
+            pk=version_id,
+        )
+        activate_template_version(actor=request.user, version=version)
+        messages.success(request, "Modèle prêt à être utilisé dans Présentation.")
+        if version.template.owner_space_id:
+            return redirect("presentations:space-library", slug=version.template.owner_space.slug)
+        return redirect("presentations:library")
 
 
 class TemplateVersionPreviewView(LoginRequiredMixin, View):
