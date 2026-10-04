@@ -12,7 +12,7 @@ from .catalog import ensure_builtin_catalog
 from .contexts import build_activity_context
 from .enums import PresentationPurpose, PresentationState, Provenance, VersionStatus, Visibility
 from .essential import ESSENTIAL_MANIFEST
-from .library_services import duplicate_template, publish_template_version, set_space_default, submit_template_version, upgrade_presentation
+from .library_services import activate_owned_template_version, duplicate_template, publish_template_version, set_space_default, submit_template_version, upgrade_presentation
 from .models import ActivityPresentation, PresentationTemplate, PresentationTemplateVersion
 from .rendering import render_presentation
 from .resolver import resolve_presentation
@@ -54,6 +54,20 @@ class PresentationLibraryHardeningTests(TestCase):
         self.assertEqual(template.owner_profile, self.owner)
         self.assertEqual(version.status, VersionStatus.DRAFT)
         self.assertEqual(source.template.provenance, Provenance.MAKOLO)
+
+    def test_owned_private_template_can_be_activated_without_becoming_public(self):
+        template, version = duplicate_template(
+            actor=self.owner,
+            source_version=self.templates["formal"],
+            slug="private-formal",
+            name="Private Formal",
+        )
+        activate_owned_template_version(actor=self.owner, version=version)
+        version.refresh_from_db()
+        template.refresh_from_db()
+        self.assertEqual(version.status, VersionStatus.PUBLISHED)
+        self.assertEqual(template.visibility, Visibility.PRIVATE)
+        self.assertEqual(template.owner_profile, self.owner)
 
     def test_non_staff_cannot_publish_community_template(self):
         _, version = duplicate_template(actor=self.owner, source_version=self.templates["formal"], slug="community-formal", name="Community Formal")
