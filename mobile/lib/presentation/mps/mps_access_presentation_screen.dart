@@ -50,9 +50,7 @@ class _MpsAccessPresentationScreenState
 
   Future<void> _load() async {
     final local = await widget.repository.readAccessPackage(widget.accessId);
-    if (mounted && local != null) {
-      setState(() => _package = local);
-    }
+    if (mounted && local != null) setState(() => _package = local);
     await _refresh();
   }
 
@@ -65,17 +63,11 @@ class _MpsAccessPresentationScreenState
     try {
       await widget.repository.refreshAccess(widget.accessId);
       final next = await widget.repository.readAccessPackage(widget.accessId);
-      if (mounted && next != null) {
-        setState(() => _package = next);
-      }
+      if (mounted && next != null) setState(() => _package = next);
     } on Object catch (error) {
-      if (mounted) {
-        setState(() => _error = error);
-      }
+      if (mounted) setState(() => _error = error);
     } finally {
-      if (mounted) {
-        setState(() => _refreshing = false);
-      }
+      if (mounted) setState(() => _refreshing = false);
     }
   }
 

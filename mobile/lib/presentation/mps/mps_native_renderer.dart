@@ -49,8 +49,9 @@ class MpsNativeRenderer extends StatelessWidget {
     final name = mpsString(node['component']);
     if (name == null) return const SizedBox.shrink();
     final props = mpsMap(node['props']);
-    final children = node['children'] is List
-        ? (node['children'] as List)
+    final rawChildren = node['children'];
+    final children = rawChildren is List
+        ? rawChildren
               .map(mpsMap)
               .where((child) => child.isNotEmpty)
               .map((child) => _node(context, child, palette))
@@ -114,9 +115,11 @@ class MpsNativeRenderer extends StatelessWidget {
         );
       case 'OccurrenceDetails':
         final occurrence = mpsMap(package.artifact.context['occurrence']);
-        final values = <String>[
-          if (mpsString(occurrence['starts_at']) case final value?) value,
-          if (mpsString(occurrence['place']) case final value?) value,
+        final startsAt = mpsString(occurrence['starts_at']);
+        final place = mpsString(occurrence['place']);
+        final values = [
+          if (startsAt != null) startsAt,
+          if (place != null) place,
         ];
         return values.isEmpty
             ? const SizedBox.shrink()
@@ -126,21 +129,14 @@ class MpsNativeRenderer extends StatelessWidget {
                 palette: palette,
               );
       case 'DateTime':
-        return Text(
-          mpsString(
-                mpsMap(package.artifact.context['occurrence'])['starts_at'],
-              ) ??
-              '',
-        );
+        final occurrence = mpsMap(package.artifact.context['occurrence']);
+        return Text(mpsString(occurrence['starts_at']) ?? '');
       case 'Place':
-        return Text(
-          mpsString(mpsMap(package.artifact.context['occurrence'])['place']) ??
-              '',
-        );
+        final occurrence = mpsMap(package.artifact.context['occurrence']);
+        return Text(mpsString(occurrence['place']) ?? '');
       case 'Organizer':
-        final value = mpsString(
-          mpsMap(package.artifact.context['organizer'])['display_name'],
-        );
+        final organizer = mpsMap(package.artifact.context['organizer']);
+        final value = mpsString(organizer['display_name']);
         return value == null
             ? const SizedBox.shrink()
             : Text(
@@ -152,13 +148,15 @@ class MpsNativeRenderer extends StatelessWidget {
       case 'AccessSummary':
         final access = mpsMap(package.artifact.context['access']);
         final type = mpsString(access['display_type']);
+        final beneficiary = mpsString(access['beneficiary']);
+        final status = mpsString(access['display_status']);
         if (type == null) return const SizedBox.shrink();
         return _InfoBlock(
           icon: Icons.confirmation_number_outlined,
           lines: [
             type,
-            if (mpsString(access['beneficiary']) case final value?) value,
-            if (mpsString(access['display_status']) case final value?) value,
+            if (beneficiary != null) beneficiary,
+            if (status != null) status,
           ],
           palette: palette,
         );

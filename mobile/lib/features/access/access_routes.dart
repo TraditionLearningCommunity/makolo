@@ -12,6 +12,7 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
     builder: (context, state) {
       runtime.recovery.rememberLocation(state.uri.toString());
       final repository = runtime.accesses;
+      final accessId = state.pathParameters['id']!;
       if (repository == null) {
         return const MakoloSecondaryScreen(
           title: 'Accès',
@@ -19,16 +20,14 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
         );
       }
       return AccessDetailScreen(
-        accessId: state.pathParameters['id']!,
+        accessId: accessId,
         repository: repository,
         onOpenDayOf: (handoff) =>
             context.push('/occurrences/${handoff.occurrenceId}/day-of'),
         onOpenJourney: (journeyId) => context.push('/journeys/$journeyId'),
         onOpenPresentation: runtime.mps == null
             ? null
-            : () => context.push(
-                '/accesses/${state.pathParameters['id']!}/presentation',
-              ),
+            : () => context.push('/accesses/$accessId/presentation'),
       );
     },
   ),
@@ -37,6 +36,7 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
     builder: (context, state) {
       runtime.recovery.rememberLocation(state.uri.toString());
       final repository = runtime.mps;
+      final accessId = state.pathParameters['id']!;
       if (repository == null) {
         return const MakoloSecondaryScreen(
           title: 'Présentation',
@@ -44,10 +44,10 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
         );
       }
       return MpsAccessPresentationScreen(
-        accessId: state.pathParameters['id']!,
+        accessId: accessId,
         repository: repository,
         onOpenCredential: (credentialPath) => context.push(
-          '/accesses/${state.pathParameters['id']!}/credential',
+          '/accesses/$accessId/credential',
           extra: credentialPath,
         ),
       );
