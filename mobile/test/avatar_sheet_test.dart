@@ -51,6 +51,7 @@ void main() {
                   context,
                   runtime: runtime,
                   onConnections: () {},
+                  onBilling: () {},
                   onSettings: () => settingsOpened = true,
                   onSwitchAccount: () {},
                   onLogout: () {},
@@ -66,9 +67,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Amina'), findsOneWidget);
-      expect(find.text('Profil Makolo · 72 % activé'), findsOneWidget);
+      expect(find.text('Profil Makolo · 72 % renseigné'), findsOneWidget);
       expect(find.text('Agir comme'), findsOneWidget);
       expect(find.text('Connexions'), findsOneWidget);
+      expect(find.text('Abonnement & facturation'), findsOneWidget);
       expect(find.text('Paramètres'), findsOneWidget);
       expect(find.text('Changer de compte'), findsOneWidget);
       expect(find.text('Se déconnecter'), findsOneWidget);
@@ -100,7 +102,7 @@ void main() {
     await tester.tap(find.text('Avatar'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('activé'), findsNothing);
+    expect(find.textContaining('renseigné'), findsNothing);
 
     Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
     await tester.pump();
