@@ -236,10 +236,16 @@ class DiscoverySelector {
     );
   }
 
-  DiscoveryItemPresentation? detail(StoredProjection? projection) {
+  DiscoveryItemPresentation? detail(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
     final raw = projection?.payload['item'];
     if (raw is! Map) return null;
-    return _item(Map<String, dynamic>.from(raw));
+    return _item(
+      Map<String, dynamic>.from(raw),
+      now: now ?? DateTime.now(),
+    );
   }
 
   List<DiscoveryMapPoint> mapPointsFromCollection(
@@ -422,7 +428,7 @@ String? _humanTiming(
   final time = _text(timing['start_time']);
   final parsed = date == null
       ? null
-      : DateTime.tryParse(time == null ? date : '$date' 'T' '$time');
+      : DateTime.tryParse(time == null ? date : '${date}T$time');
   if (parsed != null) {
     return time == null
         ? MakoloHumanization.formatDay(parsed, now: now)
