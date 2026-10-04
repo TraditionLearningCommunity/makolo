@@ -127,23 +127,31 @@ class MakoloSurfaceStateView extends StatelessWidget {
       }
     }
 
+    Widget? technicalCue;
+    if (!state.refreshing) {
+      if (state.failure == MakoloFailureCue.recoverable) {
+        technicalCue = MakoloNotice(
+          message:
+              recoverableErrorMessage ??
+              'Mise à jour momentanément indisponible.',
+          kind: MakoloNoticeKind.warning,
+          liveRegion: true,
+        );
+      } else if (state.reachability ==
+          MakoloReachabilityCue.temporarilyUnavailable) {
+        technicalCue = const MakoloNotice(
+          message: 'Mise à jour momentanément indisponible.',
+          kind: MakoloNoticeKind.warning,
+        );
+      } else if (state.freshness != MakoloFreshnessCue.unknown &&
+          state.freshness != MakoloFreshnessCue.current) {
+        technicalCue = MakoloFreshnessNotice(freshness: state.freshness);
+      }
+    }
+
     final cues = <Widget>[
       if (state.refreshing) const MakoloRefreshIndicator(),
-      if (state.failure == MakoloFailureCue.recoverable)
-        MakoloNotice(
-          message: recoverableErrorMessage ?? 'La mise à jour n’a pas abouti. Le contenu disponible est conservé.',
-          kind: MakoloNoticeKind.error,
-          behavior: MakoloNoticeBehavior.persistent,
-          liveRegion: true,
-        ),
-      if (state.freshness != MakoloFreshnessCue.unknown &&
-          state.freshness != MakoloFreshnessCue.current)
-        MakoloFreshnessNotice(freshness: state.freshness),
-      if (state.reachability == MakoloReachabilityCue.temporarilyUnavailable)
-        const MakoloNotice(
-          message: 'La source distante est momentanément indisponible. Le contenu déjà disponible reste utilisable.',
-          kind: MakoloNoticeKind.warning,
-        ),
+      if (technicalCue != null) technicalCue,
       if (state.commit != MakoloCommitCue.none)
         MakoloCommitIndicator(commit: state.commit),
     ];
