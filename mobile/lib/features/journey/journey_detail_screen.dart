@@ -193,10 +193,14 @@ class _JourneyContent extends StatelessWidget {
           title: presentation.title,
           subtitle: presentation.summary,
           status:
-              MakoloHumanization.presentationLabel(presentation.journeyState)
-                  case final state?
-              ? MakoloStatus(label: state)
-              : null,
+              MakoloHumanization.presentationLabel(presentation.journeyState) ==
+                  null
+              ? null
+              : MakoloStatus(
+                  label: MakoloHumanization.presentationLabel(
+                    presentation.journeyState,
+                  )!,
+                ),
         ),
         if (presentation.nextActionLabel != null) ...[
           Padding(
@@ -384,9 +388,11 @@ class _FormCard extends StatelessWidget {
         subtitle: form.canComplete
             ? 'Une réponse est attendue.'
             : 'Consultation uniquement pour le moment.',
-        status: MakoloHumanization.presentationLabel(form.state) case final state?
-            ? MakoloStatus(label: state)
-            : null,
+        status: MakoloHumanization.presentationLabel(form.state) == null
+            ? null
+            : MakoloStatus(
+                label: MakoloHumanization.presentationLabel(form.state)!,
+              ),
         metadata: metadata,
         action: form.canComplete && form.detailLink.isNotEmpty
             ? const Icon(Icons.chevron_right_rounded)
@@ -408,10 +414,11 @@ class _ReferenceCard extends StatelessWidget {
       onTap: onTap,
       child: MakoloStatusMetadataAction(
         title: reference.label,
-        status: MakoloHumanization.presentationLabel(reference.state)
-            case final state?
-            ? MakoloStatus(label: state)
-            : null,
+        status: MakoloHumanization.presentationLabel(reference.state) == null
+            ? null
+            : MakoloStatus(
+                label: MakoloHumanization.presentationLabel(reference.state)!,
+              ),
         action: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
       ),
     );
