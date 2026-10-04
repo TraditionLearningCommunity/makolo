@@ -6,7 +6,7 @@ enum MakoloDestination {
   personalNow(
     branchIndex: 0,
     path: '/now',
-    label: 'Maintenant',
+    label: 'Now',
     door: MakoloPrimaryDoor.now,
     actorKind: ActorContextKind.personal,
   ),
@@ -34,7 +34,7 @@ enum MakoloDestination {
   spaceNow(
     branchIndex: 4,
     path: '/space/now',
-    label: 'Maintenant',
+    label: 'Now',
     door: MakoloPrimaryDoor.now,
     actorKind: ActorContextKind.space,
   ),
