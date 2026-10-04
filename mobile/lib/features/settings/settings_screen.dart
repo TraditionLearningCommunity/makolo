@@ -19,6 +19,45 @@ class AppSettingsScreen extends StatelessWidget {
     };
   }
 
+
+  void _showLegalInformation(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(
+            MakoloSpacing.inner,
+            0,
+            MakoloSpacing.inner,
+            MakoloSpacing.lg,
+          ),
+          children: [
+            Text(
+              'Informations légales',
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
+            const SizedBox(height: MakoloSpacing.sm),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('Licences open source'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                showLicensePage(
+                  context: context,
+                  applicationName: 'Makolo',
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final preferences = runtime.preferences;
@@ -54,19 +93,17 @@ class AppSettingsScreen extends StatelessWidget {
                     ButtonSegment(
                       value: MakoloThemePreference.system,
                       label: Text('Système'),
-                      icon: Icon(Icons.settings_suggest_outlined),
                     ),
                     ButtonSegment(
                       value: MakoloThemePreference.light,
                       label: Text('Clair'),
-                      icon: Icon(Icons.light_mode_outlined),
                     ),
                     ButtonSegment(
                       value: MakoloThemePreference.dark,
                       label: Text('Sombre'),
-                      icon: Icon(Icons.dark_mode_outlined),
                     ),
                   ],
+                  showSelectedIcon: false,
                   selected: {value.themePreference},
                   onSelectionChanged: (selection) {
                     if (selection.isEmpty) return;
@@ -95,13 +132,10 @@ class AppSettingsScreen extends StatelessWidget {
               _AppVersionTile(packageInfo: packageInfo),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.description_outlined),
-                title: const Text('Licences'),
+                leading: const Icon(Icons.gavel_outlined),
+                title: const Text('Informations légales'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => showLicensePage(
-                  context: context,
-                  applicationName: 'Makolo',
-                ),
+                onTap: () => _showLegalInformation(context),
               ),
               if (runtime.isDevelopment)
                 const ListTile(
