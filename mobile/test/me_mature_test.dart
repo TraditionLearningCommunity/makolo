@@ -569,11 +569,9 @@ Future<void> _pumpFull(
 
 class _MeStreamRepository extends PersonalRepository {
   _MeStreamRepository({
-    required Stream<StoredProjection?> projection,
-    required Stream<OwnerSourceState> source,
-  }) : this._projection = projection,
-       this._source = source,
-       super(_NeverUsedStore());
+    required this._projection,
+    required this._source,
+  }) : super(_NeverUsedStore());
 
   final Stream<StoredProjection?> _projection;
   final Stream<OwnerSourceState> _source;
