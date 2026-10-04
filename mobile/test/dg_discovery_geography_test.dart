@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/discovery/detail_selector.dart';
@@ -9,6 +10,10 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'fakes.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('fr');
+  });
+
   late MakoloDatabase database;
   late ProfileStore store;
   late DiscoveryRepository repository;
