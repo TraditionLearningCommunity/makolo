@@ -269,8 +269,11 @@ void main() {
     );
 
     expect(find.text('Formation Data Science'), findsOneWidget);
-    expect(find.textContaining('source distante'), findsOneWidget);
-    expect(find.textContaining('mise à jour'), findsOneWidget);
+    expect(find.textContaining('source distante'), findsNothing);
+    expect(
+      find.text('Mise à jour momentanément indisponible.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('critical text scale keeps compact field reachable', (
