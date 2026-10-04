@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/discovery/discovery_mature_view.dart';
 import 'package:makolo_mobile/features/discovery/discovery_selector.dart';
@@ -270,10 +271,7 @@ void main() {
 
     expect(find.text('Formation Data Science'), findsOneWidget);
     expect(find.textContaining('source distante'), findsNothing);
-    expect(
-      find.text('Mise à jour momentanément indisponible.'),
-      findsOneWidget,
-    );
+    expect(find.byType(MakoloNotice), findsOneWidget);
   });
 
   testWidgets('critical text scale keeps compact field reachable', (
