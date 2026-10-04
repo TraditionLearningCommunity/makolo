@@ -66,7 +66,12 @@ void main() {
     expect(find.text('Clair'), findsOneWidget);
     expect(find.text('Sombre'), findsOneWidget);
     expect(find.text('Réduire les animations'), findsOneWidget);
-    expect(find.text('Licences'), findsOneWidget);
+    expect(find.text('Informations légales'), findsOneWidget);
+    expect(find.text('Licences open source'), findsNothing);
+
+    await tester.tap(find.text('Informations légales'));
+    await tester.pumpAndSettle();
+    expect(find.text('Licences open source'), findsOneWidget);
     expect(find.text('Passkey'), findsNothing);
     expect(find.text('2FA'), findsNothing);
     expect(find.text('Langue'), findsNothing);
