@@ -67,25 +67,27 @@ abstract final class MakoloHumanization {
     required String other,
     String locale = 'fr',
   }) =>
-      Intl.plural(
-        count,
-        one: one,
-        other: other,
-        locale: locale,
-        args: [count],
-      );
+      Intl.plural(count, one: one, other: other, locale: locale);
 
   static String formatDuration(Duration duration, {String locale = 'fr'}) {
     final totalMinutes = duration.inMinutes.abs();
     if (totalMinutes < 60) {
-      final count = totalMinutes;
-      return '$count ${plural(count, one: 'minute', other: 'minutes', locale: locale)}';
+      return '$totalMinutes ${plural(
+        totalMinutes,
+        one: 'minute',
+        other: 'minutes',
+        locale: locale,
+      )}';
     }
 
     final hours = totalMinutes ~/ 60;
     final minutes = totalMinutes % 60;
-    final hourLabel =
-        '$hours ${plural(hours, one: 'heure', other: 'heures', locale: locale)}';
+    final hourLabel = '$hours ${plural(
+      hours,
+      one: 'heure',
+      other: 'heures',
+      locale: locale,
+    )}';
     if (minutes == 0) return hourLabel;
     return '$hourLabel $minutes min';
   }
@@ -100,16 +102,24 @@ abstract final class MakoloHumanization {
     if (minutes.abs() < 1) return 'À l’instant';
     if (minutes.abs() < 60) {
       final count = minutes.abs();
-      final amount =
-          '$count ${plural(count, one: 'minute', other: 'minutes', locale: locale)}';
+      final amount = '$count ${plural(
+        count,
+        one: 'minute',
+        other: 'minutes',
+        locale: locale,
+      )}';
       return minutes < 0 ? 'Il y a $amount' : 'Dans $amount';
     }
 
     final hours = delta.inHours;
     if (hours.abs() < 24) {
       final count = hours.abs();
-      final amount =
-          '$count ${plural(count, one: 'heure', other: 'heures', locale: locale)}';
+      final amount = '$count ${plural(
+        count,
+        one: 'heure',
+        other: 'heures',
+        locale: locale,
+      )}';
       return hours < 0 ? 'Il y a $amount' : 'Dans $amount';
     }
 
@@ -142,23 +152,7 @@ abstract final class MakoloHumanization {
     if (text == null || text.isEmpty) return null;
     final mapped = humanStatus(text);
     if (mapped != null) return mapped;
-    if (RegExp(r'^[a-z0-9_\\-]+
-    final value = raw?.trim();
-    if (value == null || value.isEmpty) return null;
-    final parts = value.split('/');
-    final leaf = parts.last.replaceAll('_', ' ').trim();
-    if (leaf.isEmpty || leaf.toUpperCase() == 'UTC') return null;
-    return leaf;
-  }
-
-  static DateTime? tryParseInstant(Object? value) {
-    if (value == null) return null;
-    final text = value.toString().trim();
-    if (text.isEmpty) return null;
-    return DateTime.tryParse(text);
-  }
-}
-).hasMatch(text)) return null;
+    if (RegExp(r'^[a-z0-9_-]+$').hasMatch(text)) return null;
     return text;
   }
 
