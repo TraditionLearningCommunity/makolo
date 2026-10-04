@@ -245,9 +245,7 @@ class _HistoryView {
             occurredAt: _humanInstant(row['occurred_at']),
             outcome:
                 _string(outcome['label']) ??
-                MakoloHumanization.presentationLabel(
-                  _string(outcome['code']),
-                ),
+                MakoloHumanization.presentationLabel(_string(outcome['code'])),
           ),
         );
       }
@@ -308,7 +306,6 @@ String? _string(Object? value) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? null : text;
 }
-
 
 String? _humanInstant(Object? value) {
   final raw = _string(value);

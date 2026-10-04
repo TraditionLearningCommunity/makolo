@@ -442,10 +442,7 @@ void main() {
 
     expect(find.byKey(const Key('me-depth-scroll')), findsOneWidget);
     expect(find.text('Privé'), findsOneWidget);
-    expect(
-      find.textContaining('Son usage dépendra'),
-      findsNothing,
-    );
+    expect(find.textContaining('Son usage dépendra'), findsNothing);
     expect(find.textContaining('Requirement'), findsNothing);
     expect(find.textContaining('AccessCredential'), findsNothing);
 

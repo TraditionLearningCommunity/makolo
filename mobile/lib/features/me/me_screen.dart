@@ -201,8 +201,7 @@ class _MeViewState extends State<MeView> {
           },
           child: MakoloSurfaceStateView(
             state: widget.selection.state,
-            recoverableErrorMessage:
-                'Mise à jour momentanément indisponible.',
+            recoverableErrorMessage: 'Mise à jour momentanément indisponible.',
             content: content,
           ),
         );
@@ -743,12 +742,10 @@ class _MeDepth extends StatelessWidget {
                   ],
                 ),
               ],
-              if (_contextMessage(item.destination.kind) case final message?) ...[
+              if (_contextMessage(item.destination.kind)
+                  case final message?) ...[
                 const SizedBox(height: MakoloSpacing.xl),
-                Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text(message, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ],
           ),

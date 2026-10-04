@@ -117,7 +117,8 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
               failure:
                   !available &&
                       (source.invalidated ||
-                          source.reachability == ReachabilityState.unreachable) &&
+                          source.reachability ==
+                              ReachabilityState.unreachable) &&
                       !_refreshing
                   ? MakoloFailureCue.blocking
                   : source.lastErrorCode != null && available
@@ -170,8 +171,8 @@ class _RequirementContent extends StatelessWidget {
           eyebrow: presentation.required ? 'Obligatoire' : 'Condition',
           title: presentation.label,
           subtitle: presentation.description,
-          status: MakoloHumanization.presentationLabel(presentation.state) ==
-                  null
+          status:
+              MakoloHumanization.presentationLabel(presentation.state) == null
               ? null
               : MakoloStatus(
                   label: MakoloHumanization.presentationLabel(
@@ -205,7 +206,8 @@ class _RequirementContent extends StatelessWidget {
                       MakoloCard(
                         child: MakoloStatusMetadataAction(
                           title: presentation.ways[index].label,
-                          status: MakoloHumanization.presentationLabel(
+                          status:
+                              MakoloHumanization.presentationLabel(
                                     presentation.ways[index].state,
                                   ) ==
                                   null

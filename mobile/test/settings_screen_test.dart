@@ -30,7 +30,6 @@ void main() {
     expect(snapshot.reduceMotion, isTrue);
   });
 
-
   testWidgets('appearance control stays usable with larger text', (
     tester,
   ) async {

@@ -302,7 +302,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     ),
                     MakoloSection(
                       title: 'Points',
-                      description: 'Ce qui demande votre attention apparaît ici.',
+                      description:
+                          'Ce qui demande votre attention apparaît ici.',
                       child: detail.points.isEmpty
                           ? const MakoloCard(
                               child: Text('Aucun point à afficher.'),

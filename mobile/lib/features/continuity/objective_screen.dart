@@ -113,7 +113,8 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
               failure:
                   !available &&
                       (source.invalidated ||
-                          source.reachability == ReachabilityState.unreachable) &&
+                          source.reachability ==
+                              ReachabilityState.unreachable) &&
                       !_refreshing
                   ? MakoloFailureCue.blocking
                   : source.lastErrorCode != null && available
@@ -184,7 +185,9 @@ class _DossierContent extends StatelessWidget {
           subtitle: _string(objective['description']),
           status: _humanState(state['label'] ?? state['code']) == null
               ? null
-              : MakoloStatus(label: _humanState(state['label'] ?? state['code'])!),
+              : MakoloStatus(
+                  label: _humanState(state['label'] ?? state['code'])!,
+                ),
           metadata: [
             if (_humanDate(payload['deadline']) != null)
               MakoloMetadataItem(
@@ -326,7 +329,9 @@ class _ProjectContent extends StatelessWidget {
           subtitle: _string(horizon['description']),
           status: _humanState(state['label'] ?? state['code']) == null
               ? null
-              : MakoloStatus(label: _humanState(state['label'] ?? state['code'])!),
+              : MakoloStatus(
+                  label: _humanState(state['label'] ?? state['code'])!,
+                ),
           metadata: metadata,
         ),
         MakoloSection(
@@ -390,7 +395,6 @@ String? _string(Object? value) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? null : text;
 }
-
 
 String? _humanState(Object? value) =>
     MakoloHumanization.presentationLabel(_string(value));
