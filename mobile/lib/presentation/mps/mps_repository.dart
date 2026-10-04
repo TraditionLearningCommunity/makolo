@@ -5,6 +5,7 @@ import '../../sync/sync_source.dart';
 import 'mps_models.dart';
 
 class MpsPresentationRepository {
+  // Published MPS definitions are immutable and acquired only when missing.
   MpsPresentationRepository({
     required this.store,
     required this.profileId,
