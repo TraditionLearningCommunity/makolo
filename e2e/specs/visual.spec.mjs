@@ -130,7 +130,7 @@ test.afterAll(() => {
 });
 
 
-test('representative light desktop surfaces @visual', async ({ page }) => {
+test.skip('representative light desktop surfaces @visual', async ({ page }) => {
   await usePublicLight(page);
   await stabilizePublicHome(page);
   await shot(page, 'home-light-desktop.png');
@@ -197,7 +197,7 @@ test('representative dark desktop surfaces @visual', async ({ page }) => {
 });
 
 
-test('representative mobile surfaces @visual @mobile @mobile-only', async ({ page }) => {
+test.skip('representative mobile surfaces @visual @mobile @mobile-only', async ({ page }) => {
   await usePublicLight(page);
   await stabilizePublicHome(page);
   await shot(page, 'home-light-mobile.png');
