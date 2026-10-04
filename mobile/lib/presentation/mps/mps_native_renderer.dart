@@ -87,21 +87,18 @@ class MpsNativeRenderer extends StatelessWidget {
         return Text(
           _value(props['value']),
           style: level <= 1
-              ? Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: palette.text,
-                    fontWeight: FontWeight.w800,
-                  )
+              ? Theme.of(context).textTheme.headlineMedium
+                    ?.copyWith(color: palette.text, fontWeight: FontWeight.w800)
               : Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: palette.text,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  color: palette.text,
+                  fontWeight: FontWeight.w700,
+                ),
         );
       case 'Subheading':
         return Text(
           _value(props['value']),
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: palette.muted),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: palette.muted),
         );
       case 'Text':
       case 'Footer':
@@ -141,9 +138,8 @@ class MpsNativeRenderer extends StatelessWidget {
             ? const SizedBox.shrink()
             : Text(
                 value,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(color: palette.text),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(color: palette.text),
               );
       case 'AccessSummary':
         final access = mpsMap(package.artifact.context['access']);
@@ -259,9 +255,8 @@ class _InfoBlock extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
                       child: Text(
                         line,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: palette.text),
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(color: palette.text),
                       ),
                     ),
                 ],

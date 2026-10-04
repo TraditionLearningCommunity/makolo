@@ -38,26 +38,27 @@ void main() {
     minimumRendererVersion: minimumRendererVersion,
   );
 
-  testWidgets(
-    'renderer resolves MPS bindings from authorized context',
-    (tester) async {
-      final value = MpsPresentationPackage(
-        artifact: artifact(),
-        manifest: mpsEssentialManifest,
-        themeTokens: mpsEssentialTheme,
-        usedFallback: false,
-      );
-      await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: MpsNativeRenderer(package: value))),
-      );
+  testWidgets('renderer resolves MPS bindings from authorized context', (
+    tester,
+  ) async {
+    final value = MpsPresentationPackage(
+      artifact: artifact(),
+      manifest: mpsEssentialManifest,
+      themeTokens: mpsEssentialTheme,
+      usedFallback: false,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: MpsNativeRenderer(package: value)),
+      ),
+    );
 
-      expect(find.text('Formation Makolo'), findsOneWidget);
-      expect(find.text('Bienvenue'), findsOneWidget);
-      expect(find.text('Billet'), findsOneWidget);
-      expect(find.text('Amina'), findsOneWidget);
-      expect(find.text('Valide'), findsOneWidget);
-    },
-  );
+    expect(find.text('Formation Makolo'), findsOneWidget);
+    expect(find.text('Bienvenue'), findsOneWidget);
+    expect(find.text('Billet'), findsOneWidget);
+    expect(find.text('Amina'), findsOneWidget);
+    expect(find.text('Valide'), findsOneWidget);
+  });
 
   testWidgets('QRCode remains a revalidated owner action', (tester) async {
     var opened = false;
@@ -99,7 +100,9 @@ void main() {
       usedFallback: false,
     );
     await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: MpsNativeRenderer(package: value))),
+      MaterialApp(
+        home: Scaffold(body: MpsNativeRenderer(package: value)),
+      ),
     );
     expect(find.text('Formation Makolo'), findsOneWidget);
   });

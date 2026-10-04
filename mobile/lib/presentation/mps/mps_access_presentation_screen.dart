@@ -114,9 +114,7 @@ class _MpsAccessPresentationScreenState
               ),
           ],
         ),
-        _ => const MakoloLoadingState(
-          label: 'Chargement de la présentation…',
-        ),
+        _ => const MakoloLoadingState(label: 'Chargement de la présentation…'),
       },
     );
   }
