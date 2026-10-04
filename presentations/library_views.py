@@ -15,7 +15,7 @@ from organizations.models import Organization
 from .contexts import PresentationContext
 from .enums import PresentationPurpose, Provenance, VersionStatus, Visibility
 from .library_models import PresentationTemplateModeration, SpacePresentationDefault
-from .library_services import duplicate_template, publish_template_version, retire_template_version, set_space_default, submit_template_version, suspend_template_version
+from .library_services import activate_owned_template_version, duplicate_template, publish_template_version, retire_template_version, set_space_default, submit_template_version, suspend_template_version
 from .models import PresentationTemplate, PresentationTemplateVersion, PresentationThemeVersion
 from .rendering import render_presentation
 
@@ -129,6 +129,27 @@ class TemplateVersionPreviewView(LoginRequiredMixin, View):
         except ValidationError:
             return HttpResponseBadRequest("Ce modèle ne peut pas être prévisualisé tant que son manifest est invalide.")
         return HttpResponse(f'<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/presentations/mps.css"></head><body>{html}</body></html>', content_type="text/html; charset=utf-8")
+
+
+class ActivateTemplateView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, version_id):
+        version = get_object_or_404(
+            PresentationTemplateVersion.objects.select_related(
+                "template",
+                "template__owner_space",
+            ),
+            pk=version_id,
+        )
+        activate_owned_template_version(actor=request.user, version=version)
+        messages.success(request, "Modèle prêt à être utilisé dans le Studio.")
+        if version.template.owner_space_id:
+            return redirect(
+                "presentations:space-library",
+                slug=version.template.owner_space.slug,
+            )
+        return redirect("presentations:library")
 
 
 class SubmitTemplateView(LoginRequiredMixin, View):
