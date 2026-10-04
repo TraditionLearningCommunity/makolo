@@ -133,7 +133,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                           if (showActivation) ...[
                             const SizedBox(height: MakoloSpacing.xs),
                             Text(
-                              'Profil Makolo · $activationPercent % activé',
+                              'Profil Makolo · $activationPercent % renseigné',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w600,
@@ -166,7 +166,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     minVerticalPadding: MakoloSpacing.sm,
                     leading: const Icon(Icons.credit_card_outlined),
-                    title: const Text('Abonnement et facturation'),
+                    title: const Text('Abonnement & facturation'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _closeThen(context, onBilling!),
                   ),
