@@ -463,7 +463,7 @@ class _ConversationPoint {
 
   final String title;
   final String? body;
-  final String lifecycle;
+  final String? lifecycle;
   final bool requiresAcknowledgement;
   final bool canRespond;
   final String? attentionReason;
