@@ -7,6 +7,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
 import '../../navigation/refresh_boundary.dart';
+import '../../presentation/humanization.dart';
 import '../../repositories/personal_repository.dart';
 import 'ongoing_presentation.dart';
 
@@ -188,6 +189,15 @@ class _OngoingRow extends StatelessWidget {
   final bool stale;
   final VoidCallback onTap;
 
+  String? _supportingLine(OngoingContinuityPresentation item) {
+    final candidate = item.mySide.isNotEmpty
+        ? item.mySide.first
+        : item.next.isNotEmpty
+        ? item.next.first
+        : null;
+    return candidate == null || candidate == item.synthesis ? null : candidate;
+  }
+
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
@@ -204,12 +214,9 @@ class _OngoingRow extends StatelessWidget {
             Text(item.title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: MakoloSpacing.sm),
             Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
-            if (item.mySide.isNotEmpty || item.next.isNotEmpty) ...[
+            if (_supportingLine(item) case final supporting?) ...[
               const SizedBox(height: MakoloSpacing.sm),
-              Text(
-                item.mySide.isNotEmpty ? item.mySide.first : item.next.first,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              Text(supporting, style: Theme.of(context).textTheme.bodyMedium),
             ],
             if (stale) ...[
               const SizedBox(height: MakoloSpacing.sm),
@@ -238,13 +245,73 @@ class _OngoingFocusPlaceholder extends StatelessWidget {
 
 class _OngoingFocus extends StatelessWidget {
   const _OngoingFocus({required this.item, required this.onBack});
+
   final OngoingContinuityPresentation item;
   final VoidCallback onBack;
+
+  bool get _hasStructuredDetail =>
+      item.settled.isNotEmpty ||
+      item.mySide.isNotEmpty ||
+      item.elsewhere.isNotEmpty ||
+      item.next.isNotEmpty ||
+      item.waiting != null ||
+      item.blocker != null ||
+      item.unknown != null;
+
+  List<Widget> _detailSections() {
+    final seen = <String>{};
+    List<String> unique(Iterable<String> values) => [
+      for (final value in values)
+        if (value.trim().isNotEmpty && seen.add(value.trim())) value.trim(),
+    ];
+
+    final sections = <Widget>[];
+    void add(String title, Iterable<String> values) {
+      final visible = unique(values);
+      if (visible.isNotEmpty) {
+        sections.add(_DimensionSection(title: title, values: visible));
+      }
+    }
+
+    add('Déjà réglé', item.settled);
+    add('De votre côté', item.mySide);
+    add('Ailleurs', item.elsewhere);
+    add('Ensuite', item.next);
+    if (item.waiting != null) add('En attente', [item.waiting!]);
+    if (item.blocker != null) add('Ce qui bloque', [item.blocker!]);
+    if (item.unknown != null) add('À vérifier', [item.unknown!]);
+    return sections;
+  }
+
+  List<MakoloMetadataItem> _humanMetadata() {
+    final metadata = <MakoloMetadataItem>[];
+    final start = MakoloHumanization.tryParseInstant(item.timing['start_at']);
+    if (start != null) {
+      metadata.add(
+        MakoloMetadataItem(
+          MakoloHumanization.formatDateTime(start, now: DateTime.now()),
+          icon: Icons.schedule_outlined,
+        ),
+      );
+    }
+
+    final place = [
+      item.place['name'],
+      item.place['locality'],
+    ].whereType<String>().where((value) => value.trim().isNotEmpty).toSet();
+    if (place.isNotEmpty) {
+      metadata.add(
+        MakoloMetadataItem(place.join(' · '), icon: Icons.place_outlined),
+      );
+    }
+    return metadata;
+  }
 
   @override
   Widget build(BuildContext context) {
     final showBack =
         MediaQuery.sizeOf(context).width < MakoloLayout.ongoingSplitMinWidth;
+    final metadata = _humanMetadata();
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
       child: MakoloFocusPane(
@@ -258,33 +325,15 @@ class _OngoingFocus extends StatelessWidget {
                 label: const Text('En cours'),
               ),
             Text(item.title, style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
-            if (item.settled.isNotEmpty)
-              _DimensionSection(title: 'Déjà réglé', values: item.settled),
-            if (item.mySide.isNotEmpty)
-              _DimensionSection(title: 'De votre côté', values: item.mySide),
-            if (item.elsewhere.isNotEmpty)
-              _DimensionSection(title: 'Ailleurs', values: item.elsewhere),
-            if (item.next.isNotEmpty)
-              _DimensionSection(title: 'Ensuite', values: item.next),
-            if (item.waiting != null && item.elsewhere.isEmpty)
-              _DimensionSection(title: 'En attente', values: [item.waiting!]),
-            if (item.blocker != null)
-              _DimensionSection(
-                title: 'Ce qui bloque',
-                values: [item.blocker!],
-              ),
-            if (item.unknown != null)
-              _DimensionSection(title: 'À vérifier', values: [item.unknown!]),
-            if (item.timing.isNotEmpty || item.place.isNotEmpty)
-              MakoloMetadata(
-                items: [
-                  for (final value in item.timing.values)
-                    if (value is String) MakoloMetadataItem(value),
-                  for (final value in item.place.values)
-                    if (value is String) MakoloMetadataItem(value),
-                ],
+            if (!_hasStructuredDetail) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
+            ],
+            ..._detailSections(),
+            if (metadata.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: MakoloSpacing.lg),
+                child: MakoloMetadata(items: metadata),
               ),
             if (item.capabilities.contains('open_day_of') &&
                 item.links['day_of'] != null)
