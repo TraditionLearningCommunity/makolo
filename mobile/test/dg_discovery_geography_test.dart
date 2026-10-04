@@ -206,14 +206,21 @@ void main() {
         },
         'state': {'code': 'scheduled'},
         'availability': {'state': 'available'},
+        'timing': {'start_at': '2026-10-04T07:00:00+00:00'},
         'capabilities': [],
       },
     );
 
-    final selected = const DiscoveryDetailSelector().occurrence(projection);
+    final selected = const DiscoveryDetailSelector().occurrence(
+      projection,
+      now: DateTime.utc(2026, 10, 4, 12),
+    );
 
     expect(selected, isNotNull);
-    expect(selected!.canOpenDayOf, isFalse);
+    expect(selected!.state, 'Prévu');
+    expect(selected.availability, 'Disponible');
+    expect(selected.timing, isNot(contains('2026-10-04T')));
+    expect(selected.canOpenDayOf, isFalse);
   });
 
   test('Watch replay is an owner collection source, not a local engine', () {
