@@ -114,10 +114,7 @@ class MpsNativeRenderer extends StatelessWidget {
         final occurrence = mpsMap(package.artifact.context['occurrence']);
         final startsAt = mpsString(occurrence['starts_at']);
         final place = mpsString(occurrence['place']);
-        final values = [
-          if (startsAt != null) startsAt,
-          if (place != null) place,
-        ];
+        final values = <String>[?startsAt, ?place];
         return values.isEmpty
             ? const SizedBox.shrink()
             : _InfoBlock(
@@ -149,11 +146,7 @@ class MpsNativeRenderer extends StatelessWidget {
         if (type == null) return const SizedBox.shrink();
         return _InfoBlock(
           icon: Icons.confirmation_number_outlined,
-          lines: [
-            type,
-            if (beneficiary != null) beneficiary,
-            if (status != null) status,
-          ],
+          lines: <String>[type, ?beneficiary, ?status],
           palette: palette,
         );
       case 'QRCode':
@@ -293,7 +286,7 @@ class _MpsPalette {
       if (raw == null || !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(raw)) {
         return fallback;
       }
-      return Color(int.parse('FF' + raw.substring(1), radix: 16));
+      return Color(int.parse('FF${raw.substring(1)}', radix: 16));
     }
 
     final scheme = Theme.of(context).colorScheme;
