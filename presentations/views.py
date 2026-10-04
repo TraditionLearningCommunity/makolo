@@ -16,13 +16,14 @@ from core.product_language import vocabulary_for
 from core.participant_selectors import participant_accesses_visible_to_buyer
 
 from .asset_services import create_presentation_asset
-from .catalog import THEME_DEFINITIONS, catalog_entries, ensure_builtin_catalog
+from .catalog import ensure_builtin_catalog
 from .contexts import build_access_context, build_activity_context
 from .editorial import PURPOSE_FIELDS
 from .enums import PresentationPurpose, VersionStatus
 from .rendering import render_presentation
 from .resolver import ResolvedPresentation, resolve_presentation
-from .services import configure_activity_presentation, publish_activity_presentation
+from .services import clear_activity_presentation, configure_activity_presentation, publish_activity_presentation
+from .studio_selection import template_choices_for_activity, theme_choices_for_activity
 
 PREVIEW_MODES = {"phone": "web", "desktop": "web", "print": "print"}
 SAFE_PINNED_VERSION_STATUSES = {VersionStatus.PUBLISHED, VersionStatus.RETIRED}
@@ -69,29 +70,153 @@ class ActivityPresentationStudioView(ActivityPresentationAuthorityMixin, Templat
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        ensure_builtin_catalog(actor=self.request.user)
+        templates, themes = ensure_builtin_catalog(actor=self.request.user)
         purpose = self.request.GET.get("purpose") or PresentationPurpose.PUBLIC_PAGE
         if purpose not in PresentationPurpose.values:
             purpose = PresentationPurpose.PUBLIC_PAGE
-        current = self.activity.presentations.filter(occurrence__isnull=True, purpose=purpose).select_related("template_version__template", "theme_version__theme").first()
-        editorial_fields = [{"name": field, "value": (current.editorial_data.get(field, "") if current else ""), "asset": field == "hero_image"} for field in PURPOSE_FIELDS.get(purpose, {})]
-        context.update({"activity": self.activity, "purpose": purpose, "purposes": PresentationPurpose.choices, "catalog": catalog_entries(), "themes": [(slug, name) for slug, (name, _) in THEME_DEFINITIONS.items()], "current": current, "editorial_fields": editorial_fields, "public_url": reverse("presentations:public-activity", kwargs={"activity_id": self.activity.pk})})
+        current = (
+            self.activity.presentations.filter(
+                occurrence__isnull=True,
+                purpose=purpose,
+            )
+            .select_related("template_version__template", "theme_version__theme")
+            .first()
+        )
+        resolved = resolve_presentation(activity=self.activity, purpose=purpose)
+        selected_template_id = (
+            current.template_version_id
+            if current
+            else getattr(resolved.template_version, "pk", None)
+            or templates["makolo-essential"].pk
+        )
+        selected_theme_id = (
+            current.theme_version_id
+            if current
+            else getattr(resolved.theme_version, "pk", None)
+            or themes["makolo-violet"].pk
+        )
+        editorial_fields = [
+            {
+                "name": field,
+                "value": (current.editorial_data.get(field, "") if current else ""),
+                "asset": field == "hero_image",
+            }
+            for field in PURPOSE_FIELDS.get(purpose, {})
+        ]
+        effective_source = (
+            "Configuration de cette Activity"
+            if current
+            else "Default de l’Espace"
+            if resolved.fallback_reason == "space-default"
+            else "Makolo Essential"
+        )
+        context.update(
+            {
+                "activity": self.activity,
+                "purpose": purpose,
+                "purposes": PresentationPurpose.choices,
+                "template_choices": template_choices_for_activity(
+                    actor=self.request.user,
+                    activity=self.activity,
+                    purpose=purpose,
+                ),
+                "theme_choices": theme_choices_for_activity(
+                    actor=self.request.user,
+                    activity=self.activity,
+                ),
+                "current": current,
+                "selected_template_id": selected_template_id,
+                "selected_theme_id": selected_theme_id,
+                "effective_source": effective_source,
+                "editorial_fields": editorial_fields,
+                "public_url": reverse(
+                    "presentations:public-activity",
+                    kwargs={"activity_id": self.activity.pk},
+                ),
+                "library_url": reverse("presentations:library"),
+                "space_library_url": (
+                    reverse(
+                        "presentations:space-library",
+                        kwargs={"slug": self.activity.space.slug},
+                    )
+                    if self.activity.space_id
+                    else ""
+                ),
+            }
+        )
         return context
 
     def post(self, request, *args, **kwargs):
         templates, themes = ensure_builtin_catalog(actor=request.user)
         purpose = request.POST.get("purpose") or PresentationPurpose.PUBLIC_PAGE
-        template_slug = request.POST.get("template") or "makolo-essential"
-        theme_slug = request.POST.get("theme") or "makolo-violet"
-        if purpose not in PresentationPurpose.values or template_slug not in templates or theme_slug not in themes:
+        if purpose not in PresentationPurpose.values:
+            raise ValidationError("Usage de Présentation invalide.")
+        if request.POST.get("action") == "use_default":
+            clear_activity_presentation(
+                actor=request.user,
+                activity=self.activity,
+                purpose=purpose,
+            )
+            messages.success(request, "Cette Activity utilise de nouveau le default disponible.")
+            return redirect(
+                f"{reverse('presentations:studio', kwargs={'activity_id': self.activity.pk})}?purpose={purpose}"
+            )
+
+        template_id = request.POST.get("template_version")
+        theme_id = request.POST.get("theme_version")
+        template_version = next(
+            (
+                item["version"]
+                for item in template_choices_for_activity(
+                    actor=request.user,
+                    activity=self.activity,
+                    purpose=purpose,
+                )
+                if str(item["version"].pk) == str(template_id)
+            ),
+            None,
+        )
+        theme_version = next(
+            (
+                item["version"]
+                for item in theme_choices_for_activity(
+                    actor=request.user,
+                    activity=self.activity,
+                )
+                if str(item["version"].pk) == str(theme_id)
+            ),
+            None,
+        )
+
+        # Compatibility with restored M3 forms while PR3 migrates the Studio to
+        # immutable version ids.
+        if template_version is None and request.POST.get("template") in templates:
+            template_version = templates[request.POST["template"]]
+        if theme_version is None and request.POST.get("theme") in themes:
+            theme_version = themes[request.POST["theme"]]
+        if template_version is None or theme_version is None:
             raise ValidationError("Configuration de Présentation invalide.")
-        presentation = configure_activity_presentation(actor=request.user, activity=self.activity, purpose=purpose, template_version=templates[template_slug], theme_version=themes[theme_slug], editorial_data=_editorial_from_post(request, purpose, activity=self.activity))
+
+        presentation = configure_activity_presentation(
+            actor=request.user,
+            activity=self.activity,
+            purpose=purpose,
+            template_version=template_version,
+            theme_version=theme_version,
+            editorial_data=_editorial_from_post(
+                request,
+                purpose,
+                activity=self.activity,
+            ),
+        )
         if request.POST.get("action") == "publish":
             publish_activity_presentation(actor=request.user, presentation=presentation)
             messages.success(request, "Présentation publiée.")
         else:
             messages.success(request, "Présentation enregistrée en brouillon.")
-        return redirect(f"{reverse('presentations:studio', kwargs={'activity_id': self.activity.pk})}?purpose={purpose}")
+        return redirect(
+            f"{reverse('presentations:studio', kwargs={'activity_id': self.activity.pk})}?purpose={purpose}"
+        )
 
 
 class ActivityPresentationPreviewView(ActivityPresentationAuthorityMixin, View):
