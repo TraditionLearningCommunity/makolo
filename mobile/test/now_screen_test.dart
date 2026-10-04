@@ -103,7 +103,8 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.textContaining('source distante'), findsOneWidget);
+    expect(find.text('Mise à jour momentanément indisponible.'), findsOneWidget);
+    expect(find.textContaining('source distante'), findsNothing);
   });
 
   testWidgets('refresh error preserves known content', (tester) async {
@@ -142,7 +143,7 @@ void main() {
     expect(find.text('Pourquoi maintenant'), findsOneWidget);
     expect(find.text('Aussi maintenant'), findsNothing);
 
-    await tester.tap(find.text('Maintenant'));
+    await tester.tap(find.text('Now'));
     await tester.pump();
 
     expect(find.text('Aussi maintenant'), findsOneWidget);
