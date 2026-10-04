@@ -43,7 +43,7 @@ class _Clock:
         return self.values.pop(0)
 
 
-def _mission():
+def _mission(*, max_candidates=3):
     return ResearchMission(
         primary_family=ResearchFamily.POSSIBILITY,
         subject="Bourses de Master en génie mécanique",
@@ -56,22 +56,22 @@ def _mission():
             ),
         ),
         reasons=("Construire la connaissance Makolo",),
-        limits={"max_candidates": 3, "max_queries": 2},
+        limits={"max_candidates": max_candidates, "max_queries": 2},
     )
 
 
-def _web_request():
+def _web_request(*, max_candidates=3):
     return WebResearchRequest(
-        mission=_mission(),
+        mission=_mission(max_candidates=max_candidates),
         mode=WebResearchMode.DISCOVER,
         requested_at=datetime(2026, 10, 3, 18, 0, tzinfo=timezone.utc),
     )
 
 
-def _intelligence_request():
+def _intelligence_request(*, max_candidates=3):
     return IntelligenceRequest(
         capability=IntelligenceCapability.WEB_RESEARCH,
-        input={"request": _web_request().to_payload()},
+        input={"request": _web_request(max_candidates=max_candidates).to_payload()},
         metadata={"feature": "web_research"},
     )
 
@@ -119,6 +119,26 @@ class TavilyWebResearchProviderTests(SimpleTestCase):
             ["https://example.org/scholarship"],
         )
         self.assertNotIn("tvly-test-secret", repr(result))
+
+    def test_tavily_caps_requested_candidates_to_provider_limit(self):
+        provider = TavilyWebResearchProvider(
+            key="tavily-test",
+            base_url="https://api.tavily.example",
+            api_key="secret",
+        )
+        captured = {}
+
+        def fake_open(request, *, timeout):
+            captured["payload"] = json.loads(request.data.decode("utf-8"))
+            return _FakeResponse({"results": []})
+
+        with patch(
+            "intelligence.providers.tavily_web._open_url",
+            side_effect=fake_open,
+        ):
+            provider.execute(_intelligence_request(max_candidates=25))
+
+        self.assertEqual(captured["payload"]["max_results"], 20)
 
     def test_tavily_invalid_result_is_controlled(self):
         provider = TavilyWebResearchProvider(
