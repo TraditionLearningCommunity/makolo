@@ -137,6 +137,31 @@ abstract final class MakoloHumanization {
     };
   }
 
+  static String? presentationLabel(String? raw) {
+    final text = raw?.trim();
+    if (text == null || text.isEmpty) return null;
+    final mapped = humanStatus(text);
+    if (mapped != null) return mapped;
+    if (RegExp(r'^[a-z0-9_\\-]+
+    final value = raw?.trim();
+    if (value == null || value.isEmpty) return null;
+    final parts = value.split('/');
+    final leaf = parts.last.replaceAll('_', ' ').trim();
+    if (leaf.isEmpty || leaf.toUpperCase() == 'UTC') return null;
+    return leaf;
+  }
+
+  static DateTime? tryParseInstant(Object? value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+    return DateTime.tryParse(text);
+  }
+}
+).hasMatch(text)) return null;
+    return text;
+  }
+
   static String? humanTimezone(String? raw) {
     final value = raw?.trim();
     if (value == null || value.isEmpty) return null;
