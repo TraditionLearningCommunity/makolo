@@ -15,6 +15,7 @@ urlpatterns = [
     path("library/space/<slug:slug>/", SpacePresentationLibraryView.as_view(), name="space-library"),
     path("library/space/<slug:slug>/default/", SetSpaceDefaultView.as_view(), name="space-default"),
     path("library/version/<int:version_id>/preview/", TemplateVersionPreviewView.as_view(), name="template-preview"),
+    path("library/version/<int:version_id>/activate/", ActivateTemplateView.as_view(), name="activate-template"),
     path("library/version/<int:version_id>/duplicate/", DuplicateTemplateView.as_view(), name="duplicate-template"),
     path("library/version/<int:version_id>/submit/", SubmitTemplateView.as_view(), name="submit-template"),
     path("library/version/<int:version_id>/<str:action>/", ModerateTemplateView.as_view(), name="moderate-template"),
