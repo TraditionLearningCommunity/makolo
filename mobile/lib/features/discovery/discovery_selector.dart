@@ -242,10 +242,7 @@ class DiscoverySelector {
   }) {
     final raw = projection?.payload['item'];
     if (raw is! Map) return null;
-    return _item(
-      Map<String, dynamic>.from(raw),
-      now: now ?? DateTime.now(),
-    );
+    return _item(Map<String, dynamic>.from(raw), now: now ?? DateTime.now());
   }
 
   List<DiscoveryMapPoint> mapPointsFromCollection(
@@ -413,11 +410,7 @@ int? _int(Object? value) => value is int ? value : int.tryParse('$value');
 double? _double(Object? value) =>
     value is num ? value.toDouble() : double.tryParse('$value');
 
-
-String? _humanTiming(
-  Map<String, dynamic>? timing, {
-  required DateTime now,
-}) {
+String? _humanTiming(Map<String, dynamic>? timing, {required DateTime now}) {
   if (timing == null) return null;
   final instant = MakoloHumanization.tryParseInstant(timing['start_at']);
   if (instant != null) {

@@ -8,7 +8,11 @@ abstract final class MakoloHumanization {
   }) {
     final localValue = value.toLocal();
     final localNow = now.toLocal();
-    final valueDay = DateTime(localValue.year, localValue.month, localValue.day);
+    final valueDay = DateTime(
+      localValue.year,
+      localValue.month,
+      localValue.day,
+    );
     final nowDay = DateTime(localNow.year, localNow.month, localNow.day);
     final delta = valueDay.difference(nowDay).inDays;
 
@@ -66,28 +70,18 @@ abstract final class MakoloHumanization {
     required String one,
     required String other,
     String locale = 'fr',
-  }) =>
-      Intl.plural(count, one: one, other: other, locale: locale);
+  }) => Intl.plural(count, one: one, other: other, locale: locale);
 
   static String formatDuration(Duration duration, {String locale = 'fr'}) {
     final totalMinutes = duration.inMinutes.abs();
     if (totalMinutes < 60) {
-      return '$totalMinutes ${plural(
-        totalMinutes,
-        one: 'minute',
-        other: 'minutes',
-        locale: locale,
-      )}';
+      return '$totalMinutes ${plural(totalMinutes, one: 'minute', other: 'minutes', locale: locale)}';
     }
 
     final hours = totalMinutes ~/ 60;
     final minutes = totalMinutes % 60;
-    final hourLabel = '$hours ${plural(
-      hours,
-      one: 'heure',
-      other: 'heures',
-      locale: locale,
-    )}';
+    final hourLabel =
+        '$hours ${plural(hours, one: 'heure', other: 'heures', locale: locale)}';
     if (minutes == 0) return hourLabel;
     return '$hourLabel $minutes min';
   }
@@ -102,24 +96,16 @@ abstract final class MakoloHumanization {
     if (minutes.abs() < 1) return 'À l’instant';
     if (minutes.abs() < 60) {
       final count = minutes.abs();
-      final amount = '$count ${plural(
-        count,
-        one: 'minute',
-        other: 'minutes',
-        locale: locale,
-      )}';
+      final amount =
+          '$count ${plural(count, one: 'minute', other: 'minutes', locale: locale)}';
       return minutes < 0 ? 'Il y a $amount' : 'Dans $amount';
     }
 
     final hours = delta.inHours;
     if (hours.abs() < 24) {
       final count = hours.abs();
-      final amount = '$count ${plural(
-        count,
-        one: 'heure',
-        other: 'heures',
-        locale: locale,
-      )}';
+      final amount =
+          '$count ${plural(count, one: 'heure', other: 'heures', locale: locale)}';
       return hours < 0 ? 'Il y a $amount' : 'Dans $amount';
     }
 

@@ -317,11 +317,7 @@ class _ReadinessGroups extends StatelessWidget {
         if (primary == null || item.summary.trim() != primary) item,
     ];
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
-      (
-        'Demande votre attention',
-        actorInterventions,
-        Icons.bolt_rounded,
-      ),
+      ('Demande votre attention', actorInterventions, Icons.bolt_rounded),
       ('Bloque la suite', presentation.blockers, Icons.block_rounded),
       ('En attente', presentation.waiting, Icons.schedule_rounded),
       ('En ordre', presentation.ready, Icons.check_circle_outline_rounded),

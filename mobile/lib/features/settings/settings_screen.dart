@@ -19,7 +19,6 @@ class AppSettingsScreen extends StatelessWidget {
     };
   }
 
-
   void _showLegalInformation(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -46,10 +45,7 @@ class AppSettingsScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                showLicensePage(
-                  context: context,
-                  applicationName: 'Makolo',
-                );
+                showLicensePage(context: context, applicationName: 'Makolo');
               },
             ),
           ],

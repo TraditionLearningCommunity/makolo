@@ -543,8 +543,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message:
-                            'Ce détail n’est pas encore disponible sur cet appareil.',
+                        message: 'Ce détail n’est pas encore disponible sur cet appareil.',
                         preservedMessage:
                             'Une connexion est nécessaire pour l’acquérir. '
                             'Cela ne signifie pas que cette réalité n’existe pas.',
@@ -677,8 +676,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message:
-                            'Ce détail n’est pas encore disponible sur cet appareil.',
+                        message: 'Ce détail n’est pas encore disponible sur cet appareil.',
                         preservedMessage:
                             'Une connexion est nécessaire pour l’acquérir. '
                             'Cela ne signifie pas que cette réalité n’existe pas.',
@@ -727,10 +725,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                       activity.occurrences[index].state == null
                                       ? null
                                       : MakoloStatus(
-                                          label:
-                                              activity
-                                                  .occurrences[index]
-                                                  .state!,
+                                          label: activity
+                                              .occurrences[index]
+                                              .state!,
                                         ),
                                   metadata: [
                                     if (activity.occurrences[index].timing !=
@@ -826,8 +823,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message:
-                            'Ce détail n’est pas encore disponible sur cet appareil.',
+                        message: 'Ce détail n’est pas encore disponible sur cet appareil.',
                         preservedMessage:
                             'Une connexion est nécessaire pour l’acquérir. '
                             'Cela ne signifie pas que cette réalité n’existe pas.',

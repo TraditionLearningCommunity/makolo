@@ -85,10 +85,7 @@ class DiscoveryDetailSelector {
             id: id,
             label: _text(row['label']) ?? 'Réalisation',
             state: MakoloHumanization.humanStatus(_text(row['state'])),
-            timing: _timing(
-              _map(row['timing']),
-              now: now ?? DateTime.now(),
-            ),
+            timing: _timing(_map(row['timing']), now: now ?? DateTime.now()),
           ),
         );
       }
@@ -134,20 +131,14 @@ class DiscoveryDetailSelector {
       availability: MakoloHumanization.humanStatus(
         _text(availability?['state']),
       ),
-      timing: _timing(
-        _map(payload['timing']),
-        now: now ?? DateTime.now(),
-      ),
+      timing: _timing(_map(payload['timing']), now: now ?? DateTime.now()),
       place: placeParts.isEmpty ? null : placeParts.join(' · '),
       capabilities: Set.unmodifiable(capabilities),
     );
   }
 }
 
-String? _timing(
-  Map<String, dynamic>? timing, {
-  required DateTime now,
-}) {
+String? _timing(Map<String, dynamic>? timing, {required DateTime now}) {
   if (timing == null) return null;
   final instant = MakoloHumanization.tryParseInstant(timing['start_at']);
   if (instant != null) {

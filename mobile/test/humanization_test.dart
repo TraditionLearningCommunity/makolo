@@ -12,8 +12,14 @@ void main() {
     expect(MakoloHumanization.humanStatus('available'), 'Disponible');
     expect(MakoloHumanization.humanStatus('action_required'), 'À faire');
     expect(MakoloHumanization.humanStatus('unknown'), isNull);
-    expect(MakoloHumanization.presentationLabel('custom_backend_state'), isNull);
-    expect(MakoloHumanization.presentationLabel('En cours de validation'), 'En cours de validation');
+    expect(
+      MakoloHumanization.presentationLabel('custom_backend_state'),
+      isNull,
+    );
+    expect(
+      MakoloHumanization.presentationLabel('En cours de validation'),
+      'En cours de validation',
+    );
   });
 
   test('timezone identifiers are reduced to human place labels', () {

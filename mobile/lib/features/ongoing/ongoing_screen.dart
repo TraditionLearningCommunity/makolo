@@ -330,7 +330,10 @@ class _OngoingFocus extends StatelessWidget {
             Text(item.title, style: Theme.of(context).textTheme.headlineMedium),
             if (!_hasStructuredDetail) ...[
               const SizedBox(height: MakoloSpacing.sm),
-              Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
+              Text(
+                item.synthesis,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
             ],
             ..._detailSections(),
             if (metadata.isNotEmpty)
@@ -338,7 +341,6 @@ class _OngoingFocus extends StatelessWidget {
                 padding: const EdgeInsets.only(top: MakoloSpacing.lg),
                 child: MakoloMetadata(items: metadata),
               ),
-
           ],
         ),
       ),
