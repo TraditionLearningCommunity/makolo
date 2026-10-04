@@ -9,9 +9,14 @@ from access.models import AccessUseResult
 from access.services import issue_access, render_access_credential, validate_access_credential
 from activities.models import ActivityVisibility
 from activities.services import create_activity, create_occurrence
+from journeys.models import JourneyStatus, WorkflowKind
+from journeys.services import create_journey
+from organizations.services import create_organization
 
 from .catalog import catalog_entries, ensure_builtin_catalog
 from .enums import PresentationPurpose
+from .library_services import activate_owned_template_version, duplicate_template, set_space_default
+from .models import ActivityPresentation
 from .services import configure_activity_presentation, publish_activity_presentation
 
 User = get_user_model()
@@ -79,3 +84,112 @@ class PresentationStudioTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "mps-preview-print")
         self.assertContains(response, "presentations/mps.css")
+
+    def test_studio_selects_published_personal_library_version(self):
+        templates, themes = ensure_builtin_catalog(actor=self.owner)
+        _, version = duplicate_template(
+            actor=self.owner,
+            source_version=templates["formal"],
+            slug="my-formal",
+            name="My Formal",
+        )
+        activate_owned_template_version(actor=self.owner, version=version)
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("presentations:studio", kwargs={"activity_id": self.activity.pk}),
+            {
+                "purpose": PresentationPurpose.INVITATION,
+                "template_version": str(version.pk),
+                "theme_version": str(themes["ivory"].pk),
+                "action": "publish",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        binding = ActivityPresentation.objects.get(
+            activity=self.activity,
+            purpose=PresentationPurpose.INVITATION,
+        )
+        self.assertEqual(binding.template_version_id, version.pk)
+        self.assertEqual(binding.theme_version_id, themes["ivory"].pk)
+
+    def test_studio_can_return_to_space_default_without_copying_it(self):
+        space = create_organization(creator=self.owner, name="Studio Default Space")
+        activity = create_activity(
+            space=space,
+            created_by=self.owner,
+            title="Studio Default Activity",
+        )
+        templates, themes = ensure_builtin_catalog(actor=self.owner)
+        set_space_default(
+            actor=self.owner,
+            space=space,
+            purpose=PresentationPurpose.PUBLIC_PAGE,
+            template_version=templates["formal"],
+            theme_version=themes["ivory"],
+        )
+        binding = configure_activity_presentation(
+            actor=self.owner,
+            activity=activity,
+            purpose=PresentationPurpose.PUBLIC_PAGE,
+            template_version=templates["professional"],
+            theme_version=themes["makolo-ink"],
+        )
+        publish_activity_presentation(actor=self.owner, presentation=binding)
+
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("presentations:studio", kwargs={"activity_id": activity.pk}),
+            {
+                "purpose": PresentationPurpose.PUBLIC_PAGE,
+                "action": "use_default",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ActivityPresentation.objects.filter(
+                activity=activity,
+                purpose=PresentationPurpose.PUBLIC_PAGE,
+            ).exists()
+        )
+
+    def test_participant_invitation_is_private_and_uses_activity_presentation(self):
+        templates, themes = ensure_builtin_catalog(actor=self.owner)
+        binding = configure_activity_presentation(
+            actor=self.owner,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            purpose=PresentationPurpose.INVITATION,
+            template_version=templates["formal"],
+            theme_version=themes["ivory"],
+            editorial_data={"invitation_message": "Vous êtes invité."},
+        )
+        publish_activity_presentation(actor=self.owner, presentation=binding)
+        journey = create_journey(
+            initiated_by=self.owner,
+            beneficiary=self.owner,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.INVITATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse(
+                "presentations:participant-invitation",
+                kwargs={"journey_id": journey.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Makolo Studio")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+        self.client.force_login(self.other)
+        hidden = self.client.get(
+            reverse(
+                "presentations:participant-invitation",
+                kwargs={"journey_id": journey.pk},
+            )
+        )
+        self.assertEqual(hidden.status_code, 404)
+
