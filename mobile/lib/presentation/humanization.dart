@@ -54,11 +54,12 @@ abstract final class MakoloHumanization {
     num value, {
     String locale = 'fr',
     int decimalDigits = 0,
-  }) =>
-      NumberFormat.percentPattern(locale)
-        ..minimumFractionDigits = decimalDigits
-        ..maximumFractionDigits = decimalDigits
-        ..format(value);
+  }) {
+    final formatter = NumberFormat.percentPattern(locale)
+      ..minimumFractionDigits = decimalDigits
+      ..maximumFractionDigits = decimalDigits;
+    return formatter.format(value);
+  }
 
   static String plural(
     num count, {
