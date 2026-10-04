@@ -113,7 +113,10 @@ class _PreparationResourcesScreenState
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: !available && source.invalidated && !_refreshing
+              failure: !available &&
+                (source.invalidated ||
+                    source.reachability == ReachabilityState.unreachable) &&
+                !_refreshing
                   ? MakoloFailureCue.blocking
                   : source.lastErrorCode != null && available
                   ? MakoloFailureCue.recoverable
