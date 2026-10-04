@@ -151,11 +151,7 @@ class PendingIndicator extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        const Icon(Icons.schedule_outlined, size: 18),
         const SizedBox(width: MakoloSpacing.sm),
         Flexible(child: Text(label)),
       ],
