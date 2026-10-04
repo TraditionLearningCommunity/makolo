@@ -87,7 +87,7 @@ class TavilyWebResearchProvider(IntelligenceProvider):
             raise CapabilityUnsupported(request.capability.value)
 
         mission = web_research_payload(request)
-        limit = mission_candidate_limit(mission)
+        limit = mission_candidate_limit(mission, maximum=20)
         response = self._post(
             {
                 "query": mission_query(mission),
