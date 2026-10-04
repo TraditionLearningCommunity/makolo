@@ -27,6 +27,7 @@ from .mobile_projection import (
     template_definition_payload,
     theme_definition_payload,
 )
+from .product_usage import access_presentation_purpose
 from .resolver import resolve_presentation
 
 
@@ -102,10 +103,11 @@ class PersonalAccessPresentationAPIView(PersonalProjectionAPIView):
         self._guard_personal_scope(request)
         observed_at = timezone.now()
         access = get_object_or_404(_access_queryset(request.user), pk=pk)
+        purpose = access_presentation_purpose(access)
         resolved = resolve_presentation(
             activity=access.activity,
             occurrence=access.occurrence,
-            purpose=PresentationPurpose.ACCESS_PASS,
+            purpose=purpose,
         )
         vocabulary = vocabulary_for(
             activity=access.activity,
@@ -131,7 +133,7 @@ class PersonalAccessPresentationAPIView(PersonalProjectionAPIView):
             artifact_payload(
                 subject_kind="access",
                 subject_id=access.pk,
-                purpose=PresentationPurpose.ACCESS_PASS,
+                purpose=purpose,
                 resolved=resolved,
                 context=context,
                 template_link_name="presentations-api:access-template",
@@ -150,7 +152,7 @@ class _AccessDefinitionMixin:
         resolved = resolve_presentation(
             activity=access.activity,
             occurrence=access.occurrence,
-            purpose=PresentationPurpose.ACCESS_PASS,
+            purpose=access_presentation_purpose(access),
         )
         return resolved
 
