@@ -119,7 +119,10 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.textContaining('mise à jour'), findsOneWidget);
+    expect(
+      find.text('Mise à jour momentanément indisponible.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('pending never renders confirmed', (tester) async {
