@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
@@ -37,6 +38,8 @@ class MakoloApp extends ConsumerWidget {
         theme: buildMakoloLightTheme(),
         darkTheme: buildMakoloDarkTheme(),
         themeMode: ThemeMode.system,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('fr'), Locale('en')],
         home: const MakoloSystemUi(child: SplashScreen()),
       ),
       error: (error, stackTrace) => MaterialApp(
@@ -45,6 +48,8 @@ class MakoloApp extends ConsumerWidget {
         theme: buildMakoloLightTheme(),
         darkTheme: buildMakoloDarkTheme(),
         themeMode: ThemeMode.system,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: const [Locale('fr'), Locale('en')],
         home: MakoloSystemUi(
           child: Scaffold(
             body: MakoloErrorState(
@@ -70,6 +75,8 @@ class MakoloApp extends ConsumerWidget {
             darkTheme: buildMakoloDarkTheme(),
             themeMode: _themeMode(preferences.themePreference),
             routerConfig: router,
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            supportedLocales: const [Locale('fr'), Locale('en')],
             builder: (context, child) {
               Widget routedChild = child ?? const SizedBox.shrink();
 
