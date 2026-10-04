@@ -151,7 +151,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
 
     final cues = <Widget>[
       if (state.refreshing) const MakoloRefreshIndicator(),
-      if (technicalCue != null) technicalCue,
+      ?technicalCue,
       if (state.commit != MakoloCommitCue.none)
         MakoloCommitIndicator(commit: state.commit),
     ];
