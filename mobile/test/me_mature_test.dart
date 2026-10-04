@@ -7,6 +7,7 @@ import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/me/me_screen.dart';
 import 'package:makolo_mobile/features/me/me_selector.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
+import 'package:makolo_mobile/sync/owner_source_state.dart';
 import 'package:makolo_mobile/sync/sync_status.dart';
 
 import 'support/presentation_harness.dart';
@@ -322,14 +323,16 @@ void main() {
   });
 
   testWidgets('first availability preserves section grammar', (tester) async {
-    final database = MakoloDatabase.memory();
-    final store = ProfileStore(database, 'profile-1');
+    final repository = _MeStreamRepository(
+      projection: Stream<StoredProjection?>.value(null),
+      source: Stream<OwnerSourceState>.value(OwnerSourceState.unknown),
+    );
 
     await PresentationHarness.pump(
       tester,
       child: SyncStatusScope(
         status: const SyncStatus(state: SyncVisualState.syncing),
-        child: MeScreen(repository: PersonalRepository(store), now: () => now),
+        child: MeScreen(repository: repository, now: () => now),
       ),
     );
 
@@ -340,10 +343,6 @@ void main() {
     expect(find.text('Mes collectifs'), findsOneWidget);
     expect(find.text('Mes ressources'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await database.close();
   });
 
   testWidgets('sparse renders human local empty copy', (tester) async {
@@ -566,4 +565,28 @@ Future<void> _pumpFull(
     viewport: viewport,
     child: MeView(selection: selection),
   );
+}
+
+
+class _MeStreamRepository extends PersonalRepository {
+  _MeStreamRepository({
+    required Stream<StoredProjection?> projection,
+    required Stream<OwnerSourceState> source,
+  }) : _projection = projection,
+       _source = source,
+       super(_NeverUsedStore());
+
+  final Stream<StoredProjection?> _projection;
+  final Stream<OwnerSourceState> _source;
+
+  @override
+  Stream<StoredProjection?> watchMe() => _projection;
+
+  @override
+  Stream<OwnerSourceState> watchMeSource() => _source;
+}
+
+class _NeverUsedStore implements ProfileStore {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
