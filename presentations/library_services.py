@@ -54,6 +54,31 @@ def _theme_selectable(actor, version, activity):
 
 
 @transaction.atomic
+def activate_template_version(*, actor, version):
+    version = PresentationTemplateVersion.objects.select_for_update().select_related(
+        "template", "template__owner_space"
+    ).get(pk=version.pk)
+    template = version.template
+    if template.owner_profile_id == getattr(actor, "pk", None):
+        pass
+    elif template.owner_space_id is not None:
+        _require_space_library(actor, template.owner_space)
+    else:
+        raise PermissionDenied("Seul un modèle personnel ou Espace peut être activé directement.")
+
+    if template.visibility == Visibility.PUBLIC:
+        raise ValidationError("Un modèle public suit le workflow de modération Communauté.")
+    if version.status != VersionStatus.DRAFT:
+        raise ValidationError("Seul un brouillon peut être rendu utilisable directement.")
+    validate_manifest(version.manifest)
+    validate_publication_accessibility(version.manifest)
+    version.status = VersionStatus.PUBLISHED
+    version.published_at = timezone.now()
+    version.save(update_fields=["status", "published_at"])
+    return version
+
+
+@transaction.atomic
 def duplicate_template(*, actor, source_version, slug, name, owner_space=None):
     if source_version.status not in {VersionStatus.PUBLISHED, VersionStatus.RETIRED}:
         raise ValidationError("Seule une version sûre publiée ou retirée peut être dupliquée.")

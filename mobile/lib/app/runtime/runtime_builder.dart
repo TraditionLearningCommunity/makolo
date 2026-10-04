@@ -11,6 +11,7 @@ import '../../features/questionnaires/questionnaire_assembly.dart';
 import '../../features/space/space_assembly.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
+import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../repositories/personal_repository.dart';
@@ -163,6 +164,11 @@ Future<AppRuntime> buildAppRuntime({
     outboxProcessor: questionnaires.outboxProcessor,
     sync: sync,
     actorContext: actorContext,
+    mps: MpsPresentationRepository(
+      store: store,
+      profileId: profileId,
+      sync: sync,
+    ),
     space: buildWorkspaceContextRepository(
       database: database,
       store: store,

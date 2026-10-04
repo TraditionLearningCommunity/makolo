@@ -45,6 +45,8 @@ def configure_activity_presentation(*, actor, activity, purpose, template_versio
         raise ValidationError("Seules des versions publiées peuvent être sélectionnées.")
     if not _template_accessible(actor, template_version, activity) or not _theme_accessible(actor, theme_version, activity):
         raise PermissionDenied("Ce modèle ou ce thème n’est pas disponible dans ce contexte.")
+    if purpose not in template_version.manifest.get("purposes", []):
+        raise ValidationError("Ce modèle n’est pas compatible avec cet usage.")
     lookup = {"activity": activity, "occurrence": occurrence, "purpose": purpose}
     binding = ActivityPresentation.objects.select_for_update().filter(**lookup).first()
     if binding is None:
@@ -69,3 +71,16 @@ def publish_activity_presentation(*, actor, presentation):
     presentation.published_at = timezone.now()
     presentation.save(update_fields=["state", "published_at", "updated_at"])
     return presentation
+
+
+@transaction.atomic
+def clear_activity_presentation(*, actor, activity, purpose, occurrence=None):
+    ensure_activity_presentation_authority(actor, activity)
+    if occurrence is not None and occurrence.activity_id != activity.pk:
+        raise ValidationError({"occurrence": "L’Occurrence doit appartenir à l’Activity."})
+    deleted, _ = (
+        ActivityPresentation.objects.select_for_update()
+        .filter(activity=activity, occurrence=occurrence, purpose=purpose)
+        .delete()
+    )
+    return bool(deleted)

@@ -47,12 +47,13 @@ def build_activity_context(*, activity, occurrence=None, editorial=None, primary
     )
 
 
-def build_access_context(*, access, credential=None, editorial=None, primary_url="", primary_label="", display_type="Accès"):
-    credential = credential or access.credentials.filter(credential_type=CredentialType.QR, status=CredentialStatus.ACTIVE).order_by("-version").first()
+def build_access_context(*, access, credential=None, editorial=None, primary_url="", primary_label="", display_type="Accès", include_qr=True):
     qr_data_uri = ""
-    if credential is not None:
-        signed_payload = render_access_credential(credential)
-        qr_data_uri = render_makolo_qr_data_uri(signed_payload)
+    if include_qr:
+        credential = credential or access.credentials.filter(credential_type=CredentialType.QR, status=CredentialStatus.ACTIVE).order_by("-version").first()
+        if credential is not None:
+            signed_payload = render_access_credential(credential)
+            qr_data_uri = render_makolo_qr_data_uri(signed_payload)
     base = build_activity_context(activity=access.activity, occurrence=access.occurrence, editorial=editorial, primary_url=primary_url, primary_label=primary_label)
     return PresentationContext(
         activity=base.activity,
@@ -63,4 +64,30 @@ def build_access_context(*, access, credential=None, editorial=None, primary_url
         editorial=base.editorial,
         actions=base.actions,
         render_assets=_freeze({"canonical_qr_data_uri": qr_data_uri}),
+    )
+
+
+def build_journey_context(
+    *,
+    journey,
+    editorial=None,
+    primary_url="",
+    primary_label="",
+):
+    base = build_activity_context(
+        activity=journey.activity,
+        occurrence=journey.occurrence,
+        editorial=editorial,
+        primary_url=primary_url,
+        primary_label=primary_label,
+    )
+    return PresentationContext(
+        activity=base.activity,
+        occurrence=base.occurrence,
+        organizer=base.organizer,
+        recipient=_freeze({"display_name": journey.beneficiary_display_name}),
+        access=base.access,
+        editorial=base.editorial,
+        actions=base.actions,
+        render_assets=_freeze({}),
     )
