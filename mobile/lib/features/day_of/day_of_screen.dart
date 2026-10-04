@@ -124,7 +124,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
 
             return Scaffold(
               appBar: AppBar(
-                title: const Text('Action en cours'),
+                title: const Text('Jour J'),
                 actions: [
                   IconButton(
                     tooltip: 'Actualiser',
@@ -177,7 +177,7 @@ class _DayOfContent extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
       children: [
         MakoloDetailHeader(
-          eyebrow: 'Maintenant',
+          eyebrow: 'Jour J',
           title: presentation.title,
           subtitle: presentation.occurrenceLabel,
         ),
