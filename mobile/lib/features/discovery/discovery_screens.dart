@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
@@ -539,14 +540,16 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
             ],
           ),
           body: item == null
-              ? Center(
-                  child: _refreshing
-                      ? const CircularProgressIndicator()
-                      : OutlinedButton(
-                          onPressed: _refresh,
-                          child: const Text('Réessayer'),
-                        ),
-                )
+              ? _refreshing
+                    ? const MakoloLoadingState(label: 'Mise à jour…')
+                    : MakoloErrorState(
+                        message:
+                            'Ce détail n’est pas encore disponible sur cet appareil.',
+                        preservedMessage:
+                            'Une connexion est nécessaire pour l’acquérir. '
+                            'Cela ne signifie pas que cette réalité n’existe pas.',
+                        onRetry: _refresh,
+                      )
               : ListView(
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                   children: [
@@ -671,14 +674,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             ],
           ),
           body: activity == null
-              ? Center(
-                  child: _refreshing
-                      ? const CircularProgressIndicator()
-                      : OutlinedButton(
-                          onPressed: _refresh,
-                          child: const Text('Réessayer'),
-                        ),
-                )
+              ? _refreshing
+                    ? const MakoloLoadingState(label: 'Mise à jour…')
+                    : MakoloErrorState(
+                        message:
+                            'Ce détail n’est pas encore disponible sur cet appareil.',
+                        preservedMessage:
+                            'Une connexion est nécessaire pour l’acquérir. '
+                            'Cela ne signifie pas que cette réalité n’existe pas.',
+                        onRetry: _refresh,
+                      )
               : ListView(
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                   children: [
@@ -695,10 +700,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                             activity.owner!,
                             icon: Icons.business_outlined,
                           ),
-                        MakoloMetadataItem(
-                          activity.availability,
-                          icon: Icons.event_available_outlined,
-                        ),
+                        if (activity.availability != null)
+                          MakoloMetadataItem(
+                            activity.availability!,
+                            icon: Icons.event_available_outlined,
+                          ),
                       ],
                     ),
                     if (activity.occurrences.isNotEmpty)
@@ -717,9 +723,15 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                 ),
                                 child: MakoloStatusMetadataAction(
                                   title: activity.occurrences[index].label,
-                                  status: MakoloStatus(
-                                    label: activity.occurrences[index].state,
-                                  ),
+                                  status:
+                                      activity.occurrences[index].state == null
+                                      ? null
+                                      : MakoloStatus(
+                                          label:
+                                              activity
+                                                  .occurrences[index]
+                                                  .state!,
+                                        ),
                                   metadata: [
                                     if (activity.occurrences[index].timing !=
                                         null)
@@ -811,14 +823,16 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
             ],
           ),
           body: occurrence == null
-              ? Center(
-                  child: _refreshing
-                      ? const CircularProgressIndicator()
-                      : OutlinedButton(
-                          onPressed: _refresh,
-                          child: const Text('Réessayer'),
-                        ),
-                )
+              ? _refreshing
+                    ? const MakoloLoadingState(label: 'Mise à jour…')
+                    : MakoloErrorState(
+                        message:
+                            'Ce détail n’est pas encore disponible sur cet appareil.',
+                        preservedMessage:
+                            'Une connexion est nécessaire pour l’acquérir. '
+                            'Cela ne signifie pas que cette réalité n’existe pas.',
+                        onRetry: _refresh,
+                      )
               : ListView(
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                   children: [
@@ -837,10 +851,11 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                             occurrence.place!,
                             icon: Icons.place_outlined,
                           ),
-                        MakoloMetadataItem(
-                          occurrence.availability,
-                          icon: Icons.event_available_outlined,
-                        ),
+                        if (occurrence.availability != null)
+                          MakoloMetadataItem(
+                            occurrence.availability!,
+                            icon: Icons.event_available_outlined,
+                          ),
                       ],
                     ),
                     Padding(
