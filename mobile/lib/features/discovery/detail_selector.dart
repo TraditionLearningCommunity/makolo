@@ -157,7 +157,7 @@ String? _timing(
   final time = _text(timing['start_time']);
   final parsed = date == null
       ? null
-      : DateTime.tryParse(time == null ? date : '$date' 'T' '$time');
+      : DateTime.tryParse(time == null ? date : '${date}T$time');
   if (parsed == null) return null;
   return time == null
       ? MakoloHumanization.formatDay(parsed, now: now)
