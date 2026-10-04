@@ -88,6 +88,32 @@ def duplicate_theme(*, actor, source_version, slug, name, owner_space=None):
 
 
 @transaction.atomic
+def activate_owned_template_version(*, actor, version):
+    version = (
+        PresentationTemplateVersion.objects.select_for_update()
+        .select_related("template", "template__owner_space")
+        .get(pk=version.pk)
+    )
+    template = version.template
+    if template.owner_profile_id == getattr(actor, "pk", None):
+        pass
+    elif template.owner_space_id is not None:
+        _require_space_library(actor, template.owner_space)
+    else:
+        raise PermissionDenied("Ce modèle n’appartient pas à votre bibliothèque.")
+    if template.visibility == Visibility.PUBLIC:
+        raise ValidationError("Un modèle public suit le workflow de modération Communauté.")
+    if version.status != VersionStatus.DRAFT:
+        raise ValidationError("Seul un brouillon peut devenir utilisable dans sa bibliothèque.")
+    validate_manifest(version.manifest)
+    validate_publication_accessibility(version.manifest)
+    version.status = VersionStatus.PUBLISHED
+    version.published_at = timezone.now()
+    version.save(update_fields=["status", "published_at"])
+    return version
+
+
+@transaction.atomic
 def set_space_default(*, actor, space, purpose, template_version, theme_version):
     _require_space_library(actor, space)
     if template_version.status != VersionStatus.PUBLISHED or theme_version.status != VersionStatus.PUBLISHED:
