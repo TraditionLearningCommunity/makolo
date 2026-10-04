@@ -67,12 +67,14 @@ class ActivityPresentationAuthorityMixin(LoginRequiredMixin):
         return super().dispatch(request, *args, **kwargs)
 
 
-def _source_label(provenance):
-    return {
-        Provenance.MAKOLO: "Makolo",
-        Provenance.USER: "Ma bibliothèque",
-        Provenance.SPACE: "Espace",
-    }.get(provenance, "Bibliothèque")
+def _source_label(resource, *, actor, activity):
+    if resource.provenance == Provenance.MAKOLO:
+        return "Makolo"
+    if resource.owner_profile_id == getattr(actor, "pk", None):
+        return "Ma bibliothèque"
+    if activity.space_id and resource.owner_space_id == activity.space_id:
+        return "Espace"
+    return "Communauté"
 
 
 def _studio_usage(activity, purpose):
@@ -134,15 +136,27 @@ class ActivityPresentationStudioView(ActivityPresentationAuthorityMixin, Templat
                     "version": version,
                     "name": version.template.name,
                     "description": metadata.get("description") or version.template.description,
-                    "category": metadata.get("category") or _source_label(version.template.provenance),
-                    "source": _source_label(version.template.provenance),
+                    "category": metadata.get("category") or _source_label(
+                        version.template,
+                        actor=self.request.user,
+                        activity=self.activity,
+                    ),
+                    "source": _source_label(
+                        version.template,
+                        actor=self.request.user,
+                        activity=self.activity,
+                    ),
                 }
             )
         theme_options = [
             {
                 "version": version,
                 "name": version.theme.name,
-                "source": _source_label(version.theme.provenance),
+                "source": _source_label(
+                    version.theme,
+                    actor=self.request.user,
+                    activity=self.activity,
+                ),
             }
             for version in available_theme_versions(
                 actor=self.request.user,

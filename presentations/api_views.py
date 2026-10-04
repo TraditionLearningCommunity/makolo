@@ -35,7 +35,6 @@ MOBILE_ACTIVITY_PURPOSES = {
     PresentationPurpose.PUBLIC_PAGE,
     PresentationPurpose.INVITATION,
     PresentationPurpose.PROGRAM,
-    PresentationPurpose.BADGE,
 }
 
 
