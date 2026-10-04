@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .library_views import DuplicateTemplateView, ModerateTemplateView, PresentationLibraryView, SetSpaceDefaultView, SpacePresentationLibraryView, SubmitTemplateView, TemplateVersionPreviewView
+from .library_views import ActivateTemplateView, DuplicateTemplateView, ModerateTemplateView, PresentationLibraryView, SetSpaceDefaultView, SpacePresentationLibraryView, SubmitTemplateView, TemplateVersionPreviewView
 from .views import ActivityPresentationPreviewView, ActivityPresentationStudioView, ParticipantAccessPresentationView, ParticipantJourneyPresentationView, PublicActivityPresentationView
 
 app_name = "presentations"
