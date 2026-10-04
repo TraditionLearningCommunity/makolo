@@ -72,6 +72,7 @@ class SpaceSettingsEditTests(TestCase):
                 "country": "CD",
                 "city": "Lubumbashi",
                 "public_profile": "on",
+                "searchable": "on",
             },
         )
         self.space.refresh_from_db()
@@ -81,6 +82,7 @@ class SpaceSettingsEditTests(TestCase):
         )
         self.assertEqual(self.space.name, "Espace paramètres mis à jour")
         self.assertEqual(self.space.description, "Description corrigée")
+        self.assertTrue(self.space.searchable)
 
     def test_space_admin_can_open_settings_edit(self):
         self.client.force_login(self.admin)

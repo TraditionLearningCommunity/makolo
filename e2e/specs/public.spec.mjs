@@ -4,7 +4,7 @@ import { test, expect } from '../fixtures/makolo.mjs';
 test('visitor discovers an event and its public organizer @firefox', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Faites avancer ce qui compte/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Connexion' })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Connexion', exact: true })).toBeVisible();
 
   await page.getByLabel('Que voulez-vous faire ?').fill('Festival Makolo E2E');
   await page.getByRole('button', { name: 'Découvrir' }).click();
@@ -32,7 +32,7 @@ test('private participant surface sends visitor to login with next preserved', a
 test('mobile public home remains usable without horizontal overflow @mobile', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Faites avancer ce qui compte/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Connexion' })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Connexion', exact: true })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await page.getByLabel('Que voulez-vous faire ?').fill('Atelier Makolo Visuel');

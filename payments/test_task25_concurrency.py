@@ -37,7 +37,7 @@ class Task25PaymentConcurrencyTests(TransactionTestCase):
         )
         self.space = Organization.objects.create(
             name="T25 Payment Race",
-            slug="t25-payment-race",
+            slug="t25-payment-race-space",
             created_by=self.buyer,
         )
         self.activity = Activity.objects.create(

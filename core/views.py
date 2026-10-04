@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
@@ -22,17 +23,23 @@ class RateLimitedLoginView(LoginView):
 
     def post(self, request, *args, **kwargs):
         username = request.POST.get("username", "")
+        # Browser E2E intentionally reuses a compact set of deterministic test
+        # accounts many times in one minute. Keep production/test abuse limits
+        # unchanged while preventing the isolated localhost E2E harness from
+        # rate-limiting itself.
+        account_limit = 1000 if getattr(settings, "IS_E2E", False) else 10
+        ip_limit = 10000 if getattr(settings, "IS_E2E", False) else 60
         account_allowed = allow_web_request(
             request,
             scope="login-account",
-            limit=10,
+            limit=account_limit,
             window_seconds=60,
             identities=[value_rate_identity("account", username)],
         )
         ip_allowed = allow_web_request(
             request,
             scope="login-ip",
-            limit=60,
+            limit=ip_limit,
             window_seconds=60,
             identities=[client_rate_identity(request)],
         )

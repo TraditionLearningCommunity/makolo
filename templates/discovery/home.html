@@ -107,16 +107,9 @@
     </div>
 </div>
 {% if nearby_active and map_items %}{{ map_items|json_script:"discovery-map-data" }}{{ map_config|json_script:"discovery-map-config" }}{% endif %}
+{% if not request.user.is_authenticated %}{% include 'discovery/_preview.html' %}{% endif %}
 {% endblock %}
 {% block workspace_context %}
-<aside id="discover-preview" class="mk-workspace__context mk-workspace-panel mk-discovery-preview" aria-label="Aperçu de la possibilité sélectionnée">
-    <div class="mk-workspace-panel__header">
-        <div><span class="mk-kicker">Aperçu</span><p class="mt-1 text-sm font-bold">Gardez vos résultats à portée de vue</p></div>
-        <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i>
-    </div>
-    <div id="discover-preview-body" class="mk-workspace-panel__body" aria-live="polite">
-        <p class="mk-empty-copy">Sélectionnez « Aperçu » sur une possibilité pour consulter son contexte sans quitter la recherche.</p>
-    </div>
-</aside>
+{% if request.user.is_authenticated %}{% include 'discovery/_preview.html' %}{% endif %}
 {% endblock %}
 {% block extra_js %}{% if nearby_active and map_items %}<script defer src="{% static 'dist/discovery-map.js' %}"></script>{% else %}<script defer src="{% static 'dist/discovery-geolocation.js' %}"></script>{% endif %}<script defer src="{% static 'js/discovery-ux.js' %}"></script>{% endblock %}

@@ -9,3 +9,4 @@ class SharingConfig(AppConfig):
     def ready(self):
         # P4 staging models live in a focused module but remain owned by the sharing app.
         from . import inbound_models  # noqa: F401
+        from . import signals  # noqa: F401

@@ -67,9 +67,13 @@ class IdentifierAvailabilityAPIView(APIView):
                 }
             )
         username = serializer.validated_data["username"]
+        from sharing.models import PublicIdentifier
         return Response(
             {
-                "available": not User.objects.filter(username__iexact=username).exists(),
+                "available": not (
+                    User.objects.filter(username__iexact=username).exists()
+                    or PublicIdentifier.objects.filter(identifier__iexact=username).exists()
+                ),
                 "username": username,
             }
         )

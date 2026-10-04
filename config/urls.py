@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from core.api.views import HealthAPIView, ReadinessAPIView
+from sharing.passport_views import PublicPassportIdentifierView
 
 
 handler403 = "core.error_views.error_403"
@@ -88,6 +89,8 @@ urlpatterns = [
     path("", include("social.urls")),
     path("", include("goals.urls")),
     path("", include("core.urls")),
+    # Keep this catch-all last: established Makolo routes always win over public handles.
+    path("<str:identifier>/", PublicPassportIdentifierView.as_view(), name="public-passport"),
 ]
 
 if getattr(settings, "IS_E2E", False):

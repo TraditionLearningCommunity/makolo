@@ -181,13 +181,13 @@ class AccountProfileForm(forms.ModelForm):
 
     company_name = forms.CharField(
         required=False,
-        label="Entreprise (information historique)",
-        help_text="Champ déclaratif conservé pour compatibilité. Ceci ne crée pas un Espace Makolo.",
+        label="Entreprise",
+        help_text="Nom de l’entreprise que vous souhaitez associer à votre présentation personnelle.",
     )
     organization_name = forms.CharField(
         required=False,
-        label="Organisation (information historique)",
-        help_text="Champ déclaratif conservé pour compatibilité. La gestion collective passe par Mes Espaces.",
+        label="Organisation",
+        help_text="Nom de l’organisation que vous souhaitez associer à votre présentation personnelle.",
     )
     profession = forms.CharField(required=False, label="Profession")
     country = forms.CharField(required=False, label="Pays")
@@ -195,13 +195,13 @@ class AccountProfileForm(forms.ModelForm):
     address = forms.CharField(required=False, label="Adresse précise", widget=forms.Textarea(attrs={"rows": 3}))
     public_profile = forms.BooleanField(
         required=False,
-        label="Autoriser un futur profil public",
-        help_text="Ce réglage n’expose jamais automatiquement votre e-mail, téléphone, date de naissance complète ou adresse précise.",
+        label="Passeport public",
+        help_text="Permet d’afficher les informations que vous avez rendues publiques dans votre Passeport Makolo.",
     )
     searchable = forms.BooleanField(
         required=False,
         label="Être trouvable dans Makolo",
-        help_text="Permet la recherche interne lorsque des fonctionnalités Makolo en ont besoin. Désactivé par défaut pour les nouveaux profils.",
+        help_text="Permet à votre Passeport public d’être trouvé et ouvert dans Makolo. Activé par défaut.",
     )
     gender = forms.ChoiceField(required=False, choices=GenderCode.choices, label="Genre")
     language = forms.ChoiceField(choices=LanguageCode.choices, label="Langue")

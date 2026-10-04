@@ -76,6 +76,7 @@ class Organization(models.Model):
     country = models.CharField(max_length=120, blank=True)
     city = models.CharField(max_length=120, blank=True)
     public_profile = models.BooleanField(default=True)
+    searchable = models.BooleanField(default=True)
     lifecycle = models.CharField(
         max_length=16,
         choices=SpaceLifecycle.choices,
@@ -93,6 +94,7 @@ class Organization(models.Model):
         indexes = [
             models.Index(fields=["verification_status", "public_profile"], name="organizatio_verific_68b188_idx"),
             models.Index(fields=["lifecycle", "public_profile"], name="org_lifecycle_public_idx"),
+            models.Index(fields=["searchable", "public_profile"], name="org_search_public_idx"),
             models.Index(fields=["created_at"], name="organizatio_created_dde2e1_idx"),
         ]
 
@@ -101,8 +103,22 @@ class Organization(models.Model):
             base = slugify(self.name)[:170] or "organisation"
             candidate = base
             suffix = 2
-            while Organization.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
-                candidate = f"{base[:185]}-{suffix}"
+            from sharing.models import PublicIdentifier
+            from sharing.public_identifiers import validate_public_identifier
+            while True:
+                try:
+                    validate_public_identifier(candidate)
+                    reserved = False
+                except ValidationError:
+                    reserved = True
+                if not (
+                    reserved
+                    or Organization.objects.exclude(pk=self.pk).filter(slug=candidate).exists()
+                    or PublicIdentifier.objects.filter(identifier__iexact=candidate).exclude(space_id=self.pk).exists()
+                ):
+                    break
+                tail = f"-{suffix}"
+                candidate = f"{base[:200-len(tail)]}{tail}"
                 suffix += 1
             self.slug = candidate
         super().save(*args, **kwargs)

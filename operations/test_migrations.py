@@ -19,12 +19,14 @@ class OperationsCanonicalIncidentMigrationTests(TransactionTestCase):
 
     migrate_from = [
         ("accounts", "0006_remove_legacy_account_truths"),
+        ("organizations", "0006_organization_lifecycle"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("operations", "0001_initial"),
     ]
     migrate_to = [
         ("accounts", "0006_remove_legacy_account_truths"),
+        ("organizations", "0006_organization_lifecycle"),
         ("activities", "0004_occurrence_temporal_schedule"),
         ("events", "0007_cutover_event_to_activity"),
         ("operations", "0002_canonical_incident_scope"),

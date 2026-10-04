@@ -47,9 +47,11 @@ class Task30FollowClosureTests(TestCase):
     def test_space_follow_count_is_not_public(self):
         follow_organization(user=self.follower, organization=self.space)
         follow_organization(user=self.other, organization=self.space)
-        response = self.client.get(
+        legacy = self.client.get(
             reverse("organizer_public:detail", kwargs={"slug": self.space.slug})
         )
+        self.assertEqual(legacy.status_code, 301)
+        response = self.client.get(legacy["Location"])
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "2 abonnés")
         self.assertNotContains(response, "2 abonné")

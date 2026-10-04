@@ -17,6 +17,7 @@ class PublicOrganizationListView(ListView):
     def get_queryset(self):
         queryset = Organization.objects.filter(
             public_profile=True,
+            searchable=True,
             lifecycle=SpaceLifecycle.ACTIVE,
         )
         query = (self.request.GET.get("q") or "").strip()
