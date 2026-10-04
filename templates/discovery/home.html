@@ -79,6 +79,9 @@
                     <div><label for="discover-date-from" class="mb-1 block text-xs font-semibold">Du</label><input id="discover-date-from" type="date" name="date_from" value="{{ filters.date_from|default:'' }}"></div>
                     <div><label for="discover-date-to" class="mb-1 block text-xs font-semibold">Au</label><input id="discover-date-to" type="date" name="date_to" value="{{ filters.date_to|default:'' }}"></div>
                     <div class="flex items-end"><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-ghost">Réinitialiser</a><button type="submit" class="mk-btn mk-btn-secondary">Appliquer</button></div>
+                    {% if filters.q or filters.place or filters.city or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}
+                    <a href="{% url 'discovery:watch-create' %}?{{ request.GET.urlencode }}" class="mk-btn mk-btn-secondary">Enregistrer comme veille</a>
+                    {% endif %}
                 </div>
             </details>
         </form>
