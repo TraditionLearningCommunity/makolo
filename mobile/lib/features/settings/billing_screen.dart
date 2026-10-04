@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
+import '../../design/presentation_layout.dart';
 
 class BillingScreen extends StatelessWidget {
   const BillingScreen({super.key});
@@ -10,10 +11,10 @@ class BillingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Abonnement & facturation')),
-      body: const MakoloContentFrame(
+      body: MakoloContentFrame(
         child: ListView(
-          padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-          children: [
+          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+          children: const [
             MakoloSection(
               title: 'Abonnement & facturation',
               description:
