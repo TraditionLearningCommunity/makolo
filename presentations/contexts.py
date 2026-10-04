@@ -65,3 +65,29 @@ def build_access_context(*, access, credential=None, editorial=None, primary_url
         actions=base.actions,
         render_assets=_freeze({"canonical_qr_data_uri": qr_data_uri}),
     )
+
+
+def build_journey_context(
+    *,
+    journey,
+    editorial=None,
+    primary_url="",
+    primary_label="",
+):
+    base = build_activity_context(
+        activity=journey.activity,
+        occurrence=journey.occurrence,
+        editorial=editorial,
+        primary_url=primary_url,
+        primary_label=primary_label,
+    )
+    return PresentationContext(
+        activity=base.activity,
+        occurrence=base.occurrence,
+        organizer=base.organizer,
+        recipient=_freeze({"display_name": journey.beneficiary_display_name}),
+        access=base.access,
+        editorial=base.editorial,
+        actions=base.actions,
+        render_assets=_freeze({}),
+    )
