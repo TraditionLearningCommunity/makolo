@@ -21,7 +21,11 @@ void main() {
     );
 
     expect(find.text('État connu'), findsOneWidget);
-    expect(find.textContaining('source distante'), findsOneWidget);
+    expect(find.textContaining('source distante'), findsNothing);
+    expect(
+      find.text('Mise à jour momentanément indisponible.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('refresh error preserves content and adds local support', (
@@ -41,7 +45,8 @@ void main() {
     );
 
     expect(find.text('Continuité conservée'), findsOneWidget);
-    expect(find.text('La mise à jour a échoué.'), findsOneWidget);
+    expect(find.text('La mise à jour a échoué.'), findsNothing);
+    expect(find.text('Mise à jour…'), findsOneWidget);
     expect(find.byType(MakoloSkeleton), findsNothing);
   });
 
