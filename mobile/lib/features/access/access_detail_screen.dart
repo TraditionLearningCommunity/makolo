@@ -19,12 +19,14 @@ class AccessDetailScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenDayOf,
     this.onOpenJourney,
+    this.onOpenPresentation,
   });
 
   final String accessId;
   final AccessRepository repository;
   final void Function(DayOfHandoff handoff) onOpenDayOf;
   final void Function(String journeyId)? onOpenJourney;
+  final VoidCallback? onOpenPresentation;
 
   @override
   State<AccessDetailScreen> createState() => _AccessDetailScreenState();
@@ -128,6 +130,7 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
                   presentation: presentation,
                   onOpenDayOf: widget.onOpenDayOf,
                   onOpenJourney: widget.onOpenJourney,
+                  onOpenPresentation: widget.onOpenPresentation,
                 ),
               ),
             );
@@ -143,11 +146,13 @@ class _AccessContent extends StatelessWidget {
     required this.presentation,
     required this.onOpenDayOf,
     this.onOpenJourney,
+    this.onOpenPresentation,
   });
 
   final AccessDetailPresentation presentation;
   final void Function(DayOfHandoff handoff) onOpenDayOf;
   final void Function(String journeyId)? onOpenJourney;
+  final VoidCallback? onOpenPresentation;
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +188,19 @@ class _AccessContent extends StatelessWidget {
           subtitle: relationshipCopy,
           metadata: metadata,
         ),
+        if (onOpenPresentation != null) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: FilledButton.tonalIcon(
+              onPressed: onOpenPresentation,
+              icon: const Icon(Icons.auto_awesome_mosaic_outlined),
+              label: const Text('Voir la présentation'),
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.lg),
+        ],
         if (presentation.canOpenDayOf) ...[
           Padding(
             padding: const EdgeInsets.symmetric(

@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
+import '../../presentation/mps/mps_access_presentation_screen.dart';
 import 'access_credential_screen.dart';
 import 'access_detail_screen.dart';
 
@@ -11,6 +12,7 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
     builder: (context, state) {
       runtime.recovery.rememberLocation(state.uri.toString());
       final repository = runtime.accesses;
+      final accessId = state.pathParameters['id']!;
       if (repository == null) {
         return const MakoloSecondaryScreen(
           title: 'Accès',
@@ -18,11 +20,36 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
         );
       }
       return AccessDetailScreen(
-        accessId: state.pathParameters['id']!,
+        accessId: accessId,
         repository: repository,
         onOpenDayOf: (handoff) =>
             context.push('/occurrences/${handoff.occurrenceId}/day-of'),
         onOpenJourney: (journeyId) => context.push('/journeys/$journeyId'),
+        onOpenPresentation: runtime.mps == null
+            ? null
+            : () => context.push('/accesses/$accessId/presentation'),
+      );
+    },
+  ),
+  GoRoute(
+    path: '/accesses/:id/presentation',
+    builder: (context, state) {
+      runtime.recovery.rememberLocation(state.uri.toString());
+      final repository = runtime.mps;
+      final accessId = state.pathParameters['id']!;
+      if (repository == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Présentation',
+          message: 'Cette présentation n’est pas disponible sur cet appareil.',
+        );
+      }
+      return MpsAccessPresentationScreen(
+        accessId: accessId,
+        repository: repository,
+        onOpenCredential: (credentialPath) => context.push(
+          '/accesses/$accessId/credential',
+          extra: credentialPath,
+        ),
       );
     },
   ),

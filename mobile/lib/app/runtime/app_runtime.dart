@@ -14,6 +14,7 @@ import '../../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../../features/space/space_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
+import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../repositories/personal_repository.dart';
@@ -58,6 +59,7 @@ class AppRuntime {
     this.sync,
     this.actorContext,
     this.space,
+    this.mps,
   });
 
   final TokenStore tokens;
@@ -95,6 +97,7 @@ class AppRuntime {
   final SyncEngine? sync;
   final ActorContextController? actorContext;
   final WorkspaceContextRepository? space;
+  final MpsPresentationRepository? mps;
 
   bool get isAuthenticated => session?.profileId != null;
   bool get apiConfigured => api != null;
