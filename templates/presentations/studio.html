@@ -7,6 +7,7 @@
       <p class="text-sm font-black uppercase tracking-wide text-indigo-600">Présentation</p>
       <h1 class="text-3xl font-black">{{ activity.title }}</h1>
       <p class="mt-2 text-zinc-500">Choisissez le rendu d’un artefact réel. La vérité métier reste dans ses domaines propriétaires.</p>
+      <p class="mt-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">Actuellement : {{ effective_source }}</p>
     </div>
     <div class="flex flex-wrap gap-2">
       <a href="{{ library_url }}" class="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-bold">Mes modèles</a>
@@ -29,7 +30,7 @@
     </section>
 
     <section class="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"><h2 class="text-xl font-black">Aperçu avec les données réelles de l’Activity</h2><p class="mt-1 text-sm text-zinc-500">Téléphone, desktop et impression utilisent le même manifest et le même thème.</p><div class="mt-4 flex flex-wrap gap-3"><a target="_blank" href="{% url 'presentations:preview' activity.pk %}?purpose={{ purpose }}&mode=phone" class="rounded-xl bg-zinc-100 px-4 py-2 font-bold dark:bg-zinc-900">Téléphone</a><a target="_blank" href="{% url 'presentations:preview' activity.pk %}?purpose={{ purpose }}&mode=desktop" class="rounded-xl bg-zinc-100 px-4 py-2 font-bold dark:bg-zinc-900">Desktop</a><a target="_blank" href="{% url 'presentations:preview' activity.pk %}?purpose={{ purpose }}&mode=print" class="rounded-xl bg-zinc-100 px-4 py-2 font-bold dark:bg-zinc-900">Impression</a></div></section>
-    <div class="flex flex-wrap gap-3"><button name="action" value="save" class="rounded-xl border border-zinc-300 px-5 py-3 font-black">Enregistrer le brouillon</button><button name="action" value="publish" class="rounded-xl bg-indigo-600 px-5 py-3 font-black text-white">Utiliser cette présentation</button></div>
+    <div class="flex flex-wrap gap-3"><button name="action" value="save" class="rounded-xl border border-zinc-300 px-5 py-3 font-black">Enregistrer le brouillon</button><button name="action" value="publish" class="rounded-xl bg-indigo-600 px-5 py-3 font-black text-white">Utiliser cette présentation</button>{% if current %}<button name="action" value="use_default" class="rounded-xl border border-zinc-300 px-5 py-3 font-black">Revenir au default</button>{% endif %}</div>
   </form>
 </main>
 {% endblock %}
