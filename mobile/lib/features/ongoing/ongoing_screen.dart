@@ -214,9 +214,12 @@ class _OngoingRow extends StatelessWidget {
             Text(item.title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: MakoloSpacing.sm),
             Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
-            if (_supportingLine(item) case final supporting?) ...[
+            if (_supportingLine(item) != null) ...[
               const SizedBox(height: MakoloSpacing.sm),
-              Text(supporting, style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                _supportingLine(item)!,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ],
             if (stale) ...[
               const SizedBox(height: MakoloSpacing.sm),
@@ -335,16 +338,7 @@ class _OngoingFocus extends StatelessWidget {
                 padding: const EdgeInsets.only(top: MakoloSpacing.lg),
                 child: MakoloMetadata(items: metadata),
               ),
-            if (item.capabilities.contains('open_day_of') &&
-                item.links['day_of'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: MakoloSpacing.lg),
-                child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.arrow_forward),
-                  label: const Text('Ouvrir Jour J'),
-                ),
-              ),
+
           ],
         ),
       ),
