@@ -6,15 +6,17 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from activities.models import ActivityVisibility
-from activities.services import create_activity
-from journeys.models import WorkflowKind
+from activities.services import create_activity, create_occurrence
+from journeys.models import JourneyStatus, WorkflowKind
+from journeys.services import create_journey
+from organizations.services import create_organization
 
 from .catalog import ensure_builtin_catalog
 from .enums import PresentationPurpose, Provenance, VersionStatus, Visibility
-from .library_services import activate_template_version, duplicate_template
-from .models import PresentationTemplate, PresentationTemplateVersion
+from .library_services import activate_template_version, duplicate_template, set_space_default
+from .models import ActivityPresentation, PresentationTemplate, PresentationTemplateVersion
 from .product_usage import access_presentation_purpose
-from .services import configure_activity_presentation
+from .services import configure_activity_presentation, publish_activity_presentation
 
 
 User = get_user_model()
@@ -179,3 +181,84 @@ class MPSProductIntegrationTests(TestCase):
 
         self.client.force_login(self.owner)
         self.assertEqual(self.client.get(url).status_code, 200)
+
+
+    def test_studio_can_return_to_space_default_without_copying_it(self):
+        space = create_organization(creator=self.owner, name="PR3 Default Space")
+        activity = create_activity(
+            space=space,
+            created_by=self.owner,
+            title="PR3 Default Activity",
+        )
+        set_space_default(
+            actor=self.owner,
+            space=space,
+            purpose=PresentationPurpose.PUBLIC_PAGE,
+            template_version=self.templates["formal"],
+            theme_version=self.themes["ivory"],
+        )
+        binding = configure_activity_presentation(
+            actor=self.owner,
+            activity=activity,
+            purpose=PresentationPurpose.PUBLIC_PAGE,
+            template_version=self.templates["professional"],
+            theme_version=self.themes["makolo-ink"],
+        )
+        publish_activity_presentation(actor=self.owner, presentation=binding)
+
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("presentations:studio", kwargs={"activity_id": activity.pk}),
+            {
+                "purpose": PresentationPurpose.PUBLIC_PAGE,
+                "action": "use_default",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ActivityPresentation.objects.filter(
+                activity=activity,
+                purpose=PresentationPurpose.PUBLIC_PAGE,
+            ).exists()
+        )
+
+    def test_participant_invitation_is_private_and_uses_activity_presentation(self):
+        occurrence = create_occurrence(activity=self.activity)
+        binding = configure_activity_presentation(
+            actor=self.owner,
+            activity=self.activity,
+            occurrence=occurrence,
+            purpose=PresentationPurpose.INVITATION,
+            template_version=self.templates["formal"],
+            theme_version=self.themes["ivory"],
+            editorial_data={"invitation_message": "Vous êtes invité."},
+        )
+        publish_activity_presentation(actor=self.owner, presentation=binding)
+        journey = create_journey(
+            initiated_by=self.owner,
+            beneficiary=self.owner,
+            activity=self.activity,
+            occurrence=occurrence,
+            workflow=WorkflowKind.INVITATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse(
+                "presentations:participant-invitation",
+                kwargs={"journey_id": journey.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "PR3 Activity")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+        self.client.force_login(self.other)
+        hidden = self.client.get(
+            reverse(
+                "presentations:participant-invitation",
+                kwargs={"journey_id": journey.pk},
+            )
+        )
+        self.assertEqual(hidden.status_code, 404)
