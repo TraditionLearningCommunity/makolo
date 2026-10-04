@@ -8,6 +8,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
+import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
@@ -109,7 +110,11 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: !available && source.invalidated && !_refreshing
+              failure:
+                  !available &&
+                      (source.invalidated ||
+                          source.reachability == ReachabilityState.unreachable) &&
+                      !_refreshing
                   ? MakoloFailureCue.blocking
                   : source.lastErrorCode != null && available
                   ? MakoloFailureCue.recoverable
@@ -177,12 +182,14 @@ class _DossierContent extends StatelessWidget {
           eyebrow: 'Dossier',
           title: _string(objective['title']) ?? 'Dossier',
           subtitle: _string(objective['description']),
-          status: _string(state['code']) == null
+          status: _humanState(state['label'] ?? state['code']) == null
               ? null
-              : MakoloStatus(label: _string(state['code'])!),
+              : MakoloStatus(label: _humanState(state['label'] ?? state['code'])!),
           metadata: [
-            if (_string(payload['deadline']) != null)
-              MakoloMetadataItem('Échéance ${_string(payload['deadline'])!}'),
+            if (_humanDate(payload['deadline']) != null)
+              MakoloMetadataItem(
+                'Échéance ${_humanDate(payload['deadline'])!}',
+              ),
           ],
         ),
         MakoloSection(
@@ -192,7 +199,10 @@ class _DossierContent extends StatelessWidget {
               : null,
           child: MakoloCard(
             child: MakoloStatusMetadataAction(
-              title: _string(readiness['state']) ?? 'État non précisé',
+              title:
+                  _string(readiness['label']) ??
+                  _humanState(readiness['state']) ??
+                  'Situation',
               subtitle: _string(readiness['hidden_signal']),
             ),
           ),
@@ -210,9 +220,9 @@ class _DossierContent extends StatelessWidget {
                         : () => onOpenJourney(_string(row['journey_id'])!),
                     child: MakoloStatusMetadataAction(
                       title: _string(row['label']) ?? 'Action',
-                      status: _string(row['state']) == null
+                      status: _humanState(row['state']) == null
                           ? null
-                          : MakoloStatus(label: _string(row['state'])!),
+                          : MakoloStatus(label: _humanState(row['state'])!),
                       action: _string(row['journey_id']) == null
                           ? null
                           : const Icon(Icons.chevron_right_rounded),
@@ -240,10 +250,10 @@ class _DossierContent extends StatelessWidget {
                       subtitle: items[index]['hidden_dependency'] == true
                           ? 'Une dépendance non divulguée influence cet état.'
                           : null,
-                      status: _string(items[index]['state']) == null
+                      status: _humanState(items[index]['state']) == null
                           ? null
                           : MakoloStatus(
-                              label: _string(items[index]['state'])!,
+                              label: _humanState(items[index]['state'])!,
                             ),
                       action: const Icon(Icons.chevron_right_rounded),
                     ),
@@ -314,9 +324,9 @@ class _ProjectContent extends StatelessWidget {
           eyebrow: 'Projet',
           title: _string(horizon['title']) ?? 'Projet',
           subtitle: _string(horizon['description']),
-          status: _string(state['code']) == null
+          status: _humanState(state['label'] ?? state['code']) == null
               ? null
-              : MakoloStatus(label: _string(state['code'])!),
+              : MakoloStatus(label: _humanState(state['label'] ?? state['code'])!),
           metadata: metadata,
         ),
         MakoloSection(
@@ -338,15 +348,15 @@ class _ProjectContent extends StatelessWidget {
                               ),
                         child: MakoloStatusMetadataAction(
                           title: _string(dossiers[index]['title']) ?? 'Dossier',
-                          status: _string(dossiers[index]['state']) == null
+                          status: _humanState(dossiers[index]['state']) == null
                               ? null
                               : MakoloStatus(
-                                  label: _string(dossiers[index]['state'])!,
+                                  label: _humanState(dossiers[index]['state'])!,
                                 ),
                           metadata: [
-                            if (_string(dossiers[index]['deadline']) != null)
+                            if (_humanDate(dossiers[index]['deadline']) != null)
                               MakoloMetadataItem(
-                                'Échéance ${_string(dossiers[index]['deadline'])!}',
+                                'Échéance ${_humanDate(dossiers[index]['deadline'])!}',
                               ),
                           ],
                           action: const Icon(Icons.chevron_right_rounded),
@@ -379,4 +389,16 @@ List<Map<String, dynamic>> _maps(Object? value) {
 String? _string(Object? value) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? null : text;
+}
+
+
+String? _humanState(Object? value) =>
+    MakoloHumanization.presentationLabel(_string(value));
+
+String? _humanDate(Object? value) {
+  final raw = _string(value);
+  if (raw == null) return null;
+  final instant = MakoloHumanization.tryParseInstant(raw);
+  if (instant == null) return raw;
+  return MakoloHumanization.formatDay(instant, now: DateTime.now());
 }
