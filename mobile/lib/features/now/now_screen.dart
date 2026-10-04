@@ -376,7 +376,7 @@ class _NowDepth extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: onClose,
                 icon: const Icon(Icons.arrow_back_rounded),
-                label: const Text('Maintenant'),
+                label: const Text('Now'),
               ),
             ),
             const SizedBox(height: MakoloSpacing.md),
