@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .library_views import DuplicateTemplateView, ModerateTemplateView, PresentationLibraryView, SetSpaceDefaultView, SpacePresentationLibraryView, SubmitTemplateView, TemplateVersionPreviewView
-from .views import ActivityPresentationPreviewView, ActivityPresentationStudioView, ParticipantAccessPresentationView, PublicActivityPresentationView
+from .views import ActivityPresentationPreviewView, ActivityPresentationStudioView, ParticipantAccessPresentationView, ParticipantJourneyPresentationView, PublicActivityPresentationView
 
 app_name = "presentations"
 
@@ -9,6 +9,7 @@ urlpatterns = [
     path("activity/<uuid:activity_id>/studio/", ActivityPresentationStudioView.as_view(), name="studio"),
     path("activity/<uuid:activity_id>/preview/", ActivityPresentationPreviewView.as_view(), name="preview"),
     path("activity/<uuid:activity_id>/", PublicActivityPresentationView.as_view(), name="public-activity"),
+    path("journey/<uuid:journey_id>/invitation/", ParticipantJourneyPresentationView.as_view(), name="participant-invitation"),
     path("access/<uuid:access_id>/", ParticipantAccessPresentationView.as_view(), name="participant-access"),
     path("library/", PresentationLibraryView.as_view(), name="library"),
     path("library/space/<slug:slug>/", SpacePresentationLibraryView.as_view(), name="space-library"),
