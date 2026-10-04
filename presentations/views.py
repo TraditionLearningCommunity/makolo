@@ -13,11 +13,12 @@ from activities.models import Activity, ActivityVisibility
 from authorization.constants import PermissionCode
 from authorization.services import can
 from core.product_language import vocabulary_for
-from core.participant_selectors import participant_accesses_visible_to_buyer
+from journeys.models import WorkflowKind
+from core.participant_selectors import participant_accesses_visible_to_buyer, participant_journeys
 
 from .asset_services import create_presentation_asset
 from .catalog import ensure_builtin_catalog
-from .contexts import build_access_context, build_activity_context
+from .contexts import build_access_context, build_activity_context, build_journey_context
 from .editorial import PURPOSE_FIELDS
 from .enums import PresentationPurpose, VersionStatus
 from .rendering import render_presentation
@@ -243,6 +244,51 @@ class PublicActivityPresentationView(View):
         context = build_activity_context(activity=activity, occurrence=_occurrence(activity), editorial=resolved.binding.editorial_data if resolved.binding else {})
         html = render_presentation(manifest=resolved.manifest, theme_tokens=resolved.theme_tokens, context=context, surface="web")
         return HttpResponse(_document(html, mode="desktop", title=activity.title), content_type="text/html; charset=utf-8")
+
+
+class ParticipantJourneyPresentationView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def get(self, request, journey_id):
+        journey = get_object_or_404(
+            participant_journeys(request.user).select_related(
+                "activity",
+                "activity__space",
+                "activity__owner_profile",
+                "occurrence",
+                "beneficiary",
+                "external_beneficiary",
+            ),
+            pk=journey_id,
+        )
+        if journey.workflow != WorkflowKind.INVITATION:
+            raise Http404
+        resolved = resolve_presentation(
+            activity=journey.activity,
+            occurrence=journey.occurrence,
+            purpose=PresentationPurpose.INVITATION,
+        )
+        context = build_journey_context(
+            journey=journey,
+            editorial=resolved.binding.editorial_data if resolved.binding else {},
+            primary_url=reverse(
+                "core:participant-journey-detail",
+                kwargs={"pk": journey.pk},
+            ),
+            primary_label="Répondre dans Makolo",
+        )
+        html = render_presentation(
+            manifest=resolved.manifest,
+            theme_tokens=resolved.theme_tokens,
+            context=context,
+            surface="web",
+        )
+        response = HttpResponse(
+            _document(html, mode="desktop", title=f"Invitation · {journey.activity.title}"),
+            content_type="text/html; charset=utf-8",
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class ParticipantAccessPresentationView(LoginRequiredMixin, View):
