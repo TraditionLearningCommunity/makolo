@@ -153,6 +153,7 @@ class _AppShellState extends State<AppShell> {
       context,
       runtime: widget.runtime,
       onConnections: () => context.push('/connections'),
+      onBilling: () => context.push('/billing'),
       onSettings: () => context.push('/settings'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
@@ -166,18 +167,20 @@ class _AppShellState extends State<AppShell> {
         children: [
           if (actor is SpaceActorContext)
             MakoloSpaceContextBar(runtime: widget.runtime, actor: actor),
-          if (syncStatus != null &&
-              syncStatus.state != SyncVisualState.synced &&
-              syncStatus.state != SyncVisualState.syncing)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                MakoloSpacing.md,
-                MakoloSpacing.sm,
-                MakoloSpacing.md,
-                0,
+          if (syncStatus != null) ...[
+            NetworkStateCue(status: syncStatus),
+            if (syncStatus.state == SyncVisualState.pending ||
+                syncStatus.state == SyncVisualState.conflict)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MakoloSpacing.md,
+                  MakoloSpacing.sm,
+                  MakoloSpacing.md,
+                  0,
+                ),
+                child: NetworkStateIndicator(status: syncStatus),
               ),
-              child: NetworkStateIndicator(status: syncStatus),
-            ),
+          ],
           Expanded(child: widget.navigationShell),
         ],
       ),
@@ -524,7 +527,7 @@ class _RailButton extends StatelessWidget {
 IconData _destinationIcon(MakoloDestination destination) =>
     switch (destination) {
       MakoloDestination.personalNow ||
-      MakoloDestination.spaceNow => Icons.schedule_outlined,
+      MakoloDestination.spaceNow => Icons.center_focus_strong_outlined,
       MakoloDestination.personalDiscover ||
       MakoloDestination.spaceDiscover => Icons.explore_outlined,
       MakoloDestination.personalContinuity => Icons.route_outlined,
