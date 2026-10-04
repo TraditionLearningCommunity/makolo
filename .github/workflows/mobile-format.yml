@@ -1,6 +1,9 @@
 name: Mobile Format
 
 on:
+  push:
+    branches:
+      - reconcile/mobile-personal-mature-batch1
   workflow_dispatch:
     inputs:
       target_ref:
