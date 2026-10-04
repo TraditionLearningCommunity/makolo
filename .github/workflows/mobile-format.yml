@@ -1,6 +1,9 @@
 name: Mobile Format
 
 on:
+  push:
+    branches:
+      - "restore/mps-pr2-mobile"
   workflow_dispatch:
     inputs:
       target_ref:
@@ -9,7 +12,7 @@ on:
         type: string
 
 concurrency:
-  group: mobile-format-${{ inputs.target_ref }}
+  group: mobile-format-${{ inputs.target_ref || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -21,7 +24,7 @@ jobs:
     steps:
       - name: Validate target branch
         env:
-          TARGET_REF: ${{ inputs.target_ref }}
+          TARGET_REF: ${{ inputs.target_ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
