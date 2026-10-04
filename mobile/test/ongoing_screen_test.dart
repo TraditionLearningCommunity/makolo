@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/ongoing/ongoing_screen.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 
@@ -103,10 +104,15 @@ void main() {
     await controller.close();
   });
 
-  testWidgets('wide split uses the shared 960dp boundary', (tester) async {
+  testWidgets('wide split uses the shared 960dp content boundary', (
+    tester,
+  ) async {
+    final viewportWidth =
+        MakoloLayout.ongoingSplitMinWidth + (MakoloLayout.edgeWide * 2);
+
     await PresentationHarness.pump(
       tester,
-      viewport: const Size(960, 900),
+      viewport: Size(viewportWidth, 900),
       child: OngoingScreen(
         repository: _UnusedRepository(),
         projectionStream: Stream.value(_projection()),

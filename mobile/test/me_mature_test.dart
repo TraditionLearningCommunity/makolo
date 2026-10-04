@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
@@ -495,13 +494,11 @@ void main() {
   testWidgets('MeScreen consumes shared offline state with local snapshot', (
     tester,
   ) async {
-    final database = MakoloDatabase.memory();
-    final store = ProfileStore(database, 'profile-1');
-    await store.putProjection(
-      kind: 'personal.me',
-      schemaVersion: 1,
-      payload: _fullPayload(),
-      receivedAt: DateTime.utc(2026, 10, 3, 12),
+    final repository = _MeStreamRepository(
+      projection: Stream<StoredProjection?>.value(
+        _projection(_fullPayload()),
+      ),
+      source: Stream<OwnerSourceState>.value(OwnerSourceState.unknown),
     );
 
     await PresentationHarness.pump(
@@ -509,21 +506,16 @@ void main() {
       viewport: const Size(430, 932),
       child: SyncStatusScope(
         status: const SyncStatus(state: SyncVisualState.offline),
-        child: MeScreen(repository: PersonalRepository(store), now: () => now),
+        child: MeScreen(repository: repository, now: () => now),
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Gilbert Bemwiz'), findsOneWidget);
     expect(
       find.text('Contenu déjà disponible sur cet appareil.'),
       findsWidgets,
     );
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await database.close();
   });
 
   for (final scale in [1.0, 1.3, 1.6]) {
