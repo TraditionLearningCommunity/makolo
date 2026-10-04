@@ -1,9 +1,6 @@
 name: Mobile Format
 
 on:
-  push:
-    branches:
-      - reconcile/mobile-personal-mature-batch1
   workflow_dispatch:
     inputs:
       target_ref:
@@ -24,7 +21,7 @@ jobs:
     steps:
       - name: Validate target branch
         env:
-          TARGET_REF: ${{ inputs.target_ref || github.ref_name }}
+          TARGET_REF: ${{ inputs.target_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -36,7 +33,7 @@ jobs:
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.target_ref || github.ref_name }}
+          ref: ${{ inputs.target_ref }}
           fetch-depth: 0
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -58,20 +55,17 @@ jobs:
 
       - name: Commit formatting when needed
         env:
-          TARGET_REF: ${{ inputs.target_ref || github.ref_name }}
+          TARGET_REF: ${{ inputs.target_ref }}
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main --depth=1
-          git show origin/main:.github/workflows/mobile-format.yml > .github/workflows/mobile-format.yml
-
-          if git diff --quiet -- mobile/lib mobile/test .github/workflows/mobile-format.yml; then
+          if git diff --quiet -- mobile/lib mobile/test; then
             echo "No formatting changes required."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add mobile/lib mobile/test .github/workflows/mobile-format.yml
-          git commit -m "Format mobile Dart sources and restore formatter workflow"
+          git add mobile/lib mobile/test
+          git commit -m "Format mobile Dart sources"
           git push origin "HEAD:$TARGET_REF"

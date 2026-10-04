@@ -495,9 +495,7 @@ void main() {
     tester,
   ) async {
     final repository = _MeStreamRepository(
-      projection: Stream<StoredProjection?>.value(
-        _projection(_fullPayload()),
-      ),
+      projection: Stream<StoredProjection?>.value(_projection(_fullPayload())),
       source: Stream<OwnerSourceState>.value(OwnerSourceState.unknown),
     );
 
