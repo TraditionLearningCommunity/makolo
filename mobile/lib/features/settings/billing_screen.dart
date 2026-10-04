@@ -14,8 +14,8 @@ class BillingScreen extends StatelessWidget {
       body: MakoloContentFrame(
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-          children: const [
-            MakoloSection(
+          children: [
+            const MakoloSection(
               title: 'Abonnement & facturation',
               description:
                   'Aucune information d’abonnement ou de facturation n’est '
