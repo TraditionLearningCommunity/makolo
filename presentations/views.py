@@ -259,7 +259,18 @@ class ActivityPresentationPreviewView(ActivityPresentationAuthorityMixin, View):
         if purpose not in PresentationPurpose.values:
             raise Http404
         resolved = _preview_resolution(self.activity, purpose)
-        context = build_activity_context(activity=self.activity, occurrence=_occurrence(self.activity), editorial=resolved.binding.editorial_data if resolved.binding else {}, primary_url=reverse("presentations:public-activity", kwargs={"activity_id": self.activity.pk}), primary_label="Ouvrir dans Makolo")
+        public_url = (
+            reverse("presentations:public-activity", kwargs={"activity_id": self.activity.pk})
+            if self.activity.visibility == ActivityVisibility.PUBLIC
+            else ""
+        )
+        context = build_activity_context(
+            activity=self.activity,
+            occurrence=_occurrence(self.activity),
+            editorial=resolved.binding.editorial_data if resolved.binding else {},
+            primary_url=public_url,
+            primary_label="Ouvrir dans Makolo" if public_url else "",
+        )
         html = render_presentation(manifest=resolved.manifest, theme_tokens=resolved.theme_tokens, context=context, surface=surface)
         return HttpResponse(_document(html, mode=mode, title=self.activity.title), content_type="text/html; charset=utf-8")
 

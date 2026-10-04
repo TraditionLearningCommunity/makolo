@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -9,12 +10,11 @@ from activities.services import create_activity
 from journeys.models import WorkflowKind
 
 from .catalog import ensure_builtin_catalog
-from .enums import PresentationPurpose
+from .enums import PresentationPurpose, Provenance, VersionStatus, Visibility
 from .library_services import activate_template_version, duplicate_template
 from .models import PresentationTemplate, PresentationTemplateVersion
 from .product_usage import access_presentation_purpose
 from .services import configure_activity_presentation
-from .enums import Provenance, VersionStatus, Visibility
 
 
 User = get_user_model()
@@ -119,7 +119,7 @@ class MPSProductIntegrationTests(TestCase):
             manifest=manifest,
             created_by=self.owner,
         )
-        with self.assertRaisesMessage(Exception, "compatible"):
+        with self.assertRaisesMessage(ValidationError, "compatible"):
             configure_activity_presentation(
                 actor=self.owner,
                 activity=self.activity,
