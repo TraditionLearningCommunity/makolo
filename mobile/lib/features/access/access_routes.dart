@@ -26,7 +26,9 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
         onOpenJourney: (journeyId) => context.push('/journeys/$journeyId'),
         onOpenPresentation: runtime.mps == null
             ? null
-            : () => context.push('/accesses/${state.pathParameters['id']!}/presentation'),
+            : () => context.push(
+                '/accesses/${state.pathParameters['id']!}/presentation',
+              ),
       );
     },
   ),
@@ -62,7 +64,8 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
       if (repository == null || credentialPath == null) {
         return const MakoloSecondaryScreen(
           title: 'QR d’accès',
-          message: 'Rouvrez ce QR depuis le Jour J afin de revalider son lien propriétaire.',
+          message:
+              'Rouvrez ce QR depuis le Jour J afin de revalider son lien propriétaire.',
         );
       }
       return AccessCredentialScreen(
