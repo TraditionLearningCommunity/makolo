@@ -45,6 +45,7 @@ from .projections import (
 
 DISCOVERY_API_PAGE_SIZE = 20
 DISCOVERY_API_MAX_PAGE_SIZE = 50
+DISCOVERY_RESOURCE_PREVIEW_LIMIT = 6
 
 
 @dataclass(frozen=True)
@@ -184,6 +185,82 @@ def _saved_opportunity_ids(profile, opportunity_ids) -> set[str]:
             opportunity_id__in=opportunity_ids,
         ).values_list("opportunity_id", flat=True)
     }
+
+
+def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
+    if not activity_ids:
+        return {}
+    from preparation.models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
+
+    rows = (
+        ActivityResource.objects.filter(
+            activity_id__in=activity_ids,
+            status=ResourceStatus.PUBLISHED,
+            visibility=ResourceVisibility.PUBLIC,
+        )
+        .order_by("activity_id", "title", "-version", "id")
+    )
+    result: dict[str, list[dict]] = {}
+    for resource in rows:
+        activity_id = str(resource.activity_id)
+        bucket = result.setdefault(activity_id, [])
+        if len(bucket) >= DISCOVERY_RESOURCE_PREVIEW_LIMIT:
+            continue
+        bucket.append(
+            {
+                "id": str(resource.pk),
+                "title": resource.title,
+                "description": resource.description,
+                "kind": resource.kind,
+                "mime_type": resource.mime_type or None,
+                "external_url": (
+                    resource.external_url
+                    if resource.kind == ResourceKind.URL
+                    else None
+                ),
+                "download_url": (
+                    reverse(
+                        "preparation:resource-download",
+                        kwargs={"resource_id": resource.pk},
+                    )
+                    if resource.kind == ResourceKind.FILE
+                    else None
+                ),
+            }
+        )
+    return result
+
+
+def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
+    if not opportunity_ids:
+        return {}
+    from opportunities.models import OpportunitySource, OpportunitySourceStatus
+
+    sources = (
+        OpportunitySource.objects.filter(
+            opportunity_id__in=opportunity_ids,
+            status=OpportunitySourceStatus.ACTIVE,
+        )
+        .order_by("opportunity_id", "-is_primary", "source_name", "id")
+    )
+    result: dict[str, list[dict]] = {}
+    for source in sources:
+        opportunity_id = str(source.opportunity_id)
+        bucket = result.setdefault(opportunity_id, [])
+        if len(bucket) >= DISCOVERY_RESOURCE_PREVIEW_LIMIT:
+            continue
+        bucket.append(
+            {
+                "id": str(source.pk),
+                "title": source.source_name,
+                "description": "Source publique de référence.",
+                "kind": "url",
+                "mime_type": None,
+                "external_url": source.url,
+                "download_url": None,
+            }
+        )
+    return result
 
 
 def _assessment(projection: dict) -> list[dict]:
@@ -419,6 +496,8 @@ def project_rows(rows, *, profile=None) -> list[dict]:
         activity_ids,
         profile=profile,
     )
+    activity_resources = _activity_resource_previews(activity_ids)
+    opportunity_resources = _opportunity_source_previews(opportunity_ids)
 
     projections = []
     for family, _, candidate in rows:
@@ -476,12 +555,18 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             )
         else:
             continue
-        projections.append(
-            _finalize_projection(
-                projection,
-                event_handoffs=event_handoffs,
-            )
+        finalized = _finalize_projection(
+            projection,
+            event_handoffs=event_handoffs,
         )
+        resource = finalized["identity"]["resource"]
+        if resource["kind"] == "activity":
+            finalized["resources"] = activity_resources.get(resource["id"], [])
+        elif resource["kind"] == "opportunity":
+            finalized["resources"] = opportunity_resources.get(resource["id"], [])
+        else:
+            finalized["resources"] = []
+        projections.append(finalized)
     return projections
 
 

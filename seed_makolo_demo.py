@@ -23,6 +23,8 @@ from demo_seed.beta_observability import seed_beta_observability
 from demo_seed.beta_validation import assert_beta_scenario_coverage
 from demo_seed.common import SCALE, SeedContext
 from demo_seed.engagement import seed_engagement
+from demo_seed.mobile_mature_universe import MOBILE_MATURE_PERSONAS, seed_mobile_mature_universe
+from demo_seed.mobile_mature_validation import assert_mobile_mature_demo_coverage
 from demo_seed.events_commerce import seed_events_and_commerce
 from demo_seed.operations import seed_operations_and_edge_cases
 from demo_seed.obtention import seed_obtention
@@ -66,9 +68,11 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
             seed_task32_extension(ctx, users=beta_users)
             seed_task33_extension(ctx, users=beta_users)
             seed_task34b_extension(ctx, users=beta_users)
+            seed_mobile_mature_universe(ctx)
             validation = assert_beta_scenario_coverage(as_of=ctx.as_of)
             validation.update(assert_task33_beta_coverage())
             validation.update(assert_task34b_beta_coverage())
+            validation.update(assert_mobile_mature_demo_coverage())
         else:
             seed_accounts_and_organizations(ctx)
             seed_contextual_authority(ctx)
@@ -85,7 +89,7 @@ def run_seed(*, as_of: str, demo_password: str, scale: str = "beta") -> dict:
         "stats": dict(sorted(ctx.stats.items())),
         "validation": validation or {},
         "login_examples": (
-            list(BETA_PERSONAS.values()) + list(T22_PERSONAS.values()) + list(T34B_PERSONAS.values())
+            list(BETA_PERSONAS.values()) + list(T22_PERSONAS.values()) + list(T34B_PERSONAS.values()) + list(MOBILE_MATURE_PERSONAS.values())
             if scale == "beta"
             else [
                 "demo.user001@makolo.test",

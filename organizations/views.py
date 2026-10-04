@@ -79,6 +79,16 @@ class PublicOrganizationDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         context["surface_base_template"] = "base/app.html" if self.request.user.is_authenticated else "base/public.html"
         context["is_verified"] = self.object.verification_status == OrganizationVerificationStatus.VERIFIED
+        from events.models import Event, EventStatus, EventVisibility
+        context["public_events"] = (
+            Event.objects.filter(
+                organization=self.object,
+                status=EventStatus.PUBLISHED,
+                visibility=EventVisibility.PUBLIC,
+            )
+            .select_related("activity")
+            .order_by("created_at", "id")[:12]
+        )
         context["follow"] = None
         if self.request.user.is_authenticated:
             context["follow"] = OrganizationFollow.objects.filter(
